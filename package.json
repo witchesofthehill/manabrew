@@ -11,6 +11,7 @@
     "web": "vite",
     "vite:dev": "vite",
     "vite:build": "tsc -b && vite build",
+    "tauri:before-build": "yarn build:harness && yarn vite:build",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint . && prettier --check src && yarn typecheck",
     "lint:rust": "cargo fmt --all -- --check && cargo clippy --workspace --lib --bins -- -D warnings",

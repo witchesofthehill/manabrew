@@ -9,7 +9,10 @@ import {
   startManualRoomSync,
   stopManualRoomSync as stopActiveManualRoomSync,
 } from "@/game";
+import { isHostedAiPlayEnabled } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
+import { startHostedAiGame } from "@/game/hostedAiPlay";
+import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
@@ -100,6 +103,55 @@ async function initializeGame({
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? 20;
+
+  // On web, "Play vs AI" can be routed through a self-hosted-node room when
+  // the deployment enables it: the node runs the engine and spawns the bot,
+  // and the browser attaches as a non-host multiplayer client.
+  if (getPlatform().type === "web" && isHostedAiPlayEnabled() && opponentDeck) {
+    set({
+      isGameActive: true,
+      gameView: null,
+      currentPrompt: null,
+      gameLog: [],
+      snapshots: [],
+      deferredQueue: [],
+      isFlashing: false,
+      isWaitingForResponse: false,
+      gameConfig: { formatId: selectedFormatId, startingLife },
+      isPrefetchingCards: true,
+      debugInfo: "Starting hosted Forge engine...",
+    });
+    const hosted = await startHostedAiGame({
+      playerDeck: deck,
+      opponentDeck,
+      formatId: selectedFormatId,
+      commanderName: commanderName ?? null,
+    });
+    resetSelectedGameRuntime();
+    const hostedRuntime = getSelectedGameRuntime();
+    const hostedDecks: Record<string, Deck> = {};
+    hosted.playerOrder.forEach((_, index) => {
+      hostedDecks[`player-${index}`] = hosted.decks[index];
+    });
+    set({
+      isMultiplayer: true,
+      isHost: false,
+      myPlayerSlot: `player-${hosted.enginePlayerIndex}`,
+      gameDecks: hostedDecks,
+      debugInfo: "Joining hosted Forge engine...",
+    });
+    await hostedRuntime.api.startMultiplayerGame({
+      playerNames: hosted.playerOrder,
+      decks: hosted.decks,
+      commanderNames: hosted.commanderNames,
+      enginePlayerIndex: hosted.enginePlayerIndex,
+      localIsHost: false,
+      startingLife: hosted.startingLife,
+    });
+    set({ debugInfo: "Hosted Forge game started.", isPrefetchingCards: false });
+    return;
+  }
+
   const gameDecks: Record<string, Deck> = { "player-0": deck };
   if (opponentDeck) gameDecks["player-1"] = opponentDeck;
   const runtime = getSelectedGameRuntime();

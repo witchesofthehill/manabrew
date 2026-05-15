@@ -24,7 +24,7 @@ services:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_MAX_ROOMS: "100"
-      FORGE_SERVER_KEY: "forge"
+      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
       RUST_LOG: "forge_server=info"
     restart: on-failure:5
 
@@ -35,6 +35,12 @@ services:
     ports:
       - "1420:443"
       - "1421:80"
+    environment:
+      MANABREW_SERVER_HOST: "${MANABREW_SERVER_HOST:-}"
+      MANABREW_SERVER_PORT: "${MANABREW_SERVER_PORT:-9443}"
+      MANABREW_SERVER_USERNAME: "${MANABREW_SERVER_USERNAME:-}"
+      MANABREW_SERVER_PASSWORD: "${FORGE_SERVER_KEY:-forge}"
+      MANABREW_HOSTED_AI_ENABLED: "${MANABREW_HOSTED_AI_ENABLED:-true}"
     restart: on-failure:5
 
   parity-dashboard:

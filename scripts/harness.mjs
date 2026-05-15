@@ -1,15 +1,38 @@
 #!/usr/bin/env node
 import { createHash } from "crypto";
 import { spawnSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { fileURLToPath } from "url";
 import { join, relative } from "path";
 
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const root = join(scriptsDir, "..");
 const forgeRoot = join(root, "forge");
-const jarPath = join(forgeRoot, "forge-harness", "target", "forge-harness-jar-with-dependencies.jar");
+const jarPath = join(
+  forgeRoot,
+  "forge-harness",
+  "target",
+  "forge-harness-jar-with-dependencies.jar",
+);
 const checksumPath = join(forgeRoot, "forge-harness", "target", ".harness-sources-checksum");
+const runtimeDir = join(root, "src-tauri", "resources", "forge-runtime");
+const runtimeForgeGuiDir = join(runtimeDir, "forge-gui");
+const runtimeResDir = join(runtimeForgeGuiDir, "res");
+const runtimeCardsfolderDir = join(runtimeResDir, "cardsfolder");
+const runtimeHarnessJar = join(runtimeDir, "forge-harness.jar");
+const runtimeStamp = join(runtimeDir, ".stage-stamp");
+const sourceResDir = join(forgeRoot, "forge-gui", "res");
+const sourceCardsfolderDir = join(sourceResDir, "cardsfolder");
 
 const sourceDirs = [
   join(forgeRoot, "forge-core", "src"),
@@ -55,7 +78,9 @@ function computeChecksum() {
     .sort();
 
   const hashedEntries = [
-    ...javaFiles.map((filePath) => `${relative(root, filePath)}:${sha256Buffer(readFileSync(filePath))}`),
+    ...javaFiles.map(
+      (filePath) => `${relative(root, filePath)}:${sha256Buffer(readFileSync(filePath))}`,
+    ),
     ...pomFiles
       .filter((filePath) => existsSync(filePath))
       .sort()
@@ -125,6 +150,14 @@ function resolveMaven() {
   return null;
 }
 
+function resolveJar() {
+  if (canRun("jar", ["--version"]) || canRun("jar", ["-help"])) {
+    return "jar";
+  }
+
+  return null;
+}
+
 function assertPrereqs() {
   const missing = [];
 
@@ -159,15 +192,11 @@ function rebuild() {
   const maven = resolveMaven();
 
   console.log("harness: rebuilding JAR...");
-  const result = spawnSync(
-    maven,
-    ["-pl", "forge-harness", "-am", "package", "-DskipTests"],
-    {
-      cwd: forgeRoot,
-      stdio: "inherit",
-      shell: process.platform === "win32" && maven.toLowerCase().endsWith(".cmd"),
-    },
-  );
+  const result = spawnSync(maven, ["-pl", "forge-harness", "-am", "package", "-DskipTests"], {
+    cwd: forgeRoot,
+    stdio: "inherit",
+    shell: process.platform === "win32" && maven.toLowerCase().endsWith(".cmd"),
+  });
 
   if (result.error) {
     console.error(`harness: failed to launch Maven: ${result.error.message}`);
@@ -183,11 +212,103 @@ function rebuild() {
   console.log("harness: rebuild complete");
 }
 
+function isInsidePath(path, ancestor) {
+  const rel = relative(ancestor, path);
+  return (
+    rel === "" ||
+    (!rel.startsWith("..") && rel !== ".." && !rel.startsWith("/") && !rel.match(/^[A-Za-z]:/))
+  );
+}
+
+function latestMtimeMs(dir, predicate) {
+  let latest = 0;
+  for (const filePath of walkFiles(dir, predicate)) {
+    latest = Math.max(latest, statSync(filePath).mtimeMs);
+  }
+  return latest;
+}
+
+function isRuntimeStale() {
+  const zipPath = join(runtimeCardsfolderDir, "cardsfolder.zip");
+  if (!existsSync(runtimeHarnessJar) || !existsSync(zipPath) || !existsSync(runtimeStamp)) {
+    return true;
+  }
+
+  const stampMtime = statSync(runtimeStamp).mtimeMs;
+  if (statSync(jarPath).mtimeMs > stampMtime) {
+    return true;
+  }
+
+  return latestMtimeMs(sourceResDir, () => true) > stampMtime;
+}
+
+function stageRuntime({ force = false } = {}) {
+  if (!existsSync(jarPath)) {
+    console.error(`harness: cannot stage runtime, JAR not found at ${jarPath}`);
+    process.exit(1);
+  }
+
+  if (!existsSync(sourceResDir)) {
+    console.error(`harness: cannot stage runtime, Forge res not found at ${sourceResDir}`);
+    process.exit(1);
+  }
+
+  if (!existsSync(sourceCardsfolderDir)) {
+    console.error(
+      `harness: cannot stage runtime, cardsfolder not found at ${sourceCardsfolderDir}`,
+    );
+    process.exit(1);
+  }
+
+  if (!force && !isRuntimeStale()) {
+    console.log("harness: Tauri runtime is up-to-date");
+    return;
+  }
+
+  const jar = resolveJar();
+  if (!jar) {
+    console.error("harness: missing JDK jar tool");
+    console.error("Install a JDK and verify with: jar --version");
+    process.exit(1);
+  }
+
+  rmSync(runtimeDir, { recursive: true, force: true });
+  mkdirSync(runtimeDir, { recursive: true });
+  copyFileSync(jarPath, runtimeHarnessJar);
+
+  cpSync(sourceResDir, runtimeResDir, {
+    recursive: true,
+    filter: (sourcePath) =>
+      sourcePath === sourceResDir || !isInsidePath(sourcePath, sourceCardsfolderDir),
+  });
+
+  mkdirSync(runtimeCardsfolderDir, { recursive: true });
+  const zipPath = join(runtimeCardsfolderDir, "cardsfolder.zip");
+  const result = spawnSync(jar, ["cf", zipPath, "-C", sourceCardsfolderDir, "."], {
+    cwd: root,
+    stdio: "inherit",
+  });
+
+  if (result.error) {
+    console.error(`harness: failed to launch jar tool: ${result.error.message}`);
+    process.exit(1);
+  }
+
+  if (result.status !== 0) {
+    console.error(`harness: cardsfolder.zip creation FAILED (exit code ${result.status ?? 1})`);
+    process.exit(result.status ?? 1);
+  }
+
+  writeFileSync(runtimeStamp, `${new Date().toISOString()}\n`);
+  console.log(`harness: staged Tauri runtime at ${relative(root, runtimeDir)}`);
+}
+
 const mode = process.argv[2] ?? "ensure";
 
 switch (mode) {
   case "build":
     rebuild();
+    stageRuntime({ force: true });
     break;
   case "ensure":
     if (isStale()) {
@@ -195,6 +316,10 @@ switch (mode) {
     } else {
       console.log("harness: JAR is up-to-date");
     }
+    stageRuntime();
+    break;
+  case "stage":
+    stageRuntime({ force: true });
     break;
   case "check":
     process.exit(isStale() ? 1 : 0);
@@ -203,6 +328,6 @@ switch (mode) {
     updateChecksum();
     break;
   default:
-    console.error("Usage: node scripts/harness.mjs <build|ensure|check|update-checksum>");
+    console.error("Usage: node scripts/harness.mjs <build|ensure|stage|check|update-checksum>");
     process.exit(1);
 }

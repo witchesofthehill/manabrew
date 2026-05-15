@@ -1,0 +1,1 @@
+window.MANABREW_CONFIG = window.MANABREW_CONFIG || {};

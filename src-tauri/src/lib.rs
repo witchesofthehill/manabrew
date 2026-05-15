@@ -29,16 +29,25 @@ const TYPE_LISTS: &str = include_str!("../../forge/forge-gui/res/lists/TypeLists
 
 // Tauri copies these resources into the app's resource_dir at install
 // time (see tauri.conf.json bundle.resources). The card/token/edition/
-// preset loaders pick them up via env vars set before any command runs.
+// preset loaders and Java bridge pick them up via env vars set before
+// any command runs.
 //
 // `CARDSET_ARCHIVE` points at a single bundled file, not a directory —
 // without it, packaged builds fall back to scanning the 32k-file
 // cardsfolder, which on Windows takes ~10 minutes due to NTFS + Defender
 // per-file overhead.
 const RESOURCE_ENV_MAP: &[(&str, &str)] = &[
-    ("CARDS_DIR", "cardsfolder"),
-    ("TOKEN_SCRIPTS_DIR", "tokenscripts"),
-    ("EDITIONS_DIR", "editions"),
+    ("CARDS_DIR", "engine/forge/forge-gui/res/cardsfolder"),
+    (
+        "TOKEN_SCRIPTS_DIR",
+        "engine/forge/forge-gui/res/tokenscripts",
+    ),
+    ("EDITIONS_DIR", "engine/forge/forge-gui/res/editions"),
+    ("MANA_BREW_FORGE_ASSETS_DIR", "engine/forge/forge-gui"),
+    (
+        "MANA_BREW_FORGE_HARNESS_JAR",
+        "engine/forge/forge-harness.jar",
+    ),
     ("PRESET_DECKS_DIR", "preset_decks"),
     ("CARDSET_ARCHIVE", "cardset.rkyv"),
 ];

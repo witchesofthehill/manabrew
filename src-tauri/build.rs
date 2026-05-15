@@ -3,10 +3,24 @@ use std::time::SystemTime;
 
 fn main() {
     // Order matters: tauri_build validates that every resource listed in
-    // tauri.conf.json exists. The cardset archive is one of those resources,
-    // so it must be present *before* tauri_build runs.
+    // tauri.conf.json exists. Generated resource roots must be present
+    // *before* tauri_build runs.
+    ensure_forge_runtime_resource_dir();
     build_cardset_archive_if_stale();
     tauri_build::build();
+}
+
+fn ensure_forge_runtime_resource_dir() {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let runtime_dir = manifest_dir.join("resources/forge-runtime");
+
+    println!("cargo:rerun-if-changed=../forge/forge-harness/target/forge-harness-jar-with-dependencies.jar");
+    if let Err(err) = std::fs::create_dir_all(&runtime_dir) {
+        panic!(
+            "failed to create Forge runtime resource dir at {}: {err}",
+            runtime_dir.display()
+        );
+    }
 }
 
 /// Regenerate `resources/cardset.rkyv` whenever the cardsfolder, tokenscripts,

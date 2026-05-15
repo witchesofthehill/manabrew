@@ -570,8 +570,7 @@ class WebServerApi implements IServerApi {
 
   async connect(params: ServerConnectParams): Promise<void> {
     await this.disconnect();
-    const scheme = params.port === 443 ? "wss" : "ws";
-    const url = `${scheme}://${params.host}:${params.port}`;
+    const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
 
@@ -840,6 +839,14 @@ class WebServerApi implements IServerApi {
       this.eventBus.emit(mapping[0], mapping[1]);
     }
   }
+}
+
+function buildServerUrl(params: ServerConnectParams): string {
+  if (/^wss?:\/\//i.test(params.host)) {
+    return params.host;
+  }
+  const scheme = params.port === 443 ? "wss" : "ws";
+  return `${scheme}://${params.host}:${params.port}`;
 }
 
 // ============================================================================

@@ -6,7 +6,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
     "beforeDevCommand": "yarn vite:dev",
-    "beforeBuildCommand": "yarn vite:build"
+    "beforeBuildCommand": "yarn tauri:before-build"
   },
   "app": {
     "windows": [
@@ -26,9 +26,7 @@
     "active": true,
     "targets": "all",
     "resources": {
-      "../forge/forge-gui/res/cardsfolder": "cardsfolder",
-      "../forge/forge-gui/res/tokenscripts": "tokenscripts",
-      "../forge/forge-gui/res/editions": "editions",
+      "resources/forge-runtime": "engine/forge",
       "../public/preset_decks": "preset_decks",
       "resources/cardset.rkyv": "cardset.rkyv"
     },

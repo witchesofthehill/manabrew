@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./public/manabrew_brewery_1.png" alt="ManaBrew — a brewery of mana" width="100%" />
-</p>
-
 <h1 align="center">manabrew</h1>
 
 <p align="center">
@@ -17,6 +13,23 @@
   &nbsp;
   <a href="./LICENSE.md"><img alt="License: GPL 3.0+" src="https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
 </p>
+
+<table align="center">
+  <tr>
+    <td align="center" width="33%">
+      <a href="./images/vsSelection.jpeg"><img src="./images/vsSelection.jpeg" alt="Versus selection" width="100%"/></a>
+      <br/><sub><b>Versus selection</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="./images/play.jpeg"><img src="./images/play.jpeg" alt="In-game play" width="100%"/></a>
+      <br/><sub><b>In-game play</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="./images/battleground.png"><img src="./images/battleground.png" alt="Battleground" width="100%"/></a>
+      <br/><sub><b>Battleground</b></sub>
+    </td>
+  </tr>
+</table>
 
 > [!NOTE]
 > This is unofficial fan software. It is not affiliated with, endorsed by, or

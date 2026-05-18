@@ -7,6 +7,16 @@ client for playing card games, currently focused on Magic: The Gathering
 through Forge's card scripts and Java rules engine. The Rust runtime targets
 desktop, web, and self-hosted multiplayer.
 
+<p align="center">
+  <a href="https://manabrew.app"><img alt="Open the app" src="https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
+  &nbsp;
+  <a href="https://discord.gg/CES3KNVt"><img alt="Join the Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+  &nbsp;
+  <a href="./CONTRIBUTING.md"><img alt="Contributing guide" src="https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white"></a>
+  &nbsp;
+  <a href="./LICENSE.md"><img alt="License: GPL 3.0+" src="https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
+</p>
+
 > This is unofficial fan software. It is not affiliated with, endorsed by, or
 > sponsored by Wizards of the Coast LLC or by the Forge project. Magic: The
 > Gathering, card names, rules text, and related marks are property of Wizards
@@ -15,9 +25,10 @@ desktop, web, and self-hosted multiplayer.
 
 ## Community
 
-Chat with the team and other players on Discord:
-**<https://discord.gg/CES3KNVt>**. It is the best place to ask questions,
-share decks, report rough edges, and follow development.
+- **App** — try the live build at <https://manabrew.app>.
+- **Discord** — chat with the team and other players at
+  <https://discord.gg/CES3KNVt>. Best place to ask questions, share decks,
+  report rough edges, and follow development.
 
 ## Contents
 

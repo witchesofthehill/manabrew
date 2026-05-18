@@ -16,9 +16,5 @@ relay.manabrew.app {
 }
 
 parity.manabrew.app {
-    basic_auth {
-        {$PARITY_USER} {$PARITY_HASH}
-    }
-
     reverse_proxy parity-dashboard:8080
 }

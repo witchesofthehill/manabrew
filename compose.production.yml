@@ -34,6 +34,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
+      args:
+        VITE_RELAY_HOST: relay.manabrew.app
+        VITE_RELAY_PORT: "443"
     expose:
       - "443"
     restart: unless-stopped

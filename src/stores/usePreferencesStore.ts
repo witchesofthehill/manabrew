@@ -98,8 +98,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         flashDurationMs: 1000,
         setFlashDurationMs: (ms) => set({ flashDurationMs: ms }),
 
-        serverHost: "localhost",
-        serverPort: 9443,
+        serverHost: import.meta.env.VITE_RELAY_HOST || "localhost",
+        serverPort: Number(import.meta.env.VITE_RELAY_PORT) || 9443,
         serverUsername: "",
         serverPassword: "forge",
         setServerHost: (serverHost) => set({ serverHost }),

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Forge upstream
+    url: https://github.com/Card-Forge/forge
+    about: Report Java Forge issues directly to Forge when they reproduce outside ManaBrew.

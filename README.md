@@ -1,11 +1,18 @@
-# manabrew
+# ManaBrew
 
-`manabrew` is a GPL Rust port of the
-[Forge](https://github.com/Card-Forge/forge) rules engine. It powers
-**ManaBrew** ([manabrew.app](https://manabrew.app)) — a modern web and desktop
-client for playing card games, currently focused on Magic: The Gathering
-through Forge's card scripts and Java rules engine. The Rust runtime targets
-desktop, web, and self-hosted multiplayer.
+[![Build checks](https://github.com/witchesofthehill/manabrew/actions/workflows/build-checks.yml/badge.svg)](https://github.com/witchesofthehill/manabrew/actions/workflows/build-checks.yml)
+[![Regression](https://github.com/witchesofthehill/manabrew/actions/workflows/regression.yml/badge.svg)](https://github.com/witchesofthehill/manabrew/actions/workflows/regression.yml)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](./LICENSE.md)
+
+**ManaBrew** is a modern web and desktop client for playing card games, backed
+by a Rust port of the [Forge](https://github.com/Card-Forge/forge) rules
+engine. The project keeps Java Forge in the loop as the behavioral reference
+while bringing the runtime toward Tauri desktop, browser/WASM play, and
+self-hosted multiplayer.
+
+The core idea is straightforward: preserve Forge's accumulated rules knowledge,
+card scripts, and GPL lineage while building a client and runtime shape that is
+portable, inspectable, and pleasant to develop against.
 
 > This is unofficial fan software. It is not affiliated with, endorsed by, or
 > sponsored by Wizards of the Coast LLC or by the Forge project. Magic: The
@@ -25,6 +32,23 @@ desktop, web, and self-hosted multiplayer.
   engine, either bundled behind Tauri for local play or hosted by a self-hosted
   room server.
 - A GPL community project intended to be developed in the open.
+
+## Repository Status
+
+`manabrew` is public pre-release software. The project is active, but it is not
+yet a polished end-user release.
+
+| Area                    | Status                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| Java Forge backend      | Usable path for Forge-backed sessions through the modern client/runtime stack |
+| Rust engine             | Playable for selected matchups; parity work is ongoing                        |
+| Parity harness          | Mature development loop for Rust-vs-Java trace comparison                     |
+| Desktop client          | Tauri development flow is available                                           |
+| Web/WASM runtime        | In active development                                                         |
+| Self-hosted multiplayer | In active development                                                         |
+| Packaging               | Release-readiness work is ongoing                                             |
+
+For near-term priorities, see [Roadmap](./docs/ROADMAP.md).
 
 > **Forge-engine interop:** `manabrew` is not limited to the Rust port. The same
 > client/protocol stack can drive a Java Forge-backed game session, so Forge
@@ -51,19 +75,6 @@ representations for high-risk script semantics.
 The project is therefore both conservative and experimental: conservative about
 game behavior, where Java Forge remains the oracle; experimental about runtime,
 tooling, UI, and deployment.
-
-## Current Status
-
-`manabrew` is pre-release software. The Java Forge backend path gives the modern
-client stack a way to run Forge-backed games today; the Rust engine is playable
-for selected matchups and is actively being brought into parity. The most mature
-part of the project is the development loop: we can run the Rust engine against
-the Java Forge reference with the same decks, same seed, and same deterministic
-choices, then fix divergences at the mechanic level.
-
-Public release is being prepared. Some release-readiness work is still in
-progress, including security cleanup, issue triage, naming, contributor
-onboarding, and packaging.
 
 ## Relationship With Forge
 
@@ -155,6 +166,8 @@ in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
 
 ## Getting Started
 
+Choose the path that matches what you want to inspect first.
+
 ### Prerequisites
 
 - Node.js 22.12+ recommended
@@ -169,16 +182,23 @@ in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
 yarn install
 ```
 
-### Run The Desktop App
+### Run The Desktop Client
 
 ```bash
 yarn dev
 ```
 
-### Run The Web Build
+### Run The Web Client
 
 ```bash
 yarn dev:web
+```
+
+### Run A Parity Check
+
+```bash
+yarn build:harness
+yarn parity:test -- --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 20
 ```
 
 ### Build

@@ -1,7 +1,7 @@
 # Contributing to manabrew
 
-Thanks for helping. This project is still pre-public-release software, so the
-best contributions are small, reproducible, and easy to review.
+Thanks for helping. This project is public pre-release software, so the best
+contributions are small, reproducible, and easy to review.
 
 ## Start with an issue
 
@@ -14,6 +14,9 @@ Good issue reports include:
 - deck names, seed, and `yarn parity:test` command when the bug is engine-side;
 - screenshots or short screen recordings for UI bugs;
 - platform information for Tauri, WASM, or multiplayer problems.
+
+Use the issue templates when possible. They are designed to capture the details
+that usually decide whether a report is immediately actionable.
 
 ## Development setup
 

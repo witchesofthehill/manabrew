@@ -1,0 +1,43 @@
+name: Engine parity bug
+description: Report a Rust-vs-Java Forge behavior divergence.
+title: "fix(engine): "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for engine bugs where the Rust engine diverges from Java Forge.
+  - type: textarea
+    id: command
+    attributes:
+      label: Parity command
+      description: Paste the exact command that reproduces the divergence.
+      placeholder: yarn parity:test -- --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 20
+    validations:
+      required: true
+  - type: input
+    id: first-divergence
+    attributes:
+      label: First divergence
+      description: Include the turn/phase/step or trace location reported by the harness.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Java Forge behavior
+      description: What did Java Forge do?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Rust behavior
+      description: What did the Rust engine do instead?
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Relevant cards, mechanics, logs, or suspected Java source files.

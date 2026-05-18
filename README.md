@@ -1,27 +1,40 @@
+<div align="center">
+
+<img src="./public/manabrew_brewery_1.png" alt="ManaBrew — a brewery of mana" width="100%" />
+
 # manabrew
 
-`manabrew` is a GPL Rust port of the
-[Forge](https://github.com/Card-Forge/forge) rules engine. It powers
-**ManaBrew** ([manabrew.app](https://manabrew.app)) — a modern web and desktop
-client for playing card games, currently focused on Magic: The Gathering
-through Forge's card scripts and Java rules engine. The Rust runtime targets
-desktop, web, and self-hosted multiplayer.
+**A modern, multiplayer-first client for Magic: The Gathering — powered by a Rust port of the [Forge](https://github.com/Card-Forge/forge) rules engine.**
 
-<p align="center">
-  <a href="https://manabrew.app"><img alt="Open the app" src="https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
-  &nbsp;
-  <a href="https://discord.gg/CES3KNVt"><img alt="Join the Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
-  &nbsp;
-  <a href="./CONTRIBUTING.md"><img alt="Contributing guide" src="https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white"></a>
-  &nbsp;
-  <a href="./LICENSE.md"><img alt="License: GPL 3.0+" src="https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
-</p>
+[![Open app](https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white)](https://manabrew.app)
+&nbsp;
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/CES3KNVt)
+&nbsp;
+[![Contributing](https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white)](./CONTRIBUTING.md)
+&nbsp;
+[![License: GPL 3.0+](https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white)](./LICENSE.md)
 
+<sub>
+
+![Rust](https://img.shields.io/badge/Rust-stable-CE412B?logo=rust&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Tauri](https://img.shields.io/badge/Tauri-desktop-FFC131?logo=tauri&logoColor=black)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![WASM](https://img.shields.io/badge/WebAssembly-web-654FF0?logo=webassembly&logoColor=white)
+![Status](https://img.shields.io/badge/status-pre--release-orange)
+
+</sub>
+
+</div>
+
+> [!NOTE]
 > This is unofficial fan software. It is not affiliated with, endorsed by, or
 > sponsored by Wizards of the Coast LLC or by the Forge project. Magic: The
 > Gathering, card names, rules text, and related marks are property of Wizards
 > of the Coast LLC. Forge is developed by the Forge contributors. Card images
 > are not shipped by this project.
+
+---
 
 ## Community
 
@@ -46,6 +59,8 @@ desktop, web, and self-hosted multiplayer.
 - [Project Philosophy](#project-philosophy)
 - [License](#license)
 
+---
+
 ## What This Is
 
 - A Rust implementation of Forge's game engine, kept close to the Java source
@@ -59,10 +74,11 @@ desktop, web, and self-hosted multiplayer.
   room server.
 - A GPL community project intended to be developed in the open.
 
-> **Forge-engine interop:** `manabrew` is not limited to the Rust port. The same
-> client/protocol stack can drive a Java Forge-backed game session, so Forge
-> gameplay can run through the modern Tauri/web and self-hosted-room experience
-> while the Rust engine continues moving toward parity.
+> [!TIP]
+> **Forge-engine interop:** `manabrew` is not limited to the Rust port. The
+> same client/protocol stack can drive a Java Forge-backed game session, so
+> Forge gameplay can run through the modern Tauri/web and self-hosted-room
+> experience while the Rust engine continues moving toward parity.
 
 ## Current Status
 
@@ -76,6 +92,8 @@ choices, then fix divergences at the mechanic level.
 Public release is being prepared. Some release-readiness work is still in
 progress, including security cleanup, issue triage, naming, contributor
 onboarding, and packaging.
+
+---
 
 ## Getting Started
 
@@ -132,6 +150,8 @@ yarn lint:all
 | `yarn lint:all`        | Run frontend lint/typecheck and Rust fmt/clippy checks |
 | `yarn import-deck ...` | Import a deck from Archidekt or Moxfield               |
 
+---
+
 ## Architecture
 
 ```text
@@ -186,9 +206,12 @@ looked up from the current host-card state when needed.
 See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and the SVar semantics
 in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
 
+---
+
 ## Background
 
-### Why This Exists
+<details>
+<summary><strong>Why This Exists</strong></summary>
 
 The immediate reason is mundane: a few friends in different countries wanted to
 play Magic online together. We tried the existing options. Each of them is good
@@ -209,7 +232,10 @@ The project is therefore both conservative and experimental: conservative about
 game behavior, where Java Forge remains the oracle; experimental about runtime,
 tooling, UI, and deployment.
 
-### Why Rust?
+</details>
+
+<details>
+<summary><strong>Why Rust?</strong></summary>
 
 Forge has years of rules knowledge and a very large card-script corpus. Rust
 lets us explore a different runtime shape while preserving that knowledge:
@@ -223,7 +249,10 @@ lets us explore a different runtime shape while preserving that knowledge:
 The goal is to carry Forge's rules knowledge into new deployment shapes while
 keeping the Java implementation as the reference point for correctness.
 
-### Relationship With Forge
+</details>
+
+<details>
+<summary><strong>Relationship With Forge</strong></summary>
 
 Forge is the foundation of this project.
 
@@ -242,6 +271,10 @@ naming, and attributions to make the relationship explicit and courteous.
 See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and
 [Third-Party Notices](./THIRD-PARTY-NOTICES.md). For related projects and
 ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
+
+</details>
+
+---
 
 ## Contributing
 
@@ -288,3 +321,9 @@ other implementations can describe or implement the same wire format.
 
 See [LICENSE.md](./LICENSE.md), [LICENSE-GPL-3.0-or-later](./LICENSE-GPL-3.0-or-later),
 and [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
+
+---
+
+<div align="center">
+  <sub>Built with care by the ManaBrew contributors · GPL-3.0-or-later · Forge is the oracle.</sub>
+</div>

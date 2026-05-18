@@ -13,6 +13,28 @@ desktop, web, and self-hosted multiplayer.
 > of the Coast LLC. Forge is developed by the Forge contributors. Card images
 > are not shipped by this project.
 
+## Community
+
+Chat with the team and other players on Discord:
+**<https://discord.gg/CES3KNVt>**. It is the best place to ask questions,
+share decks, report rough edges, and follow development.
+
+## Contents
+
+- [What This Is](#what-this-is)
+- [Current Status](#current-status)
+- [Getting Started](#getting-started)
+- [Common Commands](#common-commands)
+- [Architecture](#architecture)
+- [Parity Harness](#parity-harness)
+- [Compiled IR and SVars](#compiled-ir-and-svars)
+- [Background](#background) — Why this exists, Why Rust, Relationship with
+  Forge
+- [Contributing](#contributing)
+- [AI-Assisted Development](#ai-assisted-development)
+- [Project Philosophy](#project-philosophy)
+- [License](#license)
+
 ## What This Is
 
 - A Rust implementation of Forge's game engine, kept close to the Java source
@@ -31,27 +53,6 @@ desktop, web, and self-hosted multiplayer.
 > gameplay can run through the modern Tauri/web and self-hosted-room experience
 > while the Rust engine continues moving toward parity.
 
-## Why This Exists
-
-The immediate reason is mundane: a few friends in different countries wanted to
-play Magic online together. We tried the existing options. Each of them is good
-at what it aims for, and Forge in particular is the project this work is built
-on. None of them, though, quite fit what we wanted — a modern, open,
-multiplayer-first home for a small group like ours. So we built one.
-
-Forge itself remains the foundation. It has accumulated years of rules knowledge
-and card-script coverage, and we did not want to discard that work or compete
-with it by guessing from scratch.
-
-`manabrew` exists to bring Forge's rules model into runtime shapes that are hard
-for the Java/Swing stack to cover directly: web/WASM play, self-hosted
-multiplayer, modern desktop UI, deterministic parity testing, and typed internal
-representations for high-risk script semantics.
-
-The project is therefore both conservative and experimental: conservative about
-game behavior, where Java Forge remains the oracle; experimental about runtime,
-tooling, UI, and deployment.
-
 ## Current Status
 
 `manabrew` is pre-release software. The Java Forge backend path gives the modern
@@ -64,94 +65,6 @@ choices, then fix divergences at the mechanic level.
 Public release is being prepared. Some release-readiness work is still in
 progress, including security cleanup, issue triage, naming, contributor
 onboarding, and packaging.
-
-## Relationship With Forge
-
-Forge is the foundation of this project.
-
-- The Java Forge source under `forge/` is the reference implementation.
-- The Rust engine mirrors Forge's rules structure and consumes Forge card
-  scripts.
-- The parity harness exists to keep behavior faithful to Forge, not to invent a
-  different interpretation of the game.
-- The repository is GPL-3.0-or-later because the engine and bundled card data
-  are derivative of Forge.
-
-The intent is to be a good-neighbor port and companion project. We do not expect
-Forge maintainers to review or support this work, but we want the framing,
-naming, and attributions to make the relationship explicit and courteous.
-
-See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and
-[Third-Party Notices](./THIRD-PARTY-NOTICES.md). For related projects and
-ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
-
-## Why Rust?
-
-Forge has years of rules knowledge and a very large card-script corpus. Rust
-lets us explore a different runtime shape while preserving that knowledge:
-
-- desktop app through Tauri;
-- web/WASM builds for browser-based play;
-- headless engine hosts for self-hosted multiplayer;
-- deterministic traces for debugging, regression testing, and AI work;
-- typed internal representations for hot or high-risk card-script semantics.
-
-The goal is to carry Forge's rules knowledge into new deployment shapes while
-keeping the Java implementation as the reference point for correctness.
-
-## Architecture
-
-```text
-React UI                    src/
-Tauri desktop shell          src-tauri/
-Web/WASM engine bridge       forge-engine/crates/forge-wasm/
-Headless runtime             forge-engine/crates/self-hosted-node/
-Relay / lobby server         forge-engine/crates/forge-server/
-Agent protocol DTOs          forge-engine/crates/forge-agent-interface/
-Rust rules engine            forge-engine/crates/forge-engine/
-Card database + script IR    forge-engine/crates/forge-carddb/
-Forge Java reference         forge/
-Parity harness               forge-engine/crates/forge-parity/
-```
-
-The deeper engine workspace map is in
-[forge-engine/README.md](./forge-engine/README.md).
-
-## Parity Harness
-
-Most engine work starts with a failing parity run:
-
-```bash
-yarn build:harness
-yarn parity:test -- --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 20
-```
-
-The harness runs Rust and Java Forge with the same inputs, compares trace
-snapshots, and reports the first mismatch. A good fix restores the missing
-general rule in Rust by reading the corresponding Java file, not by special
-casing the card that exposed the bug.
-
-Start here:
-
-- [Parity Testing Guide](./docs/PARITY_TESTING.md)
-- [Engine Bugfix Workflow](./docs/agents/ENGINE_BUGFIX_WORKFLOW.md)
-- [Parity Philosophy](./docs/agents/PARITY_PHILOSOPHY.md)
-
-## Compiled IR and SVars
-
-Forge card scripts are still the compatibility contract. The Rust engine is
-gradually adding typed, compiled representations for the parts of that DSL where
-raw string interpretation is risky or expensive: produced mana, defined-object
-references, numeric expressions, selectors, costs, and similar engine-critical
-domains.
-
-This is the first deliberate divergence from Forge's mostly interpreted runtime
-model. It is a performance and maintainability divergence, not a behavior
-divergence. SVar resolution remains late-bound: SVars are parsed lazily and
-looked up from the current host-card state when needed.
-
-See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and the SVar semantics
-in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
 
 ## Getting Started
 
@@ -207,6 +120,117 @@ yarn lint:all
 | `yarn parity:gui`      | Start the engine debugger                              |
 | `yarn lint:all`        | Run frontend lint/typecheck and Rust fmt/clippy checks |
 | `yarn import-deck ...` | Import a deck from Archidekt or Moxfield               |
+
+## Architecture
+
+```text
+React UI                    src/
+Tauri desktop shell          src-tauri/
+Web/WASM engine bridge       forge-engine/crates/forge-wasm/
+Headless runtime             forge-engine/crates/self-hosted-node/
+Relay / lobby server         forge-engine/crates/forge-server/
+Agent protocol DTOs          forge-engine/crates/forge-agent-interface/
+Rust rules engine            forge-engine/crates/forge-engine/
+Card database + script IR    forge-engine/crates/forge-carddb/
+Forge Java reference         forge/
+Parity harness               forge-engine/crates/forge-parity/
+```
+
+The deeper engine workspace map is in
+[forge-engine/README.md](./forge-engine/README.md).
+
+## Parity Harness
+
+Most engine work starts with a failing parity run:
+
+```bash
+yarn build:harness
+yarn parity:test -- --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 20
+```
+
+The harness runs Rust and Java Forge with the same inputs, compares trace
+snapshots, and reports the first mismatch. A good fix restores the missing
+general rule in Rust by reading the corresponding Java file, not by special
+casing the card that exposed the bug.
+
+Start here:
+
+- [Parity Testing Guide](./docs/PARITY_TESTING.md)
+- [Engine Bugfix Workflow](./docs/agents/ENGINE_BUGFIX_WORKFLOW.md)
+- [Parity Philosophy](./docs/agents/PARITY_PHILOSOPHY.md)
+
+## Compiled IR and SVars
+
+Forge card scripts are still the compatibility contract. The Rust engine is
+gradually adding typed, compiled representations for the parts of that DSL where
+raw string interpretation is risky or expensive: produced mana, defined-object
+references, numeric expressions, selectors, costs, and similar engine-critical
+domains.
+
+This is the first deliberate divergence from Forge's mostly interpreted runtime
+model. It is a performance and maintainability divergence, not a behavior
+divergence. SVar resolution remains late-bound: SVars are parsed lazily and
+looked up from the current host-card state when needed.
+
+See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and the SVar semantics
+in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
+
+## Background
+
+### Why This Exists
+
+The immediate reason is mundane: a few friends in different countries wanted to
+play Magic online together. We tried the existing options. Each of them is good
+at what it aims for, and Forge in particular is the project this work is built
+on. None of them, though, quite fit what we wanted — a modern, open,
+multiplayer-first home for a small group like ours. So we built one.
+
+Forge itself remains the foundation. It has accumulated years of rules knowledge
+and card-script coverage, and we did not want to discard that work or compete
+with it by guessing from scratch.
+
+`manabrew` exists to bring Forge's rules model into runtime shapes that are hard
+for the Java/Swing stack to cover directly: web/WASM play, self-hosted
+multiplayer, modern desktop UI, deterministic parity testing, and typed internal
+representations for high-risk script semantics.
+
+The project is therefore both conservative and experimental: conservative about
+game behavior, where Java Forge remains the oracle; experimental about runtime,
+tooling, UI, and deployment.
+
+### Why Rust?
+
+Forge has years of rules knowledge and a very large card-script corpus. Rust
+lets us explore a different runtime shape while preserving that knowledge:
+
+- desktop app through Tauri;
+- web/WASM builds for browser-based play;
+- headless engine hosts for self-hosted multiplayer;
+- deterministic traces for debugging, regression testing, and AI work;
+- typed internal representations for hot or high-risk card-script semantics.
+
+The goal is to carry Forge's rules knowledge into new deployment shapes while
+keeping the Java implementation as the reference point for correctness.
+
+### Relationship With Forge
+
+Forge is the foundation of this project.
+
+- The Java Forge source under `forge/` is the reference implementation.
+- The Rust engine mirrors Forge's rules structure and consumes Forge card
+  scripts.
+- The parity harness exists to keep behavior faithful to Forge, not to invent a
+  different interpretation of the game.
+- The repository is GPL-3.0-or-later because the engine and bundled card data
+  are derivative of Forge.
+
+The intent is to be a good-neighbor port and companion project. We do not expect
+Forge maintainers to review or support this work, but we want the framing,
+naming, and attributions to make the relationship explicit and courteous.
+
+See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and
+[Third-Party Notices](./THIRD-PARTY-NOTICES.md). For related projects and
+ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
 
 ## Contributing
 

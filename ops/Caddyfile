@@ -1,0 +1,24 @@
+manabrew.app {
+    reverse_proxy https://manabrew:443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+
+    header {
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "credentialless"
+    }
+}
+
+relay.manabrew.app {
+    reverse_proxy forge-server:9443
+}
+
+parity.manabrew.app {
+    basic_auth {
+        {$PARITY_USER} {$PARITY_HASH}
+    }
+
+    reverse_proxy parity-dashboard:8080
+}

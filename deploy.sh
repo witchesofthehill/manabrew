@@ -20,7 +20,7 @@ trap on_failure ERR
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
-COMPOSE_FILE="forge-engine/crates/forge-server/compose.yml"
+COMPOSE_FILE="${COMPOSE_FILE:-forge-engine/crates/forge-server/compose.yml}"
 RAW_LOG="/tmp/deploy-raw.log"
 : > "$RAW_LOG"   # truncate
 
@@ -49,7 +49,8 @@ fi
 
 # ── Configure git to use PAT instead of SSH ─────────────────────────
 if [ -n "${GITHUB_TOKEN:-}" ]; then
-    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/fedepoi/bardidinaXmageUI.git"
+    DEPLOY_GITHUB_REPO="${GITHUB_REPO:-witchesofthehill/manabrew}"
+    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${DEPLOY_GITHUB_REPO}.git"
 fi
 
 # ── Pull latest changes ──────────────────────────────────────────────

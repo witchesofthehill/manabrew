@@ -1,31 +1,22 @@
-<div align="center">
+<p align="center">
+  <img src="./public/manabrew_brewery_1.png" alt="ManaBrew — a brewery of mana" width="100%" />
+</p>
 
-<img src="./public/manabrew_brewery_1.png" alt="ManaBrew — a brewery of mana" width="100%" />
+<h1 align="center">manabrew</h1>
 
-# manabrew
+<p align="center">
+  <strong>A modern, multiplayer-first client for Magic: The Gathering — powered by a Rust port of the <a href="https://github.com/Card-Forge/forge">Forge</a> rules engine.</strong>
+</p>
 
-**A modern, multiplayer-first client for Magic: The Gathering — powered by a Rust port of the [Forge](https://github.com/Card-Forge/forge) rules engine.**
-
-[![Open app](https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white)](https://manabrew.app)
-&nbsp;
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/CES3KNVt)
-&nbsp;
-[![Contributing](https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white)](./CONTRIBUTING.md)
-&nbsp;
-[![License: GPL 3.0+](https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white)](./LICENSE.md)
-
-<sub>
-
-![Rust](https://img.shields.io/badge/Rust-stable-CE412B?logo=rust&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
-![Tauri](https://img.shields.io/badge/Tauri-desktop-FFC131?logo=tauri&logoColor=black)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![WASM](https://img.shields.io/badge/WebAssembly-web-654FF0?logo=webassembly&logoColor=white)
-![Status](https://img.shields.io/badge/status-pre--release-orange)
-
-</sub>
-
-</div>
+<p align="center">
+  <a href="https://manabrew.app"><img alt="Open app" src="https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
+  &nbsp;
+  <a href="https://discord.gg/CES3KNVt"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+  &nbsp;
+  <a href="./CONTRIBUTING.md"><img alt="Contributing" src="https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white"></a>
+  &nbsp;
+  <a href="./LICENSE.md"><img alt="License: GPL 3.0+" src="https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
+</p>
 
 > [!NOTE]
 > This is unofficial fan software. It is not affiliated with, endorsed by, or

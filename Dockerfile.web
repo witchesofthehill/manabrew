@@ -49,8 +49,10 @@ COPY public/preset_decks/ ./public/preset_decks/
 # dev) leave them unset and fall back to localhost:9443.
 ARG VITE_RELAY_HOST=
 ARG VITE_RELAY_PORT=
+ARG VITE_SCRYFALL_SYMBOL_BASE=
 ENV VITE_RELAY_HOST=${VITE_RELAY_HOST}
 ENV VITE_RELAY_PORT=${VITE_RELAY_PORT}
+ENV VITE_SCRYFALL_SYMBOL_BASE=${VITE_SCRYFALL_SYMBOL_BASE}
 
 # Build WASM + Vite bundle (outputs to dist/)
 RUN yarn build:web

@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_RELAY_HOST?: string;
   readonly VITE_RELAY_PORT?: string;
+  readonly VITE_SCRYFALL_SYMBOL_BASE?: string;
 }
 
 interface ImportMeta {

@@ -36,6 +36,7 @@ services:
       args:
         VITE_RELAY_HOST: relay.manabrew.app
         VITE_RELAY_PORT: "443"
+        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     expose:
       - "443"
     restart: unless-stopped

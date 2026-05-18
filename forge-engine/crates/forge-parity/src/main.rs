@@ -393,6 +393,27 @@ fn load_data_or_exit(cli: &Cli) -> runner::LoadedData {
     }
 }
 
+/// Resolve `--issue-threshold`: explicit CLI value > `ISSUE_THRESHOLD` env > default.
+fn resolve_issue_threshold(cli_val: i64) -> i64 {
+    if cli_val != 5 {
+        return cli_val;
+    }
+    std::env::var("ISSUE_THRESHOLD")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(cli_val)
+}
+
+/// Resolve `--github-repo`: explicit CLI value > `GITHUB_REPO` env > unset.
+fn resolve_github_repo(cli_val: Option<String>) -> Option<String> {
+    cli_val.or_else(|| {
+        std::env::var("GITHUB_REPO")
+            .ok()
+            .filter(|s| !s.is_empty())
+    })
+}
+
 fn main() {
     let _perf_summary = forge_engine_core::perf::SummaryGuard::new();
     let mut args: Vec<String> = std::env::args().collect();

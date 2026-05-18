@@ -18,7 +18,7 @@ forge-cardset-archive = { path = "../forge-engine/crates/forge-cardset-archive",
 walkdir = "2"
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2.11.1", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -36,5 +36,5 @@ forge-agent-interface = { path = "../forge-engine/crates/forge-agent-interface" 
 forge-bot = { path = "../forge-engine/crates/forge-bot" }
 forge-game-runtime = { path = "../forge-engine/crates/forge-game-runtime" }
 forge-limited = { path = "../forge-engine/crates/forge-limited" }
-tauri-plugin-http = "2.5.8"
+tauri-plugin-http = "2.5.9"
 j4rs = { version = "0.25.1", optional = true }

@@ -17,13 +17,13 @@
 <table align="center">
   <tr>
     <td align="center" width="25%">
-      <a href="./images/vsSelection.jpeg"><img src="./images/vsSelection.jpeg" alt="Versus selection" width="100%"/></a>
-    </td>
-    <td align="center" width="25%">
       <a href="./images/deckEdit.jpeg"><img src="./images/deckEdit.jpeg" alt="Deck editor" width="100%"/></a>
     </td>
     <td align="center" width="25%">
       <a href="./images/play.jpeg"><img src="./images/play.jpeg" alt="In-game play" width="100%"/></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="./images/vsSelection.jpeg"><img src="./images/vsSelection.jpeg" alt="Versus selection" width="100%"/></a>
     </td>
     <td align="center" width="25%">
       <a href="./images/battleground.png"><img src="./images/battleground.png" alt="Battleground" width="100%"/></a>

@@ -10,7 +10,7 @@ pub mod trigger_replacement_base;
 
 use forge_foundation::{PhaseType, ZoneType};
 
-// Comment test
+// Comment test 2
 use crate::ability::effects::{self, EffectContext};
 use crate::agent::{CombatCostAction, MainPhaseAction, ManaCostAction, PlayerAgent};
 use crate::card::Card;

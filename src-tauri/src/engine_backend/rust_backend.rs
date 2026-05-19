@@ -182,7 +182,7 @@ pub fn run_multiplayer_game(
     let game_id_for_agents = game_id.clone();
     let remote_prompt_tx_for_agents = remote_prompt_tx.clone();
 
-    run_hosted_multiplayer_game(
+    let outcome = run_hosted_multiplayer_game(
         game_id.clone(),
         prepared_players,
         engine_player_index,
@@ -231,4 +231,12 @@ pub fn run_multiplayer_game(
             }
         },
     );
+
+    // No post-game cleanup today, but `outcome.aborted` is the canonical
+    // "session was torn down via abort_signal mid-run" signal — gate any
+    // future cleanup on it so we don't, e.g., emit completion telemetry
+    // for a game the user conceded out of.
+    if outcome.aborted {
+        return;
+    }
 }

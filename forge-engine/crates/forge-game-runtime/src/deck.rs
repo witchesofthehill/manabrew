@@ -10,6 +10,7 @@ use forge_foundation::{CoreType, ZoneType};
 pub struct DeckCardIdentity {
     pub name: String,
     pub set_code: String,
+    pub card_number: String,
     pub section: Option<String>,
 }
 
@@ -20,6 +21,7 @@ pub fn deck_to_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
             out.push(DeckCardIdentity {
                 name: c.identity.name.clone(),
                 set_code: c.identity.set_code.clone(),
+                card_number: c.identity.card_number.clone(),
                 section: Some(section.to_string()),
             });
         }
@@ -71,6 +73,9 @@ pub fn prepare_cards_from_identities(
             let mut card = card_rules_to_instance(rules, PlayerId(0));
             if !identity.set_code.is_empty() {
                 card.set_code = Some(identity.set_code.clone());
+            }
+            if !identity.card_number.is_empty() {
+                card.card_number = Some(identity.card_number.clone());
             }
             let destination = deck_zone_for_identity(identity.section.as_deref(), &card);
             register_card_name(registered, &card.card_name, destination);

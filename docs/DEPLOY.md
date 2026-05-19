@@ -135,9 +135,15 @@ Dashboard will be at `http://<server-ip>:8080`.
 
 ## Auto-Deploy with GitHub Actions
 
-Every push to `main` triggers `.github/workflows/deploy.yml`, which SSHes into
-the server, runs `deploy.sh`, and posts a success/failure embed to the
+Every push to `main` triggers the **Wasm deploy** workflow
+(`.github/workflows/deploy.yml`), which SSHes into the server, runs
+`deploy.sh` to rebuild the Wasm/web stack (manabrew, forge-server, optional
+parity-dashboard) under Docker, and posts a success/failure embed to the
 community Discord channel via the project's Discord bot.
+
+Native Tauri installers (`.dmg` / `.exe` / `.msi`) are built by a separate
+workflow, `.github/workflows/release-artifacts.yml`, which uploads them to
+the workflow run and (on tag pushes) attaches them to a GitHub Release.
 
 ### 1. Generate an SSH keypair for the deploy
 
@@ -200,12 +206,12 @@ n8n endpoint (`/webhook/github-deploy`).
 
 ### 6. Test it
 
-Trigger manually first: **Actions → Deploy to production → Run workflow → branch `main`**.
+Trigger manually first: **Actions → Wasm deploy → Run workflow → branch `main`**.
 
 Verify:
 
 - The workflow's `SSH and run deploy.sh` step is green.
-- The configured Discord channel receives a green "Deploy complete" embed posted by your bot.
+- The configured Discord channel receives a green "🚀 Wasm deploy successful" embed posted by your bot.
 - `docker compose -f compose.production.yml ps` on the server (or the dev
   compose path, if that's what `$COMPOSE_FILE` points to) shows the expected
   containers as `Up`.

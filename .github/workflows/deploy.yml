@@ -1,4 +1,4 @@
-name: Deploy to production
+name: Wasm deploy
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: production-deploy
+  group: wasm-deploy
   cancel-in-progress: false
 
 jobs:
@@ -62,10 +62,10 @@ jobs:
 
           if [ "$DEPLOY_OUTCOME" = "success" ]; then
             COLOR=5763719   # 0x57F287 green
-            TITLE="🚀 Deploy successful"
+            TITLE="🚀 Wasm deploy successful"
           else
             COLOR=15548997  # 0xED4245 red
-            TITLE="💥 Deploy failed"
+            TITLE="💥 Wasm deploy failed"
           fi
 
           SHORT_SHA="${COMMIT_SHA:0:7}"

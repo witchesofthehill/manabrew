@@ -124,7 +124,10 @@ jobs:
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
         with:
-          version: latest
+          # Pin to the same version Dockerfile.web uses. `version: latest`
+          # fetches v0.15.0+, which jetli/wasm-pack-action's platform-mapper
+          # doesn't recognise on Windows ("Unsupported platform: x64").
+          version: "v0.13.1"
 
       - run: yarn
 
@@ -273,7 +276,10 @@ jobs:
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
         with:
-          version: latest
+          # Pin to the same version Dockerfile.web uses. `version: latest`
+          # fetches v0.15.0+, which jetli/wasm-pack-action's platform-mapper
+          # doesn't recognise on Windows ("Unsupported platform: x64").
+          version: "v0.13.1"
 
       - run: yarn
 

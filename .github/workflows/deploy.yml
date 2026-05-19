@@ -28,7 +28,16 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$USER@$HOST" \
+          # ServerAliveInterval/CountMax keep the SSH connection healthy
+          # while deploy.sh has quiet stretches (cargo compiles, docker
+          # pulls). Without them the runner's SSH client times out after
+          # a few minutes idle and we get `client_loop: send disconnect:
+          # Broken pipe` mid-deploy.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              "$USER@$HOST" \
             "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 

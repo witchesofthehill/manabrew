@@ -15,6 +15,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: release-please-${{ github.ref }}
@@ -24,9 +25,30 @@ jobs:
   release-please:
     name: Run release-please
     runs-on: [self-hosted, Linux]
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
+        id: rp
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # release-please pushes the vX.Y.Z tag using GITHUB_TOKEN, which by design
+  # does not trigger downstream workflows. Dispatch release-artifacts.yml
+  # explicitly on the new tag ref so the macOS/Windows builds + Discord
+  # release notification fire.
+  dispatch-artifacts:
+    name: Dispatch release-artifacts on new tag
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger release-artifacts workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh workflow run release-artifacts.yml --ref "$TAG"

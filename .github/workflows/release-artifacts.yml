@@ -423,32 +423,14 @@ jobs:
           name: windows-exe-${{ github.sha }}
           path: release-assets/windows
 
-      - name: Generate changelog
-        id: changelog
-        uses: mikepenz/release-changelog-builder-action@v5
-        with:
-          configurationJson: |
-            {
-              "categories": [
-                { "title": "## Features",      "labels": ["feat", "feature"] },
-                { "title": "## Fixes",         "labels": ["fix", "bug"] },
-                { "title": "## Changes",       "labels": [] }
-              ],
-              "label_extractor": [
-                { "pattern": "^(feat|fix|chore|docs|refactor|perf|test|ci)(\\(.+\\))?!?:.+", "target": "$1", "on_property": "title" }
-              ],
-              "template": "#{{CHANGELOG}}\n\n**Full Changelog**: #{{RELEASE_DIFF}}"
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish Release
+      # Attach artifacts to the release release-please already created from
+      # CHANGELOG.md. Omitting `body` makes softprops/action-gh-release leave
+      # the existing release notes untouched.
+      - name: Attach artifacts to release
         id: publish
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
@@ -458,6 +440,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fetch release body for Discord
+        id: relbody
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          BODY=$(gh release view "$TAG" --json body --jq .body 2>/dev/null || echo '')
+          {
+            echo 'body<<RELBODY_EOF'
+            echo "$BODY"
+            echo 'RELBODY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Post Discord embed (release published)
         if: steps.publish.outputs.url != ''
         env:
@@ -465,7 +461,7 @@ jobs:
           CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_URL: ${{ steps.publish.outputs.url }}
-          RELEASE_BODY: ${{ steps.changelog.outputs.changelog }}
+          RELEASE_BODY: ${{ steps.relbody.outputs.body }}
           COMMIT_SHA: ${{ github.sha }}
           ACTOR: ${{ github.actor }}
           PRERELEASE: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}

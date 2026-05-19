@@ -311,7 +311,7 @@ pub fn run_multiplayer_game(
     use forge_game_runtime::deck::{
         deck_to_identities, force_commander_by_name, prepare_registered_player,
     };
-    use forge_game_runtime::host_runtime::run_hosted_multiplayer_game;
+    use forge_game_runtime::host_runtime::{run_hosted_multiplayer_game, DEFAULT_MAX_TURNS};
     use js_sys::{Array, SharedArrayBuffer};
     use rand::rngs::StdRng;
     use rand::SeedableRng;
@@ -435,7 +435,7 @@ pub fn run_multiplayer_game(
         prepared_players,
         engine_player_index,
         abort_signal,
-        5000,
+        DEFAULT_MAX_TURNS,
         &mut rng,
         |game_loop| {
             if let Some(token_db) = get_token_db() {

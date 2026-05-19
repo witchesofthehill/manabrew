@@ -14,7 +14,7 @@ use forge_engine_core::game_loop::GameLoop;
 use forge_engine_core::ids::PlayerId;
 use forge_engine_core::player::RegisteredPlayer;
 use forge_game_runtime::deck::{force_commander_by_name, instantiate_registered_players};
-use forge_game_runtime::host_runtime::run_hosted_multiplayer_game;
+use forge_game_runtime::host_runtime::{run_hosted_multiplayer_game, DEFAULT_MAX_TURNS};
 use rand::SeedableRng;
 
 use crate::ai_agent::spawn_ai_prompt_responder;
@@ -190,7 +190,7 @@ pub fn run_multiplayer_game(
         prepared_players,
         engine_player_index,
         abort_signal,
-        5000,
+        DEFAULT_MAX_TURNS,
         &mut rng,
         |game_loop| {
             let token_db = get_token_db();

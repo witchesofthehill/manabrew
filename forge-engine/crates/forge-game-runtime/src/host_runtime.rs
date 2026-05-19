@@ -25,6 +25,11 @@ use rand::rngs::StdRng;
 
 use crate::deck::{instantiate_registered_players, PreparedRegisteredPlayer};
 
+/// Hard cap on turns before the game loop bails, shared by every host
+/// call site. A safety net against non-terminating board states, not a
+/// real game-length limit — 5000 turns is far beyond any real game.
+pub const DEFAULT_MAX_TURNS: u32 = 5000;
+
 pub struct HostedGameOutcome {
     pub winner: Option<PlayerId>,
     pub aborted: bool,

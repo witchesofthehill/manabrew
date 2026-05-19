@@ -8,3 +8,4 @@ forge-agent-interface = { path = "../forge-agent-interface" }
 forge-carddb = { path = "../forge-carddb" }
 forge-engine-core = { path = "../forge-engine" }
 forge-foundation = { path = "../forge-foundation" }
+rand = "0.8"

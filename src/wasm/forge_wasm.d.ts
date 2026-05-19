@@ -132,13 +132,21 @@ export function parse_deck(deck_json: any): any;
 export function run_interactive_game(human_deck_json: any, ai_deck_json: any, config_json: any, shared_buffer: any): any;
 
 /**
- * Run a multiplayer game with two players using separate SharedArrayBuffers.
+ * Run an N-player multiplayer game using one SharedArrayBuffer per seat.
  *
- * Player 0 (local) uses `local_buffer` — prompts shown in UI.
- * Player 1 (remote) uses `remote_buffer` — prompts relayed via WebSocket.
- * Both block on Atomics.wait() sequentially (never concurrently).
+ * `local_buffer` carries prompts for `local_player_index` — the seat
+ * the worker is hosting from. `remote_buffers` is an array of length
+ * `num_players - 1`, ordered by player index with the local seat
+ * skipped: for a 4-player game with local=player-2 the array is
+ * `[sab_for_p0, sab_for_p1, sab_for_p3]`. Each SAB is consumed by a
+ * dedicated `WasmTransport`; the worker blocks on `Atomics.wait()` per
+ * seat sequentially (never concurrently).
+ *
+ * `commander_names_json` is an array of `Option<String>` matching the
+ * deck order; non-null entries pull the named card into the command
+ * zone before the loop starts.
  */
-export function run_multiplayer_game(player0_deck_json: any, player1_deck_json: any, config_json: any, local_buffer: any, remote_buffer: any, local_player_index: number): any;
+export function run_multiplayer_game(decks_json: any, commander_names_json: any, config_json: any, local_buffer: any, remote_buffers: any, local_player_index: number): any;
 
 /**
  * Test that forge-foundation types work.
@@ -159,51 +167,51 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly limited_advance_gauntlet_round: (a: number, b: number) => [number, number, number];
-    readonly limited_cubecobra_url: (a: number, b: number) => [number, number, number, number];
-    readonly limited_drop_session: (a: number, b: number, c: number, d: number) => [number, number, number];
-    readonly limited_get_draft_state: (a: number, b: number) => [number, number, number];
-    readonly limited_get_edition_info: (a: number, b: number) => [number, number, number];
-    readonly limited_get_gauntlet_match_decks: (a: number, b: number) => [number, number, number];
-    readonly limited_get_gauntlet_state: (a: number, b: number) => [number, number, number];
-    readonly limited_get_sealed_pool: (a: number, b: number) => [number, number, number];
-    readonly limited_get_set_pool: (a: number, b: number) => [number, number, number];
-    readonly limited_get_winston_state: (a: number, b: number) => [number, number, number];
-    readonly limited_import_cube: (a: any, b: number, c: number) => [number, number, number];
-    readonly limited_list_chaos_themes: () => [number, number, number];
-    readonly limited_list_conspiracy_hooks: () => [number, number, number];
-    readonly limited_list_sealed_templates: () => [number, number, number];
-    readonly limited_pick_card: (a: number, b: number, c: number, d: number) => [number, number, number];
-    readonly limited_record_gauntlet_outcome: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
-    readonly limited_start_booster_draft: (a: any) => [number, number, number];
-    readonly limited_start_gauntlet_from_sealed: (a: number, b: number, c: number) => [number, number, number];
-    readonly limited_start_sealed: (a: any) => [number, number, number];
-    readonly limited_start_winston: (a: any) => [number, number, number];
-    readonly limited_undo_pick: (a: number, b: number) => [number, number, number];
-    readonly limited_update_gauntlet_human_deck: (a: any) => [number, number, number];
-    readonly limited_winston_pass: (a: number, b: number) => [number, number, number];
-    readonly limited_winston_take: (a: number, b: number) => [number, number, number];
-    readonly log: (a: number, b: number) => void;
-    readonly wasm_init: () => void;
     readonly __wbg_wasmbot_free: (a: number, b: number) => void;
-    readonly echo: (a: number, b: number) => [number, number];
-    readonly get_engine_info: () => any;
-    readonly has_card: (a: number, b: number) => number;
-    readonly is_card_db_loaded: () => number;
-    readonly is_token_db_loaded: () => number;
-    readonly load_card_archive: (a: number, b: number) => [bigint, number, number];
-    readonly parse_config: (a: any) => [number, number, number];
-    readonly parse_deck: (a: any) => [number, number, number];
-    readonly run_interactive_game: (a: any, b: any, c: any, d: any) => [number, number, number];
-    readonly run_multiplayer_game: (a: any, b: any, c: any, d: any, e: any, f: number) => [number, number, number];
-    readonly test_foundation: () => any;
-    readonly test_rng: () => any;
-    readonly wasmbot_failure: (a: number) => [number, number];
     readonly wasmbot_new: (a: number, b: number) => [number, number, number];
     readonly wasmbot_on_open: (a: number) => [number, number];
     readonly wasmbot_on_server_message: (a: number, b: number, c: number) => [number, number];
+    readonly wasmbot_failure: (a: number) => [number, number];
+    readonly get_engine_info: () => any;
+    readonly echo: (a: number, b: number) => [number, number];
+    readonly parse_deck: (a: any) => [number, number, number];
+    readonly parse_config: (a: any) => [number, number, number];
+    readonly test_rng: () => any;
+    readonly test_foundation: () => any;
+    readonly run_interactive_game: (a: any, b: any, c: any, d: any) => [number, number, number];
+    readonly run_multiplayer_game: (a: any, b: any, c: any, d: any, e: any, f: number) => [number, number, number];
+    readonly load_card_archive: (a: number, b: number) => [bigint, number, number];
+    readonly is_card_db_loaded: () => number;
     readonly get_card_count: () => number;
+    readonly is_token_db_loaded: () => number;
     readonly get_token_count: () => number;
+    readonly has_card: (a: number, b: number) => number;
+    readonly log: (a: number, b: number) => void;
+    readonly wasm_init: () => void;
+    readonly limited_get_set_pool: (a: number, b: number) => [number, number, number];
+    readonly limited_list_sealed_templates: () => [number, number, number];
+    readonly limited_list_chaos_themes: () => [number, number, number];
+    readonly limited_list_conspiracy_hooks: () => [number, number, number];
+    readonly limited_start_sealed: (a: any) => [number, number, number];
+    readonly limited_get_sealed_pool: (a: number, b: number) => [number, number, number];
+    readonly limited_get_edition_info: (a: number, b: number) => [number, number, number];
+    readonly limited_start_booster_draft: (a: any) => [number, number, number];
+    readonly limited_pick_card: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly limited_get_draft_state: (a: number, b: number) => [number, number, number];
+    readonly limited_undo_pick: (a: number, b: number) => [number, number, number];
+    readonly limited_start_winston: (a: any) => [number, number, number];
+    readonly limited_winston_take: (a: number, b: number) => [number, number, number];
+    readonly limited_winston_pass: (a: number, b: number) => [number, number, number];
+    readonly limited_get_winston_state: (a: number, b: number) => [number, number, number];
+    readonly limited_start_gauntlet_from_sealed: (a: number, b: number, c: number) => [number, number, number];
+    readonly limited_record_gauntlet_outcome: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly limited_advance_gauntlet_round: (a: number, b: number) => [number, number, number];
+    readonly limited_get_gauntlet_state: (a: number, b: number) => [number, number, number];
+    readonly limited_get_gauntlet_match_decks: (a: number, b: number) => [number, number, number];
+    readonly limited_update_gauntlet_human_deck: (a: any) => [number, number, number];
+    readonly limited_drop_session: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly limited_cubecobra_url: (a: number, b: number) => [number, number, number, number];
+    readonly limited_import_cube: (a: any, b: number, c: number) => [number, number, number];
     readonly __wbindgen_malloc_command_export: (a: number, b: number) => number;
     readonly __wbindgen_realloc_command_export: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store_command_export: (a: number) => void;

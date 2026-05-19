@@ -74,11 +74,15 @@ class WorkerBridge {
   private gameSignal: Int32Array | null = null;
   private gameData: Uint8Array | null = null;
 
-  /** SharedArrayBuffer for remote player relay (multiplayer hosting) */
-  private remoteBuffer: SharedArrayBuffer | null = null;
-  private remoteSignal: Int32Array | null = null;
-  private remoteData: Uint8Array | null = null;
-  private remotePlayerSlot: string | null = null;
+  /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
+  private remoteSeats = new Map<
+    string,
+    {
+      buffer: SharedArrayBuffer;
+      signal: Int32Array;
+      data: Uint8Array;
+    }
+  >();
   private remoteResponseUnsubscribe: (() => void) | null = null;
 
   constructor(eventBus: WebEventBus) {
@@ -93,13 +97,21 @@ class WorkerBridge {
       this.pollForPrompts();
     });
 
-    // Listen for remote player SAB (multiplayer hosting)
-    eventBus.on<{ buffer: SharedArrayBuffer }>("game:remote_sab", (payload) => {
-      this.remoteBuffer = payload.buffer;
-      this.remoteSignal = new Int32Array(this.remoteBuffer, 0, 2);
-      this.remoteData = new Uint8Array(this.remoteBuffer, 8);
-      console.log("[WorkerBridge] Received remote SAB, starting relay poll");
-      this.pollForRemotePrompts();
+    // Each non-host seat gets its own SAB, tagged with the player slot
+    // it owns. We open one poll loop per SAB and a single shared listener
+    // for incoming WebSocket responses that routes by `fromPlayer`.
+    eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
+      const seat = {
+        buffer: payload.buffer,
+        signal: new Int32Array(payload.buffer, 0, 2),
+        data: new Uint8Array(payload.buffer, 8),
+      };
+      this.remoteSeats.set(payload.playerSlot, seat);
+      console.log(
+        `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
+      );
+      this.pollForRemotePromptsSeat(payload.playerSlot, seat);
+      this.ensureRemoteResponseListener();
     });
   }
 
@@ -144,68 +156,66 @@ class WorkerBridge {
   }
 
   /**
-   * Poll the remote SAB for prompts and relay them via WebSocket.
-   * When the remote player responds (via server:state_update), write to remote SAB.
+   * Poll one remote seat's SAB. The host runs the engine sequentially —
+   * only one seat ever has PROMPT_READY at a time — but each seat owns
+   * its own SAB so we need a dedicated polling loop per seat to surface
+   * whichever one fires next.
    */
-  private pollForRemotePrompts(): void {
-    if (!this.remoteSignal || !this.remoteData) return;
-
-    this.remoteResponseUnsubscribe?.();
-    // Listen for relay responses from the remote player
-    this.remoteResponseUnsubscribe = this.eventBus.on<{
-      from_player: string;
-      state: Record<string, unknown>;
-    }>("server:state_update", (payload) => {
-      if (payload.state?.kind === "response" && this.remoteSignal && this.remoteData) {
-        if (
-          this.remotePlayerSlot &&
-          payload.state.fromPlayer &&
-          payload.state.fromPlayer !== this.remotePlayerSlot
-        ) {
-          return;
-        }
-        const action = payload.state.action;
-        if (action) {
-          const json = new TextEncoder().encode(JSON.stringify(action));
-          Atomics.store(this.remoteSignal, 1, json.length);
-          this.remoteData.set(json, 0);
-          Atomics.store(this.remoteSignal, 0, 2); // RESPONSE_READY
-          Atomics.notify(this.remoteSignal, 0);
-        }
-      }
-    });
-
+  private pollForRemotePromptsSeat(
+    playerSlot: string,
+    seat: { buffer: SharedArrayBuffer; signal: Int32Array; data: Uint8Array },
+  ): void {
     const poll = () => {
-      if (!this.remoteSignal || !this.remoteData || !this.remoteBuffer) return;
+      if (!this.remoteSeats.has(playerSlot)) return;
 
-      const current = Atomics.load(this.remoteSignal, 0);
+      const current = Atomics.load(seat.signal, 0);
       if (current === 1) {
-        // PROMPT_READY
-        const len = Atomics.load(this.remoteSignal, 1);
-        const jsonBytes = this.remoteData.slice(0, len);
+        const len = Atomics.load(seat.signal, 1);
+        const jsonBytes = seat.data.slice(0, len);
         const jsonStr = new TextDecoder().decode(jsonBytes);
 
-        Atomics.store(this.remoteSignal, 0, 3); // ACKNOWLEDGED
-        Atomics.notify(this.remoteSignal, 0);
+        Atomics.store(seat.signal, 0, 3); // ACKNOWLEDGED
+        Atomics.notify(seat.signal, 0);
 
         try {
           const prompt = JSON.parse(jsonStr);
           this.eventBus.emit("game:relay_prompt", prompt);
         } catch (e) {
-          console.error("[WorkerBridge] Failed to parse remote SAB prompt:", e);
+          console.error(`[WorkerBridge] Failed to parse SAB prompt for ${playerSlot}:`, e);
         }
       }
 
-      if (this.remoteBuffer) {
-        requestAnimationFrame(poll);
-      }
+      requestAnimationFrame(poll);
     };
 
     requestAnimationFrame(poll);
   }
 
-  setRemotePlayerSlot(playerSlot: string | null): void {
-    this.remotePlayerSlot = playerSlot;
+  /**
+   * Single shared listener for incoming WebSocket responses. Routes each
+   * `server:state_update` of kind `response` to the SAB for the seat
+   * named in `fromPlayer`. Installed once when the first remote seat
+   * registers; further `game:remote_sab` events don't need to re-install.
+   */
+  private ensureRemoteResponseListener(): void {
+    if (this.remoteResponseUnsubscribe) return;
+    this.remoteResponseUnsubscribe = this.eventBus.on<{
+      from_player: string;
+      state: Record<string, unknown>;
+    }>("server:state_update", (payload) => {
+      if (payload.state?.kind !== "response") return;
+      const fromPlayer = payload.state.fromPlayer as string | undefined;
+      if (!fromPlayer) return;
+      const seat = this.remoteSeats.get(fromPlayer);
+      if (!seat) return;
+      const action = payload.state.action;
+      if (!action) return;
+      const json = new TextEncoder().encode(JSON.stringify(action));
+      Atomics.store(seat.signal, 1, json.length);
+      seat.data.set(json, 0);
+      Atomics.store(seat.signal, 0, 2); // RESPONSE_READY
+      Atomics.notify(seat.signal, 0);
+    });
   }
 
   /**
@@ -348,10 +358,7 @@ class WorkerBridge {
     this.gameBuffer = null;
     this.gameSignal = null;
     this.gameData = null;
-    this.remoteBuffer = null;
-    this.remoteSignal = null;
-    this.remoteData = null;
-    this.remotePlayerSlot = null;
+    this.remoteSeats.clear();
     this.remoteResponseUnsubscribe?.();
     this.remoteResponseUnsubscribe = null;
     this.pendingRequests.clear();
@@ -392,14 +399,16 @@ class WebGameApi implements IGameApi {
     this.isMultiplayer = true;
     this.isHost = params.localIsHost;
     this.myPlayerSlot = `player-${params.enginePlayerIndex}`;
-    this.bridge.setRemotePlayerSlot(
-      params.localIsHost ? `player-${params.enginePlayerIndex === 0 ? 1 : 0}` : null,
-    );
 
     if (params.localIsHost) {
-      // Host: run the engine in the worker with two SABs
+      // Host: spin up the engine in the worker. The worker allocates one
+      // SAB per seat (local + one per remote) and posts each remote SAB
+      // back to us tagged with its `player-N` slot — the bridge keeps a
+      // slot-keyed map and routes incoming WebSocket responses to the
+      // right SAB by `fromPlayer`.
       await this.bridge.invoke("start_multiplayer_game", {
         decks: params.decks,
+        commanderNames: params.commanderNames,
         enginePlayerIndex: params.enginePlayerIndex,
         startingLife: params.startingLife,
       });

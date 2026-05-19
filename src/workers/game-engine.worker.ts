@@ -84,7 +84,7 @@ let wasmInitPromise: Promise<void> | null = null;
 let cardsLoaded = false;
 let presetDecks: PresetDeck[] = [];
 let gameSharedBuffer: SharedArrayBuffer | null = null;
-let remoteSharedBuffer: SharedArrayBuffer | null = null;
+let remoteSharedBuffers: SharedArrayBuffer[] = [];
 let gameRunning = false;
 
 /**
@@ -374,42 +374,53 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
   }
 
   const decks = (args?.decks as Deck[]) || [];
+  const commanderNames = (args?.commanderNames as (string | null)[]) ?? decks.map(() => null);
   const localPlayerIndex = (args?.enginePlayerIndex as number) ?? 0;
   const startingLife = (args?.startingLife as number) || 20;
 
-  const deck0 = decks[0];
-  const deck1 = decks[1];
-  if (!deck0 || !deck1) {
-    postError(requestId, "start_multiplayer_game requires two decks");
+  if (decks.length < 2) {
+    postError(requestId, "start_multiplayer_game requires at least two decks");
+    return;
+  }
+  if (commanderNames.length !== decks.length) {
+    postError(requestId, "commanderNames length must match decks length");
+    return;
+  }
+  if (localPlayerIndex < 0 || localPlayerIndex >= decks.length) {
+    postError(requestId, "enginePlayerIndex out of range");
     return;
   }
   const config = { starting_life: startingLife };
 
   console.log(
     "[GameWorker] Starting multiplayer game as host:",
-    deck0.cards.length,
-    "vs",
-    deck1.cards.length,
-    "local=player-" + localPlayerIndex,
+    decks.length,
+    "players, local=player-" + localPlayerIndex,
   );
 
+  // One SAB for the local seat, one per non-local seat. Each non-local
+  // SAB is tagged with the player slot it belongs to so the main thread
+  // can route incoming WebSocket responses to the right seat by slot.
   gameSharedBuffer = new SharedArrayBuffer(SAB_SIZE);
-  remoteSharedBuffer = new SharedArrayBuffer(SAB_SIZE);
-  gameRunning = true;
-
-  // Send both SABs to main thread — it routes local to UI, remote to WebSocket
+  remoteSharedBuffers = [];
   postEvent("game:sab", { buffer: gameSharedBuffer });
-  postEvent("game:remote_sab", { buffer: remoteSharedBuffer });
+  for (let i = 0; i < decks.length; i += 1) {
+    if (i === localPlayerIndex) continue;
+    const sab = new SharedArrayBuffer(SAB_SIZE);
+    remoteSharedBuffers.push(sab);
+    postEvent("game:remote_sab", { buffer: sab, playerSlot: `player-${i}` });
+  }
+  gameRunning = true;
 
   postResponse(requestId, "multiplayer-started");
 
   try {
     const result = run_multiplayer_game(
-      deck0,
-      deck1,
+      decks,
+      commanderNames,
       config,
       gameSharedBuffer,
-      remoteSharedBuffer,
+      remoteSharedBuffers,
       localPlayerIndex,
     );
 
@@ -460,7 +471,7 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
     case "end_game": {
       gameRunning = false;
       gameSharedBuffer = null;
-      remoteSharedBuffer = null;
+      remoteSharedBuffers = [];
       console.log("[GameWorker] Game ending...");
       postEvent("game:ended", {});
       return null;

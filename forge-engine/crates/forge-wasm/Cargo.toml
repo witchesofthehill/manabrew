@@ -13,6 +13,7 @@ forge-carddb = { path = "../forge-carddb" }
 forge-cardset-archive = { path = "../forge-cardset-archive" }
 forge-engine-core = { path = "../forge-engine" }
 forge-agent-interface = { path = "../forge-agent-interface" }
+forge-game-runtime = { path = "../forge-game-runtime" }
 forge-bot = { path = "../forge-bot", default-features = false }
 forge-limited = { path = "../forge-limited" }
 

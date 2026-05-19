@@ -14,6 +14,7 @@ use forge_engine_core::game_loop::GameLoop;
 use forge_engine_core::ids::PlayerId;
 use forge_engine_core::player::RegisteredPlayer;
 use forge_game_runtime::deck::{force_commander_by_name, instantiate_registered_players};
+use forge_game_runtime::host_runtime::run_hosted_multiplayer_game;
 use rand::SeedableRng;
 
 use crate::ai_agent::spawn_ai_prompt_responder;
@@ -162,16 +163,12 @@ pub fn run_multiplayer_game(
         }
         prepared_players.push(prepared);
     }
-    let registered: Vec<RegisteredPlayer> = prepared_players
-        .iter()
-        .map(|p| p.registered.clone())
-        .collect();
-    let mut game = GameState::new_from_registered_players(&registered);
-    instantiate_registered_players(&mut game, prepared_players);
 
-    let engine_pid = PlayerId(engine_player_index as u32);
-    let mut engine_agent: Option<Box<dyn PlayerAgent>> = Some(Box::new(PromptAgent::new(
-        engine_pid,
+    // Engine seat owns the local mpsc; remote seats each consume one entry
+    // from this map exactly once. Wrapped in Option so the FnMut factory
+    // can move the engine agent out on its single matching call.
+    let mut engine_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(PromptAgent::new(
+        PlayerId(engine_player_index as u32),
         game_id.clone(),
         TauriTransport::new_local(
             engine_prompt_tx.clone(),
@@ -180,85 +177,58 @@ pub fn run_multiplayer_game(
             engine_snapshot_tx,
         ),
     )));
-
     let mut remote_rx_map: HashMap<usize, mpsc::Receiver<PlayerAction>> =
         remote_response_rxs.into_iter().collect();
+    let game_id_for_agents = game_id.clone();
+    let remote_prompt_tx_for_agents = remote_prompt_tx.clone();
 
-    let mut agents: Vec<Box<dyn PlayerAgent>> = Vec::with_capacity(num_players);
-    for i in 0..num_players {
-        if i == engine_player_index {
-            agents.push(engine_agent.take().unwrap());
-        } else {
-            let pid = PlayerId(i as u32);
-            let resp_rx = remote_rx_map
-                .remove(&i)
-                .expect("Missing response rx for remote player");
-            let agent = PromptAgent::new(
-                pid,
-                game_id.clone(),
-                TauriTransport::new_relay(i, remote_prompt_tx.clone(), resp_rx),
-            );
-            agents.push(Box::new(agent));
-        }
-    }
-
-    let mut game_loop = GameLoop::new(num_players);
-    game_loop.set_abort_signal(abort_signal.clone());
-    if std::env::var("FORGE_ENGINE_GAME_LOG").is_err() {
-        game_loop.game_log.set_enabled(true);
-    }
-    game_loop.experimental_restore_snapshot =
-        std::env::var("FORGE_ENGINE_RESTORE_SNAPSHOT").is_ok();
-
-    let p0 = PlayerId(0);
-    let token_db = get_token_db();
-    let token_image_map = get_token_image_map();
-    for (script_name, rules) in token_db.iter() {
-        let mut template = card_rules_to_instance(rules, p0);
-        if let Some(info) = token_image_map.get(&script_name) {
-            template.set_code = Some(info.set_code.clone());
-            template.card_number = Some(info.collector_number.clone());
-        }
-        game_loop.register_token(script_name, template);
-    }
-
-    let mut rng = rand::rngs::StdRng::from_entropy();
-
-    let _winner = game_loop.run(&mut game, &mut agents, &mut rng, 5000);
-
-    if abort_signal.load(Ordering::Relaxed) {
-        return;
-    }
-
-    let engine_pid = PlayerId(engine_player_index as u32);
-    let engine_final_view =
-        GameViewDto::from_engine(&game, &game_loop.mana_pools, engine_pid, &game_id, &[], &[]);
-    let _ = engine_prompt_tx.send(AgentPrompt {
-        deciding_player_id: format!("player-{}", engine_player_index),
-        display_events: vec![],
-        source_card_id: None,
-        inner: AgentPromptInner::GameOver {
-            game_view: engine_final_view,
+    run_hosted_multiplayer_game(
+        game_id.clone(),
+        prepared_players,
+        engine_player_index,
+        abort_signal,
+        5000,
+        |game_loop| {
+            let token_db = get_token_db();
+            let token_image_map = get_token_image_map();
+            for (script_name, rules) in token_db.iter() {
+                let mut template = card_rules_to_instance(rules, PlayerId(0));
+                if let Some(info) = token_image_map.get(&script_name) {
+                    template.set_code = Some(info.set_code.clone());
+                    template.card_number = Some(info.collector_number.clone());
+                }
+                game_loop.register_token(script_name, template);
+            }
         },
-    });
-
-    for i in 0..num_players {
-        if i == engine_player_index {
-            continue;
-        }
-        let pid = PlayerId(i as u32);
-        let remote_view =
-            GameViewDto::from_engine(&game, &game_loop.mana_pools, pid, &game_id, &[], &[]);
-        let _ = remote_prompt_tx.send((
-            i,
-            AgentPrompt {
-                deciding_player_id: format!("player-{i}"),
+        |pid, is_local| {
+            if is_local {
+                engine_agent_slot
+                    .take()
+                    .expect("agent_factory called twice for the engine seat")
+            } else {
+                let i = pid.index();
+                let resp_rx = remote_rx_map
+                    .remove(&i)
+                    .expect("Missing response rx for remote player");
+                Box::new(PromptAgent::new(
+                    pid,
+                    game_id_for_agents.clone(),
+                    TauriTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), resp_rx),
+                ))
+            }
+        },
+        |pid, is_local, view| {
+            let prompt = AgentPrompt {
+                deciding_player_id: format!("player-{}", pid.index()),
                 display_events: vec![],
                 source_card_id: None,
-                inner: AgentPromptInner::GameOver {
-                    game_view: remote_view,
-                },
-            },
-        ));
-    }
+                inner: AgentPromptInner::GameOver { game_view: view },
+            };
+            if is_local {
+                let _ = engine_prompt_tx.send(prompt);
+            } else {
+                let _ = remote_prompt_tx.send((pid.index(), prompt));
+            }
+        },
+    );
 }

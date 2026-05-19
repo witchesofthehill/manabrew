@@ -2199,6 +2199,7 @@ dependencies = [
  "forge-carddb",
  "forge-engine-core",
  "forge-foundation",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -2267,6 +2268,7 @@ dependencies = [
  "forge-cardset-archive",
  "forge-engine-core",
  "forge-foundation",
+ "forge-game-runtime",
  "forge-limited",
  "getrandom 0.2.17",
  "js-sys",

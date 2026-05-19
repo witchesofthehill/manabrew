@@ -313,6 +313,8 @@ pub fn run_multiplayer_game(
     };
     use forge_game_runtime::host_runtime::run_hosted_multiplayer_game;
     use js_sys::{Array, SharedArrayBuffer};
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
     use std::sync::atomic::AtomicBool;
     use std::sync::Arc;
 
@@ -422,12 +424,17 @@ pub fn run_multiplayer_game(
     let abort_signal = Arc::new(AtomicBool::new(false));
     let game_id_for_agents = game_id.clone();
 
+    // `from_entropy()` pulls from crypto.getRandomValues in the browser —
+    // requires getrandom's `js` feature (enabled in this crate's Cargo.toml),
+    // or it panics at runtime on wasm32.
+    let mut rng = StdRng::from_entropy();
     let outcome = run_hosted_multiplayer_game(
         game_id,
         prepared_players,
         engine_player_index,
         abort_signal,
         5000,
+        &mut rng,
         |game_loop| {
             if let Some(token_db) = get_token_db() {
                 for (script_name, rules) in token_db.iter() {

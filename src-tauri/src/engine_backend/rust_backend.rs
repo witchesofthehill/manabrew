@@ -184,12 +184,14 @@ pub fn run_multiplayer_game(
     let game_id_for_agents = game_id.clone();
     let remote_prompt_tx_for_agents = remote_prompt_tx.clone();
 
+    let mut rng = rand::rngs::StdRng::from_entropy();
     let outcome = run_hosted_multiplayer_game(
         game_id.clone(),
         prepared_players,
         engine_player_index,
         abort_signal,
         5000,
+        &mut rng,
         |game_loop| {
             let token_db = get_token_db();
             let token_image_map = get_token_image_map();

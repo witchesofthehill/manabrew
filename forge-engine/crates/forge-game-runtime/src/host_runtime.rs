@@ -21,7 +21,7 @@ use forge_engine_core::game::GameState;
 use forge_engine_core::game_loop::GameLoop;
 use forge_engine_core::ids::PlayerId;
 use forge_engine_core::player::RegisteredPlayer;
-use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 use crate::deck::{instantiate_registered_players, PreparedRegisteredPlayer};
 
@@ -45,6 +45,10 @@ pub struct HostedGameOutcome {
 /// - `on_game_over(pid, is_local, view)` — fires once per seat with the
 ///   final view rendered from that seat's perspective. Tauri sends it
 ///   over its mpsc tx; WASM writes it to that seat's SAB.
+///
+/// `rng` is owned by the caller so the runtime stays seedable from
+/// outside — a future replay/parity mode can hand in a fixed-seed
+/// `StdRng` instead of the `from_entropy()` both callers use today.
 #[allow(clippy::too_many_arguments)]
 pub fn run_hosted_multiplayer_game<F, G, H>(
     game_id: String,
@@ -52,6 +56,7 @@ pub fn run_hosted_multiplayer_game<F, G, H>(
     engine_player_index: usize,
     abort_signal: Arc<AtomicBool>,
     max_turns: u32,
+    rng: &mut StdRng,
     register_tokens: F,
     mut agent_factory: G,
     mut on_game_over: H,
@@ -85,8 +90,7 @@ where
         agents.push(agent_factory(pid, i == engine_player_index));
     }
 
-    let mut rng = rand::rngs::StdRng::from_entropy();
-    let winner = game_loop.run(&mut game, &mut agents, &mut rng, max_turns);
+    let winner = game_loop.run(&mut game, &mut agents, rng, max_turns);
 
     if abort_signal.load(Ordering::Relaxed) {
         return HostedGameOutcome {

@@ -8,8 +8,8 @@
 set -euo pipefail
 
 on_failure() {
-    echo "**Deploy FAILED** at $(date '+%H:%M:%S')"
-    echo "Check raw log: \`${RAW_LOG:-/tmp/deploy-raw.log}\`"
+    echo "💥 **Deploy FAILED** at $(date '+%H:%M:%S')"
+    echo "📄 Check raw log: \`${RAW_LOG:-/tmp/deploy-raw.log}\`"
     tail -20 "${RAW_LOG:-/tmp/deploy-raw.log}" 2>/dev/null | sed 's/^/> /'
 }
 trap on_failure ERR
@@ -57,7 +57,7 @@ git pull origin main --ff-only >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
 
 if [ "$PREV" = "$CURR" ]; then
-    echo "No new commits. Nothing to deploy."
+    echo "😴 No new commits. Nothing to deploy."
     exit 0
 fi
 
@@ -149,7 +149,7 @@ elif $WEB_CHANGED || $RUST_CHANGED; then
 fi
 
 if [ -z "$SERVICES_TO_RESTART" ]; then
-    echo "No Java/Rust/infra changes — skipping build."
+    echo "🧹 No Java/Rust/infra changes — skipping build."
     exit 0
 fi
 
@@ -166,26 +166,26 @@ BUILD_DURATION=$(( BUILD_END - BUILD_START ))
 # ── Pretty summary for Discord ───────────────────────────────────────
 SERVICES_FMT=$(echo "$SERVICES_TO_RESTART" | xargs -n1 | sed 's/^/  - /' | tr '\n' '\n')
 
-# Build change flags string
+# Build change flags string (with per-stack emoji)
 CHANGES=""
-$JAVA_CHANGED && CHANGES="${CHANGES} Java"
-$RUST_CHANGED && CHANGES="${CHANGES} Rust"
-$WEB_CHANGED && CHANGES="${CHANGES} Web"
-$INFRA_CHANGED && CHANGES="${CHANGES} Infra"
+$JAVA_CHANGED  && CHANGES="${CHANGES} ☕ Java"
+$RUST_CHANGED  && CHANGES="${CHANGES} 🦀 Rust"
+$WEB_CHANGED   && CHANGES="${CHANGES} 🌐 Web"
+$INFRA_CHANGED && CHANGES="${CHANGES} 🐳 Infra"
 CHANGES=$(echo "$CHANGES" | xargs)
 
 cat <<EOF
-**Deploy complete** (\`${PREV}\` -> \`${CURR}\`)
+🎉 **Deploy complete** (\`${PREV}\` → \`${CURR}\`)
 
 > ${COMMIT_MSG}
 > — ${AUTHOR} (${COMMIT_COUNT} commit(s))
 
-**Changed:** ${CHANGES}
-**Services rebuilt:**
+📦 **Changed:** ${CHANGES}
+🔁 **Services rebuilt:**
 ${SERVICES_FMT}
-**Build time:** ${BUILD_DURATION}s
-**Log:** \`${RAW_LOG}\`
+⏱️ **Build time:** ${BUILD_DURATION}s
+📄 **Log:** \`${RAW_LOG}\`
 
-**Changelog:**
+📝 **Changelog:**
 ${CHANGELOG}
 EOF

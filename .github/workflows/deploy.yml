@@ -62,21 +62,38 @@ jobs:
 
           if [ "$DEPLOY_OUTCOME" = "success" ]; then
             COLOR=5763719   # 0x57F287 green
-            TITLE="Deploy complete"
+            TITLE="🚀 Deploy successful"
           else
             COLOR=15548997  # 0xED4245 red
-            TITLE="Deploy failed"
+            TITLE="💥 Deploy failed"
           fi
 
           SHORT_SHA="${COMMIT_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
+          ACTOR_URL="https://github.com/${ACTOR}"
 
           PAYLOAD=$(jq -n \
             --arg title "$TITLE" \
             --arg url "$RUN_URL" \
             --arg desc "$LOG" \
-            --arg footer "$SHORT_SHA · $ACTOR" \
+            --arg footer "manabrew · $SHORT_SHA" \
+            --arg actor "$ACTOR" \
+            --arg actor_url "$ACTOR_URL" \
+            --arg avatar_url "$AVATAR_URL" \
+            --arg timestamp "$TIMESTAMP" \
             --argjson color "$COLOR" \
-            '{embeds: [{title: $title, url: $url, description: $desc, color: $color, footer: {text: $footer}}]}')
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: $color,
+                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }]
+            }')
 
           curl -fsS -X POST \
             -H "Authorization: Bot $BOT_TOKEN" \

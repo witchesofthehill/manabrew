@@ -3,6 +3,8 @@ name: Deploy to production
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -22,18 +24,100 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
+          PORT="${SSH_PORT:-22}"
+
+          echo "::group::Runner environment"
+          echo "event: $EVENT_NAME"
+          echo "runner IP (egress): $(curl -fsS https://api.ipify.org 2>/dev/null || echo unknown)"
+          echo "ssh client: $(ssh -V 2>&1)"
+          echo "host (masked): ${HOST:0:3}***   port: $PORT"
+          echo "deploy_path (masked): ${DEPLOY_PATH:0:3}***"
+          echo "::endgroup::"
+
+          echo "::group::Validate SSH private key format"
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
-          exit ${PIPESTATUS[0]}
+          echo "file size: $(wc -c < ~/.ssh/deploy_key) bytes, $(wc -l < ~/.ssh/deploy_key) lines"
+          echo "first line: $(head -1 ~/.ssh/deploy_key)"
+          echo "last  line: $(tail -1 ~/.ssh/deploy_key)"
+          if ssh-keygen -y -f ~/.ssh/deploy_key > /tmp/derived.pub 2>&1; then
+            echo "private key parses; derived public key:"
+            cat /tmp/derived.pub
+          else
+            echo "ssh-keygen FAILED to parse the key — DEPLOY_SSH_KEY is likely corrupted (mangled newlines?):"
+            cat /tmp/derived.pub
+          fi
+          echo "::endgroup::"
+
+          echo "::group::TCP reachability to $HOST:$PORT"
+          if command -v nc >/dev/null; then
+            nc -zv -w 5 "$HOST" "$PORT" 2>&1 || echo "nc probe failed"
+          else
+            echo "nc not installed; trying /dev/tcp"
+            (echo > "/dev/tcp/$HOST/$PORT") 2>&1 && echo "TCP $PORT open" || echo "TCP $PORT closed/filtered"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::ssh-keyscan"
+          if ssh-keyscan -v -T 5 -p "$PORT" -H "$HOST" 2>&1 | tee /tmp/keyscan.out >> ~/.ssh/known_hosts; then
+            echo "keyscan ok ($(wc -l < /tmp/keyscan.out) lines written)"
+          else
+            echo "keyscan FAILED — sshd may be on a different port or unreachable"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Verbose SSH connect (auth + a tiny remote command)"
+          ssh -v \
+            -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            "set -x; whoami; hostname; pwd; ls -la '$DEPLOY_PATH'/deploy.sh; echo DIAGNOSTICS_OK" \
+            2>&1 | tee deploy.log
+          DIAG_RC=${PIPESTATUS[0]}
+          echo "diagnostic ssh exit: $DIAG_RC"
+          echo "::endgroup::"
+
+          if [ "$DIAG_RC" -ne 0 ]; then
+            echo "Diagnostic SSH failed; skipping deploy.sh."
+            exit "$DIAG_RC"
+          fi
+
+          # PR events stop here (diagnostics only — never deploy from a PR).
+          # Real deploys come from push-to-main or manual dispatch.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "pull_request event — diagnostics passed, NOT running deploy.sh."
+            exit 0
+          fi
+
+          echo "::group::Run deploy.sh on $HOST"
+          ssh \
+            -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
+            -p "$PORT" \
+            "$USER@$HOST" \
+            "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee -a deploy.log
+          DEPLOY_RC=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          exit "$DEPLOY_RC"
 
       - name: Post Discord embed (as bot)
-        if: always()
+        # Skip Discord notifications on pull_request events — diagnostic runs
+        # shouldn't spam the community channel. Real deploys (push to main /
+        # workflow_dispatch) still post as usual.
+        if: always() && github.event_name != 'pull_request'
         env:
           BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}

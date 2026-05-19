@@ -53,6 +53,21 @@ interface WorkerEvent {
 
 type WorkerMessage = WorkerResponse | WorkerEvent;
 
+/**
+ * Per-remote-seat polling state. `cancelled` is the shutdown signal —
+ * `terminate()` flips it before clearing the map so any rAF callback
+ * already queued for the next frame short-circuits instead of firing
+ * a stale prompt into the event bus. (Removing the map entry alone
+ * would also work, but only on entries that haven't been captured by
+ * an in-flight closure yet; the flag closes that race explicitly.)
+ */
+interface RemoteSeat {
+  buffer: SharedArrayBuffer;
+  signal: Int32Array;
+  data: Uint8Array;
+  cancelled: boolean;
+}
+
 // ============================================================================
 // Worker Bridge
 // ============================================================================
@@ -75,14 +90,7 @@ class WorkerBridge {
   private gameData: Uint8Array | null = null;
 
   /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
-  private remoteSeats = new Map<
-    string,
-    {
-      buffer: SharedArrayBuffer;
-      signal: Int32Array;
-      data: Uint8Array;
-    }
-  >();
+  private remoteSeats = new Map<string, RemoteSeat>();
   private remoteResponseUnsubscribe: (() => void) | null = null;
 
   constructor(eventBus: WebEventBus) {
@@ -101,10 +109,11 @@ class WorkerBridge {
     // it owns. We open one poll loop per SAB and a single shared listener
     // for incoming WebSocket responses that routes by `fromPlayer`.
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
-      const seat = {
+      const seat: RemoteSeat = {
         buffer: payload.buffer,
         signal: new Int32Array(payload.buffer, 0, 2),
         data: new Uint8Array(payload.buffer, 8),
+        cancelled: false,
       };
       this.remoteSeats.set(payload.playerSlot, seat);
       console.log(
@@ -161,12 +170,13 @@ class WorkerBridge {
    * its own SAB so we need a dedicated polling loop per seat to surface
    * whichever one fires next.
    */
-  private pollForRemotePromptsSeat(
-    playerSlot: string,
-    seat: { buffer: SharedArrayBuffer; signal: Int32Array; data: Uint8Array },
-  ): void {
+  private pollForRemotePromptsSeat(playerSlot: string, seat: RemoteSeat): void {
     const poll = () => {
-      if (!this.remoteSeats.has(playerSlot)) return;
+      // Check the per-seat flag first: terminate() flips it before the
+      // map is cleared, so an in-flight rAF callback already scheduled
+      // for the next frame exits cleanly instead of decoding stale SAB
+      // bytes and emitting a prompt the UI has nowhere to put.
+      if (seat.cancelled || !this.remoteSeats.has(playerSlot)) return;
 
       const current = Atomics.load(seat.signal, 0);
       if (current === 1) {
@@ -358,6 +368,7 @@ class WorkerBridge {
     this.gameBuffer = null;
     this.gameSignal = null;
     this.gameData = null;
+    for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
     this.remoteResponseUnsubscribe?.();
     this.remoteResponseUnsubscribe = null;

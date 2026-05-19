@@ -159,10 +159,13 @@ chmod 600 ~/.ssh/authorized_keys
 
 ### 2. Confirm the server clone uses the public HTTPS URL
 
-The repo is public, so the server no longer needs a PAT. On the server:
+The repo is public, so the server no longer needs a PAT (the deploy script
+still rewrites the remote to a PAT URL when `GITHUB_TOKEN` is set in the
+host's `.env`, purely to avoid public-API rate limits — optional). On the
+server:
 
 ```bash
-cd ~/manabrew
+cd <DEPLOY_PATH>     # e.g. /opt/manabrew
 git remote set-url origin https://github.com/<owner>/manabrew.git
 git pull --ff-only origin main
 ```
@@ -181,14 +184,14 @@ Use the bot you've already added to the community server.
 GitHub repo → **Settings → Secrets and variables → Actions → New repository
 secret**. Add:
 
-| Secret                      | Value                                                      |
-| --------------------------- | ---------------------------------------------------------- |
-| `SSH_HOST`                  | Server hostname or IP                                      |
-| `SSH_USER`                  | Login user (the one who owns `~/manabrew` on the server)   |
-| `SSH_PORT`                  | Optional — defaults to 22 if unset                         |
-| `SSH_PRIVATE_KEY`           | Contents of the **private** key (`~/.ssh/manabrew_deploy`) |
-| `DISCORD_BOT_TOKEN`         | Bot token from the Developer Portal                        |
-| `DISCORD_DEPLOY_CHANNEL_ID` | ID of the channel that should receive deploy embeds        |
+| Secret                      | Value                                                          |
+| --------------------------- | -------------------------------------------------------------- |
+| `DEPLOY_HOST`               | Server hostname or IP                                          |
+| `DEPLOY_USER`               | Login user (the one who owns the deploy clone)                 |
+| `DEPLOY_PATH`               | Absolute path to the repo on the server (e.g. `/opt/manabrew`) |
+| `DEPLOY_SSH_KEY`            | Contents of the **private** key (`~/.ssh/manabrew_deploy`)     |
+| `DISCORD_BOT_TOKEN`         | Bot token from the Developer Portal                            |
+| `DISCORD_DEPLOY_CHANNEL_ID` | ID of the channel that should receive deploy embeds            |
 
 ### 5. Remove the old GitHub webhook (if any)
 
@@ -197,14 +200,15 @@ n8n endpoint (`/webhook/github-deploy`).
 
 ### 6. Test it
 
-Trigger manually first: **Actions → Auto deploy → Run workflow → branch `main`**.
+Trigger manually first: **Actions → Deploy to production → Run workflow → branch `main`**.
 
 Verify:
 
-- The workflow's `Deploy via SSH` step is green.
+- The workflow's `SSH and run deploy.sh` step is green.
 - The configured Discord channel receives a green "Deploy complete" embed posted by your bot.
-- `docker compose -f forge-engine/crates/forge-server/compose.yml ps` on the
-  server shows the expected containers as `Up`.
+- `docker compose -f compose.production.yml ps` on the server (or the dev
+  compose path, if that's what `$COMPOSE_FILE` points to) shows the expected
+  containers as `Up`.
 
 ## Manual Deploy
 

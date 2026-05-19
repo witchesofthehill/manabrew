@@ -84,7 +84,16 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   for (const key of PERSISTED_PREFERENCE_KEYS) {
     if (key in persisted) next[key] = persisted[key];
   }
+  // Treat a persisted empty username as "unset" so the auto-generated default
+  // wins on rehydrate. Without this, users who once had the empty default
+  // saved would never get a generated name.
+  if (next.serverUsername === "") delete next.serverUsername;
   return next as Partial<PreferencesState>;
+}
+
+/** Stable per-browser guest handle. Generated once, persisted via zustand. */
+function generateGuestUsername(): string {
+  return `player-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -98,10 +107,10 @@ export const usePreferencesStore = create<PreferencesState>()(
         flashDurationMs: 1000,
         setFlashDurationMs: (ms) => set({ flashDurationMs: ms }),
 
-        serverHost: "localhost",
-        serverPort: 9443,
-        serverUsername: "",
-        serverPassword: "forge",
+        serverHost: import.meta.env.VITE_RELAY_HOST || "localhost",
+        serverPort: Number(import.meta.env.VITE_RELAY_PORT) || 9443,
+        serverUsername: generateGuestUsername(),
+        serverPassword: import.meta.env.VITE_RELAY_PASSWORD || "forge",
         setServerHost: (serverHost) => set({ serverHost }),
         setServerPort: (serverPort) => set({ serverPort }),
         setServerUsername: (serverUsername) => set({ serverUsername }),

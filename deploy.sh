@@ -17,11 +17,20 @@ trap on_failure ERR
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
-COMPOSE_FILE="forge-engine/crates/forge-server/compose.yml"
+COMPOSE_FILE="${COMPOSE_FILE:-forge-engine/crates/forge-server/compose.yml}"
 RAW_LOG="/tmp/deploy-raw.log"
 : > "$RAW_LOG"   # truncate
 
-# ── Load server .env (COMPOSE_PROFILES + dashboard settings) ────────
+# ── Load .env files ──────────────────────────────────────────────────
+# Root .env (production secrets via ops/production.secrets symlink, plus
+# optional GITHUB_TOKEN for git rate-limit avoidance on the pull below).
+if [ -f "$REPO_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$REPO_DIR/.env"
+    set +a
+fi
+# Server .env (COMPOSE_PROFILES + dashboard settings)
 SERVER_ENV="$REPO_DIR/forge-engine/crates/forge-server/.env"
 if [ -f "$SERVER_ENV" ]; then
     set -a
@@ -34,6 +43,12 @@ fi
 SKIP_DASHBOARD=true
 if echo "${COMPOSE_PROFILES:-}" | grep -q "parity"; then
     SKIP_DASHBOARD=false
+fi
+
+# ── Optional: use GITHUB_TOKEN for the pull (avoids public rate limits) ──
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    DEPLOY_GITHUB_REPO="${GITHUB_REPO:-witchesofthehill/manabrew}"
+    git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${DEPLOY_GITHUB_REPO}.git"
 fi
 
 # ── Pull latest changes ──────────────────────────────────────────────

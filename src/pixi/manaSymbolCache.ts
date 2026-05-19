@@ -1,7 +1,8 @@
 import { Texture, ImageSource } from "pixi.js";
 import { platformFetch } from "@/lib/platformFetch";
 
-const SCRYFALL_SYMBOL_BASE = "https://svgs.scryfall.io/card-symbols/";
+const SCRYFALL_SYMBOL_BASE =
+  import.meta.env.VITE_SCRYFALL_SYMBOL_BASE || "https://svgs.scryfall.io/card-symbols/";
 // Rasterize SVGs into a fixed-size canvas so Pixi gets a concrete texture
 // (SVGs decoded into HTMLImageElement can have zero intrinsic dimensions).
 const SYMBOL_RASTER_SIZE = 96;

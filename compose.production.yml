@@ -1,0 +1,51 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file:
+      - ./ops/production.secrets
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - manabrew
+      - forge-server
+
+  forge-server:
+    build:
+      context: .
+      dockerfile: forge-engine/crates/forge-server/Dockerfile
+    environment:
+      FORGE_HOST: "0.0.0.0"
+      FORGE_PORT: "9443"
+      FORGE_MAX_ROOMS: "100"
+      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      RUST_LOG: "forge_server=info"
+    expose:
+      - "9443"
+    restart: unless-stopped
+
+  manabrew:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_RELAY_HOST: relay.manabrew.app
+        VITE_RELAY_PORT: "443"
+        # forge-server validates this against FORGE_SERVER_KEY. Sourcing it
+        # from the same env value the server uses keeps web ↔ relay in lock-
+        # step: rotate `FORGE_SERVER_KEY` in ops/production.secrets and the
+        # next `docker compose build manabrew` bakes the new key in.
+        VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
+        VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
+    expose:
+      - "443"
+    restart: unless-stopped
+
+volumes:
+  caddy-data:
+  caddy-config:

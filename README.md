@@ -1,103 +1,154 @@
-# manabrew
+<h1 align="center">ManaBrew</h1>
 
-`manabrew` is a GPL Rust port of the
-[Forge](https://github.com/Card-Forge/forge) rules engine. It powers
-**ManaBrew** ([manabrew.app](https://manabrew.app)) — a modern web and desktop
-client for playing card games, currently focused on Magic: The Gathering
-through Forge's card scripts and Java rules engine. The Rust runtime targets
-desktop, web, and self-hosted multiplayer.
+<p align="center">
+  <strong>An open-source Magic: The Gathering client and rules engine, built around <a href="https://github.com/Card-Forge/forge">Forge</a> compatibility.</strong>
+</p>
 
+<p align="center">
+  <a href="https://manabrew.app"><img alt="Open app" src="https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
+  &nbsp;
+  <a href="https://discord.gg/CES3KNVt"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+  &nbsp;
+  <a href="./CONTRIBUTING.md"><img alt="Contributing" src="https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white"></a>
+  &nbsp;
+  <a href="./LICENSE.md"><img alt="License: GPL 3.0+" src="https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
+</p>
+
+<table align="center">
+  <tr>
+    <td align="center" width="25%">
+      <a href="./images/deckEdit.jpeg"><img src="./images/deckEdit.jpeg" alt="Deck editor" width="100%"/></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="./images/play.jpeg"><img src="./images/play.jpeg" alt="In-game play" width="100%"/></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="./images/vsSelection.jpeg"><img src="./images/vsSelection.jpeg" alt="Versus selection" width="100%"/></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="./images/battleground.png"><img src="./images/battleground.png" alt="Battleground" width="100%"/></a>
+    </td>
+  </tr>
+</table>
+
+> [!NOTE]
 > This is unofficial fan software. It is not affiliated with, endorsed by, or
 > sponsored by Wizards of the Coast LLC or by the Forge project. Magic: The
 > Gathering, card names, rules text, and related marks are property of Wizards
 > of the Coast LLC. Forge is developed by the Forge contributors. Card images
 > are not shipped by this project.
 
+---
+
+## Community
+
+- **App** — try the current build at <https://manabrew.app>.
+- **Discord** — ask questions, share decks, report rough edges, and follow
+  development at <https://discord.gg/CES3KNVt>.
+
+## Contents
+
+- [What This Is](#what-this-is)
+- [Current Status](#current-status)
+- [Getting Started](#getting-started)
+- [Common Commands](#common-commands)
+- [Architecture](#architecture)
+- [Parity Harness](#parity-harness)
+- [Engine Notes](#engine-notes)
+- [Background](#background)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## What This Is
 
-- A Rust implementation of Forge's game engine, kept close to the Java source
-  for behavioral parity.
-- A React/Tauri client for local play, web play, deck management, and
-  multiplayer.
-- A differential parity harness that runs Rust and Java Forge side by side and
-  reports the first gameplay divergence.
-- A modern UI/runtime stack that can also interoperate with the Java Forge
-  engine, either bundled behind Tauri for local play or hosted by a self-hosted
-  room server.
-- A GPL community project intended to be developed in the open.
+`ManaBrew` is a React/Tauri client and Rust rules-engine project for playing
+Magic online. It uses Forge as the rules reference instead of defining a new
+interpretation of the game.
 
-> **Forge-engine interop:** `manabrew` is not limited to the Rust port. The same
-> client/protocol stack can drive a Java Forge-backed game session, so Forge
-> gameplay can run through the modern Tauri/web and self-hosted-room experience
-> while the Rust engine continues moving toward parity.
+The repository includes:
 
-## Why This Exists
+- a desktop client, web client, deck tools, and multiplayer runtime;
+- a Rust port of Forge's game engine;
+- Java Forge interop for Forge-backed games through the same client stack;
+- a parity harness that compares Rust and Java Forge with the same decks, seed,
+  and deterministic choices.
 
-The immediate reason is mundane: a few friends in different countries wanted to
-play Magic online together. We tried the existing options. Each of them is good
-at what it aims for, and Forge in particular is the project this work is built
-on. None of them, though, quite fit what we wanted — a modern, open,
-multiplayer-first home for a small group like ours. So we built one.
-
-Forge itself remains the foundation. It has accumulated years of rules knowledge
-and card-script coverage, and we did not want to discard that work or compete
-with it by guessing from scratch.
-
-`manabrew` exists to bring Forge's rules model into runtime shapes that are hard
-for the Java/Swing stack to cover directly: web/WASM play, self-hosted
-multiplayer, modern desktop UI, deterministic parity testing, and typed internal
-representations for high-risk script semantics.
-
-The project is therefore both conservative and experimental: conservative about
-game behavior, where Java Forge remains the oracle; experimental about runtime,
-tooling, UI, and deployment.
+> [!TIP]
+> The Rust engine is still catching up to Forge. The client stack can also drive
+> Java Forge-backed sessions, which gives the project a usable path while Rust
+> parity work continues.
 
 ## Current Status
 
-`manabrew` is pre-release software. The Java Forge backend path gives the modern
-client stack a way to run Forge-backed games today; the Rust engine is playable
-for selected matchups and is actively being brought into parity. The most mature
-part of the project is the development loop: we can run the Rust engine against
-the Java Forge reference with the same decks, same seed, and same deterministic
-choices, then fix divergences at the mechanic level.
+`ManaBrew` is pre-release software.
 
-Public release is being prepared. Some release-readiness work is still in
-progress, including security cleanup, issue triage, naming, contributor
-onboarding, and packaging.
+- The client and Java Forge backend path are the most practical way to play
+  today.
+- The Rust engine works for selected matchups, but broad card coverage is still
+  in progress.
+- Engine work is driven by parity testing against Java Forge.
+- Packaging, contributor onboarding, and release-readiness work are ongoing.
 
-## Relationship With Forge
+---
 
-Forge is the foundation of this project.
+## Getting Started
 
-- The Java Forge source under `forge/` is the reference implementation.
-- The Rust engine mirrors Forge's rules structure and consumes Forge card
-  scripts.
-- The parity harness exists to keep behavior faithful to Forge, not to invent a
-  different interpretation of the game.
-- The repository is GPL-3.0-or-later because the engine and bundled card data
-  are derivative of Forge.
+### Prerequisites
 
-The intent is to be a good-neighbor port and companion project. We do not expect
-Forge maintainers to review or support this work, but we want the framing,
-naming, and attributions to make the relationship explicit and courteous.
+- Node.js 22.12+ recommended
+- Yarn v1
+- Rust stable
+- Java 18 and Maven for Java Forge parity runs
+- Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
 
-See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and
-[Third-Party Notices](./THIRD-PARTY-NOTICES.md). For related projects and
-ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
+### Install
 
-## Why Rust?
+```bash
+yarn install
+```
 
-Forge has years of rules knowledge and a very large card-script corpus. Rust
-lets us explore a different runtime shape while preserving that knowledge:
+### Run the desktop app
 
-- desktop app through Tauri;
-- web/WASM builds for browser-based play;
-- headless engine hosts for self-hosted multiplayer;
-- deterministic traces for debugging, regression testing, and AI work;
-- typed internal representations for hot or high-risk card-script semantics.
+```bash
+yarn dev
+```
 
-The goal is to carry Forge's rules knowledge into new deployment shapes while
-keeping the Java implementation as the reference point for correctness.
+### Run the web build
+
+```bash
+yarn dev:web
+```
+
+### Build
+
+```bash
+yarn build
+```
+
+### Check formatting, types, and lints
+
+```bash
+yarn lint:all
+```
+
+## Common Commands
+
+| Command                | What it does                                           |
+| ---------------------- | ------------------------------------------------------ |
+| `yarn dev`             | Start the Tauri desktop app in development mode        |
+| `yarn dev:web`         | Build the WASM engine and start the web client         |
+| `yarn build`           | Build the desktop app                                  |
+| `yarn build:web`       | Build the web app                                      |
+| `yarn build:harness`   | Build the Java Forge parity harness                    |
+| `yarn parity`          | Run named parity scenarios                             |
+| `yarn parity:test --`  | Run the parity binary with custom arguments            |
+| `yarn parity:gui`      | Start the engine debugger                              |
+| `yarn lint:all`        | Run frontend lint/typecheck and Rust fmt/clippy checks |
+| `yarn import-deck ...` | Import a deck from Archidekt or Moxfield               |
+
+---
 
 ## Architecture
 
@@ -137,82 +188,77 @@ Start here:
 - [Engine Bugfix Workflow](./docs/agents/ENGINE_BUGFIX_WORKFLOW.md)
 - [Parity Philosophy](./docs/agents/PARITY_PHILOSOPHY.md)
 
-## Compiled IR and SVars
+## Engine Notes
 
-Forge card scripts are still the compatibility contract. The Rust engine is
-gradually adding typed, compiled representations for the parts of that DSL where
-raw string interpretation is risky or expensive: produced mana, defined-object
-references, numeric expressions, selectors, costs, and similar engine-critical
-domains.
+Forge card scripts are the compatibility contract. The Rust engine mirrors Java
+Forge behavior, but it can use Rust-native data structures and typed internal
+representations when behavior stays the same.
 
-This is the first deliberate divergence from Forge's mostly interpreted runtime
-model. It is a performance and maintainability divergence, not a behavior
-divergence. SVar resolution remains late-bound: SVars are parsed lazily and
-looked up from the current host-card state when needed.
+The main example is compiled IR for high-risk card-script semantics: produced
+mana, defined-object references, numeric expressions, selectors, costs, and
+similar domains. This is an implementation difference, not a game-behavior
+difference. SVar resolution remains late-bound and follows the current
+host-card state.
 
 See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and the SVar semantics
 in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
 
-## Getting Started
+---
 
-### Prerequisites
+## Background
 
-- Node.js 22.12+ recommended
-- Yarn v1
-- Rust stable
-- Java 18 and Maven for Java Forge parity runs
-- Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
+<details>
+<summary><strong>Why This Exists</strong></summary>
 
-### Install
+The project started because a small group of friends wanted a modern, open way
+to play Magic online together. Existing tools solve different parts of that
+problem well, and Forge in particular provides the rules knowledge this project
+depends on. `Manabrew` explores a different client, runtime, and deployment
+shape while preserving Forge compatibility.
 
-```bash
-yarn install
-```
+</details>
 
-### Run The Desktop App
+<details>
+<summary><strong>Why Rust?</strong></summary>
 
-```bash
-yarn dev
-```
+Forge has years of rules knowledge and a very large card-script corpus. Rust
+lets this project target:
 
-### Run The Web Build
+- desktop app through Tauri;
+- web/WASM builds for browser-based play;
+- headless engine hosts for self-hosted multiplayer;
+- deterministic traces for debugging, regression testing, and AI work;
+- typed internal representations for hot or high-risk card-script semantics.
 
-```bash
-yarn dev:web
-```
+</details>
 
-### Build
+<details>
+<summary><strong>Relationship With Forge</strong></summary>
 
-```bash
-yarn build
-```
+Forge is the foundation of this project.
 
-### Check Formatting, Types, And Lints
+- The Java Forge source under `forge/` is the reference implementation.
+- The Rust engine mirrors Forge's rules structure and consumes Forge card
+  scripts.
+- The parity harness keeps behavior faithful to Forge.
+- The repository is GPL-3.0-or-later because the engine and bundled card data
+  are derivative of Forge.
 
-```bash
-yarn lint:all
-```
+This is an independent fan project. Forge maintainers are not expected to review
+or support this work.
 
-## Common Commands
+See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and
+[Third-Party Notices](./THIRD-PARTY-NOTICES.md). For related projects and
+ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
 
-| Command                | What it does                                           |
-| ---------------------- | ------------------------------------------------------ |
-| `yarn dev`             | Start the Tauri desktop app in development mode        |
-| `yarn dev:web`         | Build the WASM engine and start the web client         |
-| `yarn build`           | Build the desktop app                                  |
-| `yarn build:web`       | Build the web app                                      |
-| `yarn build:harness`   | Build the Java Forge parity harness                    |
-| `yarn parity`          | Run named parity scenarios                             |
-| `yarn parity:test --`  | Run the parity binary with custom arguments            |
-| `yarn parity:gui`      | Start the engine debugger                              |
-| `yarn lint:all`        | Run frontend lint/typecheck and Rust fmt/clippy checks |
-| `yarn import-deck ...` | Import a deck from Archidekt or Moxfield               |
+</details>
+
+---
 
 ## Contributing
 
-Contributions are welcome once the repository is public. The most useful early
-contributions are small, well-scoped parity fixes, documentation improvements,
-UI bug fixes, and reproducible issue reports.
+The most useful contributions are small, well-scoped parity fixes,
+documentation improvements, UI bug fixes, and reproducible issue reports.
 
 Before opening a PR, read [CONTRIBUTING.md](./CONTRIBUTING.md). In short:
 
@@ -223,27 +269,14 @@ Before opening a PR, read [CONTRIBUTING.md](./CONTRIBUTING.md). In short:
 - run `yarn lint:all` before asking for review;
 - do not bundle card images or secrets.
 
-## AI-Assisted Development
+### AI-Assisted Development
 
-This repository has been built with substantial AI assistance, especially for
-mechanical porting, parity investigation, trace analysis, documentation, and
-large-scale inventory work. AI output is treated as code written by a
-contributor: it must be reviewed, tested, and grounded in Forge's Java behavior.
+This repository uses AI assistance for mechanical porting, parity
+investigation, trace analysis, documentation, and large-scale inventory work. AI
+output is treated as code written by a contributor: it must be reviewed, tested,
+and grounded in Forge's Java behavior.
 
 See [AI Usage](./docs/AI_USAGE.md).
-
-## Project Philosophy
-
-The short version:
-
-- Correctness beats novelty for engine behavior.
-- Forge is the oracle.
-- Ports should fix mechanics, not individual cards.
-- Public releases should be honest about what works and what does not.
-- The project should be non-commercial, self-hostable, and respectful of the
-  communities and rights-holders around the game.
-
-See [Project Philosophy](./docs/PROJECT_PHILOSOPHY.md).
 
 ## License
 
@@ -253,3 +286,9 @@ other implementations can describe or implement the same wire format.
 
 See [LICENSE.md](./LICENSE.md), [LICENSE-GPL-3.0-or-later](./LICENSE-GPL-3.0-or-later),
 and [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
+
+---
+
+<div align="center">
+  <sub>Built by the ManaBrew contributors · GPL-3.0-or-later</sub>
+</div>

@@ -1,11 +1,31 @@
-# Contributing to manabrew
+# Contributing to ManaBrew
 
-Thanks for helping. This project is still pre-public-release software, so the
-best contributions are small, reproducible, and easy to review.
+Thanks for helping. The easiest contributions to review are small,
+issue-backed, reproducible, and checked locally before the PR is opened.
+
+## Contribution flow
+
+Use this path for most contributions:
+
+1. **Pick up an issue.** Start from an existing issue, or open one before doing
+   larger work.
+2. **Fork the repository.** Create your own fork and make changes on a branch in
+   that fork.
+3. **Implement the change.** Keep the patch focused on the issue. Avoid
+   unrelated refactors.
+4. **Check correctness locally.** Run the relevant commands before asking for
+   review.
+5. **Open a PR from your fork.** Include the issue, what changed, the exact
+   checks you ran, and any regression entry added for engine work.
+6. **Respond to review.** Maintainers review on a best-effort basis and may ask
+   for changes before merging.
 
 ## Start with an issue
 
 For anything larger than a typo, start from an existing issue or open one first.
+Comment on the issue if you plan to work on it, so maintainers and other
+contributors can avoid duplicate effort.
+
 Good issue reports include:
 
 - what you expected;
@@ -13,53 +33,34 @@ Good issue reports include:
 - steps to reproduce;
 - deck names, seed, and `yarn parity:test` command when the bug is engine-side;
 - screenshots or short screen recordings for UI bugs;
-- platform information for Tauri, WASM, or multiplayer problems.
+- platform information for Tauri, WASM, or multiplayer problems;
+- one of the issue templates, when possible.
 
 ## Development setup
 
-Install the main dependencies:
+After forking, clone your fork and follow the README setup:
 
-```bash
-yarn install
-```
+- [Getting Started](./README.md#getting-started)
+- [Common Commands](./README.md#common-commands)
+- [Parity Harness](./README.md#parity-harness)
 
-Run the desktop client:
-
-```bash
-yarn dev
-```
-
-Run the web client:
-
-```bash
-yarn dev:web
-```
-
-Build the Java Forge harness when doing parity work:
-
-```bash
-yarn build:harness
-```
-
-Then run a parity matchup:
-
-```bash
-yarn parity:test -- --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 20
-```
+Use the parity section when working on engine issues; engine PRs should include
+the exact parity commands you ran.
 
 ## Engine contribution workflow
 
 The engine is a Rust port of Forge. Do not fix engine bugs by guessing from card
-text alone.
+text alone. A good engine PR shows both the root cause and the parity commands
+that prove the fix.
 
 1. Reproduce the divergence with `yarn parity` or `yarn parity:test`.
-2. Identify the Forge mechanic involved: effect, trigger, replacement, static
+2. Identify the mechanic involved: effect, trigger, replacement, static
    ability, cost, mana, combat, zone change, or state-based action.
-3. Read the Java source under `forge/forge-game/`.
-4. Read the Rust counterpart under `forge-engine/crates/forge-engine/`.
-5. Port the missing rule in the matching Rust module.
-6. Re-run the failing parity command.
-7. Run the narrowest additional parity coverage that could catch a regression.
+3. Familiarize yourself with the rules, or the java forge reference implementation.
+4. Fix the wrongly implemented rule in the matching Rust module.
+5. Re-run the failing parity command.
+6. Run the narrowest additional parity coverage that could catch a regression.
+7. Include those commands and results in the PR description.
 
 If the fix seems to require a card-specific branch, stop and look for the
 general Forge rule that card is exercising.
@@ -84,7 +85,7 @@ prompts; the UI renders state and returns player choices.
 
 ## AI-assisted contributions
 
-AI tools are allowed, but the author of the PR is responsible for the result.
+AI tools are allowed and encouraged, but the author of the PR is responsible for the result.
 Do not submit generated code you cannot explain.
 
 Use AI where it is strongest here:
@@ -122,28 +123,12 @@ You can add this automatically with:
 git commit -s
 ```
 
-## Pull requests
+Keep the PR reviewable:
 
-Before opening a PR:
-
-```bash
-yarn lint:all
-```
-
-For engine PRs, also include the exact parity commands you ran. For UI PRs,
-include the browsers or platforms you checked.
-
-PR descriptions should use this structure:
-
-```markdown
-## Summary
-
-## Why
-
-## Test plan
-
-## Build artifacts
-```
+- Link the issue it fixes or explains.
+- Describe the behavior change, not just the files touched.
+- Mention any known limitations or follow-up work.
+- Do not mix unrelated cleanup with a bug fix.
 
 ## What not to include
 

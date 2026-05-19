@@ -1,0 +1,16 @@
+manabrew.app {
+    # The upstream nginx already sets Cross-Origin-Opener-Policy and
+    # Cross-Origin-Embedder-Policy. Don't add them here too — duplicate
+    # headers (even with identical values) get merged into a list by
+    # HTTP/2, which browsers reject for COOP/COEP, breaking cross-origin
+    # isolation and SharedArrayBuffer.
+    reverse_proxy https://manabrew:443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+}
+
+relay.manabrew.app {
+    reverse_proxy forge-server:9443
+}

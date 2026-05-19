@@ -219,5 +219,7 @@ export function isManaCode(value: string): value is ManaCode {
 
 export const manaSymbolUrl = (code: ManaCode) => {
   const filename = MANA_CODE_FILE_OVERRIDES[code] ?? code.replace(/\//g, "");
-  return `https://svgs.scryfall.io/card-symbols/${encodeURIComponent(filename)}.svg`;
+  const base =
+    import.meta.env.VITE_SCRYFALL_SYMBOL_BASE || "https://svgs.scryfall.io/card-symbols/";
+  return `${base}${encodeURIComponent(filename)}.svg`;
 };

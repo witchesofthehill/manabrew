@@ -11,100 +11,126 @@ reference implementation.
    export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home
    ```
 
-2. **Build the Java harness JAR** (from repo root):
-   ```bash
-   cd forge && JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home \
-     mvn -pl forge-harness -am -DskipTests package
-   ```
-   This produces:
-   `forge/forge-harness/target/forge-harness-jar-with-dependencies.jar`
+## How to run a parity test
 
-## Common Commands
+### 1. Use an existing regression entry when possible
 
-All commands run from the repository root.
-
-### Full 7-deck parity matrix (3 seeds each = 126 matchups)
+Regression entries live in `forge-engine/crates/forge-parity/regression.json`.
+If the matchup is already listed there, run it by name:
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home \
-  cargo run -p forge-parity -- \
-  --matrix --seeds 42,100,999 \
-  --decks red_burn,green_stompy,white_aggro,black_control,comprehensive_test,trigger_expanded,staticability_test \
-  --cards-dir forge/forge-gui/res/cardsfolder \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+yarn parity trigger_parity
 ```
 
-### Single matchup (verbose)
+Extra flags are appended after the test name:
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home \
-  cargo run -p forge-parity -- \
-  --deck1 <DECK1> --deck2 <DECK2> \
-  --seed <SEED> --max-turns 30 -v \
-  --cards-dir forge/forge-gui/res/cardsfolder \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+yarn parity trigger_parity --investigate --verbose=7
 ```
 
-### Staticability mirror test
+### 2. Import the deck you intend to test
+
+Create a file `my_deck.json` inside the `parity_decks/` root directory of the project.
+Look at existing decks in that folder for reference on the expected JSON format.
+
+Deck names passed through `--deck1` / `--deck2` resolve from `parity_decks/`
+first, then `public/preset_decks/`. Use `--decks-dir <path>` only when you want
+to override that lookup for a local experiment.
+
+### 3. Run a custom matchup
+
+The following command will run a single matchup between `my_deck` and itself, using a fixed seed and max turn limit. Adjust the parameters as needed.
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home \
-  cargo run -p forge-parity -- \
-  --deck1 staticability_test --deck2 staticability_test \
-  --max-turns 30 -v \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+yarn parity:test \
+  -- \
+  --seed 42 \
+  --deck1 my_deck \
+  --deck2 my_deck \
+  --max-turns 10
 ```
 
-### Run only non-black_control matchups (avoids Hypnotic Specter RNG gap)
+`yarn parity:test` already supplies `--java-jar`, so put custom parity flags
+after `--`.
+
+## Common flags
+
+| Flag                                | Use it when                                                                                                                                                              |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--deck1 <name>` / `--deck2 <name>` | Choose the two decks for the matchup.                                                                                                                                    |
+| `--seed <N>`                        | Reproduce the same decisions, shuffles, and random choices.                                                                                                              |
+| `--max-turns <N>`                   | Stop early once the bug has already appeared. Smaller values make runs faster.                                                                                           |
+| `--games <N>`                       | Run the same matchup repeatedly with incrementing seeds starting at `--seed`.                                                                                            |
+| `--verbose` / `-v`                  | Print step-by-step decisions and per-game progress for every turn.                                                                                                       |
+| `--verbose=<turn>`                  | Limit verbose output to one turn, for example `--verbose=7`.                                                                                                             |
+| `--verbose=<a,b>`                   | Limit verbose output to selected turns, for example `--verbose=7,8`.                                                                                                     |
+| `--deep`                            | Compare callback-entry snapshots before every decision callback. Use this when a normal phase snapshot is too late to find the first drift.                              |
+| `--investigate`                     | On failure, print a side-by-side Rust/Java callback window around the first divergent snapshot.                                                                          |
+| `--full-log`                        | Print the full side-by-side Rust/Java callback log for the entire run. This is noisy, but useful when the important action happened well before the reported divergence. |
+| `--log-snapshots`                   | Print the side-by-side snapshot timeline to stderr. Useful when checking whether snapshot ordering, rather than game state, is drifting.                                 |
+| `--prefer-actions`                  | Bias the deterministic agent toward taking main-phase actions instead of passing. This can expose cast/activate bugs faster.                                             |
+| `--matrix`                          | Run all selected deck pair combinations across selected seeds.                                                                                                           |
+| `--seeds <list>`                    | Comma-separated seed list for matrix mode, for example `--seeds 42,100,999`.                                                                                             |
+| `--decks <list>`                    | Comma-separated deck list for matrix mode.                                                                                                                               |
+| `--format json`                     | Emit machine-readable output for CI or post-processing.                                                                                                                  |
+| `--output <path>` / `-o <path>`     | Save the report instead of printing it to stdout.                                                                                                                        |
+| `--no-cache`                        | Force Java to rerun instead of reading a cached Java trace. Use this if the Java harness or card data changed.                                                           |
+
+## Debug examples
+
+Run a known regression and print the local window around the first divergence:
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home \
-  cargo run -p forge-parity -- \
-  --matrix --seeds 42,100,999 \
-  --decks red_burn,green_stompy,white_aggro,comprehensive_test,trigger_expanded,staticability_test \
-  --cards-dir forge/forge-gui/res/cardsfolder \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+yarn parity trigger_parity --investigate --verbose=7
 ```
 
-## Available Decks
+- `trigger_parity` reads deck, seed, turn limit, and game count from
+  `regression.json`.
+- `--investigate` prints the nearby Rust/Java callback logs side by side.
+- `--verbose=7` limits step-by-step logging to turn 7, which keeps the output
+  readable when the failure is already known to happen there.
 
-| Deck                 | Focus                                                     |
-| -------------------- | --------------------------------------------------------- |
-| `red_burn`           | Direct damage, aggro                                      |
-| `green_stompy`       | Big creatures, ramp                                       |
-| `white_aggro`        | Tokens, anthems                                           |
-| `black_control`      | Discard, removal (has Hypnotic Specter RNG gap)           |
-| `comprehensive_test` | Broad mechanics coverage (pain lands, charms, kicker)     |
-| `trigger_expanded`   | Trigger-heavy coverage (ETB, cast, damage, surveil)       |
-| `staticability_test` | Static abilities coverage (anthems, protection, and more) |
-
-## Known Limitations
-
-- **Hypnotic Specter** (in `black_control`): Random discard uses Java's
-  `MyRandom` which is separate from the shared agent RNG. This causes inherent
-  divergence in all `black_control` matchups.
-- **Flashback**: Graveyard flashback is intentionally excluded from the
-  deterministic action list to match Java's `chooseSpellAbilityToPlay()`, which
-  only queries Hand and Battlefield.
-
-## Interpreting Results
-
-- **PASS**: Rust and Java produce identical game state snapshots at each turn
-- **FAIL**: Divergence detected. The output shows the first turn where states
-  differ, with details on the mismatched fields.
-
-## Troubleshooting
-
-If the JAR doesn't exist or is stale, rebuild it:
+Run a custom matchup with deeper callback comparisons:
 
 ```bash
-cd forge && JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home \
-  mvn -pl forge-harness -am -DskipTests package
+yarn parity:test \
+  -- \
+  --deck1 trigger_expanded \
+  --deck2 comprehensive_test \
+  --seed 100 \
+  --max-turns 20 \
+  --deep \
+  --investigate
 ```
 
-If `cargo run` fails to compile, check:
+- `--deck1` and `--deck2` choose preset or parity deck names.
+- `--seed 100` makes the run reproducible.
+- `--max-turns 20` bounds the search window.
+- `--deep` adds callback-entry snapshots, often moving the reported divergence
+  closer to the missing rule.
+- `--investigate` prints the Rust/Java callback window around that divergence.
+
+Trace a narrow subsystem with environment variables:
 
 ```bash
-cargo check -p forge-engine-core
-cargo check -p forge-parity
+FORGE_RNG_TRACE=1 FORGE_TRIGGER_TRACE=1 yarn parity trigger_parity --investigate
 ```
+
+- `FORGE_RNG_TRACE=1` prints random calls on both sides when available.
+- `FORGE_TRIGGER_TRACE=1` prints trigger registration and execution details in
+  Rust.
+- Prefix only the run you are debugging; trace env vars are intentionally noisy.
+
+Other useful trace env vars:
+
+| Env var                     | Use it when                                                          |
+| --------------------------- | -------------------------------------------------------------------- |
+| `FORGE_RNG_BT=1`            | Print Rust RNG backtraces for suspicious bounded calls.              |
+| `FORGE_RNG_BT_BOUNDS=1,2,6` | Forward selected Java RNG bounded-call backtraces for those bounds.  |
+| `FORGE_RNG_BT_UNBOUNDED=1`  | Forward Java unbounded RNG backtraces.                               |
+| `FORGE_SORT_TRACE=1`        | Trace Java ordering/sorting decisions forwarded through the harness. |
+| `FORGE_STACK_TRACE=1`       | Trace Rust stack casting and resolution paths.                       |
+| `FORGE_PAYMENT_TRACE=1`     | Trace Rust mana payment decisions.                                   |
+| `FORGE_CARD_TRACE=<name>`   | Trace Rust card lookup/details for matching card names.              |
+| `FORGE_LIB_DUMP=1`          | Ask the Java harness to dump library details.                        |
+| `FORGE_TOKEN_DEBUG=1`       | Ask the Java harness to print token diagnostics.                     |

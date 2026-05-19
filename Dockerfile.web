@@ -44,6 +44,18 @@ COPY forge/forge-gui/res/cardsfolder/ ./forge/forge-gui/res/cardsfolder/
 COPY forge/forge-gui/res/tokenscripts/ ./forge/forge-gui/res/tokenscripts/
 COPY public/preset_decks/ ./public/preset_decks/
 
+# Production build defaults — the prod compose passes these as build args
+# so the static bundle bakes in the public relay endpoint. Dev builds (yarn
+# dev) leave them unset and fall back to localhost:9443.
+ARG VITE_RELAY_HOST=
+ARG VITE_RELAY_PORT=
+ARG VITE_RELAY_PASSWORD=
+ARG VITE_SCRYFALL_SYMBOL_BASE=
+ENV VITE_RELAY_HOST=${VITE_RELAY_HOST}
+ENV VITE_RELAY_PORT=${VITE_RELAY_PORT}
+ENV VITE_RELAY_PASSWORD=${VITE_RELAY_PASSWORD}
+ENV VITE_SCRYFALL_SYMBOL_BASE=${VITE_SCRYFALL_SYMBOL_BASE}
+
 # Build WASM + Vite bundle (outputs to dist/)
 RUN yarn build:web
 

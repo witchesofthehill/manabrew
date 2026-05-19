@@ -565,7 +565,7 @@ class WebServerApi implements IServerApi {
   }
 
   async connect(params: ServerConnectParams): Promise<void> {
-    this.disconnect();
+    await this.disconnect();
     const scheme = params.port === 443 ? "wss" : "ws";
     const url = `${scheme}://${params.host}:${params.port}`;
     this.relayUrl = url;
@@ -609,12 +609,26 @@ class WebServerApi implements IServerApi {
     for (const username of [...this.bots.keys()]) {
       await this.removeAiBot(username);
     }
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    const ws = this.ws;
+    this.ws = null;
     this.relayUrl = null;
     this.serverPassword = null;
+    if (!ws || ws.readyState === WebSocket.CLOSED) return;
+    // Wait for the actual close event before resolving. Resolving on
+    // ws.close() alone races against the server still cleaning up the
+    // session, so Settings "Save & Reconnect" (disconnect → connect)
+    // would race the new authenticate against the previous session and
+    // forge-server rejected it as a duplicate.
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        ws.removeEventListener("close", done);
+        ws.removeEventListener("error", done);
+        resolve();
+      };
+      ws.addEventListener("close", done);
+      ws.addEventListener("error", done);
+      ws.close();
+    });
   }
 
   async listRooms(): Promise<void> {

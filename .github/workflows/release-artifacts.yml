@@ -1,5 +1,15 @@
 name: Release artifacts
 
+# Builds the Tauri desktop installers (macOS .dmg, Windows .exe / .msi) on
+# GitHub-hosted runners and posts a joyful Discord embed when each is ready.
+# Native installers — Wasm/web stack lives in .github/workflows/deploy.yml.
+#
+# GitHub-hosted runners are free for public repositories (unlimited minutes
+# on standard ubuntu-latest / windows-latest / macos-latest). The previous
+# revision used self-hosted runners; migrating off them lets us drop the
+# manual provisioning step (scripts/setup-{linux,windows}-runner.{sh,ps1}
+# are still kept around for the parity dashboard host).
+
 on:
   push:
     branches: [main]
@@ -27,7 +37,7 @@ jobs:
   #   3. Push to main       -> read the PR body checkboxes.
   gate:
     name: Check build gate
-    runs-on: [self-hosted, artifactGate]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: read
@@ -79,17 +89,42 @@ jobs:
             core.setOutput('should_build_windows', win ? 'true' : 'false');
 
   # ── macOS .dmg ─────────────────────────────────────────────────────
+  # macos-latest = Apple Silicon (arm64). Produces an arm64 .dmg. If you
+  # ever need Intel too, add an `arch: [arm64, x86_64]` matrix and pass
+  # `--target` to `tauri build`.
   macos-dmg:
     name: Build macOS .dmg
     needs: gate
     if: needs.gate.outputs.should_build_macos == 'true'
-    runs-on: [self-hosted, macOS]
+    runs-on: macos-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
           clean: true
           fetch-depth: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-macos
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
 
       - run: yarn
 
@@ -110,7 +145,7 @@ jobs:
 
       # Build a per-artifact changelog so the Discord notification carries
       # the list of commits since the previous push. Trimmed so the whole
-      # message stays well under Discord's 2000-char single-message limit.
+      # message stays well under Discord's 4096-char embed-description limit.
       - name: Build changelog
         id: changelog
         shell: bash
@@ -137,42 +172,78 @@ jobs:
             echo 'CHANGELOG_EOF'
           } >> "$GITHUB_OUTPUT"
 
-      # Fan out to n8n → Discord so subscribers see the new .dmg without
-      # having to watch the Actions tab. URL points at the workflow run
-      # page because Actions artifacts are not publicly downloadable.
-      - name: Notify n8n (macOS artifact)
+      - name: Post Discord embed (macOS artifact)
         if: ${{ success() }}
         env:
-          N8N_WEBHOOK_URL: ${{ secrets.N8N_DEPLOY_WEBHOOK_URL }}
+          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CHANGELOG: ${{ steps.changelog.outputs.changelog }}
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          ARTIFACT_NAME: macos-dmg-${{ github.sha }}
         shell: bash
         run: |
-          if [ -z "${N8N_WEBHOOK_URL:-}" ]; then
-            echo "N8N_DEPLOY_WEBHOOK_URL not set; skipping notification."
+          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
+            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
             exit 0
           fi
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
+          ACTOR_URL="https://github.com/${ACTOR}"
+          TITLE="🍎 macOS build ready"
+          COLOR=5793266   # 0x5865F2 blurple
+
+          DESC=$(printf '%s\n\n%s\n\n%s\n%s' \
+            "🧪 Fresh \`.dmg\` artifact attached to the workflow run." \
+            "📦 [Download \`${ARTIFACT_NAME}\` from the workflow run](${RUN_URL}) (sign-in required, 30-day retention)." \
+            "📝 **Changelog**" \
+            "${CHANGELOG}")
+
+          MAX=3900
+          if [ "${#DESC}" -gt "$MAX" ]; then
+            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
+          fi
+
           PAYLOAD=$(jq -n \
-            --arg event     "artifact" \
-            --arg platform  "macos" \
-            --arg name      "macos-dmg-${{ github.sha }}" \
-            --arg url       "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --arg sha       "${{ github.sha }}" \
-            --arg ref       "${{ github.ref }}" \
-            --arg repo      "${{ github.repository }}" \
-            --arg actor     "${{ github.actor }}" \
-            --arg changelog "$CHANGELOG" \
-            '{event:$event, platform:$platform, name:$name, url:$url, sha:$sha, ref:$ref, repo:$repo, actor:$actor, changelog:$changelog}')
-          curl -fsS -X POST -H 'Content-Type: application/json' \
-            -d "$PAYLOAD" "$N8N_WEBHOOK_URL"
+            --arg title "$TITLE" \
+            --arg url "$RUN_URL" \
+            --arg desc "$DESC" \
+            --arg footer "manabrew · $SHORT_SHA" \
+            --arg actor "$ACTOR" \
+            --arg actor_url "$ACTOR_URL" \
+            --arg avatar_url "$AVATAR_URL" \
+            --arg timestamp "$TIMESTAMP" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: $color,
+                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }]
+            }')
+
+          curl -fsS -X POST \
+            -H "Authorization: Bot $BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
 
   # ── Windows .exe ───────────────────────────────────────────────────
-  # NOTE: requires a self-hosted runner with the `windows` label
-  # (Rust + MSVC toolchain + Node + Yarn installed).
+  # windows-latest is x86_64. NSIS + WiX (.msi) ship preinstalled on the
+  # runner image. MSVC env is loaded per-step via ilammy/msvc-dev-cmd.
   windows-exe:
     name: Build Windows .exe
     needs: gate
     if: needs.gate.outputs.should_build_windows == 'true'
-    runs-on: [self-hosted, Windows]
+    runs-on: windows-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -180,18 +251,30 @@ jobs:
           clean: true
           fetch-depth: 10
 
-      # Loads MSVC env (link.exe, LIB, INCLUDE) for subsequent steps so
-      # Rust/Tauri can link. Replaces the need for a persistent
-      # Developer Command Prompt.
       - name: Set up MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      # Runner prerequisites (set up once on the machine via
-      # scripts/setup-windows-runner.ps1):
-      #   - Rust + rustup installed, %USERPROFILE%\.cargo\bin on SYSTEM PATH
-      #   - wasm32-unknown-unknown target + wasm-pack installed
-      #   - Runner service runs as .\Administrator (service account needs
-      #     read access to .cargo\bin, which NetworkService does not have)
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: tauri-windows
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: latest
+
       - run: yarn
 
       - name: Build WASM + bundle cards
@@ -214,7 +297,7 @@ jobs:
 
       # Build a per-artifact changelog so the Discord notification carries
       # the list of commits since the previous push. Trimmed so the whole
-      # message stays well under Discord's 2000-char single-message limit.
+      # message stays well under Discord's 4096-char embed-description limit.
       - name: Build changelog
         id: changelog
         shell: pwsh
@@ -247,32 +330,70 @@ jobs:
           $global:LASTEXITCODE = 0
           exit 0
 
-      # Fan out to n8n → Discord so subscribers see the new .exe without
-      # having to watch the Actions tab. URL points at the workflow run
-      # page because Actions artifacts are not publicly downloadable.
-      - name: Notify n8n (Windows artifact)
+      - name: Post Discord embed (Windows artifact)
         if: ${{ success() }}
         env:
-          N8N_WEBHOOK_URL: ${{ secrets.N8N_DEPLOY_WEBHOOK_URL }}
+          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           CHANGELOG: ${{ steps.changelog.outputs.changelog }}
-        shell: pwsh
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          ARTIFACT_NAME: windows-exe-${{ github.sha }}
+        # Git for Windows ships bash + jq + curl on the runner image, so the
+        # same bash block we use on macOS works here too.
+        shell: bash
         run: |
-          if ([string]::IsNullOrEmpty($env:N8N_WEBHOOK_URL)) {
-            Write-Host "N8N_DEPLOY_WEBHOOK_URL not set; skipping notification."
+          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
+            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
             exit 0
-          }
-          $payload = @{
-            event     = 'artifact'
-            platform  = 'windows'
-            name      = 'windows-exe-${{ github.sha }}'
-            url       = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
-            sha       = '${{ github.sha }}'
-            ref       = '${{ github.ref }}'
-            repo      = '${{ github.repository }}'
-            actor     = '${{ github.actor }}'
-            changelog = $env:CHANGELOG
-          } | ConvertTo-Json -Compress
-          Invoke-RestMethod -Uri $env:N8N_WEBHOOK_URL -Method Post -ContentType 'application/json' -Body $payload
+          fi
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
+          ACTOR_URL="https://github.com/${ACTOR}"
+          TITLE="🪟 Windows build ready"
+          COLOR=5793266   # 0x5865F2 blurple
+
+          DESC=$(printf '%s\n\n%s\n\n%s\n%s' \
+            "🧪 Fresh \`.exe\` + \`.msi\` artifact attached to the workflow run." \
+            "📦 [Download \`${ARTIFACT_NAME}\` from the workflow run](${RUN_URL}) (sign-in required, 30-day retention)." \
+            "📝 **Changelog**" \
+            "${CHANGELOG}")
+
+          MAX=3900
+          if [ "${#DESC}" -gt "$MAX" ]; then
+            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
+          fi
+
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg url "$RUN_URL" \
+            --arg desc "$DESC" \
+            --arg footer "manabrew · $SHORT_SHA" \
+            --arg actor "$ACTOR" \
+            --arg actor_url "$ACTOR_URL" \
+            --arg avatar_url "$AVATAR_URL" \
+            --arg timestamp "$TIMESTAMP" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: $color,
+                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }]
+            }')
+
+          curl -fsS -X POST \
+            -H "Authorization: Bot $BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
 
   # ── Publish GitHub Release (tags only) ─────────────────────────────
   # Triggered only on `v*` tag pushes. Downloads the artifacts built
@@ -282,7 +403,7 @@ jobs:
     name: Publish GitHub Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [macos-dmg, windows-exe]
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
@@ -337,38 +458,71 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Notify n8n so it can fan out to Discord (same endpoint deploy.sh
-      # uses). Requires repo secret N8N_DEPLOY_WEBHOOK_URL pointing at
-      # the n8n `/webhook/github-deploy` endpoint. Skipped silently if
-      # the secret is unset. Payload carries an `event: "release"` tag
-      # so the n8n workflow can branch on it (add a filter for
-      # `$json.body.event === "release"` alongside the existing main-branch
-      # check).
-      - name: Notify n8n (release published)
+      - name: Post Discord embed (release published)
         if: steps.publish.outputs.url != ''
         env:
-          N8N_WEBHOOK_URL: ${{ secrets.N8N_DEPLOY_WEBHOOK_URL }}
+          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_URL: ${{ steps.publish.outputs.url }}
           RELEASE_BODY: ${{ steps.changelog.outputs.changelog }}
-          RELEASE_ACTOR: ${{ github.actor }}
-          RELEASE_SHA: ${{ github.sha }}
-          RELEASE_REPO: ${{ github.repository }}
-          RELEASE_PRERELEASE: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          PRERELEASE: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+        shell: bash
         run: |
-          if [ -z "${N8N_WEBHOOK_URL:-}" ]; then
-            echo "N8N_DEPLOY_WEBHOOK_URL not set; skipping notification."
+          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
+            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
             exit 0
           fi
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          AVATAR_URL="https://github.com/${ACTOR}.png?size=64"
+          ACTOR_URL="https://github.com/${ACTOR}"
+
+          if [ "$PRERELEASE" = "true" ]; then
+            TITLE="🧪 manabrew ${RELEASE_TAG} (pre-release)"
+            COLOR=16753920   # 0xFFA500 orange
+          else
+            TITLE="🎁 manabrew ${RELEASE_TAG} released"
+            COLOR=5763719    # 0x57F287 green
+          fi
+
+          DESC=$(printf '%s\n\n%s\n%s' \
+            "📥 Public download (no GitHub account needed): ${RELEASE_URL}" \
+            "📝 **Changelog**" \
+            "${RELEASE_BODY}")
+
+          MAX=3900
+          if [ "${#DESC}" -gt "$MAX" ]; then
+            DESC="${DESC:0:$MAX}"$'\n'"… (truncated — see release page for full notes)"
+          fi
+
           PAYLOAD=$(jq -n \
-            --arg event      "release" \
-            --arg tag        "$RELEASE_TAG" \
-            --arg url        "$RELEASE_URL" \
-            --arg body       "$RELEASE_BODY" \
-            --arg actor      "$RELEASE_ACTOR" \
-            --arg sha        "$RELEASE_SHA" \
-            --arg repo       "$RELEASE_REPO" \
-            --argjson prerelease "$RELEASE_PRERELEASE" \
-            '{event: $event, tag: $tag, url: $url, body: $body, actor: $actor, sha: $sha, repo: $repo, prerelease: $prerelease}')
-          curl -fsS -X POST -H 'Content-Type: application/json' \
-            -d "$PAYLOAD" "$N8N_WEBHOOK_URL"
+            --arg title "$TITLE" \
+            --arg url "$RELEASE_URL" \
+            --arg desc "$DESC" \
+            --arg footer "manabrew · $SHORT_SHA" \
+            --arg actor "$ACTOR" \
+            --arg actor_url "$ACTOR_URL" \
+            --arg avatar_url "$AVATAR_URL" \
+            --arg timestamp "$TIMESTAMP" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                url: $url,
+                description: $desc,
+                color: $color,
+                author: { name: $actor, url: $actor_url, icon_url: $avatar_url },
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }]
+            }')
+
+          curl -fsS -X POST \
+            -H "Authorization: Bot $BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"

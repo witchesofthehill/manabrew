@@ -56,8 +56,16 @@ ENV VITE_RELAY_PORT=${VITE_RELAY_PORT}
 ENV VITE_RELAY_PASSWORD=${VITE_RELAY_PASSWORD}
 ENV VITE_SCRYFALL_SYMBOL_BASE=${VITE_SCRYFALL_SYMBOL_BASE}
 
-# Build WASM + Vite bundle (outputs to dist/)
-RUN yarn build:web
+# Build WASM + Vite bundle (outputs to dist/).
+#
+# BuildKit cache mounts make src/-only changes ~5-10× faster: cargo's
+# downloaded crate index, git deps and incremental target dir survive
+# across builds even though the layer above (COPY src/) invalidates the
+# Docker layer cache. Mirrors the pattern forge-server's Dockerfile uses.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,target=/build/target,sharing=locked \
+    yarn build:web
 
 # --- Runtime: nginx serving the static bundle. Sets COOP/COEP at the origin
 # so the app becomes cross-origin-isolated (required for SharedArrayBuffer) ---

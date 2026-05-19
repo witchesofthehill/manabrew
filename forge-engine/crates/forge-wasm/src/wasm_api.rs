@@ -376,6 +376,8 @@ pub fn run_multiplayer_game(
         let name = format!("player-{i}");
         let mut prepared = prepare_registered_player(name, card_db, &identities);
         prepared.registered.starting_life = starting_life;
+        // Commander identity comes from the lobby out-of-band, not from
+        // the deck pile. If the deck already encoded it, this is a no-op.
         if let Some(commander_name) = commander_names[i].as_deref() {
             force_commander_by_name(&mut prepared, commander_name);
         }

@@ -80,6 +80,22 @@ pub fn prepare_cards_from_identities(
     cards
 }
 
+/// Ensure `commander_name` is registered as a commander on `player`,
+/// idempotently. Returns whether the commander is present after the call.
+///
+/// Two paths the caller wants to merge into one outcome:
+/// - The `WireDeck` arrived with a populated `commanders` pile. Then
+///   `prepare_registered_player` already moved those cards into the
+///   command zone and pushed them onto `registered.commanders`, so this
+///   is a no-op early return.
+/// - The wire deck didn't carry a commander pile, but the lobby
+///   selected one out-of-band (the multiplayer flow passes
+///   `commander_name` alongside the deck). Then we locate the named
+///   card in the library, flag it `is_commander`, move it to the
+///   command zone, and update `registered.commanders` / `*_deck`
+///   accordingly.
+///
+/// Returns `false` only if no card by that name exists in the deck.
 pub fn force_commander_by_name(
     player: &mut PreparedRegisteredPlayer,
     commander_name: &str,

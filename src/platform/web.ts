@@ -174,6 +174,7 @@ class WorkerBridge {
 
         try {
           const prompt = JSON.parse(jsonStr);
+          console.log(`[MP] relay→ ${playerSlot}:`, prompt?.type, "for", prompt?.decidingPlayerId);
           this.eventBus.emit("game:relay_prompt", prompt);
         } catch (e) {
           console.error(`[WorkerBridge] Failed to parse SAB prompt for ${playerSlot}:`, e);
@@ -200,6 +201,7 @@ class WorkerBridge {
       const fromPlayer = payload.state.fromPlayer as string | undefined;
       if (!fromPlayer) return;
       const seat = this.remoteSeats.get(fromPlayer);
+      console.log(`[MP] response← ${fromPlayer}`, seat ? "(routed to SAB)" : "(NO SEAT — dropped)");
       if (!seat) return;
       const action = payload.state.action;
       if (!action) return;
@@ -417,6 +419,7 @@ class WebGameApi implements IGameApi {
         fromPlayer,
         action: params.action,
       };
+      console.log(`[MP] respond→ as ${fromPlayer}:`, (params.action as { type?: string })?.type);
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer

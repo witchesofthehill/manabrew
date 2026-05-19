@@ -134,17 +134,11 @@ export function run_interactive_game(human_deck_json: any, ai_deck_json: any, co
 /**
  * Run an N-player multiplayer game using one SharedArrayBuffer per seat.
  *
- * `local_buffer` carries prompts for `local_player_index` — the seat
- * the worker is hosting from. `remote_buffers` is an array of length
- * `num_players - 1`, ordered by player index with the local seat
- * skipped: for a 4-player game with local=player-2 the array is
- * `[sab_for_p0, sab_for_p1, sab_for_p3]`. Each SAB is consumed by a
- * dedicated `WasmTransport`; the worker blocks on `Atomics.wait()` per
- * seat sequentially (never concurrently).
- *
- * `commander_names_json` is an array of `Option<String>` matching the
- * deck order; non-null entries pull the named card into the command
- * zone before the loop starts.
+ * `local_buffer` carries prompts for `local_player_index`.
+ * `remote_buffers` holds the other `num_players - 1` seats, ordered by
+ * player index with the local seat skipped — for local=player-2 of 4
+ * that's `[p0, p1, p3]`. `commander_names_json` is an `Option<String>`
+ * per deck, in deck order.
  */
 export function run_multiplayer_game(decks_json: any, commander_names_json: any, config_json: any, local_buffer: any, remote_buffers: any, local_player_index: number): any;
 
@@ -167,11 +161,6 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly __wbg_wasmbot_free: (a: number, b: number) => void;
-    readonly wasmbot_new: (a: number, b: number) => [number, number, number];
-    readonly wasmbot_on_open: (a: number) => [number, number];
-    readonly wasmbot_on_server_message: (a: number, b: number, c: number) => [number, number];
-    readonly wasmbot_failure: (a: number) => [number, number];
     readonly get_engine_info: () => any;
     readonly echo: (a: number, b: number) => [number, number];
     readonly parse_deck: (a: any) => [number, number, number];
@@ -180,14 +169,19 @@ export interface InitOutput {
     readonly test_foundation: () => any;
     readonly run_interactive_game: (a: any, b: any, c: any, d: any) => [number, number, number];
     readonly run_multiplayer_game: (a: any, b: any, c: any, d: any, e: any, f: number) => [number, number, number];
+    readonly log: (a: number, b: number) => void;
+    readonly wasm_init: () => void;
+    readonly __wbg_wasmbot_free: (a: number, b: number) => void;
+    readonly wasmbot_new: (a: number, b: number) => [number, number, number];
+    readonly wasmbot_on_open: (a: number) => [number, number];
+    readonly wasmbot_on_server_message: (a: number, b: number, c: number) => [number, number];
+    readonly wasmbot_failure: (a: number) => [number, number];
     readonly load_card_archive: (a: number, b: number) => [bigint, number, number];
     readonly is_card_db_loaded: () => number;
     readonly get_card_count: () => number;
     readonly is_token_db_loaded: () => number;
     readonly get_token_count: () => number;
     readonly has_card: (a: number, b: number) => number;
-    readonly log: (a: number, b: number) => void;
-    readonly wasm_init: () => void;
     readonly limited_get_set_pool: (a: number, b: number) => [number, number, number];
     readonly limited_list_sealed_templates: () => [number, number, number];
     readonly limited_list_chaos_themes: () => [number, number, number];

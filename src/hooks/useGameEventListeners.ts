@@ -95,6 +95,11 @@ export function useGameEventListeners() {
             const prompt = normalizeEnginePrompt(payload.prompt);
             if (!prompt) return;
             const { myPlayerSlot } = useGameStore.getState();
+            console.log(
+              `[MP] remote_prompt ${prompt.type} for ${forPlayer} | mine=${myPlayerSlot} | ${
+                forPlayer === myPlayerSlot ? "RENDER" : "sync-only"
+              }`,
+            );
             if (forPlayer === myPlayerSlot) {
               // This prompt is for us — render it fully.
               applyPrompt(prompt, "Remote", useGameStore.setState, useGameStore.getState);

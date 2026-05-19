@@ -42,6 +42,10 @@ services:
         # step: rotate `FORGE_SERVER_KEY` in ops/production.secrets and the
         # next `docker compose build manabrew` bakes the new key in.
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
+        # Hides the relay host/port/username/password inputs in Settings —
+        # production users connect with the baked-in values and shouldn't
+        # be able to break them by editing.
+        VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     expose:
       - "443"

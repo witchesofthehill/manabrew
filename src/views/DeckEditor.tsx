@@ -103,6 +103,7 @@ export default function DeckEditor() {
   });
   // True when readonly was triggered by an in-page preset click (no route
   // navigation), so Back restores the grid instead of popping history.
+  //
   const [readonlyEnteredInPage, setReadonlyEnteredInPage] = useState(false);
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;

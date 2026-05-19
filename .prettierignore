@@ -1,0 +1,4 @@
+# Auto-generated Tauri artifacts — keep them in the compact form the
+# tauri-cli produces; prettier would otherwise expand multi-megabyte
+# single-line JSON files into 2000-line diffs every build.
+src-tauri/gen/

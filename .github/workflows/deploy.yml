@@ -1,0 +1,98 @@
+name: Auto deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH into server and run deploy.sh
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust server host key
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          PORT="${SSH_PORT:-22}"
+          ssh-keyscan -p "$PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        id: deploy
+        continue-on-error: true
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          PORT="${SSH_PORT:-22}"
+          ssh -p "$PORT" "$SSH_USER@$SSH_HOST" \
+            'cd ~/manabrew && ./deploy.sh 2>&1' 2>&1 | tee deploy.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Post Discord embed
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+        shell: bash
+        run: |
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "DISCORD_DEPLOY_WEBHOOK_URL not set; skipping notification."
+            exit 0
+          fi
+
+          if [ -f deploy.log ] && [ -s deploy.log ]; then
+            LOG=$(cat deploy.log)
+          else
+            LOG="(no log captured — SSH step failed before any output; see workflow run)"
+          fi
+
+          # Discord embed description hard cap is 4096 chars.
+          MAX=3900
+          if [ "${#LOG}" -gt "$MAX" ]; then
+            LOG="${LOG:0:$MAX}"$'\n'"… (truncated — see workflow run for full log)"
+          fi
+
+          if [ "$DEPLOY_OUTCOME" = "success" ]; then
+            COLOR=5763719   # 0x57F287 green
+            TITLE="Deploy complete"
+          else
+            COLOR=15548997  # 0xED4245 red
+            TITLE="Deploy failed"
+          fi
+
+          SHORT_SHA="${COMMIT_SHA:0:7}"
+
+          PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg url "$RUN_URL" \
+            --arg desc "$LOG" \
+            --arg footer "$SHORT_SHA · $ACTOR" \
+            --argjson color "$COLOR" \
+            '{embeds: [{title: $title, url: $url, description: $desc, color: $color, footer: {text: $footer}}]}')
+
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: |
+          echo "deploy step outcome: ${{ steps.deploy.outcome }}"
+          exit 1

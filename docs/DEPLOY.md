@@ -85,7 +85,7 @@ header {
 
 - Docker + Docker Compose (with BuildKit support)
 - Git
-- n8n instance (for auto-deploy webhook)
+- SSH access to the server from GitHub Actions (see Auto-Deploy section)
 
 ## Initial Server Setup
 
@@ -133,35 +133,74 @@ docker compose -f forge-engine/crates/forge-server/compose.yml up -d parity-dash
 
 Dashboard will be at `http://<server-ip>:8080`.
 
-## Auto-Deploy with n8n
+## Auto-Deploy with GitHub Actions
 
-### 1. Import the n8n workflow
+Every push to `main` triggers `.github/workflows/deploy.yml`, which SSHes into
+the server, runs `deploy.sh`, and posts a success/failure embed to the
+community Discord channel.
 
-1. Open your n8n instance
-2. Go to **Workflows** → **Import from File**
-3. Select `n8n-webhook-workflow.json` from the repo root
-4. **Edit the "Run deploy.sh" node** — update the `cd` path to match your server:
-   ```
-   cd ~/manabrew && ./deploy.sh 2>&1 | tee /tmp/deploy.log
-   ```
-5. **Activate** the workflow
+### 1. Generate an SSH keypair for the deploy
 
-### 2. Add GitHub webhook
+On any local machine:
 
-1. Go to the repo on GitHub → **Settings** → **Webhooks** → **Add webhook**
-2. **Payload URL**: `https://<your-n8n-host>/webhook/github-deploy`
-3. **Content type**: `application/json`
-4. **Secret**: leave empty (or add one and configure n8n header auth)
-5. **Events**: select **Just the push event**
-6. Click **Add webhook**
+```bash
+ssh-keygen -t ed25519 -C "manabrew-deploy" -f ~/.ssh/manabrew_deploy -N ""
+```
 
-### 3. Test it
+On the **server**, append the **public** half to the deploy user's
+`authorized_keys`:
 
-Push a commit to `main` and check:
+```bash
+# (run on the server as the user who owns ~/manabrew)
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+cat >> ~/.ssh/authorized_keys < ~/.ssh/manabrew_deploy.pub   # paste here, then Ctrl-D
+chmod 600 ~/.ssh/authorized_keys
+```
 
-- n8n execution log shows successful run
-- `cat /tmp/deploy.log` on server shows deploy output
-- `docker compose -f forge-engine/crates/forge-server/compose.yml ps` shows container running
+### 2. Confirm the server clone uses the public HTTPS URL
+
+The repo is public, so the server no longer needs a PAT. On the server:
+
+```bash
+cd ~/manabrew
+git remote set-url origin https://github.com/<owner>/manabrew.git
+git pull --ff-only origin main
+```
+
+### 3. Create a Discord webhook
+
+In Discord: **Server Settings → Integrations → Webhooks → New Webhook**. Point
+it at the community channel that should receive deploy notifications. Copy the
+webhook URL.
+
+### 4. Add the repo secrets
+
+GitHub repo → **Settings → Secrets and variables → Actions → New repository
+secret**. Add:
+
+| Secret                       | Value                                                      |
+| ---------------------------- | ---------------------------------------------------------- |
+| `SSH_HOST`                   | Server hostname or IP                                      |
+| `SSH_USER`                   | Login user (the one who owns `~/manabrew` on the server)   |
+| `SSH_PORT`                   | Optional — defaults to 22 if unset                         |
+| `SSH_PRIVATE_KEY`            | Contents of the **private** key (`~/.ssh/manabrew_deploy`) |
+| `DISCORD_DEPLOY_WEBHOOK_URL` | The Discord webhook URL from step 3                        |
+
+### 5. Remove the old GitHub webhook (if any)
+
+GitHub repo → **Settings → Webhooks**. Delete any entry pointing at the old
+n8n endpoint (`/webhook/github-deploy`).
+
+### 6. Test it
+
+Trigger manually first: **Actions → Auto deploy → Run workflow → branch `main`**.
+
+Verify:
+
+- The workflow's `Deploy via SSH` step is green.
+- The Discord channel receives a green "Deploy complete" embed.
+- `docker compose -f forge-engine/crates/forge-server/compose.yml ps` on the
+  server shows the expected containers as `Up`.
 
 ## Manual Deploy
 

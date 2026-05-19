@@ -36,6 +36,11 @@ services:
       args:
         VITE_RELAY_HOST: relay.manabrew.app
         VITE_RELAY_PORT: "443"
+        # forge-server validates this against FORGE_SERVER_KEY. Sourcing it
+        # from the same env value the server uses keeps web ↔ relay in lock-
+        # step: rotate `FORGE_SERVER_KEY` in ops/production.secrets and the
+        # next `docker compose build manabrew` bakes the new key in.
+        VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     expose:
       - "443"

@@ -101,7 +101,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         serverHost: import.meta.env.VITE_RELAY_HOST || "localhost",
         serverPort: Number(import.meta.env.VITE_RELAY_PORT) || 9443,
         serverUsername: "",
-        serverPassword: "forge",
+        serverPassword: import.meta.env.VITE_RELAY_PASSWORD || "forge",
         setServerHost: (serverHost) => set({ serverHost }),
         setServerPort: (serverPort) => set({ serverPort }),
         setServerUsername: (serverUsername) => set({ serverUsername }),

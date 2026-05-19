@@ -1,0 +1,55 @@
+# Minimal Caddyfile for the staging preview container. The production
+# caddy reverse-proxies `staging.manabrew.app` here, so we accept any
+# Host on internal port 80 (`:80`). Mirrors the manabrew.app block of
+# ops/Caddyfile minus the relay/parity routes — staging shares the live
+# relay + parity dashboard.
+:80 {
+    root * /srv/manabrew
+
+    # Module workers need require-corp (Chrome's SharedArrayBuffer rule).
+    @worker path_regexp \.worker[.-][^/]+\.js$
+    handle @worker {
+        header {
+            Cache-Control "public, immutable, max-age=31536000"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "require-corp"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        file_server
+    }
+
+    # Long-cache hashed Vite assets + WASM bundles + cardset archive.
+    @static path /assets/* /wasm/*
+    handle @static {
+        header {
+            Cache-Control "public, immutable, max-age=31536000"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        file_server
+    }
+
+    # Same Scryfall SVG proxy as main; staging hits the same upstream.
+    handle /scryfall-symbols/* {
+        rewrite * /card-symbols{path}
+        reverse_proxy https://svgs.scryfall.io {
+            header_up Host svgs.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    handle {
+        header {
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        try_files {path} /index.html
+        file_server
+    }
+}

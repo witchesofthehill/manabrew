@@ -122,12 +122,12 @@ jobs:
           shared-key: tauri-macos
 
       - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
-        with:
-          # Pin to the same version Dockerfile.web uses. `version: latest`
-          # fetches v0.15.0+, which jetli/wasm-pack-action's platform-mapper
-          # doesn't recognise on Windows ("Unsupported platform: x64").
-          version: "v0.13.1"
+        # `jetli/wasm-pack-action@v0.4.0` reports the arch ("x64") as the
+        # platform on Windows and aborts with `Unsupported platform: x64`,
+        # regardless of which wasm-pack version we pin. Use cargo install
+        # directly — same source Dockerfile.web uses, works on every
+        # platform the rust toolchain runs on.
+        run: cargo install wasm-pack --version 0.13.1 --locked
 
       - run: yarn
 
@@ -274,12 +274,12 @@ jobs:
           shared-key: tauri-windows
 
       - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
-        with:
-          # Pin to the same version Dockerfile.web uses. `version: latest`
-          # fetches v0.15.0+, which jetli/wasm-pack-action's platform-mapper
-          # doesn't recognise on Windows ("Unsupported platform: x64").
-          version: "v0.13.1"
+        # `jetli/wasm-pack-action@v0.4.0` reports the arch ("x64") as the
+        # platform on Windows and aborts with `Unsupported platform: x64`,
+        # regardless of which wasm-pack version we pin. Use cargo install
+        # directly — same source Dockerfile.web uses, works on every
+        # platform the rust toolchain runs on.
+        run: cargo install wasm-pack --version 0.13.1 --locked
 
       - run: yarn
 

@@ -286,17 +286,11 @@ pub fn run_interactive_game(
 
 /// Run an N-player multiplayer game using one SharedArrayBuffer per seat.
 ///
-/// `local_buffer` carries prompts for `local_player_index` — the seat
-/// the worker is hosting from. `remote_buffers` is an array of length
-/// `num_players - 1`, ordered by player index with the local seat
-/// skipped: for a 4-player game with local=player-2 the array is
-/// `[sab_for_p0, sab_for_p1, sab_for_p3]`. Each SAB is consumed by a
-/// dedicated `WasmTransport`; the worker blocks on `Atomics.wait()` per
-/// seat sequentially (never concurrently).
-///
-/// `commander_names_json` is an array of `Option<String>` matching the
-/// deck order; non-null entries pull the named card into the command
-/// zone before the loop starts.
+/// `local_buffer` carries prompts for `local_player_index`.
+/// `remote_buffers` holds the other `num_players - 1` seats, ordered by
+/// player index with the local seat skipped — for local=player-2 of 4
+/// that's `[p0, p1, p3]`. `commander_names_json` is an `Option<String>`
+/// per deck, in deck order.
 #[wasm_bindgen]
 pub fn run_multiplayer_game(
     decks_json: JsValue,
@@ -367,19 +361,15 @@ pub fn run_multiplayer_game(
         remote_sabs.push(sab);
     }
 
-    // Build prepared players from the wire decks. We route through the
-    // shared `deck_to_identities` + `prepare_registered_player` so the
-    // commander / sideboard / attractions zoning matches Tauri exactly
-    // — the wasm side used to flatten everything into the library and
-    // then yank the commander out, which got us subtle drift.
+    // Route through the shared deck_to_identities + prepare_registered_player
+    // so commander/sideboard/attractions zoning matches Tauri exactly.
     let mut prepared_players = Vec::with_capacity(num_players);
     for (i, deck) in decks.iter().enumerate() {
         let identities = deck_to_identities(deck);
         let name = format!("player-{i}");
         let mut prepared = prepare_registered_player(name, card_db, &identities);
         prepared.registered.starting_life = starting_life;
-        // Commander identity comes from the lobby out-of-band, not from
-        // the deck pile. If the deck already encoded it, this is a no-op.
+        // Commander comes from the lobby out-of-band, not the deck pile.
         if let Some(commander_name) = commander_names[i].as_deref() {
             force_commander_by_name(&mut prepared, commander_name);
         }
@@ -389,10 +379,8 @@ pub fn run_multiplayer_game(
     let game_id = format!("wasm-mp-{}", js_sys::Date::now() as u64);
     let engine_player_index = local_player_index as usize;
 
-    // SABs are needed both inside the agent factory (to build each seat's
-    // transport) and inside on_game_over (to write the final view). Clone
-    // them up-front so each closure owns what it needs without fighting
-    // the borrow checker.
+    // Index SABs by player id (local seat → local_sab, others → remote
+    // SABs in order). Both closures below need them, so clone per closure.
     let mut sab_by_player: Vec<SharedArrayBuffer> = Vec::with_capacity(num_players);
     let mut remote_iter = remote_sabs.iter();
     for i in 0..num_players {
@@ -419,16 +407,13 @@ pub fn run_multiplayer_game(
         .into(),
     );
 
-    // The WASM host has no external abort signal — the worker just gets
-    // terminated by the main thread when the user leaves. Pass a dummy
-    // `Arc<AtomicBool>` so the shared runtime's abort-aware paths still
-    // work (they read it via `Ordering::Relaxed`).
+    // No external abort on WASM — the worker is just terminated. Dummy
+    // signal keeps the shared runtime's abort-aware paths happy.
     let abort_signal = Arc::new(AtomicBool::new(false));
     let game_id_for_agents = game_id.clone();
 
-    // `from_entropy()` pulls from crypto.getRandomValues in the browser —
-    // requires getrandom's `js` feature (enabled in this crate's Cargo.toml),
-    // or it panics at runtime on wasm32.
+    // from_entropy needs getrandom's `js` feature (see Cargo.toml) or it
+    // panics at runtime on wasm32 — covered by tests/rng_smoke.rs.
     let mut rng = StdRng::from_entropy();
     let outcome = run_hosted_multiplayer_game(
         game_id,
@@ -454,10 +439,8 @@ pub fn run_multiplayer_game(
             ))
         },
         |pid, _is_local, view| {
-            // Mirror Tauri's post-loop emission: send a final GameOver
-            // through each seat's transport so every client transitions
-            // to the game-over screen instead of stalling on the last
-            // mid-game prompt.
+            // Final GameOver per seat so every client leaves the last
+            // mid-game prompt for the game-over screen (matches Tauri).
             let transport = WasmTransport::new(&sab_for_game_over[pid.index()]);
             let prompt = AgentPrompt {
                 deciding_player_id: format!("player-{}", pid.index()),

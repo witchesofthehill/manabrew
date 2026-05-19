@@ -398,9 +398,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
     "players, local=player-" + localPlayerIndex,
   );
 
-  // One SAB for the local seat, one per non-local seat. Each non-local
-  // SAB is tagged with the player slot it belongs to so the main thread
-  // can route incoming WebSocket responses to the right seat by slot.
+  // One SAB for the local seat, one per remote seat (tagged by slot).
   gameSharedBuffer = new SharedArrayBuffer(SAB_SIZE);
   remoteSharedBuffers = [];
   postEvent("game:sab", { buffer: gameSharedBuffer });

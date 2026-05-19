@@ -53,18 +53,11 @@ interface WorkerEvent {
 
 type WorkerMessage = WorkerResponse | WorkerEvent;
 
-/**
- * Per-remote-seat polling state. `cancelled` is the shutdown signal —
- * `terminate()` flips it before clearing the map so any rAF callback
- * already queued for the next frame short-circuits instead of firing
- * a stale prompt into the event bus. (Removing the map entry alone
- * would also work, but only on entries that haven't been captured by
- * an in-flight closure yet; the flag closes that race explicitly.)
- */
 interface RemoteSeat {
   buffer: SharedArrayBuffer;
   signal: Int32Array;
   data: Uint8Array;
+  /** terminate() flips this so an already-queued rAF poll short-circuits. */
   cancelled: boolean;
 }
 
@@ -104,9 +97,8 @@ class WorkerBridge {
       this.pollForPrompts();
     });
 
-    // Each non-host seat gets its own SAB, tagged with the player slot
-    // it owns. We open one poll loop per SAB and a single shared listener
-    // for incoming WebSocket responses that routes by `fromPlayer`.
+    // One SAB per non-host seat, tagged with its player slot; one poll
+    // loop each, plus the shared response listener installed below.
     eventBus.on<{ buffer: SharedArrayBuffer; playerSlot: string }>("game:remote_sab", (payload) => {
       const seat: RemoteSeat = {
         buffer: payload.buffer,
@@ -121,9 +113,8 @@ class WorkerBridge {
       this.pollForRemotePromptsSeat(payload.playerSlot, seat);
     });
 
-    // Installed once, eagerly: the handler routes by `fromPlayer` and
-    // no-ops on an empty `remoteSeats`, so there's no race with a
-    // response that arrives before the first SAB registers.
+    // Eager so a response can't arrive before the listener exists; it
+    // no-ops while remoteSeats is empty.
     this.installRemoteResponseListener();
   }
 
@@ -167,18 +158,9 @@ class WorkerBridge {
     requestAnimationFrame(poll);
   }
 
-  /**
-   * Poll one remote seat's SAB. The host runs the engine sequentially —
-   * only one seat ever has PROMPT_READY at a time — but each seat owns
-   * its own SAB so we need a dedicated polling loop per seat to surface
-   * whichever one fires next.
-   */
+  /** One rAF poll loop per remote seat's SAB; relays prompts via the bus. */
   private pollForRemotePromptsSeat(playerSlot: string, seat: RemoteSeat): void {
     const poll = () => {
-      // Check the per-seat flag first: terminate() flips it before the
-      // map is cleared, so an in-flight rAF callback already scheduled
-      // for the next frame exits cleanly instead of decoding stale SAB
-      // bytes and emitting a prompt the UI has nowhere to put.
       if (seat.cancelled || !this.remoteSeats.has(playerSlot)) return;
 
       const current = Atomics.load(seat.signal, 0);
@@ -205,16 +187,11 @@ class WorkerBridge {
   }
 
   /**
-   * Single shared listener for incoming WebSocket responses. Routes each
-   * `server:state_update` of kind `response` to the SAB for the seat
-   * named in `fromPlayer`. Installed eagerly in the constructor and
-   * no-ops while `remoteSeats` is empty, so a response that somehow
-   * arrives before any seat registers is simply ignored rather than
-   * being dropped by a not-yet-installed listener.
+   * Routes each `server:state_update` of kind `response` to the SAB for
+   * the seat named in `fromPlayer`. Subscription lives for the page's
+   * lifetime (singleton bridge, no disposal), so the unsubscribe is dropped.
    */
   private installRemoteResponseListener(): void {
-    // Bridge is a singleton with no disposal path, so the subscription
-    // lives for the page's lifetime — no need to retain the unsubscribe.
     this.eventBus.on<{
       from_player: string;
       state: Record<string, unknown>;
@@ -376,10 +353,8 @@ class WorkerBridge {
     this.gameData = null;
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
-    // The response listener stays installed for the bridge's lifetime —
-    // terminate() is per-game, and the handler already no-ops on an empty
-    // remoteSeats map. Tearing it down here would leave a second game on
-    // the same bridge with no route for remote responses.
+    // Response listener stays installed — terminate() is per-game, and a
+    // second game on this (singleton) bridge still needs it.
     this.pendingRequests.clear();
     this.initPromise = null;
   }
@@ -420,11 +395,8 @@ class WebGameApi implements IGameApi {
     this.myPlayerSlot = `player-${params.enginePlayerIndex}`;
 
     if (params.localIsHost) {
-      // Host: spin up the engine in the worker. The worker allocates one
-      // SAB per seat (local + one per remote) and posts each remote SAB
-      // back to us tagged with its `player-N` slot — the bridge keeps a
-      // slot-keyed map and routes incoming WebSocket responses to the
-      // right SAB by `fromPlayer`.
+      // Host runs the engine; the worker posts back one SAB per remote
+      // seat (see the game:remote_sab handler in WorkerBridge).
       await this.bridge.invoke("start_multiplayer_game", {
         decks: params.decks,
         commanderNames: params.commanderNames,

@@ -74,16 +74,3 @@ manabrew.app {
 relay.manabrew.app {
     reverse_proxy forge-server:9443
 }
-
-parity.manabrew.app {
-    reverse_proxy parity-dashboard:8080
-}
-
-# Preview slot for the latest PR tagged `deploy-preview`. The
-# manabrew-staging service lives in compose.staging.yml under
-# /opt/manabrew-staging and joins the manabrew_default docker network so
-# it's resolvable by service name. When no preview is currently deployed,
-# Caddy returns 502 — that's expected.
-staging.manabrew.app {
-    reverse_proxy manabrew-staging:80
-}

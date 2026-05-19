@@ -1,8 +1,4 @@
 services:
-  # Caddy terminates Let's Encrypt TLS for all three public hostnames,
-  # serves the static React/WASM bundle directly from /srv/manabrew (baked
-  # into the image), and reverse-proxies the relay + parity dashboard
-  # subdomains. Replaces the previous two-tier caddy → nginx setup.
   manabrew:
     build:
       context: .
@@ -10,14 +6,7 @@ services:
       args:
         VITE_RELAY_HOST: relay.manabrew.app
         VITE_RELAY_PORT: "443"
-        # forge-server validates this against FORGE_SERVER_KEY. Sourcing it
-        # from the same env value the server uses keeps web ↔ relay in lock-
-        # step: rotate `FORGE_SERVER_KEY` in ops/production.secrets and the
-        # next `docker compose build manabrew` bakes the new key in.
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
-        # Hides the relay host/port/password inputs in Settings — production
-        # users connect with the baked-in values and shouldn't be able to
-        # break them by editing.
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     restart: unless-stopped
@@ -30,7 +19,6 @@ services:
       - caddy-config:/config
     depends_on:
       - forge-server
-      - parity-dashboard
 
   forge-server:
     build:
@@ -46,37 +34,6 @@ services:
       - "9443"
     restart: unless-stopped
 
-  parity-dashboard:
-    build:
-      context: .
-      dockerfile: forge-engine/crates/forge-parity/Dockerfile
-      args:
-        GIT_COMMIT_SHA: "${GIT_COMMIT_SHA:-}"
-    environment:
-      PORT: "8080"
-      THRESHOLD: "0.90"
-      MAX_TURNS: "10"
-      FUZZ_PER_BATCH: "0"
-      JAVA_HEAP: "${JAVA_HEAP:-512m}"
-      ANALYZE: "${ANALYZE:-}"
-      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      OPENAI_API_BASE: "${OPENAI_API_BASE:-}"
-      OPENAI_MODEL: "${OPENAI_MODEL:-}"
-      OPENAI_CTX_SIZE: "${OPENAI_CTX_SIZE:-4096}"
-      MTG_RULES_PATH: "/app/mtg_rules.txt"
-      POLL_INTERVAL: "${POLL_INTERVAL:-}"
-      ISSUE_THRESHOLD: "${ISSUE_THRESHOLD:-}"
-      GITHUB_TOKEN: "${GITHUB_TOKEN:-}"
-      GITHUB_REPO: "${GITHUB_REPO:-witchesofthehill/manabrew}"
-    volumes:
-      - parity-data:/app/data
-    expose:
-      - "8080"
-    restart: unless-stopped
-
 volumes:
   caddy-data:
   caddy-config:
-  parity-data:

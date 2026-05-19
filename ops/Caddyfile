@@ -1,13 +1,73 @@
+# manabrew.app — the React/WASM web client.
+#
+# COEP layout:
+#   - page + assets + wasm + scryfall proxy: `credentialless`. This lets the
+#     page fetch cross-origin resources (Scryfall card art) without each
+#     needing an explicit Cross-Origin-Resource-Policy header.
+#   - the module worker script (`*.worker.<hash>.js`): `require-corp`.
+#     Chrome enforces this for any ES module worker that uses
+#     SharedArrayBuffer, regardless of the embedding document's COEP.
+#   - every response also carries `Cross-Origin-Resource-Policy: same-origin`
+#     so our own resources satisfy require-corp contexts when fetched.
+#
+# Without this split, browsers either block cross-origin Scryfall fetches
+# (require-corp everywhere) or refuse to spin up the SharedArrayBuffer-using
+# worker (credentialless everywhere).
 manabrew.app {
-    # The upstream nginx already sets Cross-Origin-Opener-Policy and
-    # Cross-Origin-Embedder-Policy. Don't add them here too — duplicate
-    # headers (even with identical values) get merged into a list by
-    # HTTP/2, which browsers reject for COOP/COEP, breaking cross-origin
-    # isolation and SharedArrayBuffer.
-    reverse_proxy https://manabrew:443 {
-        transport http {
-            tls_insecure_skip_verify
+    root * /srv/manabrew
+
+    # Module-worker bundles need require-corp; matched before the broader
+    # asset block below.
+    @worker path_regexp \.worker[.-][^/]+\.js$
+    handle @worker {
+        header {
+            Cache-Control "public, immutable, max-age=31536000"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "require-corp"
+            Cross-Origin-Resource-Policy "same-origin"
         }
+        file_server
+    }
+
+    # Long-cache hashed Vite assets + WASM bundles + cardset archive
+    @static path /assets/* /wasm/*
+    handle @static {
+        header {
+            Cache-Control "public, immutable, max-age=31536000"
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        file_server
+    }
+
+    # Proxy Scryfall mana-symbol SVGs through our own origin so the client
+    # can fetch() them. svgs.scryfall.io doesn't send Access-Control-Allow-
+    # Origin, which blocks cross-origin fetch(). Card art works because it
+    # uses <img>, which doesn't need CORS for display.
+    handle /scryfall-symbols/* {
+        rewrite * /card-symbols{path}
+        reverse_proxy https://svgs.scryfall.io {
+            header_up Host svgs.scryfall.io
+            header_down -Access-Control-Allow-Origin
+            header_down -Cross-Origin-Resource-Policy
+            header_down -Cache-Control
+        }
+        # Don't tag 4xx responses with the long cache — a transient upstream
+        # error shouldn't be pinned in browsers for a week.
+        header Cache-Control "public, max-age=604800"
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # SPA fallback for client-side router deep links
+    handle {
+        header {
+            Cross-Origin-Opener-Policy "same-origin"
+            Cross-Origin-Embedder-Policy "credentialless"
+            Cross-Origin-Resource-Policy "same-origin"
+        }
+        try_files {path} /index.html
+        file_server
     }
 }
 

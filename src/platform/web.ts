@@ -91,7 +91,6 @@ class WorkerBridge {
 
   /** Per-remote-seat SAB state. Keyed by player slot (`player-N`). */
   private remoteSeats = new Map<string, RemoteSeat>();
-  private remoteResponseUnsubscribe: (() => void) | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -120,8 +119,12 @@ class WorkerBridge {
         `[WorkerBridge] Received remote SAB for ${payload.playerSlot}, starting relay poll`,
       );
       this.pollForRemotePromptsSeat(payload.playerSlot, seat);
-      this.ensureRemoteResponseListener();
     });
+
+    // Installed once, eagerly: the handler routes by `fromPlayer` and
+    // no-ops on an empty `remoteSeats`, so there's no race with a
+    // response that arrives before the first SAB registers.
+    this.installRemoteResponseListener();
   }
 
   /**
@@ -204,12 +207,15 @@ class WorkerBridge {
   /**
    * Single shared listener for incoming WebSocket responses. Routes each
    * `server:state_update` of kind `response` to the SAB for the seat
-   * named in `fromPlayer`. Installed once when the first remote seat
-   * registers; further `game:remote_sab` events don't need to re-install.
+   * named in `fromPlayer`. Installed eagerly in the constructor and
+   * no-ops while `remoteSeats` is empty, so a response that somehow
+   * arrives before any seat registers is simply ignored rather than
+   * being dropped by a not-yet-installed listener.
    */
-  private ensureRemoteResponseListener(): void {
-    if (this.remoteResponseUnsubscribe) return;
-    this.remoteResponseUnsubscribe = this.eventBus.on<{
+  private installRemoteResponseListener(): void {
+    // Bridge is a singleton with no disposal path, so the subscription
+    // lives for the page's lifetime — no need to retain the unsubscribe.
+    this.eventBus.on<{
       from_player: string;
       state: Record<string, unknown>;
     }>("server:state_update", (payload) => {
@@ -370,8 +376,10 @@ class WorkerBridge {
     this.gameData = null;
     for (const seat of this.remoteSeats.values()) seat.cancelled = true;
     this.remoteSeats.clear();
-    this.remoteResponseUnsubscribe?.();
-    this.remoteResponseUnsubscribe = null;
+    // The response listener stays installed for the bridge's lifetime —
+    // terminate() is per-game, and the handler already no-ops on an empty
+    // remoteSeats map. Tearing it down here would leave a second game on
+    // the same bridge with no route for remote responses.
     this.pendingRequests.clear();
     this.initPromise = null;
   }

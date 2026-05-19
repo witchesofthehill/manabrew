@@ -76,6 +76,13 @@ where
 
     let mut game_loop = GameLoop::new(num_players);
     game_loop.set_abort_signal(abort_signal.clone());
+    // The game log is ON by default for interactive sessions: when
+    // FORGE_ENGINE_GAME_LOG is unset we force-enable it here. When it IS
+    // set, we leave whatever `GameLog::enabled_from_env` decided —
+    // i.e. set the var to "0"/"false"/"off" to disable logging, any
+    // other value keeps it on. (Inverted from the usual "set to enable"
+    // convention; pre-existing behavior copied from the Tauri/WASM
+    // backends. Renaming to FORGE_ENGINE_GAME_LOG_DISABLE is a follow-up.)
     if std::env::var("FORGE_ENGINE_GAME_LOG").is_err() {
         game_loop.game_log.set_enabled(true);
     }

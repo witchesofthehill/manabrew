@@ -410,9 +410,11 @@ pub fn run_multiplayer_game(
     let sab_for_agents = sab_by_player.clone();
     let sab_for_game_over = sab_by_player;
 
+    let card_counts: Vec<usize> = decks.iter().map(|d| d.cards.len()).collect();
     web_sys::console::log_1(
         &format!(
-            "[MultiplayerGame] Starting: {num_players} players, local=player-{local_player_index}"
+            "[MultiplayerGame] Starting: {num_players} players, \
+             local=player-{local_player_index}, cards per seat={card_counts:?}"
         )
         .into(),
     );

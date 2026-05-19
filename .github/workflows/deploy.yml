@@ -32,6 +32,18 @@ jobs:
             "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
+      - name: Fetch raw deploy log on failure
+        if: steps.deploy.outcome != 'success'
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$USER@$HOST:/tmp/deploy-raw.log" deploy-raw.log || \
+            echo "(raw log not retrievable from server)"
+
       - name: Post Discord embed (as bot)
         if: always()
         env:
@@ -95,11 +107,19 @@ jobs:
               }]
             }')
 
-          curl -fsS -X POST \
-            -H "Authorization: Bot $BOT_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+          if [ "$DEPLOY_OUTCOME" != "success" ] && [ -f deploy-raw.log ] && [ -s deploy-raw.log ]; then
+            curl -fsS -X POST \
+              -H "Authorization: Bot $BOT_TOKEN" \
+              -F "payload_json=$PAYLOAD" \
+              -F "files[0]=@deploy-raw.log;type=text/plain" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+          else
+            curl -fsS -X POST \
+              -H "Authorization: Bot $BOT_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+          fi
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

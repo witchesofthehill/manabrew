@@ -64,12 +64,25 @@ RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && tou
 # repo root, not under forge-engine/) so cargo metadata fails without it.
 COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
 
-# Build with BuildKit cache mounts for cargo registry + target dir
+# Card / token / edition / block data — inputs to the cardset rkyv archive
+# that the parity binary loads at startup. Without this archive the binary
+# crash-loops with "Cardset archive not found at src-tauri/resources/
+# cardset.rkyv".
+COPY forge/forge-gui/res/cardsfolder/   forge/forge-gui/res/cardsfolder/
+COPY forge/forge-gui/res/tokenscripts/  forge/forge-gui/res/tokenscripts/
+COPY forge/forge-gui/res/editions/      forge/forge-gui/res/editions/
+COPY forge/forge-gui/res/blockdata/     forge/forge-gui/res/blockdata/
+
+# Build forge-parity binary + the build-cardset-archive helper, then run
+# the helper to produce src-tauri/resources/cardset.rkyv at the path the
+# parity runner expects. Copy both artefacts out of the cache mount.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
-    cargo build -p forge-parity --features analyze --release \
-    && cp /build/target/release/forge-parity /usr/local/bin/forge-parity
+    cargo build --release -p forge-parity --features analyze -p forge-cardset-archive \
+    && /build/target/release/build \
+    && cp /build/target/release/forge-parity /usr/local/bin/forge-parity \
+    && cp src-tauri/resources/cardset.rkyv /usr/local/share/cardset.rkyv
 
 # ── Stage 3: Runtime ────────────────────────────────────────────────
 FROM eclipse-temurin:17-jre-jammy
@@ -85,6 +98,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 curl \
 WORKDIR /app
 
 COPY --from=rust-builder /usr/local/bin/forge-parity /app/forge-parity
+COPY --from=rust-builder /usr/local/share/cardset.rkyv /app/src-tauri/resources/cardset.rkyv
 COPY --from=java-builder /build/forge/forge-harness/target/forge-harness-jar-with-dependencies.jar /app/forge-harness.jar
 COPY forge/forge-gui/res/ /app/forge-gui/res/
 COPY public/preset_decks/ /app/preset_decks/

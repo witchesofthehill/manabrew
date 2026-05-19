@@ -14,3 +14,7 @@ manabrew.app {
 relay.manabrew.app {
     reverse_proxy forge-server:9443
 }
+
+parity.manabrew.app {
+    reverse_proxy parity-dashboard:8080
+}

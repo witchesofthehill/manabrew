@@ -45,8 +45,14 @@ manabrew.app {
     # can fetch() them. svgs.scryfall.io doesn't send Access-Control-Allow-
     # Origin, which blocks cross-origin fetch(). Card art works because it
     # uses <img>, which doesn't need CORS for display.
-    handle /scryfall-symbols/* {
-        rewrite * /card-symbols{path}
+    #
+    # Regex capture (not `handle_path` + `{path}`) so the upstream URI is
+    # unambiguous: /scryfall-symbols/G.svg → /card-symbols/G.svg. The
+    # `handle_path` + `{path}` form left the prefix in the rewritten path
+    # and 404'd.
+    @scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
+    handle @scryfall {
+        rewrite * /card-symbols/{re.scryfall.1}
         reverse_proxy https://svgs.scryfall.io {
             header_up Host svgs.scryfall.io
             header_down -Access-Control-Allow-Origin

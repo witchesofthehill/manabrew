@@ -167,7 +167,11 @@ PROFILE_FLAG=""
 if echo "$SERVICES_TO_RESTART" | grep -q "parity-dashboard"; then
     PROFILE_FLAG="--profile parity"
 fi
-docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
+# --remove-orphans: when a service is renamed or removed (e.g. the
+# nginx→caddy consolidation that dropped the separate `caddy` service),
+# the old container otherwise lingers and can hold the host ports the new
+# one needs — exactly what took prod down on the #19 merge deploy.
+docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --remove-orphans $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
 
 BUILD_END=$(date +%s)
 BUILD_DURATION=$(( BUILD_END - BUILD_START ))

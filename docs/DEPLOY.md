@@ -137,7 +137,7 @@ Dashboard will be at `http://<server-ip>:8080`.
 
 Every push to `main` triggers `.github/workflows/deploy.yml`, which SSHes into
 the server, runs `deploy.sh`, and posts a success/failure embed to the
-community Discord channel.
+community Discord channel via the project's Discord bot.
 
 ### 1. Generate an SSH keypair for the deploy
 
@@ -167,24 +167,28 @@ git remote set-url origin https://github.com/<owner>/manabrew.git
 git pull --ff-only origin main
 ```
 
-### 3. Create a Discord webhook
+### 3. Prep the Discord bot
 
-In Discord: **Server Settings → Integrations → Webhooks → New Webhook**. Point
-it at the community channel that should receive deploy notifications. Copy the
-webhook URL.
+Use the bot you've already added to the community server.
+
+1. Grab the **bot token**: [Discord Developer Portal](https://discord.com/developers/applications) → your application → **Bot** → **Reset Token** (if you don't have it saved). Treat this like a password.
+2. Enable **Developer Mode** in Discord: **User Settings → Advanced → Developer Mode**.
+3. Right-click the channel that should receive deploy notifications → **Copy Channel ID**.
+4. Make sure the bot's role has **Send Messages** and **Embed Links** on that channel (**Channel → Edit Channel → Permissions**).
 
 ### 4. Add the repo secrets
 
 GitHub repo → **Settings → Secrets and variables → Actions → New repository
 secret**. Add:
 
-| Secret                       | Value                                                      |
-| ---------------------------- | ---------------------------------------------------------- |
-| `SSH_HOST`                   | Server hostname or IP                                      |
-| `SSH_USER`                   | Login user (the one who owns `~/manabrew` on the server)   |
-| `SSH_PORT`                   | Optional — defaults to 22 if unset                         |
-| `SSH_PRIVATE_KEY`            | Contents of the **private** key (`~/.ssh/manabrew_deploy`) |
-| `DISCORD_DEPLOY_WEBHOOK_URL` | The Discord webhook URL from step 3                        |
+| Secret                      | Value                                                      |
+| --------------------------- | ---------------------------------------------------------- |
+| `SSH_HOST`                  | Server hostname or IP                                      |
+| `SSH_USER`                  | Login user (the one who owns `~/manabrew` on the server)   |
+| `SSH_PORT`                  | Optional — defaults to 22 if unset                         |
+| `SSH_PRIVATE_KEY`           | Contents of the **private** key (`~/.ssh/manabrew_deploy`) |
+| `DISCORD_BOT_TOKEN`         | Bot token from the Developer Portal                        |
+| `DISCORD_DEPLOY_CHANNEL_ID` | ID of the channel that should receive deploy embeds        |
 
 ### 5. Remove the old GitHub webhook (if any)
 
@@ -198,7 +202,7 @@ Trigger manually first: **Actions → Auto deploy → Run workflow → branch `m
 Verify:
 
 - The workflow's `Deploy via SSH` step is green.
-- The Discord channel receives a green "Deploy complete" embed.
+- The configured Discord channel receives a green "Deploy complete" embed posted by your bot.
 - `docker compose -f forge-engine/crates/forge-server/compose.yml ps` on the
   server shows the expected containers as `Up`.
 

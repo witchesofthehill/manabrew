@@ -43,18 +43,19 @@ jobs:
             'cd ~/manabrew && ./deploy.sh 2>&1' 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
-      - name: Post Discord embed
+      - name: Post Discord embed (as bot)
         if: always()
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+          BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
           DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           COMMIT_SHA: ${{ github.sha }}
           ACTOR: ${{ github.actor }}
         shell: bash
         run: |
-          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
-            echo "DISCORD_DEPLOY_WEBHOOK_URL not set; skipping notification."
+          if [ -z "${BOT_TOKEN:-}" ] || [ -z "${CHANNEL_ID:-}" ]; then
+            echo "DISCORD_BOT_TOKEN or DISCORD_DEPLOY_CHANNEL_ID not set; skipping notification."
             exit 0
           fi
 
@@ -88,8 +89,11 @@ jobs:
             --argjson color "$COLOR" \
             '{embeds: [{title: $title, url: $url, description: $desc, color: $color, footer: {text: $footer}}]}')
 
-          curl -fsS -X POST -H 'Content-Type: application/json' \
-            -d "$PAYLOAD" "$DISCORD_WEBHOOK"
+          curl -fsS -X POST \
+            -H "Authorization: Bot $BOT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

@@ -15,6 +15,13 @@ import { Navigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Production builds set VITE_MANAGED_RELAY=1; the relay host/port/password
+ * are baked into the bundle and shouldn't be editable. Username stays
+ * configurable because each player still picks their own handle.
+ */
+const MANAGED_RELAY = !!import.meta.env.VITE_MANAGED_RELAY;
+
 /** Human-readable labels for theme color keys */
 /**
  * Canonical key unions. These drive the typed colour-description maps
@@ -468,25 +475,29 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Server</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="server-host">Host</Label>
-              <Input
-                id="server-host"
-                value={host}
-                onChange={(e) => setHost(e.target.value)}
-                placeholder="localhost"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="server-port">Port</Label>
-              <Input
-                id="server-port"
-                type="number"
-                value={port}
-                onChange={(e) => setPort(e.target.value)}
-                placeholder="9443"
-              />
-            </div>
+            {!MANAGED_RELAY && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="server-host">Host</Label>
+                  <Input
+                    id="server-host"
+                    value={host}
+                    onChange={(e) => setHost(e.target.value)}
+                    placeholder="localhost"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="server-port">Port</Label>
+                  <Input
+                    id="server-port"
+                    type="number"
+                    value={port}
+                    onChange={(e) => setPort(e.target.value)}
+                    placeholder="9443"
+                  />
+                </div>
+              </>
+            )}
             <div className="space-y-1">
               <Label htmlFor="server-username">Username</Label>
               <Input
@@ -496,16 +507,18 @@ export default function Settings() {
                 placeholder="Player1"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="server-password">Password</Label>
-              <Input
-                id="server-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="forge"
-              />
-            </div>
+            {!MANAGED_RELAY && (
+              <div className="space-y-1">
+                <Label htmlFor="server-password">Password</Label>
+                <Input
+                  id="server-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="forge"
+                />
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
@@ -523,8 +536,9 @@ export default function Settings() {
             {server.error && <span className="text-xs text-destructive">{server.error}</span>}
           </div>
           <p className="text-xs text-muted-foreground">
-            Server connection settings. Saving will disconnect and reconnect with the new
-            credentials.
+            {MANAGED_RELAY
+              ? "Relay host, port and credentials are managed by this deployment. Only your username is configurable here."
+              : "Server connection settings. Saving will disconnect and reconnect with the new credentials."}
           </p>
         </section>
       )}

@@ -1,0 +1,129 @@
+name: Preview deploy
+
+# PRs labelled `deploy-preview` are deployed to staging.manabrew.app.
+# Closing the PR or removing the label tears the preview down.
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened, closed, unlabeled]
+
+concurrency:
+  group: preview-deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: |
+      (github.event.action == 'labeled' && github.event.label.name == 'deploy-preview')
+      || (contains(fromJSON('["synchronize","reopened"]'), github.event.action)
+          && contains(github.event.pull_request.labels.*.name, 'deploy-preview'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: SSH and build PR preview
+        id: deploy
+        continue-on-error: true
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          STAGING_PATH: ${{ secrets.DEPLOY_STAGING_PATH }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          # PR refs live on the base repo, so always clone that (works for forks too).
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=120 \
+              "$USER@$HOST" bash <<REMOTE_EOF
+          set -euo pipefail
+          STAGING="${STAGING_PATH:-/opt/manabrew-staging}"
+
+          if [ ! -d "\$STAGING/.git" ]; then
+              git clone https://github.com/${BASE_REPO}.git "\$STAGING"
+          fi
+          cd "\$STAGING"
+
+          # Reuse prod's FORGE_SERVER_KEY (symlink follows rotations).
+          [ -L .env ] || ln -sf "${DEPLOY_PATH}/ops/production.secrets" .env
+
+          git fetch origin "pull/${PR_NUMBER}/head" --force
+          git checkout --detach --force ${PR_SHA}
+
+          docker compose -p manabrew-staging -f compose.staging.yml up -d --build --remove-orphans
+          # Record which PR owns the single slot so another PR's teardown
+          # doesn't kill this preview.
+          echo "${PR_NUMBER}" > "\$STAGING/.preview-pr"
+          REMOTE_EOF
+
+      - name: Comment preview URL
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+        with:
+          script: |
+            const ok = process.env.DEPLOY_OUTCOME === 'success';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: ok
+                ? `🚀 Preview deployed: https://staging.manabrew.app (${sha})`
+                : `💥 Preview deploy failed for ${sha} — see [run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`,
+            });
+
+      - name: Fail job if deploy failed
+        if: steps.deploy.outcome != 'success'
+        run: exit 1
+
+  teardown:
+    # Closing the PR, or removing the deploy-preview label.
+    if: |
+      github.event.action == 'closed'
+      || (github.event.action == 'unlabeled' && github.event.label.name == 'deploy-preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: SSH and tear down preview (only if this PR owns the slot)
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          STAGING_PATH: ${{ secrets.DEPLOY_STAGING_PATH }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$USER@$HOST" bash <<REMOTE_EOF
+          set -euo pipefail
+          STAGING="${STAGING_PATH:-/opt/manabrew-staging}"
+          [ -d "\$STAGING" ] || { echo "no staging dir; nothing to tear down"; exit 0; }
+          cd "\$STAGING"
+
+          OWNER="\$(cat .preview-pr 2>/dev/null || echo '')"
+          if [ "\$OWNER" != "${PR_NUMBER}" ]; then
+              echo "slot owned by PR \${OWNER:-none}, not ${PR_NUMBER}; leaving it up"
+              exit 0
+          fi
+          docker compose -p manabrew-staging -f compose.staging.yml down --remove-orphans
+          rm -f .preview-pr
+          echo "torn down preview for PR ${PR_NUMBER}"
+          REMOTE_EOF

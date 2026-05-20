@@ -269,6 +269,39 @@ Before opening a PR, read [CONTRIBUTING.md](./CONTRIBUTING.md). In short:
 - run `yarn lint:all` before asking for review;
 - do not bundle card images or secrets.
 
+### Preview Deploys
+
+A PR can be deployed to a shared preview environment at
+[staging.manabrew.app](https://staging.manabrew.app) by adding the
+`deploy-preview` label to it.
+
+**Why.** Some classes of bug only show up against a real deployment — TLS,
+cross-origin isolation (`SharedArrayBuffer` needs the right COOP/COEP
+headers), the Scryfall image proxy, and live WebSocket multiplayer. None of
+those are exercised by a local `yarn dev`. The preview gives reviewers a
+working URL to click through before merge instead of building the branch
+themselves.
+
+**How.** Labelling a PR `deploy-preview` triggers the `preview-deploy`
+workflow, which SSHes to the deploy host, checks out the PR's HEAD into a
+separate `/opt/manabrew-staging` working tree (kept apart from the live
+`/opt/manabrew` so a preview build can't disturb prod), and brings up a
+self-contained staging stack:
+
+- `staging.manabrew.app` — the PR's web client
+- `relay-staging.manabrew.app` — a dedicated `forge-server` relay, so a
+  PR that changes the backend is previewed end-to-end without touching the
+  production relay
+
+The workflow comments the preview URL back on the PR. There is a **single**
+preview slot: the most recently labelled PR occupies it, and labelling a
+different PR takes it over. Every push to a labelled PR redeploys
+automatically.
+
+Merging (or closing) the PR, or removing the label, tears the staging stack
+down and frees the slot — a merged PR cleans up after itself, so no stale
+preview lingers.
+
 ### AI-Assisted Development
 
 This repository uses AI assistance for mechanical porting, parity

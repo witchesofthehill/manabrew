@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # deploy.sh — Smart rebuild of the Wasm/web stack on the production host.
-# Scope: builds manabrew (Wasm + React via nginx), forge-server, and
+# Scope: builds manabrew (Wasm + React, served by caddy), forge-server, and
 # optionally parity-dashboard. Native Tauri installers (.dmg / .exe) are
 # built separately by .github/workflows/release-artifacts.yml.
 # Triggered by .github/workflows/deploy.yml (the "Wasm deploy" workflow)
@@ -95,13 +95,18 @@ while IFS= read -r file; do
             RUST_CHANGED=true ;;
     esac
     case "$file" in
-        src/*|public/*|scripts/build-wasm.sh|scripts/bundle-cards.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html|nginx.web.conf)
+        src/*|public/*|scripts/build-wasm.sh|scripts/bundle-cards.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html)
             WEB_CHANGED=true ;;
         forge-engine/crates/forge-wasm/*)
             WEB_CHANGED=true ;;
+        ops/Caddyfile)
+            # Caddyfile is mounted into the manabrew container at runtime,
+            # but a `docker compose up -d` is the cheapest way to pick up
+            # config changes (caddy auto-reloads on mount change too).
+            WEB_CHANGED=true ;;
     esac
     case "$file" in
-        *Dockerfile*|*compose*|.dockerignore|deploy.sh|nginx.web.conf)
+        *Dockerfile*|*compose*|.dockerignore|deploy.sh)
             INFRA_CHANGED=true ;;
     esac
 done <<< "$CHANGED"
@@ -141,7 +146,7 @@ elif $RUST_CHANGED; then
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART forge-server"
 fi
 
-# -- manabrew (WASM + React static site served via nginx) --
+# -- manabrew (WASM + React static site served via caddy) --
 if $INFRA_CHANGED; then
     echo "Building manabrew (full)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache $BUILD_ARGS manabrew >> "$RAW_LOG" 2>&1
@@ -162,7 +167,11 @@ PROFILE_FLAG=""
 if echo "$SERVICES_TO_RESTART" | grep -q "parity-dashboard"; then
     PROFILE_FLAG="--profile parity"
 fi
-docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
+# --remove-orphans: when a service is renamed or removed (e.g. the
+# nginx→caddy consolidation that dropped the separate `caddy` service),
+# the old container otherwise lingers and can hold the host ports the new
+# one needs — exactly what took prod down on the #19 merge deploy.
+docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --remove-orphans $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
 
 BUILD_END=$(date +%s)
 BUILD_DURATION=$(( BUILD_END - BUILD_START ))

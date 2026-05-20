@@ -1,6 +1,8 @@
-# Builds the Tauri web frontend (forge-wasm + React) as a static site
-# served by nginx. Requires COOP/COEP headers for SharedArrayBuffer
-# (used by the WASM game engine worker with Atomics.wait).
+# Builds the Tauri web frontend (forge-wasm + React) as a static site and
+# serves it directly via Caddy. Caddy also reverse-proxies the multiplayer
+# relay (forge-server) and parity dashboard, terminates Let's Encrypt TLS
+# for all three public hostnames, and sets the COOP/COEP/CORP headers
+# SharedArrayBuffer requires.
 #
 # Build context: repo root (needs forge-engine/, src/, scripts/,
 # forge/forge-gui/res/cardsfolder/, public/preset_decks/, package.json, vite.config.ts)
@@ -50,28 +52,31 @@ COPY public/preset_decks/ ./public/preset_decks/
 ARG VITE_RELAY_HOST=
 ARG VITE_RELAY_PORT=
 ARG VITE_RELAY_PASSWORD=
+ARG VITE_MANAGED_RELAY=
 ARG VITE_SCRYFALL_SYMBOL_BASE=
 ENV VITE_RELAY_HOST=${VITE_RELAY_HOST}
 ENV VITE_RELAY_PORT=${VITE_RELAY_PORT}
 ENV VITE_RELAY_PASSWORD=${VITE_RELAY_PASSWORD}
+ENV VITE_MANAGED_RELAY=${VITE_MANAGED_RELAY}
 ENV VITE_SCRYFALL_SYMBOL_BASE=${VITE_SCRYFALL_SYMBOL_BASE}
 
-# Build WASM + Vite bundle (outputs to dist/)
-RUN yarn build:web
+# Build WASM + Vite bundle (outputs to dist/).
+#
+# BuildKit cache mounts make src/-only changes ~5-10× faster: cargo's
+# downloaded crate index, git deps and incremental target dir survive
+# across builds even though the layer above (COPY src/) invalidates the
+# Docker layer cache. Mirrors the pattern forge-server's Dockerfile uses.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,target=/build/target,sharing=locked \
+    yarn build:web
 
-# --- Runtime: nginx serving the static bundle. Sets COOP/COEP at the origin
-# so the app becomes cross-origin-isolated (required for SharedArrayBuffer) ---
-FROM nginx:1.27-alpine
+# --- Runtime: Caddy serves the built dist directly, reverse-proxies the
+# relay + parity hostnames, and terminates Let's Encrypt TLS for all
+# three. ops/Caddyfile is mounted in via compose so config changes don't
+# require a rebuild. ---
+FROM caddy:2-alpine
 
-RUN apk add --no-cache openssl && \
-    mkdir -p /etc/nginx/ssl && \
-    openssl req -x509 -nodes -days 3650 \
-        -newkey rsa:2048 \
-        -keyout /etc/nginx/ssl/selfsigned.key \
-        -out /etc/nginx/ssl/selfsigned.crt \
-        -subj "/CN=manabrew"
-
-COPY nginx.web.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /build/dist/ /usr/share/nginx/html/
+COPY --from=builder /build/dist/ /srv/manabrew/
 
 EXPOSE 80 443

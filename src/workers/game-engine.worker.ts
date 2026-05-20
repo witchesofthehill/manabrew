@@ -375,6 +375,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
 
   const decks = (args?.decks as Deck[]) || [];
   const commanderNames = (args?.commanderNames as (string | null)[]) ?? decks.map(() => null);
+  const playerNames = (args?.playerNames as string[]) ?? decks.map((_, i) => `player-${i}`);
   const localPlayerIndex = (args?.enginePlayerIndex as number) ?? 0;
   const startingLife = (args?.startingLife as number) || 20;
 
@@ -384,6 +385,10 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
   }
   if (commanderNames.length !== decks.length) {
     postError(requestId, "commanderNames length must match decks length");
+    return;
+  }
+  if (playerNames.length !== decks.length) {
+    postError(requestId, "playerNames length must match decks length");
     return;
   }
   if (localPlayerIndex < 0 || localPlayerIndex >= decks.length) {
@@ -416,6 +421,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
     const result = run_multiplayer_game(
       decks,
       commanderNames,
+      playerNames,
       config,
       gameSharedBuffer,
       remoteSharedBuffers,

@@ -1,19 +1,15 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc;
 use std::sync::Arc;
 
 use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::game_view_dto::GameViewDto;
 use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner, PlayerAction};
 use forge_engine_core::agent::PlayerAgent;
-use forge_engine_core::game::GameState;
-use forge_engine_core::game_loop::GameLoop;
 use forge_engine_core::ids::PlayerId;
-use forge_engine_core::player::RegisteredPlayer;
-use forge_game_runtime::deck::{force_commander_by_name, instantiate_registered_players};
+use forge_game_runtime::deck::force_commander_by_name;
 use forge_game_runtime::host_runtime::{run_hosted_multiplayer_game, DEFAULT_MAX_TURNS};
 use rand::SeedableRng;
 
@@ -36,7 +32,6 @@ pub fn run_game(
     snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
     abort_signal: Arc<AtomicBool>,
 ) {
-    let mut players = Vec::with_capacity(2);
     let mut human = if deck_list.len() == 1 && is_preset_id(&deck_list[0].name) {
         prepare_preset_registered_player("You", &deck_list[0].name)
     } else {
@@ -46,7 +41,6 @@ pub fn run_game(
     if let Some(ref name) = commander_name {
         force_commander_by_name(&mut human, name);
     }
-    players.push(human);
 
     // The UI is responsible for picking the opponent deck explicitly. There
     // is no auto-inference (preset.opponent field) or random AI fallback —
@@ -66,72 +60,70 @@ pub fn run_game(
         prepare_custom_registered_player("AI Opponent", &opp_deck)
     };
     opponent.registered.starting_life = starting_life;
-    players.push(opponent);
 
-    let registered: Vec<RegisteredPlayer> = players.iter().map(|p| p.registered.clone()).collect();
-    let mut game = GameState::new_from_registered_players(&registered);
-    instantiate_registered_players(&mut game, players);
+    let prepared_players = vec![human, opponent];
 
     let p0 = PlayerId(0);
-    let p1 = PlayerId(1);
-
-    let human = PromptAgent::new(
+    // The human seat owns the channels passed in from the command layer, so
+    // its agent is built up front and handed to the factory via this slot.
+    let mut human_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(PromptAgent::new(
         p0,
         game_id.clone(),
         TauriTransport::new_local(prompt_tx.clone(), response_rx, notify_tx, snapshot_tx),
-    );
-
-    let (ai_prompt_tx, ai_prompt_rx) = mpsc::channel::<AgentPrompt>();
-    let (ai_response_tx, ai_response_rx) = mpsc::channel::<PlayerAction>();
-    spawn_ai_prompt_responder(ai_prompt_rx, ai_response_tx);
-    let ai = PromptAgent::new(
-        p1,
-        game_id.clone(),
-        TauriTransport::new_ai(ai_prompt_tx, ai_response_rx),
-    );
-
-    let mut agents: Vec<Box<dyn PlayerAgent>> = vec![Box::new(human), Box::new(ai)];
-    let mut game_loop = GameLoop::new(2);
-    game_loop.set_abort_signal(abort_signal.clone());
-    if std::env::var("FORGE_ENGINE_GAME_LOG").is_err() {
-        game_loop.game_log.set_enabled(true);
-    }
-    game_loop.experimental_restore_snapshot =
-        std::env::var("FORGE_ENGINE_RESTORE_SNAPSHOT").is_ok();
-
-    // Register token templates so the engine can instantiate tokens by script name.
-    // Uses a placeholder owner (p0); the actual owner/controller is set at creation time.
-    // Attaches Scryfall set code + collector number from edition files for image lookup.
-    let token_db = get_token_db();
-    let token_image_map = get_token_image_map();
-    for (script_name, rules) in token_db.iter() {
-        let mut template = card_rules_to_instance(rules, p0);
-        if let Some(info) = token_image_map.get(&script_name) {
-            template.set_code = Some(info.set_code.clone());
-            template.card_number = Some(info.collector_number.clone());
-        }
-        game_loop.register_token(script_name, template);
-    }
+    )));
+    let game_id_for_agents = game_id.clone();
 
     let mut rng = rand::rngs::StdRng::from_entropy();
-
-    let winner = game_loop.run(&mut game, &mut agents, &mut rng, 5000);
-
-    if abort_signal.load(Ordering::Relaxed) {
-        return;
-    }
-
-    let final_view = GameViewDto::from_engine(&game, &game_loop.mana_pools, p0, &game_id, &[], &[]);
-    let _ = prompt_tx.send(AgentPrompt {
-        deciding_player_id: "player-0".to_string(),
-        display_events: vec![],
-        source_card_id: None,
-        inner: AgentPromptInner::GameOver {
-            game_view: final_view,
+    run_hosted_multiplayer_game(
+        game_id.clone(),
+        prepared_players,
+        Some(0),
+        abort_signal,
+        DEFAULT_MAX_TURNS,
+        &mut rng,
+        |game_loop| {
+            // Token templates use a placeholder owner (p0); the real
+            // owner/controller is set at creation time. Set code + collector
+            // number come from the edition files for image lookup.
+            let token_db = get_token_db();
+            let token_image_map = get_token_image_map();
+            for (script_name, rules) in token_db.iter() {
+                let mut template = card_rules_to_instance(rules, p0);
+                if let Some(info) = token_image_map.get(&script_name) {
+                    template.set_code = Some(info.set_code.clone());
+                    template.card_number = Some(info.collector_number.clone());
+                }
+                game_loop.register_token(script_name, template);
+            }
         },
-    });
-
-    let _ = winner;
+        |_pid, is_local| {
+            if is_local {
+                human_agent_slot
+                    .take()
+                    .expect("agent_factory called twice for the local seat")
+            } else {
+                let (ai_prompt_tx, ai_prompt_rx) = mpsc::channel::<AgentPrompt>();
+                let (ai_response_tx, ai_response_rx) = mpsc::channel::<PlayerAction>();
+                spawn_ai_prompt_responder(ai_prompt_rx, ai_response_tx);
+                Box::new(PromptAgent::new(
+                    PlayerId(1),
+                    game_id_for_agents.clone(),
+                    TauriTransport::new_ai(ai_prompt_tx, ai_response_rx),
+                ))
+            }
+        },
+        |pid, is_local, view| {
+            // Only the human seat needs the game-over prompt; the AI discards it.
+            if is_local {
+                let _ = prompt_tx.send(AgentPrompt {
+                    deciding_player_id: format!("player-{}", pid.index()),
+                    display_events: vec![],
+                    source_card_id: None,
+                    inner: AgentPromptInner::GameOver { game_view: view },
+                });
+            }
+        },
+    );
 }
 
 pub fn run_multiplayer_game(
@@ -185,7 +177,7 @@ pub fn run_multiplayer_game(
     let outcome = run_hosted_multiplayer_game(
         game_id.clone(),
         prepared_players,
-        engine_player_index,
+        Some(engine_player_index),
         abort_signal,
         DEFAULT_MAX_TURNS,
         &mut rng,

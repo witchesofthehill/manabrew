@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
-use std::sync::{mpsc as std_mpsc, Once, OnceLock};
+use std::sync::atomic::AtomicBool;
+use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
 use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::deck_dto::Deck;
-use forge_agent_interface::game_view_dto::GameViewDto;
 use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner, PlayerAction};
 use forge_bot::agent::{spawn_agent_responder, SimpleAi};
 use forge_carddb::CardDatabase;
 use forge_engine_core::agent::PlayerAgent;
-use forge_engine_core::game::GameState;
-use forge_engine_core::game_loop::GameLoop;
 use forge_engine_core::ids::PlayerId;
 use forge_game_runtime::deck::{
-    card_rules_to_instance, deck_to_identities, force_commander_by_name,
-    instantiate_registered_players, prepare_registered_player,
+    deck_to_identities, force_commander_by_name, prepare_registered_player,
+};
+use forge_game_runtime::host_runtime::{
+    register_tokens_from_db, run_hosted_multiplayer_game, DEFAULT_MAX_TURNS,
 };
 use forge_game_runtime::mpsc_transport::MpscTransport as NodeTransport;
 use memmap2::Mmap;
@@ -49,80 +49,69 @@ pub fn run_hosted_engine_game(
         prepared_players.push(prepared);
     }
 
-    let registered = prepared_players
-        .iter()
-        .map(|player| player.registered.clone())
-        .collect::<Vec<_>>();
-    let mut game = GameState::new_from_registered_players(&registered);
-    instantiate_registered_players(&mut game, prepared_players);
-
-    let local_ai = local_player_index.map(|player_index| {
+    // The local seat (if any) is filled by an in-process AI; every other seat
+    // is a networked player whose prompts/actions are relayed over the
+    // WebSocket. Both are wired into the shared host runtime via the closures.
+    let mut local_ai: Option<Box<dyn PlayerAgent>> = local_player_index.map(|player_index| {
         let (ai_prompt_tx, ai_prompt_rx) = std_mpsc::channel::<AgentPrompt>();
         let (ai_response_tx, ai_response_rx) = std_mpsc::channel::<PlayerAction>();
         spawn_agent_responder(Box::new(SimpleAi::new()), ai_prompt_rx, ai_response_tx);
-        (
-            player_index,
-            Box::new(PromptAgent::new(
-                PlayerId(player_index as u32),
-                game_id.clone(),
-                NodeTransport::new_ai(ai_prompt_tx, ai_response_rx),
-            )) as Box<dyn PlayerAgent>,
-        )
+        Box::new(PromptAgent::new(
+            PlayerId(player_index as u32),
+            game_id.clone(),
+            NodeTransport::new_ai(ai_prompt_tx, ai_response_rx),
+        )) as Box<dyn PlayerAgent>
     });
-
     let mut remote_rx_map: HashMap<usize, std_mpsc::Receiver<PlayerAction>> =
         remote_response_rxs.into_iter().collect();
-
-    let mut local_ai = local_ai;
-    let mut agents: Vec<Box<dyn PlayerAgent>> = Vec::with_capacity(num_players);
-    for i in 0..num_players {
-        if Some(i) == local_player_index {
-            agents.push(local_ai.take().expect("missing local ai agent").1);
-        } else {
-            let response_rx = remote_rx_map
-                .remove(&i)
-                .expect("missing remote response receiver");
-            agents.push(Box::new(PromptAgent::new(
-                PlayerId(i as u32),
-                game_id.clone(),
-                NodeTransport::new_relay(i, remote_prompt_tx.clone(), response_rx),
-            )));
-        }
-    }
-
-    let mut game_loop = GameLoop::new(num_players);
-    if std::env::var("FORGE_ENGINE_GAME_LOG").is_err() {
-        game_loop.game_log.set_enabled(true);
-    }
-    game_loop.experimental_restore_snapshot =
-        std::env::var("FORGE_ENGINE_RESTORE_SNAPSHOT").is_ok();
-
-    let token_db = get_token_db();
-    for (script_name, rules) in token_db.iter() {
-        let template = card_rules_to_instance(rules, PlayerId(0));
-        game_loop.register_token(script_name.clone(), template);
-    }
+    let game_id_for_agents = game_id.clone();
+    let remote_prompt_tx_for_agents = remote_prompt_tx.clone();
 
     let mut rng = rand::rngs::StdRng::from_entropy();
-    let _winner = game_loop.run(&mut game, &mut agents, &mut rng, 5000);
-
-    for i in 0..num_players {
-        if Some(i) == local_player_index {
-            continue;
-        }
-        let pid = PlayerId(i as u32);
-        let game_view =
-            GameViewDto::from_engine(&game, &game_loop.mana_pools, pid, &game_id, &[], &[]);
-        let _ = remote_prompt_tx.send((
-            i,
-            AgentPrompt {
-                deciding_player_id: format!("player-{i}"),
-                display_events: vec![],
-                source_card_id: None,
-                inner: AgentPromptInner::GameOver { game_view },
-            },
-        ));
-    }
+    let abort_signal = Arc::new(AtomicBool::new(false));
+    run_hosted_multiplayer_game(
+        game_id.clone(),
+        prepared_players,
+        local_player_index,
+        abort_signal,
+        DEFAULT_MAX_TURNS,
+        &mut rng,
+        |game_loop| register_tokens_from_db(game_loop, get_token_db()),
+        |pid, is_local| {
+            if is_local {
+                local_ai
+                    .take()
+                    .expect("agent_factory called twice for the local seat")
+            } else {
+                let i = pid.index();
+                let response_rx = remote_rx_map
+                    .remove(&i)
+                    .expect("missing remote response receiver");
+                Box::new(PromptAgent::new(
+                    pid,
+                    game_id_for_agents.clone(),
+                    NodeTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), response_rx),
+                ))
+            }
+        },
+        |pid, is_local, view| {
+            // The local AI seat doesn't need a game-over prompt; every remote
+            // seat gets one so its client lands on the game-over screen.
+            if is_local {
+                return;
+            }
+            let i = pid.index();
+            let _ = remote_prompt_tx.send((
+                i,
+                AgentPrompt {
+                    deciding_player_id: format!("player-{i}"),
+                    display_events: vec![],
+                    source_card_id: None,
+                    inner: AgentPromptInner::GameOver { game_view: view },
+                },
+            ));
+        },
+    );
 }
 
 /// Card and token databases come from a single rkyv archive bundle —

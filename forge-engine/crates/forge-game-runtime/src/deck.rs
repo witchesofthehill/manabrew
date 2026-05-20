@@ -85,12 +85,6 @@ pub fn prepare_cards_from_identities(
     cards
 }
 
-/// Idempotently ensure `commander_name` is a commander on `player`.
-///
-/// No-op early return if the deck's `commanders` pile already encoded it.
-/// Otherwise — the multiplayer case, where the lobby supplies the
-/// commander out-of-band — relocate the named card from the library to
-/// the command zone. Returns `false` only if no such card exists.
 pub fn force_commander_by_name(
     player: &mut PreparedRegisteredPlayer,
     commander_name: &str,

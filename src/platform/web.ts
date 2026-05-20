@@ -402,6 +402,7 @@ class WebGameApi implements IGameApi {
       await this.bridge.invoke("start_multiplayer_game", {
         decks: params.decks,
         commanderNames: params.commanderNames,
+        playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         startingLife: params.startingLife,
       });

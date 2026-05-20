@@ -19,7 +19,6 @@
 
 mod bot_api;
 mod card_loader;
-mod game_runner;
 mod limited_api;
 mod limited_bootstrap;
 mod wasm_api;

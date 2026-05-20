@@ -24,7 +24,10 @@ export function getWebRuntimeConfig(): WebRuntimeConfig {
   return window.MANABREW_CONFIG ?? {};
 }
 
-export function isHostedAiPlayEnabled(): boolean {
+/** Whether this deployment offers the hosted (server-side Java) engine — i.e.
+ *  a self-hosted-node is available. Gates the Settings engine toggle; actual
+ *  routing also requires the per-user `preferHostedEngine` preference. */
+export function isHostedEngineAvailable(): boolean {
   const value = getWebRuntimeConfig().hostedAiEnabled;
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {

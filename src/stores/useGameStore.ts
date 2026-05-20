@@ -9,11 +9,12 @@ import {
   startManualRoomSync,
   stopManualRoomSync as stopActiveManualRoomSync,
 } from "@/game";
-import { isHostedAiPlayEnabled } from "@/config/webRuntimeConfig";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
 import { startHostedAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
+import { usePreferencesStore } from "./usePreferencesStore";
 import { useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
 import type { AgentPrompt } from "./gameStore.types";
@@ -107,7 +108,12 @@ async function initializeGame({
   // On web, "Play vs AI" can be routed through a self-hosted-node room when
   // the deployment enables it: the node runs the engine and spawns the bot,
   // and the browser attaches as a non-host multiplayer client.
-  if (getPlatform().type === "web" && isHostedAiPlayEnabled() && opponentDeck) {
+  if (
+    getPlatform().type === "web" &&
+    isHostedEngineAvailable() &&
+    usePreferencesStore.getState().preferHostedEngine &&
+    opponentDeck
+  ) {
     set({
       isGameActive: true,
       gameView: null,

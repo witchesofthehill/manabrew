@@ -13,11 +13,10 @@ services:
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
-    environment:
-      # Make the hosted (Java) engine available on staging so the Settings
-      # engine toggle shows. Actual use is per-user (preferHostedEngine);
-      # default play stays client-side.
-      MANABREW_HOSTED_AI_ENABLED: "true"
+        # Make the hosted (Java) engine available on staging so the Settings
+        # engine toggle shows. Actual use is per-user (preferHostedEngine);
+        # default play stays client-side.
+        VITE_HOSTED_AI_ENABLED: "true"
     restart: unless-stopped
     expose:
       - "80"

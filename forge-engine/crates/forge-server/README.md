@@ -31,24 +31,22 @@ All config is via environment variables. Edit `compose.yml` or pass overrides:
 | `FORGE_SERVER_KEY` | `forge`             | Server authentication key |
 | `RUST_LOG`         | `forge_server=info` | Log level filter          |
 
-The `manabrew` web container also writes `/manabrew-config.js` at container
-startup so the static browser bundle can be configured without rebuilding the
-image:
+The `manabrew` web bundle is configured at **build time** via `Dockerfile.web`
+build args (the relay endpoint is baked in):
 
-| Variable                     | Default                       | Description                                                                                 |
-| ---------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------- |
-| `MANABREW_SERVER_HOST`       | current browser host          | WebSocket server host used by browser clients; may also be a full `ws://` or `wss://` URL   |
-| `MANABREW_SERVER_PORT`       | `9443`                        | WebSocket server port used by browser clients                                               |
-| `MANABREW_SERVER_USERNAME`   | generated per browser session | Optional username default                                                                   |
-| `MANABREW_SERVER_PASSWORD`   | `FORGE_SERVER_KEY` / `forge`  | Server authentication key used by hosted AI play                                            |
-| `MANABREW_HOSTED_AI_ENABLED` | `false`                       | Makes the hosted (server-side Java) engine **available** — shows the Settings engine toggle |
+| Build arg                | Default   | Description                                                                                 |
+| ------------------------ | --------- | ------------------------------------------------------------------------------------------- |
+| `VITE_RELAY_HOST`        | localhost | WebSocket relay host the browser connects to                                                |
+| `VITE_RELAY_PORT`        | `9443`    | Relay port                                                                                  |
+| `VITE_RELAY_PASSWORD`    | `forge`   | Relay authentication key                                                                    |
+| `VITE_HOSTED_AI_ENABLED` | `false`   | Makes the hosted (server-side Java) engine **available** — shows the Settings engine toggle |
 
 **Web "Play vs AI" does not depend on the node by default.** With
-`MANABREW_HOSTED_AI_ENABLED` unset/false, 1v1-vs-AI runs the engine
-client-side (WASM) — no `self-hosted-node` required, and the Settings engine
-toggle is hidden. Setting it to `true` (e.g. on staging) makes the hosted
-engine **available**: a per-user **Settings → "Use hosted Java engine"** toggle
-appears, and play stays client-side until a user opts in. Run the node too:
+`VITE_HOSTED_AI_ENABLED` unset/false, 1v1-vs-AI runs the engine client-side
+(WASM) — no `self-hosted-node` required, and the Settings engine toggle is
+hidden. Building with `VITE_HOSTED_AI_ENABLED=true` (e.g. on staging) makes the
+hosted engine **available**: a per-user **Settings → "Use hosted Java engine"**
+toggle appears, and play stays client-side until a user opts in. Run the node too:
 
 ```bash
 docker compose --profile hosted-ai up    # production: starts the self-hosted-node

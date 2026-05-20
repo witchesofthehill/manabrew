@@ -54,11 +54,13 @@ ARG VITE_RELAY_PORT=
 ARG VITE_RELAY_PASSWORD=
 ARG VITE_MANAGED_RELAY=
 ARG VITE_SCRYFALL_SYMBOL_BASE=
+ARG VITE_HOSTED_AI_ENABLED=
 ENV VITE_RELAY_HOST=${VITE_RELAY_HOST}
 ENV VITE_RELAY_PORT=${VITE_RELAY_PORT}
 ENV VITE_RELAY_PASSWORD=${VITE_RELAY_PASSWORD}
 ENV VITE_MANAGED_RELAY=${VITE_MANAGED_RELAY}
 ENV VITE_SCRYFALL_SYMBOL_BASE=${VITE_SCRYFALL_SYMBOL_BASE}
+ENV VITE_HOSTED_AI_ENABLED=${VITE_HOSTED_AI_ENABLED}
 
 # Build WASM + Vite bundle (outputs to dist/).
 #
@@ -77,11 +79,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 # require a rebuild. ---
 FROM caddy:2-alpine
 
-COPY docker/web-entrypoint.sh /usr/local/bin/manabrew-web-entrypoint
 COPY --from=builder /build/dist/ /srv/manabrew/
 
-RUN chmod +x /usr/local/bin/manabrew-web-entrypoint
-
 EXPOSE 80 443
-
-ENTRYPOINT ["manabrew-web-entrypoint"]

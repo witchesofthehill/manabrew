@@ -9,11 +9,11 @@ services:
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
-    environment:
-      # Off by default: "Play vs AI" runs the engine client-side, so the web
-      # does NOT depend on the self-hosted-node. Set MANABREW_HOSTED_AI_ENABLED=true
-      # (and run the self-hosted-node service) to route Play-vs-AI through it.
-      MANABREW_HOSTED_AI_ENABLED: "${MANABREW_HOSTED_AI_ENABLED:-false}"
+        # Off by default: "Play vs AI" runs the engine client-side, so the web
+        # does NOT depend on the self-hosted-node. Build with
+        # VITE_HOSTED_AI_ENABLED=true (and run the node via --profile hosted-ai)
+        # to expose the Settings engine toggle.
+        VITE_HOSTED_AI_ENABLED: "${VITE_HOSTED_AI_ENABLED:-false}"
     restart: unless-stopped
     ports:
       - "80:80"
@@ -41,9 +41,9 @@ services:
 
   # Headless engine node hosting a room for web "Play vs AI". Opt-in: the
   # default deploy doesn't build/run it (Play-vs-AI works client-side). Start
-  # it with `docker compose --profile hosted-ai up` and set
-  # MANABREW_HOSTED_AI_ENABLED=true. Its room is `hosted`, so it never appears
-  # in the human lobby browse list — the node can stay live without advertising.
+  # it with `docker compose --profile hosted-ai up` (and build the web with
+  # VITE_HOSTED_AI_ENABLED=true). Its room is `hosted`, so it never appears in
+  # the human lobby browse list — the node can stay live without advertising.
   self-hosted-node:
     profiles:
       - hosted-ai

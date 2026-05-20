@@ -1,11 +1,3 @@
-export interface WebRuntimeConfig {
-  serverHost?: string;
-  serverPort?: number | string;
-  serverUsername?: string;
-  serverPassword?: string;
-  hostedAiEnabled?: boolean | string;
-}
-
 export interface ServerConnectionDefaults {
   host: string;
   port: number;
@@ -13,48 +5,24 @@ export interface ServerConnectionDefaults {
   password: string;
 }
 
-declare global {
-  interface Window {
-    MANABREW_CONFIG?: WebRuntimeConfig;
-  }
-}
-
-export function getWebRuntimeConfig(): WebRuntimeConfig {
-  if (typeof window === "undefined") return {};
-  return window.MANABREW_CONFIG ?? {};
-}
-
 /** Whether this deployment offers the hosted (server-side Java) engine — i.e.
  *  a self-hosted-node is available. Gates the Settings engine toggle; actual
- *  routing also requires the per-user `preferHostedEngine` preference. */
+ *  routing also requires the per-user `preferHostedEngine` preference. Baked at
+ *  build time via VITE_HOSTED_AI_ENABLED. */
 export function isHostedEngineAvailable(): boolean {
-  const value = getWebRuntimeConfig().hostedAiEnabled;
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") {
-    return ["1", "true", "yes", "on"].includes(value.toLowerCase());
-  }
-  return false;
+  return ["1", "true", "yes", "on"].includes(
+    (import.meta.env.VITE_HOSTED_AI_ENABLED ?? "").toLowerCase(),
+  );
 }
 
 export function getServerConnectionDefaults(): ServerConnectionDefaults {
-  const config = getWebRuntimeConfig();
-  // Runtime config (window.MANABREW_CONFIG, injected by the Docker entrypoint)
-  // takes precedence, then the build-time VITE_RELAY_* bake, then a localhost
-  // fallback for `yarn dev`.
+  // Relay endpoint is baked at build time (VITE_RELAY_*); falls back to the
+  // current host / localhost for `yarn dev`.
   return {
-    host: stringOrDefault(
-      config.serverHost,
-      stringOrDefault(import.meta.env.VITE_RELAY_HOST, defaultServerHost()),
-    ),
-    port: numberOrDefault(
-      config.serverPort,
-      numberOrDefault(import.meta.env.VITE_RELAY_PORT, 9443),
-    ),
-    username: stringOrDefault(config.serverUsername, ""),
-    password: stringOrDefault(
-      config.serverPassword,
-      stringOrDefault(import.meta.env.VITE_RELAY_PASSWORD, "forge"),
-    ),
+    host: stringOrDefault(import.meta.env.VITE_RELAY_HOST, defaultServerHost()),
+    port: numberOrDefault(import.meta.env.VITE_RELAY_PORT, 9443),
+    username: "",
+    password: stringOrDefault(import.meta.env.VITE_RELAY_PASSWORD, "forge"),
   };
 }
 

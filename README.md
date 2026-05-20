@@ -295,8 +295,12 @@ self-contained staging stack:
 
 The workflow comments the preview URL back on the PR. There is a **single**
 preview slot: the most recently labelled PR occupies it, and labelling a
-different PR takes it over. Removing the label (or closing the PR) stops
-further redeploys. Every push to a labelled PR redeploys automatically.
+different PR takes it over. Every push to a labelled PR redeploys
+automatically.
+
+Merging (or closing) the PR, or removing the label, tears the staging stack
+down and frees the slot — a merged PR cleans up after itself, so no stale
+preview lingers.
 
 ### AI-Assisted Development
 

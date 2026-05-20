@@ -10,10 +10,10 @@ services:
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     environment:
-      # Route web "Play vs AI" through the self-hosted-node room. The relay
-      # endpoint is baked at build time via VITE_RELAY_*, so the runtime
-      # connection defaults are left empty here.
-      MANABREW_HOSTED_AI_ENABLED: "true"
+      # Off by default: "Play vs AI" runs the engine client-side, so the web
+      # does NOT depend on the self-hosted-node. Set MANABREW_HOSTED_AI_ENABLED=true
+      # (and run the self-hosted-node service) to route Play-vs-AI through it.
+      MANABREW_HOSTED_AI_ENABLED: "${MANABREW_HOSTED_AI_ENABLED:-false}"
     restart: unless-stopped
     ports:
       - "80:80"
@@ -39,9 +39,14 @@ services:
       - "9443"
     restart: unless-stopped
 
-  # Headless engine node: hosts a room on the relay and runs the Rust engine
-  # for it, giving web "Play vs AI" a room to join and a server-side opponent.
+  # Headless engine node hosting a room for web "Play vs AI". Opt-in: the
+  # default deploy doesn't build/run it (Play-vs-AI works client-side). Start
+  # it with `docker compose --profile hosted-ai up` and set
+  # MANABREW_HOSTED_AI_ENABLED=true. Its room is `hosted`, so it never appears
+  # in the human lobby browse list — the node can stay live without advertising.
   self-hosted-node:
+    profiles:
+      - hosted-ai
     build:
       context: .
       dockerfile: forge-engine/crates/self-hosted-node/Dockerfile

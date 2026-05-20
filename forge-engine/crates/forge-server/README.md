@@ -35,16 +35,31 @@ The `manabrew` web container also writes `/manabrew-config.js` at container
 startup so the static browser bundle can be configured without rebuilding the
 image:
 
-| Variable                     | Default                              | Description                                                                               |
-| ---------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `MANABREW_SERVER_HOST`       | current browser host                 | WebSocket server host used by browser clients; may also be a full `ws://` or `wss://` URL |
-| `MANABREW_SERVER_PORT`       | `9443`                               | WebSocket server port used by browser clients                                             |
-| `MANABREW_SERVER_USERNAME`   | generated per browser session        | Optional username default                                                                 |
-| `MANABREW_SERVER_PASSWORD`   | `FORGE_SERVER_KEY` / `forge`         | Server authentication key used by hosted AI play                                          |
-| `MANABREW_HOSTED_AI_ENABLED` | `true` in compose, `false` otherwise | Enables web Play vs AI to route through a self-hosted-node room                           |
+| Variable                     | Default                       | Description                                                                               |
+| ---------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------- |
+| `MANABREW_SERVER_HOST`       | current browser host          | WebSocket server host used by browser clients; may also be a full `ws://` or `wss://` URL |
+| `MANABREW_SERVER_PORT`       | `9443`                        | WebSocket server port used by browser clients                                             |
+| `MANABREW_SERVER_USERNAME`   | generated per browser session | Optional username default                                                                 |
+| `MANABREW_SERVER_PASSWORD`   | `FORGE_SERVER_KEY` / `forge`  | Server authentication key used by hosted AI play                                          |
+| `MANABREW_HOSTED_AI_ENABLED` | `false`                       | Routes web Play vs AI through a self-hosted-node room instead of the client engine        |
 
-When hosted AI is enabled, run at least one `self-hosted-node` connected to the
-same server and advertising a hosted room for the format the browser will play.
+**Web "Play vs AI" does not depend on the node by default.** With
+`MANABREW_HOSTED_AI_ENABLED` unset/false, 1v1-vs-AI runs the engine
+client-side (WASM) — no `self-hosted-node` required. Opt in by setting
+`MANABREW_HOSTED_AI_ENABLED=true` and running the node:
+
+```bash
+docker compose --profile hosted-ai up    # production: starts the self-hosted-node
+```
+
+The node hosts a `hosted` room, which is **not advertised** in the lobby's
+human room list (hosted rooms are observer/AI-host rooms); the Play-vs-AI flow
+still discovers it server-side. So the node can stay live without cluttering
+the lobby.
+
+**Known limitation:** some search prompts that ask for a card by subtype
+(e.g. Flamekin Harbinger fetching an Elemental) don't render correctly in the
+hosted-Java flow yet.
 
 ```bash
 # Example: custom port and key

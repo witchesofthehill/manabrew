@@ -63,7 +63,10 @@ services:
       MANABREW_SERVER_PORT: "${MANABREW_SERVER_PORT:-9443}"
       MANABREW_SERVER_USERNAME: "${MANABREW_SERVER_USERNAME:-}"
       MANABREW_SERVER_PASSWORD: "${FORGE_SERVER_KEY:-forge}"
-      MANABREW_HOSTED_AI_ENABLED: "${MANABREW_HOSTED_AI_ENABLED:-true}"
+      # Off by default: web "Play vs AI" runs the engine client-side and does
+      # NOT need the self-hosted-node. Opt in (and run the node) by exporting
+      # MANABREW_HOSTED_AI_ENABLED=true.
+      MANABREW_HOSTED_AI_ENABLED: "${MANABREW_HOSTED_AI_ENABLED:-false}"
     restart: on-failure:5
 
   parity-dashboard:

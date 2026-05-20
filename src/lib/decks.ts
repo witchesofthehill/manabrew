@@ -50,6 +50,9 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
     name: gameCard.name,
     setCode: gameCard.setCode,
     cardNumber: gameCard.cardNumber,
+    // `uris` must be present — renderers read `deckCard.uris[resolution]`
+    // directly. Empty means no art (renders by name) rather than a crash.
+    uris: {},
   } as DeckCard;
 }
 

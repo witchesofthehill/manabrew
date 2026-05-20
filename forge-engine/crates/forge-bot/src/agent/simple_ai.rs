@@ -71,7 +71,15 @@ impl BotAgent for SimpleAi {
                     .or_else(|| available_player_actions.first().copied());
                 self.last_choose_action_signature = Some(signature);
                 self.last_choose_action_choice = chosen;
-                chosen.map(|action| PlayerAction::EngineAction { action })
+                // Always return a decision: with no enumerated engine action
+                // (e.g. Java-hosted prompts, which carry playableOptions rather
+                // than available_player_actions), pass priority instead of
+                // returning None — None sends no response and stalls the game.
+                Some(
+                    chosen
+                        .map(|action| PlayerAction::EngineAction { action })
+                        .unwrap_or(PlayerAction::Pass { until_phase: None }),
+                )
             }
             AgentPromptInner::ChooseAttackers {
                 available_attacker_ids,

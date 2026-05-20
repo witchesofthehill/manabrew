@@ -4,7 +4,7 @@ use forge_agent_interface::prompt::AgentPrompt;
 use forge_agent_interface::protocol::{ClientMessage, ServerMessage, StateEnvelope};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::warn;
+use tracing::{debug, warn};
 
 use crate::agent::{AgentKind, BotAgent};
 
@@ -102,6 +102,7 @@ impl BotState {
                     .map(player_slot)
                 {
                     Some(slot) => {
+                        debug!(player_slot = %slot, "bot entering Playing phase");
                         self.phase = Phase::Playing { player_slot: slot };
                         Vec::new()
                     }
@@ -142,7 +143,17 @@ impl BotState {
         let StateEnvelope::Prompt { for_player, prompt } = envelope else {
             return Vec::new();
         };
+        let prompt_type = prompt
+            .get("type")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("?")
+            .to_string();
+        debug!(for_player, player_slot, prompt_type, "bot received prompt");
         if for_player != player_slot {
+            debug!(
+                for_player,
+                player_slot, "bot ignoring prompt for other slot"
+            );
             return Vec::new();
         }
 
@@ -160,10 +171,14 @@ impl BotState {
                     }
                 };
                 let Some(action) = self.agent.decide(parsed) else {
+                    debug!("bot agent returned no action for prompt");
                     return Vec::new();
                 };
                 match serde_json::to_value(action) {
-                    Ok(v) => v,
+                    Ok(v) => {
+                        debug!(action = %v, "bot sending action");
+                        v
+                    }
                     Err(_) => return Vec::new(),
                 }
             };

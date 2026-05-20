@@ -80,3 +80,16 @@ manabrew.app {
 relay.manabrew.app {
     reverse_proxy forge-server:9443
 }
+
+# Per-PR preview slot. The manabrew-staging / forge-server-staging services
+# live in compose.staging.yml under /opt/manabrew-staging and join the
+# manabrew_default docker network, so they're resolvable by service name.
+# 502 when no preview is currently deployed — that's the expected empty
+# state.
+staging.manabrew.app {
+    reverse_proxy manabrew-staging:80
+}
+
+relay-staging.manabrew.app {
+    reverse_proxy forge-server-staging:9443
+}

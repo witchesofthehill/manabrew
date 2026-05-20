@@ -8,8 +8,12 @@ function normalizeTokenName(name: string): string {
   return name.toLowerCase().replace(/\s+token$/i, "");
 }
 
-export function asDeckCard(deck: Deck, gameCard: GameCard): DeckCard {
-  const pool = getDeckCardPool(deck);
+export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard {
+  // The deck can be missing (e.g. prompt cards carry no ownerId, so the
+  // gameDecks lookup misses, or a hosted opponent's deck isn't local). Match
+  // against an empty pool then fall through to a name/synthetic resolution
+  // rather than dereferencing an undefined deck and crashing the board.
+  const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(
     (c) =>
       c.name === gameCard.name &&

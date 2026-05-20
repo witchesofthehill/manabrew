@@ -139,7 +139,7 @@ public final class InteractiveSnapshotExtractor {
         return "engine-stack-" + item.getId();
     }
 
-    private static String normalizeCardName(final String name) {
+    static String normalizeCardName(final String name) {
         if (name != null && name.startsWith("Troll of Khazad-d") && name.endsWith("m")) {
             return "Troll of Khazad-d\u00fbm";
         }

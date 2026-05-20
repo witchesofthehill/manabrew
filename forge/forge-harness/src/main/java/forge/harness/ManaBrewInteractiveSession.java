@@ -768,6 +768,15 @@ public final class ManaBrewInteractiveSession {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
             option.addProperty("label", labels.get(i));
+            // id encodes the action index so the client can echo back a
+            // choose_action{index}; cardName lets the normalizer resolve the
+            // option to the deciding player's hand/command-zone card.
+            option.addProperty("id", "prompt-action-" + i);
+            final Card host = actionsForPrompt.get(i).getHostCard();
+            if (host != null) {
+                option.addProperty("cardName",
+                        InteractiveSnapshotExtractor.normalizeCardName(host.getName()));
+            }
             options.add(option);
         }
         prompt.add("actions", options);

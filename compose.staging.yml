@@ -1,14 +1,7 @@
-# Per-PR preview stack. Driven by .github/workflows/preview-deploy.yml on
-# PRs that carry the `deploy-preview` label. Lives in /opt/manabrew-staging
-# on the deploy host so it can't trash /opt/manabrew. Joins the main stack's
-# docker network so the production caddy reverse-proxies
-# `staging.manabrew.app` (web) and `relay-staging.manabrew.app` (relay) to
-# these services.
-#
-# Fully isolated from prod at the relay layer: staging gets its own
-# forge-server so a backend-breaking PR can be previewed without touching
-# the live relay. Reuses the prod FORGE_SERVER_KEY (it's a bouncer, not a
-# secret).
+# Per-PR preview stack, driven by .github/workflows/preview-deploy.yml.
+# Runs under /opt/manabrew-staging, joins the prod docker network. Own
+# forge-server so a backend-breaking PR is previewable without touching
+# the live relay.
 services:
   manabrew-staging:
     build:
@@ -21,8 +14,6 @@ services:
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
     restart: unless-stopped
-    # Container-internal port only; the production caddy on the same docker
-    # network reverse-proxies staging.manabrew.app to us.
     expose:
       - "80"
     volumes:
@@ -46,8 +37,5 @@ services:
 
 networks:
   default:
-    # Created by /opt/manabrew/compose.production.yml. Joining it from this
-    # separate compose project lets the production caddy resolve
-    # `manabrew-staging` / `forge-server-staging` by service name.
     external: true
     name: manabrew_default

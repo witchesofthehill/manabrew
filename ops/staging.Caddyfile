@@ -1,8 +1,6 @@
-# Minimal Caddyfile for the staging preview web container. The production
-# caddy reverse-proxies `staging.manabrew.app` here, so we accept any Host
-# on internal port 80 (`:80`). Mirrors the manabrew.app block of
-# ops/Caddyfile minus the relay/parity routes (staging's relay is a separate
-# service routed by the main caddy at relay-staging.manabrew.app).
+# Staging preview web container. Production caddy proxies
+# staging.manabrew.app here, so accept any Host on :80. Same COEP split +
+# Scryfall proxy as ops/Caddyfile, minus the relay/parity routes.
 :80 {
     root * /srv/manabrew
 

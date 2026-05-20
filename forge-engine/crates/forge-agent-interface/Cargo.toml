@@ -9,3 +9,4 @@ forge-foundation = { path = "../forge-foundation" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rand = "0.8"
+tracing = "0.1"

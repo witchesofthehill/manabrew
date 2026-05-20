@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde_json::{json, Value};
+use tracing::warn;
 
 use crate::prompt::{PlayerAction, TargetAnyChoice};
 
@@ -16,15 +17,16 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
         &actions,
     );
     let player = as_usize(prompt.get("player"), 0);
-    let prompt_type = if player == 0 {
-        "chooseAction"
-    } else {
-        "stateUpdate"
-    };
+    // The node forwards each prompt to the player who must decide (via the relay
+    // envelope's for_player), and every client filters to its own slot. So the
+    // normalized prompt always carries the real decision type for that player —
+    // never downgrade non-zero players to a stateUpdate, or their client (e.g.
+    // the bot at player-1) never sees an actionable prompt.
+    let prompt_type = "chooseAction";
 
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_discard") {
         return json!({
-            "type": if player == 0 { "chooseDiscard" } else { "stateUpdate" },
+            "type": "chooseDiscard",
             "gameView": game_view,
             "displayEvents": [],
             "handCardIds": to_card_ids(prompt.get("cards")),
@@ -34,7 +36,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("mulligan") {
         return json!({
-            "type": if player == 0 { "mulligan" } else { "stateUpdate" },
+            "type": "mulligan",
             "gameView": game_view,
             "displayEvents": [],
             "handCardIds": to_card_ids(prompt.get("cards")),
@@ -43,7 +45,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("mulligan_put_back") {
         return json!({
-            "type": if player == 0 { "mulliganPutBack" } else { "stateUpdate" },
+            "type": "mulliganPutBack",
             "gameView": game_view,
             "displayEvents": [],
             "handCardIds": to_card_ids(prompt.get("cards")),
@@ -53,7 +55,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("reveal_cards") {
         return json!({
-            "type": if player == 0 { "revealCards" } else { "stateUpdate" },
+            "type": "revealCards",
             "gameView": game_view,
             "displayEvents": [],
             "cards": to_prompt_cards(prompt.get("cards")),
@@ -65,7 +67,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_attackers") {
         return json!({
-            "type": if player == 0 { "chooseAttackers" } else { "stateUpdate" },
+            "type": "chooseAttackers",
             "gameView": game_view,
             "displayEvents": [],
             "availableAttackerIds": to_card_ids(prompt.get("attackers")),
@@ -75,7 +77,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_blockers") {
         return json!({
-            "type": if player == 0 { "chooseBlockers" } else { "stateUpdate" },
+            "type": "chooseBlockers",
             "gameView": game_view,
             "displayEvents": [],
             "attackerIds": to_card_ids(prompt.get("attackers")),
@@ -85,7 +87,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_damage_assignment_order") {
         return json!({
-            "type": if player == 0 { "chooseDamageAssignmentOrder" } else { "stateUpdate" },
+            "type": "chooseDamageAssignmentOrder",
             "gameView": game_view,
             "displayEvents": [],
             "attackerId": optional_normalized_card_id(prompt.get("attackerId")).unwrap_or_default(),
@@ -96,7 +98,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_combat_damage_assignment") {
         return json!({
-            "type": if player == 0 { "chooseCombatDamageAssignment" } else { "stateUpdate" },
+            "type": "chooseCombatDamageAssignment",
             "gameView": game_view,
             "displayEvents": [],
             "attackerId": optional_normalized_card_id(prompt.get("attackerId")).unwrap_or_default(),
@@ -113,7 +115,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_cards_for_effect") {
         return json!({
-            "type": if player == 0 { "chooseCardsForEffect" } else { "stateUpdate" },
+            "type": "chooseCardsForEffect",
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -127,7 +129,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_mode") {
         return json!({
-            "type": if player == 0 { "chooseMode" } else { "stateUpdate" },
+            "type": "chooseMode",
             "gameView": game_view,
             "displayEvents": [],
             "options": to_strings(prompt.get("options")),
@@ -142,7 +144,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
         Some("choose_optional_trigger" | "confirm_action")
     ) {
         return json!({
-            "type": if player == 0 { "chooseOptionalTrigger" } else { "stateUpdate" },
+            "type": "chooseOptionalTrigger",
             "gameView": game_view,
             "displayEvents": [],
             "description": optional_string(prompt.get("description")).unwrap_or_else(|| "Confirm?".to_string()),
@@ -156,7 +158,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("pay_cost_to_prevent_effect") {
         return json!({
-            "type": if player == 0 { "payCostToPreventEffect" } else { "stateUpdate" },
+            "type": "payCostToPreventEffect",
             "gameView": game_view,
             "displayEvents": [],
             "description": optional_string(prompt.get("description")).unwrap_or_else(|| "Pay cost?".to_string()),
@@ -168,7 +170,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_number") {
         return json!({
-            "type": if player == 0 { "chooseNumber" } else { "stateUpdate" },
+            "type": "chooseNumber",
             "gameView": game_view,
             "displayEvents": [],
             "min": as_i64(prompt.get("min"), 0),
@@ -180,7 +182,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_color") {
         return json!({
-            "type": if player == 0 { "chooseColor" } else { "stateUpdate" },
+            "type": "chooseColor",
             "gameView": game_view,
             "displayEvents": [],
             "validColors": to_strings(prompt.get("options")),
@@ -190,7 +192,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_type") {
         return json!({
-            "type": if player == 0 { "chooseType" } else { "stateUpdate" },
+            "type": "chooseType",
             "gameView": game_view,
             "displayEvents": [],
             "typeCategory": optional_string(prompt.get("description")).unwrap_or_else(|| "Card".to_string()),
@@ -201,7 +203,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_card_name") {
         return json!({
-            "type": if player == 0 { "chooseCardName" } else { "stateUpdate" },
+            "type": "chooseCardName",
             "gameView": game_view,
             "displayEvents": [],
             "validNames": to_strings(prompt.get("options")),
@@ -211,7 +213,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_scry") {
         return json!({
-            "type": if player == 0 { "scry" } else { "stateUpdate" },
+            "type": "scry",
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -221,7 +223,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_surveil") {
         return json!({
-            "type": if player == 0 { "surveil" } else { "stateUpdate" },
+            "type": "surveil",
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -231,7 +233,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_dig") {
         return json!({
-            "type": if player == 0 { "dig" } else { "stateUpdate" },
+            "type": "dig",
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -244,7 +246,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_delve") {
         return json!({
-            "type": if player == 0 { "chooseDelve" } else { "stateUpdate" },
+            "type": "chooseDelve",
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -256,7 +258,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_convoke") {
         return json!({
-            "type": if player == 0 { "chooseConvoke" } else { "stateUpdate" },
+            "type": "chooseConvoke",
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -267,7 +269,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_improvise") {
         return json!({
-            "type": if player == 0 { "chooseImprovise" } else { "stateUpdate" },
+            "type": "chooseImprovise",
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -278,7 +280,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("reorder_library") {
         return json!({
-            "type": if player == 0 { "reorderLibrary" } else { "stateUpdate" },
+            "type": "reorderLibrary",
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -289,7 +291,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_player") {
         return json!({
-            "type": if player == 0 { "chooseTargetPlayer" } else { "stateUpdate" },
+            "type": "chooseTargetPlayer",
             "gameView": game_view,
             "displayEvents": [],
             "validPlayerIds": to_target_ids(prompt.get("players")),
@@ -300,7 +302,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_card") {
         return json!({
-            "type": if player == 0 { "chooseTargetCard" } else { "stateUpdate" },
+            "type": "chooseTargetCard",
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_target_card_ids(prompt.get("cards")),
@@ -311,7 +313,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_any") {
         return json!({
-            "type": if player == 0 { "chooseTargetAny" } else { "stateUpdate" },
+            "type": "chooseTargetAny",
             "gameView": game_view,
             "displayEvents": [],
             "validPlayerIds": to_target_ids(prompt.get("players")),
@@ -323,13 +325,26 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
     if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_spell") {
         return json!({
-            "type": if player == 0 { "chooseTargetSpell" } else { "stateUpdate" },
+            "type": "chooseTargetSpell",
             "gameView": game_view,
             "displayEvents": [],
             "validSpellIds": to_target_ids(prompt.get("spells")),
             "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
             "autoPassDisabled": true,
         });
+    }
+
+    // Every recognized Java prompt kind returns above. Reaching here means a
+    // priority decision (kind "priority") — handled as a generic chooseAction —
+    // or an unrecognized kind we're silently coercing into one, which would
+    // drop that prompt's specialized data. Surface the latter.
+    if let Some(kind) = prompt.get("kind").and_then(Value::as_str) {
+        if kind != "priority" {
+            warn!(
+                kind,
+                "unrecognized java prompt kind; coercing to chooseAction"
+            );
+        }
     }
 
     let my_hand = game_view
@@ -589,7 +604,16 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Value {
         } => json!({ "kind": "choose_action", "index": index }),
         PlayerAction::Pass { .. } => json!({ "kind": "pass" }),
         PlayerAction::Concede => json!({ "kind": "pass" }),
-        _ => json!({ "kind": "pass" }),
+        other => {
+            // No Java translation for this action — it maps to an engine-native
+            // prompt the Java harness doesn't emit. Defaulting to pass silently
+            // drops the player's decision, so make it visible if it ever fires.
+            warn!(
+                action = serde_json::to_string(other).unwrap_or_default(),
+                "PlayerAction has no java translation; defaulting to pass"
+            );
+            json!({ "kind": "pass" })
+        }
     }
 }
 
@@ -841,8 +865,8 @@ fn to_card(
     json!({
         "id": id,
         "name": name,
-        "setCode": "",
-        "cardNumber": "",
+        "setCode": card.get("setCode").and_then(Value::as_str).unwrap_or(""),
+        "cardNumber": card.get("cardNumber").and_then(Value::as_str).unwrap_or(""),
         "color": "",
         "manaCost": "",
         "types": [],
@@ -861,7 +885,7 @@ fn to_card(
         "zoneId": zone_id,
         "tapped": card.get("tapped").and_then(Value::as_bool).unwrap_or(false),
         "counters": card.get("counters").cloned().unwrap_or_else(|| json!({})),
-        "damage": card.get("damage").and_then(Value::as_i64),
+        "damage": card.get("damage").and_then(Value::as_i64).unwrap_or(0),
         "summoningSick": card.get("summoning_sick").and_then(Value::as_bool).unwrap_or(false),
     })
 }

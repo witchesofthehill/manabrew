@@ -106,8 +106,11 @@ pub struct PlayerDto {
     pub speed: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+// The Java-engine prompt normalizer fills only the fields its snapshot
+// exposes, so missing fields (cmc, keywords, dfc/zone flags, …) must default
+// rather than fail deserialization for the Rust bot consuming Java prompts.
+#[serde(rename_all = "camelCase", default)]
 pub struct CardDto {
     pub id: String,
     pub name: String,

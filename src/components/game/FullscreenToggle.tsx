@@ -47,9 +47,10 @@ export function FullscreenToggle() {
       title={isFullscreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}
       aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
       className={cn(
-        "absolute left-2 top-2 z-50 inline-flex h-7 w-7 items-center justify-center",
-        "rounded-md border border-border/60 bg-background/70 text-muted-foreground backdrop-blur",
-        "transition hover:border-primary/60 hover:text-foreground",
+        "absolute right-1.5 top-11 z-50 inline-flex h-8 w-8 items-center justify-center",
+        "rounded-md border border-border/70 bg-card/95 text-muted-foreground backdrop-blur-sm",
+        "shadow-[0_10px_30px_rgba(0,0,0,0.35)]",
+        "transition hover:border-primary/60 hover:text-foreground hover:bg-accent/80",
       )}
     >
       <Icon className="h-3.5 w-3.5" />

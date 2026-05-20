@@ -20,13 +20,6 @@ export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
 /** Width reserved for the Pixi player column on the left of the battlefield. */
 export const ZONE_COLUMN_RESERVED_PX = 120;
 
-/** Width reserved along the bottom edge of the battlefield for the local
- *  player's cluster (avatar + horizontal zones + mana pool). Used as
- *  `leftReserved` on the local battlefield so cards never auto-place
- *  under the cluster. Keep in sync with the cluster rendered by
- *  `PlayerPanel`. */
-export const PLAYER_CLUSTER_RESERVED_PX = 420;
-
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`
  *  every single-faced card references. */

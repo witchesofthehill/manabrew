@@ -7,9 +7,9 @@ use crate::game_view_dto::{CardDto, TargetingIntent};
 use crate::ids_codec::parse_card_id;
 use crate::prompt::{AgentPromptInner, PlayerAction};
 
-use super::{AgentTransport, PromptAgent};
+use super::{PromptAgent, Responder};
 
-fn card_name<T: AgentTransport>(agent: &PromptAgent<T>, card_id: CardId) -> String {
+fn card_name<T: Responder>(agent: &PromptAgent<T>, card_id: CardId) -> String {
     let id = crate::ids_codec::card_id_str(card_id);
     agent
         .latest_view
@@ -33,7 +33,7 @@ fn card_name<T: AgentTransport>(agent: &PromptAgent<T>, card_id: CardId) -> Stri
         .unwrap_or(id)
 }
 
-fn player_name<T: AgentTransport>(agent: &PromptAgent<T>, player_id: PlayerId) -> String {
+fn player_name<T: Responder>(agent: &PromptAgent<T>, player_id: PlayerId) -> String {
     let id = crate::ids_codec::player_id_str(player_id);
     agent
         .latest_view
@@ -43,14 +43,14 @@ fn player_name<T: AgentTransport>(agent: &PromptAgent<T>, player_id: PlayerId) -
         .unwrap_or(id)
 }
 
-fn entity_label<T: AgentTransport>(agent: &PromptAgent<T>, entity: GameEntity) -> String {
+fn entity_label<T: Responder>(agent: &PromptAgent<T>, entity: GameEntity) -> String {
     match entity {
         GameEntity::Card(card_id) => card_name(agent, card_id),
         GameEntity::Player(player_id) => player_name(agent, player_id),
     }
 }
 
-fn ability_label<T: AgentTransport>(
+fn ability_label<T: Responder>(
     agent: &PromptAgent<T>,
     ability: &SpellAbility,
     index: usize,
@@ -81,7 +81,7 @@ fn counter_type_label(counter_type: &CounterType) -> String {
     }
 }
 
-pub(super) fn mulligan_decision<T: AgentTransport>(
+pub(super) fn mulligan_decision<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     hand: &[CardId],
@@ -91,7 +91,7 @@ pub(super) fn mulligan_decision<T: AgentTransport>(
     mulligan_decision_recv(agent, player, hand, mulligan_count)
 }
 
-pub(super) fn mulligan_decision_send<T: AgentTransport>(
+pub(super) fn mulligan_decision_send<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     hand: &[CardId],
@@ -108,7 +108,7 @@ pub(super) fn mulligan_decision_send<T: AgentTransport>(
     );
 }
 
-pub(super) fn mulligan_decision_recv<T: AgentTransport>(
+pub(super) fn mulligan_decision_recv<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     _hand: &[CardId],
@@ -124,7 +124,7 @@ pub(super) fn mulligan_decision_recv<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_cards_to_bottom<T: AgentTransport>(
+pub(super) fn choose_cards_to_bottom<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     hand: &[CardId],
@@ -134,7 +134,7 @@ pub(super) fn choose_cards_to_bottom<T: AgentTransport>(
     choose_cards_to_bottom_recv(agent, player, hand, count)
 }
 
-pub(super) fn choose_cards_to_bottom_send<T: AgentTransport>(
+pub(super) fn choose_cards_to_bottom_send<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     hand: &[CardId],
@@ -160,7 +160,7 @@ pub(super) fn choose_cards_to_bottom_send<T: AgentTransport>(
     );
 }
 
-pub(super) fn choose_cards_to_bottom_recv<T: AgentTransport>(
+pub(super) fn choose_cards_to_bottom_recv<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     hand: &[CardId],
@@ -174,7 +174,7 @@ pub(super) fn choose_cards_to_bottom_recv<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_mode<T: AgentTransport>(
+pub(super) fn choose_mode<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     descriptions: &[String],
@@ -198,7 +198,7 @@ pub(super) fn choose_mode<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_spell_abilities_for_effect<T: AgentTransport>(
+pub(super) fn choose_spell_abilities_for_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     abilities: &[SpellAbility],
@@ -233,7 +233,7 @@ pub(super) fn choose_spell_abilities_for_effect<T: AgentTransport>(
     }
 }
 
-pub(super) fn get_ability_to_play<T: AgentTransport>(
+pub(super) fn get_ability_to_play<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     abilities: &[SpellAbility],
@@ -243,7 +243,7 @@ pub(super) fn get_ability_to_play<T: AgentTransport>(
         .next()
 }
 
-pub(super) fn choose_single_entity_for_effect<T: AgentTransport>(
+pub(super) fn choose_single_entity_for_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[GameEntity],
@@ -327,7 +327,7 @@ pub(super) fn choose_single_entity_for_effect<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_entities_for_effect<T: AgentTransport>(
+pub(super) fn choose_entities_for_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     valid: &[GameEntity],
@@ -378,7 +378,7 @@ pub(super) fn choose_entities_for_effect<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_optional_trigger<T: AgentTransport>(
+pub(super) fn choose_optional_trigger<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     description: &str,
@@ -406,7 +406,7 @@ pub(super) fn choose_optional_trigger<T: AgentTransport>(
 /// Ask the player whether to apply an optional replacement effect
 /// (`Optional$ True`). Mirrors Java `PlayerController.confirmReplacementEffect`.
 /// Defaults to `true` on malformed responses to match the base trait default.
-pub(super) fn confirm_replacement_effect<T: AgentTransport>(
+pub(super) fn confirm_replacement_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     question: &str,
@@ -438,7 +438,7 @@ pub(super) fn confirm_replacement_effect<T: AgentTransport>(
     }
 }
 
-pub(super) fn confirm_action<T: AgentTransport>(
+pub(super) fn confirm_action<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     mode: Option<&str>,
@@ -471,7 +471,7 @@ pub(super) fn confirm_action<T: AgentTransport>(
     }
 }
 
-pub(super) fn confirm_payment<T: AgentTransport>(
+pub(super) fn confirm_payment<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cost_kind: &str,
@@ -497,7 +497,7 @@ pub(super) fn confirm_payment<T: AgentTransport>(
     }
 }
 
-pub(super) fn reveal_cards<T: AgentTransport>(
+pub(super) fn reveal_cards<T: Responder>(
     agent: &mut PromptAgent<T>,
     game: &forge_engine_core::game::GameState,
     cards: &[CardId],
@@ -526,7 +526,7 @@ pub(super) fn reveal_cards<T: AgentTransport>(
     let _ = agent.recv_action();
 }
 
-pub(super) fn pay_cost_to_prevent_effect<T: AgentTransport>(
+pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cost_kind: &str,
@@ -553,7 +553,7 @@ pub(super) fn pay_cost_to_prevent_effect<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_binary<T: AgentTransport>(
+pub(super) fn choose_binary<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     question: &str,
@@ -583,7 +583,7 @@ pub(super) fn choose_binary<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_color<T: AgentTransport>(
+pub(super) fn choose_color<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid_colors: &[String],
@@ -607,7 +607,7 @@ pub(super) fn choose_color<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_colors<T: AgentTransport>(
+pub(super) fn choose_colors<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid_colors: &[String],
@@ -641,7 +641,7 @@ pub(super) fn choose_colors<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_type<T: AgentTransport>(
+pub(super) fn choose_type<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     type_category: &str,
@@ -661,7 +661,7 @@ pub(super) fn choose_type<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_card_name<T: AgentTransport>(
+pub(super) fn choose_card_name<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid_names: &[String],
@@ -679,7 +679,7 @@ pub(super) fn choose_card_name<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_number_from_list<T: AgentTransport>(
+pub(super) fn choose_number_from_list<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     choices: &[i32],
@@ -714,7 +714,7 @@ pub(super) fn choose_number_from_list<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_counter_type<T: AgentTransport>(
+pub(super) fn choose_counter_type<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     options: &[CounterType],
@@ -728,7 +728,7 @@ pub(super) fn choose_counter_type<T: AgentTransport>(
         .and_then(|index| options.get(index).cloned())
 }
 
-pub(super) fn choose_roll_to_ignore<T: AgentTransport>(
+pub(super) fn choose_roll_to_ignore<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     rolls: &[i32],
@@ -750,7 +750,7 @@ pub(super) fn choose_roll_to_ignore<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_roll_to_swap<T: AgentTransport>(
+pub(super) fn choose_roll_to_swap<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     rolls: &[i32],
@@ -772,7 +772,7 @@ pub(super) fn choose_roll_to_swap<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_roll_to_modify<T: AgentTransport>(
+pub(super) fn choose_roll_to_modify<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     rolls: &[i32],
@@ -794,7 +794,7 @@ pub(super) fn choose_roll_to_modify<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_dice_to_reroll<T: AgentTransport>(
+pub(super) fn choose_dice_to_reroll<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     rolls: &[i32],
@@ -818,7 +818,7 @@ pub(super) fn choose_dice_to_reroll<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_roll_swap_value<T: AgentTransport>(
+pub(super) fn choose_roll_swap_value<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     current_result: i32,
@@ -845,10 +845,7 @@ pub(super) fn choose_roll_swap_value<T: AgentTransport>(
     }
 }
 
-pub(super) fn flip_coin_call<T: AgentTransport>(
-    agent: &mut PromptAgent<T>,
-    player: PlayerId,
-) -> bool {
+pub(super) fn flip_coin_call<T: Responder>(agent: &mut PromptAgent<T>, player: PlayerId) -> bool {
     choose_binary(
         agent,
         player,
@@ -860,7 +857,7 @@ pub(super) fn flip_coin_call<T: AgentTransport>(
     )
 }
 
-pub(super) fn choose_x_value<T: AgentTransport>(
+pub(super) fn choose_x_value<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     max_x: u32,
@@ -882,7 +879,7 @@ pub(super) fn choose_x_value<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_number<T: AgentTransport>(
+pub(super) fn choose_number<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     min: i32,
@@ -902,7 +899,7 @@ pub(super) fn choose_number<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_discard<T: AgentTransport>(
+pub(super) fn choose_discard<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     hand: &[CardId],
@@ -926,7 +923,7 @@ pub(super) fn choose_discard<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_discard_any_number<T: AgentTransport>(
+pub(super) fn choose_discard_any_number<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     hand: &[CardId],
@@ -936,7 +933,7 @@ pub(super) fn choose_discard_any_number<T: AgentTransport>(
     choose_cards_for_effect(agent, player, hand, min, max)
 }
 
-pub(super) fn choose_legend_keep<T: AgentTransport>(
+pub(super) fn choose_legend_keep<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,
     duplicates: &[CardId],
@@ -947,7 +944,7 @@ pub(super) fn choose_legend_keep<T: AgentTransport>(
         .unwrap_or(duplicates[0])
 }
 
-pub(super) fn choose_cards_for_effect<T: AgentTransport>(
+pub(super) fn choose_cards_for_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],
@@ -996,7 +993,7 @@ pub(super) fn choose_cards_for_effect<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_single_card_for_zone_change<T: AgentTransport>(
+pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],
@@ -1062,7 +1059,7 @@ pub(super) fn choose_single_card_for_zone_change<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_cards_for_zone_change<T: AgentTransport>(
+pub(super) fn choose_cards_for_zone_change<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],
@@ -1122,7 +1119,7 @@ pub(super) fn choose_cards_for_zone_change<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_explore_put_in_graveyard<T: AgentTransport>(
+pub(super) fn choose_explore_put_in_graveyard<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     revealed_card_name: &str,
@@ -1147,7 +1144,7 @@ pub(super) fn choose_explore_put_in_graveyard<T: AgentTransport>(
     }
 }
 
-pub(super) fn help_pay_assist<T: AgentTransport>(
+pub(super) fn help_pay_assist<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     card_name: &str,
@@ -1167,7 +1164,7 @@ pub(super) fn help_pay_assist<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_random_discard<T: AgentTransport>(
+pub(super) fn choose_random_discard<T: Responder>(
     _agent: &mut PromptAgent<T>,
     _player: PlayerId,
     hand: &[CardId],
@@ -1180,7 +1177,7 @@ pub(super) fn choose_random_discard<T: AgentTransport>(
     v
 }
 
-pub(super) fn choose_land_or_spell<T: AgentTransport>(
+pub(super) fn choose_land_or_spell<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
 ) -> Option<bool> {
@@ -1206,7 +1203,7 @@ pub(super) fn choose_land_or_spell<T: AgentTransport>(
 
 /// Choose which replacement effect to apply when multiple effects match.
 /// Reuses the ChooseMode prompt — structurally identical (pick one from a list).
-pub(super) fn choose_single_replacement_effect<T: AgentTransport>(
+pub(super) fn choose_single_replacement_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     descriptions: &[String],

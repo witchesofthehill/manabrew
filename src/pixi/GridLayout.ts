@@ -44,6 +44,14 @@ export interface GridLayoutInfo {
 
 export const cellKey = (col: number, row: number): string => `${col},${row}`;
 
+/** Inverse of the `rows` formula in `computeGridLayout` — keep in sync. The
+ *  0.5px shave keeps the result just under the `floor()` boundary so the row
+ *  count never lands one short. */
+export const maxScaleForRows = (usableH: number, rows: number): number => {
+  const cellH = (usableH + GAP) / rows - 0.5;
+  return (cellH - GAP) / (CARD_H * (1 + CELL_BREATHING_FRAC));
+};
+
 /**
  * Extra breathing space added to each cell footprint on top of the GAP.
  * Tapped cards rotate 90° around their center and briefly stick out past

@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use forge_agent_interface::game_view_dto::GameViewDto;
 use forge_carddb::CardDatabase;
+use forge_engine_core::agent::notification::GameNotification;
 use forge_engine_core::agent::PlayerAgent;
 use forge_engine_core::game::GameState;
 use forge_engine_core::game_loop::GameLoop;
@@ -27,22 +27,17 @@ pub struct HostedGameOutcome {
     pub winner: Option<PlayerId>,
     pub aborted: bool,
 }
-#[allow(clippy::too_many_arguments)]
-pub fn run_hosted_multiplayer_game<F, G, H>(
-    game_id: String,
+pub fn run_hosted_multiplayer_game<F, G>(
     prepared_players: Vec<PreparedRegisteredPlayer>,
-    engine_player_index: Option<usize>,
     abort_signal: Arc<AtomicBool>,
     max_turns: u32,
     rng: &mut StdRng,
     register_tokens: F,
     mut agent_factory: G,
-    mut on_game_over: H,
 ) -> HostedGameOutcome
 where
     F: FnOnce(&mut GameLoop),
-    G: FnMut(PlayerId, bool) -> Box<dyn PlayerAgent>,
-    H: FnMut(PlayerId, bool, GameViewDto),
+    G: FnMut(PlayerId) -> Box<dyn PlayerAgent>,
 {
     let num_players = prepared_players.len();
     let registered: Vec<RegisteredPlayer> = prepared_players
@@ -67,8 +62,7 @@ where
 
     let mut agents: Vec<Box<dyn PlayerAgent>> = Vec::with_capacity(num_players);
     for i in 0..num_players {
-        let pid = PlayerId(i as u32);
-        agents.push(agent_factory(pid, Some(i) == engine_player_index));
+        agents.push(agent_factory(PlayerId(i as u32)));
     }
 
     let winner = game_loop.run(&mut game, &mut agents, rng, max_turns);
@@ -80,10 +74,9 @@ where
         };
     }
 
-    for i in 0..num_players {
-        let pid = PlayerId(i as u32);
-        let view = GameViewDto::from_engine(&game, &game_loop.mana_pools, pid, &game_id, &[], &[]);
-        on_game_over(pid, Some(i) == engine_player_index, view);
+    for agent in agents.iter_mut() {
+        agent.snapshot_state(&game, &game_loop.mana_pools);
+        agent.notify(GameNotification::GameOver);
     }
 
     HostedGameOutcome {

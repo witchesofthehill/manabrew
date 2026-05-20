@@ -1,7 +1,7 @@
 use std::sync::mpsc;
 use std::time::Duration;
 
-use forge_agent_interface::agent_impl::AgentTransport;
+use forge_agent_interface::agent_impl::Responder;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
@@ -12,7 +12,6 @@ enum PromptSink {
         player_index: usize,
         tx: mpsc::Sender<(usize, AgentPrompt)>,
     },
-    Ai(mpsc::Sender<AgentPrompt>),
 }
 
 pub struct MpscTransport {
@@ -55,25 +54,12 @@ impl MpscTransport {
             response_timeout: Some(Duration::from_secs(120)),
         }
     }
-
-    pub fn new_ai(
-        prompt_tx: mpsc::Sender<AgentPrompt>,
-        response_rx: mpsc::Receiver<PlayerAction>,
-    ) -> Self {
-        Self {
-            prompt_sink: PromptSink::Ai(prompt_tx),
-            response_rx,
-            notify_tx: None,
-            snapshot_tx: None,
-            response_timeout: Some(Duration::from_secs(5)),
-        }
-    }
 }
 
-impl AgentTransport for MpscTransport {
-    fn send_prompt(&self, prompt: AgentPrompt) {
+impl MpscTransport {
+    fn send_to_sink(&self, prompt: AgentPrompt) {
         match &self.prompt_sink {
-            PromptSink::Local(tx) | PromptSink::Ai(tx) => {
+            PromptSink::Local(tx) => {
                 let _ = tx.send(prompt);
             }
             PromptSink::Relay { player_index, tx } => {
@@ -82,7 +68,7 @@ impl AgentTransport for MpscTransport {
         }
     }
 
-    fn recv_action(&self) -> PlayerAction {
+    fn recv(&self) -> PlayerAction {
         // When the response channel is disconnected — typically because
         // `GameManager::end_game()` (or the concede branch of `respond`)
         // dropped it to tear the session down — the previous fallback of
@@ -108,14 +94,28 @@ impl AgentTransport for MpscTransport {
             self.response_rx.recv().unwrap_or(PlayerAction::Concede)
         }
     }
+}
 
-    fn send_log(&self, entry: GameLogEntryDto) {
+impl Responder for MpscTransport {
+    fn present(&mut self, prompt: &AgentPrompt) {
+        self.send_to_sink(prompt.clone());
+    }
+
+    fn respond(&mut self, _prompt: AgentPrompt) -> PlayerAction {
+        self.recv()
+    }
+
+    fn await_ack(&mut self) {
+        let _ = self.recv();
+    }
+
+    fn send_log(&mut self, entry: GameLogEntryDto) {
         if let Some(tx) = &self.notify_tx {
             let _ = tx.send(entry);
         }
     }
 
-    fn send_snapshot(&self, snapshot: GameSnapshotEventDto) {
+    fn send_snapshot(&mut self, snapshot: GameSnapshotEventDto) {
         if let Some(tx) = &self.snapshot_tx {
             let _ = tx.send(snapshot);
         }

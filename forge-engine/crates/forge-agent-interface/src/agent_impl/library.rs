@@ -5,9 +5,9 @@ use crate::game_view_dto::{card_to_dto, CardDto};
 use crate::ids_codec::parse_card_id;
 use crate::prompt::{AgentPromptInner, PlayerAction};
 
-use super::{AgentTransport, PromptAgent};
+use super::{PromptAgent, Responder};
 
-pub(super) fn on_library_peek<T: AgentTransport>(
+pub(super) fn on_library_peek<T: Responder>(
     agent: &mut PromptAgent<T>,
     game: &GameState,
     cards: &[CardId],
@@ -18,7 +18,7 @@ pub(super) fn on_library_peek<T: AgentTransport>(
         .collect();
 }
 
-pub(super) fn choose_scry<T: AgentTransport>(
+pub(super) fn choose_scry<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cards: &[CardId],
@@ -42,7 +42,7 @@ pub(super) fn choose_scry<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_surveil<T: AgentTransport>(
+pub(super) fn choose_surveil<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cards: &[CardId],
@@ -66,7 +66,7 @@ pub(super) fn choose_surveil<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_dig<T: AgentTransport>(
+pub(super) fn choose_dig<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],
@@ -99,7 +99,7 @@ pub(super) fn choose_dig<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_reorder_library<T: AgentTransport>(
+pub(super) fn choose_reorder_library<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cards: &[CardId],

@@ -6,7 +6,7 @@ use crate::game_view_dto::CardDto;
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{AgentPromptInner, BlockAssignment, PlayerAction};
 
-use super::{AgentTransport, PromptAgent};
+use super::{PromptAgent, Responder};
 
 fn fallback_combat_assignment(
     blockers_in_order: &[CardId],
@@ -25,7 +25,7 @@ fn fallback_combat_assignment(
     Vec::new()
 }
 
-pub(super) fn choose_attackers<T: AgentTransport>(
+pub(super) fn choose_attackers<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     available: &[CardId],
@@ -66,7 +66,7 @@ pub(super) fn choose_attackers<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_blockers<T: AgentTransport>(
+pub(super) fn choose_blockers<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     attackers: &[CardId],
@@ -107,7 +107,7 @@ pub(super) fn choose_blockers<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_damage_assignment_order<T: AgentTransport>(
+pub(super) fn choose_damage_assignment_order<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     attacker: CardId,
@@ -144,7 +144,7 @@ pub(super) fn choose_damage_assignment_order<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_combat_damage_assignment<T: AgentTransport>(
+pub(super) fn choose_combat_damage_assignment<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     attacker: CardId,
@@ -198,7 +198,7 @@ pub(super) fn choose_combat_damage_assignment<T: AgentTransport>(
     }
 }
 
-pub(super) fn pay_combat_cost<T: AgentTransport>(
+pub(super) fn pay_combat_cost<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     attacker: CardId,
@@ -243,7 +243,7 @@ pub(super) fn pay_combat_cost<T: AgentTransport>(
     }
 }
 
-pub(super) fn exert_attackers<T: AgentTransport>(
+pub(super) fn exert_attackers<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     attackers: &[CardId],
@@ -274,7 +274,7 @@ pub(super) fn exert_attackers<T: AgentTransport>(
     }
 }
 
-pub(super) fn enlist_attackers<T: AgentTransport>(
+pub(super) fn enlist_attackers<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     attackers: &[CardId],

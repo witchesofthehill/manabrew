@@ -38,6 +38,7 @@ import {
   cellFromPoint,
   cellsByDistance,
   cellKey,
+  maxScaleForRows,
   type GridCell,
   type GridLayoutInfo,
 } from "./GridLayout";
@@ -53,7 +54,10 @@ import {
 import { manaColorFor } from "./manaColors";
 import {
   ATTACH_OFFSET_Y,
+  BATTLEFIELD_CARD_SCALE_AUTOFIT_MIN,
   BATTLEFIELD_CARD_SCALE_DEFAULT,
+  BATTLEFIELD_CARD_SCALE_MAX,
+  OPPONENT_PANEL_FULLWIDTH_FRAC,
   BATTLEFIELD_HOVER_HOLD_MS,
   BATTLEFIELD_LERP,
   BG_ALPHA_DROP,
@@ -220,6 +224,11 @@ export class PixiGameScene {
    *  `leftReserved` approach so the grid can fill the full width for rows
    *  above the panel. */
   private bottomLeftReserved: { width: number; height: number } | null = null;
+  /** Keep-out box at the top-left for the opponent panel cluster — only the
+   *  panel's footprint is reserved, so the lands row still fills the rest of
+   *  the top edge. */
+  private topLeftReserved: { width: number; height: number } | null = null;
+  private minRows: number | null = null;
   /**
    * Set in `destroy()` so any late-firing effects (React unmount races) that
    * still hold a reference to this instance short-circuit instead of touching
@@ -468,6 +477,43 @@ export class PixiGameScene {
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
+  setTopLeftReserved(size: { width: number; height: number } | null): void {
+    if (this.destroyed) return;
+    this.topLeftReserved = size;
+    this.recomputeAutoFitScale();
+    this.syncDragBlockers();
+    if (this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  /** The panel hogs the column — reserve the whole top row rather than the
+   *  sliver beside it. */
+  private topReserveIsFullWidth(): boolean {
+    if (!this.topLeftReserved) return false;
+    return this.topLeftReserved.width > this.app.renderer.width * OPPONENT_PANEL_FULLWIDTH_FRAC;
+  }
+
+  private topReserveInset(): number {
+    return this.topReserveIsFullWidth() ? this.topLeftReserved!.height : 0;
+  }
+
+  setMinRows(rows: number | null): void {
+    if (this.destroyed) return;
+    if (rows === this.minRows) return;
+    this.minRows = rows;
+    this.recomputeAutoFitScale();
+    if (this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  private recomputeAutoFitScale(): void {
+    if (this.minRows == null) return;
+    const fit = maxScaleForRows(this.getPlayZone().height, this.minRows);
+    this.cardScale = Math.max(
+      BATTLEFIELD_CARD_SCALE_AUTOFIT_MIN,
+      Math.min(BATTLEFIELD_CARD_SCALE_MAX, fit),
+    );
+    this.dragHandler.setCardScale(this.cardScale);
+  }
+
   private syncDragBlockers(): void {
     this.dragHandler.setExtraBlockers(this.collectOverlayBlockers());
   }
@@ -486,6 +532,9 @@ export class PixiGameScene {
       const { width, height } = this.app.renderer;
       rects.push({ x: 0, y: height - bottomH, width, height: bottomH });
     }
+    if (this.topLeftReserved && !this.topReserveIsFullWidth()) {
+      rects.push({ x: 0, y: 0, ...this.topLeftReserved });
+    }
     return rects;
   }
 
@@ -503,6 +552,7 @@ export class PixiGameScene {
    */
   setBattlefieldCardScale(scale: number): void {
     if (this.destroyed) return;
+    if (this.minRows != null) return;
     if (!Number.isFinite(scale) || scale <= 0) return;
     if (scale === this.cardScale) return;
     this.cardScale = scale;
@@ -518,6 +568,7 @@ export class PixiGameScene {
     this.emptyText.y = this.zoneCenterY();
     // dragHandler clamps into the play-zone rect when one is set; otherwise
     // the full canvas.
+    this.recomputeAutoFitScale();
     const zone = this.getPlayZone();
     this.dragHandler.setContainerSize(zone.width, zone.height);
     // Bottom-right reserved rect is anchored to canvas size — re-resolve
@@ -569,7 +620,8 @@ export class PixiGameScene {
   private getPlayZone(): PlayZoneRect {
     if (this.playZone) return this.playZone;
     const { width, height } = this.app.renderer;
-    return { x: 0, y: 0, width, height };
+    const inset = this.topReserveInset();
+    return { x: 0, y: inset, width, height: height - inset };
   }
 
   private zoneCenterX(): number {

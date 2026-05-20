@@ -6,14 +6,14 @@ use std::sync::Arc;
 use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner, PlayerAction};
+use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_bot::BotResponder;
 use forge_engine_core::agent::PlayerAgent;
 use forge_engine_core::ids::PlayerId;
 use forge_game_runtime::deck::force_commander_by_name;
 use forge_game_runtime::host_runtime::{run_hosted_multiplayer_game, DEFAULT_MAX_TURNS};
 use rand::SeedableRng;
 
-use crate::ai_agent::spawn_ai_prompt_responder;
 use crate::card_db::{card_rules_to_instance, get_token_db, get_token_image_map};
 use crate::preset_decks::{
     is_preset_id, prepare_custom_registered_player, prepare_preset_registered_player, CardIdentity,
@@ -75,9 +75,7 @@ pub fn run_game(
 
     let mut rng = rand::rngs::StdRng::from_entropy();
     run_hosted_multiplayer_game(
-        game_id.clone(),
         prepared_players,
-        Some(0),
         abort_signal,
         DEFAULT_MAX_TURNS,
         &mut rng,
@@ -96,31 +94,17 @@ pub fn run_game(
                 game_loop.register_token(script_name, template);
             }
         },
-        |_pid, is_local| {
-            if is_local {
+        |pid| {
+            if pid == p0 {
                 human_agent_slot
                     .take()
                     .expect("agent_factory called twice for the local seat")
             } else {
-                let (ai_prompt_tx, ai_prompt_rx) = mpsc::channel::<AgentPrompt>();
-                let (ai_response_tx, ai_response_rx) = mpsc::channel::<PlayerAction>();
-                spawn_ai_prompt_responder(ai_prompt_rx, ai_response_tx);
                 Box::new(PromptAgent::new(
-                    PlayerId(1),
+                    pid,
                     game_id_for_agents.clone(),
-                    TauriTransport::new_ai(ai_prompt_tx, ai_response_rx),
+                    BotResponder::default(),
                 ))
-            }
-        },
-        |pid, is_local, view| {
-            // Only the human seat needs the game-over prompt; the AI discards it.
-            if is_local {
-                let _ = prompt_tx.send(AgentPrompt {
-                    deciding_player_id: format!("player-{}", pid.index()),
-                    display_events: vec![],
-                    source_card_id: None,
-                    inner: AgentPromptInner::GameOver { game_view: view },
-                });
             }
         },
     );
@@ -175,9 +159,7 @@ pub fn run_multiplayer_game(
 
     let mut rng = rand::rngs::StdRng::from_entropy();
     let outcome = run_hosted_multiplayer_game(
-        game_id.clone(),
         prepared_players,
-        Some(engine_player_index),
         abort_signal,
         DEFAULT_MAX_TURNS,
         &mut rng,
@@ -193,8 +175,8 @@ pub fn run_multiplayer_game(
                 game_loop.register_token(script_name, template);
             }
         },
-        |pid, is_local| {
-            if is_local {
+        |pid| {
+            if pid.index() == engine_player_index {
                 engine_agent_slot
                     .take()
                     .expect("agent_factory called twice for the engine seat")
@@ -208,19 +190,6 @@ pub fn run_multiplayer_game(
                     game_id_for_agents.clone(),
                     TauriTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), resp_rx),
                 ))
-            }
-        },
-        |pid, is_local, view| {
-            let prompt = AgentPrompt {
-                deciding_player_id: format!("player-{}", pid.index()),
-                display_events: vec![],
-                source_card_id: None,
-                inner: AgentPromptInner::GameOver { game_view: view },
-            };
-            if is_local {
-                let _ = engine_prompt_tx.send(prompt);
-            } else {
-                let _ = remote_prompt_tx.send((pid.index(), prompt));
             }
         },
     );

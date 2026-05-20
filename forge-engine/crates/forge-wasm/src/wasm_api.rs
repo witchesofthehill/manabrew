@@ -127,8 +127,9 @@ pub fn test_foundation() -> JsValue {
     serde_wasm_bindgen::to_value(&test).unwrap_or(JsValue::NULL)
 }
 
-use crate::wasm_transport::{WasmAiTransport, WasmTransport};
+use crate::wasm_transport::WasmTransport;
 use forge_agent_interface::agent_impl::PromptAgent;
+use forge_bot::BotResponder;
 
 #[wasm_bindgen]
 pub fn run_interactive_game(
@@ -137,8 +138,6 @@ pub fn run_interactive_game(
     config_json: JsValue,
     shared_buffer: JsValue,
 ) -> Result<JsValue, JsError> {
-    use forge_agent_interface::agent_impl::AgentTransport;
-    use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner};
     use forge_game_runtime::deck::{
         deck_to_identities, force_commander_by_name, prepare_registered_player,
     };
@@ -189,9 +188,7 @@ pub fn run_interactive_game(
     let mut rng = StdRng::from_entropy();
 
     let outcome = run_hosted_multiplayer_game(
-        game_id,
         prepared_players,
-        Some(0),
         abort_signal,
         DEFAULT_MAX_TURNS,
         &mut rng,
@@ -200,8 +197,8 @@ pub fn run_interactive_game(
                 register_tokens_from_db(game_loop, token_db);
             }
         },
-        |pid, is_local| {
-            if is_local {
+        |pid| {
+            if pid.index() == 0 {
                 Box::new(PromptAgent::new(
                     pid,
                     game_id_for_agents.clone(),
@@ -211,22 +208,8 @@ pub fn run_interactive_game(
                 Box::new(PromptAgent::new(
                     pid,
                     game_id_for_agents.clone(),
-                    WasmAiTransport::new(),
+                    BotResponder::default(),
                 ))
-            }
-        },
-        |pid, is_local, view| {
-            // Only the human seat needs the final GameOver prompt for its
-            // game-over screen; the AI transport would just discard it.
-            if is_local {
-                let transport = WasmTransport::new(&local_sab);
-                let prompt = AgentPrompt {
-                    deciding_player_id: format!("player-{}", pid.index()),
-                    display_events: vec![],
-                    source_card_id: None,
-                    inner: AgentPromptInner::GameOver { game_view: view },
-                };
-                <WasmTransport as AgentTransport>::send_prompt(&transport, prompt);
             }
         },
     );
@@ -254,7 +237,6 @@ pub fn run_multiplayer_game(
     remote_buffers: JsValue,
     local_player_index: u32,
 ) -> Result<JsValue, JsError> {
-    use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner};
     use forge_game_runtime::deck::{
         deck_to_identities, force_commander_by_name, prepare_registered_player,
     };
@@ -354,8 +336,7 @@ pub fn run_multiplayer_game(
             );
         }
     }
-    let sab_for_agents = sab_by_player.clone();
-    let sab_for_game_over = sab_by_player;
+    let sab_for_agents = sab_by_player;
 
     let card_counts: Vec<usize> = decks.iter().map(|d| d.cards.len()).collect();
     web_sys::console::log_1(
@@ -375,9 +356,7 @@ pub fn run_multiplayer_game(
     // panics at runtime on wasm32 — covered by tests/rng_smoke.rs.
     let mut rng = StdRng::from_entropy();
     let outcome = run_hosted_multiplayer_game(
-        game_id,
         prepared_players,
-        Some(engine_player_index),
         abort_signal,
         DEFAULT_MAX_TURNS,
         &mut rng,
@@ -386,31 +365,17 @@ pub fn run_multiplayer_game(
                 register_tokens_from_db(game_loop, token_db);
             }
         },
-        |pid, is_local| {
+        |pid| {
             // Remote seats get a recv timeout (new_relay) so a networked
             // player who stops responding can't hang the host worker; the
             // local seat blocks indefinitely like a human at the keyboard.
             let sab = &sab_for_agents[pid.index()];
-            let transport = if is_local {
+            let transport = if pid.index() == engine_player_index {
                 WasmTransport::new(sab)
             } else {
                 WasmTransport::new_relay(sab)
             };
             Box::new(PromptAgent::new(pid, game_id_for_agents.clone(), transport))
-        },
-        |pid, _is_local, view| {
-            // Final GameOver per seat so every client leaves the last
-            // mid-game prompt for the game-over screen (matches Tauri).
-            let transport = WasmTransport::new(&sab_for_game_over[pid.index()]);
-            let prompt = AgentPrompt {
-                deciding_player_id: format!("player-{}", pid.index()),
-                display_events: vec![],
-                source_card_id: None,
-                inner: AgentPromptInner::GameOver { game_view: view },
-            };
-            <WasmTransport as forge_agent_interface::agent_impl::AgentTransport>::send_prompt(
-                &transport, prompt,
-            );
         },
     );
 

@@ -6,9 +6,9 @@ use forge_foundation::ManaAtom;
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{AgentPromptInner, PlayerAction};
 
-use super::{AgentTransport, PromptAgent};
+use super::{PromptAgent, Responder};
 
-pub(super) fn choose_phyrexian_pay_life<T: AgentTransport>(
+pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     color: &str,
@@ -27,7 +27,7 @@ pub(super) fn choose_phyrexian_pay_life<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_kicker<T: AgentTransport>(
+pub(super) fn choose_kicker<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     kicker_cost: &str,
@@ -46,7 +46,7 @@ pub(super) fn choose_kicker<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_buyback<T: AgentTransport>(
+pub(super) fn choose_buyback<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     buyback_cost: &str,
@@ -65,7 +65,7 @@ pub(super) fn choose_buyback<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_multikicker<T: AgentTransport>(
+pub(super) fn choose_multikicker<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cost: &str,
@@ -86,7 +86,7 @@ pub(super) fn choose_multikicker<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_replicate<T: AgentTransport>(
+pub(super) fn choose_replicate<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cost: &str,
@@ -107,7 +107,7 @@ pub(super) fn choose_replicate<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_alternative_cost<T: AgentTransport>(
+pub(super) fn choose_alternative_cost<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     options: &[String],
@@ -128,7 +128,7 @@ pub(super) fn choose_alternative_cost<T: AgentTransport>(
     }
 }
 
-pub(super) fn pay_mana_cost<T: AgentTransport>(
+pub(super) fn pay_mana_cost<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     card_id: CardId,
@@ -196,7 +196,7 @@ pub(super) fn pay_mana_cost<T: AgentTransport>(
     }
 }
 
-pub(super) fn specify_mana_combo<T: AgentTransport>(
+pub(super) fn specify_mana_combo<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     available_colors: &[String],
@@ -239,7 +239,7 @@ pub(super) fn specify_mana_combo<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_delve<T: AgentTransport>(
+pub(super) fn choose_delve<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],
@@ -281,7 +281,7 @@ pub(super) fn choose_delve<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_improvise<T: AgentTransport>(
+pub(super) fn choose_improvise<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     untapped_artifacts: &[CardId],
@@ -308,7 +308,7 @@ pub(super) fn choose_improvise<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_convoke<T: AgentTransport>(
+pub(super) fn choose_convoke<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     untapped_creatures: &[CardId],

@@ -5,9 +5,7 @@
 //! variant to [`AgentKind`], and wire it in [`AgentKind::build`]. The room
 //! picks which agent to spawn via the `agent` field of the bot config.
 
-use std::sync::mpsc;
-use std::thread;
-
+use forge_agent_interface::agent_impl::Responder;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use serde::{Deserialize, Serialize};
 
@@ -36,22 +34,26 @@ impl AgentKind {
     }
 }
 
-/// Run a `BotAgent` on a dedicated thread, pumping prompts from `prompt_rx`
-/// and sending responses to `response_tx`. Used by engine hosts (Tauri,
-/// self-hosted-node) to plug an AI into an in-process engine session — the
-/// relay-side equivalent is `forge_bot::run_bot`.
-pub fn spawn_agent_responder(
-    mut agent: Box<dyn BotAgent + Send>,
-    prompt_rx: mpsc::Receiver<AgentPrompt>,
-    response_tx: mpsc::Sender<PlayerAction>,
-) {
-    thread::spawn(move || {
-        while let Ok(prompt) = prompt_rx.recv() {
-            if let Some(action) = agent.decide(prompt) {
-                if response_tx.send(action).is_err() {
-                    break;
-                }
-            }
-        }
-    });
+pub struct BotResponder {
+    agent: Box<dyn BotAgent + Send>,
+}
+
+impl BotResponder {
+    pub fn new(agent: Box<dyn BotAgent + Send>) -> Self {
+        Self { agent }
+    }
+}
+
+impl Default for BotResponder {
+    fn default() -> Self {
+        Self::new(AgentKind::default().build())
+    }
+}
+
+impl Responder for BotResponder {
+    fn respond(&mut self, prompt: AgentPrompt) -> PlayerAction {
+        self.agent
+            .decide(prompt)
+            .unwrap_or(PlayerAction::Pass { until_phase: None })
+    }
 }

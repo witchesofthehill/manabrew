@@ -190,7 +190,6 @@ export default function Lobby() {
   async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
     try {
       await setDeckSelection(deckName, deck, commanderName);
-      toast.success(`Selected deck: ${deckName}`);
     } catch (error) {
       toast.error(`Failed to set deck: ${String(error)}`);
     }

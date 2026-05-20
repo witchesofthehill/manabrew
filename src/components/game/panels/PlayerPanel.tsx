@@ -261,6 +261,7 @@ export function PlayerPanel({
   const zonesRow = (
     <ZoneActionColumn
       orientation="horizontal"
+      wrap={!isOpponent}
       libraryCount={player.libraryCount}
       graveyard={graveyard}
       exile={exile}

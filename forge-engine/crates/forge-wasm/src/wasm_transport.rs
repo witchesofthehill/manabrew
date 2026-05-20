@@ -1,11 +1,9 @@
-use std::cell::RefCell;
 use std::time::Duration;
 
-use forge_agent_interface::agent_impl::AgentTransport;
+use forge_agent_interface::agent_impl::Responder;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
-use forge_bot::{BotAgent, SimpleAi};
 
 use js_sys::{Int32Array, SharedArrayBuffer, Uint8Array};
 use wasm_bindgen::prelude::*;
@@ -121,10 +119,10 @@ impl WasmTransport {
     }
 }
 
-impl AgentTransport for WasmTransport {
-    fn send_prompt(&self, prompt: AgentPrompt) {
+impl WasmTransport {
+    fn send(&self, prompt: &AgentPrompt) {
         self.wait_until_prompt_slot_available();
-        let json = serde_json::to_vec(&prompt).unwrap_or_default();
+        let json = serde_json::to_vec(prompt).unwrap_or_default();
         if !self.write_data(&json) {
             // The prompt didn't fit the SAB.
             let payload = js_sys::Object::new();
@@ -145,7 +143,7 @@ impl AgentTransport for WasmTransport {
         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
     }
 
-    fn recv_action(&self) -> PlayerAction {
+    fn recv(&self) -> PlayerAction {
         loop {
             let current = js_sys::Atomics::load(&self.signal, 0).unwrap_or(0);
             if current == SIGNAL_RESPONSE_READY {
@@ -192,8 +190,22 @@ impl AgentTransport for WasmTransport {
 
         serde_json::from_slice(&json_bytes).unwrap_or(PlayerAction::Pass { until_phase: None })
     }
+}
 
-    fn send_log(&self, entry: GameLogEntryDto) {
+impl Responder for WasmTransport {
+    fn present(&mut self, prompt: &AgentPrompt) {
+        self.send(prompt);
+    }
+
+    fn respond(&mut self, _prompt: AgentPrompt) -> PlayerAction {
+        self.recv()
+    }
+
+    fn await_ack(&mut self) {
+        let _ = self.recv();
+    }
+
+    fn send_log(&mut self, entry: GameLogEntryDto) {
         if !self.emit_side_channels {
             return;
         }
@@ -202,7 +214,7 @@ impl AgentTransport for WasmTransport {
         }
     }
 
-    fn send_snapshot(&self, snapshot: GameSnapshotEventDto) {
+    fn send_snapshot(&mut self, snapshot: GameSnapshotEventDto) {
         if !self.emit_side_channels {
             return;
         }
@@ -210,45 +222,4 @@ impl AgentTransport for WasmTransport {
             post_worker_event("game:snapshot", &payload);
         }
     }
-}
-
-pub struct WasmAiTransport {
-    ai: RefCell<SimpleAi>,
-    pending: RefCell<Option<AgentPrompt>>,
-}
-
-impl WasmAiTransport {
-    pub fn new() -> Self {
-        Self {
-            ai: RefCell::new(SimpleAi::new()),
-            pending: RefCell::new(None),
-        }
-    }
-}
-
-impl Default for WasmAiTransport {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl AgentTransport for WasmAiTransport {
-    fn send_prompt(&self, prompt: AgentPrompt) {
-        *self.pending.borrow_mut() = Some(prompt);
-    }
-
-    fn recv_action(&self) -> PlayerAction {
-        let prompt = self.pending.borrow_mut().take();
-        match prompt {
-            Some(p) => self
-                .ai
-                .borrow_mut()
-                .decide(p)
-                .unwrap_or(PlayerAction::Pass { until_phase: None }),
-            None => PlayerAction::Pass { until_phase: None },
-        }
-    }
-
-    fn send_log(&self, _entry: GameLogEntryDto) {}
-    fn send_snapshot(&self, _snapshot: GameSnapshotEventDto) {}
 }

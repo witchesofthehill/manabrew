@@ -59,20 +59,28 @@ pub(crate) fn find_matching_color<'a>(
         .cloned()
 }
 
-/// Platform-agnostic transport for sending prompts and receiving responses.
-/// Tauri implements this with mpsc channels, WASM with Atomics.wait().
-pub trait AgentTransport {
-    fn send_prompt(&self, prompt: AgentPrompt);
-    fn recv_action(&self) -> PlayerAction;
-    fn send_log(&self, entry: GameLogEntryDto);
-    fn send_snapshot(&self, snapshot: GameSnapshotEventDto);
+/// Answers the prompts a `PromptAgent` builds.
+///
+/// `present` ships a prompt one-way to the client; an interactive transport
+/// writes it to its channel now (so a broadcast reaches every client in
+/// parallel), a bot has nothing to show and leaves the default no-op.
+/// `respond` returns the action for the prompt just presented: a transport
+/// blocks on its channel (ignoring `prompt`, already on the wire), a bot
+/// computes its answer from `prompt` — so neither side has to buffer it.
+/// `await_ack`/`send_log`/`send_snapshot` are one-way and default to dropping.
+pub trait Responder {
+    fn respond(&mut self, prompt: AgentPrompt) -> PlayerAction;
+    fn present(&mut self, _prompt: &AgentPrompt) {}
+    fn await_ack(&mut self) {}
+    fn send_log(&mut self, _entry: GameLogEntryDto) {}
+    fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
 }
 
-/// A PlayerAgent that sends prompts via a transport and blocks waiting for a response.
-pub struct PromptAgent<T: AgentTransport> {
+pub struct PromptAgent<R: Responder> {
     pub player_id: PlayerId,
     pub game_id: String,
-    pub transport: T,
+    pub responder: R,
+    pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
     /// Display events accumulated between prompts — drained and attached to each outgoing prompt.
     pub(crate) pending_display_events: Vec<DisplayEvent>,
@@ -86,12 +94,13 @@ pub struct PromptAgent<T: AgentTransport> {
     pub pass_until_phase: Option<Option<String>>,
 }
 
-impl<T: AgentTransport> PromptAgent<T> {
-    pub fn new(player_id: PlayerId, game_id: String, transport: T) -> Self {
+impl<R: Responder> PromptAgent<R> {
+    pub fn new(player_id: PlayerId, game_id: String, responder: R) -> Self {
         Self {
             player_id,
             game_id,
-            transport,
+            responder,
+            pending_prompt: None,
             latest_view: None,
             pending_display_events: Vec::new(),
             peeked_library_cards: Vec::new(),
@@ -107,19 +116,33 @@ impl<T: AgentTransport> PromptAgent<T> {
     /// fired, the cost being paid. `None` only for genuinely sourceless
     /// prompts (mulligan, game-over, generic state updates). Required at
     /// every call site so the compiler can't let one slip through.
-    pub(crate) fn send_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
+    fn build_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) -> AgentPrompt {
         let display_events = std::mem::take(&mut self.pending_display_events);
-        let prompt = AgentPrompt {
+        AgentPrompt {
             deciding_player_id: player_id_str(self.player_id),
             display_events,
             source_card_id: source.map(card_id_str),
             inner,
-        };
-        self.transport.send_prompt(prompt);
+        }
     }
 
-    pub(crate) fn recv_action(&self) -> PlayerAction {
-        self.transport.recv_action()
+    pub(crate) fn send_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
+        let prompt = self.build_prompt(inner, source);
+        self.responder.present(&prompt);
+        self.pending_prompt = Some(prompt);
+    }
+
+    pub(crate) fn recv_action(&mut self) -> PlayerAction {
+        let prompt = self
+            .pending_prompt
+            .take()
+            .expect("recv_action called without a pending prompt");
+        self.responder.respond(prompt)
+    }
+
+    pub(crate) fn notify_view(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
+        let prompt = self.build_prompt(inner, source);
+        self.responder.present(&prompt);
     }
 
     pub(crate) fn view(&self) -> GameViewDto {
@@ -248,14 +271,14 @@ impl<T: AgentTransport> PromptAgent<T> {
         }
     }
 
-    pub(crate) fn recv_card_choice_or_first(&self, valid: &[CardId]) -> Option<CardId> {
+    pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
             PlayerAction::TargetCard { card_id } => card_id.and_then(|id| parse_card_id(&id)),
             _ => valid.first().copied(),
         }
     }
 
-    pub(crate) fn recv_player_choice_or_first(&self, valid: &[PlayerId]) -> Option<PlayerId> {
+    pub(crate) fn recv_player_choice_or_first(&mut self, valid: &[PlayerId]) -> Option<PlayerId> {
         match self.recv_action() {
             PlayerAction::TargetPlayer { player_id } => {
                 player_id.and_then(|id| parse_player_id(&id))
@@ -264,7 +287,7 @@ impl<T: AgentTransport> PromptAgent<T> {
         }
     }
 
-    pub(crate) fn recv_spell_choice_or_first(&self, valid: &[u32]) -> Option<u32> {
+    pub(crate) fn recv_spell_choice_or_first(&mut self, valid: &[u32]) -> Option<u32> {
         match self.recv_action() {
             PlayerAction::TargetSpell { spell_id } => {
                 spell_id.and_then(|id| crate::ids_codec::parse_stack_id(&id))
@@ -274,7 +297,7 @@ impl<T: AgentTransport> PromptAgent<T> {
     }
 }
 
-impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
+impl<R: Responder> PlayerAgent for PromptAgent<R> {
     fn choose_targets_for(
         &mut self,
         sa: &mut forge_engine_core::spellability::SpellAbility,
@@ -1195,11 +1218,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
     }
 
     fn await_display_ack(&mut self) {
-        // Block on the transport for the single response to the
-        // display-only prompt we just sent. The engine guarantees one
-        // outstanding prompt per agent, so the next action on the
-        // channel is by definition the ack.
-        let _ = self.transport.recv_action();
+        self.responder.await_ack();
     }
 
     fn specify_mana_combo(
@@ -1264,7 +1283,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
     fn notify(&mut self, event: GameNotification) {
         match event {
             GameNotification::Event(log_event) => {
-                self.transport
+                self.responder
                     .send_log(GameLogEntryDto::from_event(log_event));
             }
             GameNotification::CardPlayed {
@@ -1279,7 +1298,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                     set_code,
                     player_id: player_id_str(player),
                 });
-                self.send_prompt(
+                self.notify_view(
                     AgentPromptInner::StateUpdate {
                         game_view: self.view(),
                     },
@@ -1297,7 +1316,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                     .and_then(|v| v.players.iter().find(|p| p.id == player_id))
                     .map(|p| p.name.clone())
                     .unwrap_or_else(|| format!("Player {}", active_player.0));
-                self.transport.send_log(GameLogEntryDto::from_event(
+                self.responder.send_log(GameLogEntryDto::from_event(
                     forge_engine_core::agent::GameLogEvent::rule(format!(
                         "TURN {} — {}",
                         turn_number, active_player_name
@@ -1309,7 +1328,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                     active_player_name,
                     turn_number,
                 });
-                self.send_prompt(
+                self.notify_view(
                     AgentPromptInner::StateUpdate {
                         game_view: self.view(),
                     },
@@ -1317,7 +1336,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                 );
             }
             GameNotification::PhaseChanged { .. } | GameNotification::StateChanged => {
-                self.send_prompt(
+                self.notify_view(
                     AgentPromptInner::StateUpdate {
                         game_view: self.view(),
                     },
@@ -1348,7 +1367,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                         }
                     })
                     .collect();
-                self.send_prompt(
+                self.notify_view(
                     AgentPromptInner::FirstPlayerRoll {
                         game_view: view,
                         sides,
@@ -1373,7 +1392,7 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                 // pass after broadcasting — that way all clients see the
                 // animation start at the same time and we wait once for
                 // the slowest player rather than serially per-agent.
-                self.send_prompt(
+                self.notify_view(
                     AgentPromptInner::DiceRolled {
                         game_view: self.view(),
                         player_id: player_id_str(player),
@@ -1391,16 +1410,24 @@ impl<T: AgentTransport> PlayerAgent for PromptAgent<T> {
                 label,
             } => {
                 if let Some(view) = self.latest_view.clone() {
-                    self.transport.send_snapshot(GameSnapshotEventDto::new(
+                    self.responder.send_snapshot(GameSnapshotEventDto::new(
                         checkpoint_id,
                         label,
                         view,
                     ));
                 }
             }
+            GameNotification::GameOver => {
+                self.notify_view(
+                    AgentPromptInner::GameOver {
+                        game_view: self.view(),
+                    },
+                    None,
+                );
+            }
             GameNotification::ManaPaymentResolved { .. } => {}
             GameNotification::ActivatedAbilityPaymentFailed { .. } => {
-                self.send_prompt(
+                self.notify_view(
                     AgentPromptInner::StateUpdate {
                         game_view: self.view(),
                     },

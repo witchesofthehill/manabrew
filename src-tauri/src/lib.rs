@@ -1,6 +1,5 @@
 #![allow(clippy::too_many_arguments)]
 
-mod ai_agent;
 mod card_db;
 mod client_bot;
 mod commands;

@@ -21,6 +21,9 @@ export const MAX_GRID_SLOTS = 200;
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
 export const BATTLEFIELD_CARD_SCALE_MIN = 0.8;
 export const BATTLEFIELD_CARD_SCALE_MAX = 1.8;
+export const BATTLEFIELD_CARD_SCALE_AUTOFIT_MIN = 0.5;
+// Panel wider than this fraction of the canvas reserves the whole top row.
+export const OPPONENT_PANEL_FULLWIDTH_FRAC = 0.4;
 
 // ── Grid skeleton ──────────────────────────────────────────────────────────
 export const GRID_SKELETON_STROKE_ALPHA = 0.25;

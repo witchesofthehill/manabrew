@@ -8,9 +8,9 @@ use crate::ids_codec::parse_player_id;
 use crate::ids_codec::stack_id_str;
 use crate::prompt::{AgentPromptInner, PlayerAction, TargetAnyChoice};
 
-use super::{AgentTransport, PromptAgent};
+use super::{PromptAgent, Responder};
 
-pub(super) fn choose_target_player<T: AgentTransport>(
+pub(super) fn choose_target_player<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[PlayerId],
@@ -31,7 +31,7 @@ pub(super) fn choose_target_player<T: AgentTransport>(
     agent.recv_player_choice_or_first(valid)
 }
 
-pub(super) fn choose_target_card<T: AgentTransport>(
+pub(super) fn choose_target_card<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],
@@ -54,7 +54,7 @@ pub(super) fn choose_target_card<T: AgentTransport>(
     agent.recv_card_choice_or_first(valid)
 }
 
-pub(super) fn choose_target_card_from_zone<T: AgentTransport>(
+pub(super) fn choose_target_card_from_zone<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     zone: ZoneType,
@@ -103,7 +103,7 @@ pub(super) fn choose_target_card_from_zone<T: AgentTransport>(
     agent.recv_card_choice_or_first(valid)
 }
 
-pub(super) fn choose_target_any<T: AgentTransport>(
+pub(super) fn choose_target_any<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid_players: &[PlayerId],
@@ -148,7 +148,7 @@ pub(super) fn choose_target_any<T: AgentTransport>(
     }
 }
 
-pub(super) fn choose_target_spell<T: AgentTransport>(
+pub(super) fn choose_target_spell<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[u32],
@@ -166,7 +166,7 @@ pub(super) fn choose_target_spell<T: AgentTransport>(
     agent.recv_spell_choice_or_first(valid)
 }
 
-pub(super) fn choose_sacrifice<T: AgentTransport>(
+pub(super) fn choose_sacrifice<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     valid: &[CardId],

@@ -32,6 +32,8 @@ const PASS_BUTTON_RESERVED = { width: 312, height: 50 } as const;
 // the full canvas width.
 const PLAYER_CLUSTER_BLOCKER = { width: 420, height: 140 } as const;
 
+const SELF_PANEL_SCALE = 0.85;
+
 interface GameBoardProps {
   // Core game state
   me: Player;
@@ -514,8 +516,11 @@ export function GameBoard({
                     triggers `flex-wrap` once the zones + avatar would
                     start overlapping the hand. */}
               <div
-                className="absolute bottom-2 left-2 z-30 pointer-events-none"
-                style={{ maxWidth: clusterMaxWidthCss }}
+                className="absolute bottom-2 left-2 z-30 pointer-events-none origin-bottom-left"
+                style={{
+                  maxWidth: `calc((${clusterMaxWidthCss}) / ${SELF_PANEL_SCALE})`,
+                  transform: `scale(${SELF_PANEL_SCALE})`,
+                }}
               >
                 <PlayerPanel
                   player={me}

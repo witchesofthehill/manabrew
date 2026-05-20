@@ -1,7 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PlayerPanel } from "./PlayerPanel";
-import { PLAYER_CLUSTER_RESERVED_PX } from "../game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { OPPONENT_SEATS, type OpponentHalfProps } from "../game.types";
@@ -14,6 +13,12 @@ const OPPONENT_SCENE_OPTIONS = {
   showHand: false,
   allowDrag: false,
 } as const;
+
+const OPPONENT_PANEL_SCALE = 0.72;
+const OPPONENT_MIN_ROWS = 3;
+const PANEL_EDGE_OFFSET_PX = 8;
+const PANEL_GAP_PX = 8;
+const PANEL_BOX_FALLBACK = { width: 260, height: 120 } as const;
 
 export function OpponentHalf({
   player,
@@ -46,7 +51,22 @@ export function OpponentHalf({
 }: OpponentHalfProps) {
   const themeColors = useTheme().gameTheme;
 
-  const leftReserved = PLAYER_CLUSTER_RESERVED_PX;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelBox, setPanelBox] = useState<{ width: number; height: number }>(PANEL_BOX_FALLBACK);
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const rect = entry?.contentRect;
+      if (!rect) return;
+      setPanelBox({
+        width: PANEL_EDGE_OFFSET_PX + rect.width * OPPONENT_PANEL_SCALE + PANEL_GAP_PX,
+        height: PANEL_EDGE_OFFSET_PX + rect.height * OPPONENT_PANEL_SCALE + PANEL_GAP_PX,
+      });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const canTarget =
     promptType === PromptType.ChooseTargetCard || promptType === PromptType.ChooseTargetAny;
@@ -119,7 +139,11 @@ export function OpponentHalf({
     >
       <div className="flex gap-2 flex-1 min-h-0">
         <div className="relative flex flex-col gap-1 flex-1 min-w-0 min-h-0">
-          <div className="absolute top-2 left-2 z-30 max-w-[calc(100%-16px)]">
+          <div
+            ref={panelRef}
+            className="absolute top-2 left-2 z-30 max-w-[calc(100%-16px)] origin-top-left"
+            style={{ transform: `scale(${OPPONENT_PANEL_SCALE})` }}
+          >
             <PlayerPanel
               player={player}
               isOpponent
@@ -152,7 +176,8 @@ export function OpponentHalf({
               battlefield={pixiBattlefield}
               sceneRef={pixiSceneRef}
               callbacks={pixiCallbacks}
-              leftReserved={leftReserved}
+              topLeftReserved={panelBox}
+              minRows={OPPONENT_MIN_ROWS}
               bottomReserved={0}
               externalBlockers={[]}
               sceneOptions={OPPONENT_SCENE_OPTIONS}

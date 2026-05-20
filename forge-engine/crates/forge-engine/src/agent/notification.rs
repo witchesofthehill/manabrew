@@ -60,4 +60,5 @@ pub enum GameNotification {
         /// The player who won the roll-off (after any tiebreaks).
         winner: PlayerId,
     },
+    GameOver,
 }

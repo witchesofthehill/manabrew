@@ -6,8 +6,8 @@ use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
 use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::deck_dto::Deck;
-use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner, PlayerAction};
-use forge_bot::agent::{spawn_agent_responder, SimpleAi};
+use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_bot::BotResponder;
 use forge_carddb::CardDatabase;
 use forge_engine_core::agent::PlayerAgent;
 use forge_engine_core::ids::PlayerId;
@@ -53,13 +53,10 @@ pub fn run_hosted_engine_game(
     // is a networked player whose prompts/actions are relayed over the
     // WebSocket. Both are wired into the shared host runtime via the closures.
     let mut local_ai: Option<Box<dyn PlayerAgent>> = local_player_index.map(|player_index| {
-        let (ai_prompt_tx, ai_prompt_rx) = std_mpsc::channel::<AgentPrompt>();
-        let (ai_response_tx, ai_response_rx) = std_mpsc::channel::<PlayerAction>();
-        spawn_agent_responder(Box::new(SimpleAi::new()), ai_prompt_rx, ai_response_tx);
         Box::new(PromptAgent::new(
             PlayerId(player_index as u32),
             game_id.clone(),
-            NodeTransport::new_ai(ai_prompt_tx, ai_response_rx),
+            BotResponder::default(),
         )) as Box<dyn PlayerAgent>
     });
     let mut remote_rx_map: HashMap<usize, std_mpsc::Receiver<PlayerAction>> =
@@ -70,15 +67,13 @@ pub fn run_hosted_engine_game(
     let mut rng = rand::rngs::StdRng::from_entropy();
     let abort_signal = Arc::new(AtomicBool::new(false));
     run_hosted_multiplayer_game(
-        game_id.clone(),
         prepared_players,
-        local_player_index,
         abort_signal,
         DEFAULT_MAX_TURNS,
         &mut rng,
         |game_loop| register_tokens_from_db(game_loop, get_token_db()),
-        |pid, is_local| {
-            if is_local {
+        |pid| {
+            if Some(pid.index()) == local_player_index {
                 local_ai
                     .take()
                     .expect("agent_factory called twice for the local seat")
@@ -93,23 +88,6 @@ pub fn run_hosted_engine_game(
                     NodeTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), response_rx),
                 ))
             }
-        },
-        |pid, is_local, view| {
-            // The local AI seat doesn't need a game-over prompt; every remote
-            // seat gets one so its client lands on the game-over screen.
-            if is_local {
-                return;
-            }
-            let i = pid.index();
-            let _ = remote_prompt_tx.send((
-                i,
-                AgentPrompt {
-                    deciding_player_id: format!("player-{i}"),
-                    display_events: vec![],
-                    source_card_id: None,
-                    inner: AgentPromptInner::GameOver { game_view: view },
-                },
-            ));
         },
     );
 }

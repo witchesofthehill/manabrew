@@ -49,6 +49,10 @@ interface PixiGameCanvasProps {
   callbacks: GameCanvasCallbacks;
   bottomReserved?: number;
   leftReserved?: number;
+  /** Keep-out box at the top-left for the opponent panel cluster. */
+  topLeftReserved?: { width: number; height: number } | null;
+  /** Auto-fit the card scale so at least this many rows always render. */
+  minRows?: number;
   /** Keep-out size anchored to the bottom-left of the canvas — the player
    *  panel cluster (avatar + zones + mana). */
   bottomLeftReserved?: { width: number; height: number } | null;
@@ -86,6 +90,8 @@ export function PixiGameCanvas({
   callbacks,
   bottomReserved = 0,
   leftReserved = 0,
+  topLeftReserved,
+  minRows,
   bottomLeftReserved,
   externalBlockers,
   bottomRightReserved,
@@ -270,8 +276,18 @@ export function PixiGameCanvas({
     if (!scene) return;
     scene.setReserved(bottomReserved, leftReserved);
     scene.setBottomLeftReserved(bottomLeftReserved ?? null);
+    scene.setTopLeftReserved(topLeftReserved ?? null);
+    scene.setMinRows(minRows ?? null);
     scene.updateBattlefield(battlefield);
-  }, [scene, battlefield, bottomReserved, leftReserved, bottomLeftReserved]);
+  }, [
+    scene,
+    battlefield,
+    bottomReserved,
+    leftReserved,
+    topLeftReserved,
+    minRows,
+    bottomLeftReserved,
+  ]);
 
   useEffect(() => {
     if (!scene) return;

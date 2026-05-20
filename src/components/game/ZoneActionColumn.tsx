@@ -36,6 +36,8 @@ export interface ZoneActionColumnProps {
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
   /** Layout direction. Defaults to "vertical" for backwards compatibility. */
   orientation?: "vertical" | "horizontal";
+  /** Off for opponents so the panel keeps a fixed height the board can reserve. */
+  wrap?: boolean;
   /** Horizontal-only: rendered as the first flex item so it wraps
    *  alongside the tiles when the row runs out of width. Used by
    *  `PlayerPanel` to pack the avatar into the same `flex-wrap` as
@@ -158,6 +160,7 @@ export function ZoneActionColumn({
   draggingCardId,
   onHoverCard,
   orientation = "vertical",
+  wrap = true,
   leading,
 }: ZoneActionColumnProps) {
   const themeColors = useTheme().gameTheme;
@@ -205,7 +208,10 @@ export function ZoneActionColumn({
       className={cn(
         "py-0.5",
         isHorizontal
-          ? "flex flex-row flex-wrap items-start gap-2.5 min-w-0 pointer-events-auto"
+          ? cn(
+              "flex flex-row items-start gap-2.5 min-w-0 pointer-events-auto",
+              wrap ? "flex-wrap" : "flex-nowrap",
+            )
           : "shrink-0 w-12 flex flex-col items-center gap-1.5 pointer-events-auto",
       )}
     >

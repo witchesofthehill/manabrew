@@ -9,6 +9,11 @@ services:
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
+    environment:
+      # Route web "Play vs AI" through the self-hosted-node room. The relay
+      # endpoint is baked at build time via VITE_RELAY_*, so the runtime
+      # connection defaults are left empty here.
+      MANABREW_HOSTED_AI_ENABLED: "true"
     restart: unless-stopped
     ports:
       - "80:80"
@@ -32,6 +37,22 @@ services:
       RUST_LOG: "forge_server=info"
     expose:
       - "9443"
+    restart: unless-stopped
+
+  # Headless engine node: hosts a room on the relay and runs the Rust engine
+  # for it, giving web "Play vs AI" a room to join and a server-side opponent.
+  self-hosted-node:
+    build:
+      context: .
+      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      RUST_LOG: "self_hosted_node=info"
+    depends_on:
+      - forge-server
     restart: unless-stopped
 
 volumes:

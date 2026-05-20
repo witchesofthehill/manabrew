@@ -36,6 +36,27 @@ impl BotAgent for SimpleAi {
             }),
             AgentPromptInner::ChooseAction {
                 available_player_actions,
+                playable_options,
+                ..
+            } if available_player_actions.is_empty() => {
+                // Java-hosted path: prompts carry playableOptions (each echoing
+                // a choose_action index via its mode), not enumerated engine
+                // actions. Play one legal option per distinct prompt; pass when
+                // none are offered or the same options recur (loop guard).
+                let signature = format!("{playable_options:?}");
+                let repeated =
+                    self.last_choose_action_signature.as_deref() == Some(signature.as_str());
+                self.last_choose_action_signature = Some(signature);
+                match playable_options.first() {
+                    Some(option) if !repeated => Some(PlayerAction::PlayCard {
+                        card_id: option.card_id.clone(),
+                        mode: Some(option.mode.clone()),
+                    }),
+                    _ => Some(PlayerAction::Pass { until_phase: None }),
+                }
+            }
+            AgentPromptInner::ChooseAction {
+                available_player_actions,
                 ..
             } => {
                 let signature = format!("{available_player_actions:?}");
@@ -71,10 +92,6 @@ impl BotAgent for SimpleAi {
                     .or_else(|| available_player_actions.first().copied());
                 self.last_choose_action_signature = Some(signature);
                 self.last_choose_action_choice = chosen;
-                // Always return a decision: with no enumerated engine action
-                // (e.g. Java-hosted prompts, which carry playableOptions rather
-                // than available_player_actions), pass priority instead of
-                // returning None — None sends no response and stalls the game.
                 Some(
                     chosen
                         .map(|action| PlayerAction::EngineAction { action })

@@ -11,7 +11,7 @@ concurrency:
 jobs:
   # ── TypeScript type-check ──────────────────────────────────────────
   typescript:
-    name: TypeScript
+    name: TypeScript & Wasm
     runs-on: [self-hosted, Linux]
     defaults:
       run:
@@ -23,28 +23,10 @@ jobs:
           clean: true
 
       - run: yarn
+      - run: yarn build:wasm
 
       - name: Type-check
         run: yarn tsc -p tsconfig.app.json --noEmit
-
-  # ── WASM + card bundler ────────────────────────────────────────────
-  wasm:
-    name: WASM build
-    runs-on: [self-hosted, Linux]
-    defaults:
-      run:
-        working-directory: wasm
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: wasm
-          submodules: recursive
-          clean: true
-
-      - run: yarn
-
-      - name: Build WASM + bundle cards
-        run: yarn build:wasm
 
   # ── Rust workspace (engine, CLI, agent-interface) ──────────────────
   rust-engine:
@@ -109,7 +91,7 @@ jobs:
   web-build:
     name: Web build (full)
     runs-on: [self-hosted, Linux]
-    needs: [typescript, wasm]
+    needs: [typescript]
     defaults:
       run:
         working-directory: web-build

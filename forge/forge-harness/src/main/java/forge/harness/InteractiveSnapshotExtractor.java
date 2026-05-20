@@ -9,6 +9,7 @@ import forge.game.card.CounterType;
 import forge.game.player.Player;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.zone.ZoneType;
+import forge.item.IPaperCard;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -56,10 +57,20 @@ public final class InteractiveSnapshotExtractor {
         final Map<String, Object> out = new LinkedHashMap<>(basePlayer);
         out.put("battlefield_cards", snapshotBattlefieldCards(game, player));
         out.put("hand_cards", snapshotZoneCards(player.getCardsIn(ZoneType.Hand)));
-        out.put("command_zone", player.getCardsIn(ZoneType.Command).stream()
+        // Drop engine-internal effect objects (e.g. the "Commander Effect"
+        // DetachedCardEffect that hosts command-zone statics) — they are
+        // immutable EFFECT pieces, not real cards, and the client can't
+        // resolve them back to a deck entry.
+        final List<Card> commandZone = new ArrayList<>();
+        for (final Card card : player.getCardsIn(ZoneType.Command)) {
+            if (!card.isImmutable()) {
+                commandZone.add(card);
+            }
+        }
+        out.put("command_zone", commandZone.stream()
                 .map(card -> normalizeCardName(card.getName()))
                 .collect(Collectors.toList()));
-        out.put("command_zone_cards", snapshotZoneCards(player.getCardsIn(ZoneType.Command)));
+        out.put("command_zone_cards", snapshotZoneCards(commandZone));
         return out;
     }
 
@@ -102,6 +113,11 @@ public final class InteractiveSnapshotExtractor {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", SnapshotExtractor.javaCardId(card));
         out.put("name", normalizeCardName(card.getName()));
+        // Carry the printing through so the client can resolve the card back to
+        // its deck entry (collector number disambiguates pinned printings).
+        final IPaperCard paper = card.getPaperCard();
+        out.put("setCode", paper != null ? paper.getEdition() : card.getSetCode());
+        out.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
         return out;
     }
 

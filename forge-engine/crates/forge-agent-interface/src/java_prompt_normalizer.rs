@@ -11,12 +11,15 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
 
     let actions = to_actions(prompt.get("actions"));
+    let player = as_usize(prompt.get("player"), 0);
+    // Build the gameView from the deciding player's perspective — each prompt is
+    // forwarded to that player's client (web or bot), so "my" zones must be theirs.
     let game_view = snapshot_to_game_view(
         prompt.get("snapshot").unwrap_or(&Value::Null),
         prompt.get("sessionId"),
         &actions,
+        player,
     );
-    let player = as_usize(prompt.get("player"), 0);
     // The node forwards each prompt to the player who must decide (via the relay
     // envelope's for_player), and every client filters to its own slot. So the
     // normalized prompt always carries the real decision type for that player —
@@ -394,16 +397,15 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     let mut activatable_ability_ids = Vec::new();
     let mut mana_ability_options = Vec::new();
     let mut tappable_land_ids = Vec::new();
-    let mut battlefield_card_ids_by_key = card_ids_by_key(
-        battlefield
-            .iter()
-            .filter(|card| card.get("controllerId").and_then(Value::as_str) == Some("player-0")),
-    );
-    let mut battlefield_card_ids_by_name = card_ids_by_name(
-        battlefield
-            .iter()
-            .filter(|card| card.get("controllerId").and_then(Value::as_str) == Some("player-0")),
-    );
+    let my_slot = format!("player-{player}");
+    let mut battlefield_card_ids_by_key =
+        card_ids_by_key(battlefield.iter().filter(|card| {
+            card.get("controllerId").and_then(Value::as_str) == Some(my_slot.as_str())
+        }));
+    let mut battlefield_card_ids_by_name =
+        card_ids_by_name(battlefield.iter().filter(|card| {
+            card.get("controllerId").and_then(Value::as_str) == Some(my_slot.as_str())
+        }));
     for action in &actions {
         let kind = action.get("kind").and_then(Value::as_str);
         if kind != Some("mana") && kind != Some("ability") {
@@ -663,7 +665,12 @@ fn is_java_prompt(prompt: &Value) -> bool {
     ) && prompt.get("snapshot").is_some_and(Value::is_object)
 }
 
-fn snapshot_to_game_view(snapshot: &Value, session_id: Option<&Value>, actions: &[Value]) -> Value {
+fn snapshot_to_game_view(
+    snapshot: &Value,
+    session_id: Option<&Value>,
+    actions: &[Value],
+    viewer: usize,
+) -> Value {
     let players_source = snapshot
         .get("players")
         .and_then(Value::as_array)
@@ -713,37 +720,24 @@ fn snapshot_to_game_view(snapshot: &Value, session_id: Option<&Value>, actions: 
         .enumerate()
         .map(|(index, entry)| to_stack_object(&entry, index, &active_player_id))
         .collect();
-    let my_hand = zone_cards(
-        players_source.first(),
-        "hand_cards",
-        0,
-        "hand",
-        &action_card_names,
-    );
+    let me = players_source.get(viewer);
+    let my_hand = zone_cards(me, "hand_cards", viewer, "hand", &action_card_names);
     let my_command_zone = zone_cards(
-        players_source.first(),
+        me,
         "command_zone_cards",
-        0,
+        viewer,
         "command",
         &action_card_names,
     );
-    let graveyard = zone_cards(
-        players_source.first(),
-        "graveyard",
-        0,
-        "graveyard",
-        &action_card_names,
-    );
-    let exile = zone_cards(
-        players_source.first(),
-        "exile",
-        0,
-        "exile",
-        &action_card_names,
-    );
+    let graveyard = zone_cards(me, "graveyard", viewer, "graveyard", &action_card_names);
+    let exile = zone_cards(me, "exile", viewer, "exile", &action_card_names);
 
     let mut opponent_zones = serde_json::Map::new();
-    for (i, opp) in players_source.iter().enumerate().skip(1) {
+    for (i, opp) in players_source
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != viewer)
+    {
         let opp_graveyard = zone_cards(
             Some(opp),
             "graveyard",

@@ -200,8 +200,11 @@ pub struct CardDto {
     pub foil: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+// The Java normalizer's stack entries omit setCode/cardNumber (the Java
+// snapshot doesn't carry the printing); default them rather than fail the
+// whole prompt for the Rust bot.
+#[serde(rename_all = "camelCase", default)]
 pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,

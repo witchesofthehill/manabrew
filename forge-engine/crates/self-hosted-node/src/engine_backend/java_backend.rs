@@ -283,6 +283,7 @@ fn run_hosted_engine_game_inner(
                                 "failed to serialize java action for player {player_index}: {err}"
                             )
                         })?;
+                        debug!(player_index, %action_json, "submitting remote response to java");
                         session.submit_action(&action_json)?;
                     }
                     Err(TryRecvError::Empty) => break,
@@ -303,6 +304,15 @@ fn run_hosted_engine_game_inner(
                     .and_then(Value::as_u64)
                     .map(|value| value as usize)
                 {
+                    let prompt_kind = prompt
+                        .get("kind")
+                        .and_then(Value::as_str)
+                        .unwrap_or("?")
+                        .to_string();
+                    debug!(
+                        player_index,
+                        prompt_kind, "forwarding java prompt to remote"
+                    );
                     if Some(player_index) == local_player_index {
                         session.submit_action(&auto_java_action(&prompt).to_string())?;
                     } else if remote_prompt_tx

@@ -40,7 +40,7 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
-      RUST_LOG: "self_hosted_node=info"
+      RUST_LOG: "self_hosted_node=info,forge_bot=info"
     depends_on:
       - forge-server
     restart: on-failure:5
@@ -52,6 +52,12 @@ services:
     ports:
       - "1420:443"
       - "1421:80"
+    # The image bakes Caddy's default config; mount a localhost Caddyfile so
+    # `docker compose up` actually serves the app (with the COOP/COEP headers
+    # SharedArrayBuffer needs) on http://localhost:1421. Production mounts the
+    # public-domain ops/Caddyfile instead.
+    volumes:
+      - ../../../ops/Caddyfile.local:/etc/caddy/Caddyfile:ro
     environment:
       MANABREW_SERVER_HOST: "${MANABREW_SERVER_HOST:-}"
       MANABREW_SERVER_PORT: "${MANABREW_SERVER_PORT:-9443}"

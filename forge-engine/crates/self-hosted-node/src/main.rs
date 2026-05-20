@@ -760,6 +760,10 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
                 debug!(from_player, player_index, "no response channel for player");
                 return;
             };
+            debug!(
+                from_player,
+                player_index, "routing relay response to java engine"
+            );
             if let Err(error) = tx.send(translate_java_action_value(&action_value)) {
                 warn!(from_player, %error, "failed to route relay response");
             }

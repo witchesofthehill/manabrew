@@ -1,107 +1,96 @@
 use std::collections::HashMap;
 
 use serde_json::{json, Value};
+use std::str::FromStr;
+use strum_macros::{EnumString, IntoStaticStr};
 use tracing::warn;
 
 use crate::prompt::{PlayerAction, TargetAnyChoice};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, IntoStaticStr)]
 enum JavaPromptKind {
+    #[strum(to_string = "chooseDiscard", serialize = "choose_discard")]
     ChooseDiscard,
+    #[strum(serialize = "mulligan")]
     Mulligan,
+    #[strum(to_string = "mulliganPutBack", serialize = "mulligan_put_back")]
     MulliganPutBack,
+    #[strum(to_string = "revealCards", serialize = "reveal_cards")]
     RevealCards,
+    #[strum(to_string = "chooseAttackers", serialize = "choose_attackers")]
     ChooseAttackers,
+    #[strum(to_string = "chooseBlockers", serialize = "choose_blockers")]
     ChooseBlockers,
+    #[strum(
+        to_string = "chooseDamageAssignmentOrder",
+        serialize = "choose_damage_assignment_order"
+    )]
     ChooseDamageAssignmentOrder,
+    #[strum(
+        to_string = "chooseCombatDamageAssignment",
+        serialize = "choose_combat_damage_assignment"
+    )]
     ChooseCombatDamageAssignment,
+    #[strum(
+        to_string = "chooseCardsForEffect",
+        serialize = "choose_cards_for_effect"
+    )]
     ChooseCardsForEffect,
+    #[strum(to_string = "chooseMode", serialize = "choose_mode")]
     ChooseMode,
+    #[strum(
+        to_string = "chooseOptionalTrigger",
+        serialize = "choose_optional_trigger",
+        serialize = "confirm_action"
+    )]
     ConfirmOrTrigger,
+    #[strum(
+        to_string = "payCostToPreventEffect",
+        serialize = "pay_cost_to_prevent_effect"
+    )]
     PayCostToPreventEffect,
+    #[strum(to_string = "chooseNumber", serialize = "choose_number")]
     ChooseNumber,
+    #[strum(to_string = "chooseColor", serialize = "choose_color")]
     ChooseColor,
+    #[strum(to_string = "chooseType", serialize = "choose_type")]
     ChooseType,
+    #[strum(to_string = "chooseCardName", serialize = "choose_card_name")]
     ChooseCardName,
+    #[strum(to_string = "scry", serialize = "choose_scry")]
     Scry,
+    #[strum(to_string = "surveil", serialize = "choose_surveil")]
     Surveil,
+    #[strum(to_string = "dig", serialize = "choose_dig")]
     Dig,
+    #[strum(to_string = "chooseDelve", serialize = "choose_delve")]
     ChooseDelve,
+    #[strum(to_string = "chooseConvoke", serialize = "choose_convoke")]
     ChooseConvoke,
+    #[strum(to_string = "chooseImprovise", serialize = "choose_improvise")]
     ChooseImprovise,
+    #[strum(to_string = "reorderLibrary", serialize = "reorder_library")]
     ReorderLibrary,
+    #[strum(to_string = "chooseTargetPlayer", serialize = "choose_target_player")]
     ChooseTargetPlayer,
+    #[strum(to_string = "chooseTargetCard", serialize = "choose_target_card")]
     ChooseTargetCard,
+    #[strum(to_string = "chooseTargetAny", serialize = "choose_target_any")]
     ChooseTargetAny,
+    #[strum(to_string = "chooseTargetSpell", serialize = "choose_target_spell")]
     ChooseTargetSpell,
+    #[strum(to_string = "chooseAction")]
     Other,
 }
 
 impl JavaPromptKind {
     fn parse(kind: Option<&str>) -> Self {
-        match kind {
-            Some("choose_discard") => Self::ChooseDiscard,
-            Some("mulligan") => Self::Mulligan,
-            Some("mulligan_put_back") => Self::MulliganPutBack,
-            Some("reveal_cards") => Self::RevealCards,
-            Some("choose_attackers") => Self::ChooseAttackers,
-            Some("choose_blockers") => Self::ChooseBlockers,
-            Some("choose_damage_assignment_order") => Self::ChooseDamageAssignmentOrder,
-            Some("choose_combat_damage_assignment") => Self::ChooseCombatDamageAssignment,
-            Some("choose_cards_for_effect") => Self::ChooseCardsForEffect,
-            Some("choose_mode") => Self::ChooseMode,
-            Some("choose_optional_trigger") | Some("confirm_action") => Self::ConfirmOrTrigger,
-            Some("pay_cost_to_prevent_effect") => Self::PayCostToPreventEffect,
-            Some("choose_number") => Self::ChooseNumber,
-            Some("choose_color") => Self::ChooseColor,
-            Some("choose_type") => Self::ChooseType,
-            Some("choose_card_name") => Self::ChooseCardName,
-            Some("choose_scry") => Self::Scry,
-            Some("choose_surveil") => Self::Surveil,
-            Some("choose_dig") => Self::Dig,
-            Some("choose_delve") => Self::ChooseDelve,
-            Some("choose_convoke") => Self::ChooseConvoke,
-            Some("choose_improvise") => Self::ChooseImprovise,
-            Some("reorder_library") => Self::ReorderLibrary,
-            Some("choose_target_player") => Self::ChooseTargetPlayer,
-            Some("choose_target_card") => Self::ChooseTargetCard,
-            Some("choose_target_any") => Self::ChooseTargetAny,
-            Some("choose_target_spell") => Self::ChooseTargetSpell,
-            _ => Self::Other,
-        }
+        kind.and_then(|k| Self::from_str(k).ok())
+            .unwrap_or(Self::Other)
     }
 
     fn output_type(self) -> &'static str {
-        match self {
-            Self::ChooseDiscard => "chooseDiscard",
-            Self::Mulligan => "mulligan",
-            Self::MulliganPutBack => "mulliganPutBack",
-            Self::RevealCards => "revealCards",
-            Self::ChooseAttackers => "chooseAttackers",
-            Self::ChooseBlockers => "chooseBlockers",
-            Self::ChooseDamageAssignmentOrder => "chooseDamageAssignmentOrder",
-            Self::ChooseCombatDamageAssignment => "chooseCombatDamageAssignment",
-            Self::ChooseCardsForEffect => "chooseCardsForEffect",
-            Self::ChooseMode => "chooseMode",
-            Self::ConfirmOrTrigger => "chooseOptionalTrigger",
-            Self::PayCostToPreventEffect => "payCostToPreventEffect",
-            Self::ChooseNumber => "chooseNumber",
-            Self::ChooseColor => "chooseColor",
-            Self::ChooseType => "chooseType",
-            Self::ChooseCardName => "chooseCardName",
-            Self::Scry => "scry",
-            Self::Surveil => "surveil",
-            Self::Dig => "dig",
-            Self::ChooseDelve => "chooseDelve",
-            Self::ChooseConvoke => "chooseConvoke",
-            Self::ChooseImprovise => "chooseImprovise",
-            Self::ReorderLibrary => "reorderLibrary",
-            Self::ChooseTargetPlayer => "chooseTargetPlayer",
-            Self::ChooseTargetCard => "chooseTargetCard",
-            Self::ChooseTargetAny => "chooseTargetAny",
-            Self::ChooseTargetSpell => "chooseTargetSpell",
-            Self::Other => "chooseAction",
-        }
+        self.into()
     }
 }
 

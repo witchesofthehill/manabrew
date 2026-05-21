@@ -215,19 +215,18 @@ pub(super) fn apply_pre_move(
             ctx.game.card_mut(card_id).set_face_down(true);
         }
 
-        // Transformed$ — before move
+        // Transformed$ — swap to the back face before move. Mirrors Java's
+        // `Card.changeToState(CardStateName.Transformed)` which swaps every
+        // characteristic (type line, P/T, abilities, triggers, etc.), not just
+        // the name. Lore counters from the saga front face are dropped because
+        // the back face isn't a Saga (CR 714.5 effective wording).
         if sa.is_transformed() {
             if ctx.game.card(card_id).other_part.is_some() {
-                ctx.game.card_mut(card_id).set_transformed(true);
-                if let Some(other_name) = ctx
-                    .game
-                    .card(card_id)
-                    .other_part
-                    .as_ref()
-                    .map(|o| o.name.clone())
-                {
-                    ctx.game.card_mut(card_id).set_card_name(other_name);
+                let card = ctx.game.card_mut(card_id);
+                if !card.is_transformed {
+                    card.transform();
                 }
+                card.counters.remove(&crate::card::CounterType::Lore);
             } else {
                 return false;
             }

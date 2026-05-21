@@ -151,15 +151,41 @@ pub fn extract_suspend(collection: &keyword_collection::KeywordCollection) -> Op
 pub fn extract_escape(collection: &keyword_collection::KeywordCollection) -> Option<EscapeInfo> {
     for kw in collection.iter_strings() {
         if let Some(rest) = kw.strip_prefix("Escape:") {
-            if let Some(last_colon) = rest.rfind(':') {
-                return Some(EscapeInfo {
-                    mana_cost: rest[..last_colon].trim().to_string(),
-                    exile_count: rest[last_colon + 1..].trim().parse().unwrap_or(0),
-                });
-            }
+            return Some(escape_info_from_rest(rest));
         }
     }
     None
+}
+
+/// Decode the body of an `Escape:` keyword. Supports two layouts:
+/// - Legacy `MANA:N` (e.g. `1 B B:4`)
+/// - Forge cost-string `MANA ExileFromGrave<N/...>` (e.g.
+///   `R R W W ExileFromGrave<5/Card.Other/other>` for Phlage), where the exile
+///   cost is a `CostExile` part rather than a trailing integer.
+fn escape_info_from_rest(rest: &str) -> EscapeInfo {
+    if let Some(idx) = rest.find("ExileFromGrave<") {
+        let mana_cost = rest[..idx].trim().to_string();
+        let after = &rest[idx + "ExileFromGrave<".len()..];
+        let exile_count = after
+            .split(|c: char| c == '/' || c == '>')
+            .next()
+            .and_then(|s| s.trim().parse::<i32>().ok())
+            .unwrap_or(0);
+        return EscapeInfo {
+            mana_cost,
+            exile_count,
+        };
+    }
+    if let Some(last_colon) = rest.rfind(':') {
+        return EscapeInfo {
+            mana_cost: rest[..last_colon].trim().to_string(),
+            exile_count: rest[last_colon + 1..].trim().parse().unwrap_or(0),
+        };
+    }
+    EscapeInfo {
+        mana_cost: rest.trim().to_string(),
+        exile_count: 0,
+    }
 }
 
 /// Parse kicker info from a KeywordCollection.
@@ -208,20 +234,12 @@ pub fn parse_kicker(keywords: &[String]) -> Option<KickerInfo> {
 }
 
 /// Parse escape info from keywords.
-/// Format: "Escape:MANA_COST:EXILE_COUNT" e.g. "Escape:3 B B:4"
+/// Supports `Escape:MANA:N` (legacy) and `Escape:MANA ExileFromGrave<N/...>`
+/// (Forge cost-string with a `CostExile` part).
 pub fn parse_escape(keywords: &[String]) -> Option<EscapeInfo> {
     for kw in keywords {
         if let Some(rest) = kw.strip_prefix("Escape:") {
-            // Split from right to find the exile count (last segment)
-            if let Some(last_colon) = rest.rfind(':') {
-                let mana_cost = &rest[..last_colon];
-                let exile_str = &rest[last_colon + 1..];
-                let exile_count = exile_str.parse::<i32>().unwrap_or(0);
-                return Some(EscapeInfo {
-                    mana_cost: mana_cost.to_string(),
-                    exile_count,
-                });
-            }
+            return Some(escape_info_from_rest(rest));
         }
     }
     None

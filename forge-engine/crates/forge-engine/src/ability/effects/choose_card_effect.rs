@@ -41,8 +41,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // from `Defined$`/`DefinedPlayer$` (default = activator). Each chooser
     // runs the prompt independently — needed by Ajani Nacatl Avenger's [-4]
     // ultimate where every opponent picks from their own permanents.
-    let choosers: Vec<crate::ids::PlayerId> = if let Some(def) = sa.defined_player() {
-        crate::ability::effects::resolve_defined_players(def, sa.activating_player, ctx.game)
+    let chooser_ref = sa.defined_player().or_else(|| sa.defined());
+    let choosers: Vec<crate::ids::PlayerId> = if let Some(def) = chooser_ref {
+        let players =
+            crate::ability::effects::resolve_defined_players(def, sa.activating_player, ctx.game);
+        if players.is_empty() {
+            vec![sa.activating_player]
+        } else {
+            players
+        }
     } else {
         vec![sa.activating_player]
     };

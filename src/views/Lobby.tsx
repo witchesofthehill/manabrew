@@ -430,7 +430,8 @@ export default function Lobby() {
           {/* Hosted rooms are observer/AI-host rooms (e.g. the self-hosted
               node's) — not human PvP tables, so keep them out of the lobby
               browse list. The hosted "Play vs AI" flow still discovers them
-              server-side. */}
+              server-side. This is browse-only: a direct room ID could still be
+              joined until forge-server enforces it (#30). */}
           <TablesList
             rooms={rooms.filter((room) => !room.hosted)}
             currentRoom={currentRoom}

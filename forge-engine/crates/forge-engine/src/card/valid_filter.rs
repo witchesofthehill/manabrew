@@ -825,6 +825,7 @@ fn matches_context_predicate(
             context.remembered_players.contains(&card.controller)
         }
         ContextPredicate::TargetedPlayerCtrl => context.targeted_players.contains(&card.controller),
+        ContextPredicate::TargetedBy => context.targeted_cards.contains(&card.id),
         ContextPredicate::ControlledBy(reference) => {
             matches_controlled_by_reference(reference, card, context)
         }

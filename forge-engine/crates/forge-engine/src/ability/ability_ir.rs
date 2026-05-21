@@ -246,6 +246,16 @@ pub struct SpellAbilityIr {
     pub counter_type_text: Option<String>,
     pub counter_type: Option<CounterType>,
     pub simple_counter_type_choice_path: bool,
+    /// `CounterType2$` — secondary counter type for effects like
+    /// `PutCounterAll` that place two counter types in one pass.
+    pub counter_type_2_text: Option<String>,
+    pub counter_type_2: Option<CounterType>,
+    /// `CounterNum2$` — count expression for the secondary counter type.
+    pub counter_num_2_text: Option<String>,
+    /// `ValidCards2$` — optional second filter applied to the secondary counter pass.
+    pub valid_cards_2_selector: Option<CompiledSelector>,
+    /// `ValidZone2$` — optional zone override for the secondary filter.
+    pub valid_zone_2: Option<ZoneType>,
     pub modular: bool,
     pub adapt: bool,
     pub monstrosity: bool,
@@ -746,6 +756,11 @@ impl SpellAbilityIr {
             damage_amount_text: params.get(keys::DAMAGE_AMOUNT).map(str::to_string),
             counter_type_text: params.get(keys::COUNTER_TYPE).map(str::to_string),
             counter_type: params.get(keys::COUNTER_TYPE).map(parse_counter_type),
+            counter_type_2_text: params.get("CounterType2").map(str::to_string),
+            counter_type_2: params.get("CounterType2").map(parse_counter_type),
+            counter_num_2_text: params.get("CounterNum2").map(str::to_string),
+            valid_cards_2_selector: params.get("ValidCards2").map(CompiledSelector::parse),
+            valid_zone_2: parsed_zone_type(params.get("ValidZone2")),
             simple_counter_type_choice_path: params.get(keys::COUNTER_TYPE).is_some()
                 && ![
                     "EachExistingCounter",

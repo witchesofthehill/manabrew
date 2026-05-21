@@ -709,6 +709,19 @@ impl Card {
         keywords: Vec<String>,
         abilities: Vec<String>,
     ) -> Self {
+        // Synthetic keywords mirroring Java `CardState.getReplacementEffects()`.
+        // Sagas without `Read ahead` enter with one lore counter (CR 714.2);
+        // Forge models this as an automatic `etbCounter:LORE:1` replacement.
+        let mut keywords = keywords;
+        if type_line.has_subtype("Saga")
+            && !keywords
+                .iter()
+                .any(|k| k.eq_ignore_ascii_case("Read ahead"))
+            && !keywords.iter().any(|k| k.starts_with("etbCounter:LORE"))
+        {
+            keywords.push("etbCounter:LORE:1".to_string());
+        }
+
         // Parse activated abilities from raw ability strings.
         let activated_abilities: Vec<ActivatedAbility> = abilities
             .iter()

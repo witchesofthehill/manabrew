@@ -1006,22 +1006,37 @@ pub fn matches_valid_cards_for_sa(
     selector: Option<&CompiledSelector>,
     default_filter: &str,
 ) -> bool {
+    // Walk the sub-ability chain to find every target chosen by this SA.
+    // Mirrors Java's `sp.getRootAbility().isTargeting(card)` — sub-abilities
+    // like `Creature.targetedBy` need access to the chain's targets.
+    let targeted_cards = sa.find_targeted_cards();
+    let targeted_players = sa.find_targeted_players();
     match (selector, sa.source) {
-        (Some(selector), Some(source_id)) => valid_filter::matches_valid_card_selector_in_game(
-            selector,
-            card,
-            game.card(source_id),
-            game,
-        ),
+        (Some(selector), Some(source_id)) => {
+            let source = game.card(source_id);
+            valid_filter::matches_valid_card_selector_with_context(
+                selector,
+                card,
+                valid_filter::MatchContext::from_source(source)
+                    .with_game(game)
+                    .with_targets(&targeted_cards, &targeted_players)
+                    .with_spell_ability(sa),
+            )
+        }
         (Some(selector), None) => {
             matches_valid_cards_selector_opt(Some(selector), card, sa.activating_player)
         }
-        (None, Some(source_id)) => valid_filter::matches_valid_card_selector_in_game(
-            &cached_compiled_selector(default_filter),
-            card,
-            game.card(source_id),
-            game,
-        ),
+        (None, Some(source_id)) => {
+            let source = game.card(source_id);
+            valid_filter::matches_valid_card_selector_with_context(
+                &cached_compiled_selector(default_filter),
+                card,
+                valid_filter::MatchContext::from_source(source)
+                    .with_game(game)
+                    .with_targets(&targeted_cards, &targeted_players)
+                    .with_spell_ability(sa),
+            )
+        }
         (None, None) => matches_valid_cards(card, default_filter, sa.activating_player),
     }
 }

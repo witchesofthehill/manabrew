@@ -386,7 +386,32 @@ impl GameState {
                             amount
                         };
                         if final_amount > 0 {
+                            let old_value = self.cards[card_id.index()]
+                                .counters
+                                .get(&ct)
+                                .copied()
+                                .unwrap_or(0);
                             self.cards[card_id.index()].add_counter(&ct, final_amount);
+                            // CR 122.1c / Java Card.addCounter: fire CounterAdded
+                            // once per individual counter so chapter triggers
+                            // (`CounterAmount$ EQ N`) see the running total.
+                            if let Some(th) = trigger_handler.as_deref_mut() {
+                                let cause_player = self.cards[card_id.index()].controller;
+                                let ct_label = format!("{:?}", ct);
+                                for i in 0..final_amount {
+                                    th.run_trigger(
+                                        TriggerType::CounterAdded,
+                                        RunParams {
+                                            card: Some(card_id),
+                                            counter_type: Some(ct_label.clone()),
+                                            counter_amount: Some(old_value + i + 1),
+                                            cause_player: Some(cause_player),
+                                            ..Default::default()
+                                        },
+                                        false,
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -1131,6 +1156,49 @@ impl GameState {
                 continue;
             }
 
+            self.move_battlefield_card_to_graveyard_for_sba(cid, &mut trigger_handler, &mut agents);
+            any_changes = true;
+        }
+
+        // CR 714.5 / Java GameAction.stateBasedAction_Saga: sacrifice a saga
+        // when LORE counters reach its final chapter and no chapter ability of
+        // that saga is currently on the stack.
+        let saga_candidates: Vec<CardId> = self
+            .player_order
+            .clone()
+            .iter()
+            .flat_map(|&pid| self.cards_in_zone(ZoneType::Battlefield, pid).to_vec())
+            .collect();
+        for cid in saga_candidates {
+            let (final_chapter, lore) = {
+                let card = self.card(cid);
+                if !card.type_line.has_subtype("Saga") {
+                    continue;
+                }
+                let final_chapter = card
+                    .triggers
+                    .iter()
+                    .filter_map(|t| t.get_chapter())
+                    .max()
+                    .unwrap_or(0);
+                if final_chapter == 0 {
+                    continue;
+                }
+                let lore = card.counter_count(&CounterType::Lore);
+                (final_chapter, lore)
+            };
+            if lore < final_chapter {
+                continue;
+            }
+            // A pending chapter ability on the stack keeps the saga alive
+            // until that ability resolves (Java SpellAbility.isChapter()).
+            if self
+                .stack
+                .iter()
+                .any(|entry| entry.spell_ability.source == Some(cid))
+            {
+                continue;
+            }
             self.move_battlefield_card_to_graveyard_for_sba(cid, &mut trigger_handler, &mut agents);
             any_changes = true;
         }

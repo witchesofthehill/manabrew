@@ -343,6 +343,10 @@ pub enum ContextPredicate {
     ExiledWithSource,
     RememberedPlayerCtrl,
     TargetedPlayerCtrl,
+    /// `targetedBy` — the candidate card is one of the SA chain's targets.
+    /// Used by sub-abilities like `Creature.targetedBy` that operate on the
+    /// targets chosen by an earlier link in the ability chain.
+    TargetedBy,
     ActivePlayerCtrl,
     DefenderCtrl,
     EnchantedController,
@@ -1137,6 +1141,7 @@ fn lower_selector_part(value: &str, is_first_part: bool) -> SelectorPredicate {
             SelectorPredicate::Context(ContextPredicate::RememberedPlayerCtrl)
         }
         "targetedplayerctrl" => SelectorPredicate::Context(ContextPredicate::TargetedPlayerCtrl),
+        "targetedby" => SelectorPredicate::Context(ContextPredicate::TargetedBy),
         "activeplayerctrl" => SelectorPredicate::Context(ContextPredicate::ActivePlayerCtrl),
         "defenderctrl" => SelectorPredicate::Context(ContextPredicate::DefenderCtrl),
         "enchantedcontroller" => SelectorPredicate::Context(ContextPredicate::EnchantedController),

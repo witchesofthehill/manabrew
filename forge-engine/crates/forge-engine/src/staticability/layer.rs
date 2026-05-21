@@ -393,6 +393,22 @@ pub fn apply_continuous_effects(game: &mut GameState) {
                         });
                     }
 
+                    // CR 305.7 / Blood Moon: when an effect changes a land's
+                    // subtype to a basic land type, the land loses all its
+                    // intrinsic abilities. Mirrors Java
+                    // `CardState.LandTraitChanges` clearing intrinsics when
+                    // `hasRemoveIntrinsic()` (RemoveLandTypes$ True) is set.
+                    if sa.ir.remove_land_types && game.card(target).type_line.is_land() {
+                        pending.push(PendingEffect {
+                            layer: Layer::Ability,
+                            target,
+                            kind: EffectKind::RemoveAllCardTraits {
+                                timestamp: source_card.zone_timestamp as i64,
+                                static_id: static_layer_trait_id(source_id, sa_idx).wrapping_add(1),
+                            },
+                        });
+                    }
+
                     // AddAbility$ — grant an activated ability to the affected card.
                     // The value is an SVar name on the source card containing the ability text.
                     // E.g. Abundant Growth: AddAbility$ AbundantGrowthTap

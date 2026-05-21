@@ -12,6 +12,9 @@ use super::trigger::TriggerBehavior;
 pub struct TriggerCounterAdded {
     pub valid_card: Option<crate::parsing::CompiledSelector>,
     pub counter_type: Option<String>,
+    /// `CounterAmount$ <OP><N>` — used by Saga chapter triggers
+    /// (e.g. `EQ1` matches when the running lore-counter total reaches 1).
+    pub counter_amount: Option<String>,
 }
 
 impl TriggerCounterAdded {
@@ -19,6 +22,7 @@ impl TriggerCounterAdded {
         Box::new(Self {
             valid_card: params.selector_cloned(keys::VALID_CARD),
             counter_type: params.get_cloned(keys::COUNTER_TYPE),
+            counter_amount: params.get_cloned("CounterAmount"),
         })
     }
 }
@@ -35,11 +39,24 @@ impl TriggerBehavior for TriggerCounterAdded {
         params: &RunParams,
         game: &GameState,
     ) -> bool {
-        trigger.matches_optional_valid_card_filter(&self.valid_card, params.card, game)
-            && super::trigger::Trigger::matches_counter_type_filter(
-                &self.counter_type,
-                &params.counter_type,
-            )
+        if !trigger.matches_optional_valid_card_filter(&self.valid_card, params.card, game) {
+            return false;
+        }
+        if !super::trigger::Trigger::matches_counter_type_filter(
+            &self.counter_type,
+            &params.counter_type,
+        ) {
+            return false;
+        }
+        if let Some(filter) = self.counter_amount.as_deref() {
+            let Some(actual) = params.counter_amount else {
+                return false;
+            };
+            if !crate::parsing::compare::compare_expr(actual, filter) {
+                return false;
+            }
+        }
+        true
     }
 
     fn set_triggering_objects(

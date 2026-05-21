@@ -50,8 +50,10 @@ impl Card {
                         "AB$ Mana | Cost$ T | Produced$ {} | SpellDescription$ {}",
                         letter, desc
                     );
-                    let idx = self.abilities.len();
-                    self.abilities.push(raw.clone());
+                    let idx = self.activated_abilities.len();
+                    if !self.abilities.contains(&raw) {
+                        self.abilities.push(raw.clone());
+                    }
                     if let Some(ab) = parse_activated_ability(&raw, idx) {
                         self.activated_abilities.push(ab);
                     }
@@ -415,6 +417,42 @@ impl Card {
             self.generate_keyword_trigger_combat(&kw, &mut next_id);
             self.generate_keyword_trigger_zone(&kw, &mut next_id);
             self.generate_keyword_trigger_misc(&kw, &mut next_id);
+            self.generate_keyword_trigger_chapter(&kw, &mut next_id);
+        }
+    }
+
+    /// Saga `K:Chapter:N:SVar1,SVar2,...` keyword. Mirrors Java
+    /// `CardFactoryUtil.addTriggerAbility()` lines 911-948: one
+    /// `Mode$ CounterAdded` trigger per chapter, with `CounterAmount$ EQ N`
+    /// filtering on the running lore-counter total.
+    fn generate_keyword_trigger_chapter(&mut self, kw: &str, next_id: &mut u32) {
+        let Some(rest) = kw.strip_prefix("Chapter:") else {
+            return;
+        };
+        let mut parts = rest.split(':');
+        let Some(count_str) = parts.next() else {
+            return;
+        };
+        let Some(abilities_str) = parts.next() else {
+            return;
+        };
+        let chapter_count: usize = match count_str.trim().parse() {
+            Ok(n) if n > 0 => n,
+            _ => return,
+        };
+        let abilities: Vec<&str> = abilities_str.split(',').map(str::trim).collect();
+        if abilities.len() != chapter_count {
+            return;
+        }
+        for (idx, svar_name) in abilities.iter().enumerate() {
+            let chapter = idx + 1;
+            let raw = format!(
+                "Mode$ CounterAdded | ValidCard$ Card.Self | TriggerZones$ Battlefield | Chapter$ {chapter} | CounterType$ LORE | CounterAmount$ EQ{chapter} | Execute$ {svar_name} | TriggerDescription$ Chapter {chapter}"
+            );
+            if let Some(mut trig) = parse_trigger(&raw, next_id) {
+                trig.execute = (*svar_name).to_string();
+                self.add_trigger(trig);
+            }
         }
     }
 
@@ -730,6 +768,20 @@ impl Card {
     }
 
     fn generate_keyword_trigger_misc(&mut self, kw: &str, next_id: &mut u32) {
+        // Ascend (CR 702.131) — once your controller has 10+ permanents, you
+        // get the city's blessing for the rest of the game. Mirrors Java
+        // `CardFactoryUtil.java` lines 737-750.
+        if kw == "Ascend" && self.type_line.is_permanent() {
+            let raw = "Mode$ Always | TriggerZones$ Battlefield | Secondary$ True | Static$ True | Blessing$ False | IsPresent$ Permanent.YouCtrl | PresentCompare$ GE10 | Execute$ TrigAscend | TriggerDescription$ Ascend";
+            if let Some(mut trig) = parse_trigger(raw, next_id) {
+                trig.execute = "TrigAscend".to_string();
+                self.add_trigger(trig);
+            }
+            self.svars
+                .entry("TrigAscend".to_string())
+                .or_insert_with(|| "DB$ Ascend | Defined$ You".to_string());
+        }
+
         if let Some(cost_str) = crate::keyword::extract_keyword_cost_str(kw, "Ward") {
             let raw = "Mode$ BecomesTarget | ValidSource$ SpellAbility.OppCtrl | ValidTarget$ Card.Self | Secondary$ True | TriggerZones$ Battlefield | TriggerDescription$ Ward";
             if let Some(mut trig) = parse_trigger(raw, next_id) {

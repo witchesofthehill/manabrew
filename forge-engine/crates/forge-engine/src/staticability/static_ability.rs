@@ -380,6 +380,7 @@ pub struct StaticAbilityIr {
     pub gain_control_param: bool,
     pub add_type: bool,
     pub remove_type: bool,
+    pub remove_land_types: bool,
     pub add_color: bool,
     pub remove_color: bool,
     pub set_color: bool,
@@ -585,6 +586,9 @@ impl StaticAbilityIr {
             gain_control_param: raw.contains_key(keys::GAIN_CONTROL),
             add_type: raw.contains_key(keys::ADD_TYPE),
             remove_type: raw.contains_key(keys::REMOVE_TYPE),
+            remove_land_types: raw
+                .get(keys::REMOVE_LAND_TYPES)
+                .is_some_and(|v| v.eq_ignore_ascii_case("true")),
             add_color: raw.contains_key(keys::ADD_COLOR),
             remove_color: raw.contains_key(keys::REMOVE_COLOR),
             set_color: raw.contains_key(keys::SET_COLOR),
@@ -870,6 +874,10 @@ pub struct CardFilter {
     pub owner_only: bool,
     /// Exclude the source card itself (`Other` qualifier).
     pub other_only: bool,
+    /// Only match non-basic permanents (`nonBasic` qualifier — e.g. Blood Moon affects `Land.nonBasic`).
+    pub nonbasic_only: bool,
+    /// Only match basic permanents (`Basic` qualifier).
+    pub basic_only: bool,
     /// Only match commanders.
     pub commander_only: bool,
     /// Only match cards with this subtype (e.g. `"Goblin"`, `"Warrior"`).
@@ -926,6 +934,8 @@ impl CardFilter {
             "Permanent" | "Card" | "" => {}
             "nonLand" | "NonLand" => f.nonland_only = true,
             "Land" => f.land_only = true,
+            "nonBasic" | "NonBasic" => f.nonbasic_only = true,
+            "Basic" => f.basic_only = true,
             "YouControl" | "YouCtrl" => f.controller_only = true,
             "YouOwn" => f.owner_only = true,
             "Other" => f.other_only = true,
@@ -982,6 +992,12 @@ impl CardFilter {
             return false;
         }
         if self.land_only && !card.is_land() {
+            return false;
+        }
+        if self.nonbasic_only && card.type_line.is_basic() {
+            return false;
+        }
+        if self.basic_only && !card.type_line.is_basic() {
             return false;
         }
         if let Some(required) = self.required_color {

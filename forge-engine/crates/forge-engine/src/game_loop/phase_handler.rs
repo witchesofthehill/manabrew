@@ -148,6 +148,46 @@ impl GameLoop {
                             emit_phase_trigger: true,
                         },
                     );
+                    // CR 714.3 / Java PhaseHandler.onPhaseBegin MAIN1:
+                    // each saga the active player controls gets a lore counter
+                    // at the start of its controller's pre-combat main phase.
+                    {
+                        let active = game.active_player();
+                        let saga_ids: Vec<crate::ids::CardId> = game
+                            .cards_in_zone(ZoneType::Battlefield, active)
+                            .iter()
+                            .copied()
+                            .filter(|&cid| {
+                                let card = game.card(cid);
+                                card.type_line.has_subtype("Saga")
+                                    && card.triggers.iter().any(|t| t.is_chapter())
+                            })
+                            .collect();
+                        for cid in saga_ids {
+                            let lore = crate::card::CounterType::Lore;
+                            if crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
+                                &game.cards,
+                                game.card(cid),
+                                &lore,
+                            ) {
+                                continue;
+                            }
+                            let old_value =
+                                game.card(cid).counters.get(&lore).copied().unwrap_or(0);
+                            game.card_mut(cid).add_counter(&lore, 1);
+                            self.trigger_handler.run_trigger(
+                                crate::trigger::TriggerType::CounterAdded,
+                                crate::event::RunParams {
+                                    card: Some(cid),
+                                    counter_type: Some(format!("{:?}", lore)),
+                                    counter_amount: Some(old_value + 1),
+                                    cause_player: Some(active),
+                                    ..Default::default()
+                                },
+                                false,
+                            );
+                        }
+                    }
                     if game
                         .cards_in_zone(ZoneType::Battlefield, game.active_player())
                         .iter()

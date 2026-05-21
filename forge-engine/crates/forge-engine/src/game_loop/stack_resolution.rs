@@ -845,6 +845,13 @@ impl GameLoop {
                 sa
             };
             self.resolve_single_effect(game, agents, sa_ref, parent_target_card);
+            // Java parity (GameAction.checkStaticAbilities line 1225, plus
+            // `TriggerHandler.runWaitingTrigger` resolving static triggers
+            // inline via `runSingleTrigger`): fire `TriggerType::Always` after
+            // each sub-ability resolves so static triggers like `K:Ascend`
+            // re-evaluate before the next link runs. Static triggers bypass
+            // the stack (CR 603.6c) — resolve the override SA directly.
+            self.resolve_static_always_triggers(game, agents);
             parent_target_card = sa_ref.target_chosen.target_card;
             parent_target_player = sa_ref.target_chosen.target_player;
             parent_target_stack_entry = sa_ref.target_chosen.target_stack_entry;
@@ -1025,6 +1032,72 @@ impl GameLoop {
     }
 
     /// Resolve a single effect line by delegating to the effects module.
+    /// Mirrors Java `TriggerHandler.runWaitingTrigger` lines 313-321: when a
+    /// trigger is `Static$ True` (e.g. `K:Ascend` granting the city's blessing),
+    /// its override ability resolves inline outside the stack (CR 603.6c).
+    /// Without this, sub-abilities that read the same player state in the same
+    /// resolution chain see stale values.
+    fn resolve_static_always_triggers(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+    ) {
+        // Iterate to a fixed point: a single resolution can change game state
+        // such that another `Static$ True` trigger becomes eligible. The
+        // requirements check naturally terminates the loop (`Blessing$ False`
+        // becomes false once blessing is granted, etc.).
+        let mut iterations = 0;
+        loop {
+            iterations += 1;
+            if iterations > 128 {
+                // Safety bound mirroring Java's `loopCount < 999` static-trigger
+                // limiter; in practice this loop converges in 1-2 iterations.
+                return;
+            }
+            let candidates: Vec<(CardId, usize)> = game
+                .cards
+                .iter()
+                .flat_map(|card| {
+                    let cid = card.id;
+                    card.triggers
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, t)| {
+                            t.kind == TriggerType::Always
+                                && t.static_trigger
+                                && t.get_active_zone().contains(&card.zone)
+                        })
+                        .map(move |(idx, _)| (cid, idx))
+                })
+                .collect();
+            let mut resolved_any = false;
+            for (host_card, trigger_index) in candidates {
+                let card = game.card(host_card);
+                if trigger_index >= card.triggers.len() {
+                    continue;
+                }
+                let trigger = &card.triggers[trigger_index];
+                if !trigger.requirements_check(game, host_card) {
+                    continue;
+                }
+                let host_controller = card.controller;
+                let sa = trigger.build_triggered_spell_ability(
+                    game,
+                    host_card,
+                    host_controller,
+                    trigger_index,
+                    &RunParams::default(),
+                );
+                self.resolve_single_effect(game, agents, &sa, None);
+                resolved_any = true;
+                break; // re-scan; the resolved effect may have unlocked others.
+            }
+            if !resolved_any {
+                return;
+            }
+        }
+    }
+
     pub(crate) fn resolve_single_effect(
         &mut self,
         game: &mut GameState,

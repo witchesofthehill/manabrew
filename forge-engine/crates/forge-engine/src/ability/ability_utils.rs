@@ -144,6 +144,32 @@ pub fn get_defined_cards(
     if let Ok(token) = defined.parse::<DefinedCardToken>() {
         return resolve_defined_card_token(token, game, host_card, activating_player);
     }
+    // `Defined$ Valid <filter>` — Java's `AbilityUtils.getDefinedObjects`
+    // resolves this by walking the battlefield and applying the filter.
+    if let Some(filter) = defined.strip_prefix("Valid ") {
+        let filter = filter.trim();
+        if filter.is_empty() {
+            return Vec::new();
+        }
+        let player = activating_player.unwrap_or_else(|| {
+            host_card
+                .map(|c| game.card(c).controller)
+                .unwrap_or(PlayerId(0))
+        });
+        return game
+            .cards
+            .iter()
+            .filter(|card| card.zone == ZoneType::Battlefield)
+            .map(|card| card.id)
+            .filter(|&cid| {
+                if let Some(source_id) = host_card {
+                    matches_valid_cards_for_source(game, source_id, game.card(cid), None, filter)
+                } else {
+                    matches_valid_cards(game.card(cid), filter, player)
+                }
+            })
+            .collect();
+    }
     // Prefix-based tokens.
     if let Some(rest) = defined.strip_prefix("ValidGraveyard") {
         let filter = rest.trim();

@@ -358,6 +358,11 @@ pub fn resolve_effect_chain_with_parent(
         resolve_effect(ctx, sa_ref);
         parent_target_card = sa_ref.target_chosen.target_card.or(parent_target_card);
         parent_target_player = sa_ref.target_chosen.target_player.or(parent_target_player);
+        // Java parity (GameAction.checkStaticAbilities line 1225): after each
+        // sub-ability resolves, fire `Always` so static triggers like Ascend
+        // re-evaluate before the next link runs. Without this, sub-abilities
+        // that check `Condition$ Blessing` see stale state.
+        fire_always_between_sub_abilities(ctx);
         current = if sub_ability_handled_internally(sa_ref) {
             None
         } else {
@@ -367,6 +372,23 @@ pub fn resolve_effect_chain_with_parent(
         if ctx.game.game_over {
             break;
         }
+    }
+}
+
+fn fire_always_between_sub_abilities(ctx: &mut EffectContext<'_>) {
+    let pending = ctx.trigger_handler.run_trigger_with_game(
+        ctx.game,
+        crate::trigger::TriggerType::Always,
+        crate::event::RunParams::default(),
+        false,
+    );
+    if !pending.is_empty() {
+        let _ = ctx.trigger_handler.process_pending_triggers(
+            ctx.mana_pools,
+            ctx.game,
+            ctx.agents,
+            pending,
+        );
     }
 }
 

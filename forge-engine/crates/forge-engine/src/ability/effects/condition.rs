@@ -95,8 +95,16 @@ pub(super) fn check_condition(game: &GameState, sa: &SpellAbility) -> bool {
 
     // Check Condition$ Kicked (most common pattern: simple kicked gate)
     if let Some(cond) = sa.ir.condition.as_deref() {
-        if cond == "Kicked" {
-            return sa.kicked;
+        match cond {
+            "Kicked" => return sa.kicked,
+            "Blessing" => return crate::player::has_blessing(game, activator),
+            "Hellbent" => return crate::player::has_hellbent(game, activator),
+            "Threshold" => return crate::player::has_threshold(game, activator),
+            "Metalcraft" => return crate::player::has_metalcraft(game, activator),
+            "Delirium" => return crate::player::has_delirium(game, activator),
+            "Revolt" => return crate::player::has_revolt(game, activator),
+            "Desert" => return crate::player::has_desert(game, activator),
+            _ => {}
         }
     }
     // Check ConditionCheckSVar$ Kicked (SVar-based kicked gate)

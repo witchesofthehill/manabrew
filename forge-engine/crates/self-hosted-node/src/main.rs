@@ -121,6 +121,18 @@ async fn main() {
         info!(max_prompts, "java-forge self-play completed");
         return;
     }
+    if std::env::var("SELF_HOSTED_NODE_RUST_SELF_PLAY").is_ok() {
+        let max_turns = std::env::var("SELF_HOSTED_NODE_RUST_SELF_PLAY_TURNS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(200);
+        if let Err(error) = rust_backend::run_self_play(max_turns) {
+            error!(%error, "rust self-play failed");
+            std::process::exit(1);
+        }
+        info!(max_turns, "rust self-play completed");
+        return;
+    }
 
     let config = Config::from_env();
     if let Err(error) = run(config).await {

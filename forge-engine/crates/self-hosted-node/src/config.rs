@@ -108,10 +108,15 @@ impl Config {
 pub struct SelfPlayConfig {
     pub seats: Vec<DeckSelection>,
     pub starting_life: i32,
+    pub seed: u64,
 }
 
 impl SelfPlayConfig {
     pub fn from_env() -> Self {
+        let seed = env::var("SELF_HOSTED_NODE_SELF_PLAY_SEED")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(42);
         let starting_life = match env::var("SELF_HOSTED_NODE_SELF_PLAY_FORMAT")
             .ok()
             .and_then(|value| parse_format(&value))
@@ -139,6 +144,7 @@ impl SelfPlayConfig {
         Self {
             seats,
             starting_life,
+            seed,
         }
     }
 }

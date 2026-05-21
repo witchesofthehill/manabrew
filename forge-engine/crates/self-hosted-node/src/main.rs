@@ -115,7 +115,8 @@ async fn main() {
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(2_000);
-        if let Err(error) = java_backend::run_self_play(&cfg.seats, cfg.starting_life, max_prompts)
+        if let Err(error) =
+            java_backend::run_self_play(&cfg.seats, cfg.starting_life, cfg.seed, max_prompts)
         {
             error!(%error, "java-forge self-play failed");
             std::process::exit(1);
@@ -132,7 +133,9 @@ async fn main() {
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(200);
-        if let Err(error) = rust_backend::run_self_play(&cfg.seats, cfg.starting_life, max_turns) {
+        if let Err(error) =
+            rust_backend::run_self_play(&cfg.seats, cfg.starting_life, cfg.seed, max_turns)
+        {
             error!(%error, "rust self-play failed");
             std::process::exit(1);
         }

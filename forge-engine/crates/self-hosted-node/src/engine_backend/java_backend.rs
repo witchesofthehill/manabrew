@@ -50,6 +50,7 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
     let request = StartGameRequest::new(
         "self-hosted-java-smoke".to_string(),
         20,
+        42,
         vec![
             PlayerConfig::new("Smoke A".to_string(), &deck_a, None),
             PlayerConfig::new("Smoke B".to_string(), &deck_b, None),
@@ -121,6 +122,7 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
     let request = StartGameRequest::new(
         format!("self-hosted-java-scenario-{}", scenario.name()),
         20,
+        42,
         vec![
             PlayerConfig::new("Scenario A".to_string(), &scenario_deck("Swamp"), None),
             PlayerConfig::new("Scenario B".to_string(), &scenario_deck("Forest"), None),
@@ -150,6 +152,7 @@ pub fn run_scenario(_name: &str, _max_prompts: usize) -> Result<(), String> {
 pub fn run_self_play(
     seats: &[DeckSelection],
     starting_life: i32,
+    seed: u64,
     max_prompts: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
@@ -170,6 +173,7 @@ pub fn run_self_play(
     let request = StartGameRequest::new(
         "self-hosted-java-self-play".to_string(),
         starting_life,
+        seed,
         players,
     );
     let session_id = session.start_game(&request)?;
@@ -177,6 +181,7 @@ pub fn run_self_play(
         session_id,
         players = seats.len(),
         starting_life,
+        seed,
         max_prompts,
         "java-forge self-play session started"
     );
@@ -190,6 +195,7 @@ pub fn run_self_play(
 pub fn run_self_play(
     _seats: &[DeckSelection],
     _starting_life: i32,
+    _seed: u64,
     _max_prompts: usize,
 ) -> Result<(), String> {
     Err(
@@ -321,7 +327,7 @@ fn run_hosted_engine_game_inner(
             commander_names[index].clone(),
         ));
     }
-    let request = StartGameRequest::new(game_id.clone(), starting_life, players);
+    let request = StartGameRequest::new(game_id.clone(), starting_life, rand::random(), players);
     let session_id = session.start_game(&request)?;
     info!(game_id, session_id, "hosted java-forge session started");
 
@@ -1160,6 +1166,7 @@ fn classpath_separator() -> &'static str {
 pub struct StartGameRequest {
     game_id: String,
     starting_life: i32,
+    seed: u64,
     players: Vec<PlayerConfig>,
 }
 
@@ -1187,10 +1194,11 @@ struct StartGameResponse {
 }
 
 impl StartGameRequest {
-    pub fn new(game_id: String, starting_life: i32, players: Vec<PlayerConfig>) -> Self {
+    pub fn new(game_id: String, starting_life: i32, seed: u64, players: Vec<PlayerConfig>) -> Self {
         Self {
             game_id,
             starting_life,
+            seed,
             players,
         }
     }

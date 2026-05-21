@@ -114,6 +114,7 @@ impl Responder for RecordingResponder {
 pub fn run_self_play(
     seats: &[DeckSelection],
     starting_life: i32,
+    seed: u64,
     max_turns: u32,
 ) -> Result<(), String> {
     let mut prepared_players = Vec::with_capacity(seats.len());
@@ -141,11 +142,11 @@ pub fn run_self_play(
                 .ok()
         })
         .map(|file| Arc::new(Mutex::new(file)));
-    let mut rng = rand::rngs::StdRng::from_entropy();
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
     let abort_signal = Arc::new(AtomicBool::new(false));
     info!(
         players = seats.len(),
-        starting_life, max_turns, "rust self-play session started"
+        starting_life, seed, max_turns, "rust self-play session started"
     );
     let outcome = run_hosted_multiplayer_game(
         prepared_players,

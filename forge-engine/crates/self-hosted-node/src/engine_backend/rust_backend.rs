@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::env;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
+use std::sync::{mpsc as std_mpsc, Arc, Mutex, Once, OnceLock};
 
-use forge_agent_interface::agent_impl::PromptAgent;
+use forge_agent_interface::agent_impl::{PromptAgent, Responder};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 
@@ -94,6 +95,22 @@ pub fn run_hosted_engine_game(
     );
 }
 
+struct RecordingResponder {
+    inner: BotResponder,
+    record: Option<Arc<Mutex<std::fs::File>>>,
+}
+
+impl Responder for RecordingResponder {
+    fn respond(&mut self, prompt: AgentPrompt) -> PlayerAction {
+        if let Some(record) = &self.record {
+            if let (Ok(json), Ok(mut file)) = (serde_json::to_string(&prompt), record.lock()) {
+                let _ = writeln!(file, "{json}");
+            }
+        }
+        self.inner.respond(prompt)
+    }
+}
+
 pub fn run_self_play(
     seats: &[DeckSelection],
     starting_life: i32,
@@ -114,6 +131,16 @@ pub fn run_self_play(
     }
 
     let game_id = "self-hosted-rust-self-play".to_string();
+    let record = std::env::var("SELF_HOSTED_NODE_SELF_PLAY_RECORD")
+        .ok()
+        .and_then(|path| {
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .ok()
+        })
+        .map(|file| Arc::new(Mutex::new(file)));
     let mut rng = rand::rngs::StdRng::from_entropy();
     let abort_signal = Arc::new(AtomicBool::new(false));
     info!(
@@ -130,7 +157,10 @@ pub fn run_self_play(
             Box::new(PromptAgent::new(
                 pid,
                 game_id.clone(),
-                BotResponder::default(),
+                RecordingResponder {
+                    inner: BotResponder::default(),
+                    record: record.clone(),
+                },
             )) as Box<dyn PlayerAgent>
         },
     );

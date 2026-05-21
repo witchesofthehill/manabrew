@@ -38,7 +38,8 @@
     "build:wasm": "node scripts/build-wasm.mjs",
     "dev:web": "yarn build:wasm && vite",
     "build:web": "yarn build:wasm && tsc -b && vite build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:ui-prompts": "tsx --tsconfig tsconfig.app.json scripts/check-ui-prompt-handling.mts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

@@ -639,6 +639,16 @@ fn run_self_play_loop<B: JavaBridge>(
     let mut seen_prompt = false;
     let max_iterations = max_prompts.saturating_mul(200).max(2_000);
 
+    let mut recorder = std::env::var("SELF_HOSTED_NODE_SELF_PLAY_RECORD")
+        .ok()
+        .and_then(|path| {
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+                .ok()
+        });
+
     for _ in 0..max_iterations {
         // The Java game thread mutates zones while it runs; it only parks once a
         // prompt is pending. Snapshot only when a prompt is in hand (parked) or
@@ -674,6 +684,10 @@ fn run_self_play_loop<B: JavaBridge>(
                 .unwrap_or_default() as usize;
 
             let normalized = normalize_java_prompt(prompt.clone());
+            if let Some(file) = recorder.as_mut() {
+                use std::io::Write;
+                let _ = writeln!(file, "{normalized}");
+            }
             let agent_prompt = match serde_json::from_value::<AgentPrompt>(normalized.clone()) {
                 Ok(agent_prompt) => agent_prompt,
                 Err(err) => {

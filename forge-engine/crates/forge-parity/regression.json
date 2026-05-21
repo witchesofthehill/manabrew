@@ -98,5 +98,9 @@
   {
     "name": "starter_animar",
     "args": "--deck1 starter_deck_animar --deck2 starter_deck_animar --seed 42 --max-turns 40 --games 10"
+  },
+  {
+    "name": "starter_bant_rhythm",
+    "args": "--deck1 starter_deck_bant_rhythm --deck2 starter_deck_bant_rhythm --seed 42 --max-turns 40 --games 10"
   }
 ]

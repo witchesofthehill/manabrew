@@ -118,6 +118,9 @@ pub struct ScriptScanStats {
     pub svar_values_numeric_remembered: usize,
     pub svar_values_numeric_remembered_size: usize,
     pub svar_values_numeric_discarded_valid: usize,
+    pub svar_values_numeric_player_life_stat: usize,
+    pub svar_values_numeric_your_counters: usize,
+    pub svar_values_numeric_chosen_number: usize,
     pub svar_values_numeric_sacrificed_property: usize,
     pub svar_values_numeric_triggered_card_property: usize,
     pub svar_values_numeric_card_list_property: usize,
@@ -176,7 +179,7 @@ impl std::fmt::Display for ScriptScanStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Script scan: {} files, {} lines, {} abilities, {} SVars [SVar values: {} ability, {} params ({} piped, {} single-param), {} raw, numeric: {} Number, {} Count, {} PlayerCount, {} TriggerCount, {} SVar reference, {} Remembered, {} RememberedSize, {} DiscardedValid, {} Sacrificed property, {} TriggeredCard property, {} card-list property, {} player-list property, {} spell-ability property, {} paid-hash property, {} ReplaceCount property, {} runtime-value property; script diagnostics: {} missing colon, {} empty key, {} unknown field, {} missing ability record, {} missing SVar name; param diagnostics: {} missing delimiter, {} empty key, {} duplicate same-value key, {} duplicate different-value key; semantic values: {} total, {} ability record, {} symbol, {} produced mana, {} boolean, {} integer, {} amount, {} zone list, {} selector, {} reference, {} SVar reference, {} cost, {} text, {} delimited list, {} transform, {} comparison, {} expression, {} raw]",
+            "Script scan: {} files, {} lines, {} abilities, {} SVars [SVar values: {} ability, {} params ({} piped, {} single-param), {} raw, numeric: {} Number, {} Count, {} PlayerCount, {} TriggerCount, {} SVar reference, {} Remembered, {} RememberedSize, {} DiscardedValid, {} PlayerLifeStat, {} YourCounters, {} ChosenNumber, {} Sacrificed property, {} TriggeredCard property, {} card-list property, {} player-list property, {} spell-ability property, {} paid-hash property, {} ReplaceCount property, {} runtime-value property; script diagnostics: {} missing colon, {} empty key, {} unknown field, {} missing ability record, {} missing SVar name; param diagnostics: {} missing delimiter, {} empty key, {} duplicate same-value key, {} duplicate different-value key; semantic values: {} total, {} ability record, {} symbol, {} produced mana, {} boolean, {} integer, {} amount, {} zone list, {} selector, {} reference, {} SVar reference, {} cost, {} text, {} delimited list, {} transform, {} comparison, {} expression, {} raw]",
             self.files,
             self.lines,
             self.abilities,
@@ -194,6 +197,9 @@ impl std::fmt::Display for ScriptScanStats {
             self.svar_values_numeric_remembered,
             self.svar_values_numeric_remembered_size,
             self.svar_values_numeric_discarded_valid,
+            self.svar_values_numeric_player_life_stat,
+            self.svar_values_numeric_your_counters,
+            self.svar_values_numeric_chosen_number,
             self.svar_values_numeric_sacrificed_property,
             self.svar_values_numeric_triggered_card_property,
             self.svar_values_numeric_card_list_property,
@@ -651,6 +657,15 @@ fn record_svar_numeric_expression(
         }
         ScriptSVarNumericExpression::DiscardedValid { .. } => {
             stats.svar_values_numeric_discarded_valid += 1
+        }
+        ScriptSVarNumericExpression::PlayerLifeStat { .. } => {
+            stats.svar_values_numeric_player_life_stat += 1
+        }
+        ScriptSVarNumericExpression::YourCounters { .. } => {
+            stats.svar_values_numeric_your_counters += 1
+        }
+        ScriptSVarNumericExpression::ChosenNumber { .. } => {
+            stats.svar_values_numeric_chosen_number += 1
         }
         ScriptSVarNumericExpression::ObjectProperty { object, .. } => match object {
             ScriptSVarObjectRef::Sacrificed => stats.svar_values_numeric_sacrificed_property += 1,

@@ -273,6 +273,67 @@ pub enum ScriptSVarNumericExpression<'a> {
         object: ScriptSVarObjectRef<'a>,
         property: &'a str,
     },
+    PlayerLifeStat {
+        stat: PlayerLifeStat,
+        operators: &'a str,
+    },
+    YourCounters {
+        counter: PlayerCounterKind,
+        operators: &'a str,
+    },
+    ChosenNumber {
+        operators: &'a str,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PlayerLifeStat {
+    LifeYouGainedThisTurn,
+    LifeYouLostThisTurn,
+    LifeYourTeamGainedThisTurn,
+    LifeYouGainedTimesThisTurn,
+    LifeOppsLostThisTurn,
+}
+
+impl PlayerLifeStat {
+    pub fn parse_count_key(rest: &str) -> Option<(Self, &str)> {
+        let (key, operators) = match rest.split_once('/') {
+            Some((k, op)) => (k.trim(), op),
+            None => (rest.trim(), ""),
+        };
+        let stat = match key {
+            "LifeYouGainedThisTurn" => Self::LifeYouGainedThisTurn,
+            "LifeYouLostThisTurn" => Self::LifeYouLostThisTurn,
+            "LifeYourTeamGainedThisTurn" => Self::LifeYourTeamGainedThisTurn,
+            "LifeYouGainedTimesThisTurn" => Self::LifeYouGainedTimesThisTurn,
+            "LifeOppsLostThisTurn" => Self::LifeOppsLostThisTurn,
+            _ => return None,
+        };
+        Some((stat, operators))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PlayerCounterKind {
+    Energy,
+    Poison,
+    Radiation,
+}
+
+impl PlayerCounterKind {
+    pub fn parse_your_counters_suffix(suffix: &str) -> Option<(Self, &str)> {
+        let (key, operators) = match suffix.split_once('/') {
+            Some((k, op)) => (k.trim(), op),
+            None => (suffix.trim(), ""),
+        };
+        let kind = match key.to_ascii_uppercase().as_str() {
+            "ENERGY" => Self::Energy,
+            "POISON" => Self::Poison,
+            "RADIATION" => Self::Radiation,
+            _ => return None,
+        };
+        Some((kind, operators))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -310,6 +371,17 @@ pub enum OwnedSVarNumericExpression {
     ObjectProperty {
         object: OwnedSVarObjectRef,
         property: String,
+    },
+    PlayerLifeStat {
+        stat: PlayerLifeStat,
+        operators: String,
+    },
+    YourCounters {
+        counter: PlayerCounterKind,
+        operators: String,
+    },
+    ChosenNumber {
+        operators: String,
     },
 }
 
@@ -462,6 +534,19 @@ impl ScriptSVarNumericExpression<'_> {
                     property: (*property).to_string(),
                 }
             }
+            Self::PlayerLifeStat { stat, operators } => {
+                OwnedSVarNumericExpression::PlayerLifeStat {
+                    stat: *stat,
+                    operators: (*operators).to_string(),
+                }
+            }
+            Self::YourCounters { counter, operators } => OwnedSVarNumericExpression::YourCounters {
+                counter: *counter,
+                operators: (*operators).to_string(),
+            },
+            Self::ChosenNumber { operators } => OwnedSVarNumericExpression::ChosenNumber {
+                operators: (*operators).to_string(),
+            },
         }
     }
 }
@@ -948,7 +1033,21 @@ pub fn parse_script_svar_numeric_expression<'a>(
     if let Some(rest) = value.strip_prefix("Number$") {
         return Some(ScriptSVarNumericExpression::Number(rest.trim()));
     }
-    if value.starts_with("Count$") {
+    if let Some(rest) = value.strip_prefix("Count$") {
+        if let Some((stat, operators)) = PlayerLifeStat::parse_count_key(rest) {
+            return Some(ScriptSVarNumericExpression::PlayerLifeStat { stat, operators });
+        }
+        if let Some(suffix) = rest.strip_prefix("YourCounters") {
+            if let Some((counter, operators)) =
+                PlayerCounterKind::parse_your_counters_suffix(suffix)
+            {
+                return Some(ScriptSVarNumericExpression::YourCounters { counter, operators });
+            }
+        }
+        if let Some(suffix) = rest.strip_prefix("ChosenNumber") {
+            let operators = suffix.strip_prefix('/').unwrap_or(suffix);
+            return Some(ScriptSVarNumericExpression::ChosenNumber { operators });
+        }
         return Some(ScriptSVarNumericExpression::Count(value));
     }
     if value.starts_with("PlayerCount") && value.contains('$') {

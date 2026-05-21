@@ -6,7 +6,8 @@ use crate::ids::{CardId, PlayerId};
 use crate::parsing::compare::compare_expr;
 use crate::spellability::SpellAbility;
 use forge_card_script::{
-    parse_script_svar_numeric_expression, ScriptSVarNumericExpression, ScriptSVarObjectRef,
+    parse_script_svar_numeric_expression, PlayerCounterKind, PlayerLifeStat,
+    ScriptSVarNumericExpression, ScriptSVarObjectRef,
 };
 
 fn parse_trigger_int_values(sa: &SpellAbility, key: &str) -> Vec<i32> {
@@ -385,6 +386,37 @@ fn cards_from_ability_value(value: &crate::event::AbilityValue) -> Vec<CardId> {
     }
 }
 
+fn resolve_player_life_stat(stat: PlayerLifeStat, game: &GameState, controller: PlayerId) -> i32 {
+    match stat {
+        PlayerLifeStat::LifeYouGainedThisTurn => game.player(controller).life_gained_this_turn,
+        PlayerLifeStat::LifeYouLostThisTurn => game.player(controller).life_lost_this_turn,
+        PlayerLifeStat::LifeYourTeamGainedThisTurn => {
+            game.player(controller).life_gained_by_team_this_turn
+        }
+        PlayerLifeStat::LifeYouGainedTimesThisTurn => {
+            game.player(controller).life_gained_times_this_turn
+        }
+        PlayerLifeStat::LifeOppsLostThisTurn => {
+            crate::player::PlayerCollection::opponents_of(game, controller)
+                .into_iter()
+                .map(|opp| game.player(opp).life_lost_this_turn)
+                .sum()
+        }
+    }
+}
+
+fn resolve_player_counter(
+    counter: PlayerCounterKind,
+    game: &GameState,
+    controller: PlayerId,
+) -> i32 {
+    match counter {
+        PlayerCounterKind::Energy => game.player(controller).energy_counters,
+        PlayerCounterKind::Poison => game.player(controller).poison_counters,
+        PlayerCounterKind::Radiation => game.player(controller).radiation_counters,
+    }
+}
+
 fn resolve_lowered_svar_expression(
     expression: &ScriptSVarNumericExpression<'_>,
     game: &GameState,
@@ -427,6 +459,30 @@ fn resolve_lowered_svar_expression(
         ScriptSVarNumericExpression::DiscardedValid { filter, times } => Some(
             resolve_discarded_valid_svar(game, source_id, filter, *times),
         ),
+        ScriptSVarNumericExpression::PlayerLifeStat { stat, operators } => Some(do_x_math(
+            resolve_player_life_stat(*stat, game, controller),
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        )),
+        ScriptSVarNumericExpression::YourCounters { counter, operators } => Some(do_x_math(
+            resolve_player_counter(*counter, game, controller),
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        )),
+        ScriptSVarNumericExpression::ChosenNumber { operators } => Some(do_x_math(
+            game.card(source_id).chosen_number.unwrap_or(0),
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        )),
         ScriptSVarNumericExpression::ObjectProperty { object, property } => match object {
             ScriptSVarObjectRef::Sacrificed => {
                 Some(sacrificed_card_property_value(game, sa, property))
@@ -1388,6 +1444,44 @@ pub fn resolve_count_svar_for_sa(
     sa: &SpellAbility,
 ) -> i32 {
     use forge_foundation::ZoneType;
+
+    if let Some(rest) = expr.strip_prefix("Count$") {
+        if let Some((stat, operators)) = PlayerLifeStat::parse_count_key(rest) {
+            return do_x_math(
+                resolve_player_life_stat(stat, game, controller),
+                operators,
+                game,
+                source_id,
+                controller,
+                sa,
+            );
+        }
+        if let Some(suffix) = rest.strip_prefix("YourCounters") {
+            if let Some((counter, operators)) =
+                PlayerCounterKind::parse_your_counters_suffix(suffix)
+            {
+                return do_x_math(
+                    resolve_player_counter(counter, game, controller),
+                    operators,
+                    game,
+                    source_id,
+                    controller,
+                    sa,
+                );
+            }
+        }
+        if let Some(suffix) = rest.strip_prefix("ChosenNumber") {
+            let operators = suffix.strip_prefix('/').unwrap_or(suffix);
+            return do_x_math(
+                game.card(source_id).chosen_number.unwrap_or(0),
+                operators,
+                game,
+                source_id,
+                controller,
+                sa,
+            );
+        }
+    }
 
     if expr == "Count$xPaid" || expr == "Count$XPaid" {
         return sa.x_mana_cost_paid as i32;

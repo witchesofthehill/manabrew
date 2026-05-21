@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
@@ -20,8 +20,8 @@ type WsSender = futures_util::stream::SplitSink<
 type WsReceiver =
     futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>>;
 
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
-const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+pub(crate) const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
+pub(crate) const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
@@ -210,6 +210,12 @@ pub async fn handle_connection(
             }
         };
 
+        if let Some(mut player) = state.players.get_mut(&player_id) {
+            if player.generation == generation {
+                player.last_seen = Instant::now();
+            }
+        }
+
         match frame {
             Message::Text(text) => {
                 let client_msg: ClientMessage = match serde_json::from_str(&text) {
@@ -319,6 +325,8 @@ async fn authenticate(
                     player.sender = sender.clone();
                     player.connected = true;
                     player.generation = new_gen;
+                    player.last_seen = Instant::now();
+                    player.disconnected_at = None;
                 }
 
                 let reply = ServerMessage::AuthResult {
@@ -385,6 +393,8 @@ async fn authenticate(
                             player.sender = sender.clone();
                             player.connected = true;
                             player.generation = new_gen;
+                            player.last_seen = Instant::now();
+                            player.disconnected_at = None;
                         }
 
                         let reply = ServerMessage::AuthResult {
@@ -448,6 +458,8 @@ async fn authenticate(
                     sender: sender.clone(),
                     connected: true,
                     generation,
+                    last_seen: Instant::now(),
+                    disconnected_at: None,
                 },
             );
 
@@ -816,7 +828,7 @@ fn handle_client_message(
     }
 }
 
-fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generation: u64) {
+pub(crate) fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generation: u64) {
     let (username, room_id) = {
         if let Some(mut player) = state.players.get_mut(player_id) {
             if player.generation != our_generation {
@@ -827,6 +839,7 @@ fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generation: 
                 return;
             }
             player.connected = false;
+            player.disconnected_at = Some(Instant::now());
             (player.username.clone(), player.room_id.clone())
         } else {
             return;
@@ -853,34 +866,9 @@ fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generation: 
                     return;
                 }
 
-                let all_disconnected = if let Some(mut room) = state.rooms.get_mut(rid) {
+                if let Some(mut room) = state.rooms.get_mut(rid) {
                     room.set_connected(player_id, false);
-                    room.all_disconnected()
                 } else {
-                    return;
-                };
-
-                if all_disconnected {
-                    info!(
-                        "[cleanup] in-game room {} has no connected players -- removing",
-                        &rid[..8]
-                    );
-                    state.rooms.remove(rid);
-                    let player_ids = state
-                        .players
-                        .iter()
-                        .filter_map(|entry| {
-                            entry
-                                .value()
-                                .room_id
-                                .as_deref()
-                                .is_some_and(|room_id| room_id == rid)
-                                .then(|| entry.key().clone())
-                        })
-                        .collect::<Vec<_>>();
-                    for player_id in player_ids {
-                        state.players.remove(&player_id);
-                    }
                     return;
                 }
 
@@ -990,7 +978,7 @@ fn get_username(state: &Arc<ServerState>, player_id: &str) -> String {
         .unwrap_or_default()
 }
 
-fn remove_room_and_clear_sessions(state: &Arc<ServerState>, room_id: &str) {
+pub(crate) fn remove_room_and_clear_sessions(state: &Arc<ServerState>, room_id: &str) {
     state.rooms.remove(room_id);
     let player_ids = state
         .players

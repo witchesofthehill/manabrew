@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -11,6 +12,8 @@ pub struct ConnectedPlayer {
     pub sender: mpsc::UnboundedSender<Message>,
     pub connected: bool,
     pub generation: u64,
+    pub last_seen: Instant,
+    pub disconnected_at: Option<Instant>,
 }
 
 pub struct ServerState {

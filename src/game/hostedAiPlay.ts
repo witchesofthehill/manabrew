@@ -116,7 +116,7 @@ async function ensureServerConnection(): Promise<void> {
     host: serverDefaults.host,
     port: serverDefaults.port,
     username,
-    password: serverDefaults.password || prefs.serverPassword,
+    password: prefs.serverPassword || serverDefaults.password,
   });
   const result = await auth;
   if (!result.success) {

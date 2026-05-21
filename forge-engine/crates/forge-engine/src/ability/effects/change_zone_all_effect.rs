@@ -165,9 +165,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let exile_source = if until_host_leaves { sa.source } else { None };
 
     {
-        // Restrict to the targeted/defined player when set; otherwise every player.
-        let player_ids: Vec<PlayerId> = if let Some(pid) = sa.target_chosen.target_player {
-            vec![pid]
+        // Mirrors Java `ChangeZoneAllEffect.resolve` (lines 55-63): when the SA
+        // uses targeting (`ValidTgts$ Player`), the player set comes from the
+        // chosen targets — which is legitimately empty when `TargetMin$ 0` and
+        // the controller picked zero players. Only fall back to "every player"
+        // when neither targeting nor `Defined$` is in play.
+        let player_ids: Vec<PlayerId> = if sa.uses_targeting() {
+            let mut ids: Vec<PlayerId> = sa.target_chosen.target_player.into_iter().collect();
+            ids.extend(sa.target_chosen.additional_target_players.iter().copied());
+            ids
         } else if let Some(defined) = sa.ir.defined_text.as_deref() {
             let resolved = crate::ability::ability_utils::resolve_defined_players_with_sa(
                 defined,

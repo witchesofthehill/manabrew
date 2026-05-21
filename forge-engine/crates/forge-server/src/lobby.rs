@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate::error::ServerError;
 use crate::protocol::{GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus};
-use forge_agent_interface::deck_dto::Deck;
 use crate::room::Room;
 use crate::state::ServerState;
+use forge_agent_interface::deck_dto::Deck;
 
 pub fn create_room_sync(
     state: &Arc<ServerState>,

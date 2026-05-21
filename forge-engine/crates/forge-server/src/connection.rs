@@ -131,13 +131,15 @@ pub async fn handle_connection(
     let (sink, mut receiver) = ws_stream.split();
     let (tx, rx) = mpsc::unbounded_channel();
 
-    let write_task = tokio::spawn(write_loop(rx, sink));
+    let mut write_task = tokio::spawn(write_loop(rx, sink));
 
     let (player_id, username, reconnected, generation) =
         match authenticate(&mut receiver, &tx, &state).await {
             Ok(result) => result,
             Err(e) => {
                 warn!("[auth] failed from {}: {}", addr, e);
+                drop(tx);
+                let _ = write_task.await;
                 return Err(e);
             }
         };
@@ -170,23 +172,40 @@ pub async fn handle_connection(
         }
     });
 
+    let mut write_task_done = false;
+
     loop {
-        let frame = match tokio::time::timeout(READ_IDLE_TIMEOUT, receiver.next()).await {
-            Ok(Some(Ok(f))) => f,
-            Ok(Some(Err(e))) => {
-                warn!("[recv] read error from '{}': {}", username, e);
-                break;
-            }
-            Ok(None) => {
-                info!("[recv] '{}' stream closed", username);
-                break;
-            }
-            Err(_) => {
-                warn!(
-                    "[recv] idle timeout from '{}' (no frames for {}s)",
-                    username,
-                    READ_IDLE_TIMEOUT.as_secs()
-                );
+        let read = tokio::time::timeout(READ_IDLE_TIMEOUT, receiver.next());
+        let frame = tokio::select! {
+            frame = read => match frame {
+                Ok(Some(Ok(f))) => f,
+                Ok(Some(Err(e))) => {
+                    warn!("[recv] read error from '{}': {}", username, e);
+                    break;
+                }
+                Ok(None) => {
+                    info!("[recv] '{}' stream closed", username);
+                    break;
+                }
+                Err(_) => {
+                    warn!(
+                        "[recv] idle timeout from '{}' (no frames for {}s)",
+                        username,
+                        READ_IDLE_TIMEOUT.as_secs()
+                    );
+                    break;
+                }
+            },
+            result = &mut write_task => {
+                write_task_done = true;
+                match result {
+                    Ok(()) => {
+                        warn!("[send] writer stopped for '{}'", username);
+                    }
+                    Err(e) => {
+                        warn!("[send] writer task failed for '{}': {}", username, e);
+                    }
+                }
                 break;
             }
         };
@@ -231,8 +250,10 @@ pub async fn handle_connection(
     // ServerState for reconnection, so rx may never close on abrupt disconnects.
     heartbeat_task.abort();
     drop(tx);
-    write_task.abort();
-    let _ = write_task.await;
+    if !write_task_done {
+        write_task.abort();
+        let _ = write_task.await;
+    }
     Ok(())
 }
 
@@ -667,13 +688,8 @@ fn handle_client_message(
                 deck_name,
                 deck.cards.len()
             );
-            match lobby::set_deck_selection_sync(
-                state,
-                player_id,
-                deck_name,
-                deck,
-                commander_name,
-            ) {
+            match lobby::set_deck_selection_sync(state, player_id, deck_name, deck, commander_name)
+            {
                 Ok(room_id) => {
                     if let Some(room) = state.rooms.get(&room_id) {
                         broadcast_to_room(

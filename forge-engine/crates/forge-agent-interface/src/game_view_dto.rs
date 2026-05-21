@@ -107,9 +107,6 @@ pub struct PlayerDto {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-// The Java-engine prompt normalizer fills only the fields its snapshot
-// exposes, so missing fields (cmc, keywords, dfc/zone flags, …) must default
-// rather than fail deserialization for the Rust bot consuming Java prompts.
 #[serde(rename_all = "camelCase", default)]
 pub struct CardDto {
     pub id: String,
@@ -201,9 +198,6 @@ pub struct CardDto {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-// The Java normalizer's stack entries omit setCode/cardNumber (the Java
-// snapshot doesn't carry the printing); default them rather than fail the
-// whole prompt for the Rust bot.
 #[serde(rename_all = "camelCase", default)]
 pub struct StackObjectDto {
     pub id: String,

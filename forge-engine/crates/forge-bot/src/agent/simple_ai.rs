@@ -39,10 +39,6 @@ impl BotAgent for SimpleAi {
                 playable_options,
                 ..
             } if available_player_actions.is_empty() => {
-                // Java-hosted path: prompts carry playableOptions (each echoing
-                // a choose_action index via its mode), not enumerated engine
-                // actions. Play one legal option per distinct prompt; pass when
-                // none are offered or the same options recur (loop guard).
                 let signature = format!("{playable_options:?}");
                 let repeated =
                     self.last_choose_action_signature.as_deref() == Some(signature.as_str());

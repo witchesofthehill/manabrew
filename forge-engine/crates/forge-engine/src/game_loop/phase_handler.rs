@@ -175,7 +175,13 @@ impl GameLoop {
                             let old_value =
                                 game.card(cid).counters.get(&lore).copied().unwrap_or(0);
                             game.card_mut(cid).add_counter(&lore, 1);
-                            self.trigger_handler.run_trigger(
+                            // Drive the CounterAdded chapter trigger onto the
+                            // stack BEFORE the saga SBA runs (CR 714.5 — the
+                            // saga only dies if no chapter ability is waiting
+                            // to resolve). Java's `Card.addCounter` calls
+                            // `runTrigger` synchronously for the same reason.
+                            let pending = self.trigger_handler.run_trigger_with_game(
+                                game,
                                 crate::trigger::TriggerType::CounterAdded,
                                 crate::event::RunParams {
                                     card: Some(cid),
@@ -186,6 +192,14 @@ impl GameLoop {
                                 },
                                 false,
                             );
+                            if !pending.is_empty() {
+                                let _ = self.trigger_handler.process_pending_triggers(
+                                    &self.mana_pools,
+                                    game,
+                                    agents,
+                                    pending,
+                                );
+                            }
                         }
                     }
                     if game

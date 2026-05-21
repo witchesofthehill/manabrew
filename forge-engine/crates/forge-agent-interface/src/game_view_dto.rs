@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::ids_codec::{card_id_str, player_id_str, stack_id_str};
 
 /// Frontend-compatible game state snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameViewDto {
     pub game_id: String,
@@ -258,10 +258,11 @@ pub enum StackTargetKindDto {
 /// Semantic classification of what a targeting choice will do to its target.
 /// Derived from the source `SpellAbility`'s `ApiType` and params. The UI uses
 /// this to choose a pointer icon and the per-intent glow color.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TargetingIntent {
     /// Damage (DealDamage, EachDamage, DamageAll targeting).
+    #[default]
     Damage,
     /// Outright destruction (Destroy, DestroyAll).
     Destroy,

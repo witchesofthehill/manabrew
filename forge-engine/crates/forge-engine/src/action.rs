@@ -245,9 +245,14 @@ impl GameState {
 
         // Tokens and copy-tokens cease to exist when leaving the battlefield (CR 110.5g).
         // Set zone to None (limbo) and remove from source zone without adding to destination.
+        // CR 704.5d: triggers on the token going to its intended zone (typically
+        // graveyard for dying tokens) still see that move — record the requested
+        // destination in the zone-change table so `ChangesZoneAll | Destination$
+        // Graveyard` triggers (e.g. Ajani Nacatl Pariah's "whenever another Cat
+        // dies") fire correctly.
         if is_token && dest_zone != ZoneType::Battlefield {
             if let Some(table) = self.pending_change_zone_table.as_mut() {
-                table.put(Some(src_zone), Some(ZoneType::None), card_id);
+                table.put(Some(src_zone), Some(dest_zone), card_id);
             }
             let mut exile_effects = Vec::new();
             for eff_id in forget_effects.iter().copied() {
@@ -943,6 +948,16 @@ impl GameState {
             .map(|c| c.id)
             .collect();
 
+        // Java parity: SBA collects all moves into a `CardZoneTable` so that
+        // `Mode$ ChangesZoneAll` triggers (e.g. Ajani Nacatl Pariah's "whenever
+        // another Cat dies") see deaths from SBA-driven destruction. Stack
+        // resolution sets up the same table at spell scope, but SBA can fire
+        // outside spell resolution (priority loop after damage assignment).
+        let sba_owns_zone_table = self.pending_change_zone_table.is_none();
+        if sba_owns_zone_table {
+            self.ensure_pending_change_zone_table();
+        }
+
         let mut any_changes = false;
         let mut newly_lost_players: Vec<PlayerId> = Vec::new();
 
@@ -1376,6 +1391,17 @@ impl GameState {
                     );
                 }
                 any_changes = true;
+            }
+        }
+
+        // Fire ChangesZoneAll for SBA-driven moves so triggers like Ajani
+        // Nacatl Pariah's "whenever one or more other Cats you control die"
+        // see deaths from state-based actions (CR 603.6c, 704.3).
+        if sba_owns_zone_table {
+            if let Some(table) = self.pending_change_zone_table.take() {
+                if let Some(handler) = trigger_handler.as_deref_mut() {
+                    table.trigger_changes_zone_all(handler, self, None);
+                }
             }
         }
 

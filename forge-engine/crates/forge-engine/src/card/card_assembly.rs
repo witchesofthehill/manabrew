@@ -305,6 +305,7 @@ pub(crate) fn assemble_card(
                 color: intrinsic_color(back_face),
                 base_power: back_face.int_power,
                 base_toughness: back_face.int_toughness,
+                initial_loyalty: back_face.initial_loyalty.clone(),
                 keywords: crate::keyword::keyword_collection::KeywordCollection::from_strings(
                     &back_face.keywords,
                 ),

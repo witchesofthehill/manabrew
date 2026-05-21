@@ -57,6 +57,12 @@ impl CardZoneTable {
             for &card_id in table.last_state_battlefield() {
                 trigger_handler.register_active_ltb_trigger(game, card_id);
             }
+            if std::env::var("FORGE_TRIGGER_TRACE").is_ok() {
+                eprintln!(
+                    "[trigger-trace] FIRE ChangesZoneAll table_zones={:?}",
+                    self.data.keys().collect::<Vec<_>>()
+                );
+            }
             trigger_handler.run_trigger(
                 TriggerType::ChangesZoneAll,
                 RunParams {

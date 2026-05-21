@@ -101,6 +101,6 @@
   },
   {
     "name": "starter_boros_energy",
-    "args": "--deck1 starter_deck_boros_energy --deck2 starter_deck_boros_energy --seed 42 --max-turns 40 --games 1"
+    "args": "--deck1 starter_deck_boros_energy --deck2 starter_deck_boros_energy --seed 42 --max-turns 40 --games 5"
   }
 ]

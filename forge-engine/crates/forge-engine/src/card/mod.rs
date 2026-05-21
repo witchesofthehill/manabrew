@@ -100,6 +100,7 @@ pub struct CardOtherPart {
     pub color: ColorSet,
     pub base_power: Option<i32>,
     pub base_toughness: Option<i32>,
+    pub initial_loyalty: Option<String>,
     pub keywords: crate::keyword::keyword_collection::KeywordCollection,
     pub abilities: Vec<String>,
     pub triggers: Vec<Trigger>,
@@ -3607,6 +3608,7 @@ impl Card {
             std::mem::swap(&mut self.color, &mut other.color);
             std::mem::swap(&mut self.base_power, &mut other.base_power);
             std::mem::swap(&mut self.base_toughness, &mut other.base_toughness);
+            std::mem::swap(&mut self.initial_loyalty, &mut other.initial_loyalty);
             std::mem::swap(&mut self.keywords, &mut other.keywords);
             std::mem::swap(&mut self.abilities, &mut other.abilities);
             std::mem::swap(&mut self.triggers, &mut other.triggers);

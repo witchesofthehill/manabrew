@@ -82,6 +82,8 @@ pub enum ClientMessage {
         password: String,
     },
 
+    Ping,
+
     ListRooms,
 
     ListPlayers,

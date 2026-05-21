@@ -477,6 +477,8 @@ fn handle_client_message(
             );
         }
 
+        ClientMessage::Ping => {}
+
         ClientMessage::ListRooms => {
             let rooms: Vec<_> = state
                 .rooms

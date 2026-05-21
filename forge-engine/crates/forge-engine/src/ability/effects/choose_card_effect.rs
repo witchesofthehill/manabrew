@@ -23,8 +23,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         None => return,
     };
 
-    let controller = sa.activating_player;
-
     let amount: usize = sa
         .ir
         .amount
@@ -39,8 +37,18 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     let remember = sa.ir.remember_chosen;
 
-    // Collect valid cards in zone matching filter
-    let mut valid = Vec::new();
+    // Java parity (`ChooseCardEffect.java` line 63 + 101): the choosers come
+    // from `Defined$`/`DefinedPlayer$` (default = activator). Each chooser
+    // runs the prompt independently — needed by Ajani Nacatl Avenger's [-4]
+    // ultimate where every opponent picks from their own permanents.
+    let choosers: Vec<crate::ids::PlayerId> = if let Some(def) = sa.defined_player() {
+        crate::ability::effects::resolve_defined_players(def, sa.activating_player, ctx.game)
+    } else {
+        vec![sa.activating_player]
+    };
+
+    // Collect valid cards in zone matching filter (shared base list).
+    let mut base_valid: Vec<crate::ids::CardId> = Vec::new();
     for &pid in &ctx.game.player_order.clone() {
         let zone_cards = ctx.game.cards_in_zone(zone, pid).to_vec();
         for cid in zone_cards {
@@ -51,35 +59,101 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 filter_selector.as_ref(),
                 &filter,
             ) {
-                valid.push(cid);
+                base_valid.push(cid);
             }
         }
     }
 
-    if valid.is_empty() {
-        return;
+    let mut all_chosen: Vec<crate::ids::CardId> = Vec::new();
+    let controlled_by = sa.ir.controlled_by_player_text.as_deref().map(str::trim);
+    let choose_each: Option<Vec<String>> = sa.ir.choose_each_text.as_deref().map(|s| {
+        s.split('&')
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect()
+    });
+
+    for chooser in choosers {
+        // `ControlledByPlayer$ Chooser` (and friends) filters the candidate
+        // pool by the chooser's controlled permanents. Mirrors Java's
+        // `CardLists.filterControlledBy` at line 110-116.
+        let mut pool: Vec<crate::ids::CardId> = match controlled_by {
+            Some("Chooser") => base_valid
+                .iter()
+                .copied()
+                .filter(|&cid| ctx.game.card(cid).controller == chooser)
+                .collect(),
+            _ => base_valid.clone(),
+        };
+
+        if pool.is_empty() {
+            continue;
+        }
+
+        ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
+
+        if let Some(types) = choose_each.as_ref() {
+            // For each type, the chooser picks one matching card. Mirrors
+            // Java `ChooseCardEffect.java:131-145`.
+            for type_name in types {
+                let typed: Vec<crate::ids::CardId> = pool
+                    .iter()
+                    .copied()
+                    .filter(|&cid| {
+                        let card = ctx.game.card(cid);
+                        card.type_line
+                            .core_types
+                            .iter()
+                            .any(|ct| ct.name().eq_ignore_ascii_case(type_name))
+                            || card
+                                .type_line
+                                .subtypes
+                                .iter()
+                                .any(|s| s.eq_ignore_ascii_case(type_name))
+                    })
+                    .collect();
+                if typed.is_empty() {
+                    continue;
+                }
+                let picks =
+                    ctx.agents[chooser.index()].choose_cards_for_effect(chooser, &typed, 1, 1);
+                for cid in picks {
+                    if !all_chosen.contains(&cid) {
+                        all_chosen.push(cid);
+                    }
+                    pool.retain(|&p| p != cid);
+                }
+            }
+        } else {
+            let picks =
+                ctx.agents[chooser.index()].choose_cards_for_effect(chooser, &pool, 1, amount);
+            for cid in picks {
+                if !all_chosen.contains(&cid) {
+                    all_chosen.push(cid);
+                }
+            }
+        }
     }
 
-    // Ask the controlling player to choose
-    ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
-    let chosen =
-        ctx.agents[controller.index()].choose_cards_for_effect(controller, &valid, 1, amount);
+    if all_chosen.is_empty() {
+        return;
+    }
 
     // Store on source card
     ctx.game
         .card_mut(source_id)
-        .set_chosen_cards(chosen.clone());
+        .set_chosen_cards(all_chosen.clone());
 
     // Optionally remember
     if remember {
-        for &cid in &chosen {
+        for &cid in &all_chosen {
             ctx.game.card_mut(source_id).add_remembered_card(cid);
         }
     }
 
     // ImprintChosen$ — `ChooseCardEffect.java:299-301`.
     if sa.ir.imprint_chosen {
-        for &cid in &chosen {
+        for &cid in &all_chosen {
             ctx.game.card_mut(source_id).add_imprinted_card(cid);
         }
     }

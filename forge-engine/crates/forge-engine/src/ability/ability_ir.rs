@@ -246,6 +246,13 @@ pub struct SpellAbilityIr {
     pub counter_type_text: Option<String>,
     pub counter_type: Option<CounterType>,
     pub simple_counter_type_choice_path: bool,
+    /// `ControlledByPlayer$ <ref>` — filters the candidate pool for `ChooseCard`
+    /// to permanents controlled by the chooser (or another defined player).
+    /// Java `ChooseCardEffect.java:107-116`.
+    pub controlled_by_player_text: Option<String>,
+    /// `ChooseEach$ Artifact & Creature & ...` — chooser picks one of each
+    /// listed type. Java `ChooseCardEffect.java:131-145`.
+    pub choose_each_text: Option<String>,
     /// `CounterType2$` — secondary counter type for effects like
     /// `PutCounterAll` that place two counter types in one pass.
     pub counter_type_2_text: Option<String>,
@@ -756,6 +763,8 @@ impl SpellAbilityIr {
             damage_amount_text: params.get(keys::DAMAGE_AMOUNT).map(str::to_string),
             counter_type_text: params.get(keys::COUNTER_TYPE).map(str::to_string),
             counter_type: params.get(keys::COUNTER_TYPE).map(parse_counter_type),
+            controlled_by_player_text: params.get("ControlledByPlayer").map(str::to_string),
+            choose_each_text: params.get("ChooseEach").map(str::to_string),
             counter_type_2_text: params.get("CounterType2").map(str::to_string),
             counter_type_2: params.get("CounterType2").map(parse_counter_type),
             counter_num_2_text: params.get("CounterNum2").map(str::to_string),

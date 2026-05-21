@@ -697,7 +697,11 @@ pub fn translate_java_action_value(action_value: &Value) -> Value {
         return action_value.clone();
     }
     serde_json::from_value::<PlayerAction>(action_value.clone())
-        .map(|action| translate_java_player_action(&action))
+        .map(|action| {
+            let mut translated = translate_java_player_action(&action);
+            denormalize_card_ids(&mut translated);
+            translated
+        })
         .unwrap_or_else(|_| json!({ "kind": "pass" }))
 }
 
@@ -1152,6 +1156,23 @@ fn normalize_card_id(id: &str) -> String {
     id.strip_prefix("java-card-")
         .map(|suffix| format!("engine-card-{suffix}"))
         .unwrap_or_else(|| id.to_string())
+}
+
+fn denormalize_card_id(id: &str) -> String {
+    id.strip_prefix("engine-card-")
+        .map(|suffix| format!("java-card-{suffix}"))
+        .unwrap_or_else(|| id.to_string())
+}
+
+// Reverse `normalize_card_id` on ids sent back: Java matches them against its
+// own `java-card-<n>`, so an unflipped `engine-card-<n>` is silently dropped.
+fn denormalize_card_ids(value: &mut Value) {
+    match value {
+        Value::String(id) => *id = denormalize_card_id(id),
+        Value::Array(items) => items.iter_mut().for_each(denormalize_card_ids),
+        Value::Object(map) => map.values_mut().for_each(denormalize_card_ids),
+        _ => {}
+    }
 }
 
 fn action_kind(label: &str) -> Option<&'static str> {

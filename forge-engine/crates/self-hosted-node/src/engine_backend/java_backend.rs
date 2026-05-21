@@ -656,6 +656,13 @@ fn run_self_play_loop<B: JavaBridge>(
         if let Some(prompt_json) = session.get_prompt(0)? {
             seen_prompt = true;
             if last_prompt_json.as_deref() == Some(prompt_json.as_str()) {
+                // Java keeps re-issuing a terminal priority prompt after the
+                // game ends, so confirm it isn't simply over before counting
+                // the repeat as a stall.
+                if snapshot_game_over(&parse_snapshot(session)?) {
+                    info!(acted, "java-forge self-play reached game over");
+                    return Ok(());
+                }
                 repeat_count += 1;
                 if repeat_count > STALL_REPEATS {
                     let prompt: Value = serde_json::from_str(&prompt_json).unwrap_or(Value::Null);

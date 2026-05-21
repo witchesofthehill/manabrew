@@ -1017,6 +1017,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
 fn client_msg_type(msg: &ClientMessage) -> &'static str {
     match msg {
         ClientMessage::Authenticate { .. } => "Authenticate",
+        ClientMessage::Ping => "Ping",
         ClientMessage::ListRooms => "ListRooms",
         ClientMessage::ListPlayers => "ListPlayers",
         ClientMessage::CreateRoom { .. } => "CreateRoom",

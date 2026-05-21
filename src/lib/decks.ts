@@ -46,6 +46,9 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
   // The engine can surface cards that were never in the deck (tokens already
   // handled above, plus engine-internal objects like effects/emblems). Render
   // them by name rather than crashing the whole board.
+  console.warn(
+    `asDeckCard: no deck match for "${gameCard.name}" (${gameCard.setCode}#${gameCard.cardNumber}), rendering by name`,
+  );
   return {
     name: gameCard.name,
     setCode: gameCard.setCode,

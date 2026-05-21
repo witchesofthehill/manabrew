@@ -178,17 +178,30 @@ function waitForEvent<TPayload, TResult = TPayload>(
   select?: (payload: TPayload) => TResult | null,
 ): Promise<TResult> {
   return new Promise((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      unsubscribe();
-      reject(new Error(`Timed out waiting for ${event}.`));
-    }, HOSTED_AI_TIMEOUT_MS);
-    const unsubscribe = getPlatform().events.on<TPayload>(event, (payload) => {
+    const handle: { settled: boolean; timeout?: number; unsubscribe?: () => void } = {
+      settled: false,
+    };
+    const cleanup = () => {
+      handle.settled = true;
+      if (handle.timeout !== undefined) window.clearTimeout(handle.timeout);
+      handle.unsubscribe?.();
+    };
+    handle.unsubscribe = getPlatform().events.on<TPayload>(event, (payload) => {
       const selected = select ? select(payload) : (payload as unknown as TResult);
       if (selected === null) return;
-      window.clearTimeout(timeout);
-      unsubscribe();
+      cleanup();
       resolve(selected);
     });
+    // `on` may deliver a buffered event synchronously, settling before it
+    // returns the unsubscribe handle — tear it down here and skip the timeout.
+    if (handle.settled) {
+      handle.unsubscribe();
+      return;
+    }
+    handle.timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for ${event}.`));
+    }, HOSTED_AI_TIMEOUT_MS);
   });
 }
 

@@ -16,7 +16,9 @@ use forge_agent_interface::java_prompt_normalizer::{
     normalize_java_prompt, translate_java_action_value,
 };
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::prompt::PlayerAction;
+use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+#[cfg(feature = "java-forge")]
+use forge_bot::{BotAgent, SimpleAi};
 #[cfg(feature = "java-forge")]
 use j4rs::{Instance, InvocationArg, JavaOpt, Jvm, JvmBuilder};
 use serde::Serialize;
@@ -138,6 +140,43 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
 pub fn run_scenario(_name: &str, _max_prompts: usize) -> Result<(), String> {
     Err(
         "java-forge scenarios require building self-hosted-node with --features java-forge"
+            .to_string(),
+    )
+}
+
+#[cfg(feature = "java-forge")]
+pub fn run_self_play(max_prompts: usize) -> Result<(), String> {
+    let config = JavaRuntimeConfig::from_env();
+    let assets_dir = config.assets_dir.to_string_lossy().to_string();
+    let bridge = J4rsBridge::new(&config)?;
+    let mut session = JavaForgeSession::new(bridge);
+    session.initialize(&assets_dir)?;
+
+    let deck_a = smoke_deck("Mountain", "Lightning Bolt");
+    let deck_b = smoke_deck("Forest", "Grizzly Bears");
+    let request = StartGameRequest::new(
+        "self-hosted-java-self-play".to_string(),
+        20,
+        vec![
+            PlayerConfig::new("Self-Play A".to_string(), &deck_a, None),
+            PlayerConfig::new("Self-Play B".to_string(), &deck_b, None),
+        ],
+    );
+    let session_id = session.start_game(&request)?;
+    info!(
+        session_id,
+        max_prompts, "java-forge self-play session started"
+    );
+
+    let result = run_self_play_loop(&mut session, max_prompts);
+    let end_result = session.end_game();
+    result.and(end_result)
+}
+
+#[cfg(not(feature = "java-forge"))]
+pub fn run_self_play(_max_prompts: usize) -> Result<(), String> {
+    Err(
+        "java-forge self-play requires building self-hosted-node with --features java-forge"
             .to_string(),
     )
 }
@@ -564,6 +603,183 @@ fn run_scenario_loop<B: JavaBridge>(
         "java-forge scenario '{}' did not complete within {max_prompts} prompts",
         scenario.name()
     ))
+}
+
+#[cfg(feature = "java-forge")]
+fn run_self_play_loop<B: JavaBridge>(
+    session: &mut JavaForgeSession<B>,
+    max_prompts: usize,
+) -> Result<(), String> {
+    // A prompt re-emitted unchanged this many times after the bot acted on it
+    // means our action didn't advance the game — a stall worth dumping fast,
+    // rather than spinning until the iteration cap.
+    const STALL_REPEATS: usize = 100;
+
+    let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
+    let mut last_prompt_json: Option<String> = None;
+    let mut acted = 0usize;
+    let mut repeat_count = 0usize;
+    let mut seen_prompt = false;
+    let max_iterations = max_prompts.saturating_mul(200).max(2_000);
+
+    for _ in 0..max_iterations {
+        // The Java game thread mutates zones while it runs; it only parks once a
+        // prompt is pending. Snapshot only when a prompt is in hand (parked) or
+        // when idle after the game has started — never during initial setup.
+        if let Some(prompt_json) = session.get_prompt(0)? {
+            seen_prompt = true;
+            if last_prompt_json.as_deref() == Some(prompt_json.as_str()) {
+                repeat_count += 1;
+                if repeat_count > STALL_REPEATS {
+                    let prompt: Value = serde_json::from_str(&prompt_json).unwrap_or(Value::Null);
+                    let normalized = normalize_java_prompt(prompt.clone());
+                    dump_stuck(
+                        "java re-emitted the same prompt after the bot acted (stall)",
+                        &prompt,
+                        Some(&normalized),
+                        session,
+                    );
+                    return Err(
+                        "self-play stalled: java re-emitted the same prompt after the bot's action"
+                            .to_string(),
+                    );
+                }
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            }
+            repeat_count = 0;
+
+            let prompt: Value = serde_json::from_str(&prompt_json)
+                .map_err(|err| format!("failed to parse java self-play prompt: {err}"))?;
+            let player = prompt
+                .get("player")
+                .and_then(Value::as_u64)
+                .unwrap_or_default() as usize;
+
+            let normalized = normalize_java_prompt(prompt.clone());
+            let agent_prompt = match serde_json::from_value::<AgentPrompt>(normalized.clone()) {
+                Ok(agent_prompt) => agent_prompt,
+                Err(err) => {
+                    dump_stuck(
+                        "normalized prompt did not deserialize as AgentPrompt",
+                        &prompt,
+                        Some(&normalized),
+                        session,
+                    );
+                    return Err(format!(
+                        "self-play: normalized prompt did not deserialize: {err}"
+                    ));
+                }
+            };
+
+            match bots.entry(player).or_default().decide(agent_prompt) {
+                Some(action) => {
+                    if let Err(err) = submit_player_action(session, &action) {
+                        dump_stuck(
+                            "java rejected the bot action",
+                            &prompt,
+                            Some(&normalized),
+                            session,
+                        );
+                        return Err(format!(
+                            "self-play: java rejected action for player {player}: {err}"
+                        ));
+                    }
+                    acted += 1;
+                    if acted >= max_prompts {
+                        dump_stuck(
+                            "did not reach game over within max prompts",
+                            &prompt,
+                            Some(&normalized),
+                            session,
+                        );
+                        return Err(format!(
+                            "self-play did not reach game over within {max_prompts} decisions"
+                        ));
+                    }
+                }
+                None => debug!(
+                    player,
+                    prompt_type = prompt_type(&normalized).unwrap_or("<missing>"),
+                    "self-play: no action for prompt (display-only)"
+                ),
+            }
+            last_prompt_json = Some(prompt_json);
+            continue;
+        }
+
+        if seen_prompt {
+            let snapshot = parse_snapshot(session)?;
+            if snapshot_game_over(&snapshot) {
+                info!(
+                    acted,
+                    turn = snapshot_turn(&snapshot),
+                    "java-forge self-play reached game over"
+                );
+                return Ok(());
+            }
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    dump_stuck(
+        "self-play exceeded its iteration cap without game over",
+        &Value::Null,
+        None,
+        session,
+    );
+    Err("self-play exceeded its iteration cap without reaching game over".to_string())
+}
+
+#[cfg(feature = "java-forge")]
+fn parse_snapshot<B: JavaBridge>(session: &mut JavaForgeSession<B>) -> Result<Value, String> {
+    let snapshot_json = session.get_snapshot()?;
+    serde_json::from_str(&snapshot_json)
+        .map_err(|err| format!("failed to parse java self-play snapshot: {err}"))
+}
+
+#[cfg(feature = "java-forge")]
+fn snapshot_game_over(snapshot: &Value) -> bool {
+    snapshot
+        .get("game_over")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+#[cfg(feature = "java-forge")]
+fn snapshot_turn(snapshot: &Value) -> i64 {
+    snapshot.get("turn").and_then(Value::as_i64).unwrap_or(-1)
+}
+
+#[cfg(feature = "java-forge")]
+fn dump_stuck<B: JavaBridge>(
+    reason: &str,
+    prompt: &Value,
+    normalized: Option<&Value>,
+    session: &mut JavaForgeSession<B>,
+) {
+    let snapshot = parse_snapshot(session).unwrap_or(Value::Null);
+    let artifact = json!({
+        "reason": reason,
+        "rawPrompt": prompt,
+        "normalizedPrompt": normalized,
+        "snapshot": snapshot,
+    });
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let path = workspace_root().join(format!("target/self-play-stuck-{ts}.json"));
+    match serde_json::to_string_pretty(&artifact) {
+        Ok(body) => {
+            if let Err(error) = std::fs::write(&path, body) {
+                warn!(%error, reason, "self-play stuck; failed to write artifact");
+            } else {
+                warn!(path = %path.display(), reason, "self-play stuck; wrote artifact");
+            }
+        }
+        Err(error) => warn!(%error, reason, "self-play stuck; failed to serialize artifact"),
+    }
 }
 
 #[cfg(feature = "java-forge")]

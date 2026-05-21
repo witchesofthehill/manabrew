@@ -109,6 +109,18 @@ async fn main() {
         info!(scenario_name, max_prompts, "java-forge scenario completed");
         return;
     }
+    if std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY").is_ok() {
+        let max_prompts = std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY_PROMPTS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(2_000);
+        if let Err(error) = java_backend::run_self_play(max_prompts) {
+            error!(%error, "java-forge self-play failed");
+            std::process::exit(1);
+        }
+        info!(max_prompts, "java-forge self-play completed");
+        return;
+    }
 
     let config = Config::from_env();
     if let Err(error) = run(config).await {

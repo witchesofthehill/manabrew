@@ -7,7 +7,7 @@ use std::time::Duration;
 mod config;
 mod engine_backend;
 
-use config::{workspace_root, Config, DeckSelection};
+use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
 use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
@@ -110,27 +110,36 @@ async fn main() {
         return;
     }
     if std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY").is_ok() {
+        let cfg = SelfPlayConfig::from_env();
         let max_prompts = std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY_PROMPTS")
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(2_000);
-        if let Err(error) = java_backend::run_self_play(max_prompts) {
+        if let Err(error) = java_backend::run_self_play(&cfg.seats, cfg.starting_life, max_prompts)
+        {
             error!(%error, "java-forge self-play failed");
             std::process::exit(1);
         }
-        info!(max_prompts, "java-forge self-play completed");
+        info!(
+            players = cfg.seats.len(),
+            max_prompts, "java-forge self-play completed"
+        );
         return;
     }
     if std::env::var("SELF_HOSTED_NODE_RUST_SELF_PLAY").is_ok() {
+        let cfg = SelfPlayConfig::from_env();
         let max_turns = std::env::var("SELF_HOSTED_NODE_RUST_SELF_PLAY_TURNS")
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(200);
-        if let Err(error) = rust_backend::run_self_play(max_turns) {
+        if let Err(error) = rust_backend::run_self_play(&cfg.seats, cfg.starting_life, max_turns) {
             error!(%error, "rust self-play failed");
             std::process::exit(1);
         }
-        info!(max_turns, "rust self-play completed");
+        info!(
+            players = cfg.seats.len(),
+            max_turns, "rust self-play completed"
+        );
         return;
     }
 

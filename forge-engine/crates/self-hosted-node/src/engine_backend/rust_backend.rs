@@ -5,8 +5,10 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
 use forge_agent_interface::agent_impl::PromptAgent;
-use forge_agent_interface::deck_dto::{CardIdentity, Deck, DeckCard};
+use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+
+use crate::config::DeckSelection;
 use forge_bot::BotResponder;
 use forge_carddb::CardDatabase;
 use forge_engine_core::agent::PlayerAgent;
@@ -92,25 +94,32 @@ pub fn run_hosted_engine_game(
     );
 }
 
-pub fn run_self_play(max_turns: u32) -> Result<(), String> {
-    let player_names = ["Self-Play A".to_string(), "Self-Play B".to_string()];
-    let decks = [
-        self_play_deck("Mountain", "Lightning Bolt"),
-        self_play_deck("Forest", "Grizzly Bears"),
-    ];
-
-    let mut prepared_players = Vec::with_capacity(player_names.len());
-    for (name, deck) in player_names.iter().zip(&decks) {
-        let identities = deck_to_identities(deck);
-        let mut prepared = prepare_registered_player(name.clone(), get_card_db(), &identities);
-        prepared.registered.starting_life = 20;
+pub fn run_self_play(
+    seats: &[DeckSelection],
+    starting_life: i32,
+    max_turns: u32,
+) -> Result<(), String> {
+    let mut prepared_players = Vec::with_capacity(seats.len());
+    for (i, seat) in seats.iter().enumerate() {
+        let identities = deck_to_identities(&seat.deck);
+        let mut prepared =
+            prepare_registered_player(format!("Self-Play {}", i + 1), get_card_db(), &identities);
+        prepared.registered.starting_life = starting_life;
+        if let Some(ref commander) = seat.commander_name {
+            if !force_commander_by_name(&mut prepared, commander) {
+                warn!(commander, "commander name not found in self-play deck");
+            }
+        }
         prepared_players.push(prepared);
     }
 
     let game_id = "self-hosted-rust-self-play".to_string();
     let mut rng = rand::rngs::StdRng::from_entropy();
     let abort_signal = Arc::new(AtomicBool::new(false));
-    info!(max_turns, "rust self-play session started");
+    info!(
+        players = seats.len(),
+        starting_life, max_turns, "rust self-play session started"
+    );
     let outcome = run_hosted_multiplayer_game(
         prepared_players,
         abort_signal,
@@ -137,24 +146,6 @@ pub fn run_self_play(max_turns: u32) -> Result<(), String> {
         None => Err(format!(
             "rust self-play hit {max_turns} turns without a winner"
         )),
-    }
-}
-
-fn self_play_deck(land: &str, spell: &str) -> Deck {
-    let card = |name: &str| DeckCard {
-        identity: CardIdentity {
-            name: name.to_string(),
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    Deck {
-        name: format!("{land} / {spell}"),
-        cards: (0..24)
-            .map(|_| card(land))
-            .chain((0..36).map(|_| card(spell)))
-            .collect(),
-        ..Default::default()
     }
 }
 

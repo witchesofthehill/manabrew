@@ -11,6 +11,8 @@ use std::sync::mpsc::TryRecvError;
 use std::time::Duration;
 
 use forge_agent_interface::deck_dto::{CardIdentity, Deck};
+
+use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_prompt_normalizer::{
     normalize_java_prompt, translate_java_action_value,
@@ -145,27 +147,38 @@ pub fn run_scenario(_name: &str, _max_prompts: usize) -> Result<(), String> {
 }
 
 #[cfg(feature = "java-forge")]
-pub fn run_self_play(max_prompts: usize) -> Result<(), String> {
+pub fn run_self_play(
+    seats: &[DeckSelection],
+    starting_life: i32,
+    max_prompts: usize,
+) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
     let bridge = J4rsBridge::new(&config)?;
     let mut session = JavaForgeSession::new(bridge);
     session.initialize(&assets_dir)?;
 
-    let deck_a = smoke_deck("Mountain", "Lightning Bolt");
-    let deck_b = smoke_deck("Forest", "Grizzly Bears");
+    let mut players = Vec::with_capacity(seats.len());
+    for (i, seat) in seats.iter().enumerate() {
+        let identities = deck_card_identities(&seat.deck);
+        players.push(PlayerConfig::new(
+            format!("Self-Play {}", i + 1),
+            &identities,
+            seat.commander_name.clone(),
+        ));
+    }
     let request = StartGameRequest::new(
         "self-hosted-java-self-play".to_string(),
-        20,
-        vec![
-            PlayerConfig::new("Self-Play A".to_string(), &deck_a, None),
-            PlayerConfig::new("Self-Play B".to_string(), &deck_b, None),
-        ],
+        starting_life,
+        players,
     );
     let session_id = session.start_game(&request)?;
     info!(
         session_id,
-        max_prompts, "java-forge self-play session started"
+        players = seats.len(),
+        starting_life,
+        max_prompts,
+        "java-forge self-play session started"
     );
 
     let result = run_self_play_loop(&mut session, max_prompts);
@@ -174,7 +187,11 @@ pub fn run_self_play(max_prompts: usize) -> Result<(), String> {
 }
 
 #[cfg(not(feature = "java-forge"))]
-pub fn run_self_play(_max_prompts: usize) -> Result<(), String> {
+pub fn run_self_play(
+    _seats: &[DeckSelection],
+    _starting_life: i32,
+    _max_prompts: usize,
+) -> Result<(), String> {
     Err(
         "java-forge self-play requires building self-hosted-node with --features java-forge"
             .to_string(),

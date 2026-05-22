@@ -203,6 +203,7 @@ export interface GameView {
   opponentZones: Record<string, OpponentZones>;
   gameOver?: boolean;
   winnerId?: string | null;
+  concededPlayerIds?: string[];
   /** The player who is the current monarch. */
   monarchId?: string | null;
   /** The player who holds the initiative. */

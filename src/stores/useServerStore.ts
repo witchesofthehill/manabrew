@@ -20,6 +20,8 @@ import type {
 } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
+export const DEFAULT_STARTING_LIFE = 20;
+
 interface ServerState {
   connected: boolean;
   connecting: boolean;
@@ -64,7 +66,7 @@ export const useServerStore = create<ServerState>()(
       gameStarted: false,
       playerOrder: [],
       playerDecks: [],
-      startingLife: 20,
+      startingLife: DEFAULT_STARTING_LIFE,
 
       async connect(host, port, username, password) {
         const platform = getPlatform();
@@ -92,7 +94,7 @@ export const useServerStore = create<ServerState>()(
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
-          startingLife: 20,
+          startingLife: DEFAULT_STARTING_LIFE,
           rooms: [],
           players: [],
         });
@@ -131,7 +133,7 @@ export const useServerStore = create<ServerState>()(
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
-          startingLife: 20,
+          startingLife: DEFAULT_STARTING_LIFE,
         });
         get().listRooms();
       },
@@ -255,7 +257,7 @@ export const useServerStore = create<ServerState>()(
                 gameStarted: false,
                 playerOrder: [],
                 playerDecks: [],
-                startingLife: 20,
+                startingLife: DEFAULT_STARTING_LIFE,
               });
               void get().listRooms();
             }
@@ -273,7 +275,7 @@ export const useServerStore = create<ServerState>()(
               gameStarted: false,
               playerOrder: [],
               playerDecks: [],
-              startingLife: 20,
+              startingLife: DEFAULT_STARTING_LIFE,
               rooms: [],
               players: [],
             });

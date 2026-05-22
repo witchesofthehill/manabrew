@@ -15,7 +15,7 @@ import { startHostedAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { usePreferencesStore } from "./usePreferencesStore";
-import { useServerStore } from "./useServerStore";
+import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
 import type { AgentPrompt } from "./gameStore.types";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
@@ -103,7 +103,7 @@ async function initializeGame({
 }): Promise<void> {
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
-  const startingLife = format?.deckRules.startingLife ?? 20;
+  const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
 
   // On web, "Play vs AI" can be routed through a self-hosted-node room when
   // the deployment enables it: the node runs the engine and spawns the bot,

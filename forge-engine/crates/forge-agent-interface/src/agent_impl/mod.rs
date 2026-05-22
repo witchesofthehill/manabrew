@@ -545,6 +545,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         );
         match self.recv_action() {
             PlayerAction::EngineAction { action } => action,
+            PlayerAction::Concede => EnginePlayerAction::Concede,
             PlayerAction::Pass { until_phase } => {
                 // Only store a fast-forward declaration when there's a target phase.
                 // None = atomic single pass, no fast-forward.

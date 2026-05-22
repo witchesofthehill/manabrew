@@ -211,6 +211,21 @@ impl GameLoop {
                 continue;
             }
 
+            if action == PlayerAction::Concede {
+                self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                    crate::player::concede(game, priority_player);
+                });
+                if game.game_over {
+                    return;
+                }
+                passed_count = 0;
+                priority_player = game.next_player(priority_player);
+                self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                    game.turn.priority_player = priority_player;
+                });
+                continue;
+            }
+
             let priority_action = if action == PlayerAction::PassPriority {
                 MainPhaseAction::Pass
             } else {

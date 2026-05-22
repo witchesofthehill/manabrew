@@ -31,6 +31,8 @@ pub struct GameViewDto {
     pub opponent_zones: HashMap<String, OpponentZonesDto>,
     pub game_over: bool,
     pub winner_id: Option<String>,
+    #[serde(default)]
+    pub conceded_player_ids: Vec<String>,
     /// The player who is the current monarch (issue #22).
     pub monarch_id: Option<String>,
     /// The player who holds the initiative (issue #22).
@@ -56,6 +58,7 @@ impl GameViewDto {
             opponent_zones: HashMap::new(),
             game_over: false,
             winner_id: None,
+            conceded_player_ids: vec![],
             monarch_id: None,
             initiative_holder_id: None,
         }
@@ -915,6 +918,12 @@ impl GameViewDto {
             opponent_zones,
             game_over: game.game_over,
             winner_id: game.winner.map(player_id_str),
+            conceded_player_ids: game
+                .players
+                .iter()
+                .filter(|p| p.has_conceded)
+                .map(|p| player_id_str(p.id))
+                .collect(),
             monarch_id: game.monarch.map(player_id_str),
             initiative_holder_id: game.initiative_holder.map(player_id_str),
         }

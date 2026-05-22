@@ -628,35 +628,35 @@ export const useGameStore = create<GameState>()(
       },
 
       endGame: async () => {
+        const runtime = getSelectedGameRuntime();
+        const wasMultiplayer = get().isMultiplayer;
+        set({
+          isGameActive: false,
+          gameView: null,
+          currentPrompt: null,
+          gameLog: [],
+          snapshots: [],
+          deferredQueue: [],
+          isFlashing: false,
+          isWaitingForResponse: false,
+          isMultiplayer: false,
+          isHost: false,
+          myPlayerSlot: null,
+          gameDecks: {},
+        });
+        stopActiveManualRoomSync();
+        resetSelectedGameRuntime();
         try {
-          const runtime = getSelectedGameRuntime();
-          const wasMultiplayer = get().isMultiplayer;
           await runtime.api.endGame();
-          if (wasMultiplayer) {
-            try {
-              await useServerStore.getState().leaveRoom();
-            } catch (e) {
-              console.debug("Failed to leave multiplayer room after game end:", e);
-            }
-          }
-          stopActiveManualRoomSync();
-          resetSelectedGameRuntime();
-          set({
-            isGameActive: false,
-            gameView: null,
-            currentPrompt: null,
-            gameLog: [],
-            snapshots: [],
-            deferredQueue: [],
-            isFlashing: false,
-            isWaitingForResponse: false,
-            isMultiplayer: false,
-            isHost: false,
-            myPlayerSlot: null,
-            gameDecks: {},
-          });
         } catch (e) {
-          console.error("Failed to end game:", e);
+          console.warn("runtime.endGame() failed:", e);
+        }
+        if (wasMultiplayer) {
+          try {
+            await useServerStore.getState().leaveRoom();
+          } catch (e) {
+            console.warn("Failed to leave multiplayer room after game end:", e);
+          }
         }
       },
 

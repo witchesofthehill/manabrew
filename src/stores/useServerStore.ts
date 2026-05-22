@@ -126,7 +126,13 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.leaveRoom();
-        set({ currentRoom: null });
+        set({
+          currentRoom: null,
+          gameStarted: false,
+          playerOrder: [],
+          playerDecks: [],
+          startingLife: 20,
+        });
         get().listRooms();
       },
 

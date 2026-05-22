@@ -197,7 +197,7 @@ fn emit_server_message(app: &AppHandle, msg: &ServerMessage) {
                 StateEnvelope::Response { .. } => {
                     let gm: tauri::State<'_, crate::game_manager::GameManager> =
                         app.state::<crate::game_manager::GameManager>();
-                    gm.route_remote_response(state);
+                    gm.route_remote_response(app, state);
                     return;
                 }
                 StateEnvelope::RoomRelay { .. } => {

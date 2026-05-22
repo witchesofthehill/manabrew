@@ -5,14 +5,16 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use crate::multiplayer_controller::{
     parse_remote_response, spawn_engine_prompt_forwarder, spawn_notify_forwarder,
     spawn_remote_prompt_forwarder, spawn_snapshot_forwarder,
 };
+use crate::network::wrap_broadcast_state;
 use crate::preset_decks::CardIdentity;
+use crate::server_client::ServerClient;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::game_view_dto::GameViewDto;
@@ -21,6 +23,7 @@ use forge_agent_interface::java_prompt_normalizer::{
     normalize_java_prompt, translate_java_player_action,
 };
 use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner, PlayerAction};
+use forge_agent_interface::protocol::StateEnvelope;
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
@@ -41,6 +44,7 @@ pub struct GameSession {
     pub thread_handle: Option<thread::JoinHandle<()>>,
     pub is_multiplayer: bool,
     pub is_host: bool,
+    pub local_engine_player_index: usize,
     /// Cooperative abort flag shared with the Rust game thread's `GameLoop`.
     pub abort_signal: Arc<AtomicBool>,
 }
@@ -179,6 +183,7 @@ impl GameManager {
             thread_handle: Some(handle),
             is_multiplayer: false,
             is_host: true,
+            local_engine_player_index: 0,
             abort_signal,
         });
 
@@ -187,51 +192,13 @@ impl GameManager {
 
     pub fn respond(&self, app: AppHandle, action: PlayerAction) -> Result<(), String> {
         if matches!(action, PlayerAction::Concede) {
-            let game_view = {
-                let lp = self.latest_prompt.lock().map_err(|e| e.to_string())?;
-                let base_view = lp.as_ref().map(|p| p.inner.game_view().clone());
-                let mut view = base_view.unwrap_or_else(|| GameViewDto::empty(String::new()));
-                let opponent_id = view
-                    .players
-                    .iter()
-                    .find(|p| !p.is_human)
-                    .map(|p| p.id.clone());
-                view.game_over = true;
-                view.winner_id = opponent_id;
-                view
-            };
-            let prompt = AgentPrompt {
-                deciding_player_id: String::new(),
-                display_events: vec![],
-                source_card_id: None,
-                inner: AgentPromptInner::GameOver { game_view },
-            };
-            if let Ok(mut lp) = self.latest_prompt.lock() {
-                *lp = Some(prompt.clone());
-            }
-            if let Ok(mut lp) = self.latest_prompt_payload.lock() {
-                *lp = serde_json::to_value(&prompt).ok();
-            }
-            let _ = app.emit("game:prompt", &prompt);
-
-            let session_opt = {
-                let mut session_guard = self.session.lock().map_err(|e| e.to_string())?;
-                session_guard.take()
-            };
-            if let Some(session) = session_opt {
-                session.abort_signal.store(true, Ordering::Relaxed);
-                if let Some(tx) = session.response_tx.as_ref() {
-                    let _ = tx.send(PlayerAction::Pass { until_phase: None });
-                }
-                if let Some(tx) = session.java_response_tx.as_ref() {
-                    let _ = tx.send(json!({ "kind": "pass" }));
-                }
-                drop(session.response_tx);
-                drop(session.java_response_tx);
-                drop(session.remote_response_txs);
-            }
-            self.clear_latest_prompt();
-            return Ok(());
+            let conceder_index = self
+                .session
+                .lock()
+                .ok()
+                .and_then(|g| g.as_ref().map(|s| s.local_engine_player_index))
+                .unwrap_or(0);
+            return self.perform_concede(app, conceder_index);
         }
 
         let session_guard = self.session.lock().map_err(|e| e.to_string())?;
@@ -414,13 +381,14 @@ impl GameManager {
             thread_handle: Some(handle),
             is_multiplayer: true,
             is_host: local_is_host,
+            local_engine_player_index: engine_player_index,
             abort_signal,
         });
 
         Ok(game_id)
     }
 
-    pub fn route_remote_response(&self, state: &serde_json::Value) {
+    pub fn route_remote_response(&self, app: &AppHandle, state: &serde_json::Value) {
         let (player_index, action) = match parse_remote_response(state) {
             Ok(v) => v,
             Err(e) => {
@@ -428,6 +396,13 @@ impl GameManager {
                 return;
             }
         };
+
+        if matches!(action, PlayerAction::Concede) {
+            if let Err(e) = self.perform_concede(app.clone(), player_index) {
+                eprintln!("[route] perform_concede failed: {}", e);
+            }
+            return;
+        }
 
         let session_guard = match self.session.lock() {
             Ok(g) => g,
@@ -443,6 +418,84 @@ impl GameManager {
                 eprintln!("[route] No channel for player index {}", player_index);
             }
         }
+    }
+
+    fn perform_concede(&self, app: AppHandle, conceder_index: usize) -> Result<(), String> {
+        let conceder_slot = player_slot(conceder_index);
+
+        let (is_multiplayer, is_host, remote_indices) = {
+            let session_guard = self.session.lock().map_err(|e| e.to_string())?;
+            match session_guard.as_ref() {
+                Some(s) => (
+                    s.is_multiplayer,
+                    s.is_host,
+                    s.remote_response_txs.keys().copied().collect::<Vec<_>>(),
+                ),
+                None => (false, true, Vec::new()),
+            }
+        };
+
+        let game_view = {
+            let lp = self.latest_prompt.lock().map_err(|e| e.to_string())?;
+            let base_view = lp.as_ref().map(|p| p.inner.game_view().clone());
+            let mut view = base_view.unwrap_or_else(|| GameViewDto::empty(String::new()));
+            view.game_over = true;
+            view.winner_id = if is_multiplayer {
+                let remaining: Vec<&forge_agent_interface::game_view_dto::PlayerDto> = view
+                    .players
+                    .iter()
+                    .filter(|p| p.id != conceder_slot)
+                    .collect();
+                if remaining.len() == 1 {
+                    Some(remaining[0].id.clone())
+                } else {
+                    None
+                }
+            } else {
+                view.players
+                    .iter()
+                    .find(|p| !p.is_human && p.id != conceder_slot)
+                    .map(|p| p.id.clone())
+            };
+            view
+        };
+
+        let prompt = AgentPrompt {
+            deciding_player_id: String::new(),
+            display_events: vec![],
+            source_card_id: None,
+            inner: AgentPromptInner::GameOver { game_view },
+        };
+        if let Ok(mut lp) = self.latest_prompt.lock() {
+            *lp = Some(prompt.clone());
+        }
+        if let Ok(mut lp) = self.latest_prompt_payload.lock() {
+            *lp = serde_json::to_value(&prompt).ok();
+        }
+        let _ = app.emit("game:prompt", &prompt);
+
+        if is_multiplayer && is_host {
+            broadcast_game_over_to_remotes(&app, &prompt, &remote_indices);
+        }
+
+        let session_opt = {
+            let mut session_guard = self.session.lock().map_err(|e| e.to_string())?;
+            session_guard.take()
+        };
+        if let Some(session) = session_opt {
+            session.abort_signal.store(true, Ordering::Relaxed);
+            if let Some(tx) = session.response_tx.as_ref() {
+                let _ = tx.send(PlayerAction::Pass { until_phase: None });
+            }
+            if let Some(tx) = session.java_response_tx.as_ref() {
+                let _ = tx.send(json!({ "kind": "pass" }));
+            }
+            drop(session.response_tx);
+            drop(session.java_response_tx);
+            drop(session.remote_response_txs);
+        }
+        self.clear_latest_prompt();
+        Ok(())
     }
 
     pub fn restore_snapshot(&self, checkpoint_id: u64) -> Result<(), String> {
@@ -477,6 +530,34 @@ fn uuid_simple() -> String {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     format!("{:08x}{:08x}", rng.gen::<u32>(), rng.gen::<u32>())
+}
+
+fn broadcast_game_over_to_remotes(app: &AppHandle, prompt: &AgentPrompt, remote_indices: &[usize]) {
+    let Some(client) = app.try_state::<ServerClient>() else {
+        return;
+    };
+    let prompt_value = match serde_json::to_value(prompt) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("[concede_broadcast] Failed to encode prompt: {}", e);
+            return;
+        }
+    };
+    for &index in remote_indices {
+        let envelope = StateEnvelope::Prompt {
+            for_player: player_slot(index),
+            prompt: prompt_value.clone(),
+        };
+        let state = match serde_json::to_value(envelope) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("[concede_broadcast] Failed to encode envelope: {}", e);
+                continue;
+            }
+        };
+        let msg = wrap_broadcast_state(state);
+        let _ = client.send(&msg);
+    }
 }
 
 fn spawn_java_prompt_forwarder(

@@ -96,7 +96,8 @@ public final class ManaBrewInteractiveSession {
         }
         JsonObject action = JsonParser.parseString(actionJson).getAsJsonObject();
         actions.offer(action);
-        return getSnapshotJson();
+        // No snapshot here — it would race the game thread this unblocks.
+        return "";
     }
 
     SpellAbility awaitPriorityAction(final int playerId, final List<SpellAbility> actionsForPrompt) {

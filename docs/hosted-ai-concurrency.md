@@ -400,6 +400,64 @@ a GraalVM JVM + Espresso runtime-resources + a guest JDK + Forge is **hundreds o
 MB** added to the app. Server-side Linux hosting sidesteps both. Flagged as a
 later problem; noting it because the macOS finding directly gates it.
 
+## Production architecture (the final look)
+
+The prototype (PR #54) proves the mechanism: router + one context per session,
+single-thread interleaved, contexts created on demand. The production end-state
+turns that into a pooled, lobby-integrated, self-healing service. Target shape:
+
+```
+web → relay → lobby ──assigns──> self-hosted-node (Linux, GraalVM host JVM via j4rs)
+                                       │
+                                  ManaBrewEspressoAdapter (router)
+                                       │  holds a POOL of pre-warmed contexts
+                       ┌───────────────┼───────────────┐
+                  ctx#1 (game A)   ctx#2 (game B)   ctx#3 (idle, warm)
+                  own statics      own statics      FModel pre-loaded
+```
+
+### Components / deltas from the prototype
+
+1. **Context pool with pre-warm + background replenish.** Pay `FModel.initialize`
+   (~50 s warm, ~90 s cold) at boot and on replenish — **never on the hot path**. A
+   game start grabs a warm context; game-over resets it (`ParityReset
+.resetAllIdCounters()` + `MyRandom.setRandom()`) and returns it to the pool. S4
+   proved reset-reuse is clean (IDs restart, RNG reseeds, no residue).
+2. **Lobby integration.** The node advertises `capacity = pool size`; the lobby
+   assigns a player to a node with a free slot and the node runs the game in a
+   pooled context. Replaces today's single-room bottleneck (`"no self-hosted room
+available"` on game 2).
+3. **Lifecycle / self-healing.** Idle-context eviction (reclaim memory under low
+   load), and **per-context crash isolation**: a game that throws closes + replaces
+   only its own context, not the node. One context = one blast radius.
+4. **Concurrency model.** Two stages:
+   - **Interleaved single-thread (alpha-sufficient).** Human play is
+     think-time-bound — each game needs the JVM for only milliseconds per decision —
+     so the router can round-robin many live contexts on one thread and it feels
+     fully parallel to users. This is the prototype model, scaled by a poll loop. No
+     j4rs-thread-attach work needed.
+   - **True multi-thread (only when CPU-bound).** One worker thread per active game,
+     each entering its own context, via j4rs per-thread JVM attach + multi-threaded
+     Truffle context entry. Needed only when many AI computations fire simultaneously
+     (bot-vs-bot, or many games mid-AI-turn at once). Deferred until measured need.
+
+### Sizing
+
+- **Memory-bound:** ~260 MB / fully-loaded context → ~50 contexts / 16 GB heap.
+- **CPU-bound** only for simultaneously-_computing_ turns (Espresso ~2–3× HotSpot);
+  human think-time means most live games are idle, so the pool can oversubscribe
+  cores comfortably for human-vs-AI.
+- Keep the **bot-vs-bot soak on HotSpot** (`java-forge`); Espresso (`java-espresso`)
+  is the concurrent live-hosting path. The existing single-game `java-forge` path is
+  untouched and remains the choice where concurrency isn't needed.
+
+### Build / deploy
+
+GraalVM JDK as the node's host JVM (Linux). The `java-espresso-host` module builds a
+thin jar + `lib/` of polyglot/Espresso deps (never an uber jar). The node's Docker
+image carries GraalVM + the harness jar (guest classpath) + the host jar/lib + the
+cardset archive. CI builds the host module (maven, JDK21) alongside the harness jar.
+
 ## Open questions / spike plan
 
 - Espresso spike: 2 contexts × Forge, assert `Game.maxId`/`MyRandom` are isolated

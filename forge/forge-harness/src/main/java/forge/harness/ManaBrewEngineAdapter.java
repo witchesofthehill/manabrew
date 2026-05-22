@@ -121,6 +121,10 @@ public final class ManaBrewEngineAdapter {
         return getSession(sessionId).getSnapshotJson();
     }
 
+    public String getGameOver(final String sessionId) {
+        return String.valueOf(getSession(sessionId).isGameOver());
+    }
+
     public String endGameJson(final String sessionId) {
         endGame(sessionId);
         JsonObject response = new JsonObject();

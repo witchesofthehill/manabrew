@@ -86,6 +86,10 @@ public final class ManaBrewInteractiveSession {
         return InteractiveSnapshotExtractor.snapshotJson(game);
     }
 
+    public boolean isGameOver() {
+        return game != null && game.isGameOver();
+    }
+
     public String submitAction(final String actionJson) {
         if (closed) {
             throw new IllegalStateException("session is closed");

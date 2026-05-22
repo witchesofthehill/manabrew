@@ -652,7 +652,7 @@ fn run_self_play_loop<B: JavaBridge>(
             if last_prompt_json.as_deref() == Some(prompt_json.as_str()) {
                 // Java re-issues a terminal prompt after the game ends — confirm
                 // it's not simply over before counting the repeat as a stall.
-                if snapshot_game_over(&parse_snapshot(session)?) {
+                if session.is_game_over()? {
                     info!(acted, "java-forge self-play reached game over");
                     return Ok(());
                 }
@@ -735,16 +735,9 @@ fn run_self_play_loop<B: JavaBridge>(
             continue;
         }
 
-        if seen_prompt {
-            let snapshot = parse_snapshot(session)?;
-            if snapshot_game_over(&snapshot) {
-                info!(
-                    acted,
-                    turn = snapshot_turn(&snapshot),
-                    "java-forge self-play reached game over"
-                );
-                return Ok(());
-            }
+        if seen_prompt && session.is_game_over()? {
+            info!(acted, "java-forge self-play reached game over");
+            return Ok(());
         }
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -763,19 +756,6 @@ fn parse_snapshot<B: JavaBridge>(session: &mut JavaForgeSession<B>) -> Result<Va
     let snapshot_json = session.get_snapshot()?;
     serde_json::from_str(&snapshot_json)
         .map_err(|err| format!("failed to parse java self-play snapshot: {err}"))
-}
-
-#[cfg(feature = "java-forge")]
-fn snapshot_game_over(snapshot: &Value) -> bool {
-    snapshot
-        .get("game_over")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-}
-
-#[cfg(feature = "java-forge")]
-fn snapshot_turn(snapshot: &Value) -> i64 {
-    snapshot.get("turn").and_then(Value::as_i64).unwrap_or(-1)
 }
 
 #[cfg(feature = "java-forge")]
@@ -900,6 +880,7 @@ pub trait JavaBridge {
         player_index: usize,
     ) -> Result<Option<String>, String>;
     fn get_snapshot(&mut self, session_id: &str) -> Result<String, String>;
+    fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
 }
 
@@ -944,6 +925,11 @@ impl<B: JavaBridge> JavaForgeSession<B> {
         self.bridge.get_snapshot(&session_id)
     }
 
+    pub fn is_game_over(&mut self) -> Result<bool, String> {
+        let session_id = self.require_session_id()?.to_string();
+        self.bridge.is_game_over(&session_id)
+    }
+
     pub fn end_game(&mut self) -> Result<(), String> {
         let Some(session_id) = self.session_id.take() else {
             return Ok(());
@@ -982,6 +968,10 @@ impl JavaBridge for UnavailableJavaBridge {
     }
 
     fn get_snapshot(&mut self, _session_id: &str) -> Result<String, String> {
+        Err(unsupported_message().to_string())
+    }
+
+    fn is_game_over(&mut self, _session_id: &str) -> Result<bool, String> {
         Err(unsupported_message().to_string())
     }
 
@@ -1087,6 +1077,14 @@ impl JavaBridge for J4rsBridge {
             "getSnapshot",
             &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
         )
+    }
+
+    fn is_game_over(&mut self, session_id: &str) -> Result<bool, String> {
+        let value = self.invoke_string(
+            "getGameOver",
+            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
+        )?;
+        Ok(value.trim() == "true")
     }
 
     fn end_game(&mut self, session_id: &str) -> Result<(), String> {

@@ -628,8 +628,9 @@ export const useGameStore = create<GameState>()(
         // Failsafe: if the engine's GameOver prompt never reaches us
         // (dead worker / dropped relay socket), force-exit so the
         // conceder isn't stranded on the game screen.
+        const concededGameId = get().gameView?.gameId;
         setTimeout(() => {
-          if (get().isGameActive) {
+          if (get().isGameActive && get().gameView?.gameId === concededGameId) {
             void get().endGame();
           }
         }, 5000);

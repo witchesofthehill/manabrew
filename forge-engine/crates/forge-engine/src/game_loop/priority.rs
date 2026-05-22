@@ -205,27 +205,32 @@ impl GameLoop {
                 )
             };
 
-            if self.apply_pending_snapshot_restore(game, agents) {
-                passed_count = 0;
-                priority_player = game.turn.priority_player;
-                continue;
-            }
-
+            // Concede wins over a pending snapshot restore: the user
+            // wanting out should not be blocked by an in-flight rewind.
             if action == PlayerAction::Concede {
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
                     crate::player::concede(game, priority_player);
                 });
-                // Personal GameOver: in 3+ player rooms the loop keeps
-                // running for the survivors, so without this the conceder
-                // would sit on their pre-concede prompt forever.
-                agents[priority_player.index()].snapshot_state(game, &self.mana_pools);
-                agents[priority_player.index()]
-                    .notify(crate::agent::notification::GameNotification::GameOver);
+                // Personal GameOver only when the game keeps going for
+                // others (3+ player room). For ≤1 alive, host_runtime
+                // emits a final GameOver to every agent after the loop
+                // exits, so a second emit here would be redundant.
+                if game.alive_players().len() > 1 {
+                    agents[priority_player.index()].snapshot_state(game, &self.mana_pools);
+                    agents[priority_player.index()]
+                        .notify(crate::agent::notification::GameNotification::GameOver);
+                }
                 passed_count = 0;
                 priority_player = game.next_player(priority_player);
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
                     game.turn.priority_player = priority_player;
                 });
+                continue;
+            }
+
+            if self.apply_pending_snapshot_restore(game, agents) {
+                passed_count = 0;
+                priority_player = game.turn.priority_player;
                 continue;
             }
 

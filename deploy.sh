@@ -60,6 +60,12 @@ PREV=$(git rev-parse --short HEAD)
 git pull origin main --ff-only >> "$RAW_LOG" 2>&1
 CURR=$(git rev-parse --short HEAD)
 
+# Forge is a git submodule (engine + cardsfolder). Pulling main only moves the
+# gitlink pointer; the working tree must be checked out explicitly or the wasm
+# / cardset build fails with "cardsfolder does not exist: forge/forge-gui/res".
+git submodule sync --recursive >> "$RAW_LOG" 2>&1 || true
+git submodule update --init --recursive >> "$RAW_LOG" 2>&1
+
 if [ "$PREV" = "$CURR" ]; then
     echo "😴 No new commits. Nothing to deploy."
     exit 0

@@ -138,9 +138,7 @@ pub fn run_interactive_game(
     config_json: JsValue,
     shared_buffer: JsValue,
 ) -> Result<JsValue, JsError> {
-    use forge_game_runtime::deck::{
-        deck_to_identities, force_commander_by_name, prepare_registered_player,
-    };
+    use forge_game_runtime::deck::prepare_players;
     use forge_game_runtime::host_runtime::{
         register_tokens_from_db, run_hosted_multiplayer_game, DEFAULT_MAX_TURNS,
     };
@@ -173,14 +171,13 @@ pub fn run_interactive_game(
     // through the shared host runtime so deck zoning, token setup, and the
     // final game-over prompt match the multiplayer + Tauri paths exactly —
     // single-player no longer dumps every card straight into the library.
-    let mut human = prepare_registered_player("You", card_db, &deck_to_identities(&human_deck));
-    human.registered.starting_life = starting_life;
-    if let Some(commander_name) = config.commander_name.as_deref() {
-        force_commander_by_name(&mut human, commander_name);
-    }
-    let mut ai = prepare_registered_player("AI Opponent", card_db, &deck_to_identities(&ai_deck));
-    ai.registered.starting_life = starting_life;
-    let prepared_players = vec![human, ai];
+    let prepared_players = prepare_players(
+        &["You".to_string(), "AI Opponent".to_string()],
+        &[human_deck, ai_deck],
+        &[config.commander_name.clone(), None],
+        card_db,
+        starting_life,
+    );
 
     let game_id = format!("wasm-interactive-{}", js_sys::Date::now() as u64);
     let game_id_for_agents = game_id.clone();
@@ -237,9 +234,7 @@ pub fn run_multiplayer_game(
     remote_buffers: JsValue,
     local_player_index: u32,
 ) -> Result<JsValue, JsError> {
-    use forge_game_runtime::deck::{
-        deck_to_identities, force_commander_by_name, prepare_registered_player,
-    };
+    use forge_game_runtime::deck::prepare_players;
     use forge_game_runtime::host_runtime::{
         register_tokens_from_db, run_hosted_multiplayer_game, DEFAULT_MAX_TURNS,
     };
@@ -305,17 +300,13 @@ pub fn run_multiplayer_game(
 
     // Route through the shared deck_to_identities + prepare_registered_player
     // so commander/sideboard/attractions zoning matches Tauri exactly.
-    let mut prepared_players = Vec::with_capacity(num_players);
-    for (i, deck) in decks.iter().enumerate() {
-        let identities = deck_to_identities(deck);
-        let mut prepared = prepare_registered_player(player_names[i].clone(), card_db, &identities);
-        prepared.registered.starting_life = starting_life;
-        // Commander comes from the lobby out-of-band, not the deck pile.
-        if let Some(commander_name) = commander_names[i].as_deref() {
-            force_commander_by_name(&mut prepared, commander_name);
-        }
-        prepared_players.push(prepared);
-    }
+    let prepared_players = prepare_players(
+        &player_names,
+        &decks,
+        &commander_names,
+        card_db,
+        starting_life,
+    );
 
     let game_id = format!("wasm-mp-{}", js_sys::Date::now() as u64);
     let engine_player_index = local_player_index as usize;

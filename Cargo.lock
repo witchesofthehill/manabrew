@@ -2203,6 +2203,7 @@ dependencies = [
  "forge-engine-core",
  "forge-foundation",
  "rand 0.8.6",
+ "tracing",
 ]
 
 [[package]]

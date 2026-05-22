@@ -13,9 +13,7 @@ use forge_bot::BotResponder;
 use forge_carddb::CardDatabase;
 use forge_engine_core::agent::PlayerAgent;
 use forge_engine_core::ids::PlayerId;
-use forge_game_runtime::deck::{
-    deck_to_identities, force_commander_by_name, prepare_registered_player,
-};
+use forge_game_runtime::deck::prepare_players;
 use forge_game_runtime::host_runtime::{
     register_tokens_from_db, run_hosted_multiplayer_game, DEFAULT_MAX_TURNS,
 };
@@ -36,20 +34,13 @@ pub fn run_hosted_engine_game(
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
 ) {
-    let num_players = player_names.len();
-    let mut prepared_players = Vec::with_capacity(num_players);
-    for i in 0..num_players {
-        let identities = deck_to_identities(&decks[i]);
-        let mut prepared =
-            prepare_registered_player(player_names[i].clone(), get_card_db(), &identities);
-        prepared.registered.starting_life = starting_life;
-        if let Some(ref commander_name) = commander_names[i] {
-            if !force_commander_by_name(&mut prepared, commander_name) {
-                warn!(commander_name, "commander name not found in selected deck");
-            }
-        }
-        prepared_players.push(prepared);
-    }
+    let prepared_players = prepare_players(
+        &player_names,
+        &decks,
+        &commander_names,
+        get_card_db(),
+        starting_life,
+    );
 
     // The local seat (if any) is filled by an in-process AI; every other seat
     // is a networked player whose prompts/actions are relayed over the
@@ -100,19 +91,21 @@ pub fn run_self_play(
     seed: u64,
     max_turns: u32,
 ) -> Result<(), String> {
-    let mut prepared_players = Vec::with_capacity(seats.len());
-    for (i, seat) in seats.iter().enumerate() {
-        let identities = deck_to_identities(&seat.deck);
-        let mut prepared =
-            prepare_registered_player(format!("Self-Play {}", i + 1), get_card_db(), &identities);
-        prepared.registered.starting_life = starting_life;
-        if let Some(ref commander) = seat.commander_name {
-            if !force_commander_by_name(&mut prepared, commander) {
-                warn!(commander, "commander name not found in self-play deck");
-            }
-        }
-        prepared_players.push(prepared);
-    }
+    let names: Vec<String> = (1..=seats.len())
+        .map(|i| format!("Self-Play {i}"))
+        .collect();
+    let decks: Vec<Deck> = seats.iter().map(|seat| seat.deck.clone()).collect();
+    let commander_names: Vec<Option<String>> = seats
+        .iter()
+        .map(|seat| seat.commander_name.clone())
+        .collect();
+    let prepared_players = prepare_players(
+        &names,
+        &decks,
+        &commander_names,
+        get_card_db(),
+        starting_life,
+    );
 
     let game_id = "self-hosted-rust-self-play".to_string();
     let mut rng = rand::rngs::StdRng::seed_from_u64(seed);

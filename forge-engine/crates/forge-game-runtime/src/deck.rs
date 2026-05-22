@@ -5,6 +5,7 @@ use forge_engine_core::game::GameState;
 use forge_engine_core::ids::PlayerId;
 use forge_engine_core::player::RegisteredPlayer;
 use forge_foundation::{CoreType, ZoneType};
+use tracing::warn;
 
 #[derive(Debug, Clone)]
 pub struct DeckCardIdentity {
@@ -60,6 +61,31 @@ pub fn prepare_registered_player(
     let mut registered = RegisteredPlayer::new(name);
     let cards = prepare_cards_from_identities(db, identities, &mut registered);
     PreparedRegisteredPlayer { registered, cards }
+}
+
+pub fn prepare_players(
+    names: &[String],
+    decks: &[Deck],
+    commander_names: &[Option<String>],
+    db: &CardDatabase,
+    starting_life: i32,
+) -> Vec<PreparedRegisteredPlayer> {
+    names
+        .iter()
+        .zip(decks)
+        .zip(commander_names)
+        .map(|((name, deck), commander)| {
+            let identities = deck_to_identities(deck);
+            let mut prepared = prepare_registered_player(name.clone(), db, &identities);
+            prepared.registered.starting_life = starting_life;
+            if let Some(commander_name) = commander.as_deref() {
+                if !force_commander_by_name(&mut prepared, commander_name) {
+                    warn!(commander_name, "commander name not found in deck");
+                }
+            }
+            prepared
+        })
+        .collect()
 }
 
 pub fn prepare_cards_from_identities(

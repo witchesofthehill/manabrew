@@ -1416,6 +1416,11 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         "nonsnow" => !card.type_line.is_snow(),
         "token" => card.is_token,
         "nontoken" => !card.is_token,
+        // `nonChosenCard` — mirrors Java `CardProperty.java:110-113`:
+        // matches cards that are NOT in the source's `chosen_cards` list.
+        // Used by `SacrificeAll | ValidCards$ ...+nonChosenCard` after a
+        // ChooseCard prompt (e.g. Ajani Nacatl Avenger's [-4] ultimate).
+        "nonchosencard" => !source.chosen_cards.contains(&card.id),
         "tapped" => card.tapped,
         "untapped" => !card.tapped,
         "startedtheturnuntapped" => !card.started_turn_tapped,

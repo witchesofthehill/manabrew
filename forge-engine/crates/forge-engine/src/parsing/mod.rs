@@ -1112,6 +1112,12 @@ fn lower_selector_part(value: &str, is_first_part: bool) -> SelectorPredicate {
         "chosencard" | "chosencardstrict" => {
             SelectorPredicate::CardState(CardStateSelector::ChosenCard)
         }
+        // `nonChosenCard` — Java `CardProperty.java:110-113`. Matches cards
+        // NOT in the source's chosen_cards list (e.g. Ajani Nacatl Avenger's
+        // SacAllOthers spares the chosen artifact/creature/enchantment).
+        "nonchosencard" => SelectorPredicate::Not(Box::new(SelectorPredicate::CardState(
+            CardStateSelector::ChosenCard,
+        ))),
         "namedcard" => SelectorPredicate::CardState(CardStateSelector::NamedCard),
         "chosencolor" => SelectorPredicate::CardState(CardStateSelector::ChosenColor),
         "thisturnentered" => SelectorPredicate::CardState(CardStateSelector::EnteredThisTurn),

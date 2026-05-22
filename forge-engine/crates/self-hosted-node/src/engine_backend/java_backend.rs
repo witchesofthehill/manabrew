@@ -210,6 +210,7 @@ pub struct JavaRuntimeConfig {
     pub harness_jar: PathBuf,
     pub java_home: Option<PathBuf>,
     pub extra_classpath: Vec<PathBuf>,
+    pub espresso_host_jar: PathBuf,
 }
 
 impl JavaRuntimeConfig {
@@ -231,12 +232,22 @@ impl JavaRuntimeConfig {
                 .into_iter()
                 .chain(env_classpath("MANA_BREW_FORGE_EXTRA_CLASSPATH"))
                 .collect(),
+            espresso_host_jar: env_path("SELF_HOSTED_NODE_ESPRESSO_HOST_JAR").unwrap_or_else(
+                || {
+                    root.join(
+                        "forge-engine/crates/self-hosted-node/java-espresso-host/target/manabrew-espresso-host.jar",
+                    )
+                },
+            ),
         }
     }
 
     pub fn validate(&self) -> Result<(), String> {
         require_dir(&self.assets_dir, "Forge assets directory")?;
         require_file(&self.harness_jar, "Forge harness jar")?;
+        if cfg!(feature = "java-espresso") {
+            require_file(&self.espresso_host_jar, "Espresso host jar")?;
+        }
         if let Some(java_home) = &self.java_home {
             require_dir(java_home, "Java home")?;
         }
@@ -993,23 +1004,49 @@ impl J4rsBridge {
         if let Some(java_home) = &config.java_home {
             env::set_var("JAVA_HOME", java_home);
         }
-        let classpath = explicit_classpath(config)?;
-        let classpath_opt = format!("-Djava.class.path={classpath}");
 
-        let jvm = JvmBuilder::new()
-            .with_no_implicit_classpath()
-            .with_default_classloader()
-            .java_opt(JavaOpt::new(&classpath_opt))
-            .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
-            .build()
-            .map_err(java_error)?;
-        let adapter = jvm
-            .create_instance(
-                "forge.harness.ManaBrewEngineAdapter",
-                InvocationArg::empty(),
-            )
-            .map_err(java_error)?;
-        Ok(Self { jvm, adapter })
+        #[cfg(feature = "java-espresso")]
+        {
+            // Host JVM (must be GraalVM) carries only the polyglot router; each
+            // session gets its own Espresso guest context loading Forge from the
+            // guest classpath, so the Forge global statics stay per-session.
+            let classpath_opt = format!("-Djava.class.path={}", espresso_host_classpath(config)?);
+            let guest_opt = format!("-Dmanabrew.guest.classpath={}", guest_classpath(config));
+            let jvm = JvmBuilder::new()
+                .with_no_implicit_classpath()
+                .with_default_classloader()
+                .java_opt(JavaOpt::new(&classpath_opt))
+                .java_opt(JavaOpt::new(&guest_opt))
+                .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
+                .build()
+                .map_err(java_error)?;
+            let adapter = jvm
+                .create_instance(
+                    "manabrew.espresso.ManaBrewEspressoAdapter",
+                    InvocationArg::empty(),
+                )
+                .map_err(java_error)?;
+            return Ok(Self { jvm, adapter });
+        }
+
+        #[cfg(not(feature = "java-espresso"))]
+        {
+            let classpath_opt = format!("-Djava.class.path={}", explicit_classpath(config)?);
+            let jvm = JvmBuilder::new()
+                .with_no_implicit_classpath()
+                .with_default_classloader()
+                .java_opt(JavaOpt::new(&classpath_opt))
+                .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
+                .build()
+                .map_err(java_error)?;
+            let adapter = jvm
+                .create_instance(
+                    "forge.harness.ManaBrewEngineAdapter",
+                    InvocationArg::empty(),
+                )
+                .map_err(java_error)?;
+            Ok(Self { jvm, adapter })
+        }
     }
 
     fn invoke_string(&self, method: &str, args: &[InvocationArg]) -> Result<String, String> {
@@ -1109,6 +1146,48 @@ fn explicit_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
         .map(|entry| entry.to_string_lossy())
         .collect::<Vec<_>>()
         .join(classpath_separator()))
+}
+
+#[cfg(feature = "java-espresso")]
+fn espresso_host_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
+    // Polyglot/Espresso jars must stay separate (no uber jar) or Truffle's
+    // Multi-Release classes and internal resources break — so the thin host jar
+    // plus its sibling lib/ dir of dependency jars all go on individually.
+    let mut entries = vec![config.espresso_host_jar.clone()];
+    let lib_dir = config
+        .espresso_host_jar
+        .parent()
+        .map(|parent| parent.join("lib"))
+        .ok_or_else(|| "espresso host jar has no parent directory".to_string())?;
+    let mut lib_jars = std::fs::read_dir(&lib_dir)
+        .map_err(|err| {
+            format!(
+                "cannot read espresso host lib dir {}: {err}",
+                lib_dir.display()
+            )
+        })?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "jar"))
+        .collect::<Vec<_>>();
+    lib_jars.sort();
+    entries.extend(lib_jars);
+    entries.push(j4rs_runtime_jar()?);
+    Ok(entries
+        .iter()
+        .map(|entry| entry.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(classpath_separator()))
+}
+
+#[cfg(feature = "java-espresso")]
+fn guest_classpath(config: &JavaRuntimeConfig) -> String {
+    config
+        .classpath_entries()
+        .iter()
+        .map(|entry| entry.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(classpath_separator())
 }
 
 #[cfg(feature = "java-forge")]

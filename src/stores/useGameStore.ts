@@ -625,6 +625,14 @@ export const useGameStore = create<GameState>()(
           return;
         }
         get().respond({ type: "concede" });
+        // Failsafe: if the engine's GameOver prompt never reaches us
+        // (dead worker / dropped relay socket), force-exit so the
+        // conceder isn't stranded on the game screen.
+        setTimeout(() => {
+          if (get().isGameActive) {
+            void get().endGame();
+          }
+        }, 5000);
       },
 
       endGame: async () => {

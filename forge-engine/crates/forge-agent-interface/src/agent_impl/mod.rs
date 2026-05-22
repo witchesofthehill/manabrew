@@ -545,6 +545,10 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         );
         match self.recv_action() {
             PlayerAction::EngineAction { action } => action,
+            // Only the priority loop's Concede branch acts on this. Other
+            // recv_action sites (combat/, costs/, mulligan) catch Concede
+            // separately and return a safe default; concede then re-enters
+            // here at the next priority window.
             PlayerAction::Concede => EnginePlayerAction::Concede,
             PlayerAction::Pass { until_phase } => {
                 // Only store a fast-forward declaration when there's a target phase.

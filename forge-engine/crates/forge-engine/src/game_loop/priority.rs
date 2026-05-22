@@ -215,9 +215,12 @@ impl GameLoop {
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
                     crate::player::concede(game, priority_player);
                 });
-                if game.game_over {
-                    return;
-                }
+                // Personal GameOver: in 3+ player rooms the loop keeps
+                // running for the survivors, so without this the conceder
+                // would sit on their pre-concede prompt forever.
+                agents[priority_player.index()].snapshot_state(game, &self.mana_pools);
+                agents[priority_player.index()]
+                    .notify(crate::agent::notification::GameNotification::GameOver);
                 passed_count = 0;
                 priority_player = game.next_player(priority_player);
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {

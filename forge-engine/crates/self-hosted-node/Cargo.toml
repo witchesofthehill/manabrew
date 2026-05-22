@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 java-forge = ["dep:j4rs"]
+java-espresso = ["java-forge"]
 
 [[bin]]
 name = "self-hosted-node"

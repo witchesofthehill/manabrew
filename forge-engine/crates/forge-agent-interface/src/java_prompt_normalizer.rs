@@ -176,7 +176,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
-            "attackerId": optional_normalized_card_id(prompt.get("attackerId")).unwrap_or_default(),
+            "attackerId": optional_string(prompt.get("attackerId")).unwrap_or_default(),
             "blockerIds": to_card_ids(prompt.get("blockers")),
             "blockerCards": to_prompt_cards(prompt.get("blockers")),
             "autoPassDisabled": true,
@@ -187,10 +187,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
-            "attackerId": optional_normalized_card_id(prompt.get("attackerId")).unwrap_or_default(),
+            "attackerId": optional_string(prompt.get("attackerId")).unwrap_or_default(),
             "blockerIds": to_card_ids(prompt.get("blockers")),
-            "defenderId": optional_normalized_card_id(prompt.get("defenderId"))
-                .or_else(|| optional_string(prompt.get("defenderId"))),
+            "defenderId": optional_string(prompt.get("defenderId")),
             "totalDamage": as_i64(prompt.get("totalDamage"), 0),
             "attackerHasDeathtouch": prompt
                 .get("attackerHasDeathtouch")
@@ -378,7 +377,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "gameView": game_view,
             "displayEvents": [],
             "validPlayerIds": to_target_ids(prompt.get("players")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "hostile": true,
             "autoPassDisabled": true,
         });
@@ -389,7 +388,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_target_card_ids(prompt.get("cards")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "hostile": true,
             "autoPassDisabled": true,
         });
@@ -401,7 +400,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "displayEvents": [],
             "validPlayerIds": to_target_ids(prompt.get("players")),
             "validCardIds": to_target_card_ids(prompt.get("cards")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "hostile": true,
             "autoPassDisabled": true,
         });
@@ -412,7 +411,7 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "gameView": game_view,
             "displayEvents": [],
             "validSpellIds": to_target_ids(prompt.get("spells")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "autoPassDisabled": true,
         });
     }
@@ -697,11 +696,7 @@ pub fn translate_java_action_value(action_value: &Value) -> Value {
         return action_value.clone();
     }
     serde_json::from_value::<PlayerAction>(action_value.clone())
-        .map(|action| {
-            let mut translated = translate_java_player_action(&action);
-            denormalize_card_ids(&mut translated);
-            translated
-        })
+        .map(|action| translate_java_player_action(&action))
         .unwrap_or_else(|_| json!({ "kind": "pass" }))
 }
 
@@ -931,7 +926,7 @@ fn to_card(
     let id = card
         .get("id")
         .and_then(Value::as_str)
-        .map(normalize_card_id)
+        .map(str::to_string)
         .unwrap_or_else(|| format!("engine-card-{player_index}-{zone_id}-{card_index}"));
     json!({
         "id": id,
@@ -1064,11 +1059,7 @@ fn to_card_ids(cards: Option<&Value>) -> Vec<String> {
         .cloned()
         .unwrap_or_default()
         .iter()
-        .filter_map(|card| {
-            card.get("id")
-                .and_then(Value::as_str)
-                .map(normalize_card_id)
-        })
+        .filter_map(|card| card.get("id").and_then(Value::as_str).map(str::to_string))
         .collect()
 }
 
@@ -1088,16 +1079,8 @@ fn to_target_card_ids(cards: Option<&Value>) -> Vec<String> {
         .cloned()
         .unwrap_or_default()
         .iter()
-        .filter_map(|card| {
-            card.get("id")
-                .and_then(Value::as_str)
-                .map(normalize_card_id)
-        })
+        .filter_map(|card| card.get("id").and_then(Value::as_str).map(str::to_string))
         .collect()
-}
-
-fn optional_normalized_card_id(value: Option<&Value>) -> Option<String> {
-    value.and_then(Value::as_str).map(normalize_card_id)
 }
 
 fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
@@ -1113,7 +1096,7 @@ fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
                 .and_then(Value::as_str)
                 .unwrap_or("Unknown Card");
             Some(json!({
-                "id": normalize_card_id(id),
+                "id": id,
                 "name": name,
             }))
         })
@@ -1150,29 +1133,6 @@ fn to_defender_ids(defenders: Option<&Value>) -> Vec<Value> {
             }))
         })
         .collect()
-}
-
-fn normalize_card_id(id: &str) -> String {
-    id.strip_prefix("java-card-")
-        .map(|suffix| format!("engine-card-{suffix}"))
-        .unwrap_or_else(|| id.to_string())
-}
-
-fn denormalize_card_id(id: &str) -> String {
-    id.strip_prefix("engine-card-")
-        .map(|suffix| format!("java-card-{suffix}"))
-        .unwrap_or_else(|| id.to_string())
-}
-
-// Reverse `normalize_card_id` on ids sent back: Java matches them against its
-// own `java-card-<n>`, so an unflipped `engine-card-<n>` is silently dropped.
-fn denormalize_card_ids(value: &mut Value) {
-    match value {
-        Value::String(id) => *id = denormalize_card_id(id),
-        Value::Array(items) => items.iter_mut().for_each(denormalize_card_ids),
-        Value::Object(map) => map.values_mut().for_each(denormalize_card_ids),
-        _ => {}
-    }
 }
 
 fn action_kind(label: &str) -> Option<&'static str> {

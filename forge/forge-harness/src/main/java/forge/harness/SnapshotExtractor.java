@@ -181,7 +181,7 @@ public final class SnapshotExtractor {
     }
 
     static String javaCardId(Card c) {
-        return "java-card-" + ParityCardMap.parityId(c);
+        return "engine-card-" + ParityCardMap.parityId(c);
     }
 
     private static boolean isOutcomeWinner(Game game, Player p) {

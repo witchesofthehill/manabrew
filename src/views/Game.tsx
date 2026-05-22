@@ -1303,12 +1303,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   // Auto-return to play menu when game is over.
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.type !== PromptType.GameOver) return;
-    const autoTimer = setTimeout(() => endGame(), 3000);
-    const watchdog = setTimeout(() => endGame(), 6000);
-    return () => {
-      clearTimeout(autoTimer);
-      clearTimeout(watchdog);
-    };
+    const timer = setTimeout(() => endGame(), 3000);
+    return () => clearTimeout(timer);
   }, [gameView?.gameOver, activePrompt?.type, endGame]);
 
   const navigate = useNavigate();

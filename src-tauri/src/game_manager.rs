@@ -192,12 +192,13 @@ impl GameManager {
 
     pub fn respond(&self, app: AppHandle, action: PlayerAction) -> Result<(), String> {
         if matches!(action, PlayerAction::Concede) {
-            let conceder_index = self
-                .session
-                .lock()
-                .ok()
-                .and_then(|g| g.as_ref().map(|s| s.local_engine_player_index))
-                .unwrap_or(0);
+            let conceder_index = {
+                let session_guard = self.session.lock().map_err(|e| e.to_string())?;
+                session_guard
+                    .as_ref()
+                    .map(|s| s.local_engine_player_index)
+                    .unwrap_or(0)
+            };
             return self.perform_concede(app, conceder_index);
         }
 
@@ -423,16 +424,22 @@ impl GameManager {
     fn perform_concede(&self, app: AppHandle, conceder_index: usize) -> Result<(), String> {
         let conceder_slot = player_slot(conceder_index);
 
-        let (is_multiplayer, is_host, remote_indices) = {
-            let session_guard = self.session.lock().map_err(|e| e.to_string())?;
-            match session_guard.as_ref() {
+        let (session_opt, is_multiplayer, is_host, remote_indices) = {
+            let mut session_guard = self.session.lock().map_err(|e| e.to_string())?;
+            let (is_multiplayer, is_host, remote_indices) = match session_guard.as_ref() {
                 Some(s) => (
                     s.is_multiplayer,
                     s.is_host,
                     s.remote_response_txs.keys().copied().collect::<Vec<_>>(),
                 ),
                 None => (false, true, Vec::new()),
-            }
+            };
+            (
+                session_guard.take(),
+                is_multiplayer,
+                is_host,
+                remote_indices,
+            )
         };
 
         let game_view = {
@@ -441,7 +448,7 @@ impl GameManager {
             let mut view = base_view.unwrap_or_else(|| GameViewDto::empty(String::new()));
             view.game_over = true;
             view.winner_id = if is_multiplayer {
-                let remaining: Vec<&forge_agent_interface::game_view_dto::PlayerDto> = view
+                let remaining: Vec<_> = view
                     .players
                     .iter()
                     .filter(|p| p.id != conceder_slot)
@@ -478,10 +485,6 @@ impl GameManager {
             broadcast_game_over_to_remotes(&app, &prompt, &remote_indices);
         }
 
-        let session_opt = {
-            let mut session_guard = self.session.lock().map_err(|e| e.to_string())?;
-            session_guard.take()
-        };
         if let Some(session) = session_opt {
             session.abort_signal.store(true, Ordering::Relaxed);
             if let Some(tx) = session.response_tx.as_ref() {
@@ -536,17 +539,26 @@ fn broadcast_game_over_to_remotes(app: &AppHandle, prompt: &AgentPrompt, remote_
     let Some(client) = app.try_state::<ServerClient>() else {
         return;
     };
-    let prompt_value = match serde_json::to_value(prompt) {
-        Ok(v) => v,
+    let mut prompt_value = match serde_json::to_value(prompt) {
+        Ok(v) => Some(v),
         Err(e) => {
             eprintln!("[concede_broadcast] Failed to encode prompt: {}", e);
             return;
         }
     };
-    for &index in remote_indices {
+    let total = remote_indices.len();
+    for (i, &index) in remote_indices.iter().enumerate() {
+        let payload = if i + 1 == total {
+            prompt_value.take().expect("prompt_value populated above")
+        } else {
+            prompt_value
+                .as_ref()
+                .expect("prompt_value populated above")
+                .clone()
+        };
         let envelope = StateEnvelope::Prompt {
             for_player: player_slot(index),
-            prompt: prompt_value.clone(),
+            prompt: payload,
         };
         let state = match serde_json::to_value(envelope) {
             Ok(v) => v,

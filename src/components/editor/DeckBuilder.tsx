@@ -46,6 +46,7 @@ import {
   Globe,
 } from "lucide-react";
 import { ImportDeckDialog, type ImportDeckDialogMode } from "./ImportDeckDialog";
+import { parseDeckListText } from "@/lib/deckImport";
 import type { ArchidektDeck } from "@/lib/archidekt";
 import { getDeckColors } from "@/components/deck/deckDisplay.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
@@ -69,7 +70,7 @@ import {
   hasPartner,
   getPartnerWithName,
   GAME_FORMATS,
-  allowsAnyNumberOfCopies,
+  copyLimitFromText,
 } from "@/lib/formats";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckListView } from "./DeckListView";
@@ -100,9 +101,6 @@ import {
   setLastSavedSnapshotRef,
 } from "./deckBuilder.unsavedChanges";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-
-const SIDEBOARD_LINE_REGEX = /^(sideboard|side)$/i;
-const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -748,9 +746,9 @@ export function DeckBuilder({
     const format = getFormat(currentDeck.format ?? "standard");
     if (!format) return false;
     const copies = currentDeck.cards.filter((c) => c.name === cardName);
-    // Cards whose oracle text explicitly allows any number of copies are exempt
-    if (copies.length > 0 && allowsAnyNumberOfCopies(copies[0].text)) return false;
-    return copies.length >= format.deckRules.maxCopies;
+    const limit =
+      (copies.length > 0 ? copyLimitFromText(copies[0].text) : null) ?? format.deckRules.maxCopies;
+    return copies.length >= limit;
   }
 
   function handleAddOneToMain(group: CardGroup) {
@@ -822,21 +820,7 @@ export function DeckBuilder({
     navigator.clipboard
       .readText()
       .then(async (text) => {
-        const lines = text
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean);
-        let inSide = false;
-        const parsed: { name: string; count: number; side: boolean }[] = [];
-        for (const line of lines) {
-          if (SIDEBOARD_LINE_REGEX.test(line)) {
-            inSide = true;
-            continue;
-          }
-          const match = line.match(DECK_LINE_REGEX);
-          if (!match) continue;
-          parsed.push({ count: parseInt(match[1], 10), name: match[2].trim(), side: inSide });
-        }
+        const parsed = parseDeckListText(text);
         if (parsed.length === 0) {
           toast.error("No cards found in clipboard");
           return;

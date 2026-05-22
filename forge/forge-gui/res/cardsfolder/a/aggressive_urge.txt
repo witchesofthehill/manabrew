@@ -1,6 +1,0 @@
-Name:Aggressive Urge
-ManaCost:1 G
-Types:Instant
-A:SP$ Pump | ValidTgts$ Creature | NumAtt$ +1 | NumDef$ +1 | SpellDescription$ Target creature gets +1/+1 until end of turn. | SubAbility$ DBDraw
-SVar:DBDraw:DB$ Draw | SpellDescription$ Draw a card.
-Oracle:Target creature gets +1/+1 until end of turn.\nDraw a card.

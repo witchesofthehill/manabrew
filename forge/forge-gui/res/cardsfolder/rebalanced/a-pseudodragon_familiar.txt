@@ -1,7 +1,0 @@
-Name:A-Pseudodragon Familiar
-ManaCost:2 U
-Types:Creature Dragon
-PT:2/2
-K:Flying
-A:AB$ Pump | Cost$ 2 U | ValidTgts$ Creature | KW$ Flying | SpellDescription$ Target creature gains flying until end of turn.
-Oracle:Flying\n{2}{U}: Target creature gains flying until end of turn.

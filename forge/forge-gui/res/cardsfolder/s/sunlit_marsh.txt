@@ -1,6 +1,0 @@
-Name:Sunlit Marsh
-ManaCost:no cost
-Types:Land Plains Swamp
-R:Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ ETBTapped | Description$ CARDNAME enters tapped.
-SVar:ETBTapped:DB$ Tap | Defined$ Self | ETB$ True
-Oracle:({T}: Add {W} or {B}.)\nSunlit Marsh enters tapped.

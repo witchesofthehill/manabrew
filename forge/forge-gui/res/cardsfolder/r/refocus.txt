@@ -1,6 +1,0 @@
-Name:Refocus
-ManaCost:1 U
-Types:Instant
-A:SP$ Untap | ValidTgts$ Creature | SubAbility$ DBDraw | SpellDescription$ Untap target creature. Draw a card.
-SVar:DBDraw:DB$ Draw
-Oracle:Untap target creature.\nDraw a card.

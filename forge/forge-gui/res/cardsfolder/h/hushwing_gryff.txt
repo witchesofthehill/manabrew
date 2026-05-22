@@ -1,9 +1,0 @@
-Name:Hushwing Gryff
-ManaCost:2 W
-Types:Creature Hippogriff
-PT:2/1
-K:Flash
-K:Flying
-S:Mode$ DisableTriggers | ValidCause$ Creature | ValidMode$ ChangesZone,ChangesZoneAll | Destination$ Battlefield | Description$ Creatures entering don't cause abilities to trigger.
-AI:RemoveDeck:Random
-Oracle:Flash\nFlying\nCreatures entering don't cause abilities to trigger.

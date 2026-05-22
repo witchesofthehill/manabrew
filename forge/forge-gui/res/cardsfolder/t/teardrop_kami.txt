@@ -1,7 +1,0 @@
-Name:Teardrop Kami
-ManaCost:U
-Types:Creature Spirit
-PT:1/1
-A:AB$ TapOrUntap | Cost$ Sac<1/CARDNAME> | ValidTgts$ Creature | SpellDescription$ You may tap or untap target creature.
-AI:RemoveDeck:All
-Oracle:Sacrifice Teardrop Kami: You may tap or untap target creature.

@@ -1,5 +1,0 @@
-Name:Angel's Mercy
-ManaCost:2 W W
-Types:Instant
-A:SP$ GainLife | LifeAmount$ 7 | SpellDescription$ You gain 7 life.
-Oracle:You gain 7 life.

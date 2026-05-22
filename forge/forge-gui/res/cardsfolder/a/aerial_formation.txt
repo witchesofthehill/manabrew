@@ -1,7 +1,0 @@
-Name:Aerial Formation
-ManaCost:U
-Types:Instant
-K:Strive:2 U
-A:SP$ Pump | ValidTgts$ Creature | KW$ Flying | NumAtt$ +1 | NumDef$ +1 | TargetMin$ 0 | TargetMax$ MaxTargets | SpellDescription$ Any number of target creatures each get +1/+1 and gain flying until end of turn.
-SVar:MaxTargets:Count$Valid Creature
-Oracle:Strive — This spell costs {2}{U} more to cast for each target beyond the first.\nAny number of target creatures each get +1/+1 and gain flying until end of turn.

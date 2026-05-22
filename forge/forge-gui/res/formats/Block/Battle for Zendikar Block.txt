@@ -1,6 +1,0 @@
-[format]
-Name:Battle for Zendikar Block
-Type:Archived
-Subtype:Block
-Order:115
-Sets:OGW, BFZ

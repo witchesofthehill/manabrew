@@ -1,7 +1,0 @@
-Name:Bloodshed Fever
-ManaCost:R
-Types:Enchantment Aura
-K:Enchant:Creature
-SVar:AttachAILogic:Curse
-S:Mode$ MustAttack | ValidCreature$ Creature.EnchantedBy | Description$ Enchanted creature attacks each combat if able.
-Oracle:Enchant creature\nEnchanted creature attacks each combat if able.

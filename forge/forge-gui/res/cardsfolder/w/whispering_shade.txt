@@ -1,7 +1,0 @@
-Name:Whispering Shade
-ManaCost:3 B
-Types:Creature Shade
-PT:1/1
-K:Landwalk:Swamp
-A:AB$ Pump | Cost$ B | NumAtt$ +1 | NumDef$ +1 | SpellDescription$ CARDNAME gets +1/+1 until end of turn.
-Oracle:Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\n{B}: Whispering Shade gets +1/+1 until end of turn.

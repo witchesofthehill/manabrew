@@ -1,5 +1,0 @@
-Name:Craterize
-ManaCost:3 R
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Land | SpellDescription$ Destroy target land.
-Oracle:Destroy target land.

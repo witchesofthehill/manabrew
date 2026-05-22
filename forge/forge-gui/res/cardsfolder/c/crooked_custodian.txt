@@ -1,7 +1,0 @@
-Name:Crooked Custodian
-ManaCost:1 B
-Types:Creature Ogre Rogue
-PT:3/2
-R:Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ ETBTapped | Description$ CARDNAME enters tapped.
-SVar:ETBTapped:DB$ Tap | Defined$ Self | ETB$ True
-Oracle:Crooked Custodian enters tapped.

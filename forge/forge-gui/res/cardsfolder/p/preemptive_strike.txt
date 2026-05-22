@@ -1,5 +1,0 @@
-Name:Preemptive Strike
-ManaCost:1 U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target creature spell | ValidTgts$ Creature | SpellDescription$ Counter target creature spell.
-Oracle:Counter target creature spell.

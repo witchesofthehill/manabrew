@@ -1,8 +1,0 @@
-Name:Foul-Tongue Shriek
-ManaCost:B
-Types:Instant
-A:SP$ LoseLife | ValidTgts$ Opponent | LifeAmount$ X | SubAbility$ DBGainLife | SpellDescription$ Target opponent loses 1 life for each attacking creature you control. You gain that much life.
-SVar:DBGainLife:DB$ GainLife | Defined$ You | LifeAmount$ X
-SVar:X:Count$Valid Creature.attacking+YouCtrl
-AI:RemoveDeck:All
-Oracle:Target opponent loses 1 life for each attacking creature you control. You gain that much life.

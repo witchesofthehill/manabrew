@@ -1,6 +1,0 @@
-Name:Stone-Throwing Devils
-ManaCost:B
-Types:Creature Devil
-PT:1/1
-K:First Strike
-Oracle:First strike

@@ -1,5 +1,0 @@
-Name:Time Stretch
-ManaCost:8 U U
-Types:Sorcery
-A:SP$ AddTurn | ValidTgts$ Player | NumTurns$ 2 | SpellDescription$ Target player takes two extra turns after this one.
-Oracle:Target player takes two extra turns after this one.

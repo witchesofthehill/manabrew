@@ -1,6 +1,0 @@
-Name:Wirecat
-ManaCost:4
-Types:Artifact Creature Cat
-PT:4/3
-S:Mode$ CantAttack,CantBlock | ValidCard$ Card.Self | IsPresent$ Enchantment | Description$ CARDNAME can't attack or block if an enchantment is on the battlefield.
-Oracle:Wirecat can't attack or block if an enchantment is on the battlefield.

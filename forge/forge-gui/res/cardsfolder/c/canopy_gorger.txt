@@ -1,5 +1,0 @@
-Name:Canopy Gorger
-ManaCost:4 G G
-Types:Creature Wurm
-PT:6/5
-Oracle:

@@ -1,5 +1,0 @@
-Name:Excommunicate
-ManaCost:2 W
-Types:Sorcery
-A:SP$ ChangeZone | ValidTgts$ Creature | Origin$ Battlefield | Destination$ Library | LibraryPosition$ 0 | SpellDescription$ Put target creature on top of its owner's library.
-Oracle:Put target creature on top of its owner's library.

@@ -1,5 +1,0 @@
-Name:Capture of Jingzhou
-ManaCost:3 U U
-Types:Sorcery
-A:SP$ AddTurn | NumTurns$ 1 | SpellDescription$ Take an extra turn after this one.
-Oracle:Take an extra turn after this one.

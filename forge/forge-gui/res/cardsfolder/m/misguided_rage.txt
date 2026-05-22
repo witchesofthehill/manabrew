@@ -1,5 +1,0 @@
-Name:Misguided Rage
-ManaCost:2 R
-Types:Sorcery
-A:SP$ Sacrifice | ValidTgts$ Player | SacValid$ Permanent | SpellDescription$ Target player sacrifices a permanent.
-Oracle:Target player sacrifices a permanent.

@@ -1,8 +1,0 @@
-Name:Spindrift Drake
-ManaCost:U
-Types:Creature Drake
-PT:2/1
-K:Flying
-T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Battlefield | Execute$ TrigUpkeep | TriggerDescription$ At the beginning of your upkeep, sacrifice CARDNAME unless you pay {U}.
-SVar:TrigUpkeep:DB$ Sacrifice | UnlessPayer$ You | UnlessCost$ U
-Oracle:Flying\nAt the beginning of your upkeep, sacrifice Spindrift Drake unless you pay {U}.

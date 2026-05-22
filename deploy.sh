@@ -89,7 +89,7 @@ INFRA_CHANGED=false
 
 while IFS= read -r file; do
     case "$file" in
-        forge/forge-core/*|forge/forge-game/*|forge/forge-ai/*|forge/forge-gui/*|forge/forge-harness/*|forge/pom.xml)
+        forge|forge/*|forge-harness/*)
             JAVA_CHANGED=true ;;
         forge-engine/*|Cargo.toml|Cargo.lock)
             RUST_CHANGED=true ;;

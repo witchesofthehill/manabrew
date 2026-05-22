@@ -1,5 +1,0 @@
-Name:Whiptail Wurm
-ManaCost:6 G
-Types:Creature Wurm
-PT:8/5
-Oracle:

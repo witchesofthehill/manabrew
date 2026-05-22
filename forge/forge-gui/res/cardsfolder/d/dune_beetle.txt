@@ -1,5 +1,0 @@
-Name:Dune Beetle
-ManaCost:1 B
-Types:Creature Insect
-PT:1/4
-Oracle:

@@ -1,6 +1,0 @@
-Name:Sworn Companions
-ManaCost:2 W
-Types:Sorcery
-A:SP$ Token | TokenAmount$ 2 | TokenScript$ w_1_1_soldier_lifelink | SpellDescription$ Create two 1/1 white Soldier creature tokens with lifelink.
-DeckHas:Ability$Token|LifeGain
-Oracle:Create two 1/1 white Soldier creature tokens with lifelink.

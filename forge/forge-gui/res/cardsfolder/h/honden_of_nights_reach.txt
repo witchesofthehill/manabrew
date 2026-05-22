@@ -1,8 +1,0 @@
-Name:Honden of Night's Reach
-ManaCost:3 B
-Types:Legendary Enchantment Shrine
-T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Battlefield | Execute$ TrigDiscard | TriggerDescription$ At the beginning of your upkeep, target opponent discards a card for each Shrine you control.
-SVar:TrigDiscard:DB$ Discard | ValidTgts$ Opponent | NumCards$ X | Mode$ TgtChoose
-SVar:X:Count$Valid Shrine.YouCtrl
-DeckHints:Type$Shrine
-Oracle:At the beginning of your upkeep, target opponent discards a card for each Shrine you control.

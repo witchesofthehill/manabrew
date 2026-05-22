@@ -1,6 +1,0 @@
-Name:Craven Giant
-ManaCost:2 R
-Types:Creature Giant
-PT:4/1
-S:Mode$ CantBlock | ValidCard$ Card.Self | Description$ CARDNAME can't block.
-Oracle:Craven Giant can't block.

@@ -1,9 +1,0 @@
-Name:Seatower Imprisonment
-ManaCost:2 W W
-Types:Enchantment Aura
-K:Enchant:Creature.YouDontCtrl,Planeswalker.YouDontCtrl:creature or planeswalker you don't control
-SVar:AttachAILogic:Curse
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigConjure | TriggerDescription$ When CARDNAME enters, conjure a card named Soldiers of the Watch onto the battlefield.
-SVar:TrigConjure:DB$ MakeCard | Conjure$ True | Name$ Soldiers of the Watch | Zone$ Battlefield
-S:Mode$ CantAttack,CantBlock,CantBeActivated | ValidCard$ Card.EnchantedBy | Description$ Enchanted permanent can't attack or block and its activated abilities can't be activated.
-Oracle:Enchant creature or planeswalker you don't control\nWhen Seatower Imprisonment enters, conjure a card named Soldiers of the Watch onto the battlefield.\nEnchanted permanent can't attack or block and its activated abilities can't be activated.

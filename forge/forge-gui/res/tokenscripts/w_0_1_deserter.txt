@@ -1,6 +1,0 @@
-Name:Deserter Token
-ManaCost:no cost
-Colors:white
-Types:Creature Deserter
-PT:0/1
-Oracle:

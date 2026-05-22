@@ -1,6 +1,0 @@
-Name:Ghostly Flame
-ManaCost:B R
-Types:Enchantment
-S:Mode$ ColorlessDamageSource | ValidCard$ Permanent.Black+inZoneBattlefield,Permanent.Red+inZoneBattlefield,Spell.Black+inZoneStack,Spell.Red+inZoneStack | Description$ Black and/or red permanents and spells are colorless sources of damage.
-SVar:NonStackingEffect:True
-Oracle:Black and/or red permanents and spells are colorless sources of damage.

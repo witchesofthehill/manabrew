@@ -1,8 +1,0 @@
-Name:Malicious Advice
-ManaCost:X U B
-Types:Instant
-A:SP$ Tap | TargetMin$ X | TargetMax$ X | ValidTgts$ Artifact,Creature,Land | SpellDescription$ Tap X target artifacts, creatures, and/or lands. You lose X life. | SubAbility$ Drain
-SVar:Drain:DB$ LoseLife | LifeAmount$ X
-SVar:X:Count$xPaid
-AI:RemoveDeck:All
-Oracle:Tap X target artifacts, creatures, and/or lands. You lose X life.

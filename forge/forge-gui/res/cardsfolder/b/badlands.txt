@@ -1,4 +1,0 @@
-Name:Badlands
-ManaCost:no cost
-Types:Land Swamp Mountain
-Oracle:({T}: Add {B} or {R}.)

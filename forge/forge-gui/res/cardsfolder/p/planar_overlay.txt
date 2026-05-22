@@ -1,8 +1,0 @@
-Name:Planar Overlay
-ManaCost:2 U
-Types:Sorcery
-A:SP$ ChooseCard | Defined$ Player | EachBasicType$ True | ControlledByPlayer$ Chooser | SubAbility$ DBChangeZone | SpellDescription$ Each player chooses a land they control of each basic land type. Return those lands to their owners' hands.
-SVar:DBChangeZone:DB$ ChangeZoneAll | ChangeType$ Card.ChosenCard | Origin$ Battlefield | Destination$ Hand | StackDescription$ None
-AI:RemoveDeck:All
-AI:RemoveDeck:Random
-Oracle:Each player chooses a land they control of each basic land type. Return those lands to their owners' hands.

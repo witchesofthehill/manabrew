@@ -1,5 +1,0 @@
-Name:Unfriendly Fire
-ManaCost:4 R
-Types:Instant
-A:SP$ DealDamage | ValidTgts$ Any | NumDmg$ 4 | SpellDescription$ CARDNAME deals 4 damage to any target.
-Oracle:Unfriendly Fire deals 4 damage to any target.

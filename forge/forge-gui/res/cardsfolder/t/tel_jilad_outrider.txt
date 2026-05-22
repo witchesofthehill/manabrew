@@ -1,6 +1,0 @@
-Name:Tel-Jilad Outrider
-ManaCost:3 G
-Types:Creature Elf Warrior
-PT:3/1
-K:Protection:Artifact
-Oracle:Protection from artifacts

@@ -1,8 +1,0 @@
-Name:Rally the Ancestors
-ManaCost:X W W
-Types:Instant
-A:SP$ ChangeZoneAll | Origin$ Graveyard | Destination$ Battlefield | ChangeType$ Creature.YouOwn+cmcLEX | AtEOT$ YourExileUpkeep | SubAbility$ ExileSelf | SpellDescription$ Return each creature card with mana value X or less from your graveyard to the battlefield. Exile those creatures at the beginning of your next upkeep. Exile CARDNAME.
-SVar:ExileSelf:DB$ ChangeZone | Origin$ Stack | Destination$ Exile
-SVar:X:Count$xPaid
-AI:RemoveDeck:All
-Oracle:Return each creature card with mana value X or less from your graveyard to the battlefield. Exile those creatures at the beginning of your next upkeep. Exile Rally the Ancestors.

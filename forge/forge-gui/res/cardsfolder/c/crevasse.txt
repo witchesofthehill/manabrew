@@ -1,7 +1,0 @@
-Name:Crevasse
-ManaCost:2 R
-Types:Enchantment
-S:Mode$ IgnoreLandWalk | ValidKeyword$ Landwalk:Mountain | Description$ Creatures with mountainwalk can be blocked as though they didn't have mountainwalk.
-SVar:NonStackingEffect:True
-AI:RemoveDeck:Random
-Oracle:Creatures with mountainwalk can be blocked as though they didn't have mountainwalk.

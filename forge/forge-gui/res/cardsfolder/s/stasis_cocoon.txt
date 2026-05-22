@@ -1,8 +1,0 @@
-Name:Stasis Cocoon
-ManaCost:1 W
-Types:Enchantment Aura
-K:Enchant:Artifact
-SVar:AttachAITgts:Creature,Card.hasAbility Activated
-SVar:AttachAILogic:Curse
-S:Mode$ CantAttack,CantBlock,CantBeActivated | ValidCard$ Card.EnchantedBy | Description$ Enchanted artifact can't attack or block, and its activated abilities can't be activated.
-Oracle:Enchant artifact\nEnchanted artifact can't attack or block, and its activated abilities can't be activated.

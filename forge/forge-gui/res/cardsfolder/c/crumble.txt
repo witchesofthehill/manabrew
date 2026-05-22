@@ -1,8 +1,0 @@
-Name:Crumble
-ManaCost:G
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Artifact | NoRegen$ True | SubAbility$ DBGainLife | SpellDescription$ Destroy target artifact. It can't be regenerated.
-SVar:DBGainLife:DB$ GainLife | Defined$ TargetedController | LifeAmount$ X | SpellDescription$ That artifact's controller gains life equal to its mana value.
-SVar:X:Targeted$CardManaCost
-AI:RemoveDeck:Random
-Oracle:Destroy target artifact. It can't be regenerated. That artifact's controller gains life equal to its mana value.

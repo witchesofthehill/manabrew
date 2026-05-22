@@ -1,6 +1,0 @@
-Name:Early Frost
-ManaCost:1 U
-Types:Instant
-A:SP$ Tap | TargetMin$ 0 | TargetMax$ 3 | TgtPrompt$ Choose target land | ValidTgts$ Land | SpellDescription$ Tap up to three target lands.
-AI:RemoveDeck:Random
-Oracle:Tap up to three target lands.

@@ -1,5 +1,0 @@
-Name:Shattering Blow
-ManaCost:1 RW
-Types:Instant
-A:SP$ ChangeZone | Origin$ Battlefield | Destination$ Exile | ValidTgts$ Artifact | SpellDescription$ Exile target artifact.
-Oracle:Exile target artifact.

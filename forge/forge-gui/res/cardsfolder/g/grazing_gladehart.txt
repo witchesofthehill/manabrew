@@ -1,7 +1,0 @@
-Name:Grazing Gladehart
-ManaCost:2 G
-Types:Creature Antelope
-PT:2/2
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | TriggerZones$ Battlefield | ValidCard$ Land.YouCtrl | OptionalDecider$ You | Execute$ TrigGainLife | TriggerDescription$ Landfall — Whenever a land you control enters, you may gain 2 life.
-SVar:TrigGainLife:DB$ GainLife | Defined$ You | LifeAmount$ 2
-Oracle:Landfall — Whenever a land you control enters, you may gain 2 life.

@@ -1,7 +1,0 @@
-Name:Mogg Raider
-ManaCost:R
-Types:Creature Goblin
-PT:1/1
-A:AB$ Pump | Cost$ Sac<1/Goblin> | ValidTgts$ Creature | NumAtt$ +1 | NumDef$ +1 | SpellDescription$ Target creature gets +1/+1 until end of turn.
-AI:RemoveDeck:All
-Oracle:Sacrifice a Goblin: Target creature gets +1/+1 until end of turn.

@@ -1,6 +1,0 @@
-Name:Fyndhorn Brownie
-ManaCost:2 G
-Types:Creature Ouphe
-PT:1/1
-A:AB$ Untap | Cost$ 2 G T | ValidTgts$ Creature | SpellDescription$ Untap target creature.
-Oracle:{2}{G}, {T}: Untap target creature.

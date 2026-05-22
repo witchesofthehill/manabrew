@@ -1,5 +1,0 @@
-Name:Scarwood Goblins
-ManaCost:R G
-Types:Creature Goblin
-PT:2/2
-Oracle:

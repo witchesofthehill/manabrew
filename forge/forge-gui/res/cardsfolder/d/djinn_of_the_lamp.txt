@@ -1,6 +1,0 @@
-Name:Djinn of the Lamp
-ManaCost:5 U U
-Types:Creature Djinn
-PT:5/6
-K:Flying
-Oracle:Flying

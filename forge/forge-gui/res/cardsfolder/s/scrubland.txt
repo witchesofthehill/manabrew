@@ -1,4 +1,0 @@
-Name:Scrubland
-ManaCost:no cost
-Types:Land Plains Swamp
-Oracle:({T}: Add {W} or {B}.)

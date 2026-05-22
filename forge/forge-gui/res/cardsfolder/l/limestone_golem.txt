@@ -1,7 +1,0 @@
-Name:Limestone Golem
-ManaCost:6
-Types:Artifact Creature Golem
-PT:3/4
-A:AB$ Draw | Cost$ 2 Sac<1/CARDNAME> | NumCards$ 1 | ValidTgts$ Player | SpellDescription$ Target player draws a card.
-AI:RemoveDeck:All
-Oracle:{2}, Sacrifice Limestone Golem: Target player draws a card.

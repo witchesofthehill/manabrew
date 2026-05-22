@@ -1,5 +1,0 @@
-Name:Lead Astray
-ManaCost:1 W
-Types:Instant
-A:SP$ Tap | TargetMin$ 0 | TargetMax$ 2 | ValidTgts$ Creature | SpellDescription$ Tap up to two target creatures.
-Oracle:Tap up to two target creatures.

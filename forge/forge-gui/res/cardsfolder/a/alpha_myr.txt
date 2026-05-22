@@ -1,5 +1,0 @@
-Name:Alpha Myr
-ManaCost:2
-Types:Artifact Creature Myr
-PT:2/1
-Oracle:

@@ -1,7 +1,0 @@
-Name:Jellyfish Token
-ManaCost:no cost
-Colors:blue
-Types:Creature Jellyfish
-PT:1/1
-K:Flying
-Oracle:Flying

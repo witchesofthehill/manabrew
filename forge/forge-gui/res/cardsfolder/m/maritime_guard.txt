@@ -1,5 +1,0 @@
-Name:Maritime Guard
-ManaCost:1 U
-Types:Creature Merfolk Soldier
-PT:1/3
-Oracle:

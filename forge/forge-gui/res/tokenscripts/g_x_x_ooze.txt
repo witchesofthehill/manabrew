@@ -1,6 +1,0 @@
-Name:Ooze Token
-ManaCost:no cost
-Colors:green
-Types:Creature Ooze
-PT:*/*
-Oracle:

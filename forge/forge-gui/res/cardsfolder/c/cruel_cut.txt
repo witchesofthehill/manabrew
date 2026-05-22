@@ -1,5 +1,0 @@
-Name:Cruel Cut
-ManaCost:1 B
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature.powerLE2 | SpellDescription$ Destroy target creature with power 2 or less.
-Oracle:Destroy target creature with power 2 or less.

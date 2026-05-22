@@ -1,5 +1,0 @@
-Name:Mystic Repeal
-ManaCost:G
-Types:Instant
-A:SP$ ChangeZone | ValidTgts$ Enchantment | IsCurse$ True | Origin$ Battlefield | Destination$ Library | LibraryPosition$ -1 | SpellDescription$ Put target enchantment on the bottom of its owner's library.
-Oracle:Put target enchantment on the bottom of its owner's library.

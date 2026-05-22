@@ -1,5 +1,0 @@
-Name:Oxidize
-ManaCost:G
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Artifact | NoRegen$ True | SpellDescription$ Destroy target artifact. It can't be regenerated.
-Oracle:Destroy target artifact. It can't be regenerated.

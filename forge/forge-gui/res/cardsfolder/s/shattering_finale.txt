@@ -1,7 +1,0 @@
-Name:Shattering Finale
-ManaCost:1 B
-Types:Sorcery
-K:Casualty:1
-A:SP$ Pump | ValidTgts$ Creature.OppCtrl | TgtPrompt$ Select target creature an opponent controls | IsCurse$ True | NumDef$ -3 | Duration$ Perpetual | StackDescription$ {c:Targeted} perpetually gets -0/-3. | SpellDescription$ Target creature an opponent controls perpetually gets -0/-3.
-DeckHas:Ability$Sacrifice
-Oracle:Casualty 1\nTarget creature an opponent controls perpetually gets -0/-3.

@@ -1,6 +1,0 @@
-Name:Aven Skirmisher
-ManaCost:W
-Types:Creature Bird Warrior
-PT:1/1
-K:Flying
-Oracle:Flying

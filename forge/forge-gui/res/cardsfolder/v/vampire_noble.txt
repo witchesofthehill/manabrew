@@ -1,5 +1,0 @@
-Name:Vampire Noble
-ManaCost:2 B
-Types:Creature Vampire Noble
-PT:3/2
-Oracle:

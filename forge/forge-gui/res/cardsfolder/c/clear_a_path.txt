@@ -1,5 +1,0 @@
-Name:Clear a Path
-ManaCost:R
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Creature.withDefender | TgtPrompt$ Select target creature with defender | SpellDescription$ Destroy target creature with defender.
-Oracle:Destroy target creature with defender.

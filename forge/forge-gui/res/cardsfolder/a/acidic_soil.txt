@@ -1,8 +1,0 @@
-Name:Acidic Soil
-ManaCost:2 R
-Types:Sorcery
-A:SP$ RepeatEach | RepeatPlayers$ Player | RepeatSubAbility$ DBDamage | DamageMap$ True | SpellDescription$ CARDNAME deals damage to each player equal to the number of lands they control.
-SVar:DBDamage:DB$ DealDamage | Defined$ Remembered | NumDmg$ X
-SVar:X:Count$Valid Land.RememberedPlayerCtrl
-AI:RemoveDeck:All
-Oracle:Acidic Soil deals damage to each player equal to the number of lands they control.

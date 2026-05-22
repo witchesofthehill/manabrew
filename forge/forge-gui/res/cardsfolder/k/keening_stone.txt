@@ -1,6 +1,0 @@
-Name:Keening Stone
-ManaCost:6
-Types:Artifact
-A:AB$ Mill | Cost$ 5 T | ValidTgts$ Player | NumCards$ X | SpellDescription$ Target player mills X cards, where X is the number of cards in that player's graveyard.
-SVar:X:TargetedPlayer$CardsInGraveyard
-Oracle:{5}, {T}: Target player mills X cards, where X is the number of cards in that player's graveyard.

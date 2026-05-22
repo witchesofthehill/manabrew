@@ -1,6 +1,0 @@
-Name:Moment of Silence
-ManaCost:W
-Types:Instant
-A:SP$ SkipPhase | ValidTgts$ Player | Phase$ BeginCombat | Duration$ NextThisTurn | SpellDescription$ Target player skips their next combat phase this turn.
-AI:RemoveDeck:All
-Oracle:Target player skips their next combat phase this turn.

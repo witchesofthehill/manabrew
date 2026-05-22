@@ -1,5 +1,0 @@
-Name:Nema Siltlurker
-ManaCost:4 G
-Types:Creature Lizard
-PT:3/5
-Oracle:

@@ -1,5 +1,0 @@
-Name:Yawning Fissure
-ManaCost:4 R
-Types:Sorcery
-A:SP$ Sacrifice | Defined$ Player.Opponent | SacValid$ Land | SpellDescription$ Each opponent sacrifices a land.
-Oracle:Each opponent sacrifices a land.

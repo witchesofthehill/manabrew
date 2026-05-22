@@ -12,10 +12,11 @@
 FROM maven:3.9-eclipse-temurin-17 AS java-builder
 
 ENV MAVEN_OPTS="-Xmx512m"
-WORKDIR /build/forge
+WORKDIR /build
 
-COPY forge/pom.xml                   pom.xml
-COPY forge/checkstyle.xml            checkstyle.xml
+COPY pom.xml                         pom.xml
+COPY forge/pom.xml                   forge/pom.xml
+COPY forge/checkstyle.xml            forge/checkstyle.xml
 
 # Strip module declarations for modules excluded by .dockerignore
 # (Maven validates all <module> entries exist before -pl filtering).
@@ -26,26 +27,26 @@ RUN sed -i '/<module>forge-gui-mobile<\/module>/d; \
             /<module>forge-lda<\/module>/d; \
             /<module>adventure-editor<\/module>/d; \
             /<module>forge-gui-android<\/module>/d; \
-            /<module>forge-installer<\/module>/d' pom.xml
+            /<module>forge-installer<\/module>/d' forge/pom.xml
 
-COPY forge/forge-core/pom.xml        forge-core/pom.xml
-COPY forge/forge-game/pom.xml        forge-game/pom.xml
-COPY forge/forge-ai/pom.xml          forge-ai/pom.xml
-COPY forge/forge-gui/pom.xml         forge-gui/pom.xml
-COPY forge/forge-harness/pom.xml     forge-harness/pom.xml
+COPY forge/forge-core/pom.xml        forge/forge-core/pom.xml
+COPY forge/forge-game/pom.xml        forge/forge-game/pom.xml
+COPY forge/forge-ai/pom.xml          forge/forge-ai/pom.xml
+COPY forge/forge-gui/pom.xml         forge/forge-gui/pom.xml
+COPY forge-harness/pom.xml           forge-harness/pom.xml
 
-RUN for m in forge-core forge-game forge-ai forge-gui forge-harness; do \
+RUN for m in forge/forge-core forge/forge-game forge/forge-ai forge/forge-gui forge-harness; do \
       mkdir -p "$m/src/main/java"; \
     done
 
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn -pl forge-harness -am dependency:go-offline -Dcheckstyle.skip -q || true
 
-COPY forge/forge-core/    forge-core/
-COPY forge/forge-game/    forge-game/
-COPY forge/forge-ai/      forge-ai/
-COPY forge/forge-gui/     forge-gui/
-COPY forge/forge-harness/ forge-harness/
+COPY forge/forge-core/    forge/forge-core/
+COPY forge/forge-game/    forge/forge-game/
+COPY forge/forge-ai/      forge/forge-ai/
+COPY forge/forge-gui/     forge/forge-gui/
+COPY forge-harness/       forge-harness/
 
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn -pl forge-harness -am -DskipTests -Dcheckstyle.skip package -q
@@ -90,8 +91,8 @@ FROM eclipse-temurin:17-jre-jammy
 
 COPY --from=rust-builder /usr/local/bin/self-hosted-node /usr/local/bin/self-hosted-node
 COPY --from=rust-builder /usr/local/bin/jassets/ /usr/local/bin/jassets/
-COPY --from=java-builder /build/forge/forge-harness/target/forge-harness-jar-with-dependencies.jar \
-     /build/forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+COPY --from=java-builder /build/forge-harness/target/forge-harness-jar-with-dependencies.jar \
+     /build/forge-harness/target/forge-harness-jar-with-dependencies.jar
 COPY forge/forge-gui/res/ /build/forge/forge-gui/res/
 COPY public/preset_decks/ /build/public/preset_decks/
 

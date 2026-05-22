@@ -1,6 +1,0 @@
-Name:Vassal Soul
-ManaCost:1 WU WU
-Types:Creature Spirit
-PT:2/2
-K:Flying
-Oracle:Flying

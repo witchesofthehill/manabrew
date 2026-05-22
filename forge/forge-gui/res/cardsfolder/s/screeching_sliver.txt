@@ -1,7 +1,0 @@
-Name:Screeching Sliver
-ManaCost:U
-Types:Creature Sliver
-PT:1/1
-S:Mode$ Continuous | Affected$ Sliver | AddAbility$ Mill | Description$ All Slivers have "{T}: Target player mills a card."
-SVar:Mill:AB$ Mill | Cost$ T | ValidTgts$ Player | NumCards$ 1 | SpellDescription$ Target player mills a card.
-Oracle:All Slivers have "{T}: Target player mills a card."

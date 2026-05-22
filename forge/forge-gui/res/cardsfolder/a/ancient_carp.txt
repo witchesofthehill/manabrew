@@ -1,5 +1,0 @@
-Name:Ancient Carp
-ManaCost:4 U
-Types:Creature Fish
-PT:2/5
-Oracle:

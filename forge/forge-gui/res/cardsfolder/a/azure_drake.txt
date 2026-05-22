@@ -1,6 +1,0 @@
-Name:Azure Drake
-ManaCost:3 U
-Types:Creature Drake
-PT:2/4
-K:Flying
-Oracle:Flying

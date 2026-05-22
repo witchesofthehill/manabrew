@@ -1,5 +1,0 @@
-Name:Zombie Goliath
-ManaCost:4 B
-Types:Creature Zombie Giant
-PT:4/3
-Oracle:

@@ -1,5 +1,0 @@
-Name:Fyndhorn Bow
-ManaCost:2
-Types:Artifact
-A:AB$ Pump | Cost$ 3 T | ValidTgts$ Creature | KW$ First Strike | SpellDescription$ Target creature gains first strike until end of turn.
-Oracle:{3}, {T}: Target creature gains first strike until end of turn.

@@ -265,7 +265,7 @@ impl JavaCache {
 
 pub fn compute_source_hash(project_root: &Path) -> String {
     let dirs_to_hash = [
-        "forge/forge-harness/src",
+        "forge-harness/src",
         "forge/forge-game/src",
         "forge/forge-core/src",
         "forge/forge-ai/src",

@@ -1,7 +1,0 @@
-Name:Sky Terror
-ManaCost:R W
-Types:Creature Dinosaur
-PT:2/2
-K:Flying
-K:Menace
-Oracle:Flying, menace

@@ -1,8 +1,0 @@
-Name:Worship
-ManaCost:3 W
-Types:Enchantment
-R:Event$ LifeReduced | ActiveZones$ Battlefield | ValidPlayer$ You.lifeGE1 | Result$ LT1 | IsDamage$ True | IsPresent$ Creature.YouCtrl | ReplaceWith$ ReduceLoss | Description$ If you control a creature, damage that would reduce your life total to less than 1 reduces it to 1 instead.
-SVar:ReduceLoss:DB$ ReplaceEffect | VarName$ Amount | VarValue$ X
-SVar:X:ReplaceCount$Amount/LimitMax.Difference
-SVar:Difference:Count$YourLifeTotal/Minus.1
-Oracle:If you control a creature, damage that would reduce your life total to less than 1 reduces it to 1 instead.

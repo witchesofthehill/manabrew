@@ -1,9 +1,0 @@
-Name:Pain Kami
-ManaCost:2 R
-Types:Creature Spirit
-PT:2/2
-A:AB$ DealDamage | Cost$ X R Sac<1/CARDNAME> | ValidTgts$ Creature | NumDmg$ X | SpellDescription$ It deals X damage to target creature.
-SVar:X:Count$xPaid
-AI:RemoveDeck:Random
-DeckHas:Ability$Sacrifice
-Oracle:{X}{R}, Sacrifice Pain Kami: It deals X damage to target creature.

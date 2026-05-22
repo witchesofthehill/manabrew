@@ -482,7 +482,7 @@ pub async fn run(storage: Arc<Mutex<Storage>>, config: AnalyzerConfig, running: 
                     .map(|dp| {
                         let parts: Vec<&str> = dp.split(" vs ").collect();
                         format!(
-                            "cargo run -p forge-parity -- --deck1 {} --deck2 {} --seed {} --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar",
+                            "cargo run -p forge-parity -- --deck1 {} --deck2 {} --seed {} --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar",
                             parts.first().unwrap_or(&""), parts.get(1).unwrap_or(&""), first_seed
                         )
                     })

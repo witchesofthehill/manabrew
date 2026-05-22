@@ -1,8 +1,0 @@
-Name:Custodian of the Trove
-ManaCost:3
-Types:Artifact Creature Golem
-PT:2/5
-K:Defender
-R:Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ ETBTapped | Description$ CARDNAME enters tapped.
-SVar:ETBTapped:DB$ Tap | Defined$ Self | ETB$ True
-Oracle:Defender\nCustodian of the Trove enters tapped.

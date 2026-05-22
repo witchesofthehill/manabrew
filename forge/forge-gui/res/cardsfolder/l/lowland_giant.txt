@@ -1,5 +1,0 @@
-Name:Lowland Giant
-ManaCost:2 R R
-Types:Creature Giant
-PT:4/3
-Oracle:

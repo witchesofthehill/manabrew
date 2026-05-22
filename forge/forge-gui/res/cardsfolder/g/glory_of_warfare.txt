@@ -1,7 +1,0 @@
-Name:Glory of Warfare
-ManaCost:2 R W
-Types:Enchantment
-S:Mode$ Continuous | Affected$ Creature.YouCtrl | AddPower$ 2 | Condition$ PlayerTurn | Description$ During your turn, creatures you control get +2/+0.
-S:Mode$ Continuous | Affected$ Creature.YouCtrl | AddToughness$ 2 | Condition$ NotPlayerTurn | Description$ During turns other than yours, creatures you control get +0/+2.
-SVar:PlayMain1:TRUE
-Oracle:During your turn, creatures you control get +2/+0.\nDuring turns other than yours, creatures you control get +0/+2.

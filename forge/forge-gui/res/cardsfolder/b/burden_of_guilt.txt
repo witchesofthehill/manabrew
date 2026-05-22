@@ -1,8 +1,0 @@
-Name:Burden of Guilt
-ManaCost:W
-Types:Enchantment Aura
-K:Enchant:Creature
-A:AB$ Tap | Cost$ 1 | Defined$ Enchanted | SpellDescription$ Tap enchanted creature.
-AI:RemoveDeck:All
-SVar:NonStackingAttachEffect:True
-Oracle:Enchant creature\n{1}: Tap enchanted creature.

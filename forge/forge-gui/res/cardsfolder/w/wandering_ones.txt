@@ -1,5 +1,0 @@
-Name:Wandering Ones
-ManaCost:U
-Types:Creature Spirit
-PT:1/1
-Oracle:

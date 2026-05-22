@@ -1,6 +1,0 @@
-Name:Goliath Beetle
-ManaCost:2 G
-Types:Creature Insect
-PT:3/1
-K:Trample
-Oracle:Trample

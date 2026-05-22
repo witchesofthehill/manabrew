@@ -1,5 +1,0 @@
-Name:Golem Token
-ManaCost:no cost
-Types:Artifact Creature Golem
-PT:4/6
-Oracle:

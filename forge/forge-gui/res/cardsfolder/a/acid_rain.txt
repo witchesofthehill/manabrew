@@ -1,6 +1,0 @@
-Name:Acid Rain
-ManaCost:3 U
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Forest | SpellDescription$ Destroy all Forests.
-AI:RemoveDeck:Random
-Oracle:Destroy all Forests.

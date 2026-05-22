@@ -1,6 +1,0 @@
-Name:One with Nothing
-ManaCost:B
-Types:Instant
-A:SP$ Discard | Mode$ Hand | SpellDescription$ Discard your hand.
-AI:RemoveDeck:Random
-Oracle:Discard your hand.

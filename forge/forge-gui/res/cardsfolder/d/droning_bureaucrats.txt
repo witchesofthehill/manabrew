@@ -1,9 +1,0 @@
-Name:Droning Bureaucrats
-ManaCost:3 W
-Types:Creature Human Advisor
-PT:1/4
-A:AB$ Effect | Cost$ X T | StaticAbilities$ NoCombat | SetChosenNumber$ X | SpellDescription$ Each creature with mana value X can't attack or block this turn.
-SVar:NoCombat:Mode$ Continuous | Affected$ Creature.cmcEQChosen | AddHiddenKeyword$ CARDNAME can't attack or block. | Description$ Each creature with mana value X can't attack or block this turn.
-SVar:X:Count$xPaid
-AI:RemoveDeck:All
-Oracle:{X}, {T}: Each creature with mana value X can't attack or block this turn.

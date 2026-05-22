@@ -1,5 +1,0 @@
-Name:Wu Infantry
-ManaCost:1 U
-Types:Creature Human Soldier
-PT:2/1
-Oracle:

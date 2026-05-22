@@ -1,5 +1,0 @@
-Name:Pillage
-ManaCost:1 R R
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Artifact,Land | TgtPrompt$ Select target artifact or land | NoRegen$ True | SpellDescription$ Destroy target artifact or land. It can't be regenerated.
-Oracle:Destroy target artifact or land. It can't be regenerated.

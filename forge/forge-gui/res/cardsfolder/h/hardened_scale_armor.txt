@@ -1,7 +1,0 @@
-Name:Hardened-Scale Armor
-ManaCost:2 G
-Types:Enchantment Aura
-K:Enchant:Creature
-S:Mode$ Continuous | Affected$ Creature.EnchantedBy | AddPower$ 3 | AddToughness$ 3 | Description$ Enchanted creature gets +3/+3.
-SVar:AttachAILogic:Pump
-Oracle:Enchant creature\nEnchanted creature gets +3/+3.

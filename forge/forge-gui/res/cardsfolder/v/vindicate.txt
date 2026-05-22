@@ -1,5 +1,0 @@
-Name:Vindicate
-ManaCost:1 W B
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Permanent | SpellDescription$ Destroy target permanent.
-Oracle:Destroy target permanent.

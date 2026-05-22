@@ -1,6 +1,0 @@
-Name:Where Ancients Tread
-ManaCost:4 R
-Types:Enchantment
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Creature.powerGE5+YouCtrl | OptionalDecider$ You | TriggerZones$ Battlefield | Execute$ TrigDamage | TriggerDescription$ Whenever a creature you control with power 5 or greater enters, you may have CARDNAME deal 5 damage to any target.
-SVar:TrigDamage:DB$ DealDamage | ValidTgts$ Any | NumDmg$ 5
-Oracle:Whenever a creature you control with power 5 or greater enters, you may have Where Ancients Tread deal 5 damage to any target.

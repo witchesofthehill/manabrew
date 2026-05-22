@@ -1,5 +1,0 @@
-Name:Hydrosurge
-ManaCost:U
-Types:Instant
-A:SP$ Pump | ValidTgts$ Creature | NumAtt$ -5 | IsCurse$ True | SpellDescription$ Target creature gets -5/-0 until end of turn.
-Oracle:Target creature gets -5/-0 until end of turn.

@@ -1,5 +1,0 @@
-Name:Moonglove Extract
-ManaCost:3
-Types:Artifact
-A:AB$ DealDamage | Cost$ Sac<1/CARDNAME> | ValidTgts$ Any | NumDmg$ 2 | SpellDescription$ It deals 2 damage to any target.
-Oracle:Sacrifice Moonglove Extract: It deals 2 damage to any target.

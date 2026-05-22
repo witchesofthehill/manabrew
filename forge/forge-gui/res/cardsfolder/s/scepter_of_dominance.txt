@@ -1,5 +1,0 @@
-Name:Scepter of Dominance
-ManaCost:1 W W
-Types:Artifact
-A:AB$ Tap | Cost$ W T | ValidTgts$ Permanent | SpellDescription$ Tap target permanent.
-Oracle:{W}, {T}: Tap target permanent.

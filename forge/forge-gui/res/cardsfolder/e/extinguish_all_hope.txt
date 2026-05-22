@@ -1,5 +1,0 @@
-Name:Extinguish All Hope
-ManaCost:4 B B
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Creature.nonEnchantment | SpellDescription$ Destroy all nonenchantment creatures.
-Oracle:Destroy all nonenchantment creatures.

@@ -1,6 +1,0 @@
-Name:Goblin Rally
-ManaCost:3 R R
-Types:Sorcery
-A:SP$ Token | TokenAmount$ 4 | TokenScript$ r_1_1_goblin | TokenOwner$ You | SpellDescription$ Create four 1/1 red Goblin creature tokens.
-DeckHas:Ability$Token
-Oracle:Create four 1/1 red Goblin creature tokens.

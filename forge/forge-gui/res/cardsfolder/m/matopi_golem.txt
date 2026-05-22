@@ -1,9 +1,0 @@
-Name:Matopi Golem
-ManaCost:5
-Types:Artifact Creature Golem
-PT:3/3
-A:AB$ Regenerate | Cost$ 1 | RegenerationAbility$ DBImmediateTrigger | StackDescription$ SpellDescription | SpellDescription$ Regenerate CARDNAME. When it regenerates this way, put a -1/-1 counter on it.
-SVar:DBImmediateTrigger:DB$ ImmediateTrigger | Execute$ TrigPutCounter | TriggerDescription$ When it regenerates this way, put a -1/-1 counter on it.
-SVar:TrigPutCounter:DB$ PutCounter | Defined$ EffectSource | CounterType$ M1M1 | CounterNum$ 1
-DeckHas:Ability$Counters
-Oracle:{1}: Regenerate Matopi Golem. When it regenerates this way, put a -1/-1 counter on it.

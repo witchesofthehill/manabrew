@@ -1,7 +1,0 @@
-Name:Wild Leotau
-ManaCost:2 G G
-Types:Creature Cat
-PT:5/4
-T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Battlefield | Execute$ TrigUpkeep | TriggerDescription$ At the beginning of your upkeep, sacrifice CARDNAME unless you pay {G}.
-SVar:TrigUpkeep:DB$ Sacrifice | UnlessPayer$ You | UnlessCost$ G
-Oracle:At the beginning of your upkeep, sacrifice Wild Leotau unless you pay {G}.

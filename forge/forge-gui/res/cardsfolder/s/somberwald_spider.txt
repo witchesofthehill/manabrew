@@ -1,8 +1,0 @@
-Name:Somberwald Spider
-ManaCost:4 G
-Types:Creature Spider
-PT:2/4
-K:Reach
-K:etbCounter:P1P1:2:CheckSVar$ Morbid:Morbid — CARDNAME enters with two +1/+1 counters on it if a creature died this turn.
-SVar:Morbid:Count$Morbid.1.0
-Oracle:Reach (This creature can block creatures with flying.)\nMorbid — Somberwald Spider enters with two +1/+1 counters on it if a creature died this turn.

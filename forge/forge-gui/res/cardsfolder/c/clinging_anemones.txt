@@ -1,8 +1,0 @@
-Name:Clinging Anemones
-ManaCost:3 U
-Types:Creature Jellyfish
-PT:1/4
-K:Defender
-K:Evolve
-DeckHas:Ability$Counters
-Oracle:Defender\nEvolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)

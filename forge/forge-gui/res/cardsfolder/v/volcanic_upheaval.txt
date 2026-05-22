@@ -1,5 +1,0 @@
-Name:Volcanic Upheaval
-ManaCost:3 R
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Land | SpellDescription$ Destroy target land.
-Oracle:Destroy target land.

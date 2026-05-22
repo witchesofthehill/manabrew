@@ -1,7 +1,0 @@
-Name:Stream of Life
-ManaCost:X G
-Types:Sorcery
-A:SP$ GainLife | ValidTgts$ Player | LifeAmount$ X | SpellDescription$ Target player gains X life.
-SVar:X:Count$xPaid
-DeckHas:Ability$LifeGain
-Oracle:Target player gains X life.

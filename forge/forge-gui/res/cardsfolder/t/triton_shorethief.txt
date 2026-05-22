@@ -1,5 +1,0 @@
-Name:Triton Shorethief
-ManaCost:U
-Types:Creature Merfolk Rogue
-PT:1/2
-Oracle:

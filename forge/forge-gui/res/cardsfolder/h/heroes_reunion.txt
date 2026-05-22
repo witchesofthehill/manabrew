@@ -1,5 +1,0 @@
-Name:Heroes' Reunion
-ManaCost:G W
-Types:Instant
-A:SP$ GainLife | LifeAmount$ 7 | ValidTgts$ Player | SpellDescription$ Target player gains 7 life.
-Oracle:Target player gains 7 life.

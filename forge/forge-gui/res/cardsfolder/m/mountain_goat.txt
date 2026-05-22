@@ -1,6 +1,0 @@
-Name:Mountain Goat
-ManaCost:R
-Types:Creature Goat
-PT:1/1
-K:Landwalk:Mountain
-Oracle:Mountainwalk (This creature can't be blocked as long as defending player controls a Mountain.)

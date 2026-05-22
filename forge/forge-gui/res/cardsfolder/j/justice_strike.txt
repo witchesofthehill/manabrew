@@ -1,6 +1,0 @@
-Name:Justice Strike
-ManaCost:R W
-Types:Instant
-A:SP$ DealDamage | ValidTgts$ Creature | DamageSource$ Targeted | NumDmg$ X | SpellDescription$ Target creature deals damage to itself equal to its power.
-SVar:X:Targeted$CardPower
-Oracle:Target creature deals damage to itself equal to its power.

@@ -1,9 +1,0 @@
-Name:Vodalian Merchant
-ManaCost:1 U
-Types:Creature Merfolk
-PT:1/2
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigDraw | TriggerDescription$ When CARDNAME enters, draw a card, then discard a card.
-SVar:TrigDraw:DB$ Draw | SubAbility$ DBDiscard
-SVar:DBDiscard:DB$ Discard | Defined$ You | Mode$ TgtChoose | NumCards$ 1
-DeckHas:Ability$Discard
-Oracle:When Vodalian Merchant enters, draw a card, then discard a card.

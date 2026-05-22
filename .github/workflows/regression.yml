@@ -36,6 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           clean: true
+          submodules: recursive
 
       - name: Run forge-engine unit tests
         run: yarn test:forge-engine
@@ -182,6 +183,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           clean: true
+          submodules: recursive
 
       - name: Download partitioned entries
         uses: actions/download-artifact@v4
@@ -203,7 +205,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .parity-cache
-          key: parity-java-${{ hashFiles('forge/forge-harness/src/**', 'forge/forge-game/src/**', 'forge/forge-core/src/**', 'forge/forge-ai/src/**', 'public/preset_decks/**') }}
+          key: parity-java-${{ hashFiles('forge-harness/src/**', 'forge/forge-game/src/**', 'forge/forge-core/src/**', 'forge/forge-ai/src/**', 'public/preset_decks/**') }}
 
       - name: Select Java 17
         run: |
@@ -212,7 +214,6 @@ jobs:
           mvn -version
 
       - name: Build Java parity harness JAR
-        working-directory: forge
         run: mvn -pl forge-harness -am -DskipTests package
 
       - name: Build forge-parity
@@ -228,7 +229,7 @@ jobs:
           (
             ./target/release/forge-parity \
               --ci --serve --port 8080 --verbose \
-              --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar \
+              --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar \
               --db-path parity-ci.db \
               > parity-server.log 2>&1
             echo $? > parity-server.exitcode

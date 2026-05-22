@@ -1,5 +1,0 @@
-Name:Damnation
-ManaCost:2 B B
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Creature | NoRegen$ True | SpellDescription$ Destroy all creatures. They can't be regenerated.
-Oracle:Destroy all creatures. They can't be regenerated.

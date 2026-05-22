@@ -1,7 +1,0 @@
-Name:Goblin Replica
-ManaCost:3
-Types:Artifact Creature Goblin
-PT:2/2
-A:AB$ Destroy | Cost$ 3 R Sac<1/CARDNAME> | ValidTgts$ Artifact | SpellDescription$ Destroy target artifact.
-DeckNeeds:Color$Red
-Oracle:{3}{R}, Sacrifice Goblin Replica: Destroy target artifact.

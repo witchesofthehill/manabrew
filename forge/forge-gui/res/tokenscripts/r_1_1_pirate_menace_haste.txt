@@ -1,8 +1,0 @@
-Name:Pirate Token
-ManaCost:no cost
-Colors:red
-Types:Creature Pirate
-PT:1/1
-K:Menace
-K:Haste
-Oracle:Menace\nHaste

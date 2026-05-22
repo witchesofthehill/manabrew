@@ -1,5 +1,0 @@
-Name:Davriel's Withering
-ManaCost:B
-Types:Instant
-A:SP$ Pump | ValidTgts$ Creature.OppCtrl | TgtPrompt$ Select target creature an opponent controls | NumAtt$ -1 | NumDef$ -2 | IsCurse$ True | Duration$ Perpetual | StackDescription$ {c:Targeted} perpetually gets -1/-2. | SpellDescription$ Target creature an opponent controls perpetually gets -1/-2.
-Oracle:Target creature an opponent controls perpetually gets -1/-2.

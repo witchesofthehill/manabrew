@@ -1,5 +1,0 @@
-Name:Tribute to the Wild
-ManaCost:1 G
-Types:Instant
-A:SP$ Sacrifice | Defined$ Player.Opponent | SacValid$ Artifact,Enchantment | SpellDescription$ Each opponent sacrifices an artifact or enchantment.
-Oracle:Each opponent sacrifices an artifact or enchantment.

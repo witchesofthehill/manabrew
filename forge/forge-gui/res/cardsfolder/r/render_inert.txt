@@ -1,6 +1,0 @@
-Name:Render Inert
-ManaCost:2 B
-Types:Sorcery
-A:SP$ RemoveCounter | ValidTgts$ Permanent | CounterType$ Any | CounterNum$ 5 | UpTo$ True | SubAbility$ DBDraw | SpellDescription$ Remove up to five counters from target permanent.
-SVar:DBDraw:DB$ Draw | SpellDescription$ Draw a card.
-Oracle:Remove up to five counters from target permanent.\nDraw a card.

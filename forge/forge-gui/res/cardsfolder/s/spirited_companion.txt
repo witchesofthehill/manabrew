@@ -1,7 +1,0 @@
-Name:Spirited Companion
-ManaCost:1 W
-Types:Enchantment Creature Dog
-PT:1/1
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigDraw | TriggerDescription$ When CARDNAME enters, draw a card.
-SVar:TrigDraw:DB$ Draw
-Oracle:When Spirited Companion enters, draw a card.

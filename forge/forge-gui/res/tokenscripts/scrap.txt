@@ -1,4 +1,0 @@
-Name:Scrap
-ManaCost:no cost
-Types:Artifact
-Oracle:

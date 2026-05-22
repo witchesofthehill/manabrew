@@ -1,9 +1,0 @@
-Name:Territorial Dispute
-ManaCost:4 R R
-Types:Enchantment
-T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Battlefield | Execute$ TrigUpkeep | TriggerDescription$ At the beginning of your upkeep, sacrifice CARDNAME unless you sacrifice a land.
-SVar:TrigUpkeep:DB$ Sacrifice | UnlessPayer$ You | UnlessCost$ Sac<1/Land>
-S:Mode$ CantPlayLand | Description$ Players can't play lands.
-AI:RemoveDeck:Random
-SVar:NonStackingEffect:True
-Oracle:At the beginning of your upkeep, sacrifice Territorial Dispute unless you sacrifice a land.\nPlayers can't play lands.

@@ -1,7 +1,0 @@
-Name:Poisonbelly Ogre
-ManaCost:4 B
-Types:Creature Ogre Warrior
-PT:3/3
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Creature.Other | TriggerZones$ Battlefield | Execute$ TrigLoseLife | TriggerDescription$ Whenever another creature enters, its controller loses 1 life.
-SVar:TrigLoseLife:DB$ LoseLife | Defined$ TriggeredCardController | LifeAmount$ 1
-Oracle:Whenever another creature enters, its controller loses 1 life.

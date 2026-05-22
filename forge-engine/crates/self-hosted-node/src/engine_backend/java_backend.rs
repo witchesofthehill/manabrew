@@ -222,7 +222,7 @@ impl JavaRuntimeConfig {
             harness_jar: env_path("SELF_HOSTED_NODE_FORGE_HARNESS_JAR")
                 .or_else(|| env_path("MANA_BREW_FORGE_HARNESS_JAR"))
                 .unwrap_or_else(|| {
-                    root.join("forge/forge-harness/target/forge-harness-jar-with-dependencies.jar")
+                    root.join("forge-harness/target/forge-harness-jar-with-dependencies.jar")
                 }),
             java_home: env_path("SELF_HOSTED_NODE_JAVA_HOME")
                 .or_else(|| env_path("MANA_BREW_JAVA_HOME"))

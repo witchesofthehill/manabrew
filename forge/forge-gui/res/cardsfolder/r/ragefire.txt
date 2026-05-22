@@ -1,5 +1,0 @@
-Name:Ragefire
-ManaCost:1 R
-Types:Sorcery
-A:SP$ DealDamage | ValidTgts$ Creature | NumDmg$ 3 | SpellDescription$ CARDNAME deals 3 damage to target creature.
-Oracle:Ragefire deals 3 damage to target creature.

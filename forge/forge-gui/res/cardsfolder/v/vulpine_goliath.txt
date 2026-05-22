@@ -1,6 +1,0 @@
-Name:Vulpine Goliath
-ManaCost:4 G G
-Types:Creature Fox
-PT:6/5
-K:Trample
-Oracle:Trample

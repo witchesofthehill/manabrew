@@ -1,5 +1,0 @@
-Name:Canal Monitor
-ManaCost:4 B
-Types:Creature Lizard
-PT:5/3
-Oracle:

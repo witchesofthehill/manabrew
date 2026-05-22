@@ -1,5 +1,0 @@
-Name:Daring Demolition
-ManaCost:2 B B
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Creature,Vehicle | TgtPrompt$ Select target creature or Vehicle | SpellDescription$ Destroy target creature or Vehicle.
-Oracle:Destroy target creature or Vehicle.

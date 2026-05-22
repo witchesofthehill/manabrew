@@ -1,7 +1,0 @@
-Name:Kefnet's Last Word
-ManaCost:2 U U
-Types:Sorcery
-A:SP$ GainControl | ValidTgts$ Artifact,Creature,Enchantment | TgtPrompt$ Select target artifact, creature, or enchantment | SubAbility$ DBNoUntap | SpellDescription$ Gain control of target artifact, creature or enchantment.
-SVar:DBNoUntap:DB$ Effect | ReplacementEffects$ DontUntap | Duration$ UntilTheEndOfYourNextUntap | SpellDescription$ Lands you control don't untap during your next untap step.
-SVar:DontUntap:Event$ Untap | ValidCard$ Land.YouCtrl | ValidStepTurnToController$ Player.Activator | Layer$ CantHappen | Description$ Lands you control don't untap during your next untap step.
-Oracle:Gain control of target artifact, creature, or enchantment. Lands you control don't untap during your next untap step.

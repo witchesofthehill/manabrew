@@ -1,7 +1,0 @@
-Name:Shinen of Fury's Fire
-ManaCost:2 R
-Types:Creature Spirit
-PT:2/1
-K:Haste
-A:AB$ Pump | Cost$ R Discard<1/CARDNAME> | ValidTgts$ Creature | PrecostDesc$ Channel — | KW$ Haste | ActivationZone$ Hand | SpellDescription$ Target creature gains haste until end of turn.
-Oracle:Haste\nChannel — {R}, Discard Shinen of Fury's Fire: Target creature gains haste until end of turn.

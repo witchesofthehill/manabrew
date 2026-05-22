@@ -1,5 +1,0 @@
-Name:Sacred Nectar
-ManaCost:1 W
-Types:Sorcery
-A:SP$ GainLife | LifeAmount$ 4 | SpellDescription$ You gain 4 life.
-Oracle:You gain 4 life.

@@ -1,6 +1,0 @@
-Name:Restore
-ManaCost:1 G
-Types:Sorcery
-A:SP$ ChangeZone | Origin$ Graveyard | Destination$ Battlefield | GainControl$ True | TgtPrompt$ Select target land card in a graveyard | ValidTgts$ Land | SpellDescription$ Put target land card from a graveyard onto the battlefield under your control.
-AI:RemoveDeck:Random
-Oracle:Put target land card from a graveyard onto the battlefield under your control.

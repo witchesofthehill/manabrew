@@ -1,5 +1,0 @@
-Name:Fortress Crab
-ManaCost:3 U
-Types:Creature Crab
-PT:1/6
-Oracle:

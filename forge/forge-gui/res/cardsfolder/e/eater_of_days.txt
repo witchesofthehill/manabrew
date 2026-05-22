@@ -1,9 +1,0 @@
-Name:Eater of Days
-ManaCost:4
-Types:Artifact Creature Leviathan
-PT:9/8
-K:Flying
-K:Trample
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ EatSomeDays | TriggerDescription$ When CARDNAME enters, you skip your next two turns.
-SVar:EatSomeDays:DB$ SkipTurn | Defined$ You | NumTurns$ 2
-Oracle:Flying, trample\nWhen Eater of Days enters, you skip your next two turns.

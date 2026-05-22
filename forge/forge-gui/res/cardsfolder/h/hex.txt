@@ -1,5 +1,0 @@
-Name:Hex
-ManaCost:4 B B
-Types:Sorcery
-A:SP$ Destroy | TargetMin$ 6 | TargetMax$ 6 | ValidTgts$ Creature | TgtPrompt$ Select target creatures | SpellDescription$ Destroy six target creatures.
-Oracle:Destroy six target creatures.

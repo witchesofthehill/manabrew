@@ -1,6 +1,0 @@
-Name:Assassin's Strike
-ManaCost:4 B B
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Creature | SubAbility$ DBDiscard | SpellDescription$ Destroy target creature. Its controller discards a card.
-SVar:DBDiscard:DB$ Discard | Defined$ TargetedController | Mode$ TgtChoose
-Oracle:Destroy target creature. Its controller discards a card.

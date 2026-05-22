@@ -1,7 +1,0 @@
-Name:Construct Token
-ManaCost:no cost
-Colors:red
-Types:Artifact Creature Construct
-PT:3/1
-K:Haste
-Oracle:Haste

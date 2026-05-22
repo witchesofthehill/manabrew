@@ -1,5 +1,0 @@
-Name:Warpath Ghoul
-ManaCost:2 B
-Types:Creature Zombie
-PT:3/2
-Oracle:

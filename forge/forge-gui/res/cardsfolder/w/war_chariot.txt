@@ -1,5 +1,0 @@
-Name:War Chariot
-ManaCost:3
-Types:Artifact
-A:AB$ Pump | Cost$ 3 T | ValidTgts$ Creature | KW$ Trample | SpellDescription$ Target creature gains trample until end of turn.
-Oracle:{3}, {T}: Target creature gains trample until end of turn.

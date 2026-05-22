@@ -1,5 +1,0 @@
-Name:Terminate
-ManaCost:B R
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature | NoRegen$ True | SpellDescription$ Destroy target creature. It can't be regenerated.
-Oracle:Destroy target creature. It can't be regenerated.

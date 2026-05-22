@@ -1,5 +1,0 @@
-Name:Switcheroo
-ManaCost:4 U
-Types:Sorcery
-A:SP$ ExchangeControl | ValidTgts$ Creature | TargetMin$ 2 | TargetMax$ 2 | SpellDescription$ Exchange control of two target creatures.
-Oracle:Exchange control of two target creatures.

@@ -1,5 +1,0 @@
-Name:Trained Jackal
-ManaCost:G
-Types:Creature Jackal
-PT:1/2
-Oracle:

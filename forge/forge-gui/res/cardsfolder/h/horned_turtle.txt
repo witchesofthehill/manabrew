@@ -1,5 +1,0 @@
-Name:Horned Turtle
-ManaCost:2 U
-Types:Creature Turtle
-PT:1/4
-Oracle:

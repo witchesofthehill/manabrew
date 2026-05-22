@@ -1,5 +1,0 @@
-Name:Temporal Eddy
-ManaCost:2 U U
-Types:Sorcery
-A:SP$ ChangeZone | ValidTgts$ Creature,Land | TgtPrompt$ Select target creature or land | Origin$ Battlefield | Destination$ Library | LibraryPosition$ 0 | SpellDescription$ Put target creature or land on top of its owner's library.
-Oracle:Put target creature or land on top of its owner's library.

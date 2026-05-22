@@ -1,6 +1,0 @@
-Name:Sabretooth Tiger
-ManaCost:2 R
-Types:Creature Cat
-PT:2/1
-K:First Strike
-Oracle:First strike

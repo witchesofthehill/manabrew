@@ -1,5 +1,0 @@
-Name:Crush
-ManaCost:R
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Artifact.nonCreature | TgtPrompt$ Select target noncreature artifact | SpellDescription$ Destroy target noncreature artifact.
-Oracle:Destroy target noncreature artifact.

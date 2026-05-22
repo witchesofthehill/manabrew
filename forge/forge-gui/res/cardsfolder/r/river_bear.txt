@@ -1,6 +1,0 @@
-Name:River Bear
-ManaCost:3 G
-Types:Creature Bear
-PT:3/3
-K:Landwalk:Island
-Oracle:Islandwalk (This creature can't be blocked as long as defending player controls an Island.)

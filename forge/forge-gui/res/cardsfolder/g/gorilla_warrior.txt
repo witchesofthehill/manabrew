@@ -1,5 +1,0 @@
-Name:Gorilla Warrior
-ManaCost:2 G
-Types:Creature Ape Warrior
-PT:3/2
-Oracle:

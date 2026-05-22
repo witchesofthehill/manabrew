@@ -1,6 +1,0 @@
-Name:Thundersong Trumpeter
-ManaCost:R W
-Types:Creature Human Soldier
-PT:2/1
-A:AB$ Pump | Cost$ T | ValidTgts$ Creature | IsCurse$ True | KW$ HIDDEN CARDNAME can't attack or block. | SpellDescription$ Target creature can't attack or block this turn.
-Oracle:{T}: Target creature can't attack or block this turn.

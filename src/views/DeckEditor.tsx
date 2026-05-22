@@ -396,12 +396,8 @@ export default function DeckEditor() {
     return (
       <>
         <div className="h-full flex flex-col">
-          <div className="px-4 py-3 border-b shrink-0 flex items-center gap-2">
+          <div className="px-4 py-3 border-b shrink-0 flex items-center">
             <h2 className="text-lg font-semibold flex-1">My Decks</h2>
-            <Button size="sm" className="gap-1" onClick={() => setImportDialogOpen(true)}>
-              <Download className="h-3.5 w-3.5" />
-              Import
-            </Button>
           </div>
 
           <DeckListControls
@@ -419,20 +415,34 @@ export default function DeckEditor() {
             <div className="p-4">
               {/* Grid: first cell = New Deck button, then valid decks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {/* New Deck slot */}
-                <button
-                  type="button"
-                  onClick={handleNewDeck}
-                  className={cn(
-                    "aspect-[4/3] rounded-lg border-2 border-dashed border-muted-foreground/30",
-                    "flex flex-col items-center justify-center gap-1.5",
-                    "text-muted-foreground hover:text-foreground hover:border-primary",
-                    "transition-all cursor-pointer bg-muted/30 hover:bg-muted/60",
-                  )}
-                >
-                  <Plus className="h-6 w-6" />
-                  <span className="text-xs font-medium">New Deck</span>
-                </button>
+                {/* New Deck / Import slot */}
+                <div className="group relative">
+                  <button
+                    type="button"
+                    onClick={handleNewDeck}
+                    className={cn(
+                      "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
+                      "flex flex-col items-center justify-center gap-1.5",
+                      "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
+                      "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
+                    )}
+                  >
+                    <Plus className="h-6 w-6" />
+                    <span className="text-xs font-medium">New deck</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportDialogOpen(true)}
+                    className={cn(
+                      "absolute bottom-2 left-1/2 -translate-x-1/2",
+                      "flex items-center gap-1 rounded-md px-2 py-1 text-[11px]",
+                      "text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground",
+                    )}
+                  >
+                    <Download className="h-3" />
+                    Import
+                  </button>
+                </div>
 
                 {filteredValid.map((s) => (
                   <DeckGridCard

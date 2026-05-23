@@ -154,9 +154,13 @@ pub fn run_self_play(
     starting_life: i32,
     seed: u64,
     max_prompts: usize,
+    games: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
+    // One bridge = one JVM + one router for the whole process. Every game runs
+    // through it, so the espresso context pool is shared across games — this is the
+    // node driving the pool, not a one-game-per-process JVM.
     let bridge = J4rsBridge::new(&config)?;
     let mut session = JavaForgeSession::new(bridge);
     session.initialize(&assets_dir)?;
@@ -170,25 +174,29 @@ pub fn run_self_play(
             seat.commander_name.clone(),
         ));
     }
-    let request = StartGameRequest::new(
-        "self-hosted-java-self-play".to_string(),
-        starting_life,
-        seed,
-        players,
-    );
-    let session_id = session.start_game(&request)?;
-    info!(
-        session_id,
-        players = seats.len(),
-        starting_life,
-        seed,
-        max_prompts,
-        "java-forge self-play session started"
-    );
 
-    let result = run_self_play_loop(&mut session, max_prompts);
-    let end_result = session.end_game();
-    result.and(end_result)
+    for game_index in 0..games.max(1) {
+        let request = StartGameRequest::new(
+            format!("self-hosted-java-self-play-{game_index}"),
+            starting_life,
+            seed.wrapping_add(game_index as u64),
+            players.clone(),
+        );
+        let session_id = session.start_game(&request)?;
+        info!(
+            session_id,
+            game_index,
+            games,
+            players = seats.len(),
+            starting_life,
+            max_prompts,
+            "java-forge self-play game started"
+        );
+        let result = run_self_play_loop(&mut session, max_prompts);
+        let end_result = session.end_game();
+        result.and(end_result)?;
+    }
+    Ok(())
 }
 
 #[cfg(not(feature = "java-forge"))]
@@ -197,6 +205,7 @@ pub fn run_self_play(
     _starting_life: i32,
     _seed: u64,
     _max_prompts: usize,
+    _games: usize,
 ) -> Result<(), String> {
     Err(
         "java-forge self-play requires building self-hosted-node with --features java-forge"
@@ -1221,7 +1230,7 @@ fn classpath_separator() -> &'static str {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartGameRequest {
     game_id: String,
@@ -1230,7 +1239,7 @@ pub struct StartGameRequest {
     players: Vec<PlayerConfig>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerConfig {
     name: String,
@@ -1238,7 +1247,7 @@ pub struct PlayerConfig {
     commander_name: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardIdentityForJava {
     name: String,

@@ -213,6 +213,278 @@ pub fn run_self_play(
     )
 }
 
+// One JVM per process, and j4rs's Jvm is thread-bound, so the single bridge lives on
+// one owner thread. Game drivers (one per concurrent game) send session-tagged
+// commands here and block on the reply — serializing JVM access while the espresso
+// router keeps each game's statics isolated. This is the engine core that lets one
+// node host concurrent games.
+#[cfg(feature = "java-forge")]
+enum EngineCommand {
+    Start(String, std_mpsc::Sender<Result<String, String>>),
+    Submit(String, String, std_mpsc::Sender<Result<String, String>>),
+    Prompt(
+        String,
+        usize,
+        std_mpsc::Sender<Result<Option<String>, String>>,
+    ),
+    GameOver(String, std_mpsc::Sender<Result<bool, String>>),
+    End(String, std_mpsc::Sender<Result<(), String>>),
+    Shutdown,
+}
+
+#[cfg(feature = "java-forge")]
+pub struct JavaEngine {
+    tx: std_mpsc::Sender<EngineCommand>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+
+#[cfg(feature = "java-forge")]
+#[derive(Clone)]
+pub struct JavaEngineHandle {
+    tx: std_mpsc::Sender<EngineCommand>,
+}
+
+#[cfg(feature = "java-forge")]
+impl JavaEngine {
+    pub fn start(config: &JavaRuntimeConfig) -> Result<Self, String> {
+        let assets_dir = config.assets_dir.to_string_lossy().to_string();
+        let config = config.clone();
+        let (tx, rx) = std_mpsc::channel::<EngineCommand>();
+        let (ready_tx, ready_rx) = std_mpsc::channel::<Result<(), String>>();
+        let worker = std::thread::Builder::new()
+            .name("java-engine".to_string())
+            .spawn(move || {
+                let mut bridge = match J4rsBridge::new(&config) {
+                    Ok(bridge) => bridge,
+                    Err(error) => {
+                        let _ = ready_tx.send(Err(error));
+                        return;
+                    }
+                };
+                if let Err(error) = bridge.initialize(&assets_dir) {
+                    let _ = ready_tx.send(Err(error));
+                    return;
+                }
+                let _ = ready_tx.send(Ok(()));
+                for command in rx {
+                    match command {
+                        EngineCommand::Start(request, reply) => {
+                            let _ = reply.send(bridge.start_game_json(&request));
+                        }
+                        EngineCommand::Submit(session_id, action, reply) => {
+                            let _ = reply.send(bridge.submit_action(&session_id, &action));
+                        }
+                        EngineCommand::Prompt(session_id, player_index, reply) => {
+                            let _ = reply.send(bridge.get_prompt(&session_id, player_index));
+                        }
+                        EngineCommand::GameOver(session_id, reply) => {
+                            let _ = reply.send(bridge.is_game_over(&session_id));
+                        }
+                        EngineCommand::End(session_id, reply) => {
+                            let _ = reply.send(bridge.end_game(&session_id));
+                        }
+                        EngineCommand::Shutdown => break,
+                    }
+                }
+            })
+            .map_err(|error| format!("failed to spawn java engine thread: {error}"))?;
+
+        match ready_rx.recv() {
+            Ok(Ok(())) => Ok(Self {
+                tx,
+                worker: Some(worker),
+            }),
+            Ok(Err(error)) => Err(error),
+            Err(_) => Err("java engine thread exited before initializing".to_string()),
+        }
+    }
+
+    pub fn handle(&self) -> JavaEngineHandle {
+        JavaEngineHandle {
+            tx: self.tx.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "java-forge")]
+impl Drop for JavaEngine {
+    fn drop(&mut self) {
+        let _ = self.tx.send(EngineCommand::Shutdown);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+#[cfg(feature = "java-forge")]
+impl JavaEngineHandle {
+    fn call<T>(
+        &self,
+        make: impl FnOnce(std_mpsc::Sender<Result<T, String>>) -> EngineCommand,
+    ) -> Result<T, String> {
+        let (reply_tx, reply_rx) = std_mpsc::channel();
+        self.tx
+            .send(make(reply_tx))
+            .map_err(|_| "java engine thread is gone".to_string())?;
+        reply_rx
+            .recv()
+            .map_err(|_| "java engine dropped the reply".to_string())?
+    }
+
+    pub fn start_game(&self, request_json: &str) -> Result<String, String> {
+        let response = self.call(|reply| EngineCommand::Start(request_json.to_string(), reply))?;
+        let parsed: StartGameResponse =
+            serde_json::from_str(&response).map_err(|error| error.to_string())?;
+        Ok(parsed.session_id)
+    }
+
+    pub fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
+        self.call(|reply| {
+            EngineCommand::Submit(session_id.to_string(), action_json.to_string(), reply)
+        })
+    }
+
+    pub fn get_prompt(
+        &self,
+        session_id: &str,
+        player_index: usize,
+    ) -> Result<Option<String>, String> {
+        self.call(|reply| EngineCommand::Prompt(session_id.to_string(), player_index, reply))
+    }
+
+    pub fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
+        self.call(|reply| EngineCommand::GameOver(session_id.to_string(), reply))
+    }
+
+    pub fn end_game(&self, session_id: &str) -> Result<(), String> {
+        self.call(|reply| EngineCommand::End(session_id.to_string(), reply))
+    }
+}
+
+#[cfg(feature = "java-forge")]
+pub fn run_concurrent_self_play(
+    seats: &[DeckSelection],
+    starting_life: i32,
+    seed: u64,
+    max_prompts: usize,
+    concurrency: usize,
+) -> Result<(), String> {
+    let config = JavaRuntimeConfig::from_env();
+    let engine = JavaEngine::start(&config)?;
+    info!(
+        concurrency,
+        "java-engine started; launching concurrent games"
+    );
+
+    let mut players = Vec::with_capacity(seats.len());
+    for (i, seat) in seats.iter().enumerate() {
+        let identities = deck_card_identities(&seat.deck);
+        players.push(PlayerConfig::new(
+            format!("Self-Play {}", i + 1),
+            &identities,
+            seat.commander_name.clone(),
+        ));
+    }
+
+    let mut joins = Vec::with_capacity(concurrency.max(1));
+    for game_index in 0..concurrency.max(1) {
+        let handle = engine.handle();
+        let request = StartGameRequest::new(
+            format!("self-hosted-java-concurrent-{game_index}"),
+            starting_life,
+            seed.wrapping_add(game_index as u64),
+            players.clone(),
+        );
+        joins.push(std::thread::spawn(move || -> Result<(), String> {
+            let request_json = request.to_json().map_err(|error| error.to_string())?;
+            let session_id = handle.start_game(&request_json)?;
+            info!(session_id, game_index, "concurrent java game started");
+            let result = drive_game_via_handle(&handle, &session_id, max_prompts);
+            let _ = handle.end_game(&session_id);
+            result
+        }));
+    }
+
+    let mut outcome = Ok(());
+    for join in joins {
+        match join.join() {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => outcome = Err(error),
+            Err(_) => outcome = Err("concurrent game thread panicked".to_string()),
+        }
+    }
+    outcome
+}
+
+#[cfg(not(feature = "java-forge"))]
+pub fn run_concurrent_self_play(
+    _seats: &[DeckSelection],
+    _starting_life: i32,
+    _seed: u64,
+    _max_prompts: usize,
+    _concurrency: usize,
+) -> Result<(), String> {
+    Err(
+        "java-forge concurrent self-play requires building self-hosted-node with --features java-forge"
+            .to_string(),
+    )
+}
+
+#[cfg(feature = "java-forge")]
+fn drive_game_via_handle(
+    handle: &JavaEngineHandle,
+    session_id: &str,
+    max_prompts: usize,
+) -> Result<(), String> {
+    let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
+    let mut last_prompt: Option<String> = None;
+    let mut acted = 0usize;
+    let mut seen_prompt = false;
+    let max_iterations = max_prompts.saturating_mul(200).max(2_000);
+
+    for _ in 0..max_iterations {
+        if let Some(prompt_json) = handle.get_prompt(session_id, 0)? {
+            seen_prompt = true;
+            if last_prompt.as_deref() == Some(prompt_json.as_str()) {
+                if handle.is_game_over(session_id)? {
+                    return Ok(());
+                }
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            }
+            let prompt: Value = serde_json::from_str(&prompt_json)
+                .map_err(|error| format!("failed to parse concurrent prompt: {error}"))?;
+            let player = prompt
+                .get("player")
+                .and_then(Value::as_u64)
+                .unwrap_or_default() as usize;
+            let normalized = normalize_java_prompt(prompt);
+            let agent_prompt: AgentPrompt = serde_json::from_value(normalized)
+                .map_err(|error| format!("concurrent prompt did not deserialize: {error}"))?;
+            if let Some(action) = bots.entry(player).or_default().decide(agent_prompt) {
+                let action_value = serde_json::to_value(&action).map_err(|e| e.to_string())?;
+                let java_action = translate_java_action_value(&action_value);
+                handle.submit_action(session_id, &java_action.to_string())?;
+                acted += 1;
+                if acted >= max_prompts {
+                    return Err(format!(
+                        "concurrent game {session_id} did not finish within {max_prompts} decisions"
+                    ));
+                }
+            }
+            last_prompt = Some(prompt_json);
+            continue;
+        }
+        if seen_prompt && handle.is_game_over(session_id)? {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    Err(format!(
+        "concurrent game {session_id} exceeded its iteration cap"
+    ))
+}
+
 #[derive(Debug, Clone)]
 pub struct JavaRuntimeConfig {
     pub assets_dir: PathBuf,

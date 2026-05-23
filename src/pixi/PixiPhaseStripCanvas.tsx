@@ -6,6 +6,8 @@
 import { useRef, useEffect, useEffectEvent, useCallback, useState } from "react";
 import { Application } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
+import { PIXI_MAX_FPS } from "./constants";
+import { registerPixiApp } from "./visibility";
 installPixiPatches();
 import { PhaseStripLayer, type PhaseStripState, type PhaseStripCallbacks } from "./PhaseStripLayer";
 import { getTheme } from "@/hooks/useTheme";
@@ -21,6 +23,7 @@ export function PixiPhaseStripCanvas({ state, callbacks, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
   const stripRef = useRef<PhaseStripLayer | null>(null);
+  const unregisterVisibilityRef = useRef<(() => void) | null>(null);
 
   const [ready, setReady] = useState(false);
 
@@ -53,6 +56,9 @@ export function PixiPhaseStripCanvas({ state, callbacks, className }: Props) {
       appRef.current = null;
       return false;
     }
+
+    app.ticker.maxFPS = PIXI_MAX_FPS;
+    unregisterVisibilityRef.current = registerPixiApp(app);
 
     const theme = getTheme();
     const strip = new PhaseStripLayer(theme);
@@ -87,6 +93,8 @@ export function PixiPhaseStripCanvas({ state, callbacks, className }: Props) {
       active = false;
       stripRef.current?.destroy();
       stripRef.current = null;
+      unregisterVisibilityRef.current?.();
+      unregisterVisibilityRef.current = null;
       destroyPixiApp(appRef.current);
       appRef.current = null;
       markReady(false);

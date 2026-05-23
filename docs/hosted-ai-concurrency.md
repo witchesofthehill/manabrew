@@ -418,11 +418,20 @@ web → relay → lobby ──assigns──> self-hosted-node (Linux, GraalVM ho
 
 ### Components / deltas from the prototype
 
-1. **Context pool with pre-warm + background replenish.** Pay `FModel.initialize`
-   (~50 s warm, ~90 s cold) at boot and on replenish — **never on the hot path**. A
-   game start grabs a warm context; game-over resets it (`ParityReset
-.resetAllIdCounters()` + `MyRandom.setRandom()`) and returns it to the pool. S4
-   proved reset-reuse is clean (IDs restart, RNG reseeds, no residue).
+1. **Context pool with pre-warm + background replenish (single-use contexts).** Pay
+   `FModel.initialize` (~50 s warm, ~90 s cold) at boot and on replenish — **never on
+   the hot path**. A game start grabs a warm context; game-over **closes** it; a
+   background replenisher tops the warm pool back up. One context = one game = one
+   blast radius. **Implemented + validated:** pre-warm 2, two sequential games each
+   in its own pooled context ran clean; card-load count = 3 (2 pre-warm + 1
+   background top-up) confirms the replenisher hides init off the hot path.
+   - _In-place reuse_ (reset + run another game in the same context, avoiding even
+     the background init) is **deferred — not safe yet for the interactive adapter.**
+     S4's clean reuse was the _synchronous_ `Main --server` path; the interactive
+     adapter spawns a game thread that `ManaBrewInteractiveSession.close()` does not
+     join, so a lingering thread corrupts the next game in that context (observed:
+     game B died at `startFirstTurn` with a `PlayerOutcome` NPE). Reuse is gated on
+     making the session fully tear down its game thread on close.
 2. **Lobby integration.** The node advertises `capacity = pool size`; the lobby
    assigns a player to a node with a free slot and the node runs the game in a
    pooled context. Replaces today's single-room bottleneck (`"no self-hosted room

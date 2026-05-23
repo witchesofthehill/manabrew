@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 import type { DeckCard, GameCard } from "@/types/manabrew";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { TextWithMana } from "@/components/game/TextWithMana";
 import { FLASH_CARD_SIZE } from "./game.styles";
@@ -162,6 +163,21 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
           )}
         >
           <CounterDisplay counters={card.counters} size="sm" />
+        </div>
+      )}
+
+      {card.isRingBearer && (
+        <div
+          className="absolute top-2 left-2 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-2 pointer-events-none"
+          style={{
+            backgroundColor: themeColors.badges.ring,
+            color: themeColors.textOnTinted,
+            // @ts-expect-error CSS var
+            "--tw-ring-color": themeColors.badges.ring,
+          }}
+          title="Ring-bearer"
+        >
+          <GameIcon name="ring" className="h-6 w-6" />
         </div>
       )}
     </>

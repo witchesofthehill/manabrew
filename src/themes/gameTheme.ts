@@ -334,3 +334,13 @@ export function withAlpha(hex: string, alpha: number): string {
   const { r, g, b } = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+export function darken(hex: string, factor: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  const k = Math.max(0, Math.min(1, 1 - factor));
+  const to = (n: number) =>
+    Math.round(n * k)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+}

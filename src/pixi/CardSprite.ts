@@ -255,6 +255,8 @@ export class CardSprite extends Container {
   private nameText: Text;
   private foilRing: Graphics;
   private foilStar: Text;
+  private ringBearerGfx: Graphics;
+  private ringBearerIcon: Sprite;
   private stackCountContainer: Container;
   private stackCountBg: Graphics;
   private stackCountText: Text;
@@ -344,6 +346,15 @@ export class CardSprite extends Container {
     this.foilStar.y = 2;
     this.foilStar.visible = false;
     this.addChild(this.foilStar);
+
+    this.ringBearerGfx = new Graphics();
+    this.ringBearerGfx.visible = false;
+    this.addChild(this.ringBearerGfx);
+
+    this.ringBearerIcon = new Sprite(Texture.EMPTY);
+    this.ringBearerIcon.anchor.set(0.5, 0.5);
+    this.ringBearerIcon.visible = false;
+    this.addChild(this.ringBearerIcon);
 
     this.stackCountContainer = new Container();
     this.stackCountBg = new Graphics();
@@ -453,6 +464,33 @@ export class CardSprite extends Container {
     this.updateCounters();
     this.updateKeywords();
     this.updateFoil();
+    this.updateRingBearer();
+  }
+
+  private updateRingBearer(): void {
+    const isBearer = !!this.card.isRingBearer;
+    this.ringBearerGfx.visible = isBearer;
+    this.ringBearerIcon.visible = isBearer;
+    if (!isBearer) {
+      this.ringBearerGfx.clear();
+      return;
+    }
+    const ringHex = activeTheme.gameTheme.badges.ring;
+    const fgHex = activeTheme.gameTheme.textOnTinted;
+    const discRadius = 13;
+    const cx = discRadius + 2;
+    const cy = discRadius + 2;
+    this.ringBearerGfx.clear();
+    this.ringBearerGfx.circle(cx, cy, discRadius);
+    this.ringBearerGfx.fill({ color: hexToNum(ringHex), alpha: 0.95 });
+    this.ringBearerGfx.circle(cx, cy, discRadius);
+    this.ringBearerGfx.stroke({ color: hexToNum(fgHex), width: 1.5, alpha: 0.6 });
+    const iconSize = 20;
+    this.ringBearerIcon.x = cx;
+    this.ringBearerIcon.y = cy;
+    this.ringBearerIcon.width = iconSize;
+    this.ringBearerIcon.height = iconSize;
+    applyIcon(this.ringBearerIcon, "ring", fgHex, 64, iconSize, iconSize);
   }
 
   private updateKeywords(): void {

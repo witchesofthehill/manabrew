@@ -467,6 +467,36 @@ thin jar + `lib/` of polyglot/Espresso deps (never an uber jar). The node's Dock
 image carries GraalVM + the harness jar (guest classpath) + the host jar/lib + the
 cardset archive. CI builds the host module (maven, JDK21) alongside the harness jar.
 
+## Follow-up items resolved (2026-05-23)
+
+Investigated and validated the two deferred items from the prototype.
+
+- **In-place context reuse — FIXED + validated.** Root cause:
+  `ManaBrewInteractiveSession.close()` nudged its game thread (set `closed`, offered
+  a pass, `setGameOver(Draw)`) but **returned without joining it**, so the daemon
+  kept unwinding `match.startGame` (incl. firing the outcome event) after `endGame`
+  returned — and reusing the context then collided with the next game's
+  `startFirstTurn` (the `PlayerOutcome` NPE). Fix: `close()` now `join(5000)`s the
+  game thread (forge-harness; `void close()` signature unchanged, FFI-safe). Reuse
+  is opt-in via `-Dmanabrew.espresso.reuse=true`; default stays single-use.
+  **Validated:** `poolSize=1, reuse=true`, two sequential games in **one** reused
+  context → card-load count **1** (true reuse) and game B clean (NPE gone).
+- **True multi-thread parallelism — validated at the router level.** j4rs 0.25.1
+  has `Jvm::attach_thread()` (+ `detach_thread_on_drop`) and shares Instances as JNI
+  global refs, so Rust worker threads can each attach to the one VM and drive the
+  shared (thread-safe) router. **Validated:** two games driven on two separate host
+  threads, each in its own context, ran fully in parallel (200 decisions each, no
+  collision). Remaining: the **node-side worker pool + per-thread attach** wiring
+  (moderate, unblocked). Still deferrable for the alpha — single-thread interleaved
+  suffices for think-time-bound human games.
+
+**New finding (non-fatal):** the background replenisher hit `cannot create profile
+directory: ~/.forge/decks/constructed/`. `FModel.initialize` writes a Forge **profile
+dir on the shared filesystem** (not context-isolated), so initializing multiple
+contexts contends there. Games still passed (reuse refilled the pool), but the
+replenish model needs this hardened — likely a per-process one-time profile setup or
+a per-context profile dir. Tracked as a follow-up.
+
 ## Open questions / spike plan
 
 - Espresso spike: 2 contexts × Forge, assert `Game.maxId`/`MyRandom` are isolated

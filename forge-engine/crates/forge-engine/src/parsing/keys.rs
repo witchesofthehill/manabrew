@@ -491,6 +491,7 @@ pub const REMEMBER_CHOSEN: &str = "RememberChosen";
 pub const IMPRINT_CHOSEN: &str = "ImprintChosen";
 pub const REMEMBER_COUNTERED: &str = "RememberCountered";
 pub const REMEMBER_COUNTERED_CMC: &str = "RememberCounteredCMC";
+pub const REMEMBER_FOR_COUNTER: &str = "RememberForCounter";
 pub const REMEMBER_DAMAGED_CREATURE: &str = "RememberDamagedCreature";
 pub const SECRETLY: &str = "Secretly";
 pub const STORE_VOTE_NUM: &str = "StoreVoteNum";

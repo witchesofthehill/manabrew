@@ -1609,6 +1609,12 @@ fn deal_combat_damage_to_player(
                 }
             }
         }
+        game.card_mut(source).damage_history.register_damage(
+            amount,
+            true,
+            Some(source),
+            crate::card::card_damage_history::TrackedEntity::Player(target),
+        );
     }
 }
 
@@ -1685,10 +1691,12 @@ fn deal_combat_damage_to_card(
                 }
             }
         }
-        // Record damage in source's damage history
-        game.card_mut(source)
-            .damage_history
-            .record_damage(amount, true);
+        game.card_mut(source).damage_history.register_damage(
+            amount,
+            true,
+            Some(source),
+            crate::card::card_damage_history::TrackedEntity::Card(target),
+        );
     }
 }
 

@@ -234,8 +234,17 @@ fn resolve_target_cards(ctx: &EffectContext, sa: &SpellAbility) -> Vec<CardId> {
             .into_iter()
             .collect()
     } else {
-        // "Self" or fallback — use the source card
-        sa.source.into_iter().collect()
+        let defined = if defined.is_empty() {
+            "Self"
+        } else {
+            defined.as_str()
+        };
+        crate::ability::ability_utils::get_defined_cards(
+            ctx.game,
+            sa.source,
+            defined,
+            Some(sa.activating_player),
+        )
     }
 }
 

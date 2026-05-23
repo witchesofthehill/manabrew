@@ -55,7 +55,7 @@ fn resolve_untap_targets(ctx: &EffectContext, sa: &SpellAbility) -> Vec<CardId> 
         .as_ref()
         .and_then(|defined| defined.refs.first())
     {
-        Some(DefinedRef::SelfCard) => sa.source.into_iter().collect(),
+        None | Some(DefinedRef::SelfCard) => sa.source.into_iter().collect(),
         Some(DefinedRef::ParentTarget) => ctx.parent_target_card.into_iter().collect(),
         Some(DefinedRef::Remembered) => sa
             .source

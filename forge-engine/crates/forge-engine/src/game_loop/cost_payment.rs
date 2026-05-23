@@ -354,6 +354,12 @@ impl GameLoop {
                     amount,
                 } => {
                     if type_filter != "CARDNAME" {
+                        if !self.confirm_cost_part_payment(
+                            game, agents, player, card_id, &part, api, mandatory, &context,
+                        ) {
+                            payment_ok = false;
+                            break;
+                        }
                         let eligible: Vec<CardId> = if type_filter == "Hand" {
                             game.cards_in_zone(ZoneType::Hand, player).to_vec()
                         } else if type_filter == "Card" || type_filter.is_empty() {
@@ -688,12 +694,14 @@ impl GameLoop {
                         );
                     } else if !pre_picked_discards.is_empty() {
                         // Use pre-picked cards from visit phase
-                        let to_discard: Vec<CardId> = pre_picked_discards
-                            .drain(
-                                ..(amount.resolve(game, card_id, player) as usize)
-                                    .min(pre_picked_discards.len()),
-                            )
-                            .collect();
+                        let discard_count = if type_filter == "Hand" {
+                            pre_picked_discards.len()
+                        } else {
+                            (amount.resolve(game, card_id, player) as usize)
+                                .min(pre_picked_discards.len())
+                        };
+                        let to_discard: Vec<CardId> =
+                            pre_picked_discards.drain(..discard_count).collect();
                         for cid in to_discard {
                             game.discard_card(
                                 cid,

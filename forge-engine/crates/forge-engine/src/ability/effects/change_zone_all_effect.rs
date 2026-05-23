@@ -205,12 +205,28 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             }
         }
 
+        if dest_zone == ZoneType::Library && to_move.len() > 1 && sa.ir.random_order {
+            let mut cards = to_move.iter().map(|(cid, _)| *cid).collect::<Vec<_>>();
+            ctx.rng.shuffle_cards(&mut cards);
+            let mut ordered = Vec::with_capacity(to_move.len());
+            for cid in cards {
+                if let Some((_, owner)) = to_move.iter().find(|(card_id, _)| *card_id == cid) {
+                    ordered.push((cid, *owner));
+                }
+            }
+            to_move = ordered;
+        }
+
+        let mut moved_to_library: Vec<(CardId, PlayerId)> = Vec::new();
         for (card_id, dest_owner) in to_move {
             if ctx.game.card(card_id).zone != origin_zone {
                 continue; // already moved
             }
             let old_zone = ctx.game.card(card_id).zone;
             ctx.move_card(card_id, dest_zone, dest_owner);
+            if dest_zone == ZoneType::Library {
+                moved_to_library.push((card_id, dest_owner));
+            }
             // Mark cards exiled by a UntilHostLeavesPlay effect so they can return
             // when the source leaves the battlefield.
             if dest_zone == ZoneType::Exile {
@@ -226,6 +242,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     .register_active_trigger(ctx.game, card_id);
             }
             emit_zone_trigger(ctx.trigger_handler, card_id, old_zone, dest_zone);
+        }
+
+        if dest_zone == ZoneType::Library && sa.library_position() == Some("-1") {
+            for &pid in &player_ids {
+                let cards = moved_to_library
+                    .iter()
+                    .filter_map(|(cid, owner)| (*owner == pid).then_some(*cid))
+                    .collect::<Vec<_>>();
+                if !cards.is_empty() {
+                    ctx.game
+                        .move_cards_to_zone_bottom(ZoneType::Library, pid, &cards);
+                }
+            }
         }
 
         // Handle Shuffle$ True (e.g. Nihil Spellbomb shuffles the target player's library).

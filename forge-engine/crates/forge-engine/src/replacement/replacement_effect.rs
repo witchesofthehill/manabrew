@@ -91,6 +91,7 @@ pub struct ReplacementEffectIr {
     pub valid_target_selector: Option<CompiledSelector>,
     pub valid_source_selector: Option<CompiledSelector>,
     pub valid_activator_text: Option<String>,
+    pub valid_step_turn_to_controller_text: Option<String>,
     pub valid_explorer_text: Option<String>,
     pub valid_counter_type_text: Option<String>,
     pub valid_lose_reason_text: Option<String>,
@@ -582,7 +583,7 @@ impl ReplacementEffect {
                 }
                 ReplacementEvent::Counter { card }
                 | ReplacementEvent::Tap { card }
-                | ReplacementEvent::Untap { card }
+                | ReplacementEvent::Untap { card, .. }
                 | ReplacementEvent::Explore { card }
                 | ReplacementEvent::Transform { card }
                 | ReplacementEvent::TurnFaceUp { card }
@@ -702,6 +703,9 @@ impl ReplacementEffectIr {
             valid_target_selector: params.selector_cloned(keys::VALID_TARGET),
             valid_source_selector: params.selector_cloned(keys::VALID_SOURCE),
             valid_activator_text: params.get(keys::VALID_ACTIVATOR).map(str::to_string),
+            valid_step_turn_to_controller_text: params
+                .get("ValidStepTurnToController")
+                .map(str::to_string),
             valid_explorer_text: params.get(keys::VALID_EXPLORER).map(str::to_string),
             valid_counter_type_text: params.get(keys::VALID_COUNTER_TYPE).map(str::to_string),
             valid_lose_reason_text: params.get(keys::VALID_LOSE_REASON).map(str::to_string),

@@ -372,7 +372,7 @@ impl GameLoop {
                     true
                 };
                 if should_untap {
-                    game.untap(cid);
+                    game.untap_during_untap_step(cid, active);
                 }
             }
         }
@@ -401,7 +401,7 @@ impl GameLoop {
                 card,
                 active,
             ) {
-                game.untap(cid);
+                game.untap_during_untap_step(cid, active);
             }
         }
 
@@ -784,6 +784,7 @@ impl GameLoop {
     /// DamageDone fires per source-target pair; DamageDoneOnce fires once per
     /// target with aggregated damage (mirrors Java CardDamageMap.triggerDamageOnce).
     pub(crate) fn fire_combat_damage_triggers(&mut self, events: &[combat::CombatDamageEvent]) {
+        use crate::card::card_damage_map::{CardDamageMap, DamageTarget};
         use crate::ids::{CardId, PlayerId};
         use std::collections::HashMap;
 
@@ -826,6 +827,7 @@ impl GameLoop {
             Player(PlayerId),
         }
         let mut by_target: HashMap<Target, i32> = HashMap::new();
+        let mut maps_by_target: HashMap<Target, CardDamageMap> = HashMap::new();
         for event in events {
             if event.amount <= 0 {
                 continue;
@@ -838,6 +840,15 @@ impl GameLoop {
                 continue;
             };
             *by_target.entry(target).or_insert(0) += event.amount;
+            let damage_target = match target {
+                Target::Card(cid) => DamageTarget::Card(cid),
+                Target::Player(pid) => DamageTarget::Player(pid),
+            };
+            maps_by_target.entry(target).or_default().put(
+                event.source,
+                damage_target,
+                event.amount,
+            );
         }
         for (target, total) in by_target {
             if total <= 0 {
@@ -847,12 +858,14 @@ impl GameLoop {
                 Target::Card(cid) => RunParams {
                     damage_target_card: Some(cid),
                     damage_amount: Some(total),
+                    damage_map: maps_by_target.get(&target).cloned(),
                     is_combat_damage: Some(true),
                     ..Default::default()
                 },
                 Target::Player(pid) => RunParams {
                     damage_target_player: Some(pid),
                     damage_amount: Some(total),
+                    damage_map: maps_by_target.get(&target).cloned(),
                     is_combat_damage: Some(true),
                     ..Default::default()
                 },

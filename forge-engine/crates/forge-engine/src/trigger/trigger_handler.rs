@@ -294,8 +294,8 @@ impl TriggerHandler {
             entries.sort_by_key(|(_, controller, ts, trigger_bucket, trigger_order)| {
                 (
                     if *controller == active_player { 0u8 } else { 1 },
-                    *ts,
                     *trigger_bucket,
+                    *ts,
                     *trigger_order,
                 )
             });
@@ -321,8 +321,8 @@ impl TriggerHandler {
         entries.sort_by_key(|(_, controller, ts, trigger_bucket, trigger_order)| {
             (
                 if *controller == active_player { 0u8 } else { 1 },
-                *ts,
                 *trigger_bucket,
+                *ts,
                 *trigger_order,
             )
         });

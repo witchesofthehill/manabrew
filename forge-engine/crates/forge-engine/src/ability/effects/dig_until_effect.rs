@@ -51,7 +51,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     }
 
     let mut found = Vec::new();
-    let mut rest = Vec::new();
+    let mut revealed = Vec::new();
 
     // Walk from top of library down
     let lib_cards: Vec<_> = ctx
@@ -63,6 +63,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         if found.len() >= amount {
             break;
         }
+        revealed.push(cid);
         let card = ctx.game.card(cid);
         let matches = match (valid_selector, sa.source) {
             (Some(selector), Some(source_id)) => valid_filter::matches_valid_card_selector_in_game(
@@ -75,13 +76,40 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         };
         if matches {
             found.push(cid);
+            if let Some(source_id) = sa.source {
+                if crate::parsing::raw_has_key(&sa.ability_text, keys::FORGET_OTHER_REMEMBERED) {
+                    ctx.game.card_mut(source_id).clear_remembered();
+                }
+                if sa.ir.remember_found {
+                    ctx.game.card_mut(source_id).add_remembered_card(cid);
+                }
+                if sa.ir.imprint_found {
+                    ctx.game.card_mut(source_id).add_imprinted_card(cid);
+                }
+            }
         } else {
-            rest.push(cid);
+        }
+    }
+    let rest: Vec<_> = revealed
+        .iter()
+        .copied()
+        .filter(|cid| !found.contains(cid))
+        .collect();
+    if let Some(source_id) = sa.source {
+        if sa.ir.imprint_revealed {
+            ctx.game
+                .card_mut(source_id)
+                .add_imprinted_cards(rest.iter().copied());
+        }
+        if sa.ir.remember_revealed {
+            ctx.game
+                .card_mut(source_id)
+                .add_remembered_cards(rest.iter().copied());
         }
     }
 
     // Remove found + rest cards from library
-    let removed: Vec<_> = found.iter().chain(rest.iter()).copied().collect();
+    let removed: Vec<_> = revealed.to_vec();
     for card_id in removed {
         ctx.game
             .remove_card_from_zone(ZoneType::Library, target_player, card_id);

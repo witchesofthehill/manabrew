@@ -1594,6 +1594,27 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         "wasdealtdamagethisturn" => {
             matches_card_state(CardStateSelector::WasDealtDamageThisTurn, card, context)
         }
+        dealt if dealt.starts_with("dealtcombatdamagethisturn") => {
+            let Some(target_text) = value.split_once(' ').map(|(_, target)| target.trim()) else {
+                return card
+                    .damage_history
+                    .damage_done_this_turn
+                    .iter()
+                    .any(|damage| damage.is_combat && damage.amount > 0);
+            };
+            let Some(target) = raw_target_ref(target_text) else {
+                return false;
+            };
+            card.damage_history.damage_done_this_turn.iter().any(|damage| {
+                damage.is_combat
+                    && damage.amount > 0
+                    && matches!(
+                        damage.target,
+                        Some(crate::card::card_damage_history::TrackedEntity::Player(player))
+                            if relation_target_player_any(&target, context, |target_player| target_player == player)
+                    )
+            })
+        }
         "historic" => matches_card_state(CardStateSelector::Historic, card, context),
         "modified" => matches_card_state(CardStateSelector::Modified, card, context),
         "issaddled" => matches_card_state(CardStateSelector::Saddled, card, context),

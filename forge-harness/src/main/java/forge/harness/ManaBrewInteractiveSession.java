@@ -75,6 +75,17 @@ public final class ManaBrewInteractiveSession {
         if (game != null && !game.isGameOver()) {
             game.setGameOver(forge.game.GameEndReason.Draw);
         }
+        // Wait for the game thread to fully unwind before returning: callers that
+        // pool/reuse the JVM (or Espresso context) must not start a new game while
+        // this one's thread is still finishing match.startGame.
+        final Thread thread = gameThread;
+        if (thread != null) {
+            try {
+                thread.join(5000);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     public String getLatestPromptJson() {

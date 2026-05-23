@@ -19,11 +19,11 @@ import org.graalvm.polyglot.Value;
  * contexts ready, so {@code FModel.initialize} (~50 s) is paid off the hot path
  * rather than when a player starts a game.
  *
- * <p>In-place context reuse (reset + run another game in the same context) would
- * avoid even the background init, but it is NOT safe for the interactive adapter
- * yet: {@code ManaBrewInteractiveSession.close()} does not join its game thread, so
- * a lingering thread corrupts the next game in that context. Reuse is a follow-up
- * gated on that teardown.
+ * <p>In-place context reuse (run another game in the same context, avoiding even the
+ * background init) is opt-in via {@code -Dmanabrew.espresso.reuse=true}. It is safe
+ * only because {@code ManaBrewInteractiveSession.close()} now joins its game thread;
+ * without that join a lingering thread corrupts the next game in the context. Default
+ * is single-use (one context per game) for a clean crash blast radius.
  *
  * <p>The host JVM must be a GraalVM JDK with the Espresso polyglot runtime on its
  * classpath. The guest classpath (the Forge harness jar) is supplied via the
@@ -34,6 +34,7 @@ public final class ManaBrewEspressoAdapter {
     private final Deque<Ctx> warm = new ConcurrentLinkedDeque<>();
     private final Object replenishLock = new Object();
     private final String guestClasspath;
+    private final boolean reuse;
     private volatile String assetsDir;
     private volatile int poolSize;
     private volatile boolean running = true;
@@ -44,6 +45,7 @@ public final class ManaBrewEspressoAdapter {
             throw new IllegalStateException(
                     "manabrew.guest.classpath system property is required");
         }
+        this.reuse = Boolean.getBoolean("manabrew.espresso.reuse");
     }
 
     public synchronized void initialize(final String assetsDir) {
@@ -93,7 +95,14 @@ public final class ManaBrewEspressoAdapter {
         try {
             return ctx.adapter.invokeMember("endGameJson", sessionId).asString();
         } finally {
-            ctx.context.close(true);
+            // The guest endGame joins the game thread (close() now blocks on it), so
+            // the context is idle and safe to reuse; otherwise close for a clean
+            // one-game-per-context blast radius.
+            if (reuse) {
+                warm.push(ctx);
+            } else {
+                ctx.context.close(true);
+            }
         }
     }
 

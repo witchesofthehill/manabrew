@@ -1,7 +1,9 @@
 package manabrew.espresso;
 
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
@@ -12,14 +14,29 @@ import org.graalvm.polyglot.Value;
  * process-global statics (MyRandom, the maxId counters) are per-context, so
  * concurrent sessions no longer clobber each other.
  *
+ * <p>Each context serves exactly one game and is then closed — one context is one
+ * game's blast radius. A background replenisher keeps a warm pool of pre-initialized
+ * contexts ready, so {@code FModel.initialize} (~50 s) is paid off the hot path
+ * rather than when a player starts a game.
+ *
+ * <p>In-place context reuse (reset + run another game in the same context) would
+ * avoid even the background init, but it is NOT safe for the interactive adapter
+ * yet: {@code ManaBrewInteractiveSession.close()} does not join its game thread, so
+ * a lingering thread corrupts the next game in that context. Reuse is a follow-up
+ * gated on that teardown.
+ *
  * <p>The host JVM must be a GraalVM JDK with the Espresso polyglot runtime on its
  * classpath. The guest classpath (the Forge harness jar) is supplied via the
  * {@code manabrew.guest.classpath} system property.
  */
 public final class ManaBrewEspressoAdapter {
-    private final Map<String, Session> sessions = new ConcurrentHashMap<>();
+    private final Map<String, Ctx> active = new ConcurrentHashMap<>();
+    private final Deque<Ctx> warm = new ConcurrentLinkedDeque<>();
+    private final Object replenishLock = new Object();
     private final String guestClasspath;
     private volatile String assetsDir;
+    private volatile int poolSize;
+    private volatile boolean running = true;
 
     public ManaBrewEspressoAdapter() {
         this.guestClasspath = System.getProperty("manabrew.guest.classpath");
@@ -34,22 +51,19 @@ public final class ManaBrewEspressoAdapter {
             throw new IllegalArgumentException("assetsDir is required");
         }
         this.assetsDir = assetsDir;
+        this.poolSize = Integer.getInteger("manabrew.espresso.poolSize", 0);
+        if (poolSize > 0) {
+            startReplenisher();
+        }
     }
 
     public String startGameJson(final String requestJson) {
         if (assetsDir == null) {
             throw new IllegalStateException("router must be initialized before starting games");
         }
-        final Context context = Context.newBuilder("java")
-                .allowAllAccess(true)
-                .option("java.Classpath", guestClasspath)
-                .build();
-        final Value adapter = context.getBindings("java")
-                .getMember("forge.harness.ManaBrewEngineAdapter")
-                .newInstance();
-        adapter.invokeMember("initialize", assetsDir);
-        final String response = adapter.invokeMember("startGameJson", requestJson).asString();
-        sessions.put(sessionId(response), new Session(context, adapter));
+        final Ctx ctx = acquire();
+        final String response = ctx.adapter.invokeMember("startGameJson", requestJson).asString();
+        active.put(sessionId(response), ctx);
         return response;
     }
 
@@ -72,23 +86,62 @@ public final class ManaBrewEspressoAdapter {
     }
 
     public String endGameJson(final String sessionId) {
-        final Session session = sessions.remove(sessionId);
-        if (session == null) {
+        final Ctx ctx = active.remove(sessionId);
+        if (ctx == null) {
             return "{\"sessionId\":\"" + sessionId + "\",\"ended\":true}";
         }
         try {
-            return session.adapter.invokeMember("endGameJson", sessionId).asString();
+            return ctx.adapter.invokeMember("endGameJson", sessionId).asString();
         } finally {
-            session.context.close(true);
+            ctx.context.close(true);
         }
     }
 
-    private Session require(final String sessionId) {
-        final Session session = sessions.get(sessionId);
-        if (session == null) {
+    private Ctx acquire() {
+        final Ctx pooled = warm.poll();
+        synchronized (replenishLock) {
+            replenishLock.notifyAll();
+        }
+        return pooled != null ? pooled : newContext();
+    }
+
+    private void startReplenisher() {
+        final Thread replenisher = new Thread(() -> {
+            while (running) {
+                while (running && warm.size() < poolSize) {
+                    warm.push(newContext());
+                }
+                synchronized (replenishLock) {
+                    try {
+                        replenishLock.wait(1000);
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                }
+            }
+        }, "espresso-context-replenisher");
+        replenisher.setDaemon(true);
+        replenisher.start();
+    }
+
+    private Ctx newContext() {
+        final Context context = Context.newBuilder("java")
+                .allowAllAccess(true)
+                .option("java.Classpath", guestClasspath)
+                .build();
+        final Value adapter = context.getBindings("java")
+                .getMember("forge.harness.ManaBrewEngineAdapter")
+                .newInstance();
+        adapter.invokeMember("initialize", assetsDir);
+        return new Ctx(context, adapter);
+    }
+
+    private Ctx require(final String sessionId) {
+        final Ctx ctx = active.get(sessionId);
+        if (ctx == null) {
             throw new IllegalArgumentException("unknown sessionId: " + sessionId);
         }
-        return session;
+        return ctx;
     }
 
     private static String sessionId(final String startGameResponse) {
@@ -106,11 +159,11 @@ public final class ManaBrewEspressoAdapter {
         return startGameResponse.substring(open + 1, close);
     }
 
-    private static final class Session {
+    private static final class Ctx {
         final Context context;
         final Value adapter;
 
-        Session(final Context context, final Value adapter) {
+        Ctx(final Context context, final Value adapter) {
             this.context = context;
             this.adapter = adapter;
         }

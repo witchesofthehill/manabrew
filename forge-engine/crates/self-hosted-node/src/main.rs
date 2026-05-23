@@ -131,6 +131,29 @@ async fn main() {
         );
         return;
     }
+    if let Ok(value) = std::env::var("SELF_HOSTED_NODE_JAVA_CONCURRENT_GAMES") {
+        let cfg = SelfPlayConfig::from_env();
+        let max_prompts = std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY_PROMPTS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(2_000);
+        let concurrency = value.parse().unwrap_or(2);
+        if let Err(error) = java_backend::run_concurrent_self_play(
+            &cfg.seats,
+            cfg.starting_life,
+            cfg.seed,
+            max_prompts,
+            concurrency,
+        ) {
+            error!(%error, "java-forge concurrent self-play failed");
+            std::process::exit(1);
+        }
+        info!(
+            players = cfg.seats.len(),
+            concurrency, "java-forge concurrent self-play completed"
+        );
+        return;
+    }
     if std::env::var("SELF_HOSTED_NODE_RUST_SELF_PLAY").is_ok() {
         let cfg = SelfPlayConfig::from_env();
         let max_turns = std::env::var("SELF_HOSTED_NODE_RUST_SELF_PLAY_TURNS")

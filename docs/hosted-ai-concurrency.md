@@ -497,6 +497,59 @@ contexts contends there. Games still passed (reuse refilled the pool), but the
 replenish model needs this hardened — likely a per-process one-time profile setup or
 a per-context profile dir. Tracked as a follow-up.
 
+## Item 2 implementation spec — node multi-room + capacity (this PR)
+
+Goal: one node hosts **N concurrent** player-vs-AI games on the Java engine, and tells
+the relay how many it can take.
+
+### Constraints that shape the design (from the code map)
+
+- **One JVM per process.** `J4rsBridge::new` builds the VM; it can only be called
+  once. So all games share one bridge, and j4rs's `Jvm` is thread-bound — every JVM
+  call must happen on the **one thread that owns it**.
+- **`ServerMessage::StateUpdate { from_player, state }` has no `room_id`**
+  (`protocol.rs:186`). A single relay connection therefore can't tell which game an
+  inbound action belongs to. → **connection-per-room**, not one-connection-multi-room
+  (also matches how the bot already runs as its own relay client, `forge-bot`).
+
+### Design
+
+1. **`JavaEngine` actor (the shared-JVM core).** One dedicated `std::thread` owns the
+   `J4rsBridge` (JVM + pooled router). It receives `game_id`-tagged commands over an
+   `mpsc` channel — `StartGame{request, reply}`, `SubmitAction`, `GetPrompt`,
+   `GetSnapshot`, `IsGameOver`, `EndGame` — each with a `oneshot` reply, dispatches to
+   the router, replies. All JVM access is serialized here (j4rs-safe), and since each
+   call is milliseconds and the router's contexts isolate per game, it serves many
+   games **interleaved** (the chosen single-thread model). Replaces the per-game
+   `J4rsBridge::new` at `java_backend.rs:328`.
+2. **Room manager (node side).** Replace `Arc<Mutex<Option<EngineSession>>>`
+   (`main.rs:76,206`) with a capacity-bounded set of **room clients**. Each hosted
+   game = its own relay connection (its own `room_id`), driven by a task that: starts
+   the game via the actor, polls `GetPrompt`/`IsGameOver`, forwards prompts to its
+   connection, feeds actions back. On game-over it tears down and frees a slot. No
+   per-game routing needed — each connection is one room.
+3. **Capacity advertise.** Config `SELF_HOSTED_NODE_MAX_GAMES` (default e.g. 4, sized
+   by memory: ~260 MB/context). Node hosts up to that many room clients and reports
+   `capacity` + `active` on the existing heartbeat (`RoomRelay` payload,
+   `main.rs:339`); add the field to the protocol. **Relay-side matchmaking (which node
+   gets the next game) is external** to this repo — the node just advertises and
+   accepts up to its cap.
+
+### What lands in this PR vs external
+
+- **In-repo (this PR):** the `JavaEngine` actor (shared bridge, concurrent
+  multi-session), the capacity-bounded room manager, the `capacity` protocol field +
+  heartbeat. Validated by **concurrent self-play**: the node hosts N games at once
+  through the one actor/bridge and all reach game over.
+- **External (not this repo):** the relay/lobby matchmaking that distributes games
+  across nodes by advertised capacity. The node side is built to slot into it.
+
+### Validation
+
+`SELF_HOSTED_NODE_JAVA_CONCURRENT_GAMES=N` self-play: spawn N game-driver tasks
+against the shared `JavaEngine`, assert all N reach game over with no cross-game
+corruption (the engine-side proof of multi-room, no relay needed).
+
 ## Open questions / spike plan
 
 - Espresso spike: 2 contexts × Forge, assert `Game.maxId`/`MyRandom` are isolated

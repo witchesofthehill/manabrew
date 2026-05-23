@@ -115,15 +115,19 @@ async fn main() {
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(2_000);
+        let games = std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY_GAMES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(1);
         if let Err(error) =
-            java_backend::run_self_play(&cfg.seats, cfg.starting_life, cfg.seed, max_prompts)
+            java_backend::run_self_play(&cfg.seats, cfg.starting_life, cfg.seed, max_prompts, games)
         {
             error!(%error, "java-forge self-play failed");
             std::process::exit(1);
         }
         info!(
             players = cfg.seats.len(),
-            max_prompts, "java-forge self-play completed"
+            max_prompts, games, "java-forge self-play completed"
         );
         return;
     }

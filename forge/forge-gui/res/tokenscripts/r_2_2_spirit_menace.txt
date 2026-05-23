@@ -1,7 +1,0 @@
-Name:Spirit Token
-ManaCost:no cost
-Colors:red
-Types:Creature Spirit
-PT:2/2
-K:Menace
-Oracle:Menace

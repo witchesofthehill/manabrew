@@ -1,8 +1,0 @@
-Name:Moonsnare Prototype
-ManaCost:U
-Types:Artifact
-A:AB$ Mana | Cost$ T tapXType<1/Artifact;Creature/artifact or creature> | Produced$ C | SpellDescription$ Add {C}.
-A:AB$ ChangeZone | PrecostDesc$ Channel — | Cost$ 4 U Discard<1/CARDNAME> | ActivationZone$ Hand | ValidTgts$ Permanent.nonLand | TgtPrompt$ Select target nonland permanent | AlternativeDecider$ TargetedOwner | Origin$ Battlefield | Destination$ Library | DestinationAlternative$ Library | LibraryPositionAlternative$ -1 | StackDescription$ {p:TargetedOwner} puts {c:Targeted} on the top or bottom of their library. | SpellDescription$ The owner of target nonland permanent puts it on the top or bottom of their library.
-DeckHints:Type$Artifact|Creature
-DeckHas:Ability$Discard
-Oracle:{T}, Tap an untapped artifact or creature you control: Add {C}.\nChannel — {4}{U}, Discard Moonsnare Prototype: The owner of target nonland permanent puts it on the top or bottom of their library.

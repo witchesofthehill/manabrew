@@ -1,5 +1,0 @@
-Name:Rebuke
-ManaCost:2 W
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature.attacking | TgtPrompt$ Select target attacking creature | SpellDescription$ Destroy target attacking creature.
-Oracle:Destroy target attacking creature.

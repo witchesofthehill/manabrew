@@ -1,6 +1,0 @@
-Name:Traumatize
-ManaCost:3 U U
-Types:Sorcery
-A:SP$ Mill | ValidTgts$ Player | NumCards$ X | SpellDescription$ Target player mills half their library, rounded down.
-SVar:X:TargetedPlayer$CardsInLibrary/HalfDown
-Oracle:Target player mills half their library, rounded down.

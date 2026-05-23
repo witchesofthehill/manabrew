@@ -1,5 +1,0 @@
-Name:Chorus of Woe
-ManaCost:B
-Types:Sorcery
-A:SP$ PumpAll | ValidCards$ Creature.YouCtrl | NumAtt$ +1 | SpellDescription$ Creatures you control get +1/+0 until end of turn.
-Oracle:Creatures you control get +1/+0 until end of turn.

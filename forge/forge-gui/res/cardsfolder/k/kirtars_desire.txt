@@ -1,8 +1,0 @@
-Name:Kirtar's Desire
-ManaCost:W
-Types:Enchantment Aura
-K:Enchant:Creature
-SVar:AttachAILogic:Curse
-S:Mode$ CantAttack | ValidCard$ Creature.EnchantedBy | Description$ Enchanted creature can't attack.
-S:Mode$ CantBlock | ValidCard$ Creature.EnchantedBy | Condition$ Threshold | Description$ Threshold — Enchanted creature can't block as long as there are seven or more cards in your graveyard.
-Oracle:Enchant creature\nEnchanted creature can't attack.\nThreshold — Enchanted creature can't block as long as there are seven or more cards in your graveyard.

@@ -1,5 +1,0 @@
-Name:Brute Force
-ManaCost:R
-Types:Instant
-A:SP$ Pump | ValidTgts$ Creature | NumAtt$ +3 | NumDef$ +3 | SpellDescription$ Target creature gets +3/+3 until end of turn.
-Oracle:Target creature gets +3/+3 until end of turn.

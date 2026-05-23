@@ -1,7 +1,0 @@
-Name:Peppersmoke
-ManaCost:B
-Types:Kindred Instant Faerie
-A:SP$ Pump | ValidTgts$ Creature | NumAtt$ -1 | NumDef$ -1 | IsCurse$ True | SubAbility$ DBDraw | SpellDescription$ Target creature gets -1/-1 until end of turn. If you control a Faerie, draw a card.
-SVar:DBDraw:DB$ Draw | ConditionPresent$ Faerie.YouCtrl | ConditionCompare$ GE1 | ConditionDescription$ If you control a Faerie,
-AI:RemoveDeck:Random
-Oracle:Target creature gets -1/-1 until end of turn. If you control a Faerie, draw a card.

@@ -1,8 +1,0 @@
-Name:Rhonas's Last Stand
-ManaCost:G G
-Types:Sorcery
-A:SP$ Token | TokenScript$ g_5_4_snake | TokenOwner$ You | SubAbility$ DBNoUntap | SpellDescription$ Create a 5/4 green Snake creature token.
-SVar:DBNoUntap:DB$ Effect | ReplacementEffects$ DontUntap | Duration$ UntilTheEndOfYourNextUntap | SpellDescription$ Lands you control don't untap during your next untap step.
-SVar:DontUntap:Event$ Untap | ValidCard$ Land.YouCtrl | ValidStepTurnToController$ Player.Activator | Layer$ CantHappen | Description$ Lands you control don't untap during your next untap step.
-DeckHas:Ability$Token
-Oracle:Create a 5/4 green Snake creature token. Lands you control don't untap during your next untap step.

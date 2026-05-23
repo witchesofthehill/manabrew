@@ -1,6 +1,0 @@
-Name:Paper Tiger
-ManaCost:4
-Types:Artifact Creature Cat
-PT:4/3
-S:Mode$ CantAttack,CantBlock | ValidCard$ Creature.namedRock Lobster | Description$ Creatures named Rock Lobster can't attack or block.
-Oracle:Creatures named Rock Lobster can't attack or block.

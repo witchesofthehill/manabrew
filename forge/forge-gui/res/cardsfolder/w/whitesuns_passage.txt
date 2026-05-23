@@ -1,5 +1,0 @@
-Name:Whitesun's Passage
-ManaCost:1 W
-Types:Instant
-A:SP$ GainLife | LifeAmount$ 5 | SpellDescription$ You gain 5 life.
-Oracle:You gain 5 life.

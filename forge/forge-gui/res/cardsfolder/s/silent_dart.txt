@@ -1,6 +1,0 @@
-Name:Silent Dart
-ManaCost:1
-Types:Artifact
-A:AB$ DealDamage | Cost$ 4 T Sac<1/CARDNAME> | ValidTgts$ Creature | NumDmg$ 3 | SpellDescription$ It deals 3 damage to target creature.
-DeckHas:Ability$Sacrifice
-Oracle:{4}, {T}, Sacrifice Silent Dart: It deals 3 damage to target creature.

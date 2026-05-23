@@ -1,8 +1,0 @@
-Name:Urza's Miter
-ManaCost:3
-Types:Artifact
-T:Mode$ ChangesZone | ValidCard$ Artifact.YouCtrl | CheckOnTriggeredCard$ X EQ0 | Origin$ Battlefield | Destination$ Graveyard | TriggerZones$ Battlefield | OptionalDecider$ You | Execute$ TrigDraw | TriggerDescription$ Whenever an artifact you control is put into a graveyard from the battlefield, if it wasn't sacrificed, you may pay {3}. If you do, draw a card.
-SVar:TrigDraw:AB$ Draw | Cost$ 3 | NumCards$ 1 | Defined$ You
-SVar:X:PlayerCountPlayers$SacrificedThisTurn Card.StrictlySelf
-DeckHints:Type$Artifact
-Oracle:Whenever an artifact you control is put into a graveyard from the battlefield, if it wasn't sacrificed, you may pay {3}. If you do, draw a card.

@@ -1,8 +1,0 @@
-Name:Flycatcher Giraffid
-ManaCost:4 G
-Types:Creature Antelope Lizard
-PT:3/5
-K:ETBReplacement:Other:CounterChoice
-SVar:CounterChoice:DB$ PutCounter | ETB$ True | CounterType$ Vigilance,Reach | SpellDescription$ CARDNAME enters with your choice of a vigilance counter or a reach counter on it.
-DeckHas:Ability$Counters
-Oracle:Flycatcher Giraffid enters with your choice of a vigilance counter or a reach counter on it.

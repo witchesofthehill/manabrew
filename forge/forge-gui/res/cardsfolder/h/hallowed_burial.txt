@@ -1,5 +1,0 @@
-Name:Hallowed Burial
-ManaCost:3 W W
-Types:Sorcery
-A:SP$ ChangeZoneAll | ChangeType$ Creature | Origin$ Battlefield | Destination$ Library | LibraryPosition$ -1 | SpellDescription$ Put all creatures on the bottom of their owners' libraries.
-Oracle:Put all creatures on the bottom of their owners' libraries.

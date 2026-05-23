@@ -1,7 +1,0 @@
-Name:Bayou Dragonfly
-ManaCost:1 G
-Types:Creature Insect
-PT:1/1
-K:Flying
-K:Landwalk:Swamp
-Oracle:Flying; swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)

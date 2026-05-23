@@ -1,6 +1,0 @@
-Name:Victorious Destruction
-ManaCost:4 R
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Artifact,Land | TgtPrompt$ Select target artifact or land | SubAbility$ DBDrain | SpellDescription$ Destroy target artifact or land. Its controller loses 1 life.
-SVar:DBDrain:DB$ LoseLife | Defined$ TargetedController | LifeAmount$ 1
-Oracle:Destroy target artifact or land. Its controller loses 1 life.

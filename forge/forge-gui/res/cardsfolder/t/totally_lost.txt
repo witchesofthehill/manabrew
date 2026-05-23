@@ -1,5 +1,0 @@
-Name:Totally Lost
-ManaCost:4 U
-Types:Instant
-A:SP$ ChangeZone | ValidTgts$ Permanent.nonLand | TgtPrompt$ Select target nonland permanent | Origin$ Battlefield | Destination$ Library | LibraryPosition$ 0 | SpellDescription$ Put target nonland permanent on top of its owner's library.
-Oracle:Put target nonland permanent on top of its owner's library.

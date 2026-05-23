@@ -1,5 +1,0 @@
-Name:Hexplate Golem
-ManaCost:7
-Types:Artifact Creature Golem
-PT:5/7
-Oracle:

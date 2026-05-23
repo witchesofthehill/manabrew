@@ -58,6 +58,7 @@ src-tauri/resources/forge-runtime/
 # Java / Maven
 forge/target/
 forge/**/target/
+forge-harness/target/
 *.class
 *.jar
 *.war

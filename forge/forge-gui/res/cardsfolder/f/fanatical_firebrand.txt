@@ -1,8 +1,0 @@
-Name:Fanatical Firebrand
-ManaCost:R
-Types:Creature Goblin Pirate
-PT:1/1
-K:Haste
-A:AB$ DealDamage | Cost$ T Sac<1/CARDNAME> | ValidTgts$ Any | NumDmg$ 1 | SpellDescription$ It deals 1 damage to any target.
-DeckHas:Ability$Sacrifice
-Oracle:Haste\n{T}, Sacrifice Fanatical Firebrand: It deals 1 damage to any target.

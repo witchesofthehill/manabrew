@@ -1,6 +1,0 @@
-Name:Barter in Blood
-ManaCost:2 B B
-Types:Sorcery
-A:SP$ Sacrifice | Amount$ 2 | SacValid$ Creature | Defined$ Player | SpellDescription$ Each player sacrifices two creatures.
-AI:RemoveDeck:All
-Oracle:Each player sacrifices two creatures.

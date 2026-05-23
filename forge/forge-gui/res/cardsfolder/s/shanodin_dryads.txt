@@ -1,6 +1,0 @@
-Name:Shanodin Dryads
-ManaCost:G
-Types:Creature Nymph Dryad
-PT:1/1
-K:Landwalk:Forest
-Oracle:Forestwalk (This creature can't be blocked as long as defending player controls a Forest.)

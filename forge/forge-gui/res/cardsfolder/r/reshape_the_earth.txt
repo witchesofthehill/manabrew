@@ -1,5 +1,0 @@
-Name:Reshape the Earth
-ManaCost:6 G G G
-Types:Sorcery
-A:SP$ ChangeZone | Origin$ Library | Destination$ Battlefield | Tapped$ True | ChangeType$ Land | ChangeNum$ 10 | SpellDescription$ Search your library for up to ten land cards, put them onto the battlefield tapped, then shuffle.
-Oracle:Search your library for up to ten land cards, put them onto the battlefield tapped, then shuffle.

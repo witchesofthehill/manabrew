@@ -1,7 +1,0 @@
-Name:Renewing Dawn
-ManaCost:1 W
-Types:Sorcery
-A:SP$ GainLife | ValidTgts$ Opponent | Defined$ You | LifeAmount$ X | SpellDescription$ You gain 2 life for each Mountain target opponent controls.
-SVar:X:Count$Valid Mountain.TargetedPlayerCtrl/Times.2
-AI:RemoveDeck:Random
-Oracle:You gain 2 life for each Mountain target opponent controls.

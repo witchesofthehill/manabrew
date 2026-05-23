@@ -1,8 +1,0 @@
-Name:Cloudfin Raptor
-ManaCost:U
-Types:Creature Bird Mutant
-PT:0/1
-K:Flying
-K:Evolve
-DeckHas:Ability$Counters
-Oracle:Flying\nEvolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)

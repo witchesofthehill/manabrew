@@ -1,8 +1,0 @@
-Name:Lance
-ManaCost:W
-Types:Enchantment Aura
-K:Enchant:Creature
-SVar:AttachAILogic:Pump
-S:Mode$ Continuous | Affected$ Creature.EnchantedBy | AddKeyword$ First Strike | Description$ Enchanted creature has first strike.
-DeckHas:Keyword$First Strike
-Oracle:Enchant creature\nEnchanted creature has first strike.

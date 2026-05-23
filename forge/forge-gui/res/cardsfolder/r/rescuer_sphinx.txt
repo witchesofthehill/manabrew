@@ -1,9 +1,0 @@
-Name:Rescuer Sphinx
-ManaCost:2 U U
-Types:Creature Sphinx
-PT:3/2
-K:Flying
-K:ETBReplacement:Other:DBCounter
-SVar:DBCounter:DB$ PutCounter | ETB$ True | Defined$ Self | CounterType$ P1P1 | CounterNum$ 1 | UnlessCost$ Return<1/Permanent.nonLand/nonland permanent> | UnlessSwitched$ True | UnlessPayer$ You | SpellDescription$ As CARDNAME enters, you may return a nonland permanent you control to its owner's hand. If you do, CARDNAME enters with a +1/+1 counter on it.
-DeckHas:Ability$Counters
-Oracle:Flying\nAs Rescuer Sphinx enters, you may return a nonland permanent you control to its owner's hand. If you do, Rescuer Sphinx enters with a +1/+1 counter on it.

@@ -1,5 +1,0 @@
-Name:Pyroclasm
-ManaCost:1 R
-Types:Sorcery
-A:SP$ DamageAll | NumDmg$ 2 | ValidCards$ Creature | ValidDescription$ each creature. | SpellDescription$ CARDNAME deals 2 damage to each creature.
-Oracle:Pyroclasm deals 2 damage to each creature.

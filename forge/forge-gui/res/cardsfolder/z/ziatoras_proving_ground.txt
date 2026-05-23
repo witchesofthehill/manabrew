@@ -1,7 +1,0 @@
-Name:Ziatora's Proving Ground
-ManaCost:no cost
-Types:Land Swamp Mountain Forest
-R:Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ ETBTapped | Description$ CARDNAME enters tapped.
-SVar:ETBTapped:DB$ Tap | Defined$ Self | ETB$ True
-K:Cycling:3
-Oracle:({T}: Add {B}, {R}, or {G}.)\nZiatora's Proving Ground enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)

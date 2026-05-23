@@ -12,7 +12,7 @@ Read first: `/AGENTS.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`, `docs/PARITY_
 | `parity_ignore.json`                                                | Known-divergent matchups to skip, with a written reason.                                                                                         |
 | `src/runner.rs`, `src/scheduler.rs`                                 | Top-level orchestration.                                                                                                                         |
 | `src/deterministic_agent.rs`                                        | The reproducible agent both engines drive. Same logic, same RNG, same decisions.                                                                 |
-| `src/java_bridge.rs`, `src/java_cache.rs`, `src/java_random.rs`     | Java harness FFI — calls into `forge/forge-harness/`.                                                                                            |
+| `src/java_bridge.rs`, `src/java_cache.rs`, `src/java_random.rs`     | Java harness FFI — calls into `forge-harness/`.                                                                                            |
 | `src/runtime.rs`                                                    | Shared Rust/Java matchup runtime. CLI, CI/server mode, and debugger tooling should use this instead of growing separate engine scheduling logic. |
 | `src/comparator.rs`, `src/snapshot.rs`                              | Trace comparison and per-phase snapshots.                                                                                                        |
 | `src/parity_log.rs`, `src/log_buffer.rs`, `src/callback_fmt.rs`     | Divergence reporting.                                                                                                                            |
@@ -72,7 +72,7 @@ Edit `parity_ignore.json`. Every entry needs a written reason. Don't ignore a di
 - **Both engines share an RNG seed.** Anything that consumes randomness must be threaded through `game_rng` (Rust) and the matching `MyRandom` path (Java). New RNG callsites that drift cause every downstream divergence.
 - **Card identity is by name, not id.** Internal IDs differ between engines. The comparator sorts by name.
 - **Snapshots are taken at phase transitions.** If a divergence is reported "in upkeep of turn 3", look at the upkeep handler, not later phases.
-- **The Java harness API surface is stable.** `forge/forge-harness/` is ours, but its API is consumed cross-language; changing a method signature breaks every parity test. Add new methods, don't rename existing ones.
+- **The Java harness API surface is stable.** `forge-harness/` is ours, but its API is consumed cross-language; changing a method signature breaks every parity test. Add new methods, don't rename existing ones.
 
 ## When the harness itself is broken
 

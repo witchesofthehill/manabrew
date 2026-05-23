@@ -1,5 +1,0 @@
-Name:Frost Ogre
-ManaCost:3 R R
-Types:Creature Ogre Warrior
-PT:5/3
-Oracle:

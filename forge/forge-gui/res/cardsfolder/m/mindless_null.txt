@@ -1,6 +1,0 @@
-Name:Mindless Null
-ManaCost:2 B
-Types:Creature Zombie
-PT:2/2
-S:Mode$ CantBlock | ValidCard$ Card.Self | IsPresent$ Vampire.YouCtrl | PresentCompare$ EQ0 | Description$ CARDNAME can't block unless you control a Vampire.
-Oracle:Mindless Null can't block unless you control a Vampire.

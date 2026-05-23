@@ -1,6 +1,0 @@
-Name:Horse Token
-ManaCost:no cost
-Colors:white
-Types:Creature Horse
-PT:5/5
-Oracle:

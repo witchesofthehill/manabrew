@@ -1,5 +1,0 @@
-Name:Lightning Blast
-ManaCost:3 R
-Types:Instant
-A:SP$ DealDamage | ValidTgts$ Any | NumDmg$ 4 | SpellDescription$ CARDNAME deals 4 damage to any target.
-Oracle:Lightning Blast deals 4 damage to any target.

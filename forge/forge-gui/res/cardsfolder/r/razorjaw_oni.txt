@@ -1,7 +1,0 @@
-Name:Razorjaw Oni
-ManaCost:3 B
-Types:Creature Demon Spirit
-PT:4/5
-S:Mode$ CantBlock | ValidCard$ Creature.Black | Description$ Black creatures can't block.
-AI:RemoveDeck:Random
-Oracle:Black creatures can't block.

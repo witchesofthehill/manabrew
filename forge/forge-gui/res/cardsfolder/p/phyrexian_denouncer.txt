@@ -1,7 +1,0 @@
-Name:Phyrexian Denouncer
-ManaCost:1 B
-Types:Creature Phyrexian Carrier
-PT:1/1
-A:AB$ Pump | Cost$ T Sac<1/CARDNAME> | ValidTgts$ Creature | NumAtt$ -1 | NumDef$ -1 | IsCurse$ True | SpellDescription$ Target creature gets -1/-1 until end of turn.
-AI:RemoveDeck:Random
-Oracle:{T}, Sacrifice Phyrexian Denouncer: Target creature gets -1/-1 until end of turn.

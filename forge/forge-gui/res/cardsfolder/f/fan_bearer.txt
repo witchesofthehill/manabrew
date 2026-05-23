@@ -1,6 +1,0 @@
-Name:Fan Bearer
-ManaCost:W
-Types:Creature Zombie
-PT:1/2
-A:AB$ Tap | Cost$ 2 T | ValidTgts$ Creature | SpellDescription$ Tap target creature.
-Oracle:{2}, {T}: Tap target creature.

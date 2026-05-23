@@ -1,5 +1,0 @@
-Name:Grizzled Leotau
-ManaCost:G W
-Types:Creature Cat
-PT:1/5
-Oracle:

@@ -1,5 +1,0 @@
-Name:Talrand's Invocation
-ManaCost:2 U U
-Types:Sorcery
-A:SP$ Token | TokenAmount$ 2 | TokenScript$ u_2_2_drake_flying | TokenOwner$ You | SpellDescription$ Create two 2/2 blue Drake creature tokens with flying.
-Oracle:Create two 2/2 blue Drake creature tokens with flying.

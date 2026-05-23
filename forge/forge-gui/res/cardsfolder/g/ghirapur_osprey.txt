@@ -1,6 +1,0 @@
-Name:Ghirapur Osprey
-ManaCost:2 W
-Types:Creature Bird
-PT:2/2
-K:Flying
-Oracle:Flying

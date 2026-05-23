@@ -1,7 +1,0 @@
-Name:Scales of Shale
-ManaCost:2 B
-Types:Instant
-K:Affinity:Lizard
-A:SP$ Pump | ValidTgts$ Creature | NumAtt$ +2 | KW$ Lifelink & Indestructible | SpellDescription$ Target creature gets +2/+0 and gains lifelink and indestructible until end of turn.
-DeckHints:Type$Lizard
-Oracle:Affinity for Lizards (This spell costs {1} less to cast for each Lizard you control.)\nTarget creature gets +2/+0 and gains lifelink and indestructible until end of turn.

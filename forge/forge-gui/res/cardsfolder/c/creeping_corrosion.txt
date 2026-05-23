@@ -1,5 +1,0 @@
-Name:Creeping Corrosion
-ManaCost:2 G G
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Artifact | SpellDescription$ Destroy all artifacts.
-Oracle:Destroy all artifacts.

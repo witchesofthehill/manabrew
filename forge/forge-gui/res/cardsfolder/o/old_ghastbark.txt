@@ -1,5 +1,0 @@
-Name:Old Ghastbark
-ManaCost:3 GW GW
-Types:Creature Treefolk Warrior
-PT:3/6
-Oracle:

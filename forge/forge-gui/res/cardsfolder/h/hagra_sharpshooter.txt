@@ -1,6 +1,0 @@
-Name:Hagra Sharpshooter
-ManaCost:2 B
-Types:Creature Human Assassin Ally
-PT:2/2
-A:AB$ Pump | Cost$ 4 B | ValidTgts$ Creature | NumAtt$ -1 | NumDef$ -1 | IsCurse$ True | SpellDescription$ Target creature gets -1/-1 until end of turn.
-Oracle:{4}{B}: Target creature gets -1/-1 until end of turn.

@@ -1,5 +1,0 @@
-Name:Mending Touch
-ManaCost:G
-Types:Instant
-A:SP$ Regenerate | ValidTgts$ Creature | SpellDescription$ Regenerate target creature.
-Oracle:Regenerate target creature.

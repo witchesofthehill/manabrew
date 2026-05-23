@@ -1,8 +1,0 @@
-Name:Lawmage's Binding
-ManaCost:1 W U
-Types:Enchantment Aura
-K:Flash
-K:Enchant:Creature
-SVar:AttachAILogic:Curse
-S:Mode$ CantAttack,CantBlock,CantBeActivated | ValidCard$ Creature.EnchantedBy | Description$ Enchanted creature can't attack or block and its activated abilities can't be activated.
-Oracle:Flash\nEnchant creature\nEnchanted creature can't attack or block, and its activated abilities can't be activated.

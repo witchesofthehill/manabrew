@@ -1,6 +1,0 @@
-Name:Churning Eddy
-ManaCost:3 U
-Types:Sorcery
-A:SP$ ChangeZone | Origin$ Battlefield | Destination$ Hand | ValidTgts$ Creature | SpellDescription$ Return target creature and target land to their owners' hands. | SubAbility$ DBBounce
-SVar:DBBounce:DB$ ChangeZone | Origin$ Battlefield | Destination$ Hand | ValidTgts$ Land | TgtPrompt$ Select target land
-Oracle:Return target creature and target land to their owners' hands.

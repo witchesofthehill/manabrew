@@ -1,5 +1,0 @@
-Name:Armored Warhorse
-ManaCost:W W
-Types:Creature Horse
-PT:2/3
-Oracle:

@@ -1,5 +1,0 @@
-Name:Golem Token
-ManaCost:no cost
-Types:Enchantment Artifact Creature Golem
-PT:3/3
-Oracle:

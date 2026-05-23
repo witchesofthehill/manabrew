@@ -1,5 +1,0 @@
-Name:Specter's Wail
-ManaCost:1 B
-Types:Sorcery
-A:SP$ Discard | ValidTgts$ Player | NumCards$ 1 | Mode$ Random | SpellDescription$ Target player discards a card at random.
-Oracle:Target player discards a card at random.

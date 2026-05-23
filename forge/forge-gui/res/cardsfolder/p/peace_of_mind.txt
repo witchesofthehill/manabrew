@@ -1,9 +1,0 @@
-Name:Peace of Mind
-ManaCost:1 W
-Types:Enchantment
-A:AB$ GainLife | Cost$ W Discard<1/Card> | LifeAmount$ 3 | SpellDescription$ You gain 3 life.
-SVar:AIPreference:DiscardCost$Card
-SVar:NonStackingEffect:True
-AI:RemoveDeck:Random
-DeckHints:Ability$Discard
-Oracle:{W}, Discard a card: You gain 3 life.

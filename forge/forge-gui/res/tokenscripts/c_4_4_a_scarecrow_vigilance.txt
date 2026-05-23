@@ -1,6 +1,0 @@
-Name:Scarecrow Token
-ManaCost:no cost
-Types:Artifact Creature Scarecrow
-PT:4/4
-K:Vigilance
-Oracle:Vigilance

@@ -1,6 +1,0 @@
-Name:Delirium Skeins
-ManaCost:2 B
-Types:Sorcery
-A:SP$ Discard | Defined$ Player | NumCards$ 3 | Mode$ TgtChoose | SpellDescription$ Each player discards three cards.
-AI:RemoveDeck:Random
-Oracle:Each player discards three cards.

@@ -1,6 +1,0 @@
-Name:Beloved Chaplain
-ManaCost:1 W
-Types:Creature Human Cleric
-PT:1/1
-K:Protection:Creature
-Oracle:Protection from creatures

@@ -1,5 +1,0 @@
-Name:Shorecomber Crab
-ManaCost:U
-Types:Creature Crab
-PT:0/4
-Oracle:

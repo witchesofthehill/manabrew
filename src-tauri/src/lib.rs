@@ -46,7 +46,7 @@ const RESOURCE_ENV_MAP: &[(&str, &str)] = &[
     ("MANA_BREW_FORGE_ASSETS_DIR", "engine/forge/forge-gui"),
     (
         "MANA_BREW_FORGE_HARNESS_JAR",
-        "engine/forge/forge-harness.jar",
+        "engine/forge-harness.jar",
     ),
     ("PRESET_DECKS_DIR", "preset_decks"),
     ("CARDSET_ARCHIVE", "cardset.rkyv"),

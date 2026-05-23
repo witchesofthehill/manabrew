@@ -19,7 +19,7 @@ cargo run -p forge-engine-debugger
 ## Common setup
 
 - Card archive: `src-tauri/resources/cardset.rkyv`
-- Java harness JAR: `forge/forge-harness/target/forge-harness-jar-with-dependencies.jar`
+- Java harness JAR: `forge-harness/target/forge-harness-jar-with-dependencies.jar`
 
 If the Java harness is missing, build it with:
 

@@ -1,5 +1,0 @@
-Name:Extinguish
-ManaCost:1 U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target sorcery spell | ValidTgts$ Sorcery | SpellDescription$ Counter target sorcery spell.
-Oracle:Counter target sorcery spell.

@@ -63,7 +63,7 @@ export function DeckListControls({
   }
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 border-b shrink-0">
+    <div className="mt-2 flex items-center gap-1 px-2 py-1.5 shrink-0">
       {/* Search — takes 2/3 of the row */}
       <div className="relative flex-[2] min-w-0">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />

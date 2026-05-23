@@ -1,5 +1,0 @@
-Name:Golden Bear
-ManaCost:3 G
-Types:Creature Bear
-PT:4/3
-Oracle:

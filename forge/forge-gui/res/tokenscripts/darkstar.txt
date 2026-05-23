@@ -1,6 +1,0 @@
-Name:Darkstar
-ManaCost:no cost
-Colors:white,black
-Types:Legendary Creature Dog
-PT:2/2
-Oracle:

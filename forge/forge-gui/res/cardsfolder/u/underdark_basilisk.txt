@@ -1,6 +1,0 @@
-Name:Underdark Basilisk
-ManaCost:1 G
-Types:Creature Basilisk
-PT:1/2
-K:Deathtouch
-Oracle:Deathtouch

@@ -101,4 +101,4 @@ These are the directories that `harness.mjs` monitors for changes:
 - `forge/forge-game/src/` -- full game engine
 - `forge/forge-ai/src/` -- AI decision logic
 - `forge/forge-gui/src/` -- GUI base classes, asset resolution
-- `forge/forge-harness/src/` -- harness entry point, JSONL protocol, deterministic controllers
+- `forge-harness/src/` -- harness entry point, JSONL protocol, deterministic controllers

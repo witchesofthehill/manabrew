@@ -1,5 +1,0 @@
-Name:Reknit
-ManaCost:1 GW
-Types:Instant
-A:SP$ Regenerate | ValidTgts$ Permanent | SpellDescription$ Regenerate target permanent.
-Oracle:Regenerate target permanent.

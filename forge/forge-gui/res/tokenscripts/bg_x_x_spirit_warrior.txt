@@ -1,6 +1,0 @@
-Name:Spirit Warrior Token
-ManaCost:no cost
-Colors:black,green
-Types:Creature Spirit Warrior
-PT:*/*
-Oracle:

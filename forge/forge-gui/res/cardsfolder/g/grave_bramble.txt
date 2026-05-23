@@ -1,7 +1,0 @@
-Name:Grave Bramble
-ManaCost:1 G G
-Types:Creature Plant
-PT:3/4
-K:Defender
-K:Protection:Zombie
-Oracle:Defender, protection from Zombies

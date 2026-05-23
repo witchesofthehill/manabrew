@@ -1,5 +1,0 @@
-Name:Lazotep Behemoth
-ManaCost:4 B
-Types:Creature Zombie Hippo
-PT:5/4
-Oracle:

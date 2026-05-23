@@ -1,5 +1,0 @@
-Name:Draconian Cylix
-ManaCost:3
-Types:Artifact
-A:AB$ Regenerate | Cost$ 2 T Discard<1/Random> | ValidTgts$ Creature | SpellDescription$ Regenerate target creature.
-Oracle:{2}, {T}, Discard a card at random: Regenerate target creature.

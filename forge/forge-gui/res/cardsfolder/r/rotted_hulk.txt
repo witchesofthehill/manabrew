@@ -1,5 +1,0 @@
-Name:Rotted Hulk
-ManaCost:3 B
-Types:Creature Elemental
-PT:2/5
-Oracle:

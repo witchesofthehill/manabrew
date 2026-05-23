@@ -1,6 +1,0 @@
-Name:Hearthfire Hobgoblin
-ManaCost:RW RW RW
-Types:Creature Goblin Soldier
-PT:2/2
-K:Double Strike
-Oracle:Double strike

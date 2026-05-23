@@ -1,7 +1,0 @@
-Name:Iridescent Angel
-ManaCost:5 W U
-Types:Creature Angel
-PT:4/4
-K:Flying
-K:Protection from each color
-Oracle:Flying, protection from each color

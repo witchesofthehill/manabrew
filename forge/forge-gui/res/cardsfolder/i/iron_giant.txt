@@ -1,8 +1,0 @@
-Name:Iron Giant
-ManaCost:7
-Types:Artifact Creature Demon
-PT:6/6
-K:Vigilance
-K:Reach
-K:Trample
-Oracle:Vigilance, reach, trample

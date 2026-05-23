@@ -1,5 +1,0 @@
-Name:Vanishing Verse
-ManaCost:W B
-Types:Instant
-A:SP$ ChangeZone | ValidTgts$ Permanent.MonoColor | TgtPrompt$ Select target monocolored permament. | Origin$ Battlefield | Destination$ Exile | SpellDescription$ Exile target monocolored permanent.
-Oracle:Exile target monocolored permanent.

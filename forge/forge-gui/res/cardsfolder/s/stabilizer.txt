@@ -1,7 +1,0 @@
-Name:Stabilizer
-ManaCost:2
-Types:Artifact
-S:Mode$ CantBeActivated | ValidSA$ Activated.Cycling | Description$ Players can't cycle cards.
-SVar:NonStackingEffect:True
-AI:RemoveDeck:Random
-Oracle:Players can't cycle cards.

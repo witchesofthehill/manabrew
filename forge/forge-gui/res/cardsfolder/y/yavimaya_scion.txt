@@ -1,6 +1,0 @@
-Name:Yavimaya Scion
-ManaCost:4 G
-Types:Creature Treefolk
-PT:4/4
-K:Protection:Artifact
-Oracle:Protection from artifacts

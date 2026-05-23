@@ -5,12 +5,14 @@ FROM maven:3.9-eclipse-temurin-17 AS java-builder
 # Cap JVM heap so Maven doesn't get OOM-killed when building alongside Rust
 ENV MAVEN_OPTS="-Xmx512m"
 
-WORKDIR /build/forge
+WORKDIR /build
 
 # Copy only POMs first so dependency download is cached separately.
-# Modules needed by `mvn -pl forge-harness -am`: parent + core, game, ai, gui, harness.
-COPY forge/pom.xml                   pom.xml
-COPY forge/checkstyle.xml            checkstyle.xml
+# The root aggregator pom builds forge-harness in one reactor with the engine
+# modules in forge/ that it depends on (resolves the engine's ${revision}).
+COPY pom.xml                         pom.xml
+COPY forge/pom.xml                   forge/pom.xml
+COPY forge/checkstyle.xml            forge/checkstyle.xml
 
 # Strip module declarations for modules excluded by .dockerignore
 # (Maven validates all <module> entries exist before -pl filtering)
@@ -21,16 +23,16 @@ RUN sed -i '/<module>forge-gui-mobile<\/module>/d; \
             /<module>forge-lda<\/module>/d; \
             /<module>adventure-editor<\/module>/d; \
             /<module>forge-gui-android<\/module>/d; \
-            /<module>forge-installer<\/module>/d' pom.xml
+            /<module>forge-installer<\/module>/d' forge/pom.xml
 
-COPY forge/forge-core/pom.xml        forge-core/pom.xml
-COPY forge/forge-game/pom.xml        forge-game/pom.xml
-COPY forge/forge-ai/pom.xml          forge-ai/pom.xml
-COPY forge/forge-gui/pom.xml         forge-gui/pom.xml
-COPY forge/forge-harness/pom.xml     forge-harness/pom.xml
+COPY forge/forge-core/pom.xml        forge/forge-core/pom.xml
+COPY forge/forge-game/pom.xml        forge/forge-game/pom.xml
+COPY forge/forge-ai/pom.xml          forge/forge-ai/pom.xml
+COPY forge/forge-gui/pom.xml         forge/forge-gui/pom.xml
+COPY forge-harness/pom.xml           forge-harness/pom.xml
 
 # Create stub source dirs so Maven resolves modules without error
-RUN for m in forge-core forge-game forge-ai forge-gui forge-harness; do \
+RUN for m in forge/forge-core forge/forge-game forge/forge-ai forge/forge-gui forge-harness; do \
       mkdir -p "$m/src/main/java"; \
     done
 
@@ -39,13 +41,13 @@ RUN --mount=type=cache,target=/root/.m2/repository \
     mvn -pl forge-harness -am dependency:go-offline -Dcheckstyle.skip -q || true
 
 # Now copy the real source code
-COPY forge/forge-core/    forge-core/
-COPY forge/forge-game/    forge-game/
-COPY forge/forge-ai/      forge-ai/
-COPY forge/forge-gui/     forge-gui/
-COPY forge/forge-harness/ forge-harness/
+COPY forge/forge-core/    forge/forge-core/
+COPY forge/forge-game/    forge/forge-game/
+COPY forge/forge-ai/      forge/forge-ai/
+COPY forge/forge-gui/     forge/forge-gui/
+COPY forge-harness/       forge-harness/
 
-# Build the fat JAR (deps already cached in .m2)
+# Build the harness fat JAR in one reactor with its engine deps
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn -pl forge-harness -am -DskipTests -Dcheckstyle.skip package -q
 
@@ -99,7 +101,7 @@ WORKDIR /app
 
 COPY --from=rust-builder /usr/local/bin/forge-parity /app/forge-parity
 COPY --from=rust-builder /usr/local/share/cardset.rkyv /app/src-tauri/resources/cardset.rkyv
-COPY --from=java-builder /build/forge/forge-harness/target/forge-harness-jar-with-dependencies.jar /app/forge-harness.jar
+COPY --from=java-builder /build/forge-harness/target/forge-harness-jar-with-dependencies.jar /app/forge-harness.jar
 COPY forge/forge-gui/res/ /app/forge-gui/res/
 COPY public/preset_decks/ /app/preset_decks/
 

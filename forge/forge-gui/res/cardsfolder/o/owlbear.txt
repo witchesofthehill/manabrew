@@ -1,8 +1,0 @@
-Name:Owlbear
-ManaCost:3 G G
-Types:Creature Bird Bear
-PT:4/4
-K:Trample
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigDraw | TriggerDescription$ Keen Senses — When CARDNAME enters, draw a card.
-SVar:TrigDraw:DB$ Draw | Defined$ You | NumCards$ 1
-Oracle:Trample\nKeen Senses — When Owlbear enters, draw a card.

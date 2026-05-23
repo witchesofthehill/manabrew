@@ -1,6 +1,0 @@
-Name:Heat Ray
-ManaCost:X R
-Types:Instant
-A:SP$ DealDamage | ValidTgts$ Creature | NumDmg$ X | SpellDescription$ CARDNAME deals X damage to target creature.
-SVar:X:Count$xPaid
-Oracle:Heat Ray deals X damage to target creature.

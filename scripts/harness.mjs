@@ -18,13 +18,13 @@ import { join, relative } from "path";
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const root = join(scriptsDir, "..");
 const forgeRoot = join(root, "forge");
+const harnessRoot = join(root, "forge-harness");
 const jarPath = join(
-  forgeRoot,
-  "forge-harness",
+  harnessRoot,
   "target",
   "forge-harness-jar-with-dependencies.jar",
 );
-const checksumPath = join(forgeRoot, "forge-harness", "target", ".harness-sources-checksum");
+const checksumPath = join(harnessRoot, "target", ".harness-sources-checksum");
 const runtimeDir = join(root, "src-tauri", "resources", "forge-runtime");
 const runtimeForgeGuiDir = join(runtimeDir, "forge-gui");
 const runtimeResDir = join(runtimeForgeGuiDir, "res");
@@ -39,7 +39,7 @@ const sourceDirs = [
   join(forgeRoot, "forge-game", "src"),
   join(forgeRoot, "forge-ai", "src"),
   join(forgeRoot, "forge-gui", "src"),
-  join(forgeRoot, "forge-harness", "src"),
+  join(harnessRoot, "src"),
 ];
 
 const pomFiles = [
@@ -48,7 +48,7 @@ const pomFiles = [
   join(forgeRoot, "forge-game", "pom.xml"),
   join(forgeRoot, "forge-ai", "pom.xml"),
   join(forgeRoot, "forge-gui", "pom.xml"),
-  join(forgeRoot, "forge-harness", "pom.xml"),
+  join(harnessRoot, "pom.xml"),
 ];
 
 function walkFiles(dir, predicate, acc = []) {
@@ -91,7 +91,7 @@ function computeChecksum() {
 }
 
 function updateChecksum() {
-  mkdirSync(join(forgeRoot, "forge-harness", "target"), { recursive: true });
+  mkdirSync(join(harnessRoot, "target"), { recursive: true });
   writeFileSync(checksumPath, `${computeChecksum()}\n`);
   console.log("harness: checksum updated");
 }
@@ -128,17 +128,9 @@ function canRun(command, args) {
 }
 
 function resolveMaven() {
-  const mvnwCmd = join(forgeRoot, "mvnw.cmd");
-  const mvnw = join(forgeRoot, "mvnw");
-
-  if (process.platform === "win32" && existsSync(mvnwCmd)) {
-    return mvnwCmd;
-  }
-
-  if (process.platform !== "win32" && existsSync(mvnw)) {
-    return mvnw;
-  }
-
+  // The harness builds from the repo root via the aggregator pom, so the forge
+  // submodule's mvnw wrapper can't be used (its basedir is forge/). Use a
+  // system Maven, which is what CI and the Docker images use too.
   if (process.platform === "win32" && canRun("mvn.cmd", ["-version"])) {
     return "mvn.cmd";
   }
@@ -192,8 +184,11 @@ function rebuild() {
   const maven = resolveMaven();
 
   console.log("harness: rebuilding JAR...");
+  // Build from the repo root via the aggregator pom so forge-harness and the
+  // engine modules it depends on share one reactor (resolves the engine's
+  // ${revision} version without cross-reactor install/flatten).
   const result = spawnSync(maven, ["-pl", "forge-harness", "-am", "package", "-DskipTests"], {
-    cwd: forgeRoot,
+    cwd: root,
     stdio: "inherit",
     shell: process.platform === "win32" && maven.toLowerCase().endsWith(".cmd"),
   });

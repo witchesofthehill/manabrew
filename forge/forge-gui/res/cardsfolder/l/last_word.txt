@@ -1,6 +1,0 @@
-Name:Last Word
-ManaCost:2 U U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target spell | ValidTgts$ Card | SpellDescription$ Counter target spell.
-R:Event$ Counter | ValidCard$ Card.Self | ValidSA$ Spell | Layer$ CantHappen | Description$ This spell can't be countered.
-Oracle:This spell can't be countered.\nCounter target spell.

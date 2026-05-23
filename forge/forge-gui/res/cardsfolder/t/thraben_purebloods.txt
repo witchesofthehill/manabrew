@@ -1,5 +1,0 @@
-Name:Thraben Purebloods
-ManaCost:4 W
-Types:Creature Dog
-PT:3/5
-Oracle:

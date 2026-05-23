@@ -1,9 +1,0 @@
-Name:Wandering Treefolk
-ManaCost:1 G
-Types:Creature Treefolk
-PT:2/3
-K:Vigilance
-A:AB$ Seek | Cost$ 7 G | ReduceCost$ X | Type$ Creature | PrecostDesc$ Domain — | SpellDescription$ Seek a creature card. This ability costs {1} less to activate for each basic land type among lands you control.
-SVar:X:Count$Domain
-AI:RemoveDeck:Random
-Oracle:Vigilance\nDomain — {7}{G}:Seek a creature card. This ability costs {1} less to activate for each basic land type among lands you control.

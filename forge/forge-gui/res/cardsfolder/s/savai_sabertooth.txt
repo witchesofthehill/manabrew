@@ -1,5 +1,0 @@
-Name:Savai Sabertooth
-ManaCost:1 W
-Types:Creature Cat
-PT:3/1
-Oracle:

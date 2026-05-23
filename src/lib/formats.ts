@@ -34,9 +34,31 @@ export const BASIC_LAND_NAMES = new Set(["Plains", "Island", "Swamp", "Mountain"
  *   "A deck can have any number of cards named …"
  *   "You may have any number of cards named …"
  */
-export function allowsAnyNumberOfCopies(oracleText: string | undefined): boolean {
-  if (!oracleText) return false;
-  return /any number of cards named/i.test(oracleText);
+const COPY_LIMIT_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+};
+
+export function copyLimitFromText(oracleText: string | undefined): number | null {
+  if (!oracleText) return null;
+  if (/any number of cards named/i.test(oracleText)) return Infinity;
+  const match = oracleText.match(/up to (\w+) cards? named/i);
+  if (match) {
+    const word = match[1].toLowerCase();
+    const n = COPY_LIMIT_WORDS[word] ?? Number(word);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
 }
 
 export const GAME_FORMATS: GameFormat[] = [
@@ -243,13 +265,13 @@ export function getFormat(id: string): GameFormat | undefined {
  * Basic lands and cards whose text explicitly allows any number of copies are
  * exempt from the per-card copy limit.
  *
- * @param anyNumberNames - optional set of card names that carry the
- *   "any number of copies" exemption (derived from oracle text by the caller).
+ * @param copyLimits - optional map of card name → copy limit granted by the
+ *   card's own text (derived from oracle text by the caller; Infinity = unlimited).
  */
 export function validateDeck(
   cardNames: string[],
   format: GameFormat,
-  anyNumberNames?: ReadonlySet<string>,
+  copyLimits?: ReadonlyMap<string, number>,
 ): DeckValidation {
   const errors: string[] = [];
   const { minDeckSize, maxDeckSize, maxCopies } = format.deckRules;
@@ -267,8 +289,10 @@ export function validateDeck(
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   for (const [name, count] of counts) {
-    if (!BASIC_LAND_NAMES.has(name) && !anyNumberNames?.has(name) && count > maxCopies) {
-      errors.push(`Too many copies of "${name}": ${count} (max ${maxCopies})`);
+    if (BASIC_LAND_NAMES.has(name)) continue;
+    const limit = copyLimits?.get(name) ?? maxCopies;
+    if (count > limit) {
+      errors.push(`Too many copies of "${name}": ${count} (max ${limit})`);
     }
   }
 
@@ -403,14 +427,16 @@ export function validateDeckSections(
     ...commanders,
   ];
 
-  const anyNumberNames = new Set(
-    availableCards.filter((c) => allowsAnyNumberOfCopies(c.text)).map((c) => c.name),
-  );
+  const copyLimits = new Map<string, number>();
+  for (const c of availableCards) {
+    const limit = copyLimitFromText(c.text);
+    if (limit !== null) copyLimits.set(c.name, limit);
+  }
 
   const baseValidation = validateDeck(
     [...mainDeck, ...commanders].map((c) => c.name),
     format,
-    anyNumberNames,
+    copyLimits,
   );
   errors.push(...baseValidation.errors);
 

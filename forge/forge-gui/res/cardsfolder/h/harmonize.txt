@@ -1,5 +1,0 @@
-Name:Harmonize
-ManaCost:2 G G
-Types:Sorcery
-A:SP$ Draw | NumCards$ 3 | SpellDescription$ Draw three cards.
-Oracle:Draw three cards.

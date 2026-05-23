@@ -1,6 +1,0 @@
-Name:Midnight Duelist
-ManaCost:W
-Types:Creature Human Soldier
-PT:1/2
-K:Protection:Vampire
-Oracle:Protection from Vampires

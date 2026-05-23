@@ -1,6 +1,0 @@
-Name:Tel-Jilad Chosen
-ManaCost:1 G
-Types:Creature Elf Warrior
-PT:2/1
-K:Protection:Artifact
-Oracle:Protection from artifacts

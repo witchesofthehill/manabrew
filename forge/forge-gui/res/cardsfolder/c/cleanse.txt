@@ -1,6 +1,0 @@
-Name:Cleanse
-ManaCost:2 W W
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Creature.Black | SpellDescription$ Destroy all black creatures.
-AI:RemoveDeck:Random
-Oracle:Destroy all black creatures.

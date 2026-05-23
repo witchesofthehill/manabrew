@@ -1,5 +1,0 @@
-Name:Blade of the Sixth Pride
-ManaCost:1 W
-Types:Creature Cat Rebel
-PT:3/1
-Oracle:

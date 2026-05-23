@@ -1,9 +1,0 @@
-Name:Pious Interdiction
-ManaCost:3 W
-Types:Enchantment Aura
-K:Enchant:Creature
-SVar:AttachAILogic:Curse
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigGainLife | TriggerDescription$ When CARDNAME enters, you gain 2 life.
-SVar:TrigGainLife:DB$ GainLife | LifeAmount$ 2
-S:Mode$ CantAttack,CantBlock | ValidCard$ Creature.EnchantedBy | Description$ Enchanted creature can't attack or block.
-Oracle:Enchant creature\nWhen Pious Interdiction enters, you gain 2 life.\nEnchanted creature can't attack or block.

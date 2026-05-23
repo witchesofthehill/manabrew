@@ -1,9 +1,0 @@
-Name:Rain of Rust
-ManaCost:3 R R
-Types:Instant
-K:Entwine:3 R
-A:SP$ Charm | Choices$ DBDestroyArtifact,DBDestroyLand
-SVar:DBDestroyArtifact:DB$ Destroy | ValidTgts$ Artifact | SpellDescription$ Destroy target artifact.
-SVar:DBDestroyLand:DB$ Destroy | ValidTgts$ Land | SpellDescription$ Destroy target land.
-AI:RemoveDeck:All
-Oracle:Choose one —\n• Destroy target artifact.\n• Destroy target land.\nEntwine {3}{R} (Choose both if you pay the entwine cost.)

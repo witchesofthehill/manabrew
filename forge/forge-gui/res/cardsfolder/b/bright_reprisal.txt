@@ -1,6 +1,0 @@
-Name:Bright Reprisal
-ManaCost:4 W
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature.attacking | TgtPrompt$ Select target attacking creature | SubAbility$ DBDraw | SpellDescription$ Destroy target attacking creature. Draw a card.
-SVar:DBDraw:DB$ Draw
-Oracle:Destroy target attacking creature.\nDraw a card.

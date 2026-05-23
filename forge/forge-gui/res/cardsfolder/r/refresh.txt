@@ -1,6 +1,0 @@
-Name:Refresh
-ManaCost:2 G
-Types:Instant
-A:SP$ Regenerate | ValidTgts$ Creature | SpellDescription$ Regenerate target creature. Draw a card. | SubAbility$ DBDraw
-SVar:DBDraw:DB$ Draw
-Oracle:Regenerate target creature.\nDraw a card.

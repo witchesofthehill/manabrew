@@ -1,6 +1,0 @@
-Name:Gruesome Fate
-ManaCost:2 B
-Types:Sorcery
-A:SP$ LoseLife | Defined$ Player.Opponent | LifeAmount$ X | SpellDescription$ Each opponent loses 1 life for each creature you control.
-SVar:X:Count$Valid Creature.YouCtrl
-Oracle:Each opponent loses 1 life for each creature you control.

@@ -1,6 +1,0 @@
-Name:Strip Bare
-ManaCost:W
-Types:Instant
-A:SP$ DestroyAll | ValidCards$ Card.AttachedTo Targeted | ValidTgts$ Creature | SpellDescription$ Destroy all Auras and Equipment attached to target creature.
-AI:RemoveDeck:All
-Oracle:Destroy all Auras and Equipment attached to target creature.

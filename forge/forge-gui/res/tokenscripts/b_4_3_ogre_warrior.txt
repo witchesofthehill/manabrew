@@ -1,6 +1,0 @@
-Name:Ogre Warrior Token
-ManaCost:no cost
-Colors:black
-Types:Creature Ogre Warrior
-PT:4/3
-Oracle:

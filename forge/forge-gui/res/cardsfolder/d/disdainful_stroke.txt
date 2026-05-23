@@ -1,5 +1,0 @@
-Name:Disdainful Stroke
-ManaCost:1 U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target spell with mana value 4 or greater | ValidTgts$ Card.cmcGE4 | SpellDescription$ Counter target spell with mana value 4 or greater.
-Oracle:Counter target spell with mana value 4 or greater.

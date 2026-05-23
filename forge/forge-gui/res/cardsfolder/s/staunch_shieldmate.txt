@@ -1,5 +1,0 @@
-Name:Staunch Shieldmate
-ManaCost:W
-Types:Creature Dwarf Soldier
-PT:1/3
-Oracle:

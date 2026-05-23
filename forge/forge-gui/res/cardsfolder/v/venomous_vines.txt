@@ -1,5 +1,0 @@
-Name:Venomous Vines
-ManaCost:2 G G
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Permanent.enchanted | TgtPrompt$ Select target enchanted permanent | SpellDescription$ Destroy target enchanted permanent.
-Oracle:Destroy target enchanted permanent.

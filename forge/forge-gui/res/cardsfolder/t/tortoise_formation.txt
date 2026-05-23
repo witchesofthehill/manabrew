@@ -1,6 +1,0 @@
-Name:Tortoise Formation
-ManaCost:3 U
-Types:Instant
-A:SP$ PumpAll | ValidCards$ Creature.YouCtrl | KW$ Shroud | SpellDescription$ Creatures you control gain shroud until end of turn.
-AI:RemoveDeck:All
-Oracle:Creatures you control gain shroud until end of turn. (They can't be the targets of spells or abilities.)

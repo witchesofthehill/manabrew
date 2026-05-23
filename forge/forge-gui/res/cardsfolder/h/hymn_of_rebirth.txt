@@ -1,5 +1,0 @@
-Name:Hymn of Rebirth
-ManaCost:3 G W
-Types:Sorcery
-A:SP$ ChangeZone | Origin$ Graveyard | Destination$ Battlefield | GainControl$ True | TgtPrompt$ Choose target creature card in a graveyard | ValidTgts$ Creature | SpellDescription$ Put target creature card from a graveyard onto the battlefield under your control.
-Oracle:Put target creature card from a graveyard onto the battlefield under your control.

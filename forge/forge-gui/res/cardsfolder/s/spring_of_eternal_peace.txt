@@ -1,5 +1,0 @@
-Name:Spring of Eternal Peace
-ManaCost:3 G G
-Types:Sorcery
-A:SP$ GainLife | LifeAmount$ 8 | SpellDescription$ You gain 8 life.
-Oracle:You gain 8 life.

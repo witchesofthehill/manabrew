@@ -1,5 +1,0 @@
-Name:Dreadbore
-ManaCost:B R
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Creature,Planeswalker | TgtPrompt$ Select target creature or planeswalker | SpellDescription$ Destroy target creature or planeswalker.
-Oracle:Destroy target creature or planeswalker.

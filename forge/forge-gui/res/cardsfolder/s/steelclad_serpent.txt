@@ -1,7 +1,0 @@
-Name:Steelclad Serpent
-ManaCost:5 U
-Types:Artifact Creature Serpent
-PT:4/5
-S:Mode$ CantAttack | ValidCard$ Card.Self | IsPresent$ Artifact.YouCtrl+Other | PresentCompare$ EQ0 | Description$ CARDNAME can't attack unless you control another artifact.
-AI:RemoveDeck:Random
-Oracle:Steelclad Serpent can't attack unless you control another artifact.

@@ -1,5 +1,0 @@
-Name:Primordial Wurm
-ManaCost:4 G G
-Types:Creature Wurm
-PT:7/6
-Oracle:

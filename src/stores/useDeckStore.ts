@@ -3,7 +3,7 @@ import { persist, devtools } from "zustand/middleware";
 import type { Deck, DeckCard, DeckFormatId } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME } from "@/lib/constants";
-import { getFormat, BASIC_LAND_NAMES, canBePartners, allowsAnyNumberOfCopies } from "@/lib/formats";
+import { getFormat, BASIC_LAND_NAMES, canBePartners, copyLimitFromText } from "@/lib/formats";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { collectAllPartsNames } from "@/lib/decks";
 
@@ -159,6 +159,7 @@ interface DeckState {
   loadDeck: (deck: Deck) => void;
   loadPresetDeck: (deck: Deck) => void;
   importPresetToMyDecks: () => string | null;
+  addSavedDeck: (deck: Deck) => string;
   saveCurrentDeck: () => void;
   saveDraft: () => void;
   loadSavedDeck: (id: string) => void;
@@ -208,13 +209,14 @@ export const useDeckStore = create<DeckState>()(
         addToMain: (card) =>
           set((state) => {
             // Enforce max copy limit based on deck format
-            if (!BASIC_LAND_NAMES.has(card.name) && !allowsAnyNumberOfCopies(card.text)) {
+            if (!BASIC_LAND_NAMES.has(card.name)) {
               const format = getFormat(state.currentDeck.format ?? "standard");
               if (format) {
+                const limit = copyLimitFromText(card.text) ?? format.deckRules.maxCopies;
                 const currentCount = state.currentDeck.cards.filter(
                   (c) => c.name === card.name,
                 ).length;
-                if (currentCount >= format.deckRules.maxCopies) {
+                if (currentCount >= limit) {
                   return state; // silently reject — UI will show toast via DeckBuilder
                 }
               }
@@ -371,6 +373,13 @@ export const useDeckStore = create<DeckState>()(
             currentDeckId: id,
             isReadOnly: false,
             savedDecks: [...s.savedDecks, savedDeck],
+          }));
+          return id;
+        },
+        addSavedDeck: (deck) => {
+          const id = crypto.randomUUID();
+          set((s) => ({
+            savedDecks: [...s.savedDecks, { id, deck: normalizeDeck(deck), savedAt: Date.now() }],
           }));
           return id;
         },

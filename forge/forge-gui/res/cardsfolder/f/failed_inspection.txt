@@ -1,7 +1,0 @@
-Name:Failed Inspection
-ManaCost:2 U U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target spell | ValidTgts$ Card | SubAbility$ DBDraw | SpellDescription$ Counter target spell. Draw a card.
-SVar:DBDraw:DB$ Draw | SubAbility$ DBDiscard
-SVar:DBDiscard:DB$ Discard | Defined$ You | Mode$ TgtChoose | NumCards$ 1
-Oracle:Counter target spell. Draw a card, then discard a card.

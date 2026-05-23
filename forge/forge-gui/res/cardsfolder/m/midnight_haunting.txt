@@ -1,5 +1,0 @@
-Name:Midnight Haunting
-ManaCost:2 W
-Types:Instant
-A:SP$ Token | TokenAmount$ 2 | TokenScript$ w_1_1_spirit_flying | TokenOwner$ You | SpellDescription$ Create two 1/1 white Spirit creature tokens with flying.
-Oracle:Create two 1/1 white Spirit creature tokens with flying.

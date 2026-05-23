@@ -1,8 +1,0 @@
-Name:Angelic Observer
-ManaCost:5 W
-Types:Creature Angel Advisor
-PT:3/3
-K:Affinity:Citizen
-K:Flying
-DeckHints:Type$Citizen
-Oracle:Affinity for Citizens (This spell costs {1} less to cast for each Citizen you control.)\nFlying

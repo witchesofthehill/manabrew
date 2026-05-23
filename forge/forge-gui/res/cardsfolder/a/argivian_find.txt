@@ -1,5 +1,0 @@
-Name:Argivian Find
-ManaCost:W
-Types:Instant
-A:SP$ ChangeZone | Origin$ Graveyard | Destination$ Hand | TgtPrompt$ Choose target artifact or enchantment card in your graveyard | ValidTgts$ Artifact.YouCtrl,Enchantment.YouCtrl | SpellDescription$ Return target artifact or enchantment card from your graveyard to your hand.
-Oracle:Return target artifact or enchantment card from your graveyard to your hand.

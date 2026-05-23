@@ -1,5 +1,0 @@
-Name:Urgent Exorcism
-ManaCost:1 W
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Spirit,Enchantment | TgtPrompt$ Select target Spirit or enchantment. | SpellDescription$ Destroy target Spirit or enchantment.
-Oracle:Destroy target Spirit or enchantment.

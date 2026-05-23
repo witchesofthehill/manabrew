@@ -2501,7 +2501,9 @@ export class PixiGameScene {
   private resolveAndDrawArrows(): void {
     const hasAny = this.arrowSpecs.length > 0 || this.castingArrow !== null;
     if (!hasAny) {
-      if (this.arrowLayer) this.arrowLayer.update([], this.app.ticker.deltaMS);
+      if (this.arrowLayer && !this.arrowLayer.isClear) {
+        this.arrowLayer.update([], this.app.ticker.deltaMS);
+      }
       return;
     }
     // Cache the canvas rect once so each DOM query doesn't re-trigger layout.

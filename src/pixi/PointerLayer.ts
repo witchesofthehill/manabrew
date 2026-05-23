@@ -221,6 +221,7 @@ export class PointerLayer {
   private textures: Partial<Record<TargetingIntent, Texture>> = {};
   private elapsedMs = 0;
   private ready = false;
+  private clear = true;
 
   constructor() {
     this.root = new Container();
@@ -266,6 +267,7 @@ export class PointerLayer {
 
   /** Replace the live pointer set and tick the animation. */
   update(pointers: ResolvedPointer[], deltaMs: number): void {
+    if (pointers.length === 0 && this.clear) return;
     this.elapsedMs += deltaMs;
     this.ensurePool(pointers.length);
 
@@ -282,6 +284,11 @@ export class PointerLayer {
         entry.sourceGlow.visible = false;
       }
     }
+    this.clear = pointers.length === 0;
+  }
+
+  get isClear(): boolean {
+    return this.clear;
   }
 
   private ensurePool(count: number): void {

@@ -50,6 +50,8 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      # Concurrent rooms this node hosts (each its own espresso context, ~260MB).
+      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-3}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:
       - forge-server-staging

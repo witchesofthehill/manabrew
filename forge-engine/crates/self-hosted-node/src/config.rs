@@ -14,6 +14,7 @@ pub struct Config {
     pub room_id: Option<String>,
     pub room_name: String,
     pub max_players: u8,
+    pub max_games: usize,
     pub format: GameFormat,
     pub auto_start: bool,
     pub engine_enabled: bool,
@@ -78,6 +79,10 @@ impl Config {
             max_players: env_first("SELF_HOSTED_NODE_MAX_PLAYERS", "FORGE_ROOM_MAX_PLAYERS")
                 .and_then(|value| value.parse().ok())
                 .unwrap_or(4),
+            max_games: env_first("SELF_HOSTED_NODE_MAX_GAMES", "FORGE_ROOM_MAX_GAMES")
+                .and_then(|value| value.parse().ok())
+                .filter(|games| *games >= 1)
+                .unwrap_or(1),
             format: env_first("SELF_HOSTED_NODE_FORMAT", "FORGE_ROOM_FORMAT")
                 .and_then(|value| parse_format(&value))
                 .unwrap_or(GameFormat::Commander),

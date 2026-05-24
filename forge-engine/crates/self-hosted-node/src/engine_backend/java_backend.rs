@@ -361,6 +361,44 @@ impl JavaEngineHandle {
     }
 }
 
+// The one JVM per process lives behind a process-global handle so every hosted game
+// thread (across every room the node hosts) talks to the same actor without threading
+// a handle through the whole relay loop. Mutex makes the !Sync mpsc sender shareable.
+#[cfg(feature = "java-forge")]
+static JAVA_ENGINE: std::sync::OnceLock<std::sync::Mutex<JavaEngineHandle>> =
+    std::sync::OnceLock::new();
+
+#[cfg(feature = "java-forge")]
+pub fn init_engine() -> Result<(), String> {
+    if JAVA_ENGINE.get().is_some() {
+        return Ok(());
+    }
+    let config = JavaRuntimeConfig::from_env();
+    let engine = JavaEngine::start(&config)?;
+    let handle = engine.handle();
+    // Keep the actor thread alive for the process lifetime (no clean shutdown needed
+    // for a long-running node; process exit reclaims it).
+    std::mem::forget(engine);
+    JAVA_ENGINE
+        .set(std::sync::Mutex::new(handle))
+        .map_err(|_| "java engine already initialized".to_string())
+}
+
+#[cfg(not(feature = "java-forge"))]
+pub fn init_engine() -> Result<(), String> {
+    Err("java engine requires building self-hosted-node with --features java-forge".to_string())
+}
+
+#[cfg(feature = "java-forge")]
+fn engine_handle() -> Result<JavaEngineHandle, String> {
+    JAVA_ENGINE
+        .get()
+        .ok_or_else(|| "java engine is not initialized".to_string())?
+        .lock()
+        .map_err(|_| "java engine handle lock poisoned".to_string())
+        .map(|handle| handle.clone())
+}
+
 #[cfg(feature = "java-forge")]
 pub fn run_concurrent_self_play(
     seats: &[DeckSelection],
@@ -604,11 +642,9 @@ fn run_hosted_engine_game_inner(
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
 ) -> Result<(), String> {
-    let config = JavaRuntimeConfig::from_env();
-    let assets_dir = config.assets_dir.to_string_lossy().to_string();
-    let bridge = J4rsBridge::new(&config)?;
-    let mut session = JavaForgeSession::new(bridge);
-    session.initialize(&assets_dir)?;
+    // Drive the game through the shared process-wide engine actor (one JVM, pooled
+    // espresso contexts), so this room is one of N the node can host concurrently.
+    let engine = engine_handle()?;
 
     let mut players = Vec::with_capacity(player_names.len());
     for (index, name) in player_names.iter().enumerate() {
@@ -620,7 +656,7 @@ fn run_hosted_engine_game_inner(
         ));
     }
     let request = StartGameRequest::new(game_id.clone(), starting_life, rand::random(), players);
-    let session_id = session.start_game(&request)?;
+    let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(game_id, session_id, "hosted java-forge session started");
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<Value>> =
@@ -638,7 +674,7 @@ fn run_hosted_engine_game_inner(
                             )
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
-                        session.submit_action(&action_json)?;
+                        engine.submit_action(&session_id, &action_json)?;
                     }
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => {
@@ -649,7 +685,7 @@ fn run_hosted_engine_game_inner(
             }
         }
 
-        if let Some(prompt_json) = session.get_prompt(0)? {
+        if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
             if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
                 let prompt: Value = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
@@ -668,12 +704,13 @@ fn run_hosted_engine_game_inner(
                         prompt_kind, "forwarding java prompt to remote"
                     );
                     if Some(player_index) == local_player_index {
-                        session.submit_action(&auto_java_action(&prompt).to_string())?;
+                        engine
+                            .submit_action(&session_id, &auto_java_action(&prompt).to_string())?;
                     } else if remote_prompt_tx
                         .send((player_index, normalize_java_prompt(prompt)))
                         .is_err()
                     {
-                        session.end_game()?;
+                        engine.end_game(&session_id)?;
                         return Ok(());
                     }
                 }
@@ -681,16 +718,9 @@ fn run_hosted_engine_game_inner(
             }
         }
 
-        let snapshot_json = session.get_snapshot()?;
-        let snapshot: Value = serde_json::from_str(&snapshot_json)
-            .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
-        if snapshot
-            .get("game_over")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-        {
+        if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
-            session.end_game()?;
+            engine.end_game(&session_id)?;
             return Ok(());
         }
 

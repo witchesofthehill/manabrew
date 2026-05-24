@@ -626,6 +626,21 @@ async fn maybe_auto_start_room(
     Ok(())
 }
 
+// The rules engine recurses deeply (turn loop, stack resolution, state-based
+// actions), well past a thread's default ~2 MB stack — a hosted game on the default
+// stack overflows and aborts the whole process. Give engine threads a generous stack.
+const ENGINE_STACK_BYTES: usize = 64 * 1024 * 1024;
+
+fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
+    if let Err(error) = thread::Builder::new()
+        .name("hosted-engine".to_string())
+        .stack_size(ENGINE_STACK_BYTES)
+        .spawn(body)
+    {
+        error!(%error, "failed to spawn hosted engine thread");
+    }
+}
+
 fn maybe_start_hosted_engine(
     config: &Config,
     engine_session: &SharedEngineSession,
@@ -730,7 +745,7 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            thread::spawn(move || {
+            spawn_engine_thread(move || {
                 info!(
                     game_id,
                     backend = backend.label(),
@@ -771,7 +786,7 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_raw_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            thread::spawn(move || {
+            spawn_engine_thread(move || {
                 info!(
                     game_id,
                     backend = backend.label(),

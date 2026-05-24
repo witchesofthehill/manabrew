@@ -9,6 +9,7 @@ use forge_foundation::ZoneType;
 use super::EffectContext;
 use crate::event::RunParams;
 use crate::ids::{CardId, PlayerId};
+use crate::player::player_factory_util::{add_static_ability, add_trigger_ability};
 use crate::spellability::SpellAbility;
 use crate::trigger::TriggerType;
 
@@ -45,9 +46,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 }
 
 fn ring_tempts(ctx: &mut EffectContext, _sa: &SpellAbility, player: PlayerId) {
+    crate::player::create_the_ring(ctx.game, player);
+
     let current_level = ctx.game.player(player).ring_level;
     if current_level < 4 {
         ctx.game.player_ring_tempt(player);
+        set_ring_level(ctx, player, current_level + 1);
     }
 
     let creatures: Vec<CardId> = ctx
@@ -88,4 +92,46 @@ fn ring_tempts(ctx: &mut EffectContext, _sa: &SpellAbility, player: PlayerId) {
         },
         false,
     );
+}
+
+fn set_ring_level(ctx: &mut EffectContext, player: PlayerId, level: i32) {
+    let Some(effect_id) = ctx.game.player(player).ring_effect_card else {
+        return;
+    };
+
+    let changed = {
+        let effect = ctx.game.card_mut(effect_id);
+        match level {
+            1 => {
+                add_static_ability(
+                    effect,
+                    "Mode$ Continuous | EffectZone$ Command | Affected$ Card.YouCtrl+IsRingbearer | AddType$ Legendary | Description$ Your Ring-bearer is legendary.",
+                ) | add_static_ability(
+                    effect,
+                    "Mode$ CantBlockBy | EffectZone$ Command | ValidAttacker$ Card.YouCtrl+IsRingbearer | ValidBlockerRelative$ Creature.powerGTX | Description$ Your Ring-bearer can't be blocked by creatures with greater power.",
+                )
+            }
+            2 => add_trigger_ability(
+                effect,
+                "Mode$ Attacks | ValidCard$ Card.YouCtrl+IsRingbearer | Execute$ RingAttackDraw | TriggerDescription$ Whenever your Ring-bearer attacks, draw a card, then discard a card. | TriggerZones$ Command",
+                [
+                    (
+                        "RingAttackDraw",
+                        "DB$ Draw | Defined$ You | NumCards$ 1 | SubAbility$ RingAttackDiscard",
+                    ),
+                    (
+                        "RingAttackDiscard",
+                        "DB$ Discard | Defined$ You | NumCards$ 1 | Mode$ TgtChoose",
+                    ),
+                ],
+            ),
+            _ => false,
+        }
+    };
+
+    if changed {
+        ctx.trigger_handler.unregister_active_triggers(effect_id);
+        ctx.trigger_handler
+            .register_active_trigger(ctx.game, effect_id);
+    }
 }

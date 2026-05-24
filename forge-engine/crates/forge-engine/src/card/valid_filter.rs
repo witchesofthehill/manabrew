@@ -769,6 +769,9 @@ fn matches_card_state(state: CardStateSelector, card: &Card, context: MatchConte
         CardStateSelector::Suspended => card.has_keyword("Suspend") && card.zone == ZoneType::Exile,
         CardStateSelector::SingleTarget => false,
         CardStateSelector::PromisedGift => card.promised_gift.is_some(),
+        CardStateSelector::RingBearer => context
+            .game
+            .is_some_and(|game| game.player(card.controller).ring_bearer == Some(card.id)),
     }
 }
 
@@ -1626,6 +1629,7 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         "suspended" => matches_card_state(CardStateSelector::Suspended, card, context),
         "singletarget" => matches_card_state(CardStateSelector::SingleTarget, card, context),
         "promisedgift" => matches_card_state(CardStateSelector::PromisedGift, card, context),
+        "isringbearer" => matches_card_state(CardStateSelector::RingBearer, card, context),
         "rememberedplayerctrl" => {
             matches_context_predicate(&ContextPredicate::RememberedPlayerCtrl, card, context)
         }
@@ -2019,6 +2023,13 @@ fn matches_type_and_qualifier_parts(
                 }
                 "iscommander" => {
                     if !card.is_commander {
+                        return false;
+                    }
+                }
+                "isringbearer" => {
+                    if !context.game.is_some_and(|game| {
+                        game.player(card.controller).ring_bearer == Some(card.id)
+                    }) {
                         return false;
                     }
                 }

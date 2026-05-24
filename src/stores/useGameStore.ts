@@ -618,22 +618,25 @@ export const useGameStore = create<GameState>()(
         get().respond({ type: "rollSwapValueDecision", choice });
       },
 
-      concede: () => {
+      concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
           void get().endGame();
           return;
         }
-        get().respond({ type: "concede" });
-        // Failsafe: if the engine's GameOver prompt never reaches us
-        // (dead worker / dropped relay socket), force-exit so the
-        // conceder isn't stranded on the game screen.
-        const concededGameId = get().gameView?.gameId;
-        setTimeout(() => {
-          if (get().isGameActive && get().gameView?.gameId === concededGameId) {
-            void get().endGame();
-          }
-        }, 5000);
+        // Await the concede send so the relay-bound message is on the wire
+        // before we tear down the runtime / leave the room — otherwise the
+        // host engine never sees the concede and waits out the 120 s
+        // recv_timeout while the other players sit idle.
+        try {
+          await get().respond({ type: "concede" });
+        } catch (e) {
+          console.warn("[store] concede respond failed:", e);
+        }
+        // Conceding always exits the room: the player explicitly opted out
+        // of the match, so don't strand them on the game-over screen
+        // waiting for the GameOver prompt to round-trip.
+        void get().endGame();
       },
 
       endGame: async () => {

@@ -183,14 +183,61 @@ async fn main() {
 async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     load_type_registry()?;
 
+    let backend = EngineBackendKind::from_env();
+    if config.engine_enabled
+        && backend.is_supported()
+        && matches!(backend, EngineBackendKind::JavaForge)
+    {
+        info!("initializing shared java engine (one JVM for all hosted games)");
+        java_backend::init_engine()?;
+    }
+
+    // One node connection per hosted room (StateUpdate carries no room_id, so a
+    // single connection can't route N games). All rooms share the one java engine.
+    let slots = if config.room_id.is_some() {
+        1
+    } else {
+        config.max_games.max(1)
+    };
+    if slots <= 1 {
+        return host_one_room(config, None).await;
+    }
+
+    info!(slots, "hosting multiple rooms on one node");
+    let mut handles = Vec::with_capacity(slots);
+    for slot in 0..slots {
+        let cfg = config.clone();
+        handles.push(tokio::spawn(async move {
+            if let Err(error) = host_one_room(cfg, Some(slot)).await {
+                error!(%error, slot, "room host exited");
+            }
+        }));
+    }
+    for handle in handles {
+        let _ = handle.await;
+    }
+    Ok(())
+}
+
+async fn host_one_room(
+    mut config: Config,
+    slot: Option<usize>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    if let Some(slot) = slot {
+        config.username = format!("{}-{slot}", config.username);
+        config.bot_username = format!("{}-{slot}", config.bot_username);
+        config.room_name = format!("{} {}", config.room_name, slot + 1);
+    }
+
     info!(
         relay_url = %config.relay_url,
         username = %config.username,
+        room_name = %config.room_name,
         auto_start = config.auto_start,
         engine_enabled = config.engine_enabled,
         host_plays = config.host_plays,
         bot_enabled = config.bot_enabled,
-        "starting self-hosted node"
+        "starting room host"
     );
 
     let mut host =
@@ -366,6 +413,7 @@ async fn run_client_loop(
                 client.broadcast_room_message(SELF_HOSTED_NODE_PROTOCOL, json!({
                     "type": "heartbeat",
                     "node": client.username,
+                    "capacity": config.max_games,
                 })).await?;
             }
             outbound = outbound_rx.recv() => {

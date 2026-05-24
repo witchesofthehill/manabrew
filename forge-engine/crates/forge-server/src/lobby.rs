@@ -126,7 +126,15 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
+        let was_in_game = room.status == RoomStatus::InGame;
         room.remove_participant(player_id);
+        // A mid-game departure ends the match for everyone — drop the room
+        // back to lobby state so the remaining players can re-ready (or
+        // invite a replacement) instead of being stuck in a phantom
+        // `InGame` room that blocks SetReady / SetDeck / StartGame.
+        if was_in_game {
+            room.reset_after_game();
+        }
         (room.is_empty(), room.connected_player_ids().is_empty())
     };
 

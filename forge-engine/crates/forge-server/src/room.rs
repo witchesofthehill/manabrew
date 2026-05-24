@@ -169,6 +169,17 @@ impl Room {
         self.players.iter().all(|p| !p.connected) && self.observers.iter().all(|p| !p.connected)
     }
 
+    /// Drop the room back into lobby state once a match is over (either via
+    /// a clean game-over or because a participant left mid-game). Status
+    /// flips back to `Lobby`, every remaining player is unreadied. Deck
+    /// selections are preserved so a rematch only needs another ready.
+    pub fn reset_after_game(&mut self) {
+        self.status = RoomStatus::Lobby;
+        for slot in self.players.iter_mut() {
+            slot.ready = false;
+        }
+    }
+
     pub fn set_ready(&mut self, player_id: &str, ready: bool) -> Result<(), String> {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.ready = ready;

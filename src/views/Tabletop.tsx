@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
 import type { GameView } from "@/types/manabrew";
@@ -16,6 +16,7 @@ interface TabletopLocationState {
 
 export default function Tabletop() {
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     isGameActive,
     startGame,
@@ -24,6 +25,7 @@ export default function Tabletop() {
     setMultiplayerState,
   } = useGameStore();
   const started = useRef(false);
+  const gameWasActive = useRef(false);
 
   const routeState = location.state as TabletopLocationState | null;
   const tabletopState = routeState && "manualTabletop" in routeState ? routeState : null;
@@ -38,6 +40,21 @@ export default function Tabletop() {
     }
     void startManualRoomClient(tabletopState.myPlayerSlot, tabletopState.initialGameView);
   }, [setMultiplayerState, startManualRoomClient, tabletopState]);
+
+  // Tabletop game ended: route state still carries `manualTabletop: true`,
+  // so an in-place re-render would land on the "Starting tabletop room..."
+  // waiting screen. Push the user back to the lobby instead.
+  useEffect(() => {
+    if (isGameActive) {
+      gameWasActive.current = true;
+      return;
+    }
+    if (gameWasActive.current && tabletopState?.manualTabletop) {
+      gameWasActive.current = false;
+      started.current = false;
+      navigate("/lobby", { replace: true });
+    }
+  }, [isGameActive, tabletopState, navigate]);
 
   if (isGameActive) {
     return (

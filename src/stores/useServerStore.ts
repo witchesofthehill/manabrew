@@ -125,9 +125,10 @@ export const useServerStore = create<ServerState>()(
       },
 
       async leaveRoom() {
-        const platform = getPlatform();
-        if (!platform.server) return;
-        await platform.server.leaveRoom();
+        // Reset local room state synchronously so a hung relay socket can't
+        // strand the user in a "still-in-room" UI. The server-side teardown
+        // is attempted afterwards as best-effort; if it fails, the next
+        // listRooms() call will reconcile.
         set({
           currentRoom: null,
           gameStarted: false,
@@ -135,7 +136,18 @@ export const useServerStore = create<ServerState>()(
           playerDecks: [],
           startingLife: DEFAULT_STARTING_LIFE,
         });
-        get().listRooms();
+        const platform = getPlatform();
+        if (!platform.server) return;
+        try {
+          await platform.server.leaveRoom();
+        } catch (e) {
+          console.warn("server.leaveRoom() failed:", e);
+        }
+        try {
+          await get().listRooms();
+        } catch (e) {
+          console.warn("listRooms() after leaveRoom failed:", e);
+        }
       },
 
       async setReady(ready) {

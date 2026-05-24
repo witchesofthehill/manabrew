@@ -550,6 +550,18 @@ the relay how many it can take.
 against the shared `JavaEngine`, assert all N reach game over with no cross-game
 corruption (the engine-side proof of multi-room, no relay needed).
 
+**Validated (2026-05-24):**
+
+- engine-side concurrency ✓ — node ran 2 games concurrently through the shared
+  `JavaEngine` actor to completion.
+- multi-room connection layer ✓ against a real `forge-server` relay: node with
+  `SELF_HOSTED_NODE_MAX_GAMES=2` opened **2 connections (`mrtest-0`/`mrtest-1`),
+  both authenticated, both created rooms** — so a node holding N logins + N rooms on
+  one relay works (relay-confirmed, no errors).
+- still staging-only: a full **java** game running through a relay room
+  (needs Linux/GraalVM, since macOS espresso embedding is broken) plus relay-side
+  matchmaking routing players into the node's rooms.
+
 ## Open questions / spike plan
 
 - Espresso spike: 2 contexts × Forge, assert `Game.maxId`/`MyRandom` are isolated

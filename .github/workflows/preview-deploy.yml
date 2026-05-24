@@ -62,11 +62,6 @@ jobs:
           git fetch origin "pull/${PR_NUMBER}/head" --force
           git checkout --detach --force ${PR_SHA}
 
-          # Forge is a git submodule; checkout only moves the gitlink. The
-          # web/server Dockerfiles COPY from forge/forge-gui/res/{cardsfolder,
-          # tokenscripts}, so without an explicit submodule update the build
-          # fails with "/forge/forge-gui/res/cardsfolder: not found". Mirrors
-          # the same step deploy.sh runs on prod.
           git submodule sync --recursive
           git submodule update --init --recursive --depth 1
 

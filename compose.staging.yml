@@ -53,10 +53,12 @@ services:
       SELF_HOSTED_NODE_FORMATS: "${SELF_HOSTED_NODE_FORMATS:-commander,standard,modern,pioneer,legacy,vintage,pauper,brawl,oathbreaker}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       # Concurrent rooms this node hosts (each its own espresso context, ~260MB).
-      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-3}"
+      # Kept at 1 on the 3 GB staging box: it builds images in-place, and a running
+      # pre-warmed stack + a release build together OOM the box (swap thrash).
+      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       # Pre-warm a context per room at boot so games start instantly (no on-demand
       # ~50-90s card-DB load when a player joins).
-      SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE: "${SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE:-3}"
+      SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE: "${SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE:-1}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:
       - forge-server-staging

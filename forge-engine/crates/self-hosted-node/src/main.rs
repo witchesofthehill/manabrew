@@ -745,6 +745,8 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -763,6 +765,7 @@ fn maybe_start_hosted_engine(
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,
+                        game_over_tx,
                     )
                 }));
                 log_hosted_engine_result(result);
@@ -786,6 +789,8 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_raw_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -804,6 +809,7 @@ fn maybe_start_hosted_engine(
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,
+                        game_over_tx,
                     )
                 }));
                 log_hosted_engine_result(result);
@@ -928,6 +934,35 @@ fn spawn_raw_prompt_forwarder(
             let Ok(state) = serde_json::to_value(StateEnvelope::Prompt {
                 for_player: player_slot(player_index),
                 prompt,
+            }) else {
+                continue;
+            };
+            if outbound_tx
+                .send(ClientMessage::BroadcastState { state })
+                .is_err()
+            {
+                break;
+            }
+        }
+    });
+}
+
+// A hosted game otherwise ends silently (the engine just stops); broadcast a
+// game-over so the web UI and the integration harness can observe the result.
+fn spawn_game_over_forwarder(
+    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
+    game_over_rx: std_mpsc::Receiver<String>,
+) {
+    thread::spawn(move || {
+        while let Ok(game_id) = game_over_rx.recv() {
+            let Ok(state) = serde_json::to_value(StateEnvelope::RoomRelay {
+                protocol: SELF_HOSTED_NODE_PROTOCOL.to_string(),
+                version: 1,
+                message_id: Uuid::new_v4().to_string(),
+                from_player: None,
+                target_player: None,
+                room_id: None,
+                payload: json!({ "type": "gameOver", "gameId": game_id }),
             }) else {
                 continue;
             };

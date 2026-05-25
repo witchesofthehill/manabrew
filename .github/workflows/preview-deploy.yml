@@ -62,6 +62,9 @@ jobs:
           git fetch origin "pull/${PR_NUMBER}/head" --force
           git checkout --detach --force ${PR_SHA}
 
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1
+
           docker compose -p manabrew-staging -f compose.staging.yml up -d --build --remove-orphans
           # Record which PR owns the single slot so another PR's teardown
           # doesn't kill this preview.

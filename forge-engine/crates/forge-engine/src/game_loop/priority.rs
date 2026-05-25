@@ -205,16 +205,14 @@ impl GameLoop {
                 )
             };
 
-            // Concede wins over a pending snapshot restore: the user
-            // wanting out should not be blocked by an in-flight rewind.
+            // Concede preempts any pending snapshot restore so an in-flight
+            // rewind can't block exit. Drop the conceder's pending request
+            // so the next iteration doesn't replay it via apply_pending_snapshot_restore.
             if action == PlayerAction::Concede {
+                let _ = agents[priority_player.index()].take_restore_request();
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
                     crate::player::concede(game, priority_player);
                 });
-                // Personal GameOver only when the game keeps going for
-                // others (3+ player room). For ≤1 alive, host_runtime
-                // emits a final GameOver to every agent after the loop
-                // exits, so a second emit here would be redundant.
                 if game.alive_players().len() > 1 {
                     agents[priority_player.index()].snapshot_state(game, &self.mana_pools);
                     agents[priority_player.index()]

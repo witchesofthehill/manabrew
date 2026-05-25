@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
@@ -22,12 +22,13 @@ export default function Play() {
   const gameWasActive = useRef(false);
 
   const routeState = location.state as MultiplayerLocationState | null;
-  const mpState = routeState && "multiplayer" in routeState ? routeState : null;
+  const mpState = useMemo(
+    () => (routeState && "multiplayer" in routeState ? routeState : null),
+    [routeState],
+  );
 
-  // Multiplayer game ended: leave /play (whose route state still carries
-  // `multiplayer: true`) so we don't fall back to the "Starting multiplayer
-  // game..." waiting screen. Single-player intentionally drops to the deck
-  // selector below.
+  // Route state outlives the game; without this, ending a multiplayer game
+  // falls back to the "Starting multiplayer game..." waiting screen.
   useEffect(() => {
     if (isGameActive) {
       gameWasActive.current = true;

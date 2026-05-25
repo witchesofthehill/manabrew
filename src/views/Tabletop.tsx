@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
@@ -28,7 +28,10 @@ export default function Tabletop() {
   const gameWasActive = useRef(false);
 
   const routeState = location.state as TabletopLocationState | null;
-  const tabletopState = routeState && "manualTabletop" in routeState ? routeState : null;
+  const tabletopState = useMemo(
+    () => (routeState && "manualTabletop" in routeState ? routeState : null),
+    [routeState],
+  );
 
   // Handle multiplayer tabletop join from lobby
   useEffect(() => {
@@ -41,9 +44,8 @@ export default function Tabletop() {
     void startManualRoomClient(tabletopState.myPlayerSlot, tabletopState.initialGameView);
   }, [setMultiplayerState, startManualRoomClient, tabletopState]);
 
-  // Tabletop game ended: route state still carries `manualTabletop: true`,
-  // so an in-place re-render would land on the "Starting tabletop room..."
-  // waiting screen. Push the user back to the lobby instead.
+  // Route state outlives the game; without this, ending a tabletop game
+  // falls back to the "Starting tabletop room..." waiting screen.
   useEffect(() => {
     if (isGameActive) {
       gameWasActive.current = true;

@@ -762,6 +762,16 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::EndGame => match lobby::end_game_sync(state, player_id) {
+            Ok((room_id, info)) => {
+                info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
+                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+            }
+            Err(e) => {
+                debug!("[game] '{}' end game ignored: {}", username, e);
+            }
+        },
+
         ClientMessage::BroadcastState { state: game_state } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
@@ -870,6 +880,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
         ClientMessage::StartGame => "StartGame",
+        ClientMessage::EndGame => "EndGame",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
     }

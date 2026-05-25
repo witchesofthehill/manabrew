@@ -116,6 +116,10 @@ pub enum ClientMessage {
 
     StartGame,
 
+    /// Host signals a finished game so the relay returns the room to the lobby
+    /// (drops players, status back to Lobby) and it can be reused.
+    EndGame,
+
     BroadcastState {
         state: serde_json::Value,
     },

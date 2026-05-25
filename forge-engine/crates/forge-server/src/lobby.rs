@@ -295,7 +295,7 @@ pub fn end_game_sync(
         .and_then(|p| p.room_id.clone())
         .ok_or(ServerError::NotInRoom)?;
 
-    let info = {
+    let (info, cleared) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -306,10 +306,30 @@ pub fn end_game_sync(
         if room.status != RoomStatus::InGame {
             return Err(ServerError::GameNotInProgress);
         }
+        let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
         room.players.clear();
-        room.to_room_info()
+        (room.to_room_info(), cleared)
     };
+
+    // While in-game the room kept these players' sessions for mid-game reconnect.
+    // Now that the game is over and the room is reset, drop those bindings: a still-
+    // disconnected session would otherwise be reclaimed by a same-username reconnect
+    // and dragged back into this (now seatless) room, wedging the player with
+    // "already in room" yet no seat.
+    for pid in cleared {
+        match state.players.get(&pid).map(|p| p.disconnected_at.is_some()) {
+            Some(true) => {
+                state.players.remove(&pid);
+            }
+            Some(false) => {
+                if let Some(mut p) = state.players.get_mut(&pid) {
+                    p.room_id = None;
+                }
+            }
+            None => {}
+        }
+    }
 
     Ok((room_id, info))
 }

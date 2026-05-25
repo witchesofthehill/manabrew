@@ -111,7 +111,15 @@ public final class ManaBrewEspressoAdapter {
         synchronized (replenishLock) {
             replenishLock.notifyAll();
         }
-        return pooled != null ? pooled : newContext();
+        if (pooled != null) {
+            return pooled;
+        }
+        if (poolSize > 0) {
+            System.err.println("[espresso] WARN pool exhausted (poolSize=" + poolSize
+                    + ", active=" + active.size() + "); building context on the hot path,"
+                    + " the player will wait ~50s for FModel.initialize");
+        }
+        return newContext();
     }
 
     private void startReplenisher() {

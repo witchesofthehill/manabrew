@@ -718,6 +718,7 @@ fn maybe_start_hosted_engine(
         return;
     }
 
+    let session_handle = engine_session.clone();
     let num_players = player_order.len();
     if num_players < 2 {
         warn!(num_players, "not enough players to start hosted engine");
@@ -785,6 +786,7 @@ fn maybe_start_hosted_engine(
                     )
                 }));
                 log_hosted_engine_result(result);
+                clear_engine_session(&session_handle);
             });
         }
         EngineBackendKind::JavaForge => {
@@ -829,8 +831,19 @@ fn maybe_start_hosted_engine(
                     )
                 }));
                 log_hosted_engine_result(result);
+                clear_engine_session(&session_handle);
             });
         }
+    }
+}
+
+// Reset the room's engine session once its game thread exits, so the reused room
+// (relay resets it to Lobby) can start its next game; without this the is_some
+// guard in maybe_start_hosted_engine silently refuses every game after the first.
+fn clear_engine_session(engine_session: &SharedEngineSession) {
+    match engine_session.lock() {
+        Ok(mut guard) => *guard = None,
+        Err(error) => warn!(%error, "engine session lock poisoned on reset"),
     }
 }
 

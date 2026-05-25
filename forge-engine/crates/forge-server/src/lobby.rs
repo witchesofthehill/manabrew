@@ -281,3 +281,32 @@ pub fn start_game_sync(
 
     Ok((room_id, player_order, player_decks, starting_life))
 }
+
+// Return a finished hosted game to the lobby so the room is reusable: drop the
+// players (the human + the AI bot) and reset status; the non-playing host (node)
+// stays as an observer, so findHostedRoom sees an open Lobby room again.
+pub fn end_game_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+) -> Result<(String, RoomInfo), ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+
+    let info = {
+        let mut room = state
+            .rooms
+            .get_mut(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+        if !room.is_host(player_id) {
+            return Err(ServerError::NotHost);
+        }
+        room.status = RoomStatus::Lobby;
+        room.players.clear();
+        room.to_room_info()
+    };
+
+    Ok((room_id, info))
+}

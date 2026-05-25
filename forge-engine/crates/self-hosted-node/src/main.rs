@@ -7,7 +7,7 @@ use std::time::Duration;
 mod config;
 mod engine_backend;
 
-use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
+use config::{format_label, workspace_root, Config, DeckSelection, SelfPlayConfig};
 use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
@@ -194,22 +194,38 @@ async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sy
 
     // One node connection per hosted room (StateUpdate carries no room_id, so a
     // single connection can't route N games). All rooms share the one java engine.
-    let slots = if config.room_id.is_some() {
-        1
-    } else {
-        config.max_games.max(1)
-    };
-    if slots <= 1 {
+    if config.room_id.is_some() {
         return host_one_room(config, None).await;
     }
 
-    info!(slots, "hosting multiple rooms on one node");
-    let mut handles = Vec::with_capacity(slots);
-    for slot in 0..slots {
-        let cfg = config.clone();
+    // One room per configured format (so every play-vs-AI format is joinable);
+    // otherwise max_games rooms of the single format for same-format concurrency.
+    let hosts: Vec<(Config, String)> = if config.formats.len() > 1 {
+        config
+            .formats
+            .iter()
+            .map(|format| {
+                let mut cfg = config.clone();
+                cfg.format = format.clone();
+                (cfg, format_label(format).to_string())
+            })
+            .collect()
+    } else {
+        let slots = config.max_games.max(1);
+        if slots <= 1 {
+            return host_one_room(config, None).await;
+        }
+        (0..slots)
+            .map(|slot| (config.clone(), (slot + 1).to_string()))
+            .collect()
+    };
+
+    info!(rooms = hosts.len(), "hosting multiple rooms on one node");
+    let mut handles = Vec::with_capacity(hosts.len());
+    for (cfg, label) in hosts {
         handles.push(tokio::spawn(async move {
-            if let Err(error) = host_one_room(cfg, Some(slot)).await {
-                error!(%error, slot, "room host exited");
+            if let Err(error) = host_one_room(cfg, Some(label.clone())).await {
+                error!(%error, label, "room host exited");
             }
         }));
     }
@@ -221,12 +237,12 @@ async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sy
 
 async fn host_one_room(
     mut config: Config,
-    slot: Option<usize>,
+    label: Option<String>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    if let Some(slot) = slot {
-        config.username = format!("{}-{slot}", config.username);
-        config.bot_username = format!("{}-{slot}", config.bot_username);
-        config.room_name = format!("{} {}", config.room_name, slot + 1);
+    if let Some(label) = &label {
+        config.username = format!("{}-{label}", config.username);
+        config.bot_username = format!("{}-{label}", config.bot_username);
+        config.room_name = format!("{} ({label})", config.room_name);
     }
 
     info!(
@@ -970,6 +986,10 @@ fn spawn_game_over_forwarder(
                 .send(ClientMessage::BroadcastState { state })
                 .is_err()
             {
+                break;
+            }
+            // Return the room to the lobby so it can host the next player.
+            if outbound_tx.send(ClientMessage::EndGame).is_err() {
                 break;
             }
         }

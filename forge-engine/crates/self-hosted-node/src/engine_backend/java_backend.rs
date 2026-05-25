@@ -1328,11 +1328,19 @@ impl J4rsBridge {
             // guest classpath, so the Forge global statics stay per-session.
             let classpath_opt = format!("-Djava.class.path={}", espresso_host_classpath(config)?);
             let guest_opt = format!("-Dmanabrew.guest.classpath={}", guest_classpath(config));
+            // Pre-warm N contexts at startup so a player's game starts instantly
+            // instead of paying the ~50-90s card-DB load on the first game per context.
+            let pool_size = env::var("SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            let pool_opt = format!("-Dmanabrew.espresso.poolSize={pool_size}");
             let jvm = JvmBuilder::new()
                 .with_no_implicit_classpath()
                 .with_default_classloader()
                 .java_opt(JavaOpt::new(&classpath_opt))
                 .java_opt(JavaOpt::new(&guest_opt))
+                .java_opt(JavaOpt::new(&pool_opt))
                 .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
                 .build()
                 .map_err(java_error)?;

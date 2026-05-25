@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -49,6 +50,7 @@ enum EngineSession {
     },
     Java {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<Value>>,
+        cancel: Arc<AtomicBool>,
     },
 }
 
@@ -74,6 +76,17 @@ struct SpawnBotDeckPayload {
 }
 
 type SharedEngineSession = Arc<Mutex<Option<EngineSession>>>;
+
+// Tracks a pending "player disconnected mid-game" teardown so a quick reconnect can
+// cancel it. `grace` holds the armed token of an in-flight grace timer, if any.
+#[derive(Default)]
+struct DisconnectTracker {
+    grace: Option<Arc<AtomicBool>>,
+}
+
+type SharedDisconnectTracker = Arc<Mutex<DisconnectTracker>>;
+
+const DISCONNECT_GRACE_SECS: u64 = 30;
 type SharedBotState = Arc<Mutex<BotState>>;
 
 #[tokio::main]
@@ -422,6 +435,8 @@ async fn run_client_loop(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+    let disconnect_tracker: SharedDisconnectTracker =
+        Arc::new(Mutex::new(DisconnectTracker::default()));
 
     loop {
         tokio::select! {
@@ -451,6 +466,7 @@ async fn run_client_loop(
                     &engine_session,
                     &bot_state,
                     &outbound_tx,
+                    &disconnect_tracker,
                     message,
                 ).await?;
             }
@@ -465,11 +481,13 @@ async fn handle_server_message(
     engine_session: &SharedEngineSession,
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    disconnect_tracker: &SharedDisconnectTracker,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
         ServerMessage::RoomUpdate { room } => {
             log_room_update(&client.username, &room);
+            handle_disconnect_grace(&room, engine_session, outbound_tx, disconnect_tracker);
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
@@ -492,6 +510,7 @@ async fn handle_server_message(
         }
         ServerMessage::PlayerLeft { username, room_id } => {
             info!(username, room_id, observer = %client.username, "player left");
+            end_hosted_game_on_abandon(engine_session, outbound_tx);
         }
         ServerMessage::GameStarted {
             room_id,
@@ -801,8 +820,10 @@ fn maybe_start_hosted_engine(
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
+            let cancel = Arc::new(AtomicBool::new(false));
             *guard = Some(EngineSession::Java {
                 remote_response_txs,
+                cancel: cancel.clone(),
             });
             drop(guard);
 
@@ -828,6 +849,7 @@ fn maybe_start_hosted_engine(
                         remote_prompt_tx,
                         remote_response_rxs,
                         game_over_tx,
+                        cancel,
                     )
                 }));
                 log_hosted_engine_result(result);
@@ -844,6 +866,76 @@ fn clear_engine_session(engine_session: &SharedEngineSession) {
     match engine_session.lock() {
         Ok(mut guard) => *guard = None,
         Err(error) => warn!(%error, "engine session lock poisoned on reset"),
+    }
+}
+
+// A player leaving mid-game leaves the java engine waiting forever on a seat that
+// will never respond, so the game never reaches game-over and the room stays InGame
+// (unreusable). Cancel the engine thread (its loop checks this flag and exits, the
+// drop-guard then ends the session) and ask the relay to end the game so the room
+// resets to Lobby. No-op outside a live game.
+// A player dropping (tab close, network blip) doesn't send PlayerLeft — it shows up
+// as the player going offline in a room update. Give them DISCONNECT_GRACE_SECS to
+// reconnect; if any game player is still offline when it elapses, tear the game down
+// the same way an explicit leave does. A reconnect (everyone back online) before the
+// timer fires disarms it so a transient blip doesn't kill a live game.
+fn handle_disconnect_grace(
+    room: &RoomInfo,
+    engine_session: &SharedEngineSession,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    tracker: &SharedDisconnectTracker,
+) {
+    let any_offline = room.players.iter().any(|player| !player.connected);
+    let game_active = engine_session
+        .lock()
+        .map(|guard| guard.is_some())
+        .unwrap_or(false);
+    let mut tracker = match tracker.lock() {
+        Ok(tracker) => tracker,
+        Err(error) => {
+            warn!(%error, "disconnect tracker lock poisoned");
+            return;
+        }
+    };
+    if any_offline && game_active {
+        if tracker.grace.is_none() {
+            let token = Arc::new(AtomicBool::new(true));
+            tracker.grace = Some(token.clone());
+            let engine_session = engine_session.clone();
+            let outbound_tx = outbound_tx.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(DISCONNECT_GRACE_SECS)).await;
+                if token.load(Ordering::Relaxed) {
+                    info!("player did not reconnect within grace; ending hosted game");
+                    end_hosted_game_on_abandon(&engine_session, &outbound_tx);
+                }
+            });
+        }
+    } else if let Some(token) = tracker.grace.take() {
+        token.store(false, Ordering::Relaxed);
+    }
+}
+
+fn end_hosted_game_on_abandon(
+    engine_session: &SharedEngineSession,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+) {
+    let cancelled = match engine_session.lock() {
+        Ok(guard) => match guard.as_ref() {
+            Some(EngineSession::Java { cancel, .. }) => {
+                cancel.store(true, Ordering::Relaxed);
+                true
+            }
+            _ => false,
+        },
+        Err(error) => {
+            warn!(%error, "engine session lock poisoned");
+            false
+        }
+    };
+    if cancelled {
+        info!("player abandoned an in-progress hosted game; ending it to free the room");
+        let _ = outbound_tx.send(ClientMessage::EndGame);
     }
 }
 
@@ -916,6 +1008,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
         }
         EngineSession::Java {
             remote_response_txs,
+            ..
         } => {
             let Some(tx) = remote_response_txs.get(&player_index) else {
                 debug!(from_player, player_index, "no response channel for player");

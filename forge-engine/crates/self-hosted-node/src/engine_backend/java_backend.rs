@@ -4,9 +4,11 @@
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc as std_mpsc;
 #[cfg(feature = "java-forge")]
 use std::sync::mpsc::TryRecvError;
+use std::sync::Arc;
 #[cfg(feature = "java-forge")]
 use std::time::Duration;
 
@@ -229,6 +231,7 @@ enum EngineCommand {
     ),
     GameOver(String, std_mpsc::Sender<Result<bool, String>>),
     End(String, std_mpsc::Sender<Result<(), String>>),
+    Abort(String, std_mpsc::Sender<Result<(), String>>),
     Shutdown,
 }
 
@@ -282,6 +285,9 @@ impl JavaEngine {
                         }
                         EngineCommand::End(session_id, reply) => {
                             let _ = reply.send(bridge.end_game(&session_id));
+                        }
+                        EngineCommand::Abort(session_id, reply) => {
+                            let _ = reply.send(bridge.abort_game(&session_id));
                         }
                         EngineCommand::Shutdown => break,
                     }
@@ -358,6 +364,10 @@ impl JavaEngineHandle {
 
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
         self.call(|reply| EngineCommand::End(session_id.to_string(), reply))
+    }
+
+    pub fn abort_game(&self, session_id: &str) -> Result<(), String> {
+        self.call(|reply| EngineCommand::Abort(session_id.to_string(), reply))
     }
 }
 
@@ -600,6 +610,7 @@ pub fn run_hosted_engine_game(
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
     game_over_tx: std_mpsc::Sender<String>,
+    cancel: Arc<AtomicBool>,
 ) {
     if let Err(error) = run_hosted_engine_game_inner(
         game_id,
@@ -611,6 +622,7 @@ pub fn run_hosted_engine_game(
         remote_prompt_tx,
         remote_response_rxs,
         game_over_tx,
+        cancel,
     ) {
         warn!(%error, "hosted java-forge engine exited with error");
     }
@@ -627,6 +639,7 @@ pub fn run_hosted_engine_game(
     _remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
     _game_over_tx: std_mpsc::Sender<String>,
+    _cancel: Arc<AtomicBool>,
 ) {
     warn!(
         message = unsupported_message(),
@@ -645,6 +658,7 @@ fn run_hosted_engine_game_inner(
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
     game_over_tx: std_mpsc::Sender<String>,
+    cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
     // Drive the game through the shared process-wide engine actor (one JVM, pooled
     // espresso contexts), so this room is one of N the node can host concurrently.
@@ -663,20 +677,28 @@ fn run_hosted_engine_game_inner(
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(game_id, session_id, "hosted java-forge session started");
 
+    // Disarmed and replaced by an explicit end_game on a clean game-over (which lets
+    // the context be reused). Any other exit — cancel, channel drop, error, panic —
+    // leaves it armed, so Drop aborts: force-close the context rather than reuse it,
+    // because the guest game thread may still be blocked and would poison a reused one.
     struct SessionGuard {
         engine: JavaEngineHandle,
         session_id: String,
+        armed: std::cell::Cell<bool>,
     }
     impl Drop for SessionGuard {
         fn drop(&mut self) {
-            if let Err(error) = self.engine.end_game(&self.session_id) {
-                warn!(session_id = %self.session_id, %error, "failed to end java session; context may leak");
+            if self.armed.get() {
+                if let Err(error) = self.engine.abort_game(&self.session_id) {
+                    warn!(session_id = %self.session_id, %error, "failed to abort java session; context may leak");
+                }
             }
         }
     }
-    let _guard = SessionGuard {
+    let guard = SessionGuard {
         engine: engine.clone(),
         session_id: session_id.clone(),
+        armed: std::cell::Cell::new(true),
     };
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<Value>> =
@@ -684,6 +706,13 @@ fn run_hosted_engine_game_inner(
     let mut last_prompt_json: Option<String> = None;
 
     loop {
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            info!(
+                session_id,
+                "hosted java-forge session cancelled; player left the game"
+            );
+            return Ok(());
+        }
         for (player_index, rx) in &mut remote_response_rxs {
             loop {
                 match rx.try_recv() {
@@ -740,6 +769,8 @@ fn run_hosted_engine_game_inner(
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
             let _ = game_over_tx.send(game_id.clone());
+            engine.end_game(&session_id)?;
+            guard.armed.set(false);
             return Ok(());
         }
 
@@ -1223,6 +1254,7 @@ pub trait JavaBridge {
     fn get_snapshot(&mut self, session_id: &str) -> Result<String, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
+    fn abort_game(&mut self, session_id: &str) -> Result<(), String>;
 }
 
 pub struct JavaForgeSession<B> {
@@ -1319,6 +1351,10 @@ impl JavaBridge for UnavailableJavaBridge {
     fn end_game(&mut self, _session_id: &str) -> Result<(), String> {
         Err(unsupported_message().to_string())
     }
+
+    fn abort_game(&mut self, _session_id: &str) -> Result<(), String> {
+        Err(unsupported_message().to_string())
+    }
 }
 
 #[cfg(feature = "java-forge")]
@@ -1355,6 +1391,7 @@ impl J4rsBridge {
                 .java_opt(JavaOpt::new(&classpath_opt))
                 .java_opt(JavaOpt::new(&guest_opt))
                 .java_opt(JavaOpt::new(&pool_opt))
+                .java_opt(JavaOpt::new("-Dmanabrew.espresso.reuse=true"))
                 .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
                 .build()
                 .map_err(java_error)?;
@@ -1465,6 +1502,13 @@ impl JavaBridge for J4rsBridge {
     fn end_game(&mut self, session_id: &str) -> Result<(), String> {
         self.invoke_void(
             "endGameJson",
+            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
+        )
+    }
+
+    fn abort_game(&mut self, session_id: &str) -> Result<(), String> {
+        self.invoke_void(
+            "abortGameJson",
             &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
         )
     }

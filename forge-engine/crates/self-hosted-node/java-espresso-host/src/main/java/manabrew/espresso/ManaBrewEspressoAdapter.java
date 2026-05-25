@@ -106,6 +106,18 @@ public final class ManaBrewEspressoAdapter {
         }
     }
 
+    public String abortGameJson(final String sessionId) {
+        // A cancelled game (a player left) has a guest game thread still blocked on
+        // input that will never arrive, so close(true) cancels it and the context is
+        // always discarded — never returned to the warm pool, even with reuse on,
+        // since a lingering thread would corrupt whichever game reuses the context.
+        final Ctx ctx = active.remove(sessionId);
+        if (ctx != null) {
+            ctx.context.close(true);
+        }
+        return "{\"sessionId\":\"" + sessionId + "\",\"ended\":true}";
+    }
+
     private Ctx acquire() {
         final Ctx pooled = warm.poll();
         synchronized (replenishLock) {

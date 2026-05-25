@@ -33,6 +33,7 @@ pub fn run_hosted_engine_game(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
+    game_over_tx: std_mpsc::Sender<String>,
 ) {
     let prepared_players = prepare_players(
         &player_names,
@@ -83,6 +84,7 @@ pub fn run_hosted_engine_game(
             }
         },
     );
+    let _ = game_over_tx.send(game_id);
 }
 
 pub fn run_self_play(

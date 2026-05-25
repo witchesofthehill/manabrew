@@ -599,6 +599,7 @@ pub fn run_hosted_engine_game(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
+    game_over_tx: std_mpsc::Sender<String>,
 ) {
     if let Err(error) = run_hosted_engine_game_inner(
         game_id,
@@ -609,6 +610,7 @@ pub fn run_hosted_engine_game(
         starting_life,
         remote_prompt_tx,
         remote_response_rxs,
+        game_over_tx,
     ) {
         warn!(%error, "hosted java-forge engine exited with error");
     }
@@ -624,6 +626,7 @@ pub fn run_hosted_engine_game(
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
+    _game_over_tx: std_mpsc::Sender<String>,
 ) {
     warn!(
         message = unsupported_message(),
@@ -641,6 +644,7 @@ fn run_hosted_engine_game_inner(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
+    game_over_tx: std_mpsc::Sender<String>,
 ) -> Result<(), String> {
     // Drive the game through the shared process-wide engine actor (one JVM, pooled
     // espresso contexts), so this room is one of N the node can host concurrently.
@@ -720,6 +724,7 @@ fn run_hosted_engine_game_inner(
 
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
+            let _ = game_over_tx.send(game_id.clone());
             engine.end_game(&session_id)?;
             return Ok(());
         }

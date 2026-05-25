@@ -254,7 +254,10 @@ async fn play_game(
 
 fn is_game_over(state: &Value) -> bool {
     let text = state.to_string();
-    text.contains("\"gameOver\":true")
+    // The node's explicit game-over broadcast (RoomRelay payload), plus the
+    // in-state markers some engines include.
+    text.contains("\"type\":\"gameOver\"")
+        || text.contains("\"gameOver\":true")
         || text.contains("\"game_over\":true")
         || text.contains("\"winner\"")
 }

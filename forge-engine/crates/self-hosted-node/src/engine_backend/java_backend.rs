@@ -663,6 +663,22 @@ fn run_hosted_engine_game_inner(
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(game_id, session_id, "hosted java-forge session started");
 
+    struct SessionGuard {
+        engine: JavaEngineHandle,
+        session_id: String,
+    }
+    impl Drop for SessionGuard {
+        fn drop(&mut self) {
+            if let Err(error) = self.engine.end_game(&self.session_id) {
+                warn!(session_id = %self.session_id, %error, "failed to end java session; context may leak");
+            }
+        }
+    }
+    let _guard = SessionGuard {
+        engine: engine.clone(),
+        session_id: session_id.clone(),
+    };
+
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<Value>> =
         remote_response_rxs.into_iter().collect();
     let mut last_prompt_json: Option<String> = None;
@@ -714,7 +730,6 @@ fn run_hosted_engine_game_inner(
                         .send((player_index, normalize_java_prompt(prompt)))
                         .is_err()
                     {
-                        engine.end_game(&session_id)?;
                         return Ok(());
                     }
                 }
@@ -725,7 +740,6 @@ fn run_hosted_engine_game_inner(
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
             let _ = game_over_tx.send(game_id.clone());
-            engine.end_game(&session_id)?;
             return Ok(());
         }
 

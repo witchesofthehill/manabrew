@@ -562,6 +562,37 @@ corruption (the engine-side proof of multi-room, no relay needed).
   (needs Linux/GraalVM, since macOS espresso embedding is broken) plus relay-side
   matchmaking routing players into the node's rooms.
 
+## E2E validation + integration harness (2026-05-25)
+
+`hosted-smoke` (`self-hosted-node` bin) drives N concurrent play-vs-ai games end to
+end through a relay: per game it discovers a node room, joins, summons the AI
+(`spawnBot`), readies, and plays its seat with `SimpleAi`. Reusable as the CI
+integration test (CI brings up relay + node, this drives it).
+
+- **rust backend (local):** 2 concurrent games to game-over, node stayed alive ✓
+- **java/espresso (staging box, real Forge on GraalVM):** ran a `Standard`-format
+  java node + the harness against it — **2 concurrent espresso games reached
+  game-over, 0 crashes** (node logs `reached game over` ×2). The hosted java
+  play-vs-ai path works end to end through the relay.
+
+**Bug found + fixed by the harness:** hosted engine threads spawned with the default
+~2 MB stack; the rust engine recurses past it and the whole node **aborted with a
+stack overflow** mid-game. Now spawned with a 64 MB stack (`spawn_engine_thread`).
+Affects the rust hosted path in prod.
+
+**Found product gap (follow-up):** the java hosted loop ends a game with
+`engine.end_game` + return — it **broadcasts no game-over to players** and leaves the
+room `InGame`. So a hosted java game goes silent at the end (the web shows no
+winner; the harness can't observe completion and times out, even though the engine
+finished). Fix: broadcast a game-over StateEnvelope (+ return the room to lobby) when
+`is_game_over`, mirroring the rust host runtime. Until then the harness's java
+assertion is via the node logs, not the relay.
+
+**Two harness gotchas (fixed):** answer relay WS pings with pongs (idle java games
+were dropped as offline otherwise); supply plain 60-card decks + a `Standard`-format
+room so Forge uses the Constructed variant (commander rooms are 40-life → Commander
+variant → would need a real commander deck).
+
 ## Open questions / spike plan
 
 - Espresso spike: 2 contexts × Forge, assert `Game.maxId`/`MyRandom` are isolated

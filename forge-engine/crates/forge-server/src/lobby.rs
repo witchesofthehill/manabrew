@@ -303,6 +303,9 @@ pub fn end_game_sync(
         if !room.is_host(player_id) {
             return Err(ServerError::NotHost);
         }
+        if room.status != RoomStatus::InGame {
+            return Err(ServerError::GameNotInProgress);
+        }
         room.status = RoomStatus::Lobby;
         room.players.clear();
         room.to_room_info()

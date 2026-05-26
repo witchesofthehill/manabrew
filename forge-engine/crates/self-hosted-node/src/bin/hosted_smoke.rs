@@ -101,12 +101,12 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
                 let ids = rooms
                     .into_iter()
                     .filter(|room| {
-                        // Standard (20-life, no commander) → Forge picks the Constructed
-                        // variant, so the harness's plain 60-card decks are legal. Also
-                        // distinguishes our test node from any commander node on the relay.
+                        // Hosted rooms are Any-format now; the harness locks the game to
+                        // Standard at start (20-life Constructed, so its plain 60-card
+                        // decks are legal) via the startGame payload.
                         room.hosted
                             && room.status == RoomStatus::Lobby
-                            && room.format == GameFormat::Standard
+                            && room.format == GameFormat::Any
                             && room.players.len() < room.max_players as usize
                     })
                     .map(|room| room.room_id)

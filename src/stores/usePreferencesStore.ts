@@ -30,12 +30,6 @@ interface PreferencesState {
   autoPassEnabled: boolean;
   setAutoPassEnabled: (enabled: boolean) => void;
 
-  /** Route "Play vs AI" through the hosted (server-side Java) engine instead
-   *  of the client WASM engine. Only effective where a hosted node is
-   *  available (see isHostedEngineAvailable). */
-  preferHostedEngine: boolean;
-  setPreferHostedEngine: (enabled: boolean) => void;
-
   /** Battlefield zone column order */
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
@@ -75,7 +69,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "autoPassEnabled",
-  "preferHostedEngine",
   "zonePanelOrder",
   "handSize",
   "battlefieldCardScale",
@@ -128,9 +121,6 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           autoPassEnabled: true,
           setAutoPassEnabled: (autoPassEnabled) => set({ autoPassEnabled }),
-
-          preferHostedEngine: false,
-          setPreferHostedEngine: (preferHostedEngine) => set({ preferHostedEngine }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),

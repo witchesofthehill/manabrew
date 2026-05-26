@@ -94,6 +94,8 @@ pub enum ClientMessage {
         format: GameFormat,
         #[serde(default)]
         hosted: bool,
+        #[serde(default)]
+        engine: EngineKind,
     },
 
     JoinRoom {
@@ -220,6 +222,8 @@ pub struct RoomInfo {
     pub max_players: u8,
     pub format: GameFormat,
     pub status: RoomStatus,
+    #[serde(default)]
+    pub engine: EngineKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -262,4 +266,14 @@ pub enum GameFormat {
     Oathbreaker,
     Draft,
     Sealed,
+}
+
+/// Which engine runs a room's game. Drives the lobby's engine badge.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum EngineKind {
+    /// In-browser Rust engine (wasm). The default for human-hosted rooms.
+    #[default]
+    Wasm,
+    /// Java Forge running on a hosted node.
+    Java,
 }

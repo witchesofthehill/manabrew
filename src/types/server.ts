@@ -35,7 +35,11 @@ export interface RoomInfo {
   max_players: number;
   format: GameFormat;
   status: "Lobby" | "InGame";
+  engine: EngineKind;
 }
+
+/** Which engine runs a room's game — drives the lobby engine badge. */
+export type EngineKind = "Wasm" | "Java";
 
 export interface RoomPlayerInfo {
   username: string;

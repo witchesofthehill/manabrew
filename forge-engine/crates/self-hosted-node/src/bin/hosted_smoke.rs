@@ -189,6 +189,9 @@ async fn play_game(
         let mut my_slot: Option<String> = None;
         let mut acted = 0usize;
         let mut last_prompt: Option<String> = None;
+        // Hosted rooms are Any-format now and the node no longer auto-starts them, so
+        // the player drives the start once everyone's ready, sending the chosen format.
+        let mut sent_start = false;
         while let Some(message) = recv(&mut write, &mut read).await {
             match message {
                 ServerMessage::GameStarted { player_order, .. } => {
@@ -235,6 +238,34 @@ async fn play_game(
                                 return Err(format!("game {idx} exceeded {max_prompts} prompts"));
                             }
                         }
+                    }
+                }
+                ServerMessage::RoomUpdate { room } => {
+                    if !sent_start
+                        && room.status == RoomStatus::Lobby
+                        && room.players.len() >= 2
+                        && room
+                            .players
+                            .iter()
+                            .all(|p| p.connected && p.ready && p.selected_deck_name.is_some())
+                    {
+                        sent_start = true;
+                        let start = StateEnvelope::RoomRelay {
+                            protocol: "self-hosted-node".to_string(),
+                            version: 1,
+                            message_id: uuid::Uuid::new_v4().to_string(),
+                            from_player: Some(username.clone()),
+                            target_player: None,
+                            room_id: Some(room_id.to_string()),
+                            payload: json!({ "type": "startGame", "format": "Standard" }),
+                        };
+                        send(
+                            &mut write,
+                            &ClientMessage::BroadcastState {
+                                state: serde_json::to_value(&start).map_err(|e| e.to_string())?,
+                            },
+                        )
+                        .await?;
                     }
                 }
                 ServerMessage::Error { code, message } => {

@@ -76,7 +76,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     createRoomRelayEnvelope({
       protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
       roomId: room.room_id,
-      payload: { type: "startGame" },
+      payload: { type: "startGame", format },
     }),
   );
 
@@ -132,15 +132,17 @@ async function ensureServerConnection(): Promise<void> {
 
 async function findHostedRoom(format: GameFormat): Promise<RoomInfo> {
   const rooms = await fetchRooms();
+  // Single pool: hosted rooms are format-agnostic ("Any"); the chosen format is sent
+  // with the startGame payload, not matched on the room.
   const room = rooms.find(
     (candidate) =>
       candidate.hosted &&
       candidate.status === "Lobby" &&
-      candidate.format === format &&
+      candidate.format === "Any" &&
       candidate.players.length < candidate.max_players,
   );
   if (!room) {
-    throw new Error(`No self-hosted ${format} room is available.`);
+    throw new Error(`No self-hosted room is available for ${format}.`);
   }
   return room;
 }

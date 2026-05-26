@@ -799,6 +799,20 @@ public final class ManaBrewInteractiveSession {
         latestPromptJson = prompt.toString();
     }
 
+    // Carry the printing + owner on a prompt-card option so the client resolves the
+    // card's art from its deck the same way the rust engine's gameView DTO does,
+    // instead of a by-name fallback.
+    private void addCardOption(final JsonObject option, final Card card) {
+        option.addProperty("id", SnapshotExtractor.javaCardId(card));
+        option.addProperty("label", card.getName());
+        final forge.item.IPaperCard paper = card.getPaperCard();
+        option.addProperty("setCode", paper != null ? paper.getEdition() : card.getSetCode());
+        option.addProperty("cardNumber", paper != null ? paper.getCollectorNumber() : "");
+        if (card.getController() != null) {
+            option.addProperty("owner", SnapshotExtractor.playerIndex(game, card.getController()));
+        }
+    }
+
     private void publishCardChoicePrompt(
             final String kind,
             final int playerId,
@@ -817,8 +831,7 @@ public final class ManaBrewInteractiveSession {
         for (int i = 0; i < cards.size(); i++) {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(cards.get(i)));
-            option.addProperty("label", cards.get(i).getName());
+            addCardOption(option, cards.get(i));
             options.add(option);
         }
         prompt.add("cards", options);
@@ -851,8 +864,7 @@ public final class ManaBrewInteractiveSession {
         for (int i = 0; i < cards.size(); i++) {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(cards.get(i)));
-            option.addProperty("label", cards.get(i).getName());
+            addCardOption(option, cards.get(i));
             options.add(option);
         }
         prompt.add("cards", options);
@@ -936,8 +948,7 @@ public final class ManaBrewInteractiveSession {
         for (int i = 0; i < cards.size(); i++) {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(cards.get(i)));
-            option.addProperty("label", cards.get(i).getName());
+            addCardOption(option, cards.get(i));
             options.add(option);
         }
         prompt.add("cards", options);
@@ -960,8 +971,15 @@ public final class ManaBrewInteractiveSession {
             final CardView card = cards.get(i);
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", "java-card-view-" + card.getId());
-            option.addProperty("label", card.getName());
+            // Resolve the view back to its real card so the option carries printing +
+            // owner (art resolution); fall back to the bare view if it's gone.
+            final Card real = game.findById(card.getId());
+            if (real != null) {
+                addCardOption(option, real);
+            } else {
+                option.addProperty("id", "java-card-view-" + card.getId());
+                option.addProperty("label", card.getName());
+            }
             options.add(option);
         }
         prompt.add("cards", options);
@@ -1020,8 +1038,7 @@ public final class ManaBrewInteractiveSession {
         for (int i = 0; i < cards.size(); i++) {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(cards.get(i)));
-            option.addProperty("label", cards.get(i).getName());
+            addCardOption(option, cards.get(i));
             options.add(option);
         }
         prompt.add("cards", options);
@@ -1049,8 +1066,7 @@ public final class ManaBrewInteractiveSession {
         for (int i = 0; i < cards.size(); i++) {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(cards.get(i)));
-            option.addProperty("label", cards.get(i).getName());
+            addCardOption(option, cards.get(i));
             options.add(option);
         }
         prompt.add("cards", options);
@@ -1077,8 +1093,7 @@ public final class ManaBrewInteractiveSession {
         for (int i = 0; i < cards.size(); i++) {
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(cards.get(i)));
-            option.addProperty("label", cards.get(i).getName());
+            addCardOption(option, cards.get(i));
             options.add(option);
         }
         prompt.add("cards", options);

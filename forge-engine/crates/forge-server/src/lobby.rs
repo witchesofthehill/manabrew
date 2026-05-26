@@ -322,6 +322,11 @@ pub fn end_game_sync(
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
         room.players.clear();
+        // Hosted rooms are the format-agnostic pool: release the format the game
+        // locked in so the reused room is joinable for any format again.
+        if room.hosted {
+            room.format = GameFormat::Any;
+        }
         (room.to_room_info(), cleared)
     };
 

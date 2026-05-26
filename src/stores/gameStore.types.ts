@@ -2,6 +2,7 @@ import type { GameView, GameCard, ActivatableAbilityInfo, Deck } from "@/types/m
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType, TargetingIntent } from "@/types/promptType";
+import type { EngineKind } from "@/types/server";
 
 export interface DisplayEvent {
   kind: string;
@@ -232,6 +233,7 @@ export interface GameState {
     formatId?: string,
     commanderName?: string,
     opponentDeck?: Deck,
+    engine?: EngineKind,
   ) => Promise<void>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;

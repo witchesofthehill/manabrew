@@ -383,6 +383,23 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
         });
     }
     if prompt_kind == JavaPromptKind::ChooseTargetCard {
+        // Candidates in a non-battlefield zone (graveyard / exile / library / hand)
+        // aren't clickable on the board, so route them to the zone-target selector
+        // with the cards inlined. The java side only sets `zone` when the candidates
+        // share one non-battlefield zone.
+        if let Some(zone) = optional_string(prompt.get("zone")) {
+            return json!({
+                "type": "chooseTargetCardFromZone",
+                "gameView": game_view,
+                "displayEvents": [],
+                "zone": zone,
+                "zoneCards": to_prompt_cards(prompt.get("cards")),
+                "validCardIds": to_target_card_ids(prompt.get("cards")),
+                "sourceCardId": optional_string(prompt.get("sourceCardId")),
+                "hostile": true,
+                "autoPassDisabled": true,
+            });
+        }
         return json!({
             "type": prompt_type,
             "gameView": game_view,

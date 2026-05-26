@@ -1226,6 +1226,7 @@ public final class ManaBrewInteractiveSession {
         com.google.gson.JsonArray players = new com.google.gson.JsonArray();
         com.google.gson.JsonArray cards = new com.google.gson.JsonArray();
         com.google.gson.JsonArray spells = new com.google.gson.JsonArray();
+        final java.util.Set<ZoneType> cardZones = new java.util.HashSet<>();
         for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
             final String kind = targetKind(candidate);
             JsonObject option = new JsonObject();
@@ -1234,9 +1235,22 @@ public final class ManaBrewInteractiveSession {
             if ("player".equals(kind)) {
                 players.add(option);
             } else if ("card".equals(kind)) {
+                final Card candidateCard = (Card) candidate.getRight();
+                if (candidateCard.getZone() != null) {
+                    cardZones.add(candidateCard.getZone().getZoneType());
+                }
                 cards.add(option);
             } else if ("spell".equals(kind)) {
                 spells.add(option);
+            }
+        }
+        // When every card candidate sits in one non-battlefield zone (graveyard /
+        // exile / library / hand), tag the prompt with that zone so the client opens
+        // the zone-target selector — those cards aren't on the board to click.
+        if (cardZones.size() == 1) {
+            final ZoneType zone = cardZones.iterator().next();
+            if (zone != ZoneType.Battlefield) {
+                prompt.addProperty("zone", zone.name());
             }
         }
         prompt.add("players", players);

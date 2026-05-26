@@ -583,7 +583,9 @@ async fn handle_state_update(
                 }
                 Some("startGame") => {
                     info!(observer = %client.username, "received startGame request");
-                    client.send(&ClientMessage::StartGame).await?;
+                    client
+                        .send(&ClientMessage::StartGame { format: None })
+                        .await?;
                 }
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
@@ -656,7 +658,9 @@ async fn maybe_auto_start_room(
             players = room.players.len(),
             "all players ready; auto-starting hosted game"
         );
-        client.send(&ClientMessage::StartGame).await?;
+        client
+            .send(&ClientMessage::StartGame { format: None })
+            .await?;
     }
     Ok(())
 }

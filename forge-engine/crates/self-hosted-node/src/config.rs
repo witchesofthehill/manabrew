@@ -18,7 +18,6 @@ pub struct Config {
     pub format: GameFormat,
     // One hosted room is created per format here, so every play-vs-AI format the
     // web offers has a room to join. Defaults to just `format`.
-    pub formats: Vec<GameFormat>,
     pub auto_start: bool,
     pub engine_enabled: bool,
     pub host_plays: bool,
@@ -73,16 +72,6 @@ impl Config {
         let format = env_first("SELF_HOSTED_NODE_FORMAT", "FORGE_ROOM_FORMAT")
             .and_then(|value| parse_format(&value))
             .unwrap_or(GameFormat::Commander);
-        let formats = env_first("SELF_HOSTED_NODE_FORMATS", "FORGE_ROOM_FORMATS")
-            .map(|value| {
-                value
-                    .split(',')
-                    .filter_map(|name| parse_format(name.trim()))
-                    .collect::<Vec<_>>()
-            })
-            .filter(|list| !list.is_empty())
-            .unwrap_or_else(|| vec![format.clone()]);
-
         Self {
             relay_url: env_first("SELF_HOSTED_NODE_RELAY_URL", "FORGE_RELAY_URL")
                 .unwrap_or_else(|| "ws://127.0.0.1:9443".to_string()),
@@ -100,7 +89,6 @@ impl Config {
                 .filter(|games| *games >= 1)
                 .unwrap_or(1),
             format,
-            formats,
             auto_start: env_bool("SELF_HOSTED_NODE_AUTO_START", "FORGE_ROOM_AUTO_START", true),
             engine_enabled: env_bool(
                 "SELF_HOSTED_NODE_ENGINE_ENABLED",
@@ -308,23 +296,6 @@ fn env_bool(primary: &str, fallback: &str, default: bool) -> bool {
             _ => None,
         })
         .unwrap_or(default)
-}
-
-pub fn format_label(format: &GameFormat) -> &'static str {
-    match format {
-        GameFormat::Any => "any",
-        GameFormat::Standard => "standard",
-        GameFormat::Pioneer => "pioneer",
-        GameFormat::Modern => "modern",
-        GameFormat::Legacy => "legacy",
-        GameFormat::Vintage => "vintage",
-        GameFormat::Pauper => "pauper",
-        GameFormat::Commander => "commander",
-        GameFormat::Brawl => "brawl",
-        GameFormat::Oathbreaker => "oathbreaker",
-        GameFormat::Draft => "draft",
-        GameFormat::Sealed => "sealed",
-    }
 }
 
 fn parse_format(value: &str) -> Option<GameFormat> {

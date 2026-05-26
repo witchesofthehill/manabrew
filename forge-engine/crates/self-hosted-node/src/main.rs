@@ -8,7 +8,7 @@ use std::time::Duration;
 mod config;
 mod engine_backend;
 
-use config::{format_label, workspace_root, Config, DeckSelection, SelfPlayConfig};
+use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
 use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
@@ -17,7 +17,7 @@ use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use forge_bot::{run_bot, AgentKind, BotConfig};
 use forge_engine_core::game::TypeRegistry;
 use forge_server::protocol::{
-    ClientMessage, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
+    ClientMessage, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
 };
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -193,7 +193,7 @@ async fn main() {
     }
 }
 
-async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     load_type_registry()?;
 
     let backend = EngineBackendKind::from_env();
@@ -211,27 +211,17 @@ async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sy
         return host_one_room(config, None).await;
     }
 
-    // One room per configured format (so every play-vs-AI format is joinable);
-    // otherwise max_games rooms of the single format for same-format concurrency.
-    let hosts: Vec<(Config, String)> = if config.formats.len() > 1 {
-        config
-            .formats
-            .iter()
-            .map(|format| {
-                let mut cfg = config.clone();
-                cfg.format = format.clone();
-                (cfg, format_label(format).to_string())
-            })
-            .collect()
-    } else {
-        let slots = config.max_games.max(1);
-        if slots <= 1 {
-            return host_one_room(config, None).await;
-        }
-        (0..slots)
-            .map(|slot| (config.clone(), (slot + 1).to_string()))
-            .collect()
-    };
+    // Single pool: every hosted room is format-agnostic (Any). The human picks the
+    // format at game start (it rides on the startGame relay payload). Host max_games
+    // such rooms for concurrency.
+    config.format = GameFormat::Any;
+    let slots = config.max_games.max(1);
+    if slots <= 1 {
+        return host_one_room(config, None).await;
+    }
+    let hosts: Vec<(Config, String)> = (0..slots)
+        .map(|slot| (config.clone(), (slot + 1).to_string()))
+        .collect();
 
     info!(rooms = hosts.len(), "hosting multiple rooms on one node");
     let mut handles = Vec::with_capacity(hosts.len());
@@ -583,9 +573,12 @@ async fn handle_state_update(
                 }
                 Some("startGame") => {
                     info!(observer = %client.username, "received startGame request");
-                    client
-                        .send(&ClientMessage::StartGame { format: None })
-                        .await?;
+                    // The human picks the format; it rides on the startGame payload and
+                    // locks the Any room in at start.
+                    let format = payload
+                        .get("format")
+                        .and_then(|value| serde_json::from_value::<GameFormat>(value.clone()).ok());
+                    client.send(&ClientMessage::StartGame { format }).await?;
                 }
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
@@ -640,6 +633,12 @@ async fn maybe_auto_start_room(
     room: &RoomInfo,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if !config.auto_start {
+        return Ok(());
+    }
+    // An Any room has no format to start with — the player drives the start via the
+    // `startGame` relay payload (which carries the chosen format), so the node must
+    // not auto-start it.
+    if config.format == GameFormat::Any {
         return Ok(());
     }
     if room.host != config.username

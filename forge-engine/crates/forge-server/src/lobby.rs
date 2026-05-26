@@ -227,6 +227,7 @@ pub fn set_deck_selection_sync(
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
+    format: Option<GameFormat>,
 ) -> Result<(String, Vec<String>, Vec<PlayerDeckInfo>, i32), ServerError> {
     let room_id = {
         state
@@ -262,10 +263,20 @@ pub fn start_game_sync(
             return Err(ServerError::DeckNotSelected);
         }
 
+        // Lock in the format at start: a room created with a concrete format keeps it;
+        // an `Any` room takes the format supplied with StartGame (required).
+        if room.format == GameFormat::Any {
+            match format {
+                Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
+                _ => return Err(ServerError::FormatNotChosen),
+            }
+        }
+
         room.status = RoomStatus::InGame;
         let starting_life = match room.format {
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,
+            GameFormat::Any => return Err(ServerError::FormatNotChosen),
             GameFormat::Standard
             | GameFormat::Pioneer
             | GameFormat::Modern

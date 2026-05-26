@@ -312,6 +312,7 @@ fn env_bool(primary: &str, fallback: &str, default: bool) -> bool {
 
 pub fn format_label(format: &GameFormat) -> &'static str {
     match format {
+        GameFormat::Any => "any",
         GameFormat::Standard => "standard",
         GameFormat::Pioneer => "pioneer",
         GameFormat::Modern => "modern",

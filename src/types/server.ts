@@ -1,6 +1,7 @@
 import type { Deck } from "@/types/manabrew";
 
 export type GameFormat =
+  | "Any"
   | "Standard"
   | "Pioneer"
   | "Modern"

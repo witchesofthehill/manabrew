@@ -1348,6 +1348,17 @@ export default function Game({ exitTo }: GameProps = {}) {
   // pre-mark them during attacker declaration.
   const markIfDefender = (c: GameCard): GameCard =>
     cardIsAttackTarget(c.id) ? { ...c, isChoosable: true } : c;
+  // The rust engine marks legal targets `isChoosable` in its gameView; the hosted
+  // java snapshot does not, so its battlefield cards stay unclickable during a
+  // target prompt. Mark any card whose id is in the prompt's validCardIds choosable
+  // so battlefield clicks land on it. Idempotent for the rust path.
+  const targetCardIdSet = new Set(
+    promptType === PromptType.ChooseTargetCard || promptType === PromptType.ChooseTargetAny
+      ? (activePrompt?.validCardIds ?? [])
+      : [],
+  );
+  const markIfValidTarget = (c: GameCard): GameCard =>
+    targetCardIdSet.has(c.id) ? { ...c, isChoosable: true } : c;
   // Pending attackers display as tapped so the user has an immediate
   // visual signal of "selected" without us drawing a misleading arrow
   // toward an arbitrary default opponent. Tap state flips for real on
@@ -1359,6 +1370,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     .filter((c) => c.controllerId === me.id)
     .map((c) => (battlefieldActivatableIds.has(c.id) ? { ...c, isChoosable: true } : c))
     .map(markIfDefender)
+    .map(markIfValidTarget)
     .map(markIfPendingAttacker);
   if (debugCardEnabled) {
     myPermanents.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
@@ -1366,7 +1378,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   const opponentPermanentsByPlayer = new Map(
     opponents.map((op) => [
       op.id,
-      gameView.battlefield.filter((c) => c.controllerId === op.id).map(markIfDefender),
+      gameView.battlefield
+        .filter((c) => c.controllerId === op.id)
+        .map(markIfDefender)
+        .map(markIfValidTarget),
     ]),
   );
 

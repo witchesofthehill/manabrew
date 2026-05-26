@@ -11,7 +11,7 @@ import { isHorizontalCard } from "@/lib/cardLayout";
 import { CARD_BADGES } from "./game.constants";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
 import { useGameStore } from "@/stores/useGameStore";
-import { asDeckCard, getDeckCardPool } from "@/lib/decks";
+import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 
 /** Special token types that get a more descriptive badge label. */
@@ -58,24 +58,10 @@ function CardComponent({
   resolution = "border_crop",
 }: CardProps) {
   const [hasError, setHasError] = useState(false);
-  const gameDecks = useGameStore((s) => s.gameDecks);
-  const deckCard = asDeckCard(gameDecks[card.ownerId], card);
+  const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
+  const deckCard = asDeckCard(deck, card);
 
-  // Primary path (rust engine): prompt/board cards carry ownerId + printing, so the
-  // per-owner asDeckCard match above resolves the art directly. The hosted JAVA path
-  // does not supply that metadata, so its prompt cards miss the lookup and `uris` is
-  // empty — only then fall back to a by-name match across the already-loaded decks
-  // (local only — never a Scryfall fetch).
-  const deckImageUrl = deckCard.uris[resolution];
-  const imageUrl = useMemo(() => {
-    if (deckImageUrl) return deckImageUrl;
-    for (const candidateDeck of Object.values(gameDecks)) {
-      const byName = getDeckCardPool(candidateDeck).find((c) => c.name === card.name);
-      const url = byName?.uris[resolution];
-      if (url) return url;
-    }
-    return undefined;
-  }, [deckImageUrl, gameDecks, card.name, resolution]);
+  const imageUrl = deckCard.uris[resolution];
   const displayName = card.name;
   const themeColors = useTheme().gameTheme;
 

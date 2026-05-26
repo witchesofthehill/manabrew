@@ -17,7 +17,8 @@ use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use forge_bot::{run_bot, AgentKind, BotConfig};
 use forge_engine_core::game::TypeRegistry;
 use forge_server::protocol::{
-    ClientMessage, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
+    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope,
 };
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -271,11 +272,17 @@ async fn host_one_room(
         info!(room_id, "joining configured room");
         room_id.clone()
     } else {
+        let engine = if matches!(EngineBackendKind::from_env(), EngineBackendKind::JavaForge) {
+            EngineKind::Java
+        } else {
+            EngineKind::Wasm
+        };
         host.send(&ClientMessage::CreateRoom {
             room_name: config.room_name.clone(),
             max_players: config.max_players,
             format: config.format.clone(),
             hosted: !config.host_plays,
+            engine,
         })
         .await?;
         info!(room_name = %config.room_name, "creating room");

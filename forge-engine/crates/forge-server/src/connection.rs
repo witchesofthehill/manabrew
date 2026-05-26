@@ -547,13 +547,21 @@ fn handle_client_message(
             max_players,
             format,
             hosted,
+            engine,
         } => {
             info!(
-                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={})",
-                username, room_name, max_players, format, hosted
+                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?})",
+                username, room_name, max_players, format, hosted, engine
             );
-            match lobby::create_room_sync(state, player_id, room_name, max_players, format, hosted)
-            {
+            match lobby::create_room_sync(
+                state,
+                player_id,
+                room_name,
+                max_players,
+                format,
+                hosted,
+                engine,
+            ) {
                 Ok(info) => {
                     info!(
                         "[lobby] room created: {} (id={})",

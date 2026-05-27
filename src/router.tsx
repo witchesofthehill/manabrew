@@ -8,6 +8,7 @@ import Game from "@/views/Game";
 import Play from "@/views/Play";
 import Tabletop from "@/views/Tabletop";
 import Draft from "@/views/Draft";
+import MultiplayerDraft from "@/views/MultiplayerDraft";
 import Limited from "@/views/Limited";
 import Sealed from "@/views/Sealed";
 import Winston from "@/views/Winston";
@@ -80,6 +81,16 @@ export const router = createBrowserRouter([
         element: (
           <ErrorBoundary context="Game">
             <Game />
+          </ErrorBoundary>
+        ),
+      },
+      {
+        // Literal `multiplayer` must come before the `:draftId` route
+        // so React Router doesn't treat "multiplayer" as a draft id.
+        path: "draft/multiplayer",
+        element: (
+          <ErrorBoundary context="MultiplayerDraft">
+            <MultiplayerDraft />
           </ErrorBoundary>
         ),
       },

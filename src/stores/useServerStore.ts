@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { getPlatform } from "@/platform";
+import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import type {
   RoomInfo,
   PlayerInfo,
@@ -187,6 +188,12 @@ export const useServerStore = create<ServerState>()(
               set({ connected: true, connecting: false, error: null, playerId: payload.player_id });
               get().listRooms();
               get().listPlayers();
+              // Subscribe to draft-v1 relay envelopes once authed so an
+              // incoming `start` message can flip the local store into
+              // drafting mode no matter where the user is in the UI.
+              if (payload.player_id) {
+                attachDraftPeer(payload.player_id);
+              }
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
             }
@@ -278,6 +285,7 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on("server:disconnected", () => {
+            detachDraftPeer();
             set({
               connected: false,
               connecting: false,

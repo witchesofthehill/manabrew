@@ -156,15 +156,19 @@ export default function Draft() {
   );
 }
 
-interface DraftingViewProps {
-  activeDraft: NonNullable<ReturnType<typeof useLimitedStore.getState>["activeDraft"]>;
+// Exported so the multiplayer draft view (`MultiplayerDraft.tsx`) can
+// reuse the same pack / pile / pod layout against the store driven by
+// `useMultiplayerDraftStore`. Pure presentational — all data + handlers
+// flow in via props.
+export interface DraftingViewProps {
+  activeDraft: import("@/types/limited").DraftState;
   onPick: (card: DraftCard) => void;
   onJumpToBuild: () => void;
   canBuild: boolean;
   conspiracyHooks: ReturnType<typeof useLimitedStore.getState>["conspiracyHooks"];
 }
 
-function DraftingView({
+export function DraftingView({
   activeDraft,
   onPick,
   onJumpToBuild,

@@ -384,24 +384,38 @@ export default function LimitedDeckBuilder({
       toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
       return;
     }
+    // Leftover pool cards (drafted but neither main nor sideboard) get
+    // parked in the maybeboard so the saved draft deck is a lossless
+    // snapshot of every pick — the player can re-open it later and
+    // shuffle cards around without re-running the draft.
+    const leftoverCards = unused.map((i) => fullPool[i]).filter(Boolean);
+
     // Decks persist to localStorage and feed the in-game card renderer,
     // so resolve real Scryfall data before serialising — engine DTOs
     // ship as identity refs only.
-    const [resolvedMain, resolvedSide] = await Promise.all([
+    const [resolvedMain, resolvedSide, resolvedMaybe] = await Promise.all([
       resolveDeckCards(mainCards),
       resolveDeckCards(sideboardCards),
+      resolveDeckCards(leftoverCards),
     ]);
     const deck: Deck = {
       name,
       format,
       cards: resolvedMain,
       sideboard: resolvedSide,
+      ...(resolvedMaybe.length > 0 ? { maybeboard: resolvedMaybe } : {}),
       draft: resolvedMain.length < targetMainSize,
     };
     loadDeck(deck);
     saveCurrentDeck();
     setSaveDialogOpen(false);
-    toast.success(`Saved "${name}" to My Decks.`);
+    toast.success(
+      resolvedMaybe.length > 0
+        ? `Saved "${name}" to My Decks (${resolvedMaybe.length} card${
+            resolvedMaybe.length === 1 ? "" : "s"
+          } parked in maybeboard).`
+        : `Saved "${name}" to My Decks.`,
+    );
   };
 
   return (

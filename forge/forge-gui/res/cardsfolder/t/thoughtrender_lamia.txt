@@ -1,8 +1,0 @@
-Name:Thoughtrender Lamia
-ManaCost:4 B B
-Types:Enchantment Creature Lamia
-PT:5/3
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self,Enchantment.Other+YouCtrl | Execute$ TrigDiscard | TriggerDescription$ Constellation — Whenever CARDNAME or another enchantment you control enters, each opponent discards a card.
-SVar:TrigDiscard:DB$ Discard | Defined$ Player.Opponent | NumCards$ 1 | Mode$ TgtChoose
-SVar:BuffedBy:Enchantment
-Oracle:Constellation — Whenever Thoughtrender Lamia or another enchantment you control enters, each opponent discards a card.

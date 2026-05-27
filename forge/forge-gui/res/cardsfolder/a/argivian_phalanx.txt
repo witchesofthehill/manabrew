@@ -1,7 +1,0 @@
-Name:Argivian Phalanx
-ManaCost:5 W
-Types:Creature Human Kor Soldier
-PT:4/4
-K:Affinity:Creature
-K:Vigilance
-Oracle:Affinity for creatures (This spell costs {1} less to cast for each creature you control.)\nVigilance

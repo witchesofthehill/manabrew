@@ -1,7 +1,0 @@
-Name:Ur-Drago
-ManaCost:3 U U B B
-Types:Legendary Creature Elemental
-PT:4/4
-S:Mode$ IgnoreLandWalk | ValidKeyword$ Landwalk:Swamp | Description$ Creatures with swampwalk can be blocked as though they didn't have swampwalk.
-K:First Strike
-Oracle:First strike\nCreatures with swampwalk can be blocked as though they didn't have swampwalk.

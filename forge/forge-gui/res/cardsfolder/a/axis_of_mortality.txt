@@ -1,7 +1,0 @@
-Name:Axis of Mortality
-ManaCost:4 W W
-Types:Enchantment
-T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Battlefield | Execute$ DBExchangeLife | OptionalDecider$ You | TriggerDescription$ At the beginning of your upkeep, you may have two target players exchange life totals.
-SVar:DBExchangeLife:DB$ ExchangeLife | ValidTgts$ Player | TargetMin$ 2 | TargetMax$ 2 | SpellDescription$ Two target players exchange life totals.
-AI:RemoveDeck:All
-Oracle:At the beginning of your upkeep, you may have two target players exchange life totals.

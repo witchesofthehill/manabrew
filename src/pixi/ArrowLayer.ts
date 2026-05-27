@@ -185,11 +185,13 @@ function particleAlpha(t: number): number {
 // ── Internal pool entry — one per active arrow ─────────────────────────────
 interface ArrowEntry {
   root: Container;
-  // Painterly: 2 strokes (under + core). Rune: 1 dashed stroke. Placement: 1 dashed.
   underGfx: Graphics;
   coreGfx: Graphics;
   headGfx: Graphics;
   particlesGfx: Graphics;
+  gradKey: string;
+  underGrad: FillGradient | null;
+  coreGrad: FillGradient | null;
 }
 
 export class ArrowLayer {
@@ -199,6 +201,7 @@ export class ArrowLayer {
   private pool: ArrowEntry[] = [];
   private elapsedMs = 0;
   private placementDashOffset = 0;
+  private clear = true;
 
   constructor() {
     this.root = new Container();
@@ -210,16 +213,17 @@ export class ArrowLayer {
     return this.root;
   }
 
+  get isClear(): boolean {
+    return this.clear;
+  }
+
   setTheme(theme: Theme): void {
     this.theme = theme;
     if (this.arrows.length > 0) this.redraw();
   }
 
-  /**
-   * Replace the active arrow set and advance time-based animations
-   * (placement marching-ants, painterly embers, rune motes).
-   */
   update(arrows: ArrowDef[], deltaMs = 0): void {
+    if (arrows.length === 0 && this.clear) return;
     this.elapsedMs += deltaMs;
     this.placementDashOffset =
       (this.placementDashOffset + (deltaMs / 1000) * PLACEMENT_DASH_SPEED_PX_PER_SEC) %
@@ -227,6 +231,7 @@ export class ArrowLayer {
     this.arrows = arrows;
     this.ensurePool(arrows.length);
     this.redraw();
+    this.clear = arrows.length === 0;
   }
 
   destroy(): void {
@@ -248,7 +253,16 @@ export class ArrowLayer {
       root.addChild(headGfx);
       root.addChild(particlesGfx);
       this.root.addChild(root);
-      this.pool.push({ root, underGfx, coreGfx, headGfx, particlesGfx });
+      this.pool.push({
+        root,
+        underGfx,
+        coreGfx,
+        headGfx,
+        particlesGfx,
+        gradKey: "",
+        underGrad: null,
+        coreGrad: null,
+      });
     }
   }
 
@@ -293,15 +307,19 @@ export class ArrowLayer {
         : this.theme.gameTheme.pointer.friendly;
     const hue = hexToNum(hueHex);
 
-    // Tapered gradient — same stops for under + core so the brushy fade
-    // reads from tail (faint) to tip (saturated).
-    const underGrad = new FillGradient(ax1, ay1, ax2, ay2);
-    const coreGrad = new FillGradient(ax1, ay1, ax2, ay2);
-    for (const [stop, alpha] of PAINTERLY_GRADIENT_STOPS) {
-      const rgba = hueAsRgba(hue, alpha);
-      underGrad.addColorStop(stop, rgba);
-      coreGrad.addColorStop(stop, rgba);
+    const gradKey = `${ax1.toFixed(1)},${ay1.toFixed(1)},${ax2.toFixed(1)},${ay2.toFixed(1)},${hue}`;
+    if (entry.gradKey !== gradKey || !entry.underGrad || !entry.coreGrad) {
+      entry.underGrad = new FillGradient(ax1, ay1, ax2, ay2);
+      entry.coreGrad = new FillGradient(ax1, ay1, ax2, ay2);
+      for (const [stop, alpha] of PAINTERLY_GRADIENT_STOPS) {
+        const rgba = hueAsRgba(hue, alpha);
+        entry.underGrad.addColorStop(stop, rgba);
+        entry.coreGrad.addColorStop(stop, rgba);
+      }
+      entry.gradKey = gradKey;
     }
+    const underGrad = entry.underGrad;
+    const coreGrad = entry.coreGrad;
 
     entry.underGfx
       .moveTo(curve.p0.x, curve.p0.y)

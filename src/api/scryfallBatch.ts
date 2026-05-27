@@ -36,7 +36,7 @@ function identifierKey(id: CardIdentifier): string {
     : `name:${id.name.toLowerCase()}`;
 }
 
-function matchesIdentifier(card: ScryfallCard, id: CardIdentifier): boolean {
+export function matchesIdentifier(card: ScryfallCard, id: CardIdentifier): boolean {
   if ("id" in id) return card.id === id.id;
   if ("mtgo_id" in id) return card.mtgo_id === id.mtgo_id || card.mtgo_foil_id === id.mtgo_id;
   if ("multiverse_id" in id) return card.multiverse_ids?.includes(id.multiverse_id) ?? false;
@@ -61,7 +61,7 @@ function matchesIdentifier(card: ScryfallCard, id: CardIdentifier): boolean {
 // Scryfall's /cards/collection matches `name` against a single face — the
 // full DFC display name returns not_found. Strip the back-face half before
 // sending; matchesIdentifier still accepts the full name on the way back.
-function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifier {
+export function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifier {
   if ("name" in id && id.name.includes("//")) {
     const front = id.name.split(/\s*\/\/\s*/)[0]?.trim();
     if (front) return { ...id, name: front };
@@ -72,7 +72,6 @@ function normalizeIdentifierForRequest(id: CardIdentifier): CardIdentifier {
 async function flushScryfallBatch(): Promise<void> {
   batchFlushTimer = null;
   const items = Array.from(pendingBatch.values());
-  console.log("parte il batch!", items.length);
   pendingBatch = new Map();
   for (let i = 0; i < items.length; i += COLLECTION_BATCH_SIZE) {
     const slice = items.slice(i, i + COLLECTION_BATCH_SIZE);
@@ -90,10 +89,8 @@ async function flushScryfallBatch(): Promise<void> {
       for (const item of slice) {
         const found = data.data.find((c) => matchesIdentifier(c, item.identifier));
         if (found) item.resolve(found);
-        else {
-          console.log("not found", item.identifier);
+        else
           item.reject(new Error(`Card not found in collection: ${identifierKey(item.identifier)}`));
-        }
       }
     } catch (err) {
       for (const item of slice) item.reject(err);
@@ -102,7 +99,6 @@ async function flushScryfallBatch(): Promise<void> {
 }
 
 export function enqueueCardLookup(identifier: CardIdentifier): Promise<ScryfallCard> {
-  console.log("enqueueCardLookup", identifier);
   let resolve!: (card: ScryfallCard) => void;
   let reject!: (err: unknown) => void;
   const promise = new Promise<ScryfallCard>((res, rej) => {

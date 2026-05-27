@@ -1,7 +1,0 @@
-Name:Banehound
-ManaCost:B
-Types:Creature Nightmare Dog
-PT:1/1
-K:Haste
-K:Lifelink
-Oracle:Lifelink, haste

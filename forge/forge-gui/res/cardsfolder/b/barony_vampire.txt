@@ -1,5 +1,0 @@
-Name:Barony Vampire
-ManaCost:2 B
-Types:Creature Vampire
-PT:3/2
-Oracle:

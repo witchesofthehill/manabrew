@@ -1,5 +1,0 @@
-Name:Ranger's Path
-ManaCost:3 G
-Types:Sorcery
-A:SP$ ChangeZone | Origin$ Library | Destination$ Battlefield | ChangeType$ Forest | ChangeNum$ 2 | Tapped$ True | SpellDescription$ Search your library for up to two Forest cards, put them onto the battlefield tapped, then shuffle.
-Oracle:Search your library for up to two Forest cards, put them onto the battlefield tapped, then shuffle.

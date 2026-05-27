@@ -104,6 +104,81 @@ impl Config {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct SelfPlayConfig {
+    pub seats: Vec<DeckSelection>,
+    pub starting_life: i32,
+    pub seed: u64,
+}
+
+impl SelfPlayConfig {
+    pub fn from_env() -> Self {
+        let seed = env::var("SELF_HOSTED_NODE_SELF_PLAY_SEED")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(42);
+        let starting_life = match env::var("SELF_HOSTED_NODE_SELF_PLAY_FORMAT")
+            .ok()
+            .and_then(|value| parse_format(&value))
+        {
+            Some(GameFormat::Commander) => 40,
+            _ => 20,
+        };
+
+        let base: Vec<DeckSelection> = match env::var("SELF_HOSTED_NODE_SELF_PLAY_DECKS") {
+            Ok(ids) if !ids.trim().is_empty() => ids
+                .split(',')
+                .map(str::trim)
+                .filter(|id| !id.is_empty())
+                .map(|id| load_deck_selection(id, infer_commander_name(id).map(str::to_string)))
+                .collect(),
+            _ => default_self_play_seats(),
+        };
+
+        let players = env::var("SELF_HOSTED_NODE_SELF_PLAY_PLAYERS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(base.len())
+            .max(2);
+        let seats = (0..players).map(|i| base[i % base.len()].clone()).collect();
+        Self {
+            seats,
+            starting_life,
+            seed,
+        }
+    }
+}
+
+fn default_self_play_seats() -> Vec<DeckSelection> {
+    vec![
+        mono_seat("Mountain", "Lightning Bolt"),
+        mono_seat("Forest", "Grizzly Bears"),
+    ]
+}
+
+fn mono_seat(land: &str, spell: &str) -> DeckSelection {
+    let card = |name: &str| DeckCard {
+        identity: CardIdentity {
+            name: name.to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let name = format!("{land} / {spell}");
+    DeckSelection {
+        deck: Deck {
+            name: name.clone(),
+            cards: (0..24)
+                .map(|_| card(land))
+                .chain((0..36).map(|_| card(spell)))
+                .collect(),
+            ..Default::default()
+        },
+        name,
+        commander_name: None,
+    }
+}
+
 pub fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()

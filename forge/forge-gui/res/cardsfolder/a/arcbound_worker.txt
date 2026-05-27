@@ -1,7 +1,0 @@
-Name:Arcbound Worker
-ManaCost:1
-Types:Artifact Creature Construct
-PT:0/0
-K:Modular:1
-DeckHas:Ability$Counters
-Oracle:Modular 1 (This creature enters with a +1/+1 counter on it. When it dies, you may put its +1/+1 counters on target artifact creature.)

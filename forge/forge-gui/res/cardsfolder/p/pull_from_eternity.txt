@@ -1,6 +1,0 @@
-Name:Pull from Eternity
-ManaCost:W
-Types:Instant
-A:SP$ ChangeZone | Origin$ Exile | Destination$ Graveyard | ValidTgts$ Card.faceUp | ChangeNum$ 1 | SpellDescription$ Put target face-up exiled card into its owner's graveyard.
-AI:RemoveDeck:Random
-Oracle:Put target face-up exiled card into its owner's graveyard.

@@ -1,6 +1,0 @@
-Name:Simplify
-ManaCost:G
-Types:Sorcery
-A:SP$ Sacrifice | SacValid$ Enchantment | Defined$ Player | SpellDescription$ Each player sacrifices an enchantment.
-AI:RemoveDeck:Random
-Oracle:Each player sacrifices an enchantment.

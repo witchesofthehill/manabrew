@@ -1,6 +1,0 @@
-Name:Scryb Sprites
-ManaCost:G
-Types:Creature Faerie
-PT:1/1
-K:Flying
-Oracle:Flying

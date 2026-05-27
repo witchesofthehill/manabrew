@@ -12,7 +12,7 @@ function getPlatformGameCapabilities(): GameRuntimeCapabilities {
     snapshots: true,
     deckAvailabilityCheck: true,
     manualTabletop: false,
-    concedeBehavior: platform.type === "web" ? "end-session" : "send-action",
+    concedeBehavior: "send-action",
   };
 }
 

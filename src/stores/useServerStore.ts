@@ -20,6 +20,8 @@ import type {
 } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
+export const DEFAULT_STARTING_LIFE = 20;
+
 interface ServerState {
   connected: boolean;
   connecting: boolean;
@@ -64,7 +66,7 @@ export const useServerStore = create<ServerState>()(
       gameStarted: false,
       playerOrder: [],
       playerDecks: [],
-      startingLife: 20,
+      startingLife: DEFAULT_STARTING_LIFE,
 
       async connect(host, port, username, password) {
         const platform = getPlatform();
@@ -92,7 +94,7 @@ export const useServerStore = create<ServerState>()(
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
-          startingLife: 20,
+          startingLife: DEFAULT_STARTING_LIFE,
           rooms: [],
           players: [],
         });
@@ -123,11 +125,29 @@ export const useServerStore = create<ServerState>()(
       },
 
       async leaveRoom() {
+        // Reset local room state synchronously so a hung relay socket can't
+        // strand the user in a "still-in-room" UI. The server-side teardown
+        // is attempted afterwards as best-effort; if it fails, the next
+        // listRooms() call will reconcile.
+        set({
+          currentRoom: null,
+          gameStarted: false,
+          playerOrder: [],
+          playerDecks: [],
+          startingLife: DEFAULT_STARTING_LIFE,
+        });
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.leaveRoom();
-        set({ currentRoom: null });
-        get().listRooms();
+        try {
+          await platform.server.leaveRoom();
+        } catch (e) {
+          console.warn("server.leaveRoom() failed:", e);
+        }
+        try {
+          await get().listRooms();
+        } catch (e) {
+          console.warn("listRooms() after leaveRoom failed:", e);
+        }
       },
 
       async setReady(ready) {
@@ -249,7 +269,7 @@ export const useServerStore = create<ServerState>()(
                 gameStarted: false,
                 playerOrder: [],
                 playerDecks: [],
-                startingLife: 20,
+                startingLife: DEFAULT_STARTING_LIFE,
               });
               void get().listRooms();
             }
@@ -267,7 +287,7 @@ export const useServerStore = create<ServerState>()(
               gameStarted: false,
               playerOrder: [],
               playerDecks: [],
-              startingLife: 20,
+              startingLife: DEFAULT_STARTING_LIFE,
               rooms: [],
               players: [],
             });

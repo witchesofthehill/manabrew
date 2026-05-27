@@ -30,13 +30,12 @@ pub async fn start_game(
 
 #[tauri::command]
 pub async fn respond(
-    app: AppHandle,
     gm: State<'_, GameManager>,
     client: State<'_, ServerClient>,
     action: PlayerAction,
     player_slot: Option<String>,
 ) -> Result<(), String> {
-    match gm.respond(app, action.clone()) {
+    match gm.respond(action.clone()) {
         Ok(()) => Ok(()),
         Err(e) if e == "No active game session" => {
             let slot =

@@ -1,6 +1,0 @@
-Name:Maw of the Mire
-ManaCost:4 B
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Land | SubAbility$ DBGainLife | SpellDescription$ Destroy target land. You gain 4 life.
-SVar:DBGainLife:DB$ GainLife | Defined$ You | LifeAmount$ 4
-Oracle:Destroy target land. You gain 4 life.

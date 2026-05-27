@@ -12,16 +12,18 @@ this project uses it.
 
 ### Use in this project
 
-1. **Source vendoring.** The `forge/` directory at the repository root contains
-   a vendored copy of the upstream Forge project. The contents of `forge/`
-   (other than `forge/forge-harness/`, see below) are upstream Forge code,
-   unmodified or with project-local patches.
+1. **Source submodule.** The `forge/` directory at the repository root is a git
+   submodule tracking our fork [witchesofthehill/forge](https://github.com/witchesofthehill/forge)
+   (forked from Card-Forge/forge). Its contents are upstream Forge code,
+   unmodified or with a small set of project-local patches carried on the
+   `manabrew` branch of that fork. As a derivative of GPL-3.0-or-later Forge,
+   the fork is itself GPL-3.0-or-later.
 
-2. **Custom harness.** `forge/forge-harness/` is a project-local Java module
-   that does **not** exist upstream. It imports and orchestrates classes from
-   upstream Forge to expose a JSON adapter consumed by the Tauri Java backend.
-   As an aggregate that imports GPL-3.0-or-later Forge classes, the harness is
-   itself GPL-3.0-or-later.
+2. **Custom harness.** `forge-harness/` (at the repository root) is a
+   project-local Java module that does **not** exist upstream. It imports and
+   orchestrates classes from upstream Forge to expose a JSON adapter consumed by
+   the Tauri Java backend. As an aggregate that imports GPL-3.0-or-later Forge
+   classes, the harness is itself GPL-3.0-or-later.
 
 3. **Card data.** The Tauri desktop bundle and the web bundle include card
    script files (`forge/forge-gui/res/cardsfolder/`), token scripts

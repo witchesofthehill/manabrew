@@ -1,5 +1,0 @@
-Name:Baffling Defenses
-ManaCost:1 W
-Types:Instant
-A:SP$ Animate | ValidTgts$ Creature | IsCurse$ True | Power$ 0 | Duration$ Perpetual | StackDescription$ REP Target creature_{c:Targeted} | SpellDescription$ Target creature's base power perpetually becomes 0.
-Oracle:Target creature's base power perpetually becomes 0.

@@ -9,6 +9,11 @@ services:
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
+        # Off by default: "Play vs AI" runs the engine client-side, so the web
+        # does NOT depend on the self-hosted-node. Build with
+        # VITE_HOSTED_AI_ENABLED=true (and run the node via --profile hosted-ai)
+        # to expose the Settings engine toggle.
+        VITE_HOSTED_AI_ENABLED: "${VITE_HOSTED_AI_ENABLED:-false}"
     restart: unless-stopped
     ports:
       - "80:80"
@@ -32,6 +37,27 @@ services:
       RUST_LOG: "forge_server=info"
     expose:
       - "9443"
+    restart: unless-stopped
+
+  # Headless engine node hosting a room for web "Play vs AI". Opt-in: the
+  # default deploy doesn't build/run it (Play-vs-AI works client-side). Start
+  # it with `docker compose --profile hosted-ai up` (and build the web with
+  # VITE_HOSTED_AI_ENABLED=true). Its room is `hosted`, so it never appears in
+  # the human lobby browse list — the node can stay live without advertising.
+  self-hosted-node:
+    profiles:
+      - hosted-ai
+    build:
+      context: .
+      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      RUST_LOG: "self_hosted_node=info"
+    depends_on:
+      - forge-server
     restart: unless-stopped
 
 volumes:

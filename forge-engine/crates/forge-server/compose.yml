@@ -24,17 +24,46 @@ services:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_MAX_ROOMS: "100"
-      FORGE_SERVER_KEY: "forge"
+      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
       RUST_LOG: "forge_server=info"
+    restart: on-failure:5
+
+  # Headless engine node: creates a hosted room on the relay and runs the
+  # Rust engine for it, so web "Play vs AI" (VITE_HOSTED_AI_ENABLED) has a
+  # room to join and a server-side opponent to spawn.
+  self-hosted-node:
+    build:
+      context: ../../.. # repo root (needs Cargo workspace + forge-engine/ + forge/ + public/preset_decks/)
+      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      RUST_LOG: "self_hosted_node=info,forge_bot=info"
+    depends_on:
+      - forge-server
     restart: on-failure:5
 
   manabrew:
     build:
       context: ../../.. # repo root (needs forge-engine/ + src/ + scripts/ + forge/ + public/preset_decks/)
       dockerfile: Dockerfile.web
+      args:
+        # Off by default: web "Play vs AI" runs the engine client-side and does
+        # NOT need the self-hosted-node. Build with VITE_HOSTED_AI_ENABLED=true
+        # (and run the node) to expose the Settings engine toggle. Relay is
+        # left unset → the dev bundle falls back to localhost:9443.
+        VITE_HOSTED_AI_ENABLED: "${VITE_HOSTED_AI_ENABLED:-false}"
     ports:
       - "1420:443"
       - "1421:80"
+    # The image bakes Caddy's default config; mount a localhost Caddyfile so
+    # `docker compose up` actually serves the app (with the COOP/COEP headers
+    # SharedArrayBuffer needs) on http://localhost:1421. Production mounts the
+    # public-domain ops/Caddyfile instead.
+    volumes:
+      - ../../../ops/Caddyfile.local:/etc/caddy/Caddyfile:ro
     restart: on-failure:5
 
   parity-dashboard:

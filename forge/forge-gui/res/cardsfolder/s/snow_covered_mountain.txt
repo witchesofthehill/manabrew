@@ -1,4 +1,0 @@
-Name:Snow-Covered Mountain
-ManaCost:no cost
-Types:Basic Snow Land Mountain
-Oracle:({T}: Add {R}.)

@@ -1,7 +1,0 @@
-Name:Dredge
-ManaCost:B
-Types:Instant
-A:SP$ Sacrifice | SacValid$ Creature,Land | SubAbility$ DBDraw | SpellDescription$ Sacrifice a creature or land.
-SVar:DBDraw:DB$ Draw | SpellDescription$ Draw a card.
-AI:RemoveDeck:Random
-Oracle:Sacrifice a creature or land.\nDraw a card.

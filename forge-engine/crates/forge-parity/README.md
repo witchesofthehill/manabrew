@@ -26,7 +26,7 @@ forge-parity ci-client poll --server http://localhost:8080 --batch-id 1
 For the Java harness (required for full parity mode):
 
 ```bash
-cd forge/forge-harness
+cd forge-harness
 mvn package -DskipTests
 ```
 
@@ -47,7 +47,7 @@ Runs both engines with identical inputs and compares snapshots field-by-field.
 ```bash
 cargo run -p forge-parity -- \
   --deck1 red_burn --deck2 green_stompy \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 ```
 
 ### Matrix mode
@@ -56,7 +56,7 @@ Runs all deck pair combinations across multiple seeds in parallel (uses rayon).
 
 ```bash
 cargo run -p forge-parity -- --matrix \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 ```
 
 ### Continuous mode (requires `--features storage`)
@@ -66,7 +66,7 @@ Runs games in a round-robin pattern across preset deck pairs, stores results in 
 ```bash
 cargo run -p forge-parity --features storage -- --continuous \
   --max-games 100 --threshold 0.90 --db-path parity.db \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 ```
 
 After the run, query the database directly:
@@ -81,7 +81,7 @@ Same as continuous mode but also starts a web dashboard with real-time stats, tr
 
 ```bash
 cargo run -p forge-parity --features serve -- --serve --port 8080 \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 ```
 
 Then open `http://localhost:8080` in a browser. The dashboard auto-refreshes every 10 seconds. Pass `--max-games N` to stop after N games, or omit it to run indefinitely.
@@ -153,34 +153,34 @@ cargo run -p forge-parity
 # Full parity check with a specific seed
 cargo run -p forge-parity -- \
   --deck1 trigger_expanded --deck2 comprehensive_test --seed 42 \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # Run multiple parity games with incrementing seeds (42..141)
 cargo run -p forge-parity -- \
   --deck1 trigger_expanded --deck2 comprehensive_test \
   --games 100 --seed 42 --max-turns 30 \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # Same run, but with per-step logging enabled
 cargo run -p forge-parity -- \
   --deck1 trigger_expanded --deck2 comprehensive_test \
   --games 100 --seed 42 --max-turns 30 --verbose \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # JSON output for CI
 cargo run -p forge-parity -- \
   --deck1 red_burn --deck2 green_stompy --format json \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # Matrix — all decks, custom seeds, save report
 cargo run -p forge-parity -- --matrix --seeds 42,100,200,300 \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar \
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar \
   -o parity-report.txt
 
 # Matrix — specific decks only
 cargo run -p forge-parity -- --matrix \
   --decks red_burn,green_stompy,white_aggro \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # Verbose mode — see every agent decision
 cargo run -p forge-parity -- -v --deck1 trigger_test --deck2 keyword_test
@@ -192,16 +192,16 @@ cargo run -p forge-parity -- --deck1 black_control --deck2 blue_control --max-tu
 cargo run -p forge-parity --features storage -- --continuous \
   --max-games 50 --threshold 0.90 --db-path ci-parity.db \
   --decks red_burn,green_stompy,white_aggro \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # Continuous with fuzz — 3 random-deck games per preset batch
 cargo run -p forge-parity --features storage -- --continuous \
   --max-games 100 --fuzz-per-batch 3 \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 
 # Serve — long-lived dashboard, runs forever until stopped
 cargo run -p forge-parity --features serve -- --serve --port 8080 \
-  --java-jar forge/forge-harness/target/forge-harness-jar-with-dependencies.jar
+  --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar
 ```
 
 ## Exit codes

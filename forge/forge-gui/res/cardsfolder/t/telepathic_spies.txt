@@ -1,7 +1,0 @@
-Name:Telepathic Spies
-ManaCost:2 U
-Types:Creature Human Wizard
-PT:2/2
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigPeek | TriggerDescription$ When CARDNAME enters, look at target opponent's hand.
-SVar:TrigPeek:DB$ RevealHand | ValidTgts$ Opponent | Look$ True
-Oracle:When Telepathic Spies enters, look at target opponent's hand.

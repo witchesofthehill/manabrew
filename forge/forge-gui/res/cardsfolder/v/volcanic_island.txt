@@ -1,4 +1,0 @@
-Name:Volcanic Island
-ManaCost:no cost
-Types:Land Island Mountain
-Oracle:({T}: Add {U} or {R}.)

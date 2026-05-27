@@ -1,6 +1,0 @@
-Name:Lumengrid Gargoyle
-ManaCost:6
-Types:Artifact Creature Gargoyle
-PT:4/4
-K:Flying
-Oracle:Flying

@@ -1,7 +1,0 @@
-Name:Caged Zombie
-ManaCost:2 B
-Types:Creature Zombie
-PT:2/3
-A:AB$ LoseLife | Cost$ 1 B T | Defined$ Opponent | CheckSVar$ X | LifeAmount$ 2 | SpellDescription$ Each opponent loses 2 life. Activate only if a creature died this turn.
-SVar:X:Count$ThisTurnEntered_Graveyard_from_Battlefield_Creature
-Oracle:{1}{B}, {T}: Each opponent loses 2 life. Activate only if a creature died this turn.

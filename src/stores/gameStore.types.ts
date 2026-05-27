@@ -293,7 +293,7 @@ export interface GameState {
   rollToModifyDecision: (roll: number | null) => void;
   diceToRerollDecision: (rolls: number[]) => void;
   rollSwapValueDecision: (choice: "power" | "toughness" | null) => void;
-  concede: () => void;
+  concede: () => Promise<void>;
   endGame: () => Promise<void>;
   setMultiplayerState: (
     isMultiplayer: boolean,

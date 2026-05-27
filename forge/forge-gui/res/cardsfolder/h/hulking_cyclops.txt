@@ -1,6 +1,0 @@
-Name:Hulking Cyclops
-ManaCost:3 R R
-Types:Creature Cyclops
-PT:5/5
-S:Mode$ CantBlock | ValidCard$ Card.Self | Description$ CARDNAME can't block.
-Oracle:Hulking Cyclops can't block.

@@ -1,6 +1,0 @@
-Name:Horn of Deafening
-ManaCost:4
-Types:Artifact
-A:AB$ Effect | Cost$ 2 T | ValidTgts$ Creature | ReplacementEffects$ RPrevent | RememberObjects$ Targeted | ExileOnMoved$ Battlefield | SpellDescription$ Prevent all combat damage that would be dealt by target creature this turn.
-SVar:RPrevent:Event$ DamageDone | Prevent$ True | IsCombat$ True | ValidSource$ Card.IsRemembered | Description$ Prevent all combat damage that would be dealt by target creature this turn.
-Oracle:{2}, {T}: Prevent all combat damage that would be dealt by target creature this turn.

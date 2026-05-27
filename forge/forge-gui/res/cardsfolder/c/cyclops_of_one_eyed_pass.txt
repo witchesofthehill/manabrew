@@ -1,5 +1,0 @@
-Name:Cyclops of One-Eyed Pass
-ManaCost:2 R R
-Types:Creature Cyclops
-PT:5/2
-Oracle:

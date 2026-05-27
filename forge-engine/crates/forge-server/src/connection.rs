@@ -1,15 +1,16 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{debug, info, warn};
 
+use crate::cleanup::mark_disconnected;
 use crate::error::ServerError;
 use crate::lobby;
-use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
+use crate::protocol::{ClientMessage, ServerMessage};
 use crate::state::{ConnectedPlayer, ServerState};
 
 type WsSender = futures_util::stream::SplitSink<
@@ -20,8 +21,8 @@ type WsSender = futures_util::stream::SplitSink<
 type WsReceiver =
     futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>>;
 
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
-const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
+pub(crate) const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
+pub(crate) const READ_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// Background task: drains channel and writes to the WebSocket sink.
 async fn write_loop(mut rx: mpsc::UnboundedReceiver<Message>, mut sink: WsSender) {
@@ -131,13 +132,15 @@ pub async fn handle_connection(
     let (sink, mut receiver) = ws_stream.split();
     let (tx, rx) = mpsc::unbounded_channel();
 
-    let write_task = tokio::spawn(write_loop(rx, sink));
+    let mut write_task = tokio::spawn(write_loop(rx, sink));
 
     let (player_id, username, reconnected, generation) =
         match authenticate(&mut receiver, &tx, &state).await {
             Ok(result) => result,
             Err(e) => {
                 warn!("[auth] failed from {}: {}", addr, e);
+                drop(tx);
+                let _ = write_task.await;
                 return Err(e);
             }
         };
@@ -170,26 +173,49 @@ pub async fn handle_connection(
         }
     });
 
+    let mut write_task_done = false;
+
     loop {
-        let frame = match tokio::time::timeout(READ_IDLE_TIMEOUT, receiver.next()).await {
-            Ok(Some(Ok(f))) => f,
-            Ok(Some(Err(e))) => {
-                warn!("[recv] read error from '{}': {}", username, e);
-                break;
-            }
-            Ok(None) => {
-                info!("[recv] '{}' stream closed", username);
-                break;
-            }
-            Err(_) => {
-                warn!(
-                    "[recv] idle timeout from '{}' (no frames for {}s)",
-                    username,
-                    READ_IDLE_TIMEOUT.as_secs()
-                );
+        let read = tokio::time::timeout(READ_IDLE_TIMEOUT, receiver.next());
+        let frame = tokio::select! {
+            frame = read => match frame {
+                Ok(Some(Ok(f))) => f,
+                Ok(Some(Err(e))) => {
+                    warn!("[recv] read error from '{}': {}", username, e);
+                    break;
+                }
+                Ok(None) => {
+                    info!("[recv] '{}' stream closed", username);
+                    break;
+                }
+                Err(_) => {
+                    warn!(
+                        "[recv] idle timeout from '{}' (no frames for {}s)",
+                        username,
+                        READ_IDLE_TIMEOUT.as_secs()
+                    );
+                    break;
+                }
+            },
+            result = &mut write_task => {
+                write_task_done = true;
+                match result {
+                    Ok(()) => {
+                        warn!("[send] writer stopped for '{}'", username);
+                    }
+                    Err(e) => {
+                        warn!("[send] writer task failed for '{}': {}", username, e);
+                    }
+                }
                 break;
             }
         };
+
+        if let Some(mut player) = state.players.get_mut(&player_id) {
+            if player.generation == generation {
+                player.last_seen = Instant::now();
+            }
+        }
 
         match frame {
             Message::Text(text) => {
@@ -231,8 +257,10 @@ pub async fn handle_connection(
     // ServerState for reconnection, so rx may never close on abrupt disconnects.
     heartbeat_task.abort();
     drop(tx);
-    write_task.abort();
-    let _ = write_task.await;
+    if !write_task_done {
+        write_task.abort();
+        let _ = write_task.await;
+    }
     Ok(())
 }
 
@@ -298,6 +326,8 @@ async fn authenticate(
                     player.sender = sender.clone();
                     player.connected = true;
                     player.generation = new_gen;
+                    player.last_seen = Instant::now();
+                    player.disconnected_at = None;
                 }
 
                 let reply = ServerMessage::AuthResult {
@@ -364,6 +394,8 @@ async fn authenticate(
                             player.sender = sender.clone();
                             player.connected = true;
                             player.generation = new_gen;
+                            player.last_seen = Instant::now();
+                            player.disconnected_at = None;
                         }
 
                         let reply = ServerMessage::AuthResult {
@@ -427,6 +459,8 @@ async fn authenticate(
                     sender: sender.clone(),
                     connected: true,
                     generation,
+                    last_seen: Instant::now(),
+                    disconnected_at: None,
                 },
             );
 
@@ -476,6 +510,8 @@ fn handle_client_message(
                 },
             );
         }
+
+        ClientMessage::Ping => {}
 
         ClientMessage::ListRooms => {
             let rooms: Vec<_> = state
@@ -667,13 +703,8 @@ fn handle_client_message(
                 deck_name,
                 deck.cards.len()
             );
-            match lobby::set_deck_selection_sync(
-                state,
-                player_id,
-                deck_name,
-                deck,
-                commander_name,
-            ) {
+            match lobby::set_deck_selection_sync(state, player_id, deck_name, deck, commander_name)
+            {
                 Ok(room_id) => {
                     if let Some(room) = state.rooms.get(&room_id) {
                         broadcast_to_room(
@@ -800,197 +831,12 @@ fn handle_client_message(
     }
 }
 
-fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generation: u64) {
-    let (username, room_id) = {
-        if let Some(mut player) = state.players.get_mut(player_id) {
-            if player.generation != our_generation {
-                info!(
-                    "[disconnect] '{}' old connection cleaned up (session reclaimed by new connection)",
-                    player.username
-                );
-                return;
-            }
-            player.connected = false;
-            (player.username.clone(), player.room_id.clone())
-        } else {
-            return;
-        }
-    };
-
-    if let Some(rid) = &room_id {
-        let room_status = state.rooms.get(rid).map(|r| r.status.clone());
-
-        match room_status {
-            Some(RoomStatus::InGame) => {
-                // InGame: always preserve session for reconnection.
-                let host_without_player = state
-                    .rooms
-                    .get(rid)
-                    .map(|room| room.is_host(player_id) && !room.host_is_player())
-                    .unwrap_or(false);
-                if host_without_player {
-                    info!(
-                        "[cleanup] hosted in-game room {} lost its non-playing host -- removing",
-                        &rid[..8]
-                    );
-                    remove_room_and_clear_sessions(state, rid);
-                    return;
-                }
-
-                let all_disconnected = if let Some(mut room) = state.rooms.get_mut(rid) {
-                    room.set_connected(player_id, false);
-                    room.all_disconnected()
-                } else {
-                    return;
-                };
-
-                if all_disconnected {
-                    info!(
-                        "[cleanup] in-game room {} has no connected players -- removing",
-                        &rid[..8]
-                    );
-                    state.rooms.remove(rid);
-                    let player_ids = state
-                        .players
-                        .iter()
-                        .filter_map(|entry| {
-                            entry
-                                .value()
-                                .room_id
-                                .as_deref()
-                                .is_some_and(|room_id| room_id == rid)
-                                .then(|| entry.key().clone())
-                        })
-                        .collect::<Vec<_>>();
-                    for player_id in player_ids {
-                        state.players.remove(&player_id);
-                    }
-                    return;
-                }
-
-                info!(
-                    "[disconnect] '{}' marked disconnected in in-game room {} (session preserved)",
-                    username,
-                    &rid[..8]
-                );
-                broadcast_to_room(
-                    state,
-                    rid,
-                    &ServerMessage::PlayerDisconnected {
-                        username: username.clone(),
-                    },
-                );
-
-                if let Some(room) = state.rooms.get(rid) {
-                    broadcast_to_room(
-                        state,
-                        rid,
-                        &ServerMessage::RoomUpdate {
-                            room: room.to_room_info(),
-                        },
-                    );
-                }
-            }
-            Some(RoomStatus::Lobby) => {
-                // Lobby: treat like a leave — remove player, clean up room, free username
-                info!(
-                    "[disconnect] '{}' disconnected from lobby room {} -- treating as leave",
-                    username,
-                    &rid[..8]
-                );
-
-                let remove_hosted_room = state
-                    .rooms
-                    .get(rid)
-                    .map(|room| room.is_host(player_id) && !room.host_is_player())
-                    .unwrap_or(false);
-                if remove_hosted_room {
-                    info!(
-                        "[cleanup] hosted lobby room {} lost its non-playing host -- removing",
-                        &rid[..8]
-                    );
-                    remove_room_and_clear_sessions(state, rid);
-                    return;
-                }
-
-                let room_empty = {
-                    if let Some(mut room) = state.rooms.get_mut(rid) {
-                        room.remove_participant(player_id);
-                        room.is_empty()
-                    } else {
-                        false
-                    }
-                };
-
-                if let Some(mut player) = state.players.get_mut(player_id) {
-                    player.room_id = None;
-                }
-
-                if room_empty {
-                    info!(
-                        "[cleanup] lobby room {} is now empty -- removing",
-                        &rid[..8]
-                    );
-                    remove_room_and_clear_sessions(state, rid);
-                } else {
-                    broadcast_to_room(
-                        state,
-                        rid,
-                        &ServerMessage::PlayerLeft {
-                            room_id: rid.clone(),
-                            username: username.clone(),
-                        },
-                    );
-                    if let Some(room) = state.rooms.get(rid) {
-                        broadcast_to_room(
-                            state,
-                            rid,
-                            &ServerMessage::RoomUpdate {
-                                room: room.to_room_info(),
-                            },
-                        );
-                    }
-                }
-
-                info!("[cleanup] '{}' removed (disconnected from lobby)", username);
-                state.players.remove(player_id);
-            }
-            None => {
-                info!("[cleanup] '{}' removed (room no longer exists)", username);
-                state.players.remove(player_id);
-            }
-        }
-    } else {
-        info!("[cleanup] '{}' removed (was not in a room)", username);
-        state.players.remove(player_id);
-    }
-}
-
 fn get_username(state: &Arc<ServerState>, player_id: &str) -> String {
     state
         .players
         .get(player_id)
         .map(|p| p.username.clone())
         .unwrap_or_default()
-}
-
-fn remove_room_and_clear_sessions(state: &Arc<ServerState>, room_id: &str) {
-    state.rooms.remove(room_id);
-    let player_ids = state
-        .players
-        .iter()
-        .filter_map(|entry| {
-            entry
-                .value()
-                .room_id
-                .as_deref()
-                .is_some_and(|rid| rid == room_id)
-                .then(|| entry.key().clone())
-        })
-        .collect::<Vec<_>>();
-    for player_id in player_ids {
-        state.players.remove(&player_id);
-    }
 }
 
 fn msg_type_of(msg: &ServerMessage) -> &'static str {
@@ -1015,6 +861,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
 fn client_msg_type(msg: &ClientMessage) -> &'static str {
     match msg {
         ClientMessage::Authenticate { .. } => "Authenticate",
+        ClientMessage::Ping => "Ping",
         ClientMessage::ListRooms => "ListRooms",
         ClientMessage::ListPlayers => "ListPlayers",
         ClientMessage::CreateRoom { .. } => "CreateRoom",

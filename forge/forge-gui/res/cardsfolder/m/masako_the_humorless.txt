@@ -1,7 +1,0 @@
-Name:Masako the Humorless
-ManaCost:2 W
-Types:Legendary Creature Human Advisor
-PT:2/1
-K:Flash
-S:Mode$ BlockTapped | ValidCard$ Creature.tapped+YouCtrl | Description$ Tapped creatures you control can block as though they were untapped.
-Oracle:Flash\nTapped creatures you control can block as though they were untapped.

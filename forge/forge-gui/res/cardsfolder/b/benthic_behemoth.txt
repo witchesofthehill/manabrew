@@ -1,6 +1,0 @@
-Name:Benthic Behemoth
-ManaCost:5 U U U
-Types:Creature Serpent
-PT:7/6
-K:Landwalk:Island
-Oracle:Islandwalk (This creature can't be blocked as long as defending player controls an Island.)

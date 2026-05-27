@@ -1,7 +1,0 @@
-Name:Claws Out
-ManaCost:3 W W
-Types:Instant
-K:Affinity:Cat
-A:SP$ PumpAll | ValidCards$ Creature.YouCtrl | NumAtt$ +2 | NumDef$ +2 | SpellDescription$ Creatures you control get +2/+2 until end of turn.
-DeckHints:Type$Cat
-Oracle:Affinity for Cats (This spell costs {1} less to cast for each Cat you control.)\nCreatures you control get +2/+2 until end of turn.

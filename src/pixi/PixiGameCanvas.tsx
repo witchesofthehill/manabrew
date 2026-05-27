@@ -25,8 +25,10 @@ import {
   FPS_SAMPLE_INTERVAL_MS,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
+  PIXI_MAX_FPS,
   Z_HAND_ACTIONS_MENU,
 } from "./constants";
+import { registerPixiApp } from "./visibility";
 
 interface PixiGameCanvasProps {
   battlefield: BattlefieldState;
@@ -102,6 +104,7 @@ export function PixiGameCanvas({
 }: PixiGameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
+  const unregisterVisibilityRef = useRef<(() => void) | null>(null);
   const [scene, setScene] = useState<PixiGameScene | null>(null);
   const sceneRef = useRef<PixiGameScene | null>(null);
   const callbacksRef = useRef(callbacks);
@@ -171,6 +174,9 @@ export function PixiGameCanvas({
       return;
     }
 
+    app.ticker.maxFPS = PIXI_MAX_FPS;
+    unregisterVisibilityRef.current = registerPixiApp(app);
+
     const newScene = new PixiGameScene(
       app,
       {
@@ -223,6 +229,8 @@ export function PixiGameCanvas({
       if (!active) {
         sceneRef.current?.destroy();
         sceneRef.current = null;
+        unregisterVisibilityRef.current?.();
+        unregisterVisibilityRef.current = null;
         destroyPixiApp(appRef.current);
         appRef.current = null;
         setScene(null);
@@ -233,6 +241,8 @@ export function PixiGameCanvas({
       cancelHandHoverClear();
       sceneRef.current?.destroy();
       sceneRef.current = null;
+      unregisterVisibilityRef.current?.();
+      unregisterVisibilityRef.current = null;
       destroyPixiApp(appRef.current);
       appRef.current = null;
       setScene(null);

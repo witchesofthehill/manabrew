@@ -1,6 +1,0 @@
-Name:Somberwald Dryad
-ManaCost:1 G
-Types:Creature Dryad
-PT:2/2
-K:Landwalk:Forest
-Oracle:Forestwalk (This creature can't be blocked as long as defending player controls a Forest.)

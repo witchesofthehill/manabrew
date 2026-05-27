@@ -1,6 +1,0 @@
-Name:Glimpse of Freedom
-ManaCost:1 U
-Types:Instant
-A:SP$ Draw | SpellDescription$ Draw a card.
-K:Escape:2 U ExileFromGrave<5/Card.Other/other>
-Oracle:Draw a card.\nEscape—{2}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)

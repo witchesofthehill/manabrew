@@ -1,9 +1,0 @@
-Name:Kabira Crossroads
-ManaCost:no cost
-Types:Land
-A:AB$ Mana | Cost$ T | Produced$ W | SpellDescription$ Add {W}.
-R:Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ ETBTapped | Description$ CARDNAME enters tapped.
-SVar:ETBTapped:DB$ Tap | Defined$ Self | ETB$ True
-T:Mode$ ChangesZone | Origin$ Any | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigGainLife | TriggerDescription$ When CARDNAME enters, you gain 2 life.
-SVar:TrigGainLife:DB$ GainLife | LifeAmount$ 2
-Oracle:Kabira Crossroads enters tapped.\nWhen Kabira Crossroads enters, you gain 2 life.\n{T}: Add {W}.

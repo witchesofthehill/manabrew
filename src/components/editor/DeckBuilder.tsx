@@ -19,9 +19,7 @@ import {
 import {
   X,
   Save,
-  FolderOpen,
   Trash2,
-  Pencil,
   Check,
   Search,
   LayoutGrid,
@@ -32,7 +30,6 @@ import {
   Loader2,
   ChevronDown,
   FileBox,
-  ClipboardPaste,
   ClipboardCopy,
   Palette,
   Bookmark,
@@ -42,14 +39,8 @@ import {
   ArrowDownToLine,
   EllipsisVertical,
   ArrowLeft,
-  Link as LinkIcon,
-  Globe,
 } from "lucide-react";
-import { ImportDeckDialog, type ImportDeckDialogMode } from "./ImportDeckDialog";
-import type { ArchidektDeck } from "@/lib/archidekt";
-import { getDeckColors } from "@/components/deck/deckDisplay.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
@@ -69,7 +60,7 @@ import {
   hasPartner,
   getPartnerWithName,
   GAME_FORMATS,
-  allowsAnyNumberOfCopies,
+  copyLimitFromText,
 } from "@/lib/formats";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckListView } from "./DeckListView";
@@ -79,6 +70,7 @@ import { useCardPreview } from "@/hooks/useCardPreview";
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
+import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckValidationPanel } from "./DeckValidationPanel";
 import { useDeckSelection } from "./useDeckSelection";
 import {
@@ -100,9 +92,6 @@ import {
   setLastSavedSnapshotRef,
 } from "./deckBuilder.unsavedChanges";
 import { useScryfallStore } from "@/stores/useScryfallStore";
-
-const SIDEBOARD_LINE_REGEX = /^(sideboard|side)$/i;
-const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -270,7 +259,6 @@ export function DeckBuilder({
   const [tokenPrintPickerName, setTokenPrintPickerName] = useState<string | null>(null);
   const [detailCard, setDetailCard] = useState<ScryfallCard | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
-  const [importDialogMode, setImportDialogMode] = useState<ImportDeckDialogMode | null>(null);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const importPresetToMyDecks = useDeckStore((s) => s.importPresetToMyDecks);
   const {
@@ -287,7 +275,6 @@ export function DeckBuilder({
     saveDraft,
     addToMaybe,
     removeFromMaybe,
-    loadSavedDeck,
     deleteSavedDeck,
     enrichDeckCards,
     setCommander,
@@ -312,7 +299,6 @@ export function DeckBuilder({
   const [editingName, setEditingName] = useState(false);
   const [deckFilter, setDeckFilter] = useState("");
   const [newTagInput, setNewTagInput] = useState("");
-  const [deckSearchFilter, setDeckSearchFilter] = useState("");
   const [nameInput, setNameInput] = useState(currentDeck.name);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -329,7 +315,20 @@ export function DeckBuilder({
     null,
   );
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const enrichedNamesRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        filterInputRef.current?.focus();
+        filterInputRef.current?.select();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const supplementaryCards = useMemo(
     () => [
@@ -352,13 +351,15 @@ export function DeckBuilder({
     ],
   );
   const currentSnapshot = buildDeckSnapshot(currentDeck);
-  const hasUnsavedChanges = currentSnapshot !== lastSavedSnapshot;
+  // Read-only presets can't be edited; background Scryfall enrichment mutates the
+  // deck after the baseline snapshot, so never treat a preset as dirty.
+  const hasUnsavedChanges = !isReadOnly && currentSnapshot !== lastSavedSnapshot;
 
   // Sync shared unsaved state for DeckEditor blocker
   useEffect(() => {
     setLastSavedSnapshotRef(lastSavedSnapshot);
-    setUnsavedState(lastSavedSnapshot, currentSnapshot);
-  }, [lastSavedSnapshot, currentSnapshot]);
+    setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
+  }, [lastSavedSnapshot, currentSnapshot, isReadOnly]);
 
   // Reset snapshot when a deck is loaded
   const deckIdentity = `${currentDeck.name}:${savedDecks.length}`;
@@ -748,9 +749,9 @@ export function DeckBuilder({
     const format = getFormat(currentDeck.format ?? "standard");
     if (!format) return false;
     const copies = currentDeck.cards.filter((c) => c.name === cardName);
-    // Cards whose oracle text explicitly allows any number of copies are exempt
-    if (copies.length > 0 && allowsAnyNumberOfCopies(copies[0].text)) return false;
-    return copies.length >= format.deckRules.maxCopies;
+    const limit =
+      (copies.length > 0 ? copyLimitFromText(copies[0].text) : null) ?? format.deckRules.maxCopies;
+    return copies.length >= limit;
   }
 
   function handleAddOneToMain(group: CardGroup) {
@@ -786,95 +787,11 @@ export function DeckBuilder({
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
   }
 
-  /**
-   * Add a list of cards (by name + count + board) to the current deck and
-   * asynchronously enrich them with Scryfall data. Shared by clipboard import
-   * and by the Archidekt deck importer.
-   */
-  const loadCardList = useCallback(
-    async (entries: { name: string; count: number; side?: boolean }[]) => {
-      if (entries.length === 0) {
-        toast.error("No cards to import");
-        return;
-      }
-      try {
-        const scryfallMap = await fetchCardCollection(entries.map((p) => ({ name: p.name })));
-        let imported = 0;
-        for (const { name, count, side } of entries) {
-          const sc = scryfallMap.get(name.toLowerCase());
-          if (!sc) throw new Error(`Scryfall card not found: ${name}`);
-          for (let i = 0; i < count; i++) {
-            const card = scryfallToDeckCard(sc);
-            if (side) addToSide(card);
-            else addToMain(card);
-            imported++;
-          }
-        }
-        toast.success(`Imported ${imported} cards`);
-      } catch {
-        toast.error("Could not import cards from Scryfall");
-      }
-    },
-    [addToMain, addToSide],
-  );
-
-  function handleImport() {
-    navigator.clipboard
-      .readText()
-      .then(async (text) => {
-        const lines = text
-          .split("\n")
-          .map((l) => l.trim())
-          .filter(Boolean);
-        let inSide = false;
-        const parsed: { name: string; count: number; side: boolean }[] = [];
-        for (const line of lines) {
-          if (SIDEBOARD_LINE_REGEX.test(line)) {
-            inSide = true;
-            continue;
-          }
-          const match = line.match(DECK_LINE_REGEX);
-          if (!match) continue;
-          parsed.push({ count: parseInt(match[1], 10), name: match[2].trim(), side: inSide });
-        }
-        if (parsed.length === 0) {
-          toast.error("No cards found in clipboard");
-          return;
-        }
-        await loadCardList(parsed);
-      })
-      .catch(() => toast.error("Could not read clipboard"));
-  }
-
-  const handleArchidektImport = useCallback(
-    async (deck: ArchidektDeck) => {
-      // The user explicitly chose Import from the dialog — replace the current
-      // deck without the unsaved-changes guard.
-      clearDeck();
-      setDeckName(deck.name);
-      setNameInput(deck.name);
-      const entries = deck.cards.map((c) => ({ name: c.name, count: c.count }));
-      const mainLoad = loadCardList(entries);
-
-      // Commanders are singletons; one fetch per distinct name.
-      const commanderLoads = deck.commanders.map((cmd) =>
-        useScryfallStore
-          .getState()
-          .getCard({ name: cmd.name })
-          .then((sc) => setCommander(scryfallToDeckCard(sc.info))),
-      );
-
-      await Promise.all([mainLoad, ...commanderLoads]);
-    },
-    [loadCardList, clearDeck, setDeckName, setCommander],
-  );
-
   function handleSave() {
     saveCurrentDeck();
     const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
-    toast.success(`Deck "${currentDeck.name}" saved`);
   }
 
   function handleSaveDraft() {
@@ -917,6 +834,8 @@ export function DeckBuilder({
     toast.success(`Imported "${importedName}" — now editable`);
   }
 
+  const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
+
   return (
     <div className="flex flex-col h-full w-full relative">
       {isReadOnly && (
@@ -938,10 +857,20 @@ export function DeckBuilder({
         {/* ── Header: deck identity + quick add + save ── */}
         <div
           className={cn(
-            "px-3 py-1.5 border-b shrink-0 flex items-center gap-2",
+            "relative isolate overflow-hidden px-3 py-3 border-b shrink-0 flex items-center gap-2",
             isReadOnly && "bg-muted/15",
           )}
         >
+          {coverArt && (
+            <ScryfallImg
+              src={coverArt}
+              alt=""
+              aria-hidden
+              draggable={false}
+              loading="lazy"
+              className="pointer-events-none absolute inset-0 -z-10 size-full select-none object-cover object-top opacity-30 blur-xs"
+            />
+          )}
           {onBack && (
             <div
               role="button"
@@ -960,128 +889,9 @@ export function DeckBuilder({
             </div>
           )}
 
-          {/* Left: My Decks + deck name + format */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" title="My Decks">
-                <FolderOpen className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-56 max-h-96 overflow-y-auto">
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                My Decks
-              </div>
-              {savedDecks.length > 5 && (
-                <div className="px-2 pb-1.5">
-                  <Input
-                    className="h-6 text-xs"
-                    placeholder="Search decks…"
-                    value={deckSearchFilter}
-                    onChange={(e) => setDeckSearchFilter(e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                </div>
-              )}
-              <DropdownMenuItem
-                onSelect={() =>
-                  guardUnsaved(() => {
-                    clearDeck();
-                    setNameInput("New Deck");
-                    setDeckName("New Deck");
-                    const snapshot = buildDeckSnapshot({
-                      format: "standard",
-                      cards: [],
-                      sideboard: [],
-                      commanders: [],
-                      attractions: [],
-                      contraptions: [],
-                      schemes: [],
-                      planes: [],
-                      name: "New Deck",
-                    });
-                    setLastSavedSnapshot(snapshot);
-                    setUnsavedState(snapshot, snapshot);
-                    toast.success("New deck created");
-                  })
-                }
-                className="gap-2 text-primary"
-              >
-                <Plus className="h-3.5 w-3.5 shrink-0" />
-                <span className="text-xs font-medium">New Deck</span>
-              </DropdownMenuItem>
-              {savedDecks.length > 0 && <div className="border-t my-1" />}
-              {savedDecks
-                .filter(
-                  (s) =>
-                    !deckSearchFilter ||
-                    s.deck.name.toLowerCase().includes(deckSearchFilter.toLowerCase()),
-                )
-                .map((s) => {
-                  const colors = getDeckColors(s.deck.cards);
-                  const isActive = s.deck.name === currentDeck.name;
-                  return (
-                    <DropdownMenuItem
-                      key={s.id}
-                      onSelect={() =>
-                        guardUnsaved(() => {
-                          loadSavedDeck(s.id);
-                          toast.success(`Loaded "${s.deck.name}"`);
-                        })
-                      }
-                      className={cn("gap-2", isActive && "bg-muted")}
-                    >
-                      <div className="w-20 shrink-0">
-                        {colors.length > 0 ? (
-                          <ManaSymbols cost={colors.map((c) => `{${c}}`).join("")} size="sm" />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-xs truncate block">{s.deck.name}</span>
-                        {(s.deck.labels ?? []).length > 0 && (
-                          <div className="flex gap-1 mt-0.5 flex-wrap">
-                            {(s.deck.labels ?? []).map((label) => (
-                              <DeckLabelBadge key={label.name} label={label} size="sm" />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {s.deck.cards.length}
-                      </span>
-                      {s.deck.draft && (
-                        <span className="text-[9px] px-1 py-0 rounded border border-warning/50 text-warning font-medium shrink-0">
-                          DRAFT
-                        </span>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5 text-destructive shrink-0 opacity-0 group-hover:opacity-100"
-                        title="Delete deck"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingDeleteDeck({ id: s.id, name: s.deck.name });
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuItem>
-                  );
-                })}
-              {savedDecks.length === 0 && (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                  No saved decks yet
-                </div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {/* Radix portals escape the fieldset disabled cascade — gate name + format explicitly. */}
           {isReadOnly ? (
-            <span className="font-semibold text-sm truncate max-w-[160px] shrink-0 px-1.5 py-0.5">
+            <span className="font-semibold text-base shrink-0 px-1.5 py-0.5">
               {currentDeck.name}
             </span>
           ) : editingName ? (
@@ -1113,10 +923,7 @@ export function DeckBuilder({
                 setEditingName(true);
               }}
             >
-              <span className="font-semibold text-sm truncate max-w-[160px]">
-                {currentDeck.name}
-              </span>
-              <Pencil className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+              <span className="font-semibold text-base whitespace-nowrap">{currentDeck.name}</span>
             </button>
           )}
 
@@ -1129,7 +936,6 @@ export function DeckBuilder({
               <DropdownMenuTrigger asChild>
                 <button type="button" className="shrink-0 cursor-pointer flex items-center gap-1">
                   <FormatBadge formatId={currentDeck.format ?? "standard"} />
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -1150,54 +956,14 @@ export function DeckBuilder({
             </DropdownMenu>
           )}
 
-          {/* Card count */}
-          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
-            {getFormat(currentDeck.format ?? "standard")?.deckRules.requiresCommander
-              ? currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)
-              : currentDeck.cards.length}
-            {currentDeck.sideboard.length > 0 && (
-              <span className="opacity-50"> · SB:{currentDeck.sideboard.length}</span>
-            )}
-          </span>
-
           {/* Labels */}
           {(currentDeck.labels ?? []).map((label) => (
             <DeckLabelBadge key={label.name} label={label} size="md" className="shrink-0" />
           ))}
 
-          {/* Center: Quick add */}
-          <div className="flex-1 min-w-0">
-            <QuickCardSearch
-              onAdd={(sc) => {
-                if (isAtCopyLimit(sc.name)) {
-                  const format = getFormat(currentDeck.format ?? "standard");
-                  toast.error(
-                    `Max ${format?.deckRules.maxCopies} copies of "${sc.name}" allowed in ${format?.name}`,
-                  );
-                  return;
-                }
-                addToMain(scryfallToDeckCard(sc));
-                toast.success(`Added ${sc.name}`);
-              }}
-              onRemove={(name) => {
-                handleRemoveOneFromMain(name);
-              }}
-              getCount={(name) => currentDeck.cards.filter((c) => c.name === name).length}
-            />
-          </div>
+          <div className="flex-1" />
 
-          {/* Right: Search toggle + Save + overflow menu */}
-          {onToggleSearch && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 shrink-0"
-              title="Toggle card search"
-              onClick={onToggleSearch}
-            >
-              <Search className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          {/* Right: Save + overflow menu */}
           {isReadOnly ? (
             <Button
               size="sm"
@@ -1212,9 +978,10 @@ export function DeckBuilder({
           ) : isDeckLegal ? (
             <Button
               size="sm"
-              variant="default"
+              variant={hasUnsavedChanges ? "default" : "secondary"}
+              disabled={!hasUnsavedChanges}
               className="h-7 shrink-0 gap-1 text-xs"
-              title={hasUnsavedChanges ? "Save deck (unsaved changes)" : "Save deck"}
+              title={hasUnsavedChanges ? "Save deck (unsaved changes)" : "Deck saved"}
               onClick={handleSave}
             >
               <Save className="h-3.5 w-3.5" />
@@ -1240,15 +1007,6 @@ export function DeckBuilder({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onSelect={handleImport}>
-                <ClipboardPaste className="h-3.5 w-3.5 mr-2" /> Import from clipboard
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setImportDialogMode("url")}>
-                <LinkIcon className="h-3.5 w-3.5 mr-2" /> Import from URL
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setImportDialogMode("search")}>
-                <Globe className="h-3.5 w-3.5 mr-2" /> Search deck
-              </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={handleExport}
                 disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
@@ -1322,175 +1080,212 @@ export function DeckBuilder({
         </div>
       </fieldset>
 
-      {/* View toolbar lives outside the readonly fieldset — none of these mutate the deck. */}
-      <div className="px-3 py-1 border-b shrink-0 flex items-center gap-2">
-        <div className="flex rounded-md border overflow-hidden shrink-0">
-          {(
-            [
-              ["list", List],
-              ["visual", LayoutGrid],
-              ["stack", Layers],
-            ] as const
-          ).map(([mode, Icon]) => (
-            <button
-              key={mode}
-              type="button"
-              title={mode.charAt(0).toUpperCase() + mode.slice(1)}
-              onClick={() => setViewMode(mode)}
-              className={cn(
-                "p-1 transition-colors border-r last:border-r-0",
-                viewMode === mode
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted text-muted-foreground",
+      <div className="flex flex-1 min-h-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {/* View toolbar lives outside the readonly fieldset — none of these mutate the deck. */}
+          <div className="mt-2 px-3 py-1 shrink-0 flex items-center gap-2">
+            <div className="relative shrink-0 w-28">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+              <Input
+                ref={filterInputRef}
+                className="h-6 text-xs pl-6 pr-6"
+                placeholder="Filter…"
+                value={deckFilter}
+                onChange={(e) => setDeckFilter(e.target.value)}
+              />
+              {deckFilter && (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setDeckFilter("")}
+                >
+                  <X className="h-3 w-3" />
+                </button>
               )}
-            >
-              <Icon className="h-3 w-3" />
-            </button>
-          ))}
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
-              <Group className="h-3 w-3" />
-              <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
-              <ChevronDown className="h-2.5 w-2.5 opacity-60" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {GROUP_BY_OPTIONS.map((opt) => (
-              <DropdownMenuItem
-                key={opt.value}
-                onSelect={() => setGroupBy(opt.value)}
-                className={cn(groupBy === opt.value && "bg-muted font-medium")}
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
+                  <Group className="h-3 w-3" />
+                  <span>{GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label}</span>
+                  <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {GROUP_BY_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onSelect={() => setGroupBy(opt.value)}
+                    className={cn(groupBy === opt.value && "bg-muted font-medium")}
+                  >
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="flex rounded-md border overflow-hidden shrink-0">
+              {(
+                [
+                  ["list", List],
+                  ["visual", LayoutGrid],
+                  ["stack", Layers],
+                ] as const
+              ).map(([mode, Icon]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  title={mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  onClick={() => setViewMode(mode)}
+                  className={cn(
+                    "p-1 transition-colors border-r last:border-r-0",
+                    viewMode === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted text-muted-foreground",
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                </button>
+              ))}
+            </div>
+            {viewMode !== "list" && (
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={1}
+                value={cardSize}
+                onChange={(e) => setCardSize(Number(e.target.value))}
+                className="w-32 h-1 cursor-pointer accent-primary shrink-0"
+                title={`Card size: ${cardSize}`}
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <QuickCardSearch
+                onAdd={(sc) => {
+                  if (isAtCopyLimit(sc.name)) {
+                    const format = getFormat(currentDeck.format ?? "standard");
+                    toast.error(
+                      `Max ${format?.deckRules.maxCopies} copies of "${sc.name}" allowed in ${format?.name}`,
+                    );
+                    return;
+                  }
+                  addToMain(scryfallToDeckCard(sc));
+                  toast.success(`Added ${sc.name}`);
+                }}
+                onRemove={(name) => {
+                  handleRemoveOneFromMain(name);
+                }}
+                getCount={(name) => currentDeck.cards.filter((c) => c.name === name).length}
+              />
+            </div>
+            {onToggleSearch && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0"
+                title="Toggle card search"
+                onClick={onToggleSearch}
               >
-                {opt.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {viewMode !== "list" && (
-          <input
-            type="range"
-            min={1}
-            max={5}
-            step={1}
-            value={cardSize}
-            onChange={(e) => setCardSize(Number(e.target.value))}
-            className="w-12 h-1 cursor-pointer accent-primary shrink-0"
-            title={`Card size: ${cardSize}`}
+                <Search className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+
+          <fieldset disabled={isReadOnly} className="contents">
+            <div className={cn("flex-1 min-h-0 flex", isReadOnly && "opacity-60 bg-muted/15")}>
+              <div
+                ref={setMainDropRef}
+                className={cn(
+                  "flex-1 min-w-0 transition-colors overflow-hidden",
+                  isOverMain && !isOverSide && "bg-primary/5",
+                )}
+              >
+                <DeckListView
+                  viewMode={viewMode}
+                  cardSize={cardSize}
+                  commanders={currentDeck.commanders ?? []}
+                  deckFormat={currentDeck.format ?? "standard"}
+                  mainSections={sectionGroups}
+                  otherGroups={otherGroups}
+                  sideboardGroups={sideGroups}
+                  maybeboardGroups={maybeGroups}
+                  specialSections={specialSections}
+                  stackColumns={stackColsData}
+                  isOverSide={isOverSide}
+                  setSideDropRef={setSideDropRef}
+                  isOverMaybe={isOverMaybe}
+                  setMaybeDropRef={setMaybeDropRef}
+                  onAddOne={handleAddOneToMain}
+                  onRemoveOne={handleRemoveOneFromMain}
+                  onRemoveAll={handleRemoveAllFromMain}
+                  onSetCommander={handleSetCommander}
+                  onRemoveCommander={removeCommander}
+                  onMoveOneToSide={handleMoveOneToSide}
+                  onMoveAllToSide={handleMoveAllToSide}
+                  onMoveOneToMaybe={handleMoveOneToMaybe}
+                  onMoveAllToMaybe={handleMoveAllToMaybe}
+                  onMoveOneFromSideToMain={handleMoveOneFromSideToMain}
+                  onMoveAllFromSideToMain={handleMoveAllFromSideToMain}
+                  onMoveOneFromSideToMaybe={handleMoveOneFromSideToMaybe}
+                  onMoveAllFromSideToMaybe={handleMoveAllFromSideToMaybe}
+                  onMoveOneFromMaybeToMain={handleMoveOneFromMaybeToMain}
+                  onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
+                  onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
+                  onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
+                  onPickPrint={(name) => setPrintPickerCard(name)}
+                  onToggleFoil={toggleFoil}
+                  onHover={(card, e) =>
+                    preview.handleMouseEnter(card as unknown as GameCard, e, { useDelay: true })
+                  }
+                  onLeave={preview.handleMouseLeave}
+                  onAddToSide={(card) => addToSide(card)}
+                  onRemoveFromSide={handleRemoveOneFromSide}
+                  onAddToMaybe={(card) => addToMaybe(card)}
+                  onRemoveFromMaybe={handleRemoveOneFromMaybe}
+                  totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
+                  customTags={currentDeck.customTags}
+                  cardTags={currentDeck.cardTags}
+                  allMainCards={currentDeck.cards}
+                  onUntagCard={untagCard}
+                  onTagCard={tagCard}
+                  onAddCustomTag={addCustomTag}
+                  onRemoveTag={removeCustomTag}
+                  selectedCards={selectedCards}
+                  onSelectCard={handleSelectCard}
+                  onSelectAll={(names) => selectCards(names, true)}
+                  onShowInfo={handleShowInfo}
+                  coverCardName={currentDeck.coverCardName}
+                  coverCardFace={currentDeck.coverCardFace}
+                  onSetCover={(card) => {
+                    const isSameFront =
+                      currentDeck.coverCardName === card.name &&
+                      (currentDeck.coverCardFace ?? 0) === 0;
+                    setCoverCard(isSameFront ? undefined : card.name, 0);
+                    if (!isSameFront) useScryfallStore.getState().invalidateCard(card.name);
+                  }}
+                  onSetCoverBack={(card) => {
+                    const isSameBack =
+                      currentDeck.coverCardName === card.name && currentDeck.coverCardFace === 1;
+                    setCoverCard(isSameBack ? undefined : card.name, 1);
+                    if (!isSameBack) useScryfallStore.getState().invalidateCard(card.name);
+                  }}
+                  stackPositions={currentDeck.stackPositions}
+                  onStackPositionsChange={setStackPositions}
+                />
+              </div>
+            </div>
+          </fieldset>
+        </div>
+        {setPreviewSlot && onTogglePreview && (
+          <PreviewRail
+            setSlot={setPreviewSlot}
+            collapsed={previewCollapsed ?? false}
+            onCollapse={onTogglePreview}
           />
         )}
-        <div className="flex-1" />
-        <div className="relative shrink-0 w-28">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-          <Input
-            className="h-6 text-xs pl-6 pr-6"
-            placeholder="Filter…"
-            value={deckFilter}
-            onChange={(e) => setDeckFilter(e.target.value)}
-          />
-          {deckFilter && (
-            <button
-              type="button"
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              onClick={() => setDeckFilter("")}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
       </div>
 
       <fieldset disabled={isReadOnly} className="contents">
-        <div className={cn("flex-1 min-h-0 flex", isReadOnly && "opacity-60 bg-muted/15")}>
-          <div
-            ref={setMainDropRef}
-            className={cn(
-              "flex-1 min-w-0 transition-colors overflow-hidden",
-              isOverMain && !isOverSide && "bg-primary/5",
-            )}
-          >
-            <DeckListView
-              viewMode={viewMode}
-              cardSize={cardSize}
-              commanders={currentDeck.commanders ?? []}
-              deckFormat={currentDeck.format ?? "standard"}
-              mainSections={sectionGroups}
-              otherGroups={otherGroups}
-              sideboardGroups={sideGroups}
-              maybeboardGroups={maybeGroups}
-              specialSections={specialSections}
-              stackColumns={stackColsData}
-              isOverSide={isOverSide}
-              setSideDropRef={setSideDropRef}
-              isOverMaybe={isOverMaybe}
-              setMaybeDropRef={setMaybeDropRef}
-              onAddOne={handleAddOneToMain}
-              onRemoveOne={handleRemoveOneFromMain}
-              onRemoveAll={handleRemoveAllFromMain}
-              onSetCommander={handleSetCommander}
-              onRemoveCommander={removeCommander}
-              onMoveOneToSide={handleMoveOneToSide}
-              onMoveAllToSide={handleMoveAllToSide}
-              onMoveOneToMaybe={handleMoveOneToMaybe}
-              onMoveAllToMaybe={handleMoveAllToMaybe}
-              onMoveOneFromSideToMain={handleMoveOneFromSideToMain}
-              onMoveAllFromSideToMain={handleMoveAllFromSideToMain}
-              onMoveOneFromSideToMaybe={handleMoveOneFromSideToMaybe}
-              onMoveAllFromSideToMaybe={handleMoveAllFromSideToMaybe}
-              onMoveOneFromMaybeToMain={handleMoveOneFromMaybeToMain}
-              onMoveAllFromMaybeToMain={handleMoveAllFromMaybeToMain}
-              onMoveOneFromMaybeToSide={handleMoveOneFromMaybeToSide}
-              onMoveAllFromMaybeToSide={handleMoveAllFromMaybeToSide}
-              onPickPrint={(name) => setPrintPickerCard(name)}
-              onToggleFoil={toggleFoil}
-              onHover={(card, e) =>
-                preview.handleMouseEnter(card as unknown as GameCard, e, { useDelay: true })
-              }
-              onLeave={preview.handleMouseLeave}
-              onAddToSide={(card) => addToSide(card)}
-              onRemoveFromSide={handleRemoveOneFromSide}
-              onAddToMaybe={(card) => addToMaybe(card)}
-              onRemoveFromMaybe={handleRemoveOneFromMaybe}
-              totalCards={currentDeck.cards.length + (currentDeck.commanders?.length ?? 0)}
-              customTags={currentDeck.customTags}
-              cardTags={currentDeck.cardTags}
-              allMainCards={currentDeck.cards}
-              onUntagCard={untagCard}
-              onTagCard={tagCard}
-              onAddCustomTag={addCustomTag}
-              onRemoveTag={removeCustomTag}
-              selectedCards={selectedCards}
-              onSelectCard={handleSelectCard}
-              onSelectAll={(names) => selectCards(names, true)}
-              onShowInfo={handleShowInfo}
-              coverCardName={currentDeck.coverCardName}
-              coverCardFace={currentDeck.coverCardFace}
-              onSetCover={(card) => {
-                const isSameFront =
-                  currentDeck.coverCardName === card.name && (currentDeck.coverCardFace ?? 0) === 0;
-                setCoverCard(isSameFront ? undefined : card.name, 0);
-                if (!isSameFront) useScryfallStore.getState().invalidateCard(card.name);
-              }}
-              onSetCoverBack={(card) => {
-                const isSameBack =
-                  currentDeck.coverCardName === card.name && currentDeck.coverCardFace === 1;
-                setCoverCard(isSameBack ? undefined : card.name, 1);
-                if (!isSameBack) useScryfallStore.getState().invalidateCard(card.name);
-              }}
-              stackPositions={currentDeck.stackPositions}
-              onStackPositionsChange={setStackPositions}
-            />
-          </div>
-          {setPreviewSlot && onTogglePreview && (
-            <PreviewRail
-              setSlot={setPreviewSlot}
-              collapsed={previewCollapsed ?? false}
-              onCollapse={onTogglePreview}
-            />
-          )}
-        </div>
-
         {selectedCards.size > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-selection/30 px-4 py-2 flex items-center gap-2 z-50">
             <span className="text-sm font-medium text-selection">
@@ -1602,14 +1397,6 @@ export function DeckBuilder({
           />
         )}
         <DeckLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} />
-        <ImportDeckDialog
-          open={importDialogMode !== null}
-          onOpenChange={(o) => {
-            if (!o) setImportDialogMode(null);
-          }}
-          mode={importDialogMode ?? "url"}
-          onImport={handleArchidektImport}
-        />
 
         {/* Clear/delete deck confirm dialog */}
         {confirmClear && (

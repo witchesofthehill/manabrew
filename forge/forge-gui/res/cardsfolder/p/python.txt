@@ -1,5 +1,0 @@
-Name:Python
-ManaCost:1 B B
-Types:Creature Snake
-PT:3/2
-Oracle:

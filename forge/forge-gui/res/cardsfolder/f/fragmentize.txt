@@ -1,5 +1,0 @@
-Name:Fragmentize
-ManaCost:W
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Artifact.cmcLE4,Enchantment.cmcLE4 | TgtPrompt$ Select target artifact or enchantment with mana value 4 or less | SpellDescription$ Destroy target artifact or enchantment with mana value 4 or less.
-Oracle:Destroy target artifact or enchantment with mana value 4 or less.

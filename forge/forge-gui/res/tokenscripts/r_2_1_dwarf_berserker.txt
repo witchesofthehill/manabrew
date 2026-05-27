@@ -1,6 +1,0 @@
-Name:Dwarf Berserker Token
-ManaCost:no cost
-Colors:red
-Types:Creature Dwarf Berserker
-PT:2/1
-Oracle:

@@ -1,8 +1,98 @@
 use std::collections::HashMap;
 
 use serde_json::{json, Value};
+use std::str::FromStr;
+use strum_macros::{EnumString, IntoStaticStr};
+use tracing::warn;
 
 use crate::prompt::{PlayerAction, TargetAnyChoice};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, IntoStaticStr)]
+enum JavaPromptKind {
+    #[strum(to_string = "chooseDiscard", serialize = "choose_discard")]
+    ChooseDiscard,
+    #[strum(serialize = "mulligan")]
+    Mulligan,
+    #[strum(to_string = "mulliganPutBack", serialize = "mulligan_put_back")]
+    MulliganPutBack,
+    #[strum(to_string = "revealCards", serialize = "reveal_cards")]
+    RevealCards,
+    #[strum(to_string = "chooseAttackers", serialize = "choose_attackers")]
+    ChooseAttackers,
+    #[strum(to_string = "chooseBlockers", serialize = "choose_blockers")]
+    ChooseBlockers,
+    #[strum(
+        to_string = "chooseDamageAssignmentOrder",
+        serialize = "choose_damage_assignment_order"
+    )]
+    ChooseDamageAssignmentOrder,
+    #[strum(
+        to_string = "chooseCombatDamageAssignment",
+        serialize = "choose_combat_damage_assignment"
+    )]
+    ChooseCombatDamageAssignment,
+    #[strum(
+        to_string = "chooseCardsForEffect",
+        serialize = "choose_cards_for_effect"
+    )]
+    ChooseCardsForEffect,
+    #[strum(to_string = "chooseMode", serialize = "choose_mode")]
+    ChooseMode,
+    #[strum(
+        to_string = "chooseOptionalTrigger",
+        serialize = "choose_optional_trigger",
+        serialize = "confirm_action"
+    )]
+    ConfirmOrTrigger,
+    #[strum(
+        to_string = "payCostToPreventEffect",
+        serialize = "pay_cost_to_prevent_effect"
+    )]
+    PayCostToPreventEffect,
+    #[strum(to_string = "chooseNumber", serialize = "choose_number")]
+    ChooseNumber,
+    #[strum(to_string = "chooseColor", serialize = "choose_color")]
+    ChooseColor,
+    #[strum(to_string = "chooseType", serialize = "choose_type")]
+    ChooseType,
+    #[strum(to_string = "chooseCardName", serialize = "choose_card_name")]
+    ChooseCardName,
+    #[strum(to_string = "scry", serialize = "choose_scry")]
+    Scry,
+    #[strum(to_string = "surveil", serialize = "choose_surveil")]
+    Surveil,
+    #[strum(to_string = "dig", serialize = "choose_dig")]
+    Dig,
+    #[strum(to_string = "chooseDelve", serialize = "choose_delve")]
+    ChooseDelve,
+    #[strum(to_string = "chooseConvoke", serialize = "choose_convoke")]
+    ChooseConvoke,
+    #[strum(to_string = "chooseImprovise", serialize = "choose_improvise")]
+    ChooseImprovise,
+    #[strum(to_string = "reorderLibrary", serialize = "reorder_library")]
+    ReorderLibrary,
+    #[strum(to_string = "chooseTargetPlayer", serialize = "choose_target_player")]
+    ChooseTargetPlayer,
+    #[strum(to_string = "chooseTargetCard", serialize = "choose_target_card")]
+    ChooseTargetCard,
+    #[strum(to_string = "chooseTargetAny", serialize = "choose_target_any")]
+    ChooseTargetAny,
+    #[strum(to_string = "chooseTargetSpell", serialize = "choose_target_spell")]
+    ChooseTargetSpell,
+    #[strum(to_string = "chooseAction")]
+    Other,
+}
+
+impl JavaPromptKind {
+    fn parse(kind: Option<&str>) -> Self {
+        kind.and_then(|k| Self::from_str(k).ok())
+            .unwrap_or(Self::Other)
+    }
+
+    fn output_type(self) -> &'static str {
+        self.into()
+    }
+}
 
 pub fn normalize_java_prompt(prompt: Value) -> Value {
     if !is_java_prompt(&prompt) {
@@ -10,21 +100,19 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     }
 
     let actions = to_actions(prompt.get("actions"));
+    let player = as_usize(prompt.get("player"), 0);
+    let prompt_kind = JavaPromptKind::parse(prompt.get("kind").and_then(Value::as_str));
     let game_view = snapshot_to_game_view(
         prompt.get("snapshot").unwrap_or(&Value::Null),
         prompt.get("sessionId"),
         &actions,
+        player,
     );
-    let player = as_usize(prompt.get("player"), 0);
-    let prompt_type = if player == 0 {
-        "chooseAction"
-    } else {
-        "stateUpdate"
-    };
+    let prompt_type = prompt_kind.output_type();
 
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_discard") {
+    if prompt_kind == JavaPromptKind::ChooseDiscard {
         return json!({
-            "type": if player == 0 { "chooseDiscard" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "handCardIds": to_card_ids(prompt.get("cards")),
@@ -32,18 +120,18 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("mulligan") {
+    if prompt_kind == JavaPromptKind::Mulligan {
         return json!({
-            "type": if player == 0 { "mulligan" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "handCardIds": to_card_ids(prompt.get("cards")),
             "mulliganCount": as_usize(prompt.get("count"), 0),
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("mulligan_put_back") {
+    if prompt_kind == JavaPromptKind::MulliganPutBack {
         return json!({
-            "type": if player == 0 { "mulliganPutBack" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "handCardIds": to_card_ids(prompt.get("cards")),
@@ -51,9 +139,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "count": as_usize(prompt.get("count"), as_usize(prompt.get("max"), 0)),
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("reveal_cards") {
+    if prompt_kind == JavaPromptKind::RevealCards {
         return json!({
-            "type": if player == 0 { "revealCards" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "cards": to_prompt_cards(prompt.get("cards")),
@@ -63,9 +151,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_attackers") {
+    if prompt_kind == JavaPromptKind::ChooseAttackers {
         return json!({
-            "type": if player == 0 { "chooseAttackers" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "availableAttackerIds": to_card_ids(prompt.get("attackers")),
@@ -73,9 +161,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_blockers") {
+    if prompt_kind == JavaPromptKind::ChooseBlockers {
         return json!({
-            "type": if player == 0 { "chooseBlockers" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "attackerIds": to_card_ids(prompt.get("attackers")),
@@ -83,26 +171,25 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_damage_assignment_order") {
+    if prompt_kind == JavaPromptKind::ChooseDamageAssignmentOrder {
         return json!({
-            "type": if player == 0 { "chooseDamageAssignmentOrder" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
-            "attackerId": optional_normalized_card_id(prompt.get("attackerId")).unwrap_or_default(),
+            "attackerId": optional_string(prompt.get("attackerId")).unwrap_or_default(),
             "blockerIds": to_card_ids(prompt.get("blockers")),
             "blockerCards": to_prompt_cards(prompt.get("blockers")),
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_combat_damage_assignment") {
+    if prompt_kind == JavaPromptKind::ChooseCombatDamageAssignment {
         return json!({
-            "type": if player == 0 { "chooseCombatDamageAssignment" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
-            "attackerId": optional_normalized_card_id(prompt.get("attackerId")).unwrap_or_default(),
+            "attackerId": optional_string(prompt.get("attackerId")).unwrap_or_default(),
             "blockerIds": to_card_ids(prompt.get("blockers")),
-            "defenderId": optional_normalized_card_id(prompt.get("defenderId"))
-                .or_else(|| optional_string(prompt.get("defenderId"))),
+            "defenderId": optional_string(prompt.get("defenderId")),
             "totalDamage": as_i64(prompt.get("totalDamage"), 0),
             "attackerHasDeathtouch": prompt
                 .get("attackerHasDeathtouch")
@@ -111,9 +198,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_cards_for_effect") {
+    if prompt_kind == JavaPromptKind::ChooseCardsForEffect {
         return json!({
-            "type": if player == 0 { "chooseCardsForEffect" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -125,9 +212,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_mode") {
+    if prompt_kind == JavaPromptKind::ChooseMode {
         return json!({
-            "type": if player == 0 { "chooseMode" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "options": to_strings(prompt.get("options")),
@@ -137,12 +224,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if matches!(
-        prompt.get("kind").and_then(Value::as_str),
-        Some("choose_optional_trigger" | "confirm_action")
-    ) {
+    if prompt_kind == JavaPromptKind::ConfirmOrTrigger {
         return json!({
-            "type": if player == 0 { "chooseOptionalTrigger" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "description": optional_string(prompt.get("description")).unwrap_or_else(|| "Confirm?".to_string()),
@@ -154,9 +238,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("pay_cost_to_prevent_effect") {
+    if prompt_kind == JavaPromptKind::PayCostToPreventEffect {
         return json!({
-            "type": if player == 0 { "payCostToPreventEffect" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "description": optional_string(prompt.get("description")).unwrap_or_else(|| "Pay cost?".to_string()),
@@ -166,9 +250,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_number") {
+    if prompt_kind == JavaPromptKind::ChooseNumber {
         return json!({
-            "type": if player == 0 { "chooseNumber" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "min": as_i64(prompt.get("min"), 0),
@@ -178,9 +262,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_color") {
+    if prompt_kind == JavaPromptKind::ChooseColor {
         return json!({
-            "type": if player == 0 { "chooseColor" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validColors": to_strings(prompt.get("options")),
@@ -188,9 +272,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_type") {
+    if prompt_kind == JavaPromptKind::ChooseType {
         return json!({
-            "type": if player == 0 { "chooseType" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "typeCategory": optional_string(prompt.get("description")).unwrap_or_else(|| "Card".to_string()),
@@ -199,9 +283,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_card_name") {
+    if prompt_kind == JavaPromptKind::ChooseCardName {
         return json!({
-            "type": if player == 0 { "chooseCardName" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validNames": to_strings(prompt.get("options")),
@@ -209,9 +293,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_scry") {
+    if prompt_kind == JavaPromptKind::Scry {
         return json!({
-            "type": if player == 0 { "scry" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -219,9 +303,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_surveil") {
+    if prompt_kind == JavaPromptKind::Surveil {
         return json!({
-            "type": if player == 0 { "surveil" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -229,9 +313,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_dig") {
+    if prompt_kind == JavaPromptKind::Dig {
         return json!({
-            "type": if player == 0 { "dig" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -242,9 +326,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_delve") {
+    if prompt_kind == JavaPromptKind::ChooseDelve {
         return json!({
-            "type": if player == 0 { "chooseDelve" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -254,9 +338,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_convoke") {
+    if prompt_kind == JavaPromptKind::ChooseConvoke {
         return json!({
-            "type": if player == 0 { "chooseConvoke" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -265,9 +349,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_improvise") {
+    if prompt_kind == JavaPromptKind::ChooseImprovise {
         return json!({
-            "type": if player == 0 { "chooseImprovise" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_card_ids(prompt.get("cards")),
@@ -276,9 +360,9 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("reorder_library") {
+    if prompt_kind == JavaPromptKind::ReorderLibrary {
         return json!({
-            "type": if player == 0 { "reorderLibrary" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "cardIds": to_card_ids(prompt.get("cards")),
@@ -287,49 +371,58 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_player") {
+    if prompt_kind == JavaPromptKind::ChooseTargetPlayer {
         return json!({
-            "type": if player == 0 { "chooseTargetPlayer" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validPlayerIds": to_target_ids(prompt.get("players")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "hostile": true,
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_card") {
+    if prompt_kind == JavaPromptKind::ChooseTargetCard {
         return json!({
-            "type": if player == 0 { "chooseTargetCard" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validCardIds": to_target_card_ids(prompt.get("cards")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "hostile": true,
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_any") {
+    if prompt_kind == JavaPromptKind::ChooseTargetAny {
         return json!({
-            "type": if player == 0 { "chooseTargetAny" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validPlayerIds": to_target_ids(prompt.get("players")),
             "validCardIds": to_target_card_ids(prompt.get("cards")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "hostile": true,
             "autoPassDisabled": true,
         });
     }
-    if prompt.get("kind").and_then(Value::as_str) == Some("choose_target_spell") {
+    if prompt_kind == JavaPromptKind::ChooseTargetSpell {
         return json!({
-            "type": if player == 0 { "chooseTargetSpell" } else { "stateUpdate" },
+            "type": prompt_type,
             "gameView": game_view,
             "displayEvents": [],
             "validSpellIds": to_target_ids(prompt.get("spells")),
-            "sourceCardId": optional_normalized_card_id(prompt.get("sourceCardId")),
+            "sourceCardId": optional_string(prompt.get("sourceCardId")),
             "autoPassDisabled": true,
         });
+    }
+
+    if let Some(kind) = prompt.get("kind").and_then(Value::as_str) {
+        if kind != "priority" {
+            warn!(
+                kind,
+                "unrecognized java prompt kind; coercing to chooseAction"
+            );
+        }
     }
 
     let my_hand = game_view
@@ -379,16 +472,15 @@ pub fn normalize_java_prompt(prompt: Value) -> Value {
     let mut activatable_ability_ids = Vec::new();
     let mut mana_ability_options = Vec::new();
     let mut tappable_land_ids = Vec::new();
-    let mut battlefield_card_ids_by_key = card_ids_by_key(
-        battlefield
-            .iter()
-            .filter(|card| card.get("controllerId").and_then(Value::as_str) == Some("player-0")),
-    );
-    let mut battlefield_card_ids_by_name = card_ids_by_name(
-        battlefield
-            .iter()
-            .filter(|card| card.get("controllerId").and_then(Value::as_str) == Some("player-0")),
-    );
+    let my_slot = format!("player-{player}");
+    let mut battlefield_card_ids_by_key =
+        card_ids_by_key(battlefield.iter().filter(|card| {
+            card.get("controllerId").and_then(Value::as_str) == Some(my_slot.as_str())
+        }));
+    let mut battlefield_card_ids_by_name =
+        card_ids_by_name(battlefield.iter().filter(|card| {
+            card.get("controllerId").and_then(Value::as_str) == Some(my_slot.as_str())
+        }));
     for action in &actions {
         let kind = action.get("kind").and_then(Value::as_str);
         if kind != Some("mana") && kind != Some("ability") {
@@ -589,7 +681,13 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Value {
         } => json!({ "kind": "choose_action", "index": index }),
         PlayerAction::Pass { .. } => json!({ "kind": "pass" }),
         PlayerAction::Concede => json!({ "kind": "pass" }),
-        _ => json!({ "kind": "pass" }),
+        other => {
+            warn!(
+                action = serde_json::to_string(other).unwrap_or_default(),
+                "PlayerAction has no java translation; defaulting to pass"
+            );
+            json!({ "kind": "pass" })
+        }
     }
 }
 
@@ -639,7 +737,12 @@ fn is_java_prompt(prompt: &Value) -> bool {
     ) && prompt.get("snapshot").is_some_and(Value::is_object)
 }
 
-fn snapshot_to_game_view(snapshot: &Value, session_id: Option<&Value>, actions: &[Value]) -> Value {
+fn snapshot_to_game_view(
+    snapshot: &Value,
+    session_id: Option<&Value>,
+    actions: &[Value],
+    viewer: usize,
+) -> Value {
     let players_source = snapshot
         .get("players")
         .and_then(Value::as_array)
@@ -689,37 +792,24 @@ fn snapshot_to_game_view(snapshot: &Value, session_id: Option<&Value>, actions: 
         .enumerate()
         .map(|(index, entry)| to_stack_object(&entry, index, &active_player_id))
         .collect();
-    let my_hand = zone_cards(
-        players_source.first(),
-        "hand_cards",
-        0,
-        "hand",
-        &action_card_names,
-    );
+    let me = players_source.get(viewer);
+    let my_hand = zone_cards(me, "hand_cards", viewer, "hand", &action_card_names);
     let my_command_zone = zone_cards(
-        players_source.first(),
+        me,
         "command_zone_cards",
-        0,
+        viewer,
         "command",
         &action_card_names,
     );
-    let graveyard = zone_cards(
-        players_source.first(),
-        "graveyard",
-        0,
-        "graveyard",
-        &action_card_names,
-    );
-    let exile = zone_cards(
-        players_source.first(),
-        "exile",
-        0,
-        "exile",
-        &action_card_names,
-    );
+    let graveyard = zone_cards(me, "graveyard", viewer, "graveyard", &action_card_names);
+    let exile = zone_cards(me, "exile", viewer, "exile", &action_card_names);
 
     let mut opponent_zones = serde_json::Map::new();
-    for (i, opp) in players_source.iter().enumerate().skip(1) {
+    for (i, opp) in players_source
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != viewer)
+    {
         let opp_graveyard = zone_cards(
             Some(opp),
             "graveyard",
@@ -836,13 +926,13 @@ fn to_card(
     let id = card
         .get("id")
         .and_then(Value::as_str)
-        .map(normalize_card_id)
+        .map(str::to_string)
         .unwrap_or_else(|| format!("engine-card-{player_index}-{zone_id}-{card_index}"));
     json!({
         "id": id,
         "name": name,
-        "setCode": "",
-        "cardNumber": "",
+        "setCode": card.get("setCode").and_then(Value::as_str).unwrap_or(""),
+        "cardNumber": card.get("cardNumber").and_then(Value::as_str).unwrap_or(""),
         "color": "",
         "manaCost": "",
         "types": [],
@@ -861,7 +951,7 @@ fn to_card(
         "zoneId": zone_id,
         "tapped": card.get("tapped").and_then(Value::as_bool).unwrap_or(false),
         "counters": card.get("counters").cloned().unwrap_or_else(|| json!({})),
-        "damage": card.get("damage").and_then(Value::as_i64),
+        "damage": card.get("damage").and_then(Value::as_i64).unwrap_or(0),
         "summoningSick": card.get("summoning_sick").and_then(Value::as_bool).unwrap_or(false),
     })
 }
@@ -969,11 +1059,7 @@ fn to_card_ids(cards: Option<&Value>) -> Vec<String> {
         .cloned()
         .unwrap_or_default()
         .iter()
-        .filter_map(|card| {
-            card.get("id")
-                .and_then(Value::as_str)
-                .map(normalize_card_id)
-        })
+        .filter_map(|card| card.get("id").and_then(Value::as_str).map(str::to_string))
         .collect()
 }
 
@@ -993,16 +1079,8 @@ fn to_target_card_ids(cards: Option<&Value>) -> Vec<String> {
         .cloned()
         .unwrap_or_default()
         .iter()
-        .filter_map(|card| {
-            card.get("id")
-                .and_then(Value::as_str)
-                .map(normalize_card_id)
-        })
+        .filter_map(|card| card.get("id").and_then(Value::as_str).map(str::to_string))
         .collect()
-}
-
-fn optional_normalized_card_id(value: Option<&Value>) -> Option<String> {
-    value.and_then(Value::as_str).map(normalize_card_id)
 }
 
 fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
@@ -1018,7 +1096,7 @@ fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
                 .and_then(Value::as_str)
                 .unwrap_or("Unknown Card");
             Some(json!({
-                "id": normalize_card_id(id),
+                "id": id,
                 "name": name,
             }))
         })
@@ -1055,12 +1133,6 @@ fn to_defender_ids(defenders: Option<&Value>) -> Vec<Value> {
             }))
         })
         .collect()
-}
-
-fn normalize_card_id(id: &str) -> String {
-    id.strip_prefix("java-card-")
-        .map(|suffix| format!("engine-card-{suffix}"))
-        .unwrap_or_else(|| id.to_string())
 }
 
 fn action_kind(label: &str) -> Option<&'static str> {

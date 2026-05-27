@@ -1,5 +1,0 @@
-Name:All Is Dust
-ManaCost:7
-Types:Kindred Sorcery Eldrazi
-A:SP$ SacrificeAll | ValidCards$ Permanent.nonColorless | SpellDescription$ Each player sacrifices all permanents they control that are one or more colors.
-Oracle:Each player sacrifices all permanents they control that are one or more colors.

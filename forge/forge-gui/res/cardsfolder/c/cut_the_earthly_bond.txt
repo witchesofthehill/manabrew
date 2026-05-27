@@ -1,5 +1,0 @@
-Name:Cut the Earthly Bond
-ManaCost:U
-Types:Instant Arcane
-A:SP$ ChangeZone | ValidTgts$ Permanent.enchanted | TgtPrompt$ Select target enchanted permanent | Origin$ Battlefield | Destination$ Hand | SpellDescription$ Return target enchanted permanent to its owner's hand.
-Oracle:Return target enchanted permanent to its owner's hand.

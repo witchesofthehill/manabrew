@@ -1,6 +1,0 @@
-Name:Lucent Liminid
-ManaCost:3 W W
-Types:Enchantment Creature Elemental
-PT:3/3
-K:Flying
-Oracle:Flying

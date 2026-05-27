@@ -1,5 +1,0 @@
-Name:Sage's Knowledge
-ManaCost:2 U
-Types:Sorcery
-A:SP$ ChangeZone | Origin$ Graveyard | Destination$ Hand | TgtPrompt$ Choose target sorcery card in your graveyard | ValidTgts$ Sorcery.YouCtrl | SpellDescription$ Return target sorcery card from your graveyard to your hand.
-Oracle:Return target sorcery card from your graveyard to your hand.

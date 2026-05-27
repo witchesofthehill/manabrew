@@ -1,7 +1,0 @@
-Name:Bontu's Last Reckoning
-ManaCost:1 B B
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Creature | SubAbility$ DBNoUntap | SpellDescription$ Destroy all creatures.
-SVar:DBNoUntap:DB$ Effect | ReplacementEffects$ DontUntap | Duration$ UntilTheEndOfYourNextUntap | SpellDescription$ Lands you control don't untap during your next untap step.
-SVar:DontUntap:Event$ Untap | ValidCard$ Land.YouCtrl | ValidStepTurnToController$ Player.Activator | Layer$ CantHappen | Description$ Lands you control don't untap during your next untap step.
-Oracle:Destroy all creatures. Lands you control don't untap during your next untap step.

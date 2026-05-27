@@ -1,7 +1,0 @@
-Name:Chastise
-ManaCost:3 W
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature.attacking | TgtPrompt$ Select target attacking creature | SubAbility$ DBGainLife | SpellDescription$ Destroy target attacking creature. You gain life equal to its power.
-SVar:DBGainLife:DB$ GainLife | Defined$ You | LifeAmount$ X
-SVar:X:Targeted$CardPower
-Oracle:Destroy target attacking creature. You gain life equal to its power.

@@ -1,5 +1,0 @@
-Name:Talas Merchant
-ManaCost:1 U
-Types:Creature Human Pirate
-PT:1/3
-Oracle:

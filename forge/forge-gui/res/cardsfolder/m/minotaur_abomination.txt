@@ -1,5 +1,0 @@
-Name:Minotaur Abomination
-ManaCost:4 B B
-Types:Creature Zombie Minotaur
-PT:4/6
-Oracle:

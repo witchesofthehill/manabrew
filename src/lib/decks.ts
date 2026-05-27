@@ -8,8 +8,12 @@ function normalizeTokenName(name: string): string {
   return name.toLowerCase().replace(/\s+token$/i, "");
 }
 
-export function asDeckCard(deck: Deck, gameCard: GameCard): DeckCard {
-  const pool = getDeckCardPool(deck);
+export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard {
+  // The deck can be missing (e.g. prompt cards carry no ownerId, so the
+  // gameDecks lookup misses, or a hosted opponent's deck isn't local). Match
+  // against an empty pool then fall through to a name/synthetic resolution
+  // rather than dereferencing an undefined deck and crashing the board.
+  const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(
     (c) =>
       c.name === gameCard.name &&
@@ -33,9 +37,26 @@ export function asDeckCard(deck: Deck, gameCard: GameCard): DeckCard {
       `Token archive has no entry for ${gameCard.name} (${gameCard.setCode}#${gameCard.cardNumber})`,
     );
   }
-  throw new Error(
-    `No DeckCard in "${deck.name}" for ${gameCard.name} (${gameCard.setCode}#${gameCard.cardNumber})`,
+  // The engine may not carry the printing through — the hosted Java backend
+  // emits empty setCode/cardNumber for every card — so the exact match misses
+  // deck cards pinned to a specific printing (e.g. a commander). Fall back to
+  // a name match; the singleton deck makes this unambiguous for non-basics.
+  const byName = pool.find((c) => c.name === gameCard.name);
+  if (byName) return byName;
+  // The engine can surface cards that were never in the deck (tokens already
+  // handled above, plus engine-internal objects like effects/emblems). Render
+  // them by name rather than crashing the whole board.
+  console.warn(
+    `asDeckCard: no deck match for "${gameCard.name}" (${gameCard.setCode}#${gameCard.cardNumber}), rendering by name`,
   );
+  return {
+    name: gameCard.name,
+    setCode: gameCard.setCode,
+    cardNumber: gameCard.cardNumber,
+    // `uris` must be present — renderers read `deckCard.uris[resolution]`
+    // directly. Empty means no art (renders by name) rather than a crash.
+    uris: {},
+  } as DeckCard;
 }
 
 export function getDeckCardPool(deck: Deck): DeckCard[] {

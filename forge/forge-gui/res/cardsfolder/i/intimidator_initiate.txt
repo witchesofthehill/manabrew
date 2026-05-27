@@ -1,8 +1,0 @@
-Name:Intimidator Initiate
-ManaCost:R
-Types:Creature Goblin Shaman
-PT:1/1
-T:Mode$ SpellCast | ValidCard$ Card.Red | TriggerZones$ Battlefield | Execute$ TrigPumpCurse | OptionalDecider$ You | TriggerDescription$ Whenever a player casts a red spell, you may pay {1}. If you do, target creature can't block this turn.
-SVar:TrigPumpCurse:AB$ Pump | Cost$ 1 | ValidTgts$ Creature | IsCurse$ True | KW$ HIDDEN CARDNAME can't block.
-SVar:PlayMain1:TRUE
-Oracle:Whenever a player casts a red spell, you may pay {1}. If you do, target creature can't block this turn.

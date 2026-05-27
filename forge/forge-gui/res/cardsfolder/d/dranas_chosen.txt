@@ -1,7 +1,0 @@
-Name:Drana's Chosen
-ManaCost:3 B
-Types:Creature Vampire Shaman Ally
-PT:2/2
-A:AB$ Token | Cost$ T tapXType<1/Ally> | TokenOwner$ You | TokenScript$ b_2_2_zombie | TokenTapped$ True | PrecostDesc$ Cohort — | SpellDescription$ Create a tapped 2/2 black Zombie creature token.
-DeckHints:Type$Ally
-Oracle:Cohort — {T}, Tap an untapped Ally you control: Create a tapped 2/2 black Zombie creature token.

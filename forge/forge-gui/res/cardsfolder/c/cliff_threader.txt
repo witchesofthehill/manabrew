@@ -1,6 +1,0 @@
-Name:Cliff Threader
-ManaCost:1 W
-Types:Creature Kor Scout
-PT:2/1
-K:Landwalk:Mountain
-Oracle:Mountainwalk (This creature can't be blocked as long as defending player controls a Mountain.)

@@ -1,6 +1,0 @@
-Name:Disarm
-ManaCost:U
-Types:Instant
-A:SP$ Unattach | ValidTgts$ Creature | Defined$ Valid Equipment.AttachedTo Card.targetedBy | SpellDescription$ Unattach all Equipment from target creature.
-AI:RemoveDeck:All
-Oracle:Unattach all Equipment from target creature.

@@ -1,6 +1,0 @@
-Name:Blessed Reversal
-ManaCost:1 W
-Types:Instant
-A:SP$ GainLife | LifeAmount$ X | SpellDescription$ You gain 3 life for each creature attacking you.
-SVar:X:Count$Valid Creature.attackingYou/Times.3
-Oracle:You gain 3 life for each creature attacking you.

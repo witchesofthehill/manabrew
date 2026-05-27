@@ -1,6 +1,0 @@
-Name:Warren-Scourge Elf
-ManaCost:1 G
-Types:Creature Elf Warrior
-PT:1/1
-K:Protection:Goblin
-Oracle:Protection from Goblins

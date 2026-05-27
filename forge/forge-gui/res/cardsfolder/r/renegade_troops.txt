@@ -1,6 +1,0 @@
-Name:Renegade Troops
-ManaCost:4 R
-Types:Creature Human Soldier
-PT:4/2
-K:Haste
-Oracle:Haste

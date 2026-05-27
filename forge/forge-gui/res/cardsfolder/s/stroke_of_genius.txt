@@ -1,6 +1,0 @@
-Name:Stroke of Genius
-ManaCost:X 2 U
-Types:Instant
-A:SP$ Draw | ValidTgts$ Player | NumCards$ X | SpellDescription$ Target player draws X cards.
-SVar:X:Count$xPaid
-Oracle:Target player draws X cards.

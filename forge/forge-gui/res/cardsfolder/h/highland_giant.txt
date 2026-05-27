@@ -1,5 +1,0 @@
-Name:Highland Giant
-ManaCost:2 R R
-Types:Creature Giant
-PT:3/4
-Oracle:

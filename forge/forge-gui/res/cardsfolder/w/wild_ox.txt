@@ -1,6 +1,0 @@
-Name:Wild Ox
-ManaCost:3 G
-Types:Creature Ox
-PT:3/3
-K:Landwalk:Swamp
-Oracle:Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)

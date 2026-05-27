@@ -1,5 +1,0 @@
-Name:Terrain Elemental
-ManaCost:1 G
-Types:Creature Elemental
-PT:3/2
-Oracle:

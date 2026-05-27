@@ -32,8 +32,12 @@ import {
 import { DeckGridCard } from "@/components/deck/DeckGridCard";
 import { DeckListControls } from "@/components/deck/DeckListControls";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
 import { toast } from "sonner";
+import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
+import type { ParsedDeckEntry } from "@/lib/deckImport";
+import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { applyDeckFilters } from "@/views/myDecks.utils";
 import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
@@ -57,6 +61,7 @@ export default function DeckEditor() {
     clearDeck,
     setDeckName,
     deleteSavedDeck,
+    addSavedDeck,
     currentDeckId: _currentDeckId,
   } = useDeckStore();
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
@@ -75,6 +80,7 @@ export default function DeckEditor() {
   }));
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(
     () =>
@@ -189,6 +195,73 @@ export default function DeckEditor() {
     clearDeck();
     setDeckName(DEFAULT_DECK_NAME);
     setView("editor");
+  }
+
+  async function handleTextImport(
+    entries: ParsedDeckEntry[],
+    name: string,
+    onProgress: (fraction: number) => void,
+  ) {
+    const deckName = name.trim() || "Imported Deck";
+    onProgress(0.05);
+    const scryfallMap = await fetchCardCollection(entries.map((e) => ({ name: e.name })));
+    onProgress(0.55);
+    // Theres some cards that have name variants. These are going to fail,
+    // we collect them and try again with fuzzy search
+    const stragglers = [
+      ...new Set(entries.map((e) => e.name).filter((n) => !scryfallMap.get(n.toLowerCase()))),
+    ];
+    let resolved = 0;
+    await Promise.all(
+      stragglers.map((n) =>
+        fetchCardByFuzzyName(n)
+          .then((sc) => scryfallMap.set(n.toLowerCase(), sc))
+          .catch((err) => console.warn(`[import] fuzzy "${n}" failed`, err))
+          .finally(() => {
+            resolved += 1;
+            onProgress(0.55 + 0.35 * (resolved / stragglers.length));
+          }),
+      ),
+    );
+    onProgress(0.9);
+    const cards: DeckCard[] = [];
+    const sideboard: DeckCard[] = [];
+    const notFound: string[] = [];
+    for (const { name: cardName, count, side } of entries) {
+      const sc = scryfallMap.get(cardName.toLowerCase());
+      if (!sc) {
+        notFound.push(cardName);
+        continue;
+      }
+      for (let i = 0; i < count; i++) {
+        (side ? sideboard : cards).push({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
+      }
+    }
+    if (cards.length === 0 && sideboard.length === 0) {
+      throw new Error("None of the cards could be found on Scryfall");
+    }
+    const id = addSavedDeck({
+      name: deckName,
+      format: "standard",
+      cards,
+      sideboard,
+      attractions: [],
+      contraptions: [],
+      schemes: [],
+      planes: [],
+    });
+    onProgress(1);
+    if (notFound.length > 0) {
+      const shown = notFound.slice(0, 3).join(", ");
+      const extra = notFound.length > 3 ? ` +${notFound.length - 3} more` : "";
+      toast.warning(`Imported "${deckName}" — couldn't find: ${shown}${extra}`);
+    } else {
+      toast.success(`Imported "${deckName}"`);
+    }
+    console.log(
+      `[import] built ${cards.length} main / ${sideboard.length} side, id=${id}, savedDeck.cards=${useDeckStore.getState().savedDecks.find((s) => s.id === id)?.deck.cards.length}`,
+    );
+    handleSelectDeck(id);
   }
 
   function handleBack() {
@@ -342,20 +415,34 @@ export default function DeckEditor() {
             <div className="p-4">
               {/* Grid: first cell = New Deck button, then valid decks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {/* New Deck slot */}
-                <button
-                  type="button"
-                  onClick={handleNewDeck}
-                  className={cn(
-                    "aspect-[4/3] rounded-lg border-2 border-dashed border-muted-foreground/30",
-                    "flex flex-col items-center justify-center gap-1.5",
-                    "text-muted-foreground hover:text-foreground hover:border-primary",
-                    "transition-all cursor-pointer bg-muted/30 hover:bg-muted/60",
-                  )}
-                >
-                  <Plus className="h-6 w-6" />
-                  <span className="text-xs font-medium">New Deck</span>
-                </button>
+                {/* New Deck / Import slot */}
+                <div className="group relative">
+                  <button
+                    type="button"
+                    onClick={handleNewDeck}
+                    className={cn(
+                      "aspect-[4/3] w-full rounded-lg border-2 border-dashed border-muted-foreground/30",
+                      "flex flex-col items-center justify-center gap-1.5",
+                      "cursor-pointer bg-muted/30 text-muted-foreground transition-all",
+                      "group-hover:border-primary group-hover:bg-muted/60 group-hover:text-foreground",
+                    )}
+                  >
+                    <Plus className="h-6 w-6" />
+                    <span className="text-xs font-medium">New deck</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportDialogOpen(true)}
+                    className={cn(
+                      "absolute bottom-2 left-1/2 -translate-x-1/2",
+                      "flex items-center gap-1 rounded-md px-2 py-1 text-[11px]",
+                      "text-muted-foreground transition-colors hover:bg-background/70 hover:text-foreground",
+                    )}
+                  >
+                    <Download className="h-3" />
+                    Import
+                  </button>
+                </div>
 
                 {filteredValid.map((s) => (
                   <DeckGridCard
@@ -434,6 +521,12 @@ export default function DeckEditor() {
             </div>
           </ScrollArea>
         </div>
+
+        <ImportDeckTextDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          onImport={handleTextImport}
+        />
 
         {/* Rename dialog */}
         <Dialog

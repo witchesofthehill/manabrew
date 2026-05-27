@@ -1,5 +1,0 @@
-Name:Deluge
-ManaCost:2 U
-Types:Instant
-A:SP$ TapAll | ValidCards$ Creature.withoutFlying | SpellDescription$ Tap all creatures without flying.
-Oracle:Tap all creatures without flying.

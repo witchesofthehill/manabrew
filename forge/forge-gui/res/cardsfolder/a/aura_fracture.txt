@@ -1,6 +1,0 @@
-Name:Aura Fracture
-ManaCost:2 W
-Types:Enchantment
-A:AB$ Destroy | Cost$ Sac<1/Land> | ValidTgts$ Enchantment | SpellDescription$ Destroy target enchantment.
-SVar:NonStackingEffect:True
-Oracle:Sacrifice a land: Destroy target enchantment.

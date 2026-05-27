@@ -1,7 +1,0 @@
-Name:Confiscate
-ManaCost:4 U U
-Types:Enchantment Aura
-K:Enchant:Permanent
-SVar:AttachAILogic:GainControl
-S:Mode$ Continuous | Affected$ Permanent.EnchantedBy | GainControl$ You | Description$ You control enchanted permanent.
-Oracle:Enchant permanent\nYou control enchanted permanent.

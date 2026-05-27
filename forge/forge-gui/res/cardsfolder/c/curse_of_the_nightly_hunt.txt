@@ -1,7 +1,0 @@
-Name:Curse of the Nightly Hunt
-ManaCost:2 R
-Types:Enchantment Aura Curse
-K:Enchant:Player
-SVar:AttachAILogic:Curse
-S:Mode$ MustAttack | ValidCreature$ Creature.EnchantedPlayerCtrl | Description$ Creatures enchanted player controls attack each combat if able.
-Oracle:Enchant player\nCreatures enchanted player controls attack each combat if able.

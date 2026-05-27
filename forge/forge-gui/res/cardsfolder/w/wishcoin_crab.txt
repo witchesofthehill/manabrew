@@ -1,5 +1,0 @@
-Name:Wishcoin Crab
-ManaCost:3 U
-Types:Creature Crab
-PT:2/5
-Oracle:

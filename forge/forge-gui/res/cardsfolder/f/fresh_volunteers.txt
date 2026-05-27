@@ -1,5 +1,0 @@
-Name:Fresh Volunteers
-ManaCost:1 W
-Types:Creature Human Rebel
-PT:2/2
-Oracle:

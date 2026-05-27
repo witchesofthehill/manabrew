@@ -58,6 +58,7 @@ export const STACK_SEED_TTL_MS = 1000;
 export const HAND_ACTIONS_GAP_PX = 15;
 // How often we flush FPS samples to the dev store.
 export const FPS_SAMPLE_INTERVAL_MS = 500;
+export const PIXI_MAX_FPS = 60;
 
 // ── Animation ──────────────────────────────────────────────────────────────
 export const BATTLEFIELD_LERP = 0.15;

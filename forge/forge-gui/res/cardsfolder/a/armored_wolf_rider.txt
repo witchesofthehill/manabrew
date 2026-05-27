@@ -1,5 +1,0 @@
-Name:Armored Wolf-Rider
-ManaCost:3 G W
-Types:Creature Elf Knight
-PT:4/6
-Oracle:

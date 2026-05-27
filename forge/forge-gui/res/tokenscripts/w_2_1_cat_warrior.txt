@@ -1,6 +1,0 @@
-Name:Cat Warrior Token
-ManaCost:no cost
-Colors:white
-Types:Creature Cat Warrior
-PT:2/1
-Oracle:

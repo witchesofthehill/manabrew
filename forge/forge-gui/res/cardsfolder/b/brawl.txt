@@ -1,8 +1,0 @@
-Name:Brawl
-ManaCost:3 R R
-Types:Instant
-A:SP$ AnimateAll | ValidCards$ Creature | Abilities$ ThrowPunch | SpellDescription$ Until end of turn, all creatures gain "{T}: This creature deals damage equal to its power to target creature."
-SVar:ThrowPunch:AB$ DealDamage | Cost$ T | ValidTgts$ Creature | NumDmg$ BrawlX | SpellDescription$ CARDNAME deals damage equal to its power to target creature.
-SVar:BrawlX:Count$CardPower
-AI:RemoveDeck:All
-Oracle:Until end of turn, all creatures gain "{T}: This creature deals damage equal to its power to target creature."

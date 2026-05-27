@@ -1,7 +1,0 @@
-Name:Shambling Ghoul
-ManaCost:1 B
-Types:Creature Zombie
-PT:2/3
-R:Event$ Moved | ValidCard$ Card.Self | Destination$ Battlefield | ReplacementResult$ Updated | ReplaceWith$ ETBTapped | Description$ CARDNAME enters tapped.
-SVar:ETBTapped:DB$ Tap | Defined$ Self | ETB$ True
-Oracle:Shambling Ghoul enters tapped.

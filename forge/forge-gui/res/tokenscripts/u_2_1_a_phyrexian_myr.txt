@@ -1,6 +1,0 @@
-Name:Phyrexian Myr Token
-ManaCost:no cost
-Colors:blue
-Types:Artifact Creature Phyrexian Myr
-PT:2/1
-Oracle:

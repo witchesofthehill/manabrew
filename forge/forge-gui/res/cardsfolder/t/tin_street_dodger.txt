@@ -1,8 +1,0 @@
-Name:Tin Street Dodger
-ManaCost:R
-Types:Creature Goblin Rogue
-PT:1/1
-K:Haste
-A:AB$ Effect | Cost$ R | Duration$ UntilHostLeavesPlayOrEOT | StaticAbilities$ KWPump | SpellDescription$ CARDNAME can't be blocked this turn except by creatures with defender.
-SVar:KWPump:Mode$ CantBlockBy | ValidAttacker$ Creature.EffectSource | ValidBlocker$ Creature.withoutDefender | Description$ EFFECTSOURCE can't be blocked this turn except by creatures with defender.
-Oracle:Haste\n{R}: Tin Street Dodger can't be blocked this turn except by creatures with defender.

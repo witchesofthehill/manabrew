@@ -547,6 +547,7 @@ class WebServerApi implements IServerApi {
   private serverPassword: string | null = null;
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/forge_wasm")> | null = null;
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -570,8 +571,7 @@ class WebServerApi implements IServerApi {
 
   async connect(params: ServerConnectParams): Promise<void> {
     await this.disconnect();
-    const scheme = params.port === 443 ? "wss" : "ws";
-    const url = `${scheme}://${params.host}:${params.port}`;
+    const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
 
@@ -585,6 +585,7 @@ class WebServerApi implements IServerApi {
           username: params.username,
           password: params.password,
         });
+        this.startKeepalive();
         resolve();
       };
 
@@ -609,7 +610,22 @@ class WebServerApi implements IServerApi {
     });
   }
 
+  private startKeepalive(): void {
+    this.stopKeepalive();
+    this.keepaliveTimer = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) this.send({ type: "Ping" });
+    }, 30_000);
+  }
+
+  private stopKeepalive(): void {
+    if (this.keepaliveTimer !== null) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
+  }
+
   async disconnect(): Promise<void> {
+    this.stopKeepalive();
     for (const username of [...this.bots.keys()]) {
       await this.removeAiBot(username);
     }
@@ -840,6 +856,14 @@ class WebServerApi implements IServerApi {
       this.eventBus.emit(mapping[0], mapping[1]);
     }
   }
+}
+
+function buildServerUrl(params: ServerConnectParams): string {
+  if (/^wss?:\/\//i.test(params.host)) {
+    return params.host;
+  }
+  const scheme = params.port === 443 ? "wss" : "ws";
+  return `${scheme}://${params.host}:${params.port}`;
 }
 
 // ============================================================================

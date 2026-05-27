@@ -1,5 +1,0 @@
-Name:Aegis Turtle
-ManaCost:U
-Types:Creature Turtle
-PT:0/5
-Oracle:

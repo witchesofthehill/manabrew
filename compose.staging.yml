@@ -13,6 +13,10 @@ services:
         VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
+        # Make the hosted (Java) engine available on staging so the Settings
+        # engine toggle shows. Actual use is per-user (preferHostedEngine);
+        # default play stays client-side.
+        VITE_HOSTED_AI_ENABLED: "true"
     restart: unless-stopped
     expose:
       - "80"
@@ -33,6 +37,22 @@ services:
       RUST_LOG: "forge_server=info"
     expose:
       - "9443"
+    restart: unless-stopped
+
+  # Hosted Java engine for the staging preview, so the Settings engine toggle
+  # has a node to talk to. Its room is `hosted` (unlisted in the lobby).
+  self-hosted-node-staging:
+    build:
+      context: .
+      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server-staging:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      RUST_LOG: "self_hosted_node=info"
+    depends_on:
+      - forge-server-staging
     restart: unless-stopped
 
 networks:

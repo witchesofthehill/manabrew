@@ -1,7 +1,0 @@
-Name:Slay
-ManaCost:2 B
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature.Green | TgtPrompt$ Select target green creature | NoRegen$ True | SpellDescription$ Destroy target green creature. It can't be regenerated. | SubAbility$ DBDraw
-SVar:DBDraw:DB$ Draw | SpellDescription$ Draw a card.
-AI:RemoveDeck:Random
-Oracle:Destroy target green creature. It can't be regenerated.\nDraw a card.

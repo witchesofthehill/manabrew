@@ -16,6 +16,9 @@
 manabrew.app {
     root * /srv/manabrew
 
+    # Compress text assets — the JS bundle is ~8 MB raw, ~2 MB gzipped.
+    encode zstd gzip
+
     # Module-worker bundles need require-corp; matched before the broader
     # asset block below.
     @worker path_regexp \.worker[.-][^/]+\.js$

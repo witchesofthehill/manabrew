@@ -1,6 +1,0 @@
-Name:Valor Made Real
-ManaCost:W
-Types:Instant
-A:SP$ Pump | ValidTgts$ Creature | CanBlockAny$ True | SpellDescription$ Target creature can block any number of creatures this turn.
-AI:RemoveDeck:All
-Oracle:Target creature can block any number of creatures this turn.

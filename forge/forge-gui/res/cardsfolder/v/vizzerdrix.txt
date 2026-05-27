@@ -1,5 +1,0 @@
-Name:Vizzerdrix
-ManaCost:6 U
-Types:Creature Rabbit Beast
-PT:6/6
-Oracle:

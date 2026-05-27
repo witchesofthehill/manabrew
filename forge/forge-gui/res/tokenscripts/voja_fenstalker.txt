@@ -1,7 +1,0 @@
-Name:Voja Fenstalker
-ManaCost:no cost
-Colors:white,green
-Types:Legendary Creature Wolf
-PT:5/5
-K:Trample
-Oracle:Trample

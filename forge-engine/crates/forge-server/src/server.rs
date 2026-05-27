@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{debug, error, info};
 
+use crate::cleanup::cleanup_loop;
 use crate::connection::handle_connection;
 use crate::state::ServerState;
 
@@ -15,6 +16,8 @@ pub async fn run_server(state: Arc<ServerState>, addr: SocketAddr) {
     info!("[server] Forge Server listening on ws://{}", addr);
     info!("[server] Server key: {}", mask_key(&state.server_key));
     info!("[server] Max rooms: {}", state.max_rooms);
+
+    tokio::spawn(cleanup_loop(state.clone()));
 
     loop {
         match listener.accept().await {

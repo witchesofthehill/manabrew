@@ -1,5 +1,0 @@
-Name:Flame Spill
-ManaCost:2 R
-Types:Instant
-A:SP$ DealDamage | ValidTgts$ Creature | NumDmg$ 4 | ExcessDamage$ TargetedController | SpellDescription$ CARDNAME deals 4 damage to target creature. Excess damage is dealt to that creature's controller instead.
-Oracle:Flame Spill deals 4 damage to target creature. Excess damage is dealt to that creature's controller instead.

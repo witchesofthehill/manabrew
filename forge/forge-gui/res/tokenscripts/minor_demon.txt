@@ -1,6 +1,0 @@
-Name:Minor Demon
-ManaCost:no cost
-Colors:black,red
-Types:Creature Demon
-PT:1/1
-Oracle:

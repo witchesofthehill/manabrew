@@ -1,6 +1,0 @@
-Name:Steadfastness
-ManaCost:1 W
-Types:Sorcery
-A:SP$ PumpAll | ValidCards$ Creature.YouCtrl | NumDef$ +3 | SpellDescription$ Creatures you control get +0/+3 until end of turn.
-AI:RemoveDeck:All
-Oracle:Creatures you control get +0/+3 until end of turn.

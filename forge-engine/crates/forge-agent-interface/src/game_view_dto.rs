@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::ids_codec::{card_id_str, player_id_str, stack_id_str};
 
 /// Frontend-compatible game state snapshot.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameViewDto {
     pub game_id: String,
@@ -31,6 +31,8 @@ pub struct GameViewDto {
     pub opponent_zones: HashMap<String, OpponentZonesDto>,
     pub game_over: bool,
     pub winner_id: Option<String>,
+    #[serde(default)]
+    pub conceded_player_ids: Vec<String>,
     /// The player who is the current monarch (issue #22).
     pub monarch_id: Option<String>,
     /// The player who holds the initiative (issue #22).
@@ -56,6 +58,7 @@ impl GameViewDto {
             opponent_zones: HashMap::new(),
             game_over: false,
             winner_id: None,
+            conceded_player_ids: vec![],
             monarch_id: None,
             initiative_holder_id: None,
         }
@@ -106,8 +109,8 @@ pub struct PlayerDto {
     pub speed: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct CardDto {
     pub id: String,
     pub name: String,
@@ -197,8 +200,8 @@ pub struct CardDto {
     pub foil: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,
@@ -258,10 +261,11 @@ pub enum StackTargetKindDto {
 /// Semantic classification of what a targeting choice will do to its target.
 /// Derived from the source `SpellAbility`'s `ApiType` and params. The UI uses
 /// this to choose a pointer icon and the per-intent glow color.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TargetingIntent {
     /// Damage (DealDamage, EachDamage, DamageAll targeting).
+    #[default]
     Damage,
     /// Outright destruction (Destroy, DestroyAll).
     Destroy,
@@ -914,6 +918,12 @@ impl GameViewDto {
             opponent_zones,
             game_over: game.game_over,
             winner_id: game.winner.map(player_id_str),
+            conceded_player_ids: game
+                .players
+                .iter()
+                .filter(|p| p.has_conceded)
+                .map(|p| player_id_str(p.id))
+                .collect(),
             monarch_id: game.monarch.map(player_id_str),
             initiative_holder_id: game.initiative_holder.map(player_id_str),
         }

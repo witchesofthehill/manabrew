@@ -1,5 +1,0 @@
-Name:Touch of Brilliance
-ManaCost:3 U
-Types:Sorcery
-A:SP$ Draw | NumCards$ 2 | SpellDescription$ Draw two cards.
-Oracle:Draw two cards.

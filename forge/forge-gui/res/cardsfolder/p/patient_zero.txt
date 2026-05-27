@@ -1,8 +1,0 @@
-Name:Patient Zero
-ManaCost:1 B
-Types:Creature Zombie
-PT:2/2
-K:Lifelink
-S:Mode$ NoCleanupDamage | ValidCard$ Creature.OppCtrl | Description$ Damage isn't removed from creatures your opponents control during cleanup steps.
-DeckHas:Ability$LifeGain
-Oracle:Lifelink\nDamage isn't removed from creatures your opponents control during cleanup steps.

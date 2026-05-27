@@ -1375,6 +1375,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return (
       <GameOverScreen
         winnerId={gameView.winnerId}
+        concededPlayerIds={gameView.concededPlayerIds}
         me={me}
         opponents={opponents}
         turn={gameView.turn}

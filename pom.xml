@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven build aggregator (reactor only). It exists so the project-local
+  forge-harness module builds in the SAME reactor as the Forge engine modules
+  it depends on (forge-core/game/ai/gui), which live in the forge/ submodule.
+  Building them together is what lets Maven resolve the engine's ${revision}
+  CI-friendly version without installing/flattening across reactors.
+
+  This is NOT a parent POM — forge-harness still inherits from forge/ (the fork).
+  It is irrelevant to the Rust/JS/Tauri build and is only read by Maven.
+
+  Build the harness with:  mvn -pl forge-harness -am package -DskipTests
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>design.manabrew</groupId>
+    <artifactId>manabrew-build</artifactId>
+    <version>0</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>forge</module>
+        <module>forge-harness</module>
+    </modules>
+
+</project>

@@ -1,6 +1,0 @@
-Name:Scavenging Scarab
-ManaCost:3 B
-Types:Creature Insect
-PT:3/3
-S:Mode$ CantBlock | ValidCard$ Card.Self | Description$ CARDNAME can't block.
-Oracle:Scavenging Scarab can't block.

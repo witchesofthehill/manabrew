@@ -1,6 +1,0 @@
-Name:Rock Lobster
-ManaCost:4
-Types:Artifact Creature Lobster
-PT:4/3
-S:Mode$ CantAttack,CantBlock | ValidCard$ Creature.namedScissors Lizard | Description$ Creatures named Scissors Lizard can't attack or block.
-Oracle:Creatures named Scissors Lizard can't attack or block.

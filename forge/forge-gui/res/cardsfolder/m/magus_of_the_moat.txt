@@ -1,7 +1,0 @@
-Name:Magus of the Moat
-ManaCost:2 W W
-Types:Creature Human Wizard
-PT:0/3
-S:Mode$ CantAttack | ValidCard$ Creature.withoutFlying | Description$ Creatures without flying can't attack.
-AI:RemoveDeck:Random
-Oracle:Creatures without flying can't attack.

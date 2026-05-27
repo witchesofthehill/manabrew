@@ -9,9 +9,13 @@ import {
   startManualRoomSync,
   stopManualRoomSync as stopActiveManualRoomSync,
 } from "@/game";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
+import { startHostedAiGame } from "@/game/hostedAiPlay";
+import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
-import { useServerStore } from "./useServerStore";
+import { usePreferencesStore } from "./usePreferencesStore";
+import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
 import type { AgentPrompt } from "./gameStore.types";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
@@ -99,7 +103,61 @@ async function initializeGame({
 }): Promise<void> {
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
-  const startingLife = format?.deckRules.startingLife ?? 20;
+  const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
+
+  // On web, "Play vs AI" can be routed through a self-hosted-node room when
+  // the deployment enables it: the node runs the engine and spawns the bot,
+  // and the browser attaches as a non-host multiplayer client.
+  if (
+    getPlatform().type === "web" &&
+    isHostedEngineAvailable() &&
+    usePreferencesStore.getState().preferHostedEngine &&
+    opponentDeck
+  ) {
+    set({
+      isGameActive: true,
+      gameView: null,
+      currentPrompt: null,
+      gameLog: [],
+      snapshots: [],
+      deferredQueue: [],
+      isFlashing: false,
+      isWaitingForResponse: false,
+      gameConfig: { formatId: selectedFormatId, startingLife },
+      isPrefetchingCards: true,
+      debugInfo: "Starting hosted Forge engine...",
+    });
+    const hosted = await startHostedAiGame({
+      playerDeck: deck,
+      opponentDeck,
+      formatId: selectedFormatId,
+      commanderName: commanderName ?? null,
+    });
+    resetSelectedGameRuntime();
+    const hostedRuntime = getSelectedGameRuntime();
+    const hostedDecks: Record<string, Deck> = {};
+    hosted.playerOrder.forEach((_, index) => {
+      hostedDecks[`player-${index}`] = hosted.decks[index];
+    });
+    set({
+      isMultiplayer: true,
+      isHost: false,
+      myPlayerSlot: `player-${hosted.enginePlayerIndex}`,
+      gameDecks: hostedDecks,
+      debugInfo: "Joining hosted Forge engine...",
+    });
+    await hostedRuntime.api.startMultiplayerGame({
+      playerNames: hosted.playerOrder,
+      decks: hosted.decks,
+      commanderNames: hosted.commanderNames,
+      enginePlayerIndex: hosted.enginePlayerIndex,
+      localIsHost: false,
+      startingLife: hosted.startingLife,
+    });
+    set({ debugInfo: "Hosted Forge game started.", isPrefetchingCards: false });
+    return;
+  }
+
   const gameDecks: Record<string, Deck> = { "player-0": deck };
   if (opponentDeck) gameDecks["player-1"] = opponentDeck;
   const runtime = getSelectedGameRuntime();
@@ -560,45 +618,67 @@ export const useGameStore = create<GameState>()(
         get().respond({ type: "rollSwapValueDecision", choice });
       },
 
-      concede: () => {
+      concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
           void get().endGame();
           return;
         }
-        get().respond({ type: "concede" });
+        // Await the concede send so the relay-bound message is on the wire
+        // before we tear down the runtime / leave the room — otherwise the
+        // host engine never sees the concede and waits out the 120 s
+        // recv_timeout while the other players sit idle.
+        try {
+          await get().respond({ type: "concede" });
+        } catch (e) {
+          console.warn("[store] concede respond failed:", e);
+        }
+        // Conceding always exits the room: the player explicitly opted out
+        // of the match, so don't strand them on the game-over screen
+        // waiting for the GameOver prompt to round-trip.
+        void get().endGame();
       },
 
       endGame: async () => {
+        const runtime = getSelectedGameRuntime();
+        const wasMultiplayer = get().isMultiplayer;
+        set({
+          isGameActive: false,
+          gameView: null,
+          currentPrompt: null,
+          gameLog: [],
+          snapshots: [],
+          deferredQueue: [],
+          isFlashing: false,
+          isWaitingForResponse: false,
+          isMultiplayer: false,
+          isHost: false,
+          myPlayerSlot: null,
+          gameDecks: {},
+        });
+        stopActiveManualRoomSync();
+        resetSelectedGameRuntime();
+        const withTimeout = <T>(p: Promise<T>, label: string) =>
+          Promise.race([
+            p,
+            new Promise<void>((resolve) =>
+              setTimeout(() => {
+                console.warn(`${label} timed out after 2s`);
+                resolve();
+              }, 2000),
+            ),
+          ]);
         try {
-          const runtime = getSelectedGameRuntime();
-          const wasMultiplayer = get().isMultiplayer;
-          await runtime.api.endGame();
-          if (wasMultiplayer) {
-            try {
-              await useServerStore.getState().leaveRoom();
-            } catch (e) {
-              console.debug("Failed to leave multiplayer room after game end:", e);
-            }
-          }
-          stopActiveManualRoomSync();
-          resetSelectedGameRuntime();
-          set({
-            isGameActive: false,
-            gameView: null,
-            currentPrompt: null,
-            gameLog: [],
-            snapshots: [],
-            deferredQueue: [],
-            isFlashing: false,
-            isWaitingForResponse: false,
-            isMultiplayer: false,
-            isHost: false,
-            myPlayerSlot: null,
-            gameDecks: {},
-          });
+          await withTimeout(runtime.api.endGame(), "runtime.endGame()");
         } catch (e) {
-          console.error("Failed to end game:", e);
+          console.warn("runtime.endGame() failed:", e);
+        }
+        if (wasMultiplayer) {
+          try {
+            await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
+          } catch (e) {
+            console.warn("Failed to leave multiplayer room after game end:", e);
+          }
         }
       },
 

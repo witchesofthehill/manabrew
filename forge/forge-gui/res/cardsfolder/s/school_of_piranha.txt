@@ -1,7 +1,0 @@
-Name:School of Piranha
-ManaCost:1 U
-Types:Creature Fish
-PT:3/3
-T:Mode$ Phase | Phase$ Upkeep | ValidPlayer$ You | TriggerZones$ Battlefield | Execute$ TrigUpkeep | TriggerDescription$ At the beginning of your upkeep, sacrifice CARDNAME unless you pay {1}{U}.
-SVar:TrigUpkeep:DB$ Sacrifice | UnlessPayer$ You | UnlessCost$ 1 U
-Oracle:At the beginning of your upkeep, sacrifice School of Piranha unless you pay {1}{U}.

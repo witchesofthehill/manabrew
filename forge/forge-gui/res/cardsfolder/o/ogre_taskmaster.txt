@@ -1,6 +1,0 @@
-Name:Ogre Taskmaster
-ManaCost:3 R
-Types:Creature Ogre
-PT:4/3
-S:Mode$ CantBlock | ValidCard$ Card.Self | Description$ CARDNAME can't block.
-Oracle:Ogre Taskmaster can't block.

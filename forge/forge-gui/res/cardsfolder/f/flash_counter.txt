@@ -1,5 +1,0 @@
-Name:Flash Counter
-ManaCost:1 U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target instant spell | ValidTgts$ Instant | SpellDescription$ Counter target instant spell.
-Oracle:Counter target instant spell.

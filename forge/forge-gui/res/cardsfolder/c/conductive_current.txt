@@ -1,9 +1,0 @@
-Name:Conductive Current
-ManaCost:R R R
-Types:Sorcery
-A:SP$ DamageAll | NumDmg$ 3 | ValidCards$ Creature | ValidDescription$ each creature. | SubAbility$ DBChoose | SpellDescription$ CARDNAME deals 3 damage to each creature.
-SVar:DBChoose:DB$ ChooseCard | ChoiceZone$ Hand | Choices$ Instant.YouOwn,Sorcery.YouOwn | ChoiceDesc$ instant or sorcery | ChoiceTitle$ Choose an instant or sorcery card in your hand | Mandatory$ True | SubAbility$ DBAnimate | SpellDescription$ Choose an instant or sorcery card in your hand.
-SVar:DBAnimate:DB$ Animate | Defined$ ChosenCard | Replacements$ PerpDamageRep | Duration$ Perpetual | StackDescription$ SpellDescription | SpellDescription$ It perpetually gains "If this spell would deal noncombat damage to a permanent or player, it deals that much damage plus 2 instead."
-SVar:PerpDamageRep:Event$ DamageDone | ValidSource$ Card.Self | ValidTarget$ Permanent,Player | ReplaceWith$ DmgPlus2 | Description$ If this spell would deal noncombat damage to a permanent or player, it deals that much damage plus 2 instead.
-SVar:DmgPlus2:DB$ ReplaceEffect | VarName$ DamageAmount | VarValue$ ReplaceCount$DamageAmount/Plus.2
-Oracle:Conductive Current deals 3 damage to each creature. Choose an instant or sorcery card in your hand. It perpetually gains "If this spell would deal noncombat damage to a permanent or player, it deals that much damage plus 2 instead."

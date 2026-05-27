@@ -1,5 +1,0 @@
-Name:Hulking Devil
-ManaCost:3 R
-Types:Creature Devil
-PT:5/2
-Oracle:

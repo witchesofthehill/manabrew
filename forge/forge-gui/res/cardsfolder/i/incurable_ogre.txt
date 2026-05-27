@@ -1,5 +1,0 @@
-Name:Incurable Ogre
-ManaCost:3 R
-Types:Creature Ogre Mutant
-PT:5/1
-Oracle:

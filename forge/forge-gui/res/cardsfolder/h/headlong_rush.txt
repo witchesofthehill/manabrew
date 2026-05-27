@@ -1,5 +1,0 @@
-Name:Headlong Rush
-ManaCost:1 R
-Types:Instant
-A:SP$ PumpAll | ValidCards$ Creature.attacking | KW$ First Strike | SpellDescription$ Attacking creatures gain first strike until end of turn.
-Oracle:Attacking creatures gain first strike until end of turn.

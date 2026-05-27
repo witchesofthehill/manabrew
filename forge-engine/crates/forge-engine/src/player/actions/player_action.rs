@@ -10,6 +10,7 @@ pub const STATIC_ALTERNATIVE_ABILITY_INDEX: usize = usize::MAX;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlayerAction {
     PassPriority,
+    Concede,
     FinishTargeting,
     CastSpell(PlayOption),
     ActivateMana(CardId, Option<usize>),

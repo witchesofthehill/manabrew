@@ -1,5 +1,0 @@
-Name:Frazzle
-ManaCost:3 U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target nonblue spell | ValidTgts$ Card.nonBlue | SpellDescription$ Counter target nonblue spell.
-Oracle:Counter target nonblue spell.

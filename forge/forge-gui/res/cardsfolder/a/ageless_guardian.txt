@@ -1,5 +1,0 @@
-Name:Ageless Guardian
-ManaCost:1 W
-Types:Creature Spirit Soldier
-PT:1/4
-Oracle:

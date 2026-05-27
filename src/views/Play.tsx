@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useMemo, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
 import Game from "./Game";
@@ -16,11 +16,30 @@ interface MultiplayerLocationState {
 
 export default function Play() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isGameActive, startGame, startMultiplayerGame, setMultiplayerState } = useGameStore();
   const multiplayerStarted = useRef(false);
+  const gameWasActive = useRef(false);
 
   const routeState = location.state as MultiplayerLocationState | null;
-  const mpState = routeState && "multiplayer" in routeState ? routeState : null;
+  const mpState = useMemo(
+    () => (routeState && "multiplayer" in routeState ? routeState : null),
+    [routeState],
+  );
+
+  // Route state outlives the game; without this, ending a multiplayer game
+  // falls back to the "Starting multiplayer game..." waiting screen.
+  useEffect(() => {
+    if (isGameActive) {
+      gameWasActive.current = true;
+      return;
+    }
+    if (gameWasActive.current && mpState?.multiplayer) {
+      gameWasActive.current = false;
+      multiplayerStarted.current = false;
+      navigate("/lobby", { replace: true });
+    }
+  }, [isGameActive, mpState, navigate]);
 
   // Handle multiplayer game start from lobby navigation
   useEffect(() => {

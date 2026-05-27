@@ -1,0 +1,4 @@
+[submodule "forge"]
+	path = forge
+	url = https://github.com/witchesofthehill/forge.git
+	branch = manabrew

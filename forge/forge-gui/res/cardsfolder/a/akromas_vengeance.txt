@@ -1,6 +1,0 @@
-Name:Akroma's Vengeance
-ManaCost:4 W W
-Types:Sorcery
-A:SP$ DestroyAll | ValidCards$ Artifact,Creature,Enchantment | SpellDescription$ Destroy all artifacts, creatures, and enchantments.
-K:Cycling:3
-Oracle:Destroy all artifacts, creatures, and enchantments.\nCycling {3} ({3}, Discard this card: Draw a card.)

@@ -29,6 +29,37 @@ export function parseDeckUrl(input: string): ParsedDeckUrl | null {
   return null;
 }
 
+export interface ParsedDeckEntry {
+  name: string;
+  count: number;
+  side: boolean;
+}
+
+const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
+const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
+const SET_SUFFIX_REGEX = /\s+\([A-Za-z0-9]{2,6}\)(?:\s+[\w-]+)?(?:\s+\*F\*)?$/i;
+
+export function parseDeckListText(text: string): ParsedDeckEntry[] {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  let inSide = false;
+  const entries: ParsedDeckEntry[] = [];
+  for (const line of lines) {
+    if (SIDEBOARD_LINE_REGEX.test(line)) {
+      inSide = true;
+      continue;
+    }
+    const match = line.match(DECK_LINE_REGEX);
+    if (!match) continue;
+    const name = match[2].trim().replace(SET_SUFFIX_REGEX, "").trim();
+    if (!name) continue;
+    entries.push({ count: parseInt(match[1], 10), name, side: inSide });
+  }
+  return entries;
+}
+
 export async function fetchDeckBySource(
   source: DeckSource,
   id: string,

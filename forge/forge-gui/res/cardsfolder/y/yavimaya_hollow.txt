@@ -1,6 +1,0 @@
-Name:Yavimaya Hollow
-ManaCost:no cost
-Types:Legendary Land
-A:AB$ Mana | Cost$ T | Produced$ C | SpellDescription$ Add {C}.
-A:AB$ Regenerate | Cost$ G T | ValidTgts$ Creature | SpellDescription$ Regenerate target creature.
-Oracle:{T}: Add {C}.\n{G}, {T}: Regenerate target creature.

@@ -1,6 +1,0 @@
-Name:Zombie Employee Token
-ManaCost:no cost
-Colors:black
-Types:Creature Zombie Employee
-PT:2/2
-Oracle:

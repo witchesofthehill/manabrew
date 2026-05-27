@@ -1,9 +1,0 @@
-Name:Yoke of the Damned
-ManaCost:1 B
-Types:Enchantment Aura
-K:Enchant:Creature
-SVar:AttachAILogic:Curse
-T:Mode$ ChangesZone | Origin$ Battlefield | ValidCard$ Creature | Destination$ Graveyard | TriggerZones$ Battlefield | Execute$ TrigDestroy | TriggerDescription$ When a creature dies, destroy enchanted creature.
-SVar:TrigDestroy:DB$ Destroy | Defined$ Enchanted
-SVar:NonStackingAttachEffect:True
-Oracle:Enchant creature\nWhen a creature dies, destroy enchanted creature.

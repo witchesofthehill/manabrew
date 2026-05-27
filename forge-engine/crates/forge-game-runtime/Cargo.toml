@@ -9,3 +9,4 @@ forge-carddb = { path = "../forge-carddb" }
 forge-engine-core = { path = "../forge-engine" }
 forge-foundation = { path = "../forge-foundation" }
 rand = "0.8"
+tracing = "0.1"

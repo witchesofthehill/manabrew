@@ -1,5 +1,0 @@
-Name:Utter End
-ManaCost:2 W B
-Types:Instant
-A:SP$ ChangeZone | ValidTgts$ Permanent.nonLand | TgtPrompt$ Select target nonland permanent | Origin$ Battlefield | Destination$ Exile | SpellDescription$ Exile target nonland permanent.
-Oracle:Exile target nonland permanent.

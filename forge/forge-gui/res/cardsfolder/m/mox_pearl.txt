@@ -1,6 +1,0 @@
-Name:Mox Pearl
-ManaCost:0
-Types:Artifact
-A:AB$ Mana | Cost$ T | Produced$ W | SpellDescription$ Add {W}.
-SVar:PlayMain1:TRUE
-Oracle:{T}: Add {W}.

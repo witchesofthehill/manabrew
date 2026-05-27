@@ -1,5 +1,0 @@
-Name:Twincast
-ManaCost:U U
-Types:Instant
-A:SP$ CopySpellAbility | ValidTgts$ Instant,Sorcery | TargetType$ Spell | MayChooseTarget$ True | SpellDescription$ Copy target instant or sorcery spell. You may choose new targets for the copy.
-Oracle:Copy target instant or sorcery spell. You may choose new targets for the copy.

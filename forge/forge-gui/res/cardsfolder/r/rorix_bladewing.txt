@@ -1,7 +1,0 @@
-Name:Rorix Bladewing
-ManaCost:3 R R R
-Types:Legendary Creature Dragon
-PT:6/5
-K:Flying
-K:Haste
-Oracle:Flying, haste

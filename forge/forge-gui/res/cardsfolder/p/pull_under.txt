@@ -1,5 +1,0 @@
-Name:Pull Under
-ManaCost:5 B
-Types:Instant Arcane
-A:SP$ Pump | ValidTgts$ Creature | NumAtt$ -5 | NumDef$ -5 | IsCurse$ True | SpellDescription$ Target creature gets -5/-5 until end of turn.
-Oracle:Target creature gets -5/-5 until end of turn.

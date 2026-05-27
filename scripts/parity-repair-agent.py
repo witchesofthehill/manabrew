@@ -33,7 +33,7 @@ PARITY_API = "https://manabrewparity.federicovivaldo.com"
 PARITY_AUTH = "manabrew-parity-api:trOlTk8DGl80YTUogWsgU43EA1ySI7QtblGbUVMEZSbdv9pgHmd9MjcLaxYa"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 JAVA_HOME = "/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home"
-JAVA_JAR = REPO_ROOT / "forge" / "forge-harness" / "target" / "forge-harness-jar-with-dependencies.jar"
+JAVA_JAR = REPO_ROOT / "forge-harness" / "target" / "forge-harness-jar-with-dependencies.jar"
 CARDS_DIR = REPO_ROOT / "forge" / "forge-gui" / "res" / "cardsfolder"
 MAX_ATTEMPTS = 3  # retries per cluster with error feedback
 COOLDOWN_BETWEEN_CLUSTERS = 30  # seconds between cluster attempts in auto mode
@@ -526,7 +526,7 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
    Rust implementation.
 4. **Diagnose**: Determine whether the bug is in:
    - **Rust engine** (most common) — the Rust port doesn't match Java game logic
-   - **Java harness** (`forge/forge-harness/`) — the deterministic test harness has a bug
+   - **Java harness** (`forge-harness/`) — the deterministic test harness has a bug
      that makes Java behave incorrectly (the game engine is correct but the harness
      controller makes wrong decisions or stores data incorrectly)
    - **Rust parity agent** (`forge-engine/crates/forge-parity/src/deterministic_agent.rs`)
@@ -535,7 +535,7 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
 5. **Fix**: Fix the code where the bug actually is.
    - If the bug is in the Rust engine, fix the engine code.
    - If the bug is in the Java harness, fix the harness code AND rebuild the JAR:
-     `JAVA_HOME={JAVA_HOME} mvn -pl forge-harness -am -DskipTests package -f forge/pom.xml`
+     `JAVA_HOME={JAVA_HOME} mvn -pl forge-harness -am -DskipTests package`
    - If the bug is in the Rust parity agent, fix the agent code.
 6. **Verify compilation**: Run `cargo check -p forge-engine-core` to ensure it compiles.
 7. **Verify parity**: Run this exact command to test:
@@ -550,7 +550,7 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
 ## Rules
 - Keep file/interface parity with Java Forge (same structure, same names)
 - Do NOT modify game engine Java files in `forge/forge-game/` — those are the reference
-- You CAN modify the Java harness in `forge/forge-harness/` if the harness has a bug
+- You CAN modify the Java harness in `forge-harness/` if the harness has a bug
 - You CAN modify the Rust parity agent in `forge-engine/crates/forge-parity/src/`
 - Do NOT modify test files unless the test itself is wrong
 - Update `features.md` if you implement or change a feature
@@ -949,11 +949,11 @@ def attempt_repair(cluster: dict, dry_run: bool = False) -> bool:
         _log("  ✓ Anti-pattern checks passed")
 
         # 5c. If Java harness was modified, rebuild the JAR
-        if "forge/forge-harness/" in full_diff.stdout or "forge-harness/" in diff.stdout:
+        if "forge-harness/" in full_diff.stdout or "forge-harness/" in diff.stdout:
             _log("  Java harness modified — rebuilding JAR...")
             jar_build = subprocess.run(
                 ["mvn", "-pl", "forge-harness", "-am", "-DskipTests", "package", "-q"],
-                cwd=REPO_ROOT / "forge",
+                cwd=REPO_ROOT,
                 capture_output=True, text=True,
                 env={**os.environ, "JAVA_HOME": JAVA_HOME},
             )
@@ -1238,7 +1238,7 @@ def main():
 
     if not JAVA_JAR.exists():
         print(f"  ✗ Java harness JAR not found: {JAVA_JAR}")
-        print(f"    Build with: cd forge && JAVA_HOME={JAVA_HOME} mvn -pl forge-harness -am -DskipTests package")
+        print(f"    Build with: yarn build:harness  (or: mvn -pl forge-harness -am -DskipTests package)")
         sys.exit(1)
     print(f"  ✓ Java JAR: {JAVA_JAR.name}")
 

@@ -1,8 +1,0 @@
-Name:Daily Regimen
-ManaCost:W
-Types:Enchantment Aura
-K:Enchant:Creature
-SVar:AttachAILogic:Pump
-A:AB$ PutCounter | Cost$ 1 W | Defined$ Enchanted | CounterType$ P1P1 | CounterNum$ 1 | SpellDescription$ Put a +1/+1 counter on enchanted creature.
-SVar:NonStackingAttachEffect:True
-Oracle:Enchant creature\n{1}{W}: Put a +1/+1 counter on enchanted creature.

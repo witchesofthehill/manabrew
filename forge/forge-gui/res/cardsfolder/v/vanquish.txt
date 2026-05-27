@@ -1,5 +1,0 @@
-Name:Vanquish
-ManaCost:2 W
-Types:Instant
-A:SP$ Destroy | ValidTgts$ Creature.blocking | TgtPrompt$ Select target blocking creature | SpellDescription$ Destroy target blocking creature.
-Oracle:Destroy target blocking creature.

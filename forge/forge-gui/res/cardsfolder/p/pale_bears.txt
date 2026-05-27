@@ -1,6 +1,0 @@
-Name:Pale Bears
-ManaCost:2 G
-Types:Creature Bear
-PT:2/2
-K:Landwalk:Island
-Oracle:Islandwalk (This creature can't be blocked as long as defending player controls an Island.)

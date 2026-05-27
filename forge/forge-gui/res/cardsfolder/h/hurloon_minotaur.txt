@@ -1,5 +1,0 @@
-Name:Hurloon Minotaur
-ManaCost:1 R R
-Types:Creature Minotaur
-PT:2/3
-Oracle:

@@ -1,6 +1,0 @@
-Name:Twinscroll Shaman
-ManaCost:2 R
-Types:Creature Dwarf Shaman
-PT:1/2
-K:Double Strike
-Oracle:Double strike

@@ -1,5 +1,0 @@
-Name:Spined Wurm
-ManaCost:4 G
-Types:Creature Wurm
-PT:5/4
-Oracle:

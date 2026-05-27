@@ -1,6 +1,0 @@
-Name:Steady Aim
-ManaCost:1 G
-Types:Instant
-A:SP$ Untap | ValidTgts$ Creature | SubAbility$ DBPump | SpellDescription$ Untap target creature. It gets +1/+4 and gains reach until end of turn.
-SVar:DBPump:DB$ Pump | Defined$ Targeted | NumAtt$ +1 | NumDef$ +4 | KW$ Reach
-Oracle:Untap target creature. It gets +1/+4 and gains reach until end of turn.

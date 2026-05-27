@@ -1,6 +1,0 @@
-Name:Temporal Machinations
-ManaCost:2 U
-Types:Sorcery
-A:SP$ ChangeZone | ValidTgts$ Creature | Origin$ Battlefield | Destination$ Hand | SubAbility$ DBDraw | SpellDescription$ Return target creature to its owner's hand. If you control an artifact, draw a card.
-SVar:DBDraw:DB$ Draw | ConditionPresent$ Artifact.YouCtrl | ConditionCompare$ GE1
-Oracle:Return target creature to its owner's hand. If you control an artifact, draw a card.

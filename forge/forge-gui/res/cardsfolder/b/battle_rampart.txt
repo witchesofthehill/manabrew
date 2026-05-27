@@ -1,7 +1,0 @@
-Name:Battle Rampart
-ManaCost:2 R
-Types:Creature Wall
-PT:1/3
-K:Defender
-A:AB$ Pump | Cost$ T | ValidTgts$ Creature | KW$ Haste | SpellDescription$ Target creature gains haste until end of turn.
-Oracle:Defender\n{T}: Target creature gains haste until end of turn.

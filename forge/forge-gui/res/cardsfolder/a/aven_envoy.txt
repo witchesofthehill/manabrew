@@ -1,6 +1,0 @@
-Name:Aven Envoy
-ManaCost:U
-Types:Creature Bird Soldier
-PT:0/2
-K:Flying
-Oracle:Flying

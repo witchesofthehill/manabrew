@@ -1,8 +1,0 @@
-Name:Exponential Growth
-ManaCost:X X G G
-Types:Sorcery
-A:SP$ Repeat | ValidTgts$ Creature | RepeatSubAbility$ DBPump | MaxRepeat$ X | StackDescription$ REP target creature_{c:Targeted} | SpellDescription$ Until end of turn, double target creature's power X times.
-SVar:DBPump:DB$ Pump | Defined$ Targeted | NumAtt$ Double | StackDescription$ None
-SVar:X:Count$xPaid
-AI:RemoveDeck:All
-Oracle:Until end of turn, double target creature's power X times.

@@ -1,5 +1,0 @@
-Name:Scathe Zombies
-ManaCost:2 B
-Types:Creature Zombie
-PT:2/2
-Oracle:

@@ -1,6 +1,0 @@
-Name:To Arms!
-ManaCost:1 W
-Types:Instant
-A:SP$ UntapAll | ValidCards$ Creature.YouCtrl | SpellDescription$ Untap all creatures you control. | SubAbility$ DBDraw
-SVar:DBDraw:DB$ Draw | SpellDescription$ Draw a card.
-Oracle:Untap all creatures you control.\nDraw a card.

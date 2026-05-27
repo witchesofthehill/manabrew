@@ -1,5 +1,0 @@
-Name:Spined Karok
-ManaCost:2 G
-Types:Creature Crocodile
-PT:2/4
-Oracle:

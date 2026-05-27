@@ -1,9 +1,0 @@
-Name:Skullmulcher
-ManaCost:4 G
-Types:Creature Elemental
-PT:3/3
-K:Devour:1
-T:Mode$ ChangesZone | Destination$ Battlefield | ValidCard$ Card.Self | Execute$ TrigDraw | TriggerDescription$ When CARDNAME enters, draw a card for each creature it devoured.
-SVar:TrigDraw:DB$ Draw | Defined$ You | NumCards$ X
-SVar:X:Count$Devoured Card
-Oracle:Devour 1 (As this enters, you may sacrifice any number of creatures. This creature enters with that many +1/+1 counters on it.)\nWhen Skullmulcher enters, draw a card for each creature it devoured.

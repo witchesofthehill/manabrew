@@ -4,6 +4,9 @@
 :80 {
     root * /srv/manabrew
 
+    # Compress text assets — the JS bundle is ~8 MB raw, ~2 MB gzipped.
+    encode zstd gzip
+
     # Module workers need require-corp (Chrome's SharedArrayBuffer rule).
     @worker path_regexp \.worker[.-][^/]+\.js$
     handle @worker {

@@ -1,6 +1,0 @@
-Name:Ape Pet
-ManaCost:no cost
-Colors:green
-Types:Creature Ape Pet
-PT:1/1
-Oracle:

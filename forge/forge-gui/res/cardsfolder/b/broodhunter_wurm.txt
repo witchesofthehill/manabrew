@@ -1,5 +1,0 @@
-Name:Broodhunter Wurm
-ManaCost:3 G
-Types:Creature Wurm
-PT:4/3
-Oracle:

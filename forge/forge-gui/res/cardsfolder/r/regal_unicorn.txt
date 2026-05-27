@@ -1,5 +1,0 @@
-Name:Regal Unicorn
-ManaCost:2 W
-Types:Creature Unicorn
-PT:2/3
-Oracle:

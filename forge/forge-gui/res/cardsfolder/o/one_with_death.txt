@@ -1,6 +1,0 @@
-Name:One with Death
-ManaCost:B
-Types:Instant
-A:SP$ LosesGame | Defined$ You | SpellDescription$ You lose the game.
-AI:RemoveDeck:All
-Oracle:You lose the game.

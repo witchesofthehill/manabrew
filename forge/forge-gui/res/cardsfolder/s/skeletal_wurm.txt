@@ -1,6 +1,0 @@
-Name:Skeletal Wurm
-ManaCost:7 B
-Types:Creature Skeleton Wurm
-PT:7/6
-A:AB$ Regenerate | Cost$ B | SpellDescription$ Regenerate CARDNAME.
-Oracle:{B}: Regenerate Skeletal Wurm.

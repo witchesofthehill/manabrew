@@ -1,6 +1,0 @@
-Name:Mind Rot
-ManaCost:2 B
-Types:Sorcery
-A:SP$ Discard | ValidTgts$ Player | NumCards$ 2 | Mode$ TgtChoose | SpellDescription$ Target player discards two cards.
-DeckHas:Ability$Discard
-Oracle:Target player discards two cards.

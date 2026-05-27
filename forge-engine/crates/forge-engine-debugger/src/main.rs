@@ -89,7 +89,7 @@ const TRACE_TIMELINE_HEIGHT: f32 = TRACE_SNAPSHOT_HEIGHT + TRACE_EVENTS_HEIGHT +
 const TRACE_DECK_1: &str = "inline:Mountain*6|Lightning Bolt*2|Shock*2|Raging Goblin*2";
 const TRACE_DECK_2: &str = "inline:Forest*6|Llanowar Elves*2|Grizzly Bears*2|Runeclaw Bear*2";
 pub(crate) const DEFAULT_JAVA_JAR_PATH: &str =
-    "forge/forge-harness/target/forge-harness-jar-with-dependencies.jar";
+    "forge-harness/target/forge-harness-jar-with-dependencies.jar";
 
 const SAMPLE: &str = "Name:Lightning Bolt\nManaCost:R\nTypes:Instant\nA:SP$ DealDamage | ValidTgts$ Any | NumDmg$ 3 | SpellDescription$ CARDNAME deals 3 damage to any target.\nOracle:Lightning Bolt deals 3 damage to any target.\n";
 

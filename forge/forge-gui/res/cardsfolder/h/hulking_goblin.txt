@@ -1,6 +1,0 @@
-Name:Hulking Goblin
-ManaCost:1 R
-Types:Creature Goblin
-PT:2/2
-S:Mode$ CantBlock | ValidCard$ Card.Self | Description$ CARDNAME can't block.
-Oracle:Hulking Goblin can't block.

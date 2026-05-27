@@ -1,8 +1,0 @@
-Name:Cosmic Epiphany
-ManaCost:4 U U
-Types:Sorcery
-A:SP$ Draw | NumCards$ X | SpellDescription$ Draw cards equal to the number of instant and sorcery cards in your graveyard.
-SVar:X:Count$ValidGraveyard Instant.YouOwn,Sorcery.YouOwn
-DeckHas:Ability$Graveyard
-DeckNeeds:Type$Instant|Sorcery
-Oracle:Draw cards equal to the number of instant and sorcery cards in your graveyard.

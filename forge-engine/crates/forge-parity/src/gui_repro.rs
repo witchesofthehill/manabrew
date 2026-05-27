@@ -1,8 +1,8 @@
 //! Headless reproductions of Java harness/UI controller choice behavior.
 //!
 //! Source references:
-//! - forge/forge-harness/src/main/java/forge/harness/DeterministicController.java
-//! - forge/forge-harness/src/main/java/forge/harness/GuiRepro.java
+//! - forge-harness/src/main/java/forge/harness/DeterministicController.java
+//! - forge-harness/src/main/java/forge/harness/GuiRepro.java
 
 use crate::choice_space;
 use crate::java_random::JavaRandom;

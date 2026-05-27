@@ -1,5 +1,0 @@
-Name:Wandering Tombshell
-ManaCost:3 B
-Types:Creature Zombie Turtle
-PT:1/6
-Oracle:

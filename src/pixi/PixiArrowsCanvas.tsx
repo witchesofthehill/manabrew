@@ -3,6 +3,8 @@ import { Application, type Ticker } from "pixi.js";
 import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 import { ArrowLayer, type ArrowDef } from "./ArrowLayer";
 import { PointerLayer, type ResolvedPointer } from "./PointerLayer";
+import { PIXI_MAX_FPS } from "./constants";
+import { registerPixiApp } from "./visibility";
 
 installPixiPatches();
 import type { Theme } from "@/hooks/useTheme";
@@ -62,6 +64,7 @@ export function PixiArrowsCanvas({
   const arrowLayerRef = useRef<ArrowLayer | null>(null);
   const pointerLayerRef = useRef<PointerLayer | null>(null);
   const themeRef = useRef<Theme | null>(null);
+  const unregisterVisibilityRef = useRef<(() => void) | null>(null);
 
   // Latest inputs accessed inside the ticker callback without re-binding.
   const arrowSpecsRef = useRef<ArrowSpec[]>([]);
@@ -109,6 +112,9 @@ export function PixiArrowsCanvas({
     }
     if (!app.renderer) return false;
 
+    app.ticker.maxFPS = PIXI_MAX_FPS;
+    unregisterVisibilityRef.current = registerPixiApp(app);
+
     const arrowLayer = new ArrowLayer();
     arrowLayerRef.current = arrowLayer;
     app.stage.addChild(arrowLayer.graphics);
@@ -126,7 +132,15 @@ export function PixiArrowsCanvas({
     pointerLayer.setTheme(themeRef.current);
 
     app.ticker.add((ticker: Ticker) => {
-      if (!arrowLayerRef.current || !canvasRef.current) return;
+      const arrowLayer = arrowLayerRef.current;
+      const pointerLayer = pointerLayerRef.current;
+      if (!arrowLayer || !canvasRef.current) return;
+      const hasInputs =
+        arrowSpecsRef.current.length > 0 ||
+        pointerSpecsRef.current.length > 0 ||
+        castingArrowRef.current !== null;
+      if (!hasInputs && arrowLayer.isClear && (!pointerLayer || pointerLayer.isClear)) return;
+
       const opponentScenes: { playerId: string; scene: PixiGameScene }[] = [];
       const map = opponentSceneRefsRef.current;
       if (map) {
@@ -144,8 +158,8 @@ export function PixiArrowsCanvas({
         cursorViewportRef.current,
         endpointCacheRef.current,
       );
-      arrowLayerRef.current.update(arrows, ticker.deltaMS);
-      pointerLayerRef.current?.update(pointers, ticker.deltaMS);
+      arrowLayer.update(arrows, ticker.deltaMS);
+      pointerLayer?.update(pointers, ticker.deltaMS);
     });
 
     // Initial resize since we no longer use resizeTo. Renderer may have
@@ -164,9 +178,9 @@ export function PixiArrowsCanvas({
   useEffect(() => {
     let active = true;
     initApp().then((success) => {
-      // Effect was cleaned up while init was in flight — tear down the
-      // app we just created instead of leaking its WebGL context.
       if (!active) {
+        unregisterVisibilityRef.current?.();
+        unregisterVisibilityRef.current = null;
         destroyPixiApp(appRef.current);
         appRef.current = null;
         return;
@@ -179,6 +193,8 @@ export function PixiArrowsCanvas({
       arrowLayerRef.current = null;
       pointerLayerRef.current?.destroy();
       pointerLayerRef.current = null;
+      unregisterVisibilityRef.current?.();
+      unregisterVisibilityRef.current = null;
       destroyPixiApp(appRef.current);
       appRef.current = null;
       markReady(false);

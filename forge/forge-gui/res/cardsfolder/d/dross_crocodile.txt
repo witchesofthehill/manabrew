@@ -1,5 +1,0 @@
-Name:Dross Crocodile
-ManaCost:3 B
-Types:Creature Zombie Crocodile
-PT:5/1
-Oracle:

@@ -1,8 +1,0 @@
-Name:Ostiary Thrull
-ManaCost:3 B
-Types:Creature Thrull
-PT:2/2
-A:AB$ Tap | Cost$ W T | ValidTgts$ Creature | SpellDescription$ Tap target creature.
-AI:RemoveDeck:Random
-DeckNeeds:Color$White
-Oracle:{W}, {T}: Tap target creature.

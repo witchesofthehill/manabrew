@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -564,6 +565,25 @@ export default function Settings() {
                 </p>
               </div>
             </div>
+
+            {isHostedEngineAvailable() && (
+              <div className="rounded-lg border bg-card/40 p-4 flex items-start gap-3">
+                <input
+                  id="hosted-engine"
+                  type="checkbox"
+                  checked={prefs.preferHostedEngine}
+                  onChange={(e) => prefs.setPreferHostedEngine(e.target.checked)}
+                  className="mt-1 accent-primary h-4 w-4"
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="hosted-engine">Use hosted Java engine (experimental)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Run &quot;Play vs AI&quot; on the server-side canonical Forge engine instead of
+                    the in-browser engine. Requires a self-hosted node; available on staging.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Battlefield Zone Column Order</Label>

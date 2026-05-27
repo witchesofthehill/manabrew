@@ -1,6 +1,0 @@
-Name:Alien Warrior Token
-ManaCost:no cost
-Colors:red
-Types:Creature Alien Warrior
-PT:2/2
-Oracle:

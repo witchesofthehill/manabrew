@@ -948,7 +948,7 @@ fn run_matrix_mode(cli: &Cli) {
     // these change the entire cache is wiped automatically.
     let java_cache: Option<JavaCache> = if !cli.no_cache && cli.java_jar.is_some() {
         let project_root = std::env::current_dir().unwrap_or_default();
-        let source_hash = if project_root.join("forge/forge-harness/src").exists() {
+        let source_hash = if project_root.join("forge-harness/src").exists() {
             java_cache::compute_source_hash(&project_root)
         } else if let Some(ref jar) = cli.java_jar {
             java_cache::compute_jar_hash(jar).unwrap_or_default()
@@ -2275,7 +2275,7 @@ fn run_serve_mode(cli: &Cli) {
         None
     } else {
         let project_root = std::env::current_dir().unwrap_or_default();
-        let source_hash = if project_root.join("forge/forge-harness/src").exists() {
+        let source_hash = if project_root.join("forge-harness/src").exists() {
             java_cache::compute_source_hash(&project_root)
         } else {
             java_cache::compute_jar_hash(&jar_path).unwrap_or_default()

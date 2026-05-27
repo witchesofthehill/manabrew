@@ -1,6 +1,0 @@
-Name:Gelatinous Genesis
-ManaCost:X X G
-Types:Sorcery
-A:SP$ Token | TokenAmount$ X | TokenScript$ g_x_x_ooze | TokenOwner$ You | TokenPower$ X | TokenToughness$ X | SpellDescription$ Create X X/X green Ooze creature tokens.
-SVar:X:Count$xPaid
-Oracle:Create X X/X green Ooze creature tokens.

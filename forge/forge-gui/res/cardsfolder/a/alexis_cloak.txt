@@ -1,8 +1,0 @@
-Name:Alexi's Cloak
-ManaCost:1 U
-Types:Enchantment Aura
-K:Flash
-K:Enchant:Creature
-SVar:AttachAILogic:Pump
-S:Mode$ Continuous | Affected$ Creature.EnchantedBy | AddKeyword$ Shroud | Description$ Enchanted creature has shroud. (It can't be the target of spells or abilities.)
-Oracle:Flash\nEnchant creature\nEnchanted creature has shroud. (It can't be the target of spells or abilities.)

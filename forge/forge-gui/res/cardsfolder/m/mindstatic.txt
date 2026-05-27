@@ -1,5 +1,0 @@
-Name:Mindstatic
-ManaCost:3 U
-Types:Instant
-A:SP$ Counter | TargetType$ Spell | TgtPrompt$ Select target spell | ValidTgts$ Card | UnlessCost$ 6 | SpellDescription$ Counter target spell unless its controller pays {6}.
-Oracle:Counter target spell unless its controller pays {6}.

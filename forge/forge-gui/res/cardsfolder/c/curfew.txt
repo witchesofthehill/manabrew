@@ -1,6 +1,0 @@
-Name:Curfew
-ManaCost:U
-Types:Instant
-A:SP$ ChangeZone | DefinedPlayer$ Player | Hidden$ True | Mandatory$ True | Origin$ Battlefield | Destination$ Hand | ChangeType$ Creature | SpellDescription$ Each player returns a creature they control to its owner's hand.
-AI:RemoveDeck:All
-Oracle:Each player returns a creature they control to its owner's hand.

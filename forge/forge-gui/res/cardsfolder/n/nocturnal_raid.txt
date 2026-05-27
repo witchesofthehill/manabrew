@@ -1,5 +1,0 @@
-Name:Nocturnal Raid
-ManaCost:2 B B
-Types:Instant
-A:SP$ PumpAll | ValidCards$ Creature.Black | NumAtt$ +2 | SpellDescription$ Black creatures get +2/+0 until end of turn.
-Oracle:Black creatures get +2/+0 until end of turn.

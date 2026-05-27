@@ -1,5 +1,0 @@
-Name:Stone Rain
-ManaCost:2 R
-Types:Sorcery
-A:SP$ Destroy | ValidTgts$ Land | SpellDescription$ Destroy target land.
-Oracle:Destroy target land.

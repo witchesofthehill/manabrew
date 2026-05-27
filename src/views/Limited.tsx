@@ -756,7 +756,7 @@ function SelectedSetSummary({
             <div className="flex items-start gap-2 text-xs text-yellow-100">
               <span aria-hidden>⚠</span>
               <span className="min-w-0 break-words">
-                Forge edition data not loaded. Falls back to generic 10C / 3U / 1RM / 1 Land.
+                No Forge booster recipe for this set — using generic 10C / 3U / 1RM / 1 Land.
               </span>
             </div>
           )}

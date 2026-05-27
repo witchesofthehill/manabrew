@@ -27,8 +27,18 @@ export async function fetchEditionInfo(setCode: string): Promise<EditionInfo | n
     const result = await getPlatform().invoke<EditionInfo | null>("limited_get_edition_info", {
       setCode,
     });
+    if (!result) {
+      // Most common cause: the set has no `Booster=` line in Forge's data
+      // (e.g. masters reprints, mini-drops, supplemental products), so the
+      // engine can't tell us a recipe and the UI falls back to a generic
+      // 10C/3U/1RM/1L booster. Log here so we can spot real engine miscues
+      // (registry never populated, alias mismatch) instead of silently
+      // swallowing them like before.
+      console.warn(`[limited] no Forge edition info for set ${setCode}`);
+    }
     return result ?? null;
-  } catch {
+  } catch (err) {
+    console.warn(`[limited] limited_get_edition_info(${setCode}) threw:`, err);
     return null;
   }
 }

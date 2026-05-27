@@ -802,8 +802,8 @@ public final class ManaBrewInteractiveSession {
         final forge.item.IPaperCard paper = card.getPaperCard();
         option.addProperty("setCode", paper != null ? paper.getEdition() : card.getSetCode());
         option.addProperty("cardNumber", paper != null ? paper.getCollectorNumber() : "");
-        if (card.getController() != null) {
-            option.addProperty("owner", SnapshotExtractor.playerIndex(game, card.getController()));
+        if (card.getOwner() != null) {
+            option.addProperty("owner", SnapshotExtractor.playerIndex(game, card.getOwner()));
         }
     }
 

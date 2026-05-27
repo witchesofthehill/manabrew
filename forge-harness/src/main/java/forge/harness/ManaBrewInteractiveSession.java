@@ -75,9 +75,6 @@ public final class ManaBrewInteractiveSession {
         if (game != null && !game.isGameOver()) {
             game.setGameOver(forge.game.GameEndReason.Draw);
         }
-        // Wait for the game thread to fully unwind before returning: callers that
-        // pool/reuse the JVM (or Espresso context) must not start a new game while
-        // this one's thread is still finishing match.startGame.
         final Thread thread = gameThread;
         if (thread != null) {
             try {
@@ -799,9 +796,6 @@ public final class ManaBrewInteractiveSession {
         latestPromptJson = prompt.toString();
     }
 
-    // Carry the printing + owner on a prompt-card option so the client resolves the
-    // card's art from its deck the same way the rust engine's gameView DTO does,
-    // instead of a by-name fallback.
     private void addCardOption(final JsonObject option, final Card card) {
         option.addProperty("id", SnapshotExtractor.javaCardId(card));
         option.addProperty("label", card.getName());
@@ -971,8 +965,6 @@ public final class ManaBrewInteractiveSession {
             final CardView card = cards.get(i);
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            // Resolve the view back to its real card so the option carries printing +
-            // owner (art resolution); fall back to the bare view if it's gone.
             final Card real = game.findById(card.getId());
             if (real != null) {
                 addCardOption(option, real);

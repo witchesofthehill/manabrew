@@ -14,7 +14,7 @@ export function RaritySetBadge({ card }: RaritySetBadgeProps) {
   const scry = useCard({
     name: card.name,
     setCode: card.setCode,
-    collectorNumber: card.collectorNumber,
+    cardNumber: card.cardNumber,
   });
   const setLookup = useSetLookup();
   const rarity = effectiveRarity(scry?.info);

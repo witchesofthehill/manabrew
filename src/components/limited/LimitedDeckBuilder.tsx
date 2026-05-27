@@ -92,7 +92,7 @@ function passesColorFilter(
   const scry = peekCard(cache, {
     name: card.name,
     setCode: card.setCode,
-    collectorNumber: card.collectorNumber,
+    cardNumber: card.cardNumber,
   });
   const colors = (scry?.colors ?? []).map((c) => c.toUpperCase());
   if (filter.has("M") && colors.length >= 2) return true;
@@ -211,7 +211,7 @@ export default function LimitedDeckBuilder({
           peekCard(cache, {
             name: c.name,
             setCode: c.setCode,
-            collectorNumber: c.collectorNumber,
+            cardNumber: c.cardNumber,
           }),
         ) !== "land",
     );
@@ -240,7 +240,7 @@ export default function LimitedDeckBuilder({
       const cost = peekCard(cache, {
         name: card.name,
         setCode: card.setCode,
-        collectorNumber: card.collectorNumber,
+        cardNumber: card.cardNumber,
       })?.mana_cost;
       if (!cost) continue;
       for (const letter of ["W", "U", "B", "R", "G"]) {
@@ -910,7 +910,7 @@ function DragPreview({ card, index }: { card: DraftCard; index: number }) {
   const scry = useCard({
     name: card.name,
     setCode: card.setCode,
-    collectorNumber: card.collectorNumber,
+    cardNumber: card.cardNumber,
   });
   if (!scry) {
     return (
@@ -949,7 +949,7 @@ function renderByRarity(
       peekCard(cache, {
         name: ref.name,
         setCode: ref.setCode,
-        collectorNumber: ref.collectorNumber,
+        cardNumber: ref.cardNumber,
       }),
     ),
   ).map((g) => ({
@@ -988,7 +988,7 @@ function renderByColor(
     const scry = peekCard(cache, {
       name: entry.card.name,
       setCode: entry.card.setCode,
-      collectorNumber: entry.card.collectorNumber,
+      cardNumber: entry.card.cardNumber,
     });
     if (effectiveRarity(scry) === "land") {
       buckets.Lands.push(entry);
@@ -1010,7 +1010,7 @@ function renderByCmc(entries: PoolEntry[], cache: Record<string, ScryfallEntry>)
     const scry = peekCard(cache, {
       name: e.card.name,
       setCode: e.card.setCode,
-      collectorNumber: e.card.collectorNumber,
+      cardNumber: e.card.cardNumber,
     });
     if (effectiveRarity(scry) === "land") {
       buckets[7].push(e);
@@ -1038,11 +1038,7 @@ function matchInitial(pool: DraftCard[], initial: DraftCard[]): number[] {
     for (let i = 0; i < pool.length; i++) {
       if (used.has(i)) continue;
       const p = pool[i];
-      if (
-        p.name === want.name &&
-        p.setCode === want.setCode &&
-        p.collectorNumber === want.collectorNumber
-      ) {
+      if (p.name === want.name && p.setCode === want.setCode && p.cardNumber === want.cardNumber) {
         foundIdx = i;
         break;
       }

@@ -184,7 +184,7 @@ function DraftingView({
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {activeDraft.currentPack.map((c, i) => (
               <DraftCardTile
-                key={`${c.setCode}:${c.collectorNumber}:${c.name}:${i}`}
+                key={`${c.setCode}:${c.cardNumber}:${c.name}:${i}`}
                 card={c}
                 index={i}
                 onClick={() => onPick(c)}

@@ -6,14 +6,24 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Pure printing identity. The single source of truth — the TS mirror
+/// Pure printing identity, the single source of truth shared across the
+/// engine ↔ UI boundary. TS mirror at `src/types/manabrew.ts`. `id` is
+/// only set for live game-state cards (UUID for zone tracking) and
+/// omitted from the wire for static identity refs (saved decks, draft
+/// pools). `foil` is the only per-copy runtime flag — rarity / colors /
+/// type-line / images all come from Scryfall on the UI side and from
+/// the engine's registry on the Rust side, never echoed through this
+/// struct.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardIdentity {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub id: String,
     pub name: String,
     pub set_code: String,
     pub card_number: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub foil: Option<bool>,
 }
 
 /// Mirror of `manabrew.ts:CardRulesSummary`. The engine derives most
@@ -62,8 +72,6 @@ pub struct DeckCard {
     pub rules: CardRulesSummary,
     #[serde(default)]
     pub uris: serde_json::Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub foil: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

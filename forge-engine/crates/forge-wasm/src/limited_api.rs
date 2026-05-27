@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use forge_agent_interface::deck_dto::CardIdentity;
 use forge_foundation::sealed_product::{PaperCard, Rarity, SealedTemplate};
 use forge_foundation::ColorSet;
 use forge_limited::{
@@ -22,60 +23,42 @@ use crate::card_loader::get_card_db;
 pub struct SealedSetupDto {
     pub pool_type: String,
     pub num_boosters: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
 }
 
-/// Identity-only DTO sent across the engine ↔ UI boundary. Rarity, colors,
-/// and dual-faced status are facts about the card itself — the UI looks
-/// them up from Scryfall via the canonical `useScryfallStore`, and the
-/// engine re-derives them from its registry when a pool round-trips back
-/// here. `foil` is the one runtime flag the engine *does* own (it's a
-/// property of this specific copy in this specific pack), so it stays on
-/// the wire.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DraftCardDto {
-    pub name: String,
-    pub set_code: String,
-    pub collector_number: String,
-    #[serde(default)]
-    pub foil: bool,
-}
-
-impl From<&PaperCard> for DraftCardDto {
-    fn from(c: &PaperCard) -> Self {
-        Self {
-            name: c.name.clone(),
-            set_code: c.set_code.clone(),
-            collector_number: c.collector_number.clone(),
-            foil: c.foil,
-        }
+/// Engine → UI: build an identity ref from an internal `PaperCard`.
+/// `id` is left empty — limited cards don't have a stable instance UUID
+/// (that's a live-game-state concept), only an identity tuple.
+fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
+    CardIdentity {
+        id: String::new(),
+        name: c.name.clone(),
+        set_code: c.set_code.clone(),
+        card_number: c.collector_number.clone(),
+        foil: Some(c.foil),
     }
 }
 
-impl DraftCardDto {
-    /// Rebuild the engine-side `PaperCard` for a DTO that came back from
-    /// the UI. Rarity, colors, and dual-faced status are re-derived from
-    /// the engine's editions registry + card database rather than trusted
-    /// to round-trip through JS — those facts are owned by the engine.
-    fn to_paper_card(&self) -> PaperCard {
-        let (rarity, colors, dual_faced) =
-            resolve_card_meta(&self.name, &self.set_code, &self.collector_number);
-        let mut pc = PaperCard::new(
-            self.name.clone(),
-            self.set_code.clone(),
-            self.collector_number.clone(),
-            rarity,
-        )
-        .with_colors(colors)
-        .with_double_faced(dual_faced);
-        pc.foil = self.foil;
-        pc
-    }
+/// UI → engine: rebuild a `PaperCard` from an identity ref. Rarity,
+/// colors, and dual-faced status are re-derived from the editions
+/// registry + card database rather than trusted to round-trip through
+/// JS — those facts are owned by the engine.
+fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
+    let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
+    let mut pc = PaperCard::new(
+        c.name.clone(),
+        c.set_code.clone(),
+        c.card_number.clone(),
+        rarity,
+    )
+    .with_colors(colors)
+    .with_double_faced(dual_faced);
+    pc.foil = c.foil.unwrap_or(false);
+    pc
 }
 
 fn resolve_card_meta(
@@ -133,16 +116,16 @@ fn is_basic_land_name(name: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct LimitedDeckDto {
     pub name: String,
-    pub main: Vec<DraftCardDto>,
-    pub sideboard: Vec<DraftCardDto>,
+    pub main: Vec<CardIdentity>,
+    pub sideboard: Vec<CardIdentity>,
 }
 
 impl From<&LimitedDeck> for LimitedDeckDto {
     fn from(d: &LimitedDeck) -> Self {
         Self {
             name: d.name.clone(),
-            main: d.main.iter().map(DraftCardDto::from).collect(),
-            sideboard: d.sideboard.iter().map(DraftCardDto::from).collect(),
+            main: d.main.iter().map(paper_card_to_identity).collect(),
+            sideboard: d.sideboard.iter().map(paper_card_to_identity).collect(),
         }
     }
 }
@@ -153,7 +136,7 @@ pub struct SealedPoolDto {
     pub session_id: String,
     pub deck_name: String,
     pub land_set_code: Option<String>,
-    pub cards: Vec<DraftCardDto>,
+    pub cards: Vec<CardIdentity>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
@@ -164,7 +147,11 @@ impl SealedPoolDto {
             session_id,
             deck_name: group.deck_name.clone(),
             land_set_code: group.land_set_code.clone(),
-            cards: group.human_pool.iter().map(DraftCardDto::from).collect(),
+            cards: group
+                .human_pool
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             suggested_deck: group
                 .suggested_human_deck
                 .as_ref()
@@ -188,7 +175,7 @@ pub struct SealedTemplateMetadataDto {
 pub struct BoosterDraftSetupDto {
     pub pod_size: u32,
     pub rounds: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -215,8 +202,8 @@ pub struct DraftStateDto {
     pub total_rounds: u32,
     pub pick_number: u32,
     pub pack_size: u32,
-    pub current_pack: Vec<DraftCardDto>,
-    pub picked_pile: Vec<DraftCardDto>,
+    pub current_pack: Vec<CardIdentity>,
+    pub picked_pile: Vec<CardIdentity>,
     pub seat_summaries: Vec<DraftSeatDto>,
     pub is_round_over: bool,
     pub is_complete: bool,
@@ -229,9 +216,9 @@ pub struct DraftStateDto {
 impl DraftStateDto {
     fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
         let human = draft.human_player();
-        let pack: Vec<DraftCardDto> = draft
+        let pack: Vec<CardIdentity> = draft
             .current_pack_for_human()
-            .map(|p| p.cards().iter().map(DraftCardDto::from).collect())
+            .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();
         let pick_number = (human.picked.len() + 1) as u32;
         let mut seat_summaries: Vec<DraftSeatDto> = std::iter::once(human)
@@ -261,7 +248,7 @@ impl DraftStateDto {
             pick_number,
             pack_size: pack.len() as u32,
             current_pack: pack,
-            picked_pile: human.picked.iter().map(DraftCardDto::from).collect(),
+            picked_pile: human.picked.iter().map(paper_card_to_identity).collect(),
             seat_summaries,
             is_round_over: draft.is_round_over(),
             is_complete: !draft.has_next_choice() && draft.round() >= draft.total_rounds(),
@@ -279,9 +266,9 @@ pub struct WinstonStateDto {
     pub session_id: String,
     pub active_seat: u32,
     pub current_pile: u32,
-    pub piles: Vec<Vec<DraftCardDto>>,
+    pub piles: Vec<Vec<CardIdentity>>,
     pub deck_size: u32,
-    pub picked_pile: Vec<DraftCardDto>,
+    pub picked_pile: Vec<CardIdentity>,
     pub ai_pick_count: u32,
     pub awaiting_human: bool,
     pub is_complete: bool,
@@ -289,10 +276,10 @@ pub struct WinstonStateDto {
 
 impl WinstonStateDto {
     fn from_engine(session_id: String, draft: &WinstonDraft) -> Self {
-        let piles: Vec<Vec<DraftCardDto>> = draft
+        let piles: Vec<Vec<CardIdentity>> = draft
             .piles()
             .iter()
-            .map(|p| p.iter().map(DraftCardDto::from).collect())
+            .map(|p| p.iter().map(paper_card_to_identity).collect())
             .collect();
         Self {
             session_id,
@@ -303,7 +290,7 @@ impl WinstonStateDto {
             picked_pile: draft
                 .human_picked()
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             ai_pick_count: draft.ai_picked_count() as u32,
             awaiting_human: draft.is_human_turn() && !draft.is_complete(),
@@ -316,7 +303,7 @@ impl WinstonStateDto {
 #[serde(rename_all = "camelCase")]
 pub struct WinstonSetupDto {
     pub pool_packs: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -414,19 +401,19 @@ pub struct GauntletOutcomeDto {
 #[serde(rename_all = "camelCase")]
 pub struct GauntletMatchDecksDto {
     pub human_deck_name: String,
-    pub human_main: Vec<DraftCardDto>,
-    pub human_sideboard: Vec<DraftCardDto>,
+    pub human_main: Vec<CardIdentity>,
+    pub human_sideboard: Vec<CardIdentity>,
     pub opponent_name: String,
-    pub opponent_main: Vec<DraftCardDto>,
-    pub opponent_sideboard: Vec<DraftCardDto>,
+    pub opponent_main: Vec<CardIdentity>,
+    pub opponent_sideboard: Vec<CardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GauntletDeckUpdateDto {
     pub gauntlet_id: String,
-    pub main: Vec<DraftCardDto>,
-    pub sideboard: Vec<DraftCardDto>,
+    pub main: Vec<CardIdentity>,
+    pub sideboard: Vec<CardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -443,7 +430,7 @@ pub struct CubeImportResultDto {
     pub card_count: u32,
     pub num_packs: u32,
     pub singleton: bool,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
 }
 
 struct WasmLimitedState {
@@ -496,7 +483,7 @@ fn rebuild_name_index(state: &mut WasmLimitedState) {
     }
 }
 
-/// Return every card in a given set, formatted as a `DraftCardDto[]` —
+/// Return every card in a given set, formatted as a `CardIdentity[]` —
 /// the same shape `limited_start_sealed` / `limited_start_booster_draft`
 /// expect for their `setup.pool` field.
 ///
@@ -512,14 +499,15 @@ pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
         .get(&set_code)
         .ok_or_else(|| JsError::new(&format!("unknown set: {set_code}")))?;
 
-    let pool: Vec<DraftCardDto> = edition
+    let pool: Vec<CardIdentity> = edition
         .cards
         .iter()
-        .map(|entry| DraftCardDto {
+        .map(|entry| CardIdentity {
+            id: String::new(),
             name: entry.name.clone(),
             set_code: edition.code.clone(),
-            collector_number: entry.collector_number.clone(),
-            foil: false,
+            card_number: entry.collector_number.clone(),
+            foil: None,
         })
         .collect();
 
@@ -577,13 +565,13 @@ pub fn limited_list_conspiracy_hooks() -> Result<JsValue, JsError> {
     serde_wasm_bindgen::to_value(&out).map_err(|e| JsError::new(&format!("serialize: {e}")))
 }
 
-fn filter_playable(state: &mut WasmLimitedState, pool: &[DraftCardDto]) -> Vec<PaperCard> {
+fn filter_playable(state: &mut WasmLimitedState, pool: &[CardIdentity]) -> Vec<PaperCard> {
     if state.name_index.is_empty() {
         rebuild_name_index(state);
     }
     pool.iter()
         .filter(|c| state.card_name_known(&c.name))
-        .map(|c| c.to_paper_card())
+        .map(identity_to_paper_card)
         .collect()
 }
 
@@ -927,16 +915,25 @@ pub fn limited_get_gauntlet_match_decks(gauntlet_id: String) -> Result<JsValue, 
             .ok_or_else(|| JsError::new("gauntlet has no current opponent"))?;
         let dto = GauntletMatchDecksDto {
             human_deck_name: g.human_deck.name.clone(),
-            human_main: g.human_deck.main.iter().map(DraftCardDto::from).collect(),
+            human_main: g
+                .human_deck
+                .main
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             human_sideboard: g
                 .human_deck
                 .sideboard
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             opponent_name: opponent.name.clone(),
-            opponent_main: opponent.main.iter().map(DraftCardDto::from).collect(),
-            opponent_sideboard: opponent.sideboard.iter().map(DraftCardDto::from).collect(),
+            opponent_main: opponent.main.iter().map(paper_card_to_identity).collect(),
+            opponent_sideboard: opponent
+                .sideboard
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
         };
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
@@ -952,8 +949,12 @@ pub fn limited_update_gauntlet_human_deck(update_json: JsValue) -> Result<JsValu
             .gauntlets
             .get_mut(&update.gauntlet_id)
             .ok_or_else(|| JsError::new(&format!("no gauntlet for id {}", update.gauntlet_id)))?;
-        g.human_deck.main = update.main.iter().map(|c| c.to_paper_card()).collect();
-        g.human_deck.sideboard = update.sideboard.iter().map(|c| c.to_paper_card()).collect();
+        g.human_deck.main = update.main.iter().map(identity_to_paper_card).collect();
+        g.human_deck.sideboard = update
+            .sideboard
+            .iter()
+            .map(identity_to_paper_card)
+            .collect();
         let dto = GauntletStateDto::from_engine(update.gauntlet_id, g);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
@@ -986,14 +987,15 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
     let imp = CubeImporter::new(&request.cube_id_or_url).map_err(|e| JsError::new(&e))?;
     let cube = imp.parse(&body).map_err(|e| JsError::new(&e))?;
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
-    let mut pool: Vec<DraftCardDto> = Vec::with_capacity(card_count as usize);
+    let mut pool: Vec<CardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
         for copy in 0..entry.count {
-            pool.push(DraftCardDto {
+            pool.push(CardIdentity {
+                id: String::new(),
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
-                collector_number: format!("cube-{copy}"),
-                foil: false,
+                card_number: format!("cube-{copy}"),
+                foil: None,
             });
         }
     }

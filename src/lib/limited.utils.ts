@@ -106,9 +106,10 @@ export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity
  *  re-interpret a saved `Deck` as a draft pool for visualization. */
 export function deckCardToDraftCard(card: DeckCard): DraftCard {
   return {
+    id: "",
     name: card.name,
     setCode: card.setCode,
-    collectorNumber: card.cardNumber,
+    cardNumber: card.cardNumber,
     foil: card.foil,
   };
 }
@@ -163,10 +164,10 @@ export function refToDeckCard(
   const typeLine = parseTypeLine(info?.type_line ?? "");
   const isDfc = info?.layout === "transform" || info?.layout === "modal_dfc";
   return {
-    id: `pool-${idx}-${ref.setCode}-${ref.collectorNumber}`,
+    id: `pool-${idx}-${ref.setCode}-${ref.cardNumber}`,
     name: frontFaceName(ref.name),
     setCode: ref.setCode,
-    cardNumber: ref.collectorNumber,
+    cardNumber: ref.cardNumber,
     color: (info?.colors ?? []).join(""),
     manaCost: info?.mana_cost ?? "",
     cmc: info?.cmc ?? 0,
@@ -193,7 +194,7 @@ export async function resolveDeckCards(refs: DraftCard[]): Promise<DeckCard[]> {
   const store = useScryfallStore.getState();
   return Promise.all(
     refs.map(async (ref, idx) => {
-      const lookup = { name: ref.name, setCode: ref.setCode, collectorNumber: ref.collectorNumber };
+      const lookup = { name: ref.name, setCode: ref.setCode, cardNumber: ref.cardNumber };
       const key = cardKey(lookup);
       let entry = store.cards[key]?.card ?? null;
       if (!entry) {
@@ -217,7 +218,7 @@ export function useDeckCard(ref: DraftCard, idx: number): DeckCard | null {
   const entry = useCard({
     name: ref.name,
     setCode: ref.setCode,
-    collectorNumber: ref.collectorNumber,
+    cardNumber: ref.cardNumber,
   });
   return useMemo(() => (entry ? refToDeckCard(ref, entry, idx) : null), [entry, ref, idx]);
 }
@@ -273,7 +274,7 @@ export function useGroupByRarity(
           peekCard(cache, {
             name: ref.name,
             setCode: ref.setCode,
-            collectorNumber: ref.collectorNumber,
+            cardNumber: ref.cardNumber,
           }),
         ),
       ),
@@ -363,8 +364,9 @@ export const BASIC_LAND_MANA: Record<BasicLandName, ManaLetter> = Object.fromEnt
  */
 export function makeBasicLand(name: BasicLandName, idx: number): DraftCard {
   return {
+    id: "",
     name,
     setCode: "",
-    collectorNumber: `basic-${name.toLowerCase()}-${idx}`,
+    cardNumber: `basic-${name.toLowerCase()}-${idx}`,
   };
 }

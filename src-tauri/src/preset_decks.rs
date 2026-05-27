@@ -39,7 +39,7 @@ pub fn wire_deck_to_identities(deck: &WireDeck) -> Vec<CardIdentity> {
                 set_code: c.identity.set_code.clone(),
                 card_number: c.identity.card_number.clone(),
                 section: section.map(str::to_string),
-                foil: c.foil.unwrap_or(false),
+                foil: c.identity.foil.unwrap_or(false),
             });
         }
     };

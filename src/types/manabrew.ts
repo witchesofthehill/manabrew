@@ -20,10 +20,16 @@ export type DeckFormatId =
   | "sealed";
 
 export interface CardIdentity {
-  id: string; // UUID
+  /** UUID for live in-game card instances. Empty string for static
+   *  identity refs (saved decks, draft pools) — Rust mirror omits the
+   *  field on the wire via `skip_serializing_if = "String::is_empty"`. */
+  id: string;
   name: string;
   setCode: string;
   cardNumber: string;
+  /** Per-copy runtime flag — only set for cards opened foil in this
+   *  specific pack. Unset on most identity refs. */
+  foil?: boolean;
 }
 
 export interface CardRulesSummary {
@@ -85,7 +91,8 @@ export type AllPartsComponent = "token" | "combo_piece" | "meld_part" | "meld_re
 
 export interface DeckCard extends CardIdentity, CardRulesSummary {
   uris: ScryfallImageUris;
-  foil?: boolean;
+  // `foil` lives on `CardIdentity` now (per-copy runtime flag); inherited
+  // here automatically. Don't re-declare or the two layers can drift.
   /** Scryfall `all_parts` — entries this card references. `component` discriminates
    *  tokens from combo pieces, meld parts/results, and the self-reference Scryfall
    *  always includes. Token resolution is generic: name-only lookup against the

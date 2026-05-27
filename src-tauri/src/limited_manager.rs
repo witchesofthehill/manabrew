@@ -312,22 +312,31 @@ impl LimitedManager {
         &self,
         gauntlet_id: &str,
     ) -> Option<crate::limited_dto::GauntletMatchDecksDto> {
-        use crate::limited_dto::{DraftCardDto, GauntletMatchDecksDto};
+        use crate::limited_dto::{paper_card_to_identity, GauntletMatchDecksDto};
         let gauntlets = lock_recover(&self.gauntlets);
         let g = gauntlets.get(gauntlet_id)?;
         let opponent = g.current_opponent()?;
         Some(GauntletMatchDecksDto {
-            human_main: g.human_deck.main.iter().map(DraftCardDto::from).collect(),
+            human_main: g
+                .human_deck
+                .main
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             human_sideboard: g
                 .human_deck
                 .sideboard
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             human_deck_name: g.human_deck.name.clone(),
             opponent_name: opponent.name.clone(),
-            opponent_main: opponent.main.iter().map(DraftCardDto::from).collect(),
-            opponent_sideboard: opponent.sideboard.iter().map(DraftCardDto::from).collect(),
+            opponent_main: opponent.main.iter().map(paper_card_to_identity).collect(),
+            opponent_sideboard: opponent
+                .sideboard
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
         })
     }
 

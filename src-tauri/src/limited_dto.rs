@@ -1,3 +1,4 @@
+use forge_agent_interface::deck_dto::CardIdentity;
 use forge_foundation::sealed_product::{PaperCard, Rarity};
 use forge_foundation::ColorSet;
 use forge_limited::{
@@ -13,58 +14,42 @@ use crate::limited_bootstrap;
 pub struct SealedSetupDto {
     pub pool_type: String,
     pub num_boosters: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
 }
 
-/// Identity-only DTO sent across the engine ↔ UI boundary. Rarity,
-/// colors, and dual-faced status are facts about the card itself — the
-/// UI reads them from Scryfall via `useScryfallStore`, and the engine
-/// re-derives them from its registry when a pool round-trips back here.
-/// `foil` is per-pack runtime state the engine owns, so it stays.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DraftCardDto {
-    pub name: String,
-    pub set_code: String,
-    pub collector_number: String,
-    #[serde(default)]
-    pub foil: bool,
-}
-
-impl From<&PaperCard> for DraftCardDto {
-    fn from(c: &PaperCard) -> Self {
-        Self {
-            name: c.name.clone(),
-            set_code: c.set_code.clone(),
-            collector_number: c.collector_number.clone(),
-            foil: c.foil,
-        }
+/// Engine → UI: build an identity ref from an internal `PaperCard`.
+/// `id` is left empty — limited cards don't have a stable instance UUID
+/// (that's a live-game-state concept), only an identity tuple.
+pub fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
+    CardIdentity {
+        id: String::new(),
+        name: c.name.clone(),
+        set_code: c.set_code.clone(),
+        card_number: c.collector_number.clone(),
+        foil: Some(c.foil),
     }
 }
 
-impl DraftCardDto {
-    /// Rebuild the engine-side `PaperCard` for a DTO that came back from
-    /// the UI. Rarity, colors, and dual-faced status are re-derived from
-    /// the editions registry + card database rather than trusted to
-    /// round-trip through JS — those facts are the engine's to own.
-    pub fn to_paper_card(&self) -> PaperCard {
-        let (rarity, colors, dual_faced) =
-            resolve_card_meta(&self.name, &self.set_code, &self.collector_number);
-        let mut pc = PaperCard::new(
-            self.name.clone(),
-            self.set_code.clone(),
-            self.collector_number.clone(),
-            rarity,
-        )
-        .with_colors(colors)
-        .with_double_faced(dual_faced);
-        pc.foil = self.foil;
-        pc
-    }
+/// UI → engine: rebuild a `PaperCard` from an identity ref. Rarity,
+/// colors, and dual-faced status are re-derived from the editions
+/// registry + card database rather than trusted to round-trip through
+/// JS — those facts are the engine's to own.
+pub fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
+    let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
+    let mut pc = PaperCard::new(
+        c.name.clone(),
+        c.set_code.clone(),
+        c.card_number.clone(),
+        rarity,
+    )
+    .with_colors(colors)
+    .with_double_faced(dual_faced);
+    pc.foil = c.foil.unwrap_or(false);
+    pc
 }
 
 fn resolve_card_meta(
@@ -122,16 +107,16 @@ fn is_basic_land_name(name: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct LimitedDeckDto {
     pub name: String,
-    pub main: Vec<DraftCardDto>,
-    pub sideboard: Vec<DraftCardDto>,
+    pub main: Vec<CardIdentity>,
+    pub sideboard: Vec<CardIdentity>,
 }
 
 impl From<&LimitedDeck> for LimitedDeckDto {
     fn from(d: &LimitedDeck) -> Self {
         Self {
             name: d.name.clone(),
-            main: d.main.iter().map(DraftCardDto::from).collect(),
-            sideboard: d.sideboard.iter().map(DraftCardDto::from).collect(),
+            main: d.main.iter().map(paper_card_to_identity).collect(),
+            sideboard: d.sideboard.iter().map(paper_card_to_identity).collect(),
         }
     }
 }
@@ -142,7 +127,7 @@ pub struct SealedPoolDto {
     pub session_id: String,
     pub deck_name: String,
     pub land_set_code: Option<String>,
-    pub cards: Vec<DraftCardDto>,
+    pub cards: Vec<CardIdentity>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
@@ -153,7 +138,11 @@ impl SealedPoolDto {
             session_id,
             deck_name: group.deck_name.clone(),
             land_set_code: group.land_set_code.clone(),
-            cards: group.human_pool.iter().map(DraftCardDto::from).collect(),
+            cards: group
+                .human_pool
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             suggested_deck: group
                 .suggested_human_deck
                 .as_ref()
@@ -212,7 +201,7 @@ pub struct CubeMetadataDto {
 pub struct BoosterDraftSetupDto {
     pub pod_size: u32,
     pub rounds: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -239,8 +228,8 @@ pub struct DraftStateDto {
     pub total_rounds: u32,
     pub pick_number: u32,
     pub pack_size: u32,
-    pub current_pack: Vec<DraftCardDto>,
-    pub picked_pile: Vec<DraftCardDto>,
+    pub current_pack: Vec<CardIdentity>,
+    pub picked_pile: Vec<CardIdentity>,
     pub seat_summaries: Vec<DraftSeatDto>,
     pub is_round_over: bool,
     pub is_complete: bool,
@@ -256,9 +245,9 @@ pub struct WinstonStateDto {
     pub session_id: String,
     pub active_seat: u32,
     pub current_pile: u32,
-    pub piles: Vec<Vec<DraftCardDto>>,
+    pub piles: Vec<Vec<CardIdentity>>,
     pub deck_size: u32,
-    pub picked_pile: Vec<DraftCardDto>,
+    pub picked_pile: Vec<CardIdentity>,
     pub ai_pick_count: u32,
     pub awaiting_human: bool,
     pub is_complete: bool,
@@ -266,10 +255,10 @@ pub struct WinstonStateDto {
 
 impl WinstonStateDto {
     pub fn from_engine(session_id: String, draft: &WinstonDraft) -> Self {
-        let piles: Vec<Vec<DraftCardDto>> = draft
+        let piles: Vec<Vec<CardIdentity>> = draft
             .piles()
             .iter()
-            .map(|p| p.iter().map(DraftCardDto::from).collect())
+            .map(|p| p.iter().map(paper_card_to_identity).collect())
             .collect();
         Self {
             session_id,
@@ -280,7 +269,7 @@ impl WinstonStateDto {
             picked_pile: draft
                 .human_picked()
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             ai_pick_count: draft.ai_picked_count() as u32,
             awaiting_human: draft.is_human_turn() && !draft.is_complete(),
@@ -293,7 +282,7 @@ impl WinstonStateDto {
 #[serde(rename_all = "camelCase")]
 pub struct WinstonSetupDto {
     pub pool_packs: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -314,7 +303,7 @@ pub struct CubeImportResultDto {
     pub card_count: u32,
     pub num_packs: u32,
     pub singleton: bool,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -337,11 +326,11 @@ pub struct GauntletSetupDto {
 #[serde(rename_all = "camelCase")]
 pub struct GauntletMatchDecksDto {
     pub human_deck_name: String,
-    pub human_main: Vec<DraftCardDto>,
-    pub human_sideboard: Vec<DraftCardDto>,
+    pub human_main: Vec<CardIdentity>,
+    pub human_sideboard: Vec<CardIdentity>,
     pub opponent_name: String,
-    pub opponent_main: Vec<DraftCardDto>,
-    pub opponent_sideboard: Vec<DraftCardDto>,
+    pub opponent_main: Vec<CardIdentity>,
+    pub opponent_sideboard: Vec<CardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -426,9 +415,9 @@ pub struct ConspiracyHookDto {
 impl DraftStateDto {
     pub fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
         let human = draft.human_player();
-        let pack: Vec<DraftCardDto> = draft
+        let pack: Vec<CardIdentity> = draft
             .current_pack_for_human()
-            .map(|p| p.cards().iter().map(DraftCardDto::from).collect())
+            .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();
         let pick_number = (human.picked.len() + 1) as u32;
         let mut seat_summaries: Vec<DraftSeatDto> = std::iter::once(human)
@@ -459,7 +448,7 @@ impl DraftStateDto {
             pick_number,
             pack_size: pack.len() as u32,
             current_pack: pack,
-            picked_pile: human.picked.iter().map(DraftCardDto::from).collect(),
+            picked_pile: human.picked.iter().map(paper_card_to_identity).collect(),
             seat_summaries,
             is_round_over: draft.is_round_over(),
             is_complete: !draft.has_next_choice() && draft.round() >= draft.total_rounds(),

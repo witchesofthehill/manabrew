@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftingView } from "@/views/Draft";
 import { submitHostPick, teardownHost } from "@/game/draftHost";
 import { submitPeerPick } from "@/game/draftPeer";
@@ -48,10 +49,11 @@ export default function MultiplayerDraft() {
   }
 
   if (mode === "complete") {
+    const myPool = finalPools.find((p) => p.seat === mySeat);
     return (
       <CompletionView
         pools={finalPools}
-        mySeat={mySeat}
+        myPool={myPool?.pool ?? []}
         onExit={() => {
           if (amHost) teardownHost();
           clear();
@@ -134,20 +136,19 @@ export default function MultiplayerDraft() {
 
 interface CompletionViewProps {
   pools: ReturnType<typeof useMultiplayerDraftStore.getState>["finalPools"];
-  mySeat: number | null;
+  myPool: DraftCard[];
   onExit: () => void;
 }
 
-function CompletionView({ pools, mySeat, onExit }: CompletionViewProps) {
-  const myPool = pools.find((p) => p.seat === mySeat);
+function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto p-6">
-      <header className="flex items-center justify-between">
+    <div className="flex h-full flex-col gap-4 p-6">
+      <header className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Draft complete</h1>
+          <h1 className="text-2xl font-bold">Draft complete · Build your deck</h1>
           <p className="text-sm text-muted-foreground">
-            Every seat has finished. Deck-building and tournament play are coming in a future update
-            — for now, your picked pool is below.
+            Drag from your picks into Main / Sideboard. Use "Save to My Decks" when you're happy
+            with the 40 — saved decks open from the Decks view like any other.
           </p>
         </div>
         <Button variant="outline" onClick={onExit}>
@@ -155,44 +156,37 @@ function CompletionView({ pools, mySeat, onExit }: CompletionViewProps) {
         </Button>
       </header>
 
-      {myPool ? (
-        <section className="rounded-md border border-border/70 p-4">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Your picks ({myPool.pool.length})
-          </h2>
-          <ul className="grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-3 md:grid-cols-4">
-            {myPool.pool.map((c, i) => (
+      {myPool.length === 0 ? (
+        // Observer / weren't seated — show the pod summary instead of
+        // an empty builder so the user understands why they have no
+        // cards to build with.
+        <section>
+          <p className="mb-3 text-sm text-muted-foreground">
+            You weren't seated in this draft. Pod final pools:
+          </p>
+          <ul className="grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 md:grid-cols-3">
+            {pools.map((p) => (
               <li
-                key={`${c.setCode}:${c.cardNumber}:${i}`}
-                className="rounded border border-border/40 bg-card/30 px-2 py-1"
+                key={p.seat}
+                className="flex items-center justify-between rounded border border-border/40 bg-card/30 px-3 py-2"
               >
-                {c.name}
+                <span className={p.isHuman ? "font-semibold" : "text-muted-foreground"}>
+                  {p.seat}. {p.displayName}
+                </span>
+                <span className="text-xs text-muted-foreground">{p.pool.length} cards</span>
               </li>
             ))}
           </ul>
         </section>
       ) : (
-        <p className="text-sm text-muted-foreground">You weren't seated in this draft.</p>
+        <div className="min-h-0 flex-1">
+          <LimitedDeckBuilder
+            pool={myPool}
+            defaultDeckName="Multiplayer Draft Deck"
+            format="draft"
+          />
+        </div>
       )}
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Pod summary
-        </h2>
-        <ul className="grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 md:grid-cols-3">
-          {pools.map((p) => (
-            <li
-              key={p.seat}
-              className="flex items-center justify-between rounded border border-border/40 bg-card/30 px-3 py-2"
-            >
-              <span className={p.isHuman ? "font-semibold" : "text-muted-foreground"}>
-                {p.seat}. {p.displayName}
-              </span>
-              <span className="text-xs text-muted-foreground">{p.pool.length} cards</span>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }

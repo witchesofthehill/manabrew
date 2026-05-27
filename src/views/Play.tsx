@@ -114,9 +114,7 @@ export default function Play() {
       <div className="relative h-full">
         <DeckVsSelector
           onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-            // On web with a hosted node available, let the player pick the engine;
-            // otherwise (Tauri, or no hosted node) just run the local Rust engine.
-            if (getPlatform().type === "web" && isHostedEngineAvailable()) {
+            if (getPlatform().type === "web") {
               setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
             } else {
               startGame(playerDeck, formatId, commanderName, opponentDeck, "Wasm");
@@ -126,6 +124,7 @@ export default function Play() {
       </div>
       {pendingAiStart && (
         <EngineChoiceModal
+          hostedAvailable={isHostedEngineAvailable()}
           onChoose={(engine: EngineKind) => {
             const pending = pendingAiStart;
             setPendingAiStart(null);

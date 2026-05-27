@@ -22,7 +22,10 @@ import init, {
   limited_get_edition_info,
   limited_get_set_pool,
   limited_start_booster_draft,
+  limited_start_multiplayer_draft,
   limited_pick_card,
+  limited_submit_pick,
+  limited_get_seat_state,
   limited_undo_pick,
   limited_get_draft_state,
   limited_start_winston,
@@ -553,8 +556,18 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
       return limited_get_set_pool(args?.setCode as string);
     case "limited_start_booster_draft":
       return limited_start_booster_draft(args?.setup as object);
+    case "limited_start_multiplayer_draft":
+      return limited_start_multiplayer_draft(args?.setup as object, args?.humans as object);
     case "limited_pick_card":
       return limited_pick_card(args?.sessionId as string, args?.cardName as string);
+    case "limited_submit_pick":
+      return limited_submit_pick(
+        args?.sessionId as string,
+        args?.seatIdx as number,
+        args?.cardName as string,
+      );
+    case "limited_get_seat_state":
+      return limited_get_seat_state(args?.sessionId as string, args?.seatIdx as number);
     case "limited_undo_pick":
       return limited_undo_pick(args?.sessionId as string);
     case "limited_get_draft_state":

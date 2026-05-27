@@ -98,12 +98,16 @@ export function StartMultiplayerDraftDialog({
           playerSlot: p.username,
           displayName: p.username,
         }));
+      // `Number("0") || undefined` collapses an explicit `0` seed to
+      // undefined; use `Number.isFinite` so seed `0` round-trips as
+      // a valid seed instead of silently becoming random.
+      const parsedSeed = seedInput.trim() ? Number(seedInput) : NaN;
       const config: MpDraftConfig = {
         setCode: selectedSet,
         podSize,
         rounds,
         picksPerPass,
-        seed: seedInput ? Number(seedInput) || undefined : undefined,
+        seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         fillWithBots,
       };
       const result = await startDraftAsHost({

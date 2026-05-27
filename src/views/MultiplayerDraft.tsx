@@ -8,7 +8,10 @@ import { DraftingView } from "@/views/Draft";
 import { submitHostPick, teardownHost } from "@/game/draftHost";
 import { submitPeerPick } from "@/game/draftPeer";
 import { useLimitedStore } from "@/stores/useLimitedStore";
-import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import {
+  type MpDraftPlayerPool,
+  useMultiplayerDraftStore,
+} from "@/stores/useMultiplayerDraftStore";
 import type { DraftCard } from "@/types/limited";
 
 export default function MultiplayerDraft() {
@@ -56,8 +59,9 @@ export default function MultiplayerDraft() {
         myPool={myPool?.pool ?? []}
         onExit={() => {
           if (amHost) teardownHost();
+          // `clear()` flips mode → "idle"; the useEffect above watches
+          // for that and navigates to /lobby. Avoid double-navigating.
           clear();
-          navigate("/lobby");
         }}
       />
     );
@@ -135,7 +139,7 @@ export default function MultiplayerDraft() {
 }
 
 interface CompletionViewProps {
-  pools: ReturnType<typeof useMultiplayerDraftStore.getState>["finalPools"];
+  pools: MpDraftPlayerPool[];
   myPool: DraftCard[];
   onExit: () => void;
 }

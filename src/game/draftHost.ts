@@ -58,6 +58,15 @@ interface ActiveHost {
   hostSlot: string;
   /** Subscriber returned by `events.on` — call to detach the listener. */
   unsubscribe: () => void;
+  /** Serialises `applyPick` invocations against concurrent peer
+   *  picks. `onRelay` fires-and-forgets each incoming envelope, and
+   *  with `picksPerPass > 1` (or fast clickers) two picks can land
+   *  inside the same engine tick. The engine itself is single-
+   *  threaded inside wasm, but the per-seat state fetches that
+   *  follow each await can interleave and broadcast stale views to
+   *  peers. Chaining every pick through this promise guarantees one
+   *  full apply + broadcast cycle finishes before the next starts. */
+  pendingChain: Promise<void>;
 }
 
 // Module-level singleton — assumes one host session per tab at a
@@ -194,9 +203,27 @@ export async function startDraftAsHost(args: {
     mySeat: 0,
     hostSlot,
     unsubscribe,
+    pendingChain: Promise.resolve(),
   };
 
   return { ok: true, sessionId: initialState.sessionId, seats };
+}
+
+/**
+ * Enqueue a pick through the host's serialisation chain so concurrent
+ * peer picks (or peer + host picks landing in the same tick) apply
+ * one at a time. Errors are swallowed into the chain so a failing
+ * pick doesn't poison subsequent submissions.
+ */
+function enqueuePick(seat: number, cardName: string): Promise<void> {
+  if (!active) return Promise.resolve();
+  const next = active.pendingChain
+    .catch(() => {
+      /* prior pick already surfaced via `setError`; don't block the queue */
+    })
+    .then(() => applyPick(seat, cardName));
+  active.pendingChain = next;
+  return next;
 }
 
 /**
@@ -206,7 +233,7 @@ export async function startDraftAsHost(args: {
  */
 export async function submitHostPick(cardName: string): Promise<void> {
   if (!active) return;
-  await applyPick(active.mySeat, cardName);
+  await enqueuePick(active.mySeat, cardName);
 }
 
 async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope }): Promise<void> {
@@ -221,7 +248,7 @@ async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope 
     console.warn("[draftHost] pick from unknown player", payload.from_player);
     return;
   }
-  await applyPick(seat.seat, pick.cardName);
+  await enqueuePick(seat.seat, pick.cardName);
 }
 
 async function applyPick(seat: number, cardName: string): Promise<void> {

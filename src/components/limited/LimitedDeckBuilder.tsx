@@ -387,8 +387,13 @@ export default function LimitedDeckBuilder({
     // Leftover pool cards (drafted but neither main nor sideboard) get
     // parked in the maybeboard so the saved draft deck is a lossless
     // snapshot of every pick — the player can re-open it later and
-    // shuffle cards around without re-running the draft.
-    const leftoverCards = unused.map((i) => fullPool[i]).filter(Boolean);
+    // shuffle cards around without re-running the draft. Synthesised
+    // basics from the "fix manabase" helper carry `setCode === ""` so
+    // we drop them here; they weren't drafted and surfacing them in
+    // the maybeboard would surprise the player.
+    const leftoverCards = unused
+      .map((i) => fullPool[i])
+      .filter((c): c is DraftCard => Boolean(c) && c.setCode !== "");
 
     // Decks persist to localStorage and feed the in-game card renderer,
     // so resolve real Scryfall data before serialising — engine DTOs
@@ -403,9 +408,9 @@ export default function LimitedDeckBuilder({
       format,
       cards: resolvedMain,
       sideboard: resolvedSide,
-      ...(resolvedMaybe.length > 0 ? { maybeboard: resolvedMaybe } : {}),
       draft: resolvedMain.length < targetMainSize,
     };
+    if (resolvedMaybe.length > 0) deck.maybeboard = resolvedMaybe;
     loadDeck(deck);
     saveCurrentDeck();
     setSaveDialogOpen(false);

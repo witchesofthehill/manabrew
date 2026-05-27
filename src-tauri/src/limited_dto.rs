@@ -30,7 +30,10 @@ pub fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
         name: c.name.clone(),
         set_code: c.set_code.clone(),
         card_number: c.collector_number.clone(),
-        foil: Some(c.foil),
+        // `Some(false)` would serialise to `"foil":false` on every
+        // non-foil card; `None` is skipped by the `skip_serializing_if`
+        // on `CardIdentity::foil`, keeping the wire clean.
+        foil: if c.foil { Some(true) } else { None },
     }
 }
 

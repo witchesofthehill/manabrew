@@ -20,9 +20,12 @@ export type DeckFormatId =
   | "sealed";
 
 export interface CardIdentity {
-  /** UUID for live in-game card instances. Empty string for static
-   *  identity refs (saved decks, draft pools) — Rust mirror omits the
-   *  field on the wire via `skip_serializing_if = "String::is_empty"`. */
+  /** UUID for live in-game card instances. Limited refs (draft pools,
+   *  saved decks before a game starts) carry `""` here by convention —
+   *  the Rust mirror writes an empty string and uses
+   *  `skip_serializing_if = "String::is_empty"` so the field is dropped
+   *  from the wire. Game-state code relies on this being a string, not
+   *  Option, so we keep the type and accept the convention. */
   id: string;
   name: string;
   setCode: string;

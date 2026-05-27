@@ -99,11 +99,23 @@ let gameRunning = false;
  */
 const CARD_ARCHIVE_MANIFEST_URL = "/wasm/cardset.manifest.json";
 const CARD_ARCHIVE_CACHE = "manabrew-card-archive";
+/** Caches written by older versions before the content-addressed switch.
+ *  Browsers that touched a previous build still hold ~27 MiB of dead
+ *  bytes under these names; clean them up once on worker init. */
+const LEGACY_CARD_ARCHIVE_CACHES = ["manabrew-card-archive-v4"];
 
 interface CardArchiveManifest {
   archive: string;
   sha256: string;
   bytes: number;
+}
+
+async function purgeLegacyArchiveCaches(): Promise<void> {
+  for (const name of LEGACY_CARD_ARCHIVE_CACHES) {
+    await caches.delete(name).catch(() => {
+      /* best-effort cleanup */
+    });
+  }
 }
 
 // ============================================================================
@@ -121,6 +133,7 @@ async function initWasm(): Promise<void> {
       console.log("[GameWorker] initWasm: init() resolved, calling wasm_init()");
       wasm_init();
       console.log("[GameWorker] initWasm: wasm_init() returned, calling loadCardData()");
+      await purgeLegacyArchiveCaches();
       await loadCardData();
       console.log("[GameWorker] initWasm: loadCardData() complete");
     } catch (error) {

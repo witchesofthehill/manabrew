@@ -1,0 +1,334 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Host-side coordination for a multiplayer booster draft. The room
+// host runs the actual `BoosterDraft` engine session in their WASM /
+// Tauri backend; this module:
+//   1. starts the engine session with seat assignments,
+//   2. broadcasts the start event to every peer (with their seat
+//      assignment + initial draft state),
+//   3. receives incoming peer picks via the RoomRelay event bus,
+//      submits them to the engine, and re-broadcasts each peer's
+//      updated per-seat view,
+//   4. detects draft completion and broadcasts every player's final
+//      pool so peers can navigate to the build/completion view.
+//
+// All wire traffic rides on `RoomRelayEnvelope` with protocol
+// "draft-v1"; the matchmaking server is a dumb relay. If the host
+// disconnects mid-draft the session dies — same model as the existing
+// multiplayer game flow.
+
+import { fetchSetPool } from "@/api/limitedEdition";
+import {
+  type DraftPickMessage,
+  type DraftStartMessage,
+  type DraftStateBroadcastMessage,
+  type DraftCompleteMessage,
+  type MpDraftConfig,
+  type MpDraftSeatAssignment,
+  isDraftRelay,
+  makeDraftRelay,
+} from "@/game/draftRelay";
+import { getPlatform } from "@/platform";
+import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import type { DraftCard, DraftState } from "@/types/limited";
+import type { RoomRelayEnvelope } from "@/types/server";
+
+/** One non-host participant the host knows about at draft start. */
+export interface DraftHostParticipant {
+  /** Server-side identifier (`player-N`) for the peer. */
+  playerSlot: string;
+  /** Display name shown in the seat summary. */
+  displayName: string;
+}
+
+/** Outcome of `startDraftAsHost` so the caller can show a useful error
+ *  without parsing `Error.message`. */
+export type DraftHostStartResult =
+  | { ok: true; sessionId: string; seats: MpDraftSeatAssignment[] }
+  | { ok: false; error: string };
+
+interface ActiveHost {
+  sessionId: string;
+  roomId: string;
+  seats: MpDraftSeatAssignment[];
+  mySeat: number;
+  /** Subscriber returned by `events.on` — call to detach the listener. */
+  unsubscribe: () => void;
+}
+
+let active: ActiveHost | null = null;
+
+/**
+ * Allocate seats for the room. The host always sits at seat 0; the
+ * other participants take seats 1..N. Remaining slots become AI bots
+ * if `fillWithBots`, otherwise the function rejects with `null` so the
+ * lobby can keep the room open until more humans join.
+ */
+export function buildSeatAssignments(
+  hostSlot: string,
+  hostName: string,
+  participants: DraftHostParticipant[],
+  config: MpDraftConfig,
+): MpDraftSeatAssignment[] | null {
+  const totalHumans = 1 + participants.length;
+  if (totalHumans > config.podSize) return null;
+  if (totalHumans < config.podSize && !config.fillWithBots) return null;
+
+  const seats: MpDraftSeatAssignment[] = [];
+  seats.push({ seat: 0, playerSlot: hostSlot, displayName: hostName, isHuman: true });
+  participants.forEach((p, i) => {
+    seats.push({
+      seat: i + 1,
+      playerSlot: p.playerSlot,
+      displayName: p.displayName,
+      isHuman: true,
+    });
+  });
+  for (let s = totalHumans; s < config.podSize; s++) {
+    seats.push({ seat: s, playerSlot: null, displayName: `AI ${s}`, isHuman: false });
+  }
+  return seats;
+}
+
+/**
+ * Kick off a multiplayer draft on the host. Pulls the set pool,
+ * starts the engine session, then broadcasts the start envelope plus
+ * every peer's initial per-seat state. Sets up the relay listener so
+ * subsequent peer picks land on the engine.
+ *
+ * Returns the engine session id (the host stores this so it can
+ * address the same draft through the worker dispatch). Throws no
+ * exceptions — failures come back as `{ ok: false, error }`.
+ */
+export async function startDraftAsHost(args: {
+  roomId: string;
+  hostSlot: string;
+  hostName: string;
+  participants: DraftHostParticipant[];
+  config: MpDraftConfig;
+}): Promise<DraftHostStartResult> {
+  if (active) {
+    return { ok: false, error: "a draft is already in progress on this host" };
+  }
+  const { roomId, hostSlot, hostName, participants, config } = args;
+  const seats = buildSeatAssignments(hostSlot, hostName, participants, config);
+  if (!seats) {
+    return {
+      ok: false,
+      error: `pod needs ${config.podSize} seats but only ${
+        1 + participants.length
+      } humans are ready`,
+    };
+  }
+  const platform = getPlatform();
+  if (!platform.server) {
+    return { ok: false, error: "multiplayer not available on this platform" };
+  }
+  const server = platform.server;
+  let pool: DraftCard[];
+  try {
+    pool = await fetchSetPool(config.setCode);
+  } catch (err) {
+    return { ok: false, error: `failed to load set ${config.setCode}: ${String(err)}` };
+  }
+  let initialState: DraftState;
+  try {
+    initialState = await platform.invoke<DraftState>("limited_start_multiplayer_draft", {
+      setup: {
+        podSize: config.podSize,
+        rounds: config.rounds,
+        pool,
+        picksPerPass: config.picksPerPass,
+        seed: config.seed,
+      },
+      humans: seats.filter((s) => s.isHuman).map((s) => ({ seat: s.seat, name: s.displayName })),
+    });
+  } catch (err) {
+    return { ok: false, error: `engine refused start: ${String(err)}` };
+  }
+
+  // Update local store first so the host's own UI flips immediately.
+  useMultiplayerDraftStore.getState().enterAsHost({
+    sessionId: initialState.sessionId,
+    roomId,
+    config,
+    seats,
+    mySeat: 0,
+    state: initialState,
+  });
+
+  // Broadcast start to the room and seed every peer with their view.
+  const startMsg: DraftStartMessage = {
+    type: "start",
+    sessionId: initialState.sessionId,
+    config,
+    seats,
+  };
+  await server.sendRoomMessage(makeDraftRelay(startMsg, { fromPlayer: hostSlot, roomId }));
+  await broadcastPerSeatStates(seats, initialState.sessionId, hostSlot, roomId);
+
+  // Subscribe to incoming picks. Stash the unsubscribe handle so
+  // `teardownHost` can detach it on draft end / disconnect.
+  const unsubscribe = platform.events.on<{
+    from_player: string;
+    state: RoomRelayEnvelope;
+  }>("server:room_message", (payload) => {
+    void onRelay(payload);
+  });
+
+  active = {
+    sessionId: initialState.sessionId,
+    roomId,
+    seats,
+    mySeat: 0,
+    unsubscribe,
+  };
+
+  return { ok: true, sessionId: initialState.sessionId, seats };
+}
+
+/**
+ * Host's own pick path — same engine call as a peer pick but routed
+ * locally instead of off-room. Mirrors `peer.submitPick` so the host's
+ * own DraftCardTile clicks land on the engine identically.
+ */
+export async function submitHostPick(cardName: string): Promise<void> {
+  if (!active) return;
+  await applyPick(active.mySeat, cardName);
+}
+
+async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope }): Promise<void> {
+  if (!active) return;
+  if (!isDraftRelay(payload.state)) return;
+  const env = payload.state;
+  if (env.payload.type !== "pick") return;
+  if (env.payload.sessionId !== active.sessionId) return;
+  const pick = env.payload as DraftPickMessage;
+  const seat = active.seats.find((s) => s.playerSlot === payload.from_player);
+  if (!seat) {
+    console.warn("[draftHost] pick from unknown player", payload.from_player);
+    return;
+  }
+  await applyPick(seat.seat, pick.cardName);
+}
+
+async function applyPick(seat: number, cardName: string): Promise<void> {
+  if (!active) return;
+  const platform = getPlatform();
+  let nextState: DraftState;
+  try {
+    nextState = await platform.invoke<DraftState>("limited_submit_pick", {
+      sessionId: active.sessionId,
+      seatIdx: seat,
+      cardName,
+    });
+  } catch (err) {
+    useMultiplayerDraftStore.getState().setError(`pick failed: ${String(err)}`);
+    return;
+  }
+
+  // Refresh the host's own view; for everybody else, fetch their
+  // per-seat state and ship it via relay.
+  if (seat === active.mySeat) {
+    useMultiplayerDraftStore.getState().setLocalState(nextState);
+  } else {
+    // Host needs their own seat's fresh view too (the pick advanced
+    // the round / passed packs).
+    const hostState = await fetchSeatState(active.sessionId, active.mySeat);
+    if (hostState) useMultiplayerDraftStore.getState().setLocalState(hostState);
+  }
+
+  await broadcastPerSeatStates(
+    active.seats,
+    active.sessionId,
+    active.seats[0].playerSlot ?? "",
+    active.roomId,
+  );
+
+  if (nextState.isComplete) {
+    await finishDraft();
+  }
+}
+
+async function broadcastPerSeatStates(
+  seats: MpDraftSeatAssignment[],
+  sessionId: string,
+  fromPlayer: string,
+  roomId: string,
+): Promise<void> {
+  const server = getPlatform().server;
+  if (!server) return;
+  for (const s of seats) {
+    // Skip the host's own seat (state already in local store) and any
+    // bot seats (no remote viewer to relay to).
+    if (s.playerSlot === fromPlayer || s.playerSlot === null) continue;
+    const seatState = await fetchSeatState(sessionId, s.seat);
+    if (!seatState) continue;
+    const msg: DraftStateBroadcastMessage = {
+      type: "stateUpdate",
+      sessionId,
+      seat: s.seat,
+      state: seatState,
+    };
+    await server.sendRoomMessage(
+      makeDraftRelay(msg, {
+        fromPlayer,
+        targetPlayer: s.playerSlot,
+        roomId,
+      }),
+    );
+  }
+}
+
+async function fetchSeatState(sessionId: string, seat: number): Promise<DraftState | null> {
+  try {
+    return await getPlatform().invoke<DraftState>("limited_get_seat_state", {
+      sessionId,
+      seatIdx: seat,
+    });
+  } catch (err) {
+    console.warn(`[draftHost] seat ${seat} state failed:`, err);
+    return null;
+  }
+}
+
+async function finishDraft(): Promise<void> {
+  if (!active) return;
+  const server = getPlatform().server;
+  const pools = await Promise.all(
+    active.seats.map(async (s) => {
+      const state = await fetchSeatState(active!.sessionId, s.seat);
+      return {
+        seat: s.seat,
+        playerSlot: s.playerSlot,
+        displayName: s.displayName,
+        isHuman: s.isHuman,
+        pool: state?.pickedPile ?? [],
+      };
+    }),
+  );
+  useMultiplayerDraftStore.getState().complete(pools);
+  const msg: DraftCompleteMessage = {
+    type: "complete",
+    sessionId: active.sessionId,
+    picks: pools,
+  };
+  if (server) {
+    await server.sendRoomMessage(
+      makeDraftRelay(msg, {
+        fromPlayer: active.seats[0].playerSlot ?? "",
+        roomId: active.roomId,
+      }),
+    );
+  }
+  teardownHost();
+}
+
+/** Detach the relay listener and drop host state. Called automatically
+ *  on `finishDraft`; the lobby calls it explicitly on host disconnect /
+ *  leave-room so a future draft on the same client starts clean. */
+export function teardownHost(): void {
+  if (!active) return;
+  active.unsubscribe();
+  active = null;
+}

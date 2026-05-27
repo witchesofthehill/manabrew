@@ -1,13 +1,11 @@
-//! Headless integration smoke for hosted Play-vs-AI through the relay.
+//! Headless end-to-end smoke for hosted Play-vs-AI through the relay.
 //!
-//! Drives N concurrent games end-to-end against a running relay + self-hosted-node:
-//! each game = one player connection that joins a node-hosted room, summons the AI
-//! opponent (`spawnBot`), readies, and plays its seat with `SimpleAi` until the game
-//! ends. Supplies both decks itself (60-card constructed), so it needs no preset
-//! loader and the node must run in `constructed` format. Exits 0 only if every game
-//! reaches game-over within the timeout — so it doubles as a CI integration test.
+//! Ignored by default — it needs a running relay + self-hosted-node. Bring up the
+//! stack (`docker compose -f compose.local.yml up --build`) then run:
 //!
-//! Env: HOSTED_SMOKE_RELAY_URL, HOSTED_SMOKE_SERVER_KEY, HOSTED_SMOKE_GAMES,
+//!   cargo test -p self-hosted-node --test hosted_smoke -- --ignored --nocapture
+//!
+//! Knobs: HOSTED_SMOKE_RELAY_URL, HOSTED_SMOKE_SERVER_KEY, HOSTED_SMOKE_GAMES,
 //! HOSTED_SMOKE_MAX_PROMPTS, HOSTED_SMOKE_TIMEOUT_SECS.
 
 use std::time::Duration;
@@ -27,8 +25,9 @@ type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsWrite = SplitSink<Ws, Message>;
 type WsRead = SplitStream<Ws>;
 
-#[tokio::main]
-async fn main() {
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs a running relay + self-hosted-node; run with --ignored"]
+async fn hosted_play_vs_ai_smoke() {
     let relay = env_or("HOSTED_SMOKE_RELAY_URL", "ws://127.0.0.1:9443");
     let key = env_or("HOSTED_SMOKE_SERVER_KEY", "forge");
     let games: usize = env_or("HOSTED_SMOKE_GAMES", "2").parse().unwrap_or(2);
@@ -43,20 +42,14 @@ async fn main() {
         "[smoke] relay={relay} games={games} max_prompts={max_prompts} timeout={timeout_secs}s"
     );
 
-    let rooms = match discover_rooms(&relay, &key, games).await {
-        Ok(rooms) => rooms,
-        Err(error) => {
-            eprintln!("[smoke] FAIL room discovery: {error}");
-            std::process::exit(1);
-        }
-    };
-    if rooms.len() < games {
-        eprintln!(
-            "[smoke] FAIL need {games} open node rooms, found {} (is the node up with MAX_GAMES>={games}, constructed format?)",
-            rooms.len()
-        );
-        std::process::exit(1);
-    }
+    let rooms = discover_rooms(&relay, &key, games)
+        .await
+        .unwrap_or_else(|error| panic!("room discovery failed: {error}"));
+    assert!(
+        rooms.len() >= games,
+        "need {games} open node rooms, found {} (is the node up with MAX_GAMES>={games}?)",
+        rooms.len()
+    );
 
     let mut handles = Vec::new();
     for (i, room_id) in rooms.into_iter().take(games).enumerate() {
@@ -80,7 +73,7 @@ async fn main() {
         }
     }
     eprintln!("[smoke] {ok}/{games} games completed");
-    std::process::exit(if ok == games { 0 } else { 1 });
+    assert_eq!(ok, games, "{ok}/{games} games completed");
 }
 
 async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<String>, String> {
@@ -101,9 +94,6 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
                 let ids = rooms
                     .into_iter()
                     .filter(|room| {
-                        // Hosted rooms are Any-format now; the harness locks the game to
-                        // Standard at start (20-life Constructed, so its plain 60-card
-                        // decks are legal) via the startGame payload.
                         room.hosted
                             && room.status == RoomStatus::Lobby
                             && room.format == GameFormat::Any
@@ -150,8 +140,6 @@ async fn play_game(
     )
     .await?;
 
-    // Summon the AI opponent into this room, supplying its deck so the node needs no
-    // preset (constructed format).
     let spawn_bot = StateEnvelope::RoomRelay {
         protocol: "self-hosted-node".to_string(),
         version: 1,
@@ -189,8 +177,6 @@ async fn play_game(
         let mut my_slot: Option<String> = None;
         let mut acted = 0usize;
         let mut last_prompt: Option<String> = None;
-        // Hosted rooms are Any-format now and the node no longer auto-starts them, so
-        // the player drives the start once everyone's ready, sending the chosen format.
         let mut sent_start = false;
         while let Some(message) = recv(&mut write, &mut read).await {
             match message {
@@ -199,7 +185,7 @@ async fn play_game(
                         .iter()
                         .position(|name| name == &username)
                         .map(player_slot);
-                    eprintln!("[smoke] game {idx}: started, my slot={:?}", my_slot);
+                    eprintln!("[smoke] game {idx}: started, my slot={my_slot:?}");
                 }
                 ServerMessage::StateUpdate { state, .. } => {
                     if is_game_over(&state) {
@@ -285,16 +271,14 @@ async fn play_game(
 
 fn is_game_over(state: &Value) -> bool {
     let text = state.to_string();
-    // The node's explicit game-over broadcast (RoomRelay payload), plus the
-    // in-state markers some engines include.
     text.contains("\"type\":\"gameOver\"")
         || text.contains("\"gameOver\":true")
         || text.contains("\"game_over\":true")
         || text.contains("\"winner\"")
 }
 
-// 40 lands + 20 of a creature castable off that land, so games end via combat
-// rather than a ~turn-53 deck-out (which trips a deep-recursion path in the engine).
+// 40 lands + 20 creatures castable off that land, so games end via combat rather than a
+// ~turn-53 deck-out (which trips a deep-recursion path in the engine and stalls the test).
 fn basic_deck(name: &str, land: &str, creature: &str) -> Value {
     let mut cards: Vec<Value> = (0..40)
         .map(|i| card(format!("{}-{}", land.to_lowercase(), i), land))
@@ -333,8 +317,7 @@ async fn recv(write: &mut WsWrite, read: &mut WsRead) -> Option<ServerMessage> {
                     return Some(message);
                 }
             }
-            // Long java games idle between prompts; without answering relay pings the
-            // connection is dropped (player goes offline) and the game stalls.
+            // Idle java games drop the connection if relay pings go unanswered.
             Ok(Message::Ping(payload)) => {
                 let _ = write.send(Message::Pong(payload)).await;
             }

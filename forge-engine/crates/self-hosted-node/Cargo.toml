@@ -11,10 +11,6 @@ java-espresso = ["java-forge"]
 name = "self-hosted-node"
 path = "src/main.rs"
 
-[[bin]]
-name = "hosted-smoke"
-path = "src/bin/hosted_smoke.rs"
-
 [dependencies]
 forge-agent-interface = { path = "../forge-agent-interface" }
 forge-bot = { path = "../forge-bot" }

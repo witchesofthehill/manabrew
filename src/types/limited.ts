@@ -1,5 +1,3 @@
-import type { ScryfallImageUris } from "@/types/scryfall";
-
 export type LimitedPoolType =
   | "Full"
   | "Block"
@@ -18,14 +16,22 @@ export interface GauntletMatchDecks {
   opponentSideboard: DraftCard[];
 }
 
+/**
+ * Identity-only reference to a card in a limited (draft/sealed/winston)
+ * session. Everything visual — rarity, colors, type line, image uris,
+ * dual-faced status — is looked up via `useCard` / `peekCard` from the
+ * canonical Scryfall store. `foil` is the one runtime flag the engine
+ * still owns (it's a property of this specific copy in this specific
+ * pack, not of the card itself).
+ *
+ * Keep the name `DraftCard` for now — it's an identifier callers already
+ * recognise, and the rename to something like `DraftCardRef` would churn
+ * imports across the limited surface without buying anything.
+ */
 export interface DraftCard {
   name: string;
   setCode: string;
   collectorNumber: string;
-  rarity: "common" | "uncommon" | "rare" | "mythic" | "land" | "special" | "token" | "unknown";
-  colors?: string[];
-  uris?: ScryfallImageUris;
-  isDoubleFaced?: boolean;
   foil?: boolean;
 }
 

@@ -31,16 +31,15 @@ import { LimitedCompareDialog } from "@/components/limited/LimitedCompareDialog"
 import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
 import { RaritySetSymbol } from "@/components/limited/RaritySetSymbol";
-import { peekCard, useCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { peekCard, useCard, useScryfallStore, type ScryfallEntry } from "@/stores/useScryfallStore";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useDeckStore } from "@/stores/useDeckStore";
 import {
   BASIC_LAND_MANA,
   BASIC_LAND_NAMES,
   type BasicLandName,
-  draftCardToManaBrew,
-  hydrateDraftCards,
   countManaPips,
+  effectiveRarity,
   groupByName,
   groupByRarity,
   indexPool,
@@ -48,6 +47,9 @@ import {
   makeBasicLand,
   type PoolEntry,
   RARITY_LABEL,
+  refToDeckCard,
+  resolveDeckCards,
+  type UIRarity,
   unusedIndices,
   validateLimitedDeck,
 } from "@/lib/limited.utils";
@@ -81,9 +83,18 @@ const POOL_COLOR_CHIPS: Array<{
   { key: "M", symbol: null, fallback: "★", label: "Multicolour" },
 ];
 
-function passesColorFilter(card: DraftCard, filter: PoolColorFilter): boolean {
+function passesColorFilter(
+  card: DraftCard,
+  filter: PoolColorFilter,
+  cache: Record<string, ScryfallEntry>,
+): boolean {
   if (filter.size === 0) return true;
-  const colors = (card.colors ?? []).map((c) => c.toUpperCase());
+  const scry = peekCard(cache, {
+    name: card.name,
+    setCode: card.setCode,
+    collectorNumber: card.collectorNumber,
+  });
+  const colors = (scry?.colors ?? []).map((c) => c.toUpperCase());
   if (filter.has("M") && colors.length >= 2) return true;
   if (filter.has("C") && colors.length === 0) return true;
   return colors.some((c) => filter.has(c as PoolColorChip));
@@ -117,6 +128,10 @@ export default function LimitedDeckBuilder({
   const [extraBasics, setExtraBasics] = useState<DraftCard[]>([]);
   const fullPool = useMemo(() => [...pool, ...extraBasics], [pool, extraBasics]);
   const entries = useMemo(() => indexPool(fullPool), [fullPool]);
+  // Reactive cache subscription — every per-card lookup (color filter,
+  // group-by-rarity, drag overlay) reads from this bucket so the pool
+  // recomputes as Scryfall hydrates the set.
+  const scryfallCache = useScryfallStore((s) => s.cards);
 
   const [main, setMain] = useState<number[]>(() => matchInitial(fullPool, initialMain ?? []));
   const [sideboard, setSideboard] = useState<number[]>(() =>
@@ -189,7 +204,17 @@ export default function LimitedDeckBuilder({
     const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
     const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
     const basicNames = new Set<string>(BASIC_LAND_NAMES);
-    const nonLand = mainCards.filter((c) => !basicNames.has(c.name) && c.rarity !== "land");
+    const nonLand = mainCards.filter(
+      (c) =>
+        !basicNames.has(c.name) &&
+        effectiveRarity(
+          peekCard(cache, {
+            name: c.name,
+            setCode: c.setCode,
+            collectorNumber: c.collectorNumber,
+          }),
+        ) !== "land",
+    );
     const targetLands = Math.max(0, targetMainSize - nonLand.length);
     if (targetLands === 0) {
       toast.info("No room for basics — main deck is already at target size.");
@@ -359,19 +384,19 @@ export default function LimitedDeckBuilder({
       toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
       return;
     }
-    // Decks persist to localStorage and feed the in-game card renderer, so
-    // resolve real Scryfall uris before serialising — the placeholder PNG
-    // would otherwise live forever in saved decks.
-    const [hydratedMain, hydratedSide] = await Promise.all([
-      hydrateDraftCards(mainCards),
-      hydrateDraftCards(sideboardCards),
+    // Decks persist to localStorage and feed the in-game card renderer,
+    // so resolve real Scryfall data before serialising — engine DTOs
+    // ship as identity refs only.
+    const [resolvedMain, resolvedSide] = await Promise.all([
+      resolveDeckCards(mainCards),
+      resolveDeckCards(sideboardCards),
     ]);
     const deck: Deck = {
       name,
       format,
-      cards: hydratedMain.map((c, i) => draftCardToManaBrew(c, i)),
-      sideboard: hydratedSide.map((c, i) => draftCardToManaBrew(c, hydratedMain.length + i)),
-      draft: hydratedMain.length < targetMainSize,
+      cards: resolvedMain,
+      sideboard: resolvedSide,
+      draft: resolvedMain.length < targetMainSize,
     };
     loadDeck(deck);
     saveCurrentDeck();
@@ -411,7 +436,7 @@ export default function LimitedDeckBuilder({
           <Zone
             title={`Pool (${unused.length})`}
             entries={pickEntries(entries, unused).filter((e) =>
-              passesColorFilter(e.card, poolColorFilter),
+              passesColorFilter(e.card, poolColorFilter, scryfallCache),
             )}
             groupMode={groupMode}
             zone="pool"
@@ -727,18 +752,19 @@ function Zone({
   onCardClick,
   preview,
 }: ZoneProps) {
+  const cache = useScryfallStore((s) => s.cards);
   const groups = useMemo(() => {
     switch (groupMode) {
       case "rarity":
-        return renderByRarity(entries);
+        return renderByRarity(entries, cache);
       case "name":
         return renderByName(entries);
       case "cmc":
-        return renderByCmc(entries);
+        return renderByCmc(entries, cache);
       case "color":
-        return renderByColor(entries);
+        return renderByColor(entries, cache);
     }
-  }, [entries, groupMode]);
+  }, [entries, groupMode, cache]);
   const { setNodeRef, isOver } = useDroppable({ id: ZONE_DROP_ID[zone] });
 
   return (
@@ -878,15 +904,15 @@ function DraggableTile({
 }
 
 // Drag overlay floats above the deck while @dnd-kit transitions a card.
-// Goes through `useCard` so it shows the real artwork instead of the
-// placeholder PNG that `draftCardToManaBrew` falls back to.
+// Resolves the Scryfall entry on the fly so it shows the real artwork
+// instead of the placeholder PNG that an unhydrated ref would yield.
 function DragPreview({ card, index }: { card: DraftCard; index: number }) {
   const scry = useCard({
     name: card.name,
     setCode: card.setCode,
     collectorNumber: card.collectorNumber,
   });
-  if (!scry?.uris) {
+  if (!scry) {
     return (
       <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
         <div className="aspect-[5/7] w-full animate-pulse rounded-lg border border-border/50 bg-muted/40" />
@@ -895,7 +921,7 @@ function DragPreview({ card, index }: { card: DraftCard; index: number }) {
   }
   return (
     <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
-      <CardThumbnail card={draftCardToManaBrew({ ...card, uris: scry.uris }, index)} />
+      <CardThumbnail card={refToDeckCard(card, scry, index)} />
     </div>
   );
 }
@@ -911,11 +937,22 @@ function addUnique(arr: number[], v: number): number[] {
 interface RenderedGroup {
   label: string;
   entries: PoolEntry[];
-  rarity?: DraftCard["rarity"];
+  rarity?: UIRarity;
 }
 
-function renderByRarity(entries: PoolEntry[]): RenderedGroup[] {
-  return groupByRarity(entries).map((g) => ({
+function renderByRarity(
+  entries: PoolEntry[],
+  cache: Record<string, ScryfallEntry>,
+): RenderedGroup[] {
+  return groupByRarity(entries, (ref) =>
+    effectiveRarity(
+      peekCard(cache, {
+        name: ref.name,
+        setCode: ref.setCode,
+        collectorNumber: ref.collectorNumber,
+      }),
+    ),
+  ).map((g) => ({
     label: RARITY_LABEL[g.rarity],
     entries: g.entries,
     rarity: g.rarity,
@@ -926,7 +963,10 @@ function renderByName(entries: PoolEntry[]): RenderedGroup[] {
   return groupByName(entries).map((g) => ({ label: g.name, entries: g.entries }));
 }
 
-function renderByColor(entries: PoolEntry[]): RenderedGroup[] {
+function renderByColor(
+  entries: PoolEntry[],
+  cache: Record<string, ScryfallEntry>,
+): RenderedGroup[] {
   const buckets: Record<string, PoolEntry[]> = {
     White: [],
     Blue: [],
@@ -945,11 +985,16 @@ function renderByColor(entries: PoolEntry[]): RenderedGroup[] {
     G: "Green",
   };
   for (const entry of entries) {
-    if (entry.card.rarity === "land") {
+    const scry = peekCard(cache, {
+      name: entry.card.name,
+      setCode: entry.card.setCode,
+      collectorNumber: entry.card.collectorNumber,
+    });
+    if (effectiveRarity(scry) === "land") {
       buckets.Lands.push(entry);
       continue;
     }
-    const cs = (entry.card.colors ?? []).map((c) => c.toUpperCase());
+    const cs = (scry?.colors ?? []).map((c) => c.toUpperCase());
     if (cs.length === 0) buckets.Colourless.push(entry);
     else if (cs.length >= 2) buckets.Multicolour.push(entry);
     else buckets[colorLabel[cs[0]] ?? "Colourless"].push(entry);
@@ -959,24 +1004,19 @@ function renderByColor(entries: PoolEntry[]): RenderedGroup[] {
     .map(([label, list]) => ({ label, entries: list }));
 }
 
-function renderByCmc(entries: PoolEntry[]): RenderedGroup[] {
-  const cache = useScryfallStore.getState().cards;
-  const cmcOf = (entry: PoolEntry): number | null => {
-    const cached = peekCard(cache, {
-      name: entry.card.name,
-      setCode: entry.card.setCode,
-      collectorNumber: entry.card.collectorNumber,
-    });
-    return typeof cached?.cmc === "number" ? cached.cmc : null;
-  };
-
+function renderByCmc(entries: PoolEntry[], cache: Record<string, ScryfallEntry>): RenderedGroup[] {
   const buckets: PoolEntry[][] = [[], [], [], [], [], [], [], []]; // 0..6, 7 = unknown
   for (const e of entries) {
-    if (e.card.rarity === "land") {
+    const scry = peekCard(cache, {
+      name: e.card.name,
+      setCode: e.card.setCode,
+      collectorNumber: e.card.collectorNumber,
+    });
+    if (effectiveRarity(scry) === "land") {
       buckets[7].push(e);
       continue;
     }
-    const cmc = cmcOf(e);
+    const cmc = typeof scry?.cmc === "number" ? scry.cmc : null;
     if (cmc == null) {
       buckets[7].push(e);
       continue;

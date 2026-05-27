@@ -30,47 +30,17 @@ pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<DraftCardDto>,
     let edition = limited_bootstrap::editions()
         .get(&set_code)
         .ok_or_else(|| format!("unknown set: {set_code}"))?;
-    let card_db = crate::card_db::get_card_db();
     let pool: Vec<DraftCardDto> = edition
         .cards
         .iter()
-        .map(|entry| {
-            let (colors, dual_faced) = card_db
-                .get_by_card_name(&entry.name)
-                .map(|r| (r.color(), r.split_type.is_dual_faced()))
-                .unwrap_or_default();
-            DraftCardDto {
-                name: entry.name.clone(),
-                set_code: edition.code.clone(),
-                collector_number: entry.collector_number.clone(),
-                rarity: rarity_label(entry.rarity),
-                colors: color_letters_dto(colors),
-                is_double_faced: dual_faced,
-                foil: false,
-            }
+        .map(|entry| DraftCardDto {
+            name: entry.name.clone(),
+            set_code: edition.code.clone(),
+            collector_number: entry.collector_number.clone(),
+            foil: false,
         })
         .collect();
     Ok(pool)
-}
-
-fn color_letters_dto(colors: forge_foundation::ColorSet) -> Vec<String> {
-    let mut out = Vec::new();
-    if colors.has_white() {
-        out.push("W".to_string());
-    }
-    if colors.has_blue() {
-        out.push("U".to_string());
-    }
-    if colors.has_black() {
-        out.push("B".to_string());
-    }
-    if colors.has_red() {
-        out.push("R".to_string());
-    }
-    if colors.has_green() {
-        out.push("G".to_string());
-    }
-    out
 }
 
 #[tauri::command]
@@ -180,7 +150,6 @@ pub async fn limited_import_cube(
     request: CubeImportRequestDto,
     body: String,
 ) -> Result<CubeImportResultDto, String> {
-    use forge_foundation::sealed_product::Rarity;
     let importer = CubeImporter::new(&request.cube_id_or_url)?;
     let cube = importer.parse(&body)?;
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
@@ -191,9 +160,6 @@ pub async fn limited_import_cube(
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
                 collector_number: format!("cube-{copy}"),
-                rarity: rarity_label(Rarity::Unknown),
-                colors: Vec::new(),
-                is_double_faced: false,
                 foil: false,
             });
         }
@@ -206,21 +172,6 @@ pub async fn limited_import_cube(
         singleton: cube.singleton,
         pool,
     })
-}
-
-fn rarity_label(r: forge_foundation::sealed_product::Rarity) -> String {
-    use forge_foundation::sealed_product::Rarity;
-    match r {
-        Rarity::Common => "common",
-        Rarity::Uncommon => "uncommon",
-        Rarity::Rare => "rare",
-        Rarity::Mythic => "mythic",
-        Rarity::Special => "special",
-        Rarity::BasicLand => "land",
-        Rarity::Token => "token",
-        Rarity::Unknown => "unknown",
-    }
-    .to_string()
 }
 
 #[tauri::command]

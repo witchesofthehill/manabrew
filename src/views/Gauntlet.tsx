@@ -18,20 +18,27 @@ import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { arm as armGauntletReturn } from "@/lib/gauntletReturn";
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
-import { draftCardToManaBrew, hydrateDraftCards } from "@/lib/limited.utils";
+import { resolveDeckCards } from "@/lib/limited.utils";
 import type { Deck, DeckFormatId } from "@/types/manabrew";
 
-function draftCardsToDeck(
+async function buildGauntletDeck(
   name: string,
   main: DraftCard[],
   sideboard: DraftCard[],
   format: DeckFormatId,
-): Deck {
+): Promise<Deck> {
+  // Engine ships identity-only refs; resolve full DeckCards (uris, type
+  // line, mana cost, …) via the canonical Scryfall store before handing
+  // anything to the game runtime.
+  const [resolvedMain, resolvedSide] = await Promise.all([
+    resolveDeckCards(main),
+    resolveDeckCards(sideboard),
+  ]);
   return {
     name,
     format,
-    cards: main.map((card, index) => draftCardToManaBrew(card, index)),
-    sideboard: sideboard.map((card, index) => draftCardToManaBrew(card, main.length + index)),
+    cards: resolvedMain,
+    sideboard: resolvedSide,
   };
 }
 
@@ -98,22 +105,15 @@ export default function Gauntlet() {
       const decks = await fetchMatchDecks(gauntletId);
       setMatchDecks(decks);
       const formatId = activeGauntlet.kind === "sealed" ? "sealed" : "draft";
-      // Engine-supplied DraftCards have no image uris; hydrate them via the
-      // Scryfall store before handing the deck to the game runtime so the
-      // in-game card renderer sees real artwork.
-      const [humanMain, humanSide, oppMain, oppSide] = await Promise.all([
-        hydrateDraftCards(decks.humanMain),
-        hydrateDraftCards(decks.humanSideboard),
-        hydrateDraftCards(decks.opponentMain),
-        hydrateDraftCards(decks.opponentSideboard),
+      const [human, opponent] = await Promise.all([
+        buildGauntletDeck("Gauntlet Deck", decks.humanMain, decks.humanSideboard, formatId),
+        buildGauntletDeck(
+          activeGauntlet.currentOpponent?.deckName ?? "Gauntlet Opponent",
+          decks.opponentMain,
+          decks.opponentSideboard,
+          formatId,
+        ),
       ]);
-      const human = draftCardsToDeck("Gauntlet Deck", humanMain, humanSide, formatId);
-      const opponent = draftCardsToDeck(
-        activeGauntlet.currentOpponent?.deckName ?? "Gauntlet Opponent",
-        oppMain,
-        oppSide,
-        formatId,
-      );
       armGauntletReturn(gauntletId, activeGauntlet.currentRound);
       await startGame(human, formatId, undefined, opponent);
       navigate(ROUTES.PLAY);

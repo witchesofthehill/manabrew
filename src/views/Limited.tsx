@@ -211,7 +211,10 @@ export default function Limited() {
     }
   };
 
-  const startBlocked = isStarting || fetchingPool || !selectedSetCode;
+  // Block start until the chosen set's Scryfall data is fully prefetched
+  // — otherwise the first pack of the draft renders empty skeletons
+  // while individual useCard lookups stream in one card at a time.
+  const startBlocked = isStarting || fetchingPool || !selectedSetCode || prefetchingSet !== null;
   const selectedSet = draftableSets.find((s) => s.code === selectedSetCode) ?? null;
 
   return (

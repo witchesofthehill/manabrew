@@ -6,6 +6,8 @@ use forge_limited::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::limited_bootstrap;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SealedSetupDto {
@@ -18,17 +20,17 @@ pub struct SealedSetupDto {
     pub seed: Option<u64>,
 }
 
+/// Identity-only DTO sent across the engine ↔ UI boundary. Rarity,
+/// colors, and dual-faced status are facts about the card itself — the
+/// UI reads them from Scryfall via `useScryfallStore`, and the engine
+/// re-derives them from its registry when a pool round-trips back here.
+/// `foil` is per-pack runtime state the engine owns, so it stays.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftCardDto {
     pub name: String,
     pub set_code: String,
     pub collector_number: String,
-    pub rarity: String,
-    #[serde(default)]
-    pub colors: Vec<String>,
-    #[serde(default)]
-    pub is_double_faced: bool,
     #[serde(default)]
     pub foil: bool,
 }
@@ -39,88 +41,81 @@ impl From<&PaperCard> for DraftCardDto {
             name: c.name.clone(),
             set_code: c.set_code.clone(),
             collector_number: c.collector_number.clone(),
-            rarity: rarity_str(c.rarity).to_string(),
-            colors: color_letters(c.colors),
-            is_double_faced: c.is_double_faced,
             foil: c.foil,
         }
     }
 }
 
-fn color_letters(colors: ColorSet) -> Vec<String> {
-    let mut out = Vec::new();
-    if colors.has_white() {
-        out.push("W".to_string());
-    }
-    if colors.has_blue() {
-        out.push("U".to_string());
-    }
-    if colors.has_black() {
-        out.push("B".to_string());
-    }
-    if colors.has_red() {
-        out.push("R".to_string());
-    }
-    if colors.has_green() {
-        out.push("G".to_string());
-    }
-    out
-}
-
-fn parse_colors(letters: &[String]) -> ColorSet {
-    let mut mask: u8 = 0;
-    for l in letters {
-        match l.trim().to_ascii_uppercase().as_str() {
-            "W" => mask |= ColorSet::WHITE.mask(),
-            "U" => mask |= ColorSet::BLUE.mask(),
-            "B" => mask |= ColorSet::BLACK.mask(),
-            "R" => mask |= ColorSet::RED.mask(),
-            "G" => mask |= ColorSet::GREEN.mask(),
-            _ => {}
-        }
-    }
-    ColorSet::from_mask(mask)
-}
-
-fn rarity_str(r: Rarity) -> &'static str {
-    match r {
-        Rarity::Common => "common",
-        Rarity::Uncommon => "uncommon",
-        Rarity::Rare => "rare",
-        Rarity::Mythic => "mythic",
-        Rarity::Special => "special",
-        Rarity::BasicLand => "land",
-        Rarity::Token => "token",
-        Rarity::Unknown => "unknown",
-    }
-}
-
-pub fn rarity_from_str(s: &str) -> Rarity {
-    match s.to_lowercase().as_str() {
-        "common" | "c" => Rarity::Common,
-        "uncommon" | "u" => Rarity::Uncommon,
-        "rare" | "r" => Rarity::Rare,
-        "mythic" | "mythic rare" | "m" => Rarity::Mythic,
-        "special" | "bonus" | "s" => Rarity::Special,
-        "land" | "basic land" | "l" => Rarity::BasicLand,
-        "token" | "t" => Rarity::Token,
-        _ => Rarity::Unknown,
-    }
-}
-
 impl DraftCardDto {
+    /// Rebuild the engine-side `PaperCard` for a DTO that came back from
+    /// the UI. Rarity, colors, and dual-faced status are re-derived from
+    /// the editions registry + card database rather than trusted to
+    /// round-trip through JS — those facts are the engine's to own.
     pub fn to_paper_card(&self) -> PaperCard {
+        let (rarity, colors, dual_faced) =
+            resolve_card_meta(&self.name, &self.set_code, &self.collector_number);
         let mut pc = PaperCard::new(
             self.name.clone(),
             self.set_code.clone(),
             self.collector_number.clone(),
-            rarity_from_str(&self.rarity),
+            rarity,
         )
-        .with_colors(parse_colors(&self.colors))
-        .with_double_faced(self.is_double_faced);
+        .with_colors(colors)
+        .with_double_faced(dual_faced);
         pc.foil = self.foil;
         pc
     }
+}
+
+fn resolve_card_meta(
+    name: &str,
+    set_code: &str,
+    collector_number: &str,
+) -> (Rarity, ColorSet, bool) {
+    let editions = limited_bootstrap::editions();
+    let rarity = editions
+        .get(set_code)
+        .and_then(|ed| {
+            ed.cards
+                .iter()
+                .find(|e| e.collector_number == collector_number)
+        })
+        .map(|e| e.rarity)
+        .or_else(|| {
+            // Synthesised basics (setCode="") fall through here — the
+            // limited deck builder makes them client-side. Pin them to
+            // BasicLand so AI rarity-aware logic still treats them as
+            // lands instead of Unknown.
+            if is_basic_land_name(name) {
+                Some(Rarity::BasicLand)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(Rarity::Unknown);
+    let card_db = crate::card_db::get_card_db();
+    let (colors, dual_faced) = card_db
+        .get_by_card_name(name)
+        .map(|r| (r.color(), r.split_type.is_dual_faced()))
+        .unwrap_or_default();
+    (rarity, colors, dual_faced)
+}
+
+fn is_basic_land_name(name: &str) -> bool {
+    matches!(
+        name,
+        "Plains"
+            | "Island"
+            | "Swamp"
+            | "Mountain"
+            | "Forest"
+            | "Wastes"
+            | "Snow-Covered Plains"
+            | "Snow-Covered Island"
+            | "Snow-Covered Swamp"
+            | "Snow-Covered Mountain"
+            | "Snow-Covered Forest"
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

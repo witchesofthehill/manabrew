@@ -2,9 +2,8 @@ import { memo } from "react";
 
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { FoilBadge } from "@/components/limited/FoilBadge";
-import { draftCardToManaBrew } from "@/lib/limited.utils";
+import { useDeckCard } from "@/lib/limited.utils";
 import { cn } from "@/lib/utils";
-import { useCard } from "@/stores/useScryfallStore";
 import type { DraftCard } from "@/types/limited";
 
 interface DraftCardTileProps {
@@ -17,24 +16,19 @@ interface DraftCardTileProps {
 }
 
 function DraftCardTileImpl({ card, index, onClick, disabled, overlay }: DraftCardTileProps) {
-  // The engine returns DraftCards stripped of Scryfall image data — the
-  // Scryfall store hydrates uris on first lookup. While we wait, render a
-  // skeleton instead of crashing the Draft view via the placeholder
-  // image (DFCs' uris hang off card_faces[0]; the store normalises both
-  // into the entry's top-level `uris`).
-  const scry = useCard({
-    name: card.name,
-    setCode: card.setCode,
-    collectorNumber: card.collectorNumber,
-  });
-  if (!scry?.uris) {
+  // The engine ships DraftCards as identity refs (name + set + collector
+  // + foil); useDeckCard resolves them through the canonical Scryfall
+  // store and produces a full DeckCard once the lookup lands. While
+  // pending we render a card-shaped skeleton so the missing image can
+  // never crash the draft view.
+  const deckCard = useDeckCard(card, index);
+  if (!deckCard) {
     return (
       <div className="relative w-full">
         <div className="aspect-[5/7] w-full animate-pulse rounded-lg border border-border/50 bg-muted/40" />
       </div>
     );
   }
-  const omc = draftCardToManaBrew({ ...card, uris: scry.uris }, index);
   return (
     <button
       type="button"
@@ -45,8 +39,8 @@ function DraftCardTileImpl({ card, index, onClick, disabled, overlay }: DraftCar
         card.foil && "draft-tile-foil",
       )}
     >
-      <CardThumbnail card={omc} />
-      {card.isDoubleFaced && (
+      <CardThumbnail card={deckCard} />
+      {deckCard.isDoubleFaced && (
         <span className="pointer-events-none absolute left-1 top-1 inline-flex items-center rounded-full border border-white/20 bg-black/70 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/90">
           DFC
         </span>

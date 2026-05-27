@@ -46,7 +46,7 @@ interface TokenArchiveIndex {
   byName: Map<string, DeckCard>;
 }
 
-interface ScryfallEntry {
+export interface ScryfallEntry {
   card?: CardEntry;
   pendingPromise?: Promise<CardEntry>;
 }

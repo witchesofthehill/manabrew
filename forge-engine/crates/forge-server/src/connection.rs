@@ -174,6 +174,8 @@ pub async fn handle_connection(
     });
 
     let mut write_task_done = false;
+    let connected_at = Instant::now();
+    let disconnect_reason: &str;
 
     loop {
         let read = tokio::time::timeout(READ_IDLE_TIMEOUT, receiver.next());
@@ -182,18 +184,15 @@ pub async fn handle_connection(
                 Ok(Some(Ok(f))) => f,
                 Ok(Some(Err(e))) => {
                     warn!("[recv] read error from '{}': {}", username, e);
+                    disconnect_reason = "read_error";
                     break;
                 }
                 Ok(None) => {
-                    info!("[recv] '{}' stream closed", username);
+                    disconnect_reason = "stream_closed";
                     break;
                 }
                 Err(_) => {
-                    warn!(
-                        "[recv] idle timeout from '{}' (no frames for {}s)",
-                        username,
-                        READ_IDLE_TIMEOUT.as_secs()
-                    );
+                    disconnect_reason = "idle_timeout";
                     break;
                 }
             },
@@ -201,10 +200,11 @@ pub async fn handle_connection(
                 write_task_done = true;
                 match result {
                     Ok(()) => {
-                        warn!("[send] writer stopped for '{}'", username);
+                        disconnect_reason = "writer_stopped";
                     }
                     Err(e) => {
                         warn!("[send] writer task failed for '{}': {}", username, e);
+                        disconnect_reason = "writer_failed";
                     }
                 }
                 break;
@@ -235,7 +235,7 @@ pub async fn handle_connection(
                 handle_client_message(&state, &player_id, &username, &tx, client_msg);
             }
             Message::Close(_) => {
-                info!("[recv] '{}' sent close frame", username);
+                disconnect_reason = "client_close";
                 break;
             }
             Message::Ping(data) => {
@@ -249,7 +249,19 @@ pub async fn handle_connection(
         }
     }
 
-    info!("[disconnect] '{}' (id={})", username, &player_id[..8]);
+    let connected_for_s = connected_at.elapsed().as_secs();
+    let room_id_for_log = state
+        .players
+        .get(&player_id)
+        .and_then(|p| p.room_id.clone());
+    info!(
+        "[disconnect] user='{}' id={} reason={} connected_for_s={} room={:?}",
+        username,
+        &player_id[..8],
+        disconnect_reason,
+        connected_for_s,
+        room_id_for_log,
+    );
     mark_disconnected(&state, &player_id, generation);
 
     // Tear down background tasks after we have marked the player disconnected.
@@ -855,6 +867,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::StateUpdate { .. } => "StateUpdate",
         ServerMessage::TurnChanged { .. } => "TurnChanged",
         ServerMessage::Error { .. } => "Error",
+        ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
     }
 }
 

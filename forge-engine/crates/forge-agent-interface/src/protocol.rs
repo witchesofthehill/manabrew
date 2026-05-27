@@ -198,6 +198,10 @@ pub enum ServerMessage {
         code: String,
         message: String,
     },
+
+    ServerShuttingDown {
+        reconnect_in_s: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

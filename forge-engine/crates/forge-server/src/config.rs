@@ -1,6 +1,7 @@
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
+    pub health_port: u16,
     pub max_rooms: usize,
     pub server_key: String,
 }
@@ -13,6 +14,10 @@ impl ServerConfig {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(9443),
+            health_port: std::env::var("FORGE_HEALTH_PORT")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(9444),
             max_rooms: std::env::var("FORGE_MAX_ROOMS")
                 .ok()
                 .and_then(|r| r.parse().ok())

@@ -3,6 +3,7 @@ import { UserList } from "@/components/lobby/UserList";
 import { ChatComponent } from "@/components/lobby/ChatComponent";
 import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -319,6 +320,8 @@ export default function Lobby() {
       {/* ── Header ── */}
       <div className="px-4 py-3 border-b shrink-0 flex items-center gap-3">
         <div className="flex-1" />
+
+        <ReconnectBanner />
 
         {/* Connection status */}
         <div

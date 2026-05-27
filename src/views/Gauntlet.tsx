@@ -18,7 +18,7 @@ import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { arm as armGauntletReturn } from "@/lib/gauntletReturn";
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
-import { draftCardToManaBrew } from "@/lib/limited.utils";
+import { draftCardToManaBrew, hydrateDraftCards } from "@/lib/limited.utils";
 import type { Deck, DeckFormatId } from "@/types/manabrew";
 
 function draftCardsToDeck(
@@ -98,16 +98,20 @@ export default function Gauntlet() {
       const decks = await fetchMatchDecks(gauntletId);
       setMatchDecks(decks);
       const formatId = activeGauntlet.kind === "sealed" ? "sealed" : "draft";
-      const human = draftCardsToDeck(
-        "Gauntlet Deck",
-        decks.humanMain,
-        decks.humanSideboard,
-        formatId,
-      );
+      // Engine-supplied DraftCards have no image uris; hydrate them via the
+      // Scryfall store before handing the deck to the game runtime so the
+      // in-game card renderer sees real artwork.
+      const [humanMain, humanSide, oppMain, oppSide] = await Promise.all([
+        hydrateDraftCards(decks.humanMain),
+        hydrateDraftCards(decks.humanSideboard),
+        hydrateDraftCards(decks.opponentMain),
+        hydrateDraftCards(decks.opponentSideboard),
+      ]);
+      const human = draftCardsToDeck("Gauntlet Deck", humanMain, humanSide, formatId);
       const opponent = draftCardsToDeck(
         activeGauntlet.currentOpponent?.deckName ?? "Gauntlet Opponent",
-        decks.opponentMain,
-        decks.opponentSideboard,
+        oppMain,
+        oppSide,
         formatId,
       );
       armGauntletReturn(gauntletId, activeGauntlet.currentRound);

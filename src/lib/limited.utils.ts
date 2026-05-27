@@ -1,6 +1,7 @@
 import type { DraftCard } from "@/types/limited";
 import type { Deck, DeckCard } from "@/types/manabrew";
 import { frontFaceName } from "@/lib/scryfall.utils";
+import { cardKey, useScryfallStore } from "@/stores/useScryfallStore";
 
 export type LimitedZone = "pool" | "main" | "sideboard";
 
@@ -87,6 +88,32 @@ const PLACEHOLDER_URIS = {
   art_crop: PLACEHOLDER_URI,
   border_crop: PLACEHOLDER_URI,
 };
+
+/**
+ * Resolve Scryfall image URIs for every card in the list via the canonical
+ * Scryfall store. Tries the sync cache first; falls back to an async
+ * `getCard` for misses. Used at boundaries that persist or play the deck
+ * (save-to-My-Decks, gauntlet match launch) so the resulting `DeckCard`
+ * objects never carry the placeholder transparent PNG.
+ */
+export async function hydrateDraftCards(cards: DraftCard[]): Promise<DraftCard[]> {
+  const store = useScryfallStore.getState();
+  return Promise.all(
+    cards.map(async (c) => {
+      if (c.uris) return c;
+      const lookup = { name: c.name, setCode: c.setCode, collectorNumber: c.collectorNumber };
+      const key = cardKey(lookup);
+      const cached = store.cards[key]?.card;
+      if (cached?.uris) return { ...c, uris: cached.uris };
+      try {
+        const entry = await store.getCard(lookup);
+        return { ...c, uris: entry.uris };
+      } catch {
+        return c;
+      }
+    }),
+  );
+}
 
 export function draftCardToManaBrew(dc: DraftCard, idx: number): DeckCard {
   return {

@@ -31,7 +31,7 @@ import { LimitedCompareDialog } from "@/components/limited/LimitedCompareDialog"
 import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
 import { RaritySetSymbol } from "@/components/limited/RaritySetSymbol";
-import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { peekCard, useCard, useScryfallStore } from "@/stores/useScryfallStore";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useDeckStore } from "@/stores/useDeckStore";
 import {
@@ -39,6 +39,7 @@ import {
   BASIC_LAND_NAMES,
   type BasicLandName,
   draftCardToManaBrew,
+  hydrateDraftCards,
   countManaPips,
   groupByName,
   groupByRarity,
@@ -334,7 +335,7 @@ export default function LimitedDeckBuilder({
     setSaveDialogOpen(true);
   };
 
-  const handleSaveToMyDecks = () => {
+  const handleSaveToMyDecks = async () => {
     const name = saveDeckName.trim();
     if (!name) {
       toast.error("Deck name cannot be empty.");
@@ -358,12 +359,19 @@ export default function LimitedDeckBuilder({
       toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
       return;
     }
+    // Decks persist to localStorage and feed the in-game card renderer, so
+    // resolve real Scryfall uris before serialising — the placeholder PNG
+    // would otherwise live forever in saved decks.
+    const [hydratedMain, hydratedSide] = await Promise.all([
+      hydrateDraftCards(mainCards),
+      hydrateDraftCards(sideboardCards),
+    ]);
     const deck: Deck = {
       name,
       format,
-      cards: mainCards.map((c, i) => draftCardToManaBrew(c, i)),
-      sideboard: sideboardCards.map((c, i) => draftCardToManaBrew(c, mainCards.length + i)),
-      draft: mainCards.length < targetMainSize,
+      cards: hydratedMain.map((c, i) => draftCardToManaBrew(c, i)),
+      sideboard: hydratedSide.map((c, i) => draftCardToManaBrew(c, hydratedMain.length + i)),
+      draft: hydratedMain.length < targetMainSize,
     };
     loadDeck(deck);
     saveCurrentDeck();
@@ -463,11 +471,7 @@ export default function LimitedDeckBuilder({
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeDrag && (
-          <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
-            <CardThumbnail card={draftCardToManaBrew(activeDrag.card, activeDrag.index)} />
-          </div>
-        )}
+        {activeDrag && <DragPreview card={activeDrag.card} index={activeDrag.index} />}
       </DragOverlay>
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
@@ -869,6 +873,29 @@ function DraggableTile({
         onClick={() => onCardClick(entry.index)}
         preview={preview}
       />
+    </div>
+  );
+}
+
+// Drag overlay floats above the deck while @dnd-kit transitions a card.
+// Goes through `useCard` so it shows the real artwork instead of the
+// placeholder PNG that `draftCardToManaBrew` falls back to.
+function DragPreview({ card, index }: { card: DraftCard; index: number }) {
+  const scry = useCard({
+    name: card.name,
+    setCode: card.setCode,
+    collectorNumber: card.collectorNumber,
+  });
+  if (!scry?.uris) {
+    return (
+      <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
+        <div className="aspect-[5/7] w-full animate-pulse rounded-lg border border-border/50 bg-muted/40" />
+      </div>
+    );
+  }
+  return (
+    <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
+      <CardThumbnail card={draftCardToManaBrew({ ...card, uris: scry.uris }, index)} />
     </div>
   );
 }

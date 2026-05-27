@@ -92,13 +92,14 @@ export default function Lobby() {
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!connected && !connecting && prefs.serverUsername) {
+    if (!connected && !connecting && !error && prefs.serverUsername) {
       connect(prefs.serverHost, prefs.serverPort, prefs.serverUsername, prefs.serverPassword);
     }
   }, [
     connect,
     connected,
     connecting,
+    error,
     prefs.serverHost,
     prefs.serverPort,
     prefs.serverUsername,

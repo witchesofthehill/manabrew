@@ -131,6 +131,9 @@ impl JavaBridge {
         if std::env::var("FORGE_TOKEN_DEBUG").is_ok() {
             cmd.env("FORGE_TOKEN_DEBUG", "1");
         }
+        if std::env::var("FORGE_XDBG").is_ok() {
+            cmd.env("FORGE_XDBG", "1");
+        }
 
         cmd.arg("-jar")
             .arg(jar)
@@ -193,6 +196,7 @@ impl JavaBridge {
                         || line.contains("[LIB_DUMP_JAVA")
                         || line.contains("[TOKEN_DBG_JAVA")
                         || line.contains("[rng-java-bt")
+                        || line.contains("[java-xdbg")
                         || line.contains("  at ")
                     {
                         eprintln!("[java] {}", line);
@@ -381,6 +385,9 @@ impl JavaServer {
         if std::env::var("FORGE_TOKEN_DEBUG").is_ok() {
             cmd.env("FORGE_TOKEN_DEBUG", "1");
         }
+        if std::env::var("FORGE_XDBG").is_ok() {
+            cmd.env("FORGE_XDBG", "1");
+        }
 
         cmd.arg("-jar").arg(jar).arg("--server");
 
@@ -433,6 +440,7 @@ impl JavaServer {
                         || line.contains("[LIB_DUMP_JAVA")
                         || line.contains("[TOKEN_DBG_JAVA")
                         || line.contains("[rng-java-bt")
+                        || line.contains("[java-xdbg")
                         || line.contains("  at ")
                     {
                         eprintln!("[java] {}", line);

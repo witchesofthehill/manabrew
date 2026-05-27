@@ -850,6 +850,7 @@ fn produce_mana_for_auto_pay(
         adds_counters: ab.and_then(|a| a.adds_counters.clone()),
         adds_counters_valid: ab.and_then(|a| a.adds_counters_valid.clone()),
         triggers_when_spent: ab.and_then(|a| a.triggers_when_spent.clone()),
+        from_trigger: false,
     };
 
     let mut mana_string = auto_pay_base_mana_string(game, player, ma, chosen_atom, callback);
@@ -935,6 +936,7 @@ fn add_taps_for_mana_trigger_mana(
                 adds_counters: None,
                 adds_counters_valid: None,
                 triggers_when_spent: None,
+                from_trigger: true,
             };
             // Panharmonicon: each qualifying static fires the trigger again.
             let extra = crate::staticability::static_ability_panharmonicon::extra_triggers(
@@ -2476,6 +2478,7 @@ pub fn can_pay_spell_mana_cost_for_action_space(
                 adds_counters: None,
                 adds_counters_valid: None,
                 triggers_when_spent: None,
+                from_trigger: false,
             };
             add_produced_mana_to_pool(&mut simulated_pool, &mana_string, &params);
             mana_string
@@ -2512,6 +2515,7 @@ pub fn can_pay_spell_mana_cost_for_action_space(
                 adds_counters: None,
                 adds_counters_valid: None,
                 triggers_when_spent: None,
+                from_trigger: false,
             };
             add_produced_mana_to_pool(&mut simulated_pool, &mana_string, &params);
             mana_string

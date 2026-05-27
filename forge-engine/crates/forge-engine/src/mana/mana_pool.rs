@@ -502,7 +502,20 @@ impl ManaPool {
             };
             let mana = self.mana.remove(idx);
             outcome.colors_spent |= spent_color;
-            outcome.paying_mana.push(spent_color);
+            // Java parity: `ManaPool.payManaFromAbility` only enrolls atoms
+            // produced by the activated mana ability into
+            // `SpellAbility.getPayingMana()`. Atoms a `TapsForMana`
+            // trigger drops into the pool (Badgermole Cub's "+{G} when a
+            // creature taps", Mana Reflection, Utopia Sprawl, ...) still
+            // pay the cost via `payManaCostFromPool` but never enter the
+            // SA's paying-mana list. We mirror that by skipping
+            // trigger-sourced atoms when recording `paying_mana` here, so
+            // `Count$CastTotalManaSpent` and the `cmcLEY` filters that
+            // depend on it (Mockingbird's clone target selection, etc.)
+            // see Java's smaller `Y`.
+            if !mana.from_trigger {
+                outcome.paying_mana.push(spent_color);
+            }
             if let (Some(svar), Some(src)) = (mana.triggers_when_spent, mana.source_card) {
                 self.last_payment_triggers_consumed.push((svar, src));
             }
@@ -1295,6 +1308,35 @@ impl ManaPool {
         adds_counters_valid: Option<String>,
         triggers_when_spent: Option<String>,
     ) {
+        self.produce_mana_from_string_full(
+            mana_string,
+            source_card,
+            is_snow,
+            restriction,
+            adds_no_counter,
+            adds_keywords,
+            adds_keywords_valid,
+            adds_counters,
+            adds_counters_valid,
+            triggers_when_spent,
+            false,
+        );
+    }
+
+    pub fn produce_mana_from_string_full(
+        &mut self,
+        mana_string: &str,
+        source_card: Option<CardId>,
+        is_snow: bool,
+        restriction: Option<String>,
+        adds_no_counter: bool,
+        adds_keywords: Option<String>,
+        adds_keywords_valid: Option<String>,
+        adds_counters: Option<String>,
+        adds_counters_valid: Option<String>,
+        triggers_when_spent: Option<String>,
+        from_trigger: bool,
+    ) {
         for tok in mana_string.split_whitespace() {
             if let Some(atom) = super::mana_atom_from_produced(tok) {
                 let mut m = Mana::simple(atom);
@@ -1307,6 +1349,7 @@ impl ManaPool {
                 m.adds_counters = adds_counters.clone();
                 m.adds_counters_valid = adds_counters_valid.clone();
                 m.triggers_when_spent = triggers_when_spent.clone();
+                m.from_trigger = from_trigger;
                 self.add_mana(m);
             }
         }

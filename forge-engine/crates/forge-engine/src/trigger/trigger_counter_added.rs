@@ -39,7 +39,26 @@ impl TriggerBehavior for TriggerCounterAdded {
         params: &RunParams,
         game: &GameState,
     ) -> bool {
-        if !trigger.matches_optional_valid_card_filter(&self.valid_card, params.card, game) {
+        let dbg = std::env::var("FORGE_SAGA_TRACE").is_ok();
+        let host_name = params
+            .card
+            .map(|c| game.card(c).card_name.as_str())
+            .unwrap_or("?");
+        let valid_match =
+            trigger.matches_optional_valid_card_filter(&self.valid_card, params.card, game);
+        if dbg {
+            eprintln!(
+                "[rust-counter-added] host={} valid_card_filter={:?} valid_match={} counter_type_filter={:?} actual_counter_type={:?} counter_amount_filter={:?} actual_amount={:?}",
+                host_name,
+                self.valid_card,
+                valid_match,
+                self.counter_type,
+                params.counter_type,
+                self.counter_amount,
+                params.counter_amount,
+            );
+        }
+        if !valid_match {
             return false;
         }
         if !super::trigger::Trigger::matches_counter_type_filter(

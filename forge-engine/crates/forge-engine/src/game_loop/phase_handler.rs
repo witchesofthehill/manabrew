@@ -174,6 +174,18 @@ impl GameLoop {
                             }
                             let old_value =
                                 game.card(cid).counters.get(&lore).copied().unwrap_or(0);
+                            if std::env::var("FORGE_SAGA_TRACE").is_ok() {
+                                eprintln!(
+                                    "[rust-saga] T{} P{:?} {}@{} lore: {} -> {} triggers={}",
+                                    game.turn.turn_number,
+                                    game.active_player(),
+                                    game.card(cid).card_name,
+                                    cid.index(),
+                                    old_value,
+                                    old_value + 1,
+                                    game.card(cid).triggers.len()
+                                );
+                            }
                             game.card_mut(cid).add_counter(&lore, 1);
                             // Drive the CounterAdded chapter trigger onto the
                             // stack BEFORE the saga SBA runs (CR 714.5 — the

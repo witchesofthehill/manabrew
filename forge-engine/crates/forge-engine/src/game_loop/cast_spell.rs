@@ -1067,7 +1067,25 @@ impl GameLoop {
                     let full_cost =
                         non_x_cost.add(&forge_foundation::ManaCost::generic(extra_generic));
                     let adjusted_full_cost = x_cost_adjustment.apply(&full_cost);
-                    if !available_mana.can_pay(&adjusted_full_cost) {
+                    let payable = available_mana.can_pay(&adjusted_full_cost);
+                    if std::env::var("FORGE_XDBG").is_ok() {
+                        eprintln!(
+                            "[rust-xdbg] T{} P{:?} spell={} try_x={} cost={} payable={} sources={} pool={}",
+                            game.turn.turn_number,
+                            player,
+                            game.card(card_id).card_name,
+                            x + 1,
+                            adjusted_full_cost,
+                            payable,
+                            available_mana
+                                .source_colors
+                                .as_ref()
+                                .map(|s| s.len())
+                                .unwrap_or(0),
+                            self.pool(player).total_mana(),
+                        );
+                    }
+                    if !payable {
                         break;
                     }
                     x += 1;
@@ -1078,21 +1096,17 @@ impl GameLoop {
                 x
             };
             x_value = max_x;
-            if is_harmonize && x_count == 1 {
-                let colored_requirements = non_x_cost
-                    .shards()
-                    .iter()
-                    .filter(|shard| shard.color_mask() != 0)
-                    .count() as u32;
-                if colored_requirements > 0 && max_x == colored_requirements {
-                    if let Some(total_sources) = available_mana.total_sources {
-                        x_value = total_sources.max(0) as u32;
-                    }
-                }
+            if std::env::var("FORGE_XDBG").is_ok() {
+                eprintln!(
+                    "[rust-xdbg] T{} P{:?} spell={} max_x={}",
+                    game.turn.turn_number,
+                    player,
+                    game.card(card_id).card_name,
+                    max_x
+                );
             }
-            let payment_x_value = x_value;
             non_x_cost.add(&forge_foundation::ManaCost::generic(
-                (payment_x_value * x_count as u32) as i32,
+                (x_value * x_count as u32) as i32,
             ))
         } else {
             mana_cost

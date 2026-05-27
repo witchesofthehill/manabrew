@@ -178,6 +178,12 @@ fn execute_replace_with(
     };
     let controller = game.card(source_card_id).controller;
     let mut sa = build_spell_ability(game, source_card_id, &raw, controller);
+    sa.is_replacement_ability = true;
+    sa.last_state_battlefield_ids = game
+        .last_state_battlefield
+        .iter()
+        .map(|snap| snap.id)
+        .collect();
     effect.set_replacing_objects(event, &mut sa);
 
     // `local_agents_storage` keeps the fallback Vec alive when the caller

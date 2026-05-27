@@ -173,6 +173,24 @@ final class DeterministicPlayPlumbing {
             // performTest -> Card.Self check succeed via object identity.
             fixLTBCardIdentity(game, sa);
 
+            if (System.getenv("FORGE_XDBG") != null) {
+                try {
+                    String cardName = source != null ? source.getName() : "?";
+                    int xPaid = 0;
+                    try {
+                        xPaid = sa.getXManaCostPaid();
+                    } catch (Throwable t) {
+                        xPaid = -1;
+                    }
+                    int payingManaSize = sa.getPayingMana() != null ? sa.getPayingMana().size() : 0;
+                    int turn = ai.getGame().getPhaseHandler().getTurn();
+                    System.err.println("[java-xdbg] T" + turn + " P" + ai.getName()
+                            + " spell=" + cardName + " AFTER_PAY x_paid=" + xPaid
+                            + " paying_mana=" + payingManaSize);
+                } catch (Throwable t) {
+                    // ignore debug
+                }
+            }
             game.getStack().addAndUnfreeze(sa);
             if (sa.getSplicedCards() != null && !sa.getSplicedCards().isEmpty()) {
                 game.getAction().reveal(sa.getSplicedCards(), ai, true, "Computer reveals spliced cards from ");

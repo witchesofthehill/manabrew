@@ -125,7 +125,23 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // Determine mana string to produce
     let mana_string: Option<String> = if produced_ir.is_any_like() {
-        // "Any" — all 5 colors available
+        // Mirror Java `ManaEffect.resolve` (forge-game/.../ManaEffect.java
+        // L149-166): when the source's produced mana is "Any" the
+        // controller is prompted via `chooseColor`, even for amount=1
+        // (saga chapter, instant, …). Without the prompt the per-unit
+        // RNG draw never fires and downstream RNG diverges from Java
+        // (Boros starter T16 The Legend of Roku Chapter II — "Add one
+        // mana of any color").
+        eprintln!(
+            "[rust-mana-any] T{} {}@{} api={:?} is_trigger={} is_activated={} is_mana_ability={}",
+            ctx.game.turn.turn_number,
+            ctx.game.card(source_id).card_name,
+            source_id.index(),
+            sa.api,
+            sa.is_trigger,
+            sa.is_activated,
+            sa.is_mana_ability,
+        );
         let available = [
             "W".to_string(),
             "U".to_string(),
@@ -133,7 +149,13 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             "R".to_string(),
             "G".to_string(),
         ];
-        Some(available.first().cloned().unwrap_or("W".to_string()))
+        ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
+        Some(
+            ctx.agents[chooser.index()]
+                .choose_color(chooser, &available)
+                .or_else(|| available.first().cloned())
+                .unwrap_or_else(|| "W".to_string()),
+        )
     } else if produced_ir.is_choice_like() {
         // Combo or comma-separated choices — normalize to color letters
         let options: Vec<&str> = if let Some(rest) = produced.strip_prefix("Combo ") {

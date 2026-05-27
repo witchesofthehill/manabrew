@@ -1726,10 +1726,26 @@ public class ComputerUtilMana {
         if (sa.hasParam("XMaxLimit")) {
             max = Math.min(max, AbilityUtils.calculateAmount(sa.getHostCard(), sa.getParam("XMaxLimit"), sa));
         }
+        final boolean xdbg = System.getenv("FORGE_XDBG") != null;
+        String dbgName = sa.getHostCard() != null ? sa.getHostCard().getName() : "?";
+        int dbgTurn = player.getGame().getPhaseHandler().getTurn();
         for (int i = 1; i <= max; i++) {
-            if (!canPayManaCost(sa.getRootAbility(), player, i, effect)) {
+            boolean payable = canPayManaCost(sa.getRootAbility(), player, i, effect);
+            if (xdbg) {
+                System.err.println("[java-xdbg] T" + dbgTurn + " P" + player.getName()
+                        + " spell=" + dbgName + " try_x=" + i + " payable=" + payable);
+            }
+            if (!payable) {
+                if (xdbg) {
+                    System.err.println("[java-xdbg] T" + dbgTurn + " P" + player.getName()
+                            + " spell=" + dbgName + " max_x=" + (i - 1));
+                }
                 return i - 1;
             }
+        }
+        if (xdbg) {
+            System.err.println("[java-xdbg] T" + dbgTurn + " P" + player.getName()
+                    + " spell=" + dbgName + " max_x=" + max + " (hit cap)");
         }
         return max;
     }

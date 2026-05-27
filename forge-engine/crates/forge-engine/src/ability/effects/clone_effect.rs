@@ -1,6 +1,9 @@
+use std::collections::HashSet;
+
 use forge_foundation::{CardTypeLine, ColorSet, ZoneType};
 
 use super::{matches_valid_cards_for_sa, EffectContext};
+use crate::agent::GameEntity;
 use crate::parsing::split_param_list_value;
 use crate::spellability::SpellAbility;
 
@@ -186,15 +189,32 @@ fn resolve_clone_source(
         }
     }
 
-    // Check Choices — player selects from valid cards
+    // Check Choices — player selects from valid cards. Mirrors Java
+    // `CloneEffect.resolve()` L70-94: when invoked from a replacement
+    // ability, intersect the candidate pool with the saved LKI battlefield
+    // before applying the `Choices$` filter so cards that entered after the
+    // replacement was queued can't be cloned (e.g. tokens or other cards
+    // that resolved in the same simultaneous ETB batch).
     if let Some(filter) = sa.ir.choices.as_deref().map(str::to_string) {
         let filter_selector = sa.ir.choices_selector.as_ref();
         let zone = sa.ir.choice_zone.unwrap_or(ZoneType::Battlefield);
+
+        let lki_filter: Option<HashSet<_>> =
+            if sa.is_replacement_ability && zone == ZoneType::Battlefield {
+                Some(sa.last_state_battlefield_ids.iter().copied().collect())
+            } else {
+                None
+            };
 
         let mut valid = Vec::new();
         for &pid in &ctx.game.player_order.clone() {
             let zone_cards = ctx.game.cards_in_zone(zone, pid).to_vec();
             for cid in zone_cards {
+                if let Some(ref lki) = lki_filter {
+                    if !lki.contains(&cid) {
+                        continue;
+                    }
+                }
                 if matches_valid_cards_for_sa(
                     ctx.game,
                     sa,
@@ -211,10 +231,14 @@ fn resolve_clone_source(
             return None;
         }
 
+        let entities: Vec<GameEntity> = valid.iter().copied().map(GameEntity::Card).collect();
         ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        let chosen =
-            ctx.agents[controller.index()].choose_cards_for_effect(controller, &valid, 1, 1);
-        return chosen.first().copied();
+        let chosen = ctx.agents[controller.index()]
+            .choose_single_entity_for_effect(controller, &entities, false)?;
+        if let GameEntity::Card(cid) = chosen {
+            return Some(cid);
+        }
+        return None;
     }
 
     None

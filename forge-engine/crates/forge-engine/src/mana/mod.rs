@@ -181,6 +181,15 @@ pub struct Mana {
     /// SVar name of a trigger to fire when this mana is spent to cast a spell.
     /// The SVar lives on the source card (identified by `source_card`).
     pub triggers_when_spent: Option<String>,
+    /// True when this atom was produced by a TapsForMana / mana-replacement
+    /// trigger rather than by the directly-tapped source. Java's
+    /// `ManaPool.payManaFromAbility` only enrols the source's own
+    /// `getLastManaProduced()` into `sa.payingMana`; pool-floating trigger
+    /// atoms drain into the cost but stay out of `getPayingMana()`.
+    /// Mirroring that here keeps `Count$CastTotalManaSpent` (and the
+    /// `cmcLEY` filters that depend on it, e.g. Mockingbird's clone target
+    /// selection) in lockstep with the Java engine.
+    pub from_trigger: bool,
 }
 
 impl Mana {
@@ -198,6 +207,7 @@ impl Mana {
             adds_counters: None,
             adds_counters_valid: None,
             triggers_when_spent: None,
+            from_trigger: false,
         }
     }
 
@@ -703,6 +713,9 @@ pub struct ManaProductionParams {
     pub adds_counters: Option<String>,
     pub adds_counters_valid: Option<String>,
     pub triggers_when_spent: Option<String>,
+    /// True when these atoms come from a TapsForMana / mana-replacement
+    /// trigger rather than the directly-activated mana ability.
+    pub from_trigger: bool,
 }
 
 /// Determine what mana to produce from a `Produced$` string, handling
@@ -855,7 +868,7 @@ pub fn add_produced_mana_to_pool(
     mana_string: &str,
     params: &ManaProductionParams,
 ) {
-    pool.produce_mana_from_string(
+    pool.produce_mana_from_string_full(
         mana_string,
         Some(params.source_card),
         params.is_snow,
@@ -866,6 +879,7 @@ pub fn add_produced_mana_to_pool(
         params.adds_counters.clone(),
         params.adds_counters_valid.clone(),
         params.triggers_when_spent.clone(),
+        params.from_trigger,
     );
 }
 

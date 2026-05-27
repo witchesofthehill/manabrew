@@ -57,6 +57,7 @@ pub(super) fn resolve_mana_ability_for_effect_payment(
         adds_counters: ab.adds_counters.clone(),
         adds_counters_valid: ab.adds_counters_valid.clone(),
         triggers_when_spent: ab.triggers_when_spent.clone(),
+        from_trigger: false,
     };
 
     if let Some(produced_ir) = ab.produced_ir.as_ref() {

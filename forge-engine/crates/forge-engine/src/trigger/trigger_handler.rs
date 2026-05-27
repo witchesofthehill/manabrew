@@ -377,6 +377,22 @@ impl TriggerHandler {
                 .entry
                 .spell_ability
                 .setup_targets(game, agents, mana_pools);
+            if std::env::var("FORGE_SAGA_TRACE").is_ok()
+                && pt
+                    .entry
+                    .spell_ability
+                    .source
+                    .map(|sid| game.card(sid).card_name.starts_with("The Legend of Roku"))
+                    .unwrap_or(false)
+            {
+                eprintln!(
+                    "[rust-saga-setup] source={} setup_result={} sa.api={:?} sa.target_restrictions={:?}",
+                    source_name,
+                    setup_result,
+                    pt.entry.spell_ability.api,
+                    pt.entry.spell_ability.target_restrictions.is_some(),
+                );
+            }
             if !setup_result {
                 continue;
             }
@@ -557,6 +573,25 @@ impl TriggerHandler {
                     &event.mode,
                     &event.params,
                 );
+                if std::env::var("FORGE_SAGA_TRACE").is_ok()
+                    && event.mode == TriggerType::CounterAdded
+                    && game
+                        .card(card_id)
+                        .card_name
+                        .starts_with("The Legend of Roku")
+                {
+                    eprintln!(
+                        "[rust-can-run] card={}@{} trigger_idx={} can_run={} description={:?}",
+                        game.card(card_id).card_name,
+                        card_id.index(),
+                        trigger_index,
+                        can_run,
+                        game.card(card_id)
+                            .triggers
+                            .get(trigger_index)
+                            .map(|t| t.description.as_str()),
+                    );
+                }
                 if can_run {
                     let sa = trigger.build_triggered_spell_ability(
                         game,

@@ -297,6 +297,16 @@ pub struct SpellAbility {
     /// Last known state for LKI tracking.
     #[serde(default)]
     pub last_state: HashMap<String, String>,
+    /// Java parity: true when this SA was built by a replacement effect.
+    /// Mirrors `SpellAbility.isReplacementAbility()` (set via
+    /// `setReplacementEffect`). Filters like `CloneEffect.Choices`
+    /// intersect with `last_state_battlefield_ids` when this is true.
+    #[serde(default)]
+    pub is_replacement_ability: bool,
+    /// Java parity: snapshot of battlefield IDs captured when this SA was
+    /// built from a replacement effect. Mirrors `SpellAbility.lastStateBattlefield`.
+    #[serde(default)]
+    pub last_state_battlefield_ids: Vec<CardId>,
     /// Java parity: batched zone-change table accumulated for `ChangeZoneResolve`.
     #[serde(skip)]
     pub change_zone_table: Option<CardZoneTable>,
@@ -650,6 +660,8 @@ impl SpellAbility {
             pips_to_reduce: Vec::new(),
             may_choose_new_targets: false,
             last_state: HashMap::new(),
+            is_replacement_ability: false,
+            last_state_battlefield_ids: Vec::new(),
             change_zone_table: None,
             damage_map: None,
             prevent_map: None,

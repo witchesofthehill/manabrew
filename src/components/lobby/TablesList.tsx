@@ -21,6 +21,9 @@ interface TablesListProps {
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
+  /** Draft-format rooms only. Lobby passes this when the host is
+   *  ready to open the draft-setup modal. */
+  onStartDraft?: () => void;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
   /** Bots this host process spawned — used to show the remove button. The
@@ -38,6 +41,7 @@ export function TablesList({
   onOpenDeckDialog,
   onStartGame,
   onStartTabletop,
+  onStartDraft,
   onAddBot,
   onRemoveBot,
   mySpawnedBots = [],
@@ -203,9 +207,15 @@ export function TablesList({
                       <Hand className="h-3 w-3" /> Tabletop
                     </Button>
                   )}
-                  <Button size="sm" className="gap-1" onClick={onStartGame} disabled={!allReady}>
-                    <Swords className="h-3 w-3" /> Start Game
-                  </Button>
+                  {onStartDraft && currentRoom.format === "Draft" ? (
+                    <Button size="sm" className="gap-1" onClick={onStartDraft}>
+                      <Swords className="h-3 w-3" /> Start Draft
+                    </Button>
+                  ) : (
+                    <Button size="sm" className="gap-1" onClick={onStartGame} disabled={!allReady}>
+                      <Swords className="h-3 w-3" /> Start Game
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

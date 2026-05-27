@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServerStore } from "@/stores/useServerStore";
+import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import { StartMultiplayerDraftDialog } from "@/components/lobby/StartMultiplayerDraftDialog";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -90,6 +92,19 @@ export default function Lobby() {
   const [sidePanel, setSidePanel] = useState<"chat" | "players" | null>(null);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
+  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
+
+  // Auto-navigate into the multiplayer draft view as soon as the
+  // store reports a session — works for both the host (after their
+  // own `startDraftAsHost` succeeds) and every peer (after the relay
+  // listener flips them into drafting on the host's broadcast).
+  const draftMode = useMultiplayerDraftStore((s) => s.mode);
+  const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
+  useEffect(() => {
+    if (draftMode === "drafting" && draftSessionId) {
+      navigate("/draft/multiplayer");
+    }
+  }, [draftMode, draftSessionId, navigate]);
 
   useEffect(() => {
     if (!connected && !connecting && !error && prefs.serverUsername) {
@@ -447,6 +462,7 @@ export default function Lobby() {
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
             onStartGame={startGame}
             onStartTabletop={handleStartTabletop}
+            onStartDraft={() => setDraftDialogOpen(true)}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}
@@ -463,6 +479,7 @@ export default function Lobby() {
       </div>
 
       <CreateRoomDialog open={createRoomOpen} onOpenChange={setCreateRoomOpen} />
+      <StartMultiplayerDraftDialog open={draftDialogOpen} onOpenChange={setDraftDialogOpen} />
       <CreateGameDialog
         open={deckDialogOpen}
         onOpenChange={setDeckDialogOpen}

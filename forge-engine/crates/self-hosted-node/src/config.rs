@@ -16,8 +16,6 @@ pub struct Config {
     pub max_players: u8,
     pub max_games: usize,
     pub format: GameFormat,
-    // One hosted room is created per format here, so every play-vs-AI format the
-    // web offers has a room to join. Defaults to just `format`.
     pub auto_start: bool,
     pub engine_enabled: bool,
     pub host_plays: bool,

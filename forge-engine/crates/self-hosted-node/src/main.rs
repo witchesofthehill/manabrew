@@ -78,8 +78,6 @@ struct SpawnBotDeckPayload {
 
 type SharedEngineSession = Arc<Mutex<Option<EngineSession>>>;
 
-// Tracks a pending "player disconnected mid-game" teardown so a quick reconnect can
-// cancel it. `grace` holds the armed token of an in-flight grace timer, if any.
 #[derive(Default)]
 struct DisconnectTracker {
     grace: Option<Arc<AtomicBool>>,
@@ -206,15 +204,10 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         java_backend::init_engine()?;
     }
 
-    // One node connection per hosted room (StateUpdate carries no room_id, so a
-    // single connection can't route N games). All rooms share the one java engine.
     if config.room_id.is_some() {
         return host_one_room(config, None).await;
     }
 
-    // Single pool: every hosted room is format-agnostic (Any). The human picks the
-    // format at game start (it rides on the startGame relay payload). Host max_games
-    // such rooms for concurrency.
     config.format = GameFormat::Any;
     let slots = config.max_games.max(1);
     if slots <= 1 {
@@ -580,8 +573,6 @@ async fn handle_state_update(
                 }
                 Some("startGame") => {
                     info!(observer = %client.username, "received startGame request");
-                    // The human picks the format; it rides on the startGame payload and
-                    // locks the Any room in at start.
                     let format = payload
                         .get("format")
                         .and_then(|value| serde_json::from_value::<GameFormat>(value.clone()).ok());
@@ -642,9 +633,6 @@ async fn maybe_auto_start_room(
     if !config.auto_start {
         return Ok(());
     }
-    // An Any room has no format to start with — the player drives the start via the
-    // `startGame` relay payload (which carries the chosen format), so the node must
-    // not auto-start it.
     if config.format == GameFormat::Any {
         return Ok(());
     }
@@ -671,9 +659,8 @@ async fn maybe_auto_start_room(
     Ok(())
 }
 
-// The rules engine recurses deeply (turn loop, stack resolution, state-based
-// actions), well past a thread's default ~2 MB stack — a hosted game on the default
-// stack overflows and aborts the whole process. Give engine threads a generous stack.
+// The engine recurses past the default ~2 MB stack; too small here overflows and aborts
+// the whole process mid-game.
 const ENGINE_STACK_BYTES: usize = 64 * 1024 * 1024;
 
 fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
@@ -869,9 +856,6 @@ fn maybe_start_hosted_engine(
     }
 }
 
-// Reset the room's engine session once its game thread exits, so the reused room
-// (relay resets it to Lobby) can start its next game; without this the is_some
-// guard in maybe_start_hosted_engine silently refuses every game after the first.
 fn clear_engine_session(engine_session: &SharedEngineSession) {
     match engine_session.lock() {
         Ok(mut guard) => *guard = None,
@@ -879,16 +863,6 @@ fn clear_engine_session(engine_session: &SharedEngineSession) {
     }
 }
 
-// A player leaving mid-game leaves the java engine waiting forever on a seat that
-// will never respond, so the game never reaches game-over and the room stays InGame
-// (unreusable). Cancel the engine thread (its loop checks this flag and exits, the
-// drop-guard then ends the session) and ask the relay to end the game so the room
-// resets to Lobby. No-op outside a live game.
-// A player dropping (tab close, network blip) doesn't send PlayerLeft — it shows up
-// as the player going offline in a room update. Give them DISCONNECT_GRACE_SECS to
-// reconnect; if any game player is still offline when it elapses, tear the game down
-// the same way an explicit leave does. A reconnect (everyone back online) before the
-// timer fires disarms it so a transient blip doesn't kill a live game.
 fn handle_disconnect_grace(
     room: &RoomInfo,
     engine_session: &SharedEngineSession,
@@ -1079,8 +1053,6 @@ fn spawn_raw_prompt_forwarder(
     });
 }
 
-// A hosted game otherwise ends silently (the engine just stops); broadcast a
-// game-over so the web UI and the integration harness can observe the result.
 fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     game_over_rx: std_mpsc::Receiver<String>,
@@ -1104,7 +1076,6 @@ fn spawn_game_over_forwarder(
             {
                 break;
             }
-            // Return the room to the lobby so it can host the next player.
             if outbound_tx.send(ClientMessage::EndGame).is_err() {
                 break;
             }

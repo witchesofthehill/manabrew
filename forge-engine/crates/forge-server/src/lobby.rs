@@ -265,8 +265,6 @@ pub fn start_game_sync(
             return Err(ServerError::DeckNotSelected);
         }
 
-        // Lock in the format at start: a room created with a concrete format keeps it;
-        // an `Any` room takes the format supplied with StartGame (required).
         if room.format == GameFormat::Any {
             match format {
                 Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
@@ -295,9 +293,6 @@ pub fn start_game_sync(
     Ok((room_id, player_order, player_decks, starting_life))
 }
 
-// Return a finished hosted game to the lobby so the room is reusable: drop the
-// players (the human + the AI bot) and reset status; the non-playing host (node)
-// stays as an observer, so findHostedRoom sees an open Lobby room again.
 pub fn end_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
@@ -322,19 +317,12 @@ pub fn end_game_sync(
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
         room.players.clear();
-        // Hosted rooms are the format-agnostic pool: release the format the game
-        // locked in so the reused room is joinable for any format again.
         if room.hosted {
             room.format = GameFormat::Any;
         }
         (room.to_room_info(), cleared)
     };
 
-    // While in-game the room kept these players' sessions for mid-game reconnect.
-    // Now that the game is over and the room is reset, drop those bindings: a still-
-    // disconnected session would otherwise be reclaimed by a same-username reconnect
-    // and dragged back into this (now seatless) room, wedging the player with
-    // "already in room" yet no seat.
     for pid in cleared {
         match state.players.get(&pid).map(|p| p.disconnected_at.is_some()) {
             Some(true) => {

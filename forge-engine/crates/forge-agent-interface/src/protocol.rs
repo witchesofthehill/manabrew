@@ -117,14 +117,10 @@ pub enum ClientMessage {
     },
 
     StartGame {
-        /// The format to lock the game into. Required when the room is `Any`;
-        /// ignored if the room already has a concrete format.
         #[serde(default)]
         format: Option<GameFormat>,
     },
 
-    /// Host signals a finished game so the relay returns the room to the lobby
-    /// (drops players, status back to Lobby) and it can be reused.
     EndGame,
 
     BroadcastState {
@@ -252,8 +248,6 @@ pub enum RoomStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum GameFormat {
-    /// A room that hasn't committed to a format yet — the concrete format is chosen
-    /// at game start (see `StartGame`). Rooms are created as `Any`.
     Any,
     Standard,
     Pioneer,
@@ -268,12 +262,9 @@ pub enum GameFormat {
     Sealed,
 }
 
-/// Which engine runs a room's game. Drives the lobby's engine badge.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum EngineKind {
-    /// In-browser Rust engine (wasm). The default for human-hosted rooms.
     #[default]
     Wasm,
-    /// Java Forge running on a hosted node.
     Java,
 }

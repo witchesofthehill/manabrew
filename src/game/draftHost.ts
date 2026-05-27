@@ -52,10 +52,17 @@ interface ActiveHost {
   roomId: string;
   seats: MpDraftSeatAssignment[];
   mySeat: number;
+  /** The host's own server slot — pinned here so the broadcast paths
+   *  don't need to re-derive it from `seats[0].playerSlot` (whose type
+   *  is `string | null` since bot seats live in the same array). */
+  hostSlot: string;
   /** Subscriber returned by `events.on` — call to detach the listener. */
   unsubscribe: () => void;
 }
 
+// Module-level singleton — assumes one host session per tab at a
+// time. Observer mode and concurrent draft+game would need a
+// per-session ref keyed by roomId; out of scope for v1.
 let active: ActiveHost | null = null;
 
 /**
@@ -63,8 +70,12 @@ let active: ActiveHost | null = null;
  * other participants take seats 1..N. Remaining slots become AI bots
  * if `fillWithBots`, otherwise the function rejects with `null` so the
  * lobby can keep the room open until more humans join.
+ *
+ * Internal — exposed module-locally only; if you need to construct
+ * seats outside of `startDraftAsHost`, lift this to `export` together
+ * with whatever orchestration replaces it.
  */
-export function buildSeatAssignments(
+function buildSeatAssignments(
   hostSlot: string,
   hostName: string,
   participants: DraftHostParticipant[],
@@ -181,6 +192,7 @@ export async function startDraftAsHost(args: {
     roomId,
     seats,
     mySeat: 0,
+    hostSlot,
     unsubscribe,
   };
 
@@ -238,12 +250,7 @@ async function applyPick(seat: number, cardName: string): Promise<void> {
     if (hostState) useMultiplayerDraftStore.getState().setLocalState(hostState);
   }
 
-  await broadcastPerSeatStates(
-    active.seats,
-    active.sessionId,
-    active.seats[0].playerSlot ?? "",
-    active.roomId,
-  );
+  await broadcastPerSeatStates(active.seats, active.sessionId, active.hostSlot, active.roomId);
 
   if (nextState.isComplete) {
     await finishDraft();
@@ -258,26 +265,35 @@ async function broadcastPerSeatStates(
 ): Promise<void> {
   const server = getPlatform().server;
   if (!server) return;
-  for (const s of seats) {
-    // Skip the host's own seat (state already in local store) and any
-    // bot seats (no remote viewer to relay to).
-    if (s.playerSlot === fromPlayer || s.playerSlot === null) continue;
-    const seatState = await fetchSeatState(sessionId, s.seat);
-    if (!seatState) continue;
-    const msg: DraftStateBroadcastMessage = {
-      type: "stateUpdate",
-      sessionId,
-      seat: s.seat,
-      state: seatState,
-    };
-    await server.sendRoomMessage(
-      makeDraftRelay(msg, {
-        fromPlayer,
-        targetPlayer: s.playerSlot,
-        roomId,
-      }),
-    );
-  }
+  // Only human peer seats need a broadcast: skip the host's own seat
+  // (state already in local store) and any bot seat (no remote
+  // viewer to relay to).
+  const targets = seats.filter((s) => s.playerSlot !== null && s.playerSlot !== fromPlayer);
+  if (targets.length === 0) return;
+  // Fetch every seat's state in parallel; the engine reads are cheap
+  // local calls but serializing them used to add `O(N)` latency per
+  // pick. Send order doesn't matter because each envelope is
+  // self-contained and `targetPlayer`-addressed.
+  const states = await Promise.all(targets.map((s) => fetchSeatState(sessionId, s.seat)));
+  await Promise.all(
+    targets.map((s, i) => {
+      const seatState = states[i];
+      if (!seatState) return Promise.resolve();
+      const msg: DraftStateBroadcastMessage = {
+        type: "stateUpdate",
+        sessionId,
+        seat: s.seat,
+        state: seatState,
+      };
+      return server.sendRoomMessage(
+        makeDraftRelay(msg, {
+          fromPlayer,
+          targetPlayer: s.playerSlot ?? undefined,
+          roomId,
+        }),
+      );
+    }),
+  );
 }
 
 async function fetchSeatState(sessionId: string, seat: number): Promise<DraftState | null> {
@@ -316,7 +332,7 @@ async function finishDraft(): Promise<void> {
   if (server) {
     await server.sendRoomMessage(
       makeDraftRelay(msg, {
-        fromPlayer: active.seats[0].playerSlot ?? "",
+        fromPlayer: active.hostSlot,
         roomId: active.roomId,
       }),
     );

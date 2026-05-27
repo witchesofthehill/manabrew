@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { getPlatform } from "@/platform";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
+import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import type {
   RoomInfo,
   PlayerInfo,
@@ -191,8 +192,14 @@ export const useServerStore = create<ServerState>()(
               // Subscribe to draft-v1 relay envelopes once authed so an
               // incoming `start` message can flip the local store into
               // drafting mode no matter where the user is in the UI.
-              if (payload.player_id) {
-                attachDraftPeer(payload.player_id);
+              // Server stamps `StateUpdate.from_player` with the
+              // *username* (see forge-server connection.rs), and the
+              // host's seat assignments use username too — so the peer
+              // listener must compare against username, not the UUID
+              // in `player_id`.
+              const username = get().username;
+              if (username) {
+                attachDraftPeer(username);
               }
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
@@ -285,7 +292,12 @@ export const useServerStore = create<ServerState>()(
 
         unsubscribers.push(
           platform.events.on("server:disconnected", () => {
+            // Tear down both halves of any in-flight multiplayer
+            // draft so the next session on this client starts clean.
+            // `teardownHost` is a no-op when the local user wasn't
+            // hosting.
             detachDraftPeer();
+            teardownDraftHost();
             set({
               connected: false,
               connecting: false,

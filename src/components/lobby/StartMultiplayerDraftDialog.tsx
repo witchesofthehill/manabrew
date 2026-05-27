@@ -13,15 +13,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SetPicker } from "@/components/limited/SetPicker";
+import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import type { MpDraftConfig } from "@/game/draftRelay";
 import { cn } from "@/lib/utils";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
-
-/** Set-type filter mirrors the Limited hub — only the four
- *  expansion-shape types make sense for booster drafting. */
-const DRAFTABLE_SET_TYPES = new Set(["expansion", "core", "masters", "draft_innovation"]);
 
 interface StartMultiplayerDraftDialogProps {
   open: boolean;
@@ -34,7 +32,6 @@ export function StartMultiplayerDraftDialog({
 }: StartMultiplayerDraftDialogProps) {
   const currentRoom = useServerStore((s) => s.currentRoom);
   const username = useServerStore((s) => s.username);
-  const playerId = useServerStore((s) => s.playerId);
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
 
@@ -47,15 +44,17 @@ export function StartMultiplayerDraftDialog({
   );
 
   const [selectedSet, setSelectedSet] = useState<string>("");
+  const [rounds, setRounds] = useState(3);
   const [picksPerPass, setPicksPerPass] = useState(1);
   const [fillWithBots, setFillWithBots] = useState(true);
   const [seedInput, setSeedInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [prefetching, setPrefetching] = useState(false);
+  const [prefetchingSet, setPrefetchingSet] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setSelectedSet("");
+      setRounds(3);
       setPicksPerPass(1);
       setFillWithBots(true);
       setSeedInput("");
@@ -67,9 +66,9 @@ export function StartMultiplayerDraftDialog({
   useEffect(() => {
     if (!selectedSet) return;
     let cancelled = false;
-    setPrefetching(true);
+    setPrefetchingSet(selectedSet);
     void prefetchSet(selectedSet).finally(() => {
-      if (!cancelled) setPrefetching(false);
+      if (!cancelled) setPrefetchingSet((cur) => (cur === selectedSet ? null : cur));
     });
     return () => {
       cancelled = true;
@@ -82,26 +81,27 @@ export function StartMultiplayerDraftDialog({
     !!selectedSet &&
     !!currentRoom &&
     !!username &&
-    !!playerId &&
     !submitting &&
     (fillWithBots ? humans <= podSize : humans === podSize);
 
   async function handleStart() {
-    if (!currentRoom || !username || !playerId) return;
+    if (!currentRoom || !username) return;
     setSubmitting(true);
     try {
       const participants: DraftHostParticipant[] = currentRoom.players
         .filter((p) => p.username !== username)
         .map((p) => ({
-          // playerId-format identifier — peer subscriber compares this
-          // against `seat.playerSlot` (matched on AuthResult player_id).
+          // Server stamps `from_player` with the username (see
+          // forge-server connection.rs), so seat slots must use
+          // username too. Peer side reads it from
+          // `useServerStore.username` at AuthResult time.
           playerSlot: p.username,
           displayName: p.username,
         }));
       const config: MpDraftConfig = {
         setCode: selectedSet,
         podSize,
-        rounds: 3,
+        rounds,
         picksPerPass,
         seed: seedInput ? Number(seedInput) || undefined : undefined,
         fillWithBots,
@@ -125,7 +125,7 @@ export function StartMultiplayerDraftDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -139,30 +139,32 @@ export function StartMultiplayerDraftDialog({
         </DialogHeader>
 
         <div className="space-y-4 text-sm">
-          <div className="space-y-1.5">
-            <Label htmlFor="draft-set">Set</Label>
-            <select
-              id="draft-set"
-              value={selectedSet}
-              onChange={(e) => setSelectedSet(e.target.value)}
-              className="w-full rounded border border-border/70 bg-background px-2 py-1.5"
-            >
-              <option value="">Pick a set…</option>
-              {draftableSets.slice(0, 60).map((s) => (
-                <option key={s.code} value={s.code}>
-                  {s.name} ({s.code.toUpperCase()})
-                </option>
-              ))}
-            </select>
-            {prefetching && (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Warming card images…
-              </p>
-            )}
-          </div>
+          {draftableSets.length === 0 ? (
+            <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading sets from Scryfall…
+            </p>
+          ) : (
+            <SetPicker
+              sets={draftableSets}
+              selectedCode={selectedSet}
+              prefetching={prefetchingSet}
+              onSelect={setSelectedSet}
+            />
+          )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="draft-rounds">Rounds</Label>
+              <Input
+                id="draft-rounds"
+                type="number"
+                min={1}
+                max={6}
+                value={rounds}
+                onChange={(e) => setRounds(Math.max(1, Math.min(6, Number(e.target.value) || 3)))}
+              />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="picks-per-pass">Picks per pass</Label>
               <Input

@@ -42,9 +42,14 @@ async fn hosted_play_vs_ai_smoke() {
         "[smoke] relay={relay} games={games} max_prompts={max_prompts} timeout={timeout_secs}s"
     );
 
-    let rooms = discover_rooms(&relay, &key, games)
-        .await
-        .unwrap_or_else(|error| panic!("room discovery failed: {error}"));
+    let rooms =
+        match tokio::time::timeout(Duration::from_secs(30), discover_rooms(&relay, &key, games))
+            .await
+        {
+            Ok(Ok(rooms)) => rooms,
+            Ok(Err(error)) => panic!("room discovery failed: {error}"),
+            Err(_) => panic!("room discovery timed out after 30s"),
+        };
     assert!(
         rooms.len() >= games,
         "need {games} open node rooms, found {} (is the node up with MAX_GAMES>={games}?)",
@@ -120,59 +125,59 @@ async fn play_game(
     timeout_secs: u64,
 ) -> Result<(), String> {
     let username = format!("smoke-player-{idx}");
-    let (mut write, mut read) = connect(relay).await?;
-    send(
-        &mut write,
-        &ClientMessage::Authenticate {
-            username: username.clone(),
-            password: key.to_string(),
-        },
-    )
-    .await?;
-    await_auth(&mut write, &mut read).await?;
+    let run = async {
+        let (mut write, mut read) = connect(relay).await?;
+        send(
+            &mut write,
+            &ClientMessage::Authenticate {
+                username: username.clone(),
+                password: key.to_string(),
+            },
+        )
+        .await?;
+        await_auth(&mut write, &mut read).await?;
 
-    send(
-        &mut write,
-        &ClientMessage::JoinRoom {
-            room_id: room_id.to_string(),
-            observe: false,
-        },
-    )
-    .await?;
+        send(
+            &mut write,
+            &ClientMessage::JoinRoom {
+                room_id: room_id.to_string(),
+                observe: false,
+            },
+        )
+        .await?;
 
-    let spawn_bot = StateEnvelope::RoomRelay {
-        protocol: "self-hosted-node".to_string(),
-        version: 1,
-        message_id: uuid::Uuid::new_v4().to_string(),
-        from_player: Some(username.clone()),
-        target_player: None,
-        room_id: Some(room_id.to_string()),
-        payload: json!({
-            "type": "spawnBot",
-            "deck": { "deckName": "Smoke AI", "deck": basic_deck("Smoke AI", "Forest", "Centaur Courser"), "commanderName": null },
-        }),
-    };
-    send(
-        &mut write,
-        &ClientMessage::BroadcastState {
-            state: serde_json::to_value(&spawn_bot).map_err(|e| e.to_string())?,
-        },
-    )
-    .await?;
+        let spawn_bot = StateEnvelope::RoomRelay {
+            protocol: "self-hosted-node".to_string(),
+            version: 1,
+            message_id: uuid::Uuid::new_v4().to_string(),
+            from_player: Some(username.clone()),
+            target_player: None,
+            room_id: Some(room_id.to_string()),
+            payload: json!({
+                "type": "spawnBot",
+                "deck": { "deckName": "Smoke AI", "deck": basic_deck("Smoke AI", "Forest", "Centaur Courser"), "commanderName": null },
+            }),
+        };
+        send(
+            &mut write,
+            &ClientMessage::BroadcastState {
+                state: serde_json::to_value(&spawn_bot).map_err(|e| e.to_string())?,
+            },
+        )
+        .await?;
 
-    send(
-        &mut write,
-        &ClientMessage::SetDeckSelection {
-            deck_name: "Smoke Player".to_string(),
-            deck: serde_json::from_value(basic_deck("Smoke Player", "Mountain", "Hill Giant"))
-                .map_err(|e| e.to_string())?,
-            commander_name: None,
-        },
-    )
-    .await?;
-    send(&mut write, &ClientMessage::SetReady { ready: true }).await?;
+        send(
+            &mut write,
+            &ClientMessage::SetDeckSelection {
+                deck_name: "Smoke Player".to_string(),
+                deck: serde_json::from_value(basic_deck("Smoke Player", "Mountain", "Hill Giant"))
+                    .map_err(|e| e.to_string())?,
+                commander_name: None,
+            },
+        )
+        .await?;
+        send(&mut write, &ClientMessage::SetReady { ready: true }).await?;
 
-    let play = async {
         let mut ai = SimpleAi::default();
         let mut my_slot: Option<String> = None;
         let mut acted = 0usize;
@@ -263,7 +268,7 @@ async fn play_game(
         Err(format!("game {idx}: connection closed before game over"))
     };
 
-    match tokio::time::timeout(Duration::from_secs(timeout_secs), play).await {
+    match tokio::time::timeout(Duration::from_secs(timeout_secs), run).await {
         Ok(result) => result,
         Err(_) => Err(format!("game {idx}: timed out after {timeout_secs}s")),
     }

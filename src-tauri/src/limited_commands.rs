@@ -8,8 +8,8 @@ use crate::limited_bootstrap;
 use crate::limited_dto::{
     identity_to_paper_card, BoosterDraftSetupDto, ChaosThemeDto, ConspiracyHookDto,
     CubeImportRequestDto, CubeImportResultDto, DraftStateDto, EditionInfoDto,
-    GauntletMatchDecksDto, GauntletOutcomeDto, GauntletStateDto, SealedPoolDto, SealedSetupDto,
-    SealedTemplateMetadataDto, WinstonSetupDto, WinstonStateDto,
+    GauntletMatchDecksDto, GauntletOutcomeDto, GauntletStateDto, MpDraftHumanSeatDto,
+    SealedPoolDto, SealedSetupDto, SealedTemplateMetadataDto, WinstonSetupDto, WinstonStateDto,
 };
 use crate::limited_manager::LimitedManager;
 
@@ -99,6 +99,43 @@ pub async fn limited_undo_pick(
     session_id: String,
 ) -> Result<DraftStateDto, String> {
     lm.undo_pick(&session_id)
+}
+
+#[tauri::command]
+pub async fn limited_start_multiplayer_draft(
+    lm: State<'_, LimitedManager>,
+    setup: BoosterDraftSetupDto,
+    humans: Vec<MpDraftHumanSeatDto>,
+) -> Result<DraftStateDto, String> {
+    let card_pool = filter_playable(&setup.pool);
+    if card_pool.is_empty() {
+        return Err(empty_pool_error(setup.pool.len()));
+    }
+    let humans = humans
+        .into_iter()
+        .map(|h| (h.seat as usize, h.name))
+        .collect();
+    lm.start_multiplayer_draft(&setup, card_pool, humans)
+}
+
+#[tauri::command]
+pub async fn limited_submit_pick(
+    lm: State<'_, LimitedManager>,
+    session_id: String,
+    seat_idx: u32,
+    card_name: String,
+) -> Result<DraftStateDto, String> {
+    lm.submit_pick_for_seat(&session_id, seat_idx as usize, &card_name)
+}
+
+#[tauri::command]
+pub async fn limited_get_seat_state(
+    lm: State<'_, LimitedManager>,
+    session_id: String,
+    seat_idx: u32,
+) -> Result<DraftStateDto, String> {
+    lm.get_seat_state(&session_id, seat_idx as usize)
+        .ok_or_else(|| format!("no draft session for id {session_id}"))
 }
 
 #[tauri::command]

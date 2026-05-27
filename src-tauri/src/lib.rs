@@ -44,10 +44,7 @@ const RESOURCE_ENV_MAP: &[(&str, &str)] = &[
     ),
     ("EDITIONS_DIR", "engine/forge/forge-gui/res/editions"),
     ("MANA_BREW_FORGE_ASSETS_DIR", "engine/forge/forge-gui"),
-    (
-        "MANA_BREW_FORGE_HARNESS_JAR",
-        "engine/forge-harness.jar",
-    ),
+    ("MANA_BREW_FORGE_HARNESS_JAR", "engine/forge-harness.jar"),
     ("PRESET_DECKS_DIR", "preset_decks"),
     ("CARDSET_ARCHIVE", "cardset.rkyv"),
 ];
@@ -113,6 +110,9 @@ pub fn run() {
             limited_commands::limited_pick_card,
             limited_commands::limited_undo_pick,
             limited_commands::limited_get_draft_state,
+            limited_commands::limited_start_multiplayer_draft,
+            limited_commands::limited_submit_pick,
+            limited_commands::limited_get_seat_state,
             limited_commands::limited_start_winston,
             limited_commands::limited_winston_take,
             limited_commands::limited_winston_pass,

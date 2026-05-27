@@ -416,15 +416,28 @@ pub struct ConspiracyHookDto {
 }
 
 impl DraftStateDto {
+    /// Single-player convenience — renders the state from seat 0's
+    /// perspective. Used by the existing single-player flow.
     pub fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
-        let human = draft.human_player();
+        Self::from_engine_for_seat(session_id, draft, 0, awaiting_human)
+    }
+
+    /// Multiplayer host calls this once per connected peer to broadcast
+    /// each player their own pack + picked pile.
+    pub fn from_engine_for_seat(
+        session_id: String,
+        draft: &BoosterDraft,
+        seat_idx: usize,
+        awaiting_human: bool,
+    ) -> Self {
+        let viewer = draft.seat(seat_idx);
         let pack: Vec<CardIdentity> = draft
-            .current_pack_for_human()
+            .current_pack_for_seat(seat_idx)
             .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();
-        let pick_number = (human.picked.len() + 1) as u32;
-        let mut seat_summaries: Vec<DraftSeatDto> = std::iter::once(human)
-            .chain(draft.opposing_players().iter())
+        let pick_number = viewer.map(|s| s.picked.len() + 1).unwrap_or(1) as u32;
+        let mut seat_summaries: Vec<DraftSeatDto> = (0..draft.pod_size())
+            .filter_map(|i| draft.seat(i))
             .map(|p| DraftSeatDto {
                 seat: p.seat as u32,
                 name: p.name.clone(),
@@ -434,16 +447,22 @@ impl DraftStateDto {
             })
             .collect();
         seat_summaries.sort_by_key(|s| s.seat);
-
-        let human_conspiracies: Vec<String> = forge_limited::CONSPIRACY_HOOKS
-            .iter()
-            .filter(|h| human.flags.contains(h.flag))
-            .map(|h| h.card_name.to_string())
-            .collect();
+        let human_conspiracies: Vec<String> = viewer
+            .map(|s| {
+                forge_limited::CONSPIRACY_HOOKS
+                    .iter()
+                    .filter(|h| s.flags.contains(h.flag))
+                    .map(|h| h.card_name.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
         let picks_remaining_in_pack = draft
-            .current_pack_for_human()
+            .current_pack_for_seat(seat_idx)
             .map(|p| p.picks_remaining())
             .unwrap_or(0);
+        let picked_pile = viewer
+            .map(|s| s.picked.iter().map(paper_card_to_identity).collect())
+            .unwrap_or_default();
         Self {
             session_id,
             round: draft.round(),
@@ -451,7 +470,7 @@ impl DraftStateDto {
             pick_number,
             pack_size: pack.len() as u32,
             current_pack: pack,
-            picked_pile: human.picked.iter().map(paper_card_to_identity).collect(),
+            picked_pile,
             seat_summaries,
             is_round_over: draft.is_round_over(),
             is_complete: !draft.has_next_choice() && draft.round() >= draft.total_rounds(),
@@ -461,4 +480,12 @@ impl DraftStateDto {
             picks_remaining_in_pack,
         }
     }
+}
+
+/// One element of the `humans` argument to `start_multiplayer_draft`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MpDraftHumanSeatDto {
+    pub seat: u32,
+    pub name: String,
 }

@@ -217,15 +217,30 @@ pub struct DraftStateDto {
 }
 
 impl DraftStateDto {
+    /// Single-player convenience — renders the state from seat 0's
+    /// perspective. Used by the existing single-player flow which only
+    /// ever cared about "the human".
     fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
-        let human = draft.human_player();
+        Self::from_engine_for_seat(session_id, draft, 0, awaiting_human)
+    }
+
+    /// Build a draft state from any seat's perspective. The
+    /// multiplayer host calls this once per connected peer to
+    /// broadcast each player their own pack + picked pile.
+    fn from_engine_for_seat(
+        session_id: String,
+        draft: &BoosterDraft,
+        seat_idx: usize,
+        awaiting_human: bool,
+    ) -> Self {
+        let viewer = draft.seat(seat_idx);
         let pack: Vec<CardIdentity> = draft
-            .current_pack_for_human()
+            .current_pack_for_seat(seat_idx)
             .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();
-        let pick_number = (human.picked.len() + 1) as u32;
-        let mut seat_summaries: Vec<DraftSeatDto> = std::iter::once(human)
-            .chain(draft.opposing_players().iter())
+        let pick_number = viewer.map(|s| s.picked.len() + 1).unwrap_or(1) as u32;
+        let mut seat_summaries: Vec<DraftSeatDto> = (0..draft.pod_size())
+            .filter_map(|i| draft.seat(i))
             .map(|p| DraftSeatDto {
                 seat: p.seat as u32,
                 name: p.name.clone(),
@@ -235,15 +250,22 @@ impl DraftStateDto {
             })
             .collect();
         seat_summaries.sort_by_key(|s| s.seat);
-        let human_conspiracies: Vec<String> = forge_limited::CONSPIRACY_HOOKS
-            .iter()
-            .filter(|h| human.flags.contains(h.flag))
-            .map(|h| h.card_name.to_string())
-            .collect();
+        let human_conspiracies: Vec<String> = viewer
+            .map(|s| {
+                forge_limited::CONSPIRACY_HOOKS
+                    .iter()
+                    .filter(|h| s.flags.contains(h.flag))
+                    .map(|h| h.card_name.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
         let picks_remaining_in_pack = draft
-            .current_pack_for_human()
+            .current_pack_for_seat(seat_idx)
             .map(|p| p.picks_remaining())
             .unwrap_or(0);
+        let picked_pile = viewer
+            .map(|s| s.picked.iter().map(paper_card_to_identity).collect())
+            .unwrap_or_default();
         Self {
             session_id,
             round: draft.round(),
@@ -251,7 +273,7 @@ impl DraftStateDto {
             pick_number,
             pack_size: pack.len() as u32,
             current_pack: pack,
-            picked_pile: human.picked.iter().map(paper_card_to_identity).collect(),
+            picked_pile,
             seat_summaries,
             is_round_over: draft.is_round_over(),
             is_complete: !draft.has_next_choice() && draft.round() >= draft.total_rounds(),
@@ -716,6 +738,132 @@ pub fn limited_get_draft_state(session_id: String) -> Result<JsValue, JsError> {
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
         let awaiting = !draft.is_round_over() && draft.has_next_choice();
         let dto = DraftStateDto::from_engine(session_id, draft, awaiting);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+/// One element of the `humans` list passed to
+/// `limited_start_multiplayer_draft`. `seat` is the slot in the pod
+/// (0..pod_size), `name` is the display name shown in the seat
+/// summaries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MpDraftHumanSeatDto {
+    pub seat: u32,
+    pub name: String,
+}
+
+/// Host-side entry point for multiplayer draft. Wraps
+/// `BoosterDraft::with_human_seats` and runs one initial `tick()` so
+/// the returned state already reflects any AI seats whose packs are
+/// ready before a human needs to pick.
+#[wasm_bindgen]
+pub fn limited_start_multiplayer_draft(
+    setup_json: JsValue,
+    humans_json: JsValue,
+) -> Result<JsValue, JsError> {
+    let setup: BoosterDraftSetupDto =
+        serde_wasm_bindgen::from_value(setup_json).map_err(|e| JsError::new(&e.to_string()))?;
+    let humans: Vec<MpDraftHumanSeatDto> =
+        serde_wasm_bindgen::from_value(humans_json).map_err(|e| JsError::new(&e.to_string()))?;
+    STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        let card_pool = filter_playable(&mut state, &setup.pool);
+        if card_pool.is_empty() {
+            return Err(JsError::new(&empty_pool_error(setup.pool.len())));
+        }
+        let pod_size = setup.pod_size.clamp(2, 8) as usize;
+        let rounds = setup.rounds.clamp(1, 6);
+        if humans.is_empty() || humans.len() > pod_size {
+            return Err(JsError::new(&format!(
+                "multiplayer draft needs 1..={pod_size} humans, got {}",
+                humans.len()
+            )));
+        }
+        let humans: Vec<(usize, String)> = humans
+            .into_iter()
+            .map(|h| (h.seat as usize, h.name))
+            .collect();
+        let ranker = Arc::new(CardRanker::new(state.rank_cache.clone()));
+        let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
+            Arc::new(|c: &PaperCard| c.colors);
+        let template = template_for_pool(&card_pool, setup.variant.as_deref());
+        let mut draft = BoosterDraft::with_human_seats(
+            pod_size, rounds, template, card_pool, ranker, color_of, &humans,
+        );
+        if let Some(n) = setup.picks_per_pass {
+            draft.set_picks_per_pass(n);
+        }
+        draft.start_round();
+        let outcome = draft.tick();
+        let awaiting = matches!(outcome, TickOutcome::AwaitingHuman);
+        let session_id = state.fresh_id("draft");
+        // Return the host's POV (seat 0) plus the seat list; the host
+        // re-broadcasts per-seat views via `limited_get_seat_state`.
+        let dto = DraftStateDto::from_engine_for_seat(session_id.clone(), &draft, 0, awaiting);
+        state.drafts.insert(session_id, draft);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+/// Submit a pick for an arbitrary human seat in a multiplayer draft.
+/// The single-player flow continues to use `limited_pick_card` (seat
+/// 0); this exists so the host can relay picks from non-host peers.
+#[wasm_bindgen]
+pub fn limited_submit_pick(
+    session_id: String,
+    seat_idx: u32,
+    card_name: String,
+) -> Result<JsValue, JsError> {
+    STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        let draft = state
+            .drafts
+            .get_mut(&session_id)
+            .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let seat = seat_idx as usize;
+        let pack_card = draft
+            .current_pack_for_seat(seat)
+            .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .ok_or_else(|| {
+                JsError::new(&format!("card {card_name:?} not in seat {seat}'s pack"))
+            })?;
+        draft
+            .submit_human_pick_for(seat, pack_card)
+            .map_err(|e| JsError::new(&e))?;
+        loop {
+            match draft.tick() {
+                TickOutcome::Progress => continue,
+                TickOutcome::AwaitingHuman => break,
+                TickOutcome::RoundOver => {
+                    if !draft.start_round() {
+                        break;
+                    }
+                }
+                TickOutcome::Complete => break,
+            }
+        }
+        let awaiting = !draft.is_round_over() && draft.has_next_choice();
+        // Return the picker's view so the host can confirm the move
+        // landed; peer broadcasts pull each seat via `limited_get_seat_state`.
+        let dto = DraftStateDto::from_engine_for_seat(session_id, draft, seat, awaiting);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+/// Render the draft state from a specific seat's perspective. Used by
+/// the host to assemble per-peer broadcasts after every pick.
+#[wasm_bindgen]
+pub fn limited_get_seat_state(session_id: String, seat_idx: u32) -> Result<JsValue, JsError> {
+    STATE.with(|cell| {
+        let state = cell.borrow();
+        let draft = state
+            .drafts
+            .get(&session_id)
+            .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let awaiting = !draft.is_round_over() && draft.has_next_choice();
+        let dto =
+            DraftStateDto::from_engine_for_seat(session_id, draft, seat_idx as usize, awaiting);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
 }

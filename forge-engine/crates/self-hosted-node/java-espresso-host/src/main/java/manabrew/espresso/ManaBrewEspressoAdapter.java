@@ -8,27 +8,6 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 
-/**
- * Host-side router mirroring {@code forge.harness.ManaBrewEngineAdapter}'s JSON
- * string API, but giving each session its own Espresso guest context. Forge's
- * process-global statics (MyRandom, the maxId counters) are per-context, so
- * concurrent sessions no longer clobber each other.
- *
- * <p>Each context serves exactly one game and is then closed — one context is one
- * game's blast radius. A background replenisher keeps a warm pool of pre-initialized
- * contexts ready, so {@code FModel.initialize} (~50 s) is paid off the hot path
- * rather than when a player starts a game.
- *
- * <p>In-place context reuse (run another game in the same context, avoiding even the
- * background init) is opt-in via {@code -Dmanabrew.espresso.reuse=true}. It is safe
- * only because {@code ManaBrewInteractiveSession.close()} now joins its game thread;
- * without that join a lingering thread corrupts the next game in the context. Default
- * is single-use (one context per game) for a clean crash blast radius.
- *
- * <p>The host JVM must be a GraalVM JDK with the Espresso polyglot runtime on its
- * classpath. The guest classpath (the Forge harness jar) is supplied via the
- * {@code manabrew.guest.classpath} system property.
- */
 public final class ManaBrewEspressoAdapter {
     private final Map<String, Ctx> active = new ConcurrentHashMap<>();
     private final Deque<Ctx> warm = new ConcurrentLinkedDeque<>();
@@ -95,9 +74,6 @@ public final class ManaBrewEspressoAdapter {
         try {
             return ctx.adapter.invokeMember("endGameJson", sessionId).asString();
         } finally {
-            // The guest endGame joins the game thread (close() now blocks on it), so
-            // the context is idle and safe to reuse; otherwise close for a clean
-            // one-game-per-context blast radius.
             if (reuse) {
                 warm.push(ctx);
             } else {
@@ -107,10 +83,6 @@ public final class ManaBrewEspressoAdapter {
     }
 
     public String abortGameJson(final String sessionId) {
-        // A cancelled game (a player left) has a guest game thread still blocked on
-        // input that will never arrive, so close(true) cancels it and the context is
-        // always discarded — never returned to the warm pool, even with reuse on,
-        // since a lingering thread would corrupt whichever game reuses the context.
         final Ctx ctx = active.remove(sessionId);
         if (ctx != null) {
             ctx.context.close(true);

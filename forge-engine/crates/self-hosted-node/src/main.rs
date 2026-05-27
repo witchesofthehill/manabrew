@@ -659,8 +659,6 @@ async fn maybe_auto_start_room(
     Ok(())
 }
 
-// The engine recurses past the default ~2 MB stack; too small here overflows and aborts
-// the whole process mid-game.
 const ENGINE_STACK_BYTES: usize = 64 * 1024 * 1024;
 
 fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {

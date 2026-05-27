@@ -36,10 +36,6 @@
     <build>
         <finalName>manabrew-espresso-host</finalName>
         <plugins>
-            <!-- Do NOT build an uber jar: merging Truffle's Multi-Release jars and
-                 espresso internal-resource bundles corrupts them. Ship a thin jar
-                 plus the dependency jars in target/lib/ and put them all on the
-                 classpath individually (the layout the spike validated). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>

@@ -245,3 +245,54 @@ docker compose -f forge-engine/crates/forge-server/compose.yml build --no-cache 
 # Check parity database
 docker compose -f forge-engine/crates/forge-server/compose.yml exec parity-dashboard sqlite3 /app/data/parity.db ".tables"
 ```
+
+## Investigating relay disconnects
+
+`forge-server` exposes a healthcheck on port 9444 (`/health`), and every
+disconnect emits a single tagged log line of the form
+`[disconnect] user='…' id=… reason=<…> connected_for_s=… room=…`. The reason
+attributes the drop to one of: `idle_timeout`, `read_error`, `stream_closed`,
+`client_close`, `writer_stopped`, `writer_failed`. Combined with the browser
+`[relay-disconnect]` console log on the client side, this is what we use to
+attribute "relay disconnected" reports to a specific cause.
+
+### Quick status
+
+```bash
+# Container health (look for "healthy"; "unhealthy" means /health failed
+# 3× in a row → Docker will restart it under restart: unless-stopped).
+docker compose -f compose.production.yml ps
+
+# Live resource usage. Sustained RSS near the 1g mem_limit, or CPU pinned
+# at 150%, indicates we're hitting the limits we set.
+docker stats --no-stream
+```
+
+### OOM kills
+
+```bash
+# Anything from oom_reaper or the kernel? Hetzner VMs surface OOM in dmesg
+# even when Docker's "OOMKilled: true" is missed.
+journalctl -u docker -k --since "1h ago" | grep -iE 'oom|killed process'
+```
+
+### Disconnect reason tally
+
+```bash
+# Histogram of disconnect reasons over the last hour. If `idle_timeout`
+# dominates we're losing connections in the network path (Hetzner NAT,
+# Caddy, kernel). If `client_close` dominates it's clean exits — not a
+# reliability problem.
+docker compose -f compose.production.yml logs --since 1h forge-server \
+  | grep '\[disconnect\]' \
+  | sed -n 's/.*reason=\([a-z_]*\).*/\1/p' \
+  | sort | uniq -c | sort -rn
+```
+
+### Health probe from outside
+
+```bash
+# Direct probe against the container's health port (only reachable from
+# inside the docker network):
+docker compose -f compose.production.yml exec forge-server curl -fsS http://localhost:9444/health
+```

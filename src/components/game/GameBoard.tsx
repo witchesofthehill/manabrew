@@ -17,6 +17,7 @@ import { computeBaseLayout, SIZE_PARAMS } from "@/pixi/HandLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
+import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 
 // Footprint of the bottom-right action cluster (PASS, Pass-Until-End,
 // phase buttons). Matches MainActionOverlay's `w-[300px]` + its visible
@@ -404,6 +405,10 @@ export function GameBoard({
       ref={boardRef}
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-visible"
     >
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+        <ReconnectBanner className="shadow-sm bg-background/95" />
+      </div>
+
       {/* ── Split: opponent (top) / phase strip / me (bottom) ─── */}
 
       {/* Opponent half */}

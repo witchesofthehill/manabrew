@@ -32,12 +32,21 @@ services:
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
+      FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
       FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
       RUST_LOG: "forge_server=info"
     expose:
       - "9443"
+      - "9444"
     restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9444/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   # Hosted Java engine for the staging preview, so the Settings engine toggle
   # has a node to talk to. Its room is `hosted` (unlisted in the lobby).

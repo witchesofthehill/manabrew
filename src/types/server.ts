@@ -159,3 +159,16 @@ export interface ServerErrorPayload {
   code: string;
   message: string;
 }
+
+export type ReconnectPhase = "idle" | "reconnecting" | "failed";
+
+export interface ReconnectingPayload {
+  phase: ReconnectPhase;
+  attempt: number;
+  delayMs?: number;
+  reason?: "network" | "server-shutdown";
+}
+
+export interface DisconnectedPayload {
+  terminal?: boolean;
+}

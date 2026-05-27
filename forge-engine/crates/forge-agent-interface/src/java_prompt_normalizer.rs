@@ -1095,8 +1095,6 @@ fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
                 .get("label")
                 .and_then(Value::as_str)
                 .unwrap_or("Unknown Card");
-            // Carry the printing + owner so the client resolves the card's art from
-            // its deck like the rust path, rather than a by-name fallback.
             let owner_id = card
                 .get("owner")
                 .and_then(Value::as_u64)

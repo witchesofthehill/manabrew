@@ -132,8 +132,6 @@ async function ensureServerConnection(): Promise<void> {
 
 async function findHostedRoom(format: GameFormat): Promise<RoomInfo> {
   const rooms = await fetchRooms();
-  // Single pool: hosted rooms are format-agnostic ("Any"); the chosen format is sent
-  // with the startGame payload, not matched on the room.
   const room = rooms.find(
     (candidate) =>
       candidate.hosted &&

@@ -1,12 +1,6 @@
-//! Headless end-to-end smoke for hosted Play-vs-AI through the relay.
-//!
-//! Ignored by default — it needs a running relay + self-hosted-node. Bring up the
-//! stack (`docker compose -f compose.local.yml up --build`) then run:
-//!
+//! End-to-end smoke for hosted Play-vs-AI. Ignored by default (needs a running relay
+//! + node — bring up compose.local.yml), run with:
 //!   cargo test -p self-hosted-node --test hosted_smoke -- --ignored --nocapture
-//!
-//! Knobs: HOSTED_SMOKE_RELAY_URL, HOSTED_SMOKE_SERVER_KEY, HOSTED_SMOKE_GAMES,
-//! HOSTED_SMOKE_MAX_PROMPTS, HOSTED_SMOKE_TIMEOUT_SECS.
 
 use std::time::Duration;
 

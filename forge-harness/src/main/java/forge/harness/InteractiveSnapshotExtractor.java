@@ -113,8 +113,6 @@ public final class InteractiveSnapshotExtractor {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", SnapshotExtractor.javaCardId(card));
         out.put("name", normalizeCardName(card.getName()));
-        // Carry the printing through so the client can resolve the card back to
-        // its deck entry (collector number disambiguates pinned printings).
         final IPaperCard paper = card.getPaperCard();
         out.put("setCode", paper != null ? paper.getEdition() : card.getSetCode());
         out.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");

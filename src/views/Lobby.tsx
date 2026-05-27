@@ -427,9 +427,6 @@ export default function Lobby() {
       <div className="flex-1 min-h-0 flex">
         {/* Rooms — takes full width when panels are closed */}
         <div className="flex-1 min-w-0 h-full">
-          {/* Single pool: hosted rooms (the self-hosted node's) show alongside human
-              tables, distinguished by the engine + ManaBrew badges. TablesList hides
-              in-progress rooms; only Lobby rooms (hosted or not) are browsable. */}
           <TablesList
             rooms={rooms}
             currentRoom={currentRoom}

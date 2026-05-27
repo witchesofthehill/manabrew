@@ -33,6 +33,8 @@ import init, {
   limited_record_gauntlet_outcome,
   limited_advance_gauntlet_round,
   limited_get_gauntlet_state,
+  limited_get_gauntlet_match_decks,
+  limited_update_gauntlet_human_deck,
   limited_cubecobra_url,
   limited_import_cube,
 } from "../wasm/forge_wasm";
@@ -545,6 +547,14 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
       return limited_advance_gauntlet_round(args?.gauntletId as string);
     case "limited_get_gauntlet_state":
       return limited_get_gauntlet_state(args?.gauntletId as string);
+    case "limited_get_gauntlet_match_decks":
+      return limited_get_gauntlet_match_decks(args?.gauntletId as string);
+    case "limited_update_gauntlet_human_deck":
+      return limited_update_gauntlet_human_deck({
+        gauntletId: args?.gauntletId,
+        main: args?.main,
+        sideboard: args?.sideboard,
+      });
     case "limited_cubecobra_url":
       return limited_cubecobra_url(args?.cubeIdOrUrl as string);
     case "limited_import_cube":

@@ -29,7 +29,7 @@ const OUTPUTS = [
   "src/wasm/forge_wasm_bg.wasm",
   "src/wasm/forge_wasm.js",
   "src/wasm/forge_wasm.d.ts",
-  "public/wasm/cardset.v4.rkyv",
+  "public/wasm/cardset.manifest.json",
 ];
 
 const STAMP_FILE = join(projectRoot, "src/wasm/.build-stamp.json");
@@ -128,7 +128,17 @@ function writeStamp(inputHash) {
 }
 
 function outputsPresent() {
-  return OUTPUTS.every((rel) => existsSync(join(projectRoot, rel)));
+  if (!OUTPUTS.every((rel) => existsSync(join(projectRoot, rel)))) return false;
+  // Manifest lists the content-addressed archive name; confirm that file is
+  // also on disk so a half-pruned `public/wasm/` triggers a rebuild.
+  try {
+    const manifest = JSON.parse(
+      readFileSync(join(projectRoot, "public/wasm/cardset.manifest.json"), "utf8"),
+    );
+    return existsSync(join(projectRoot, "public/wasm", manifest.archive));
+  } catch {
+    return false;
+  }
 }
 
 const inputHash = computeInputHash();

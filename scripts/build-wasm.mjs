@@ -11,7 +11,8 @@
 // - wasm-pack: cargo install wasm-pack
 
 import { spawnSync } from "child_process";
-import { existsSync, rmSync } from "fs";
+import { createHash } from "crypto";
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { join, dirname } from "path";
 import { homedir, platform } from "os";
@@ -102,6 +103,8 @@ if (commandExists("wasm-opt")) {
 }
 
 console.log("\nBuilding card archive...");
+const cardsetDir = join(projectRoot, "public", "wasm");
+const tmpArchive = join(cardsetDir, "cardset.tmp.rkyv");
 run(
   "cargo",
   [
@@ -118,10 +121,50 @@ run(
     "forge/forge-gui/res/tokenscripts",
     "forge/forge-gui/res/editions",
     "forge/forge-gui/res/blockdata",
-    "public/wasm/cardset.v4.rkyv",
+    tmpArchive,
   ],
   { shell: false },
 );
+
+// Hash the freshly-built archive so the worker can pull a content-addressed
+// URL: `cardset.<sha8>.rkyv`. Any shape change (editions added, new fields)
+// produces a new hash → new URL → fresh Cache API entry, even if
+// `ARCHIVE_FORMAT_VERSION` didn't move. Manifest is the only file with a
+// stable name; the worker fetches it `cache: no-cache` then resolves the
+// real archive path from it.
+const bytes = readFileSync(tmpArchive);
+const sha = createHash("sha256").update(bytes).digest("hex");
+const shortSha = sha.slice(0, 16);
+const archiveName = `cardset.${shortSha}.rkyv`;
+const archivePath = join(cardsetDir, archiveName);
+renameSync(tmpArchive, archivePath);
+
+const manifestPath = join(cardsetDir, "cardset.manifest.json");
+writeFileSync(
+  manifestPath,
+  JSON.stringify(
+    {
+      archive: archiveName,
+      sha256: sha,
+      bytes: bytes.length,
+      builtAt: new Date().toISOString(),
+    },
+    null,
+    2,
+  ) + "\n",
+);
+
+// Prune older `cardset.*.rkyv` files from previous builds so `public/wasm/`
+// doesn't grow without bound. The manifest is the only entry the worker
+// resolves, so anything not matching the current name is unreachable.
+for (const entry of readdirSync(cardsetDir)) {
+  if (entry === archiveName) continue;
+  if (entry.startsWith("cardset.") && entry.endsWith(".rkyv")) {
+    rmSync(join(cardsetDir, entry), { force: true });
+  }
+}
+
+console.log(`[build-wasm] cardset → ${archiveName} (sha256 ${shortSha}…)`);
 
 // Preset deck JSONs live at `public/preset_decks/*.json` and ship as-is —
 // no bundling step. Both the web worker (HTTP fetch) and the Tauri shell
@@ -129,4 +172,4 @@ run(
 
 console.log("\nBuild complete!");
 console.log(`WASM output: ${outputDir}`);
-console.log(`Card data:   ${join(projectRoot, "public", "wasm")}`);
+console.log(`Card data:   ${cardsetDir}`);

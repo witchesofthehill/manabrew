@@ -160,9 +160,6 @@ pub fn run_self_play(
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
-    // One bridge = one JVM + one router for the whole process. Every game runs
-    // through it, so the espresso context pool is shared across games — this is the
-    // node driving the pool, not a one-game-per-process JVM.
     let bridge = J4rsBridge::new(&config)?;
     let mut session = JavaForgeSession::new(bridge);
     session.initialize(&assets_dir)?;
@@ -215,11 +212,6 @@ pub fn run_self_play(
     )
 }
 
-// One JVM per process, and j4rs's Jvm is thread-bound, so the single bridge lives on
-// one owner thread. Game drivers (one per concurrent game) send session-tagged
-// commands here and block on the reply — serializing JVM access while the espresso
-// router keeps each game's statics isolated. This is the engine core that lets one
-// node host concurrent games.
 #[cfg(feature = "java-forge")]
 enum EngineCommand {
     Start(String, std_mpsc::Sender<Result<String, String>>),
@@ -371,9 +363,6 @@ impl JavaEngineHandle {
     }
 }
 
-// The one JVM per process lives behind a process-global handle so every hosted game
-// thread (across every room the node hosts) talks to the same actor without threading
-// a handle through the whole relay loop. Mutex makes the !Sync mpsc sender shareable.
 #[cfg(feature = "java-forge")]
 static JAVA_ENGINE: std::sync::OnceLock<std::sync::Mutex<JavaEngineHandle>> =
     std::sync::OnceLock::new();
@@ -386,8 +375,6 @@ pub fn init_engine() -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let engine = JavaEngine::start(&config)?;
     let handle = engine.handle();
-    // Keep the actor thread alive for the process lifetime (no clean shutdown needed
-    // for a long-running node; process exit reclaims it).
     std::mem::forget(engine);
     JAVA_ENGINE
         .set(std::sync::Mutex::new(handle))
@@ -660,8 +647,6 @@ fn run_hosted_engine_game_inner(
     game_over_tx: std_mpsc::Sender<String>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
-    // Drive the game through the shared process-wide engine actor (one JVM, pooled
-    // espresso contexts), so this room is one of N the node can host concurrently.
     let engine = engine_handle()?;
 
     let mut players = Vec::with_capacity(player_names.len());
@@ -677,10 +662,6 @@ fn run_hosted_engine_game_inner(
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(game_id, session_id, "hosted java-forge session started");
 
-    // Disarmed and replaced by an explicit end_game on a clean game-over (which lets
-    // the context be reused). Any other exit — cancel, channel drop, error, panic —
-    // leaves it armed, so Drop aborts: force-close the context rather than reuse it,
-    // because the guest game thread may still be blocked and would poison a reused one.
     struct SessionGuard {
         engine: JavaEngineHandle,
         session_id: String,
@@ -1005,8 +986,6 @@ fn run_self_play_loop<B: JavaBridge>(
     session: &mut JavaForgeSession<B>,
     max_prompts: usize,
 ) -> Result<(), String> {
-    // Same prompt re-emitted this many times after the bot acted = our action
-    // didn't advance the game; dump it as a stall instead of spinning to the cap.
     const STALL_REPEATS: usize = 100;
 
     let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
@@ -1017,13 +996,9 @@ fn run_self_play_loop<B: JavaBridge>(
     let max_iterations = max_prompts.saturating_mul(200).max(2_000);
 
     for _ in 0..max_iterations {
-        // Only snapshot when parked on a prompt: the game thread mutates zones
-        // while it runs, so a snapshot during setup races into a CME.
         if let Some(prompt_json) = session.get_prompt(0)? {
             seen_prompt = true;
             if last_prompt_json.as_deref() == Some(prompt_json.as_str()) {
-                // Java re-issues a terminal prompt after the game ends — confirm
-                // it's not simply over before counting the repeat as a stall.
                 if session.is_game_over()? {
                     info!(acted, "java-forge self-play reached game over");
                     return Ok(());
@@ -1373,25 +1348,29 @@ impl J4rsBridge {
 
         #[cfg(feature = "java-espresso")]
         {
-            // Host JVM (must be GraalVM) carries only the polyglot router; each
-            // session gets its own Espresso guest context loading Forge from the
-            // guest classpath, so the Forge global statics stay per-session.
             let classpath_opt = format!("-Djava.class.path={}", espresso_host_classpath(config)?);
             let guest_opt = format!("-Dmanabrew.guest.classpath={}", guest_classpath(config));
-            // Pre-warm N contexts at startup so a player's game starts instantly
-            // instead of paying the ~50-90s card-DB load on the first game per context.
             let pool_size = env::var("SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE")
                 .ok()
                 .and_then(|value| value.parse::<usize>().ok())
                 .unwrap_or(0);
             let pool_opt = format!("-Dmanabrew.espresso.poolSize={pool_size}");
+            let reuse = env::var("SELF_HOSTED_NODE_ESPRESSO_REUSE")
+                .map(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "on"
+                    )
+                })
+                .unwrap_or(false);
+            let reuse_opt = format!("-Dmanabrew.espresso.reuse={reuse}");
             let jvm = JvmBuilder::new()
                 .with_no_implicit_classpath()
                 .with_default_classloader()
                 .java_opt(JavaOpt::new(&classpath_opt))
                 .java_opt(JavaOpt::new(&guest_opt))
                 .java_opt(JavaOpt::new(&pool_opt))
-                .java_opt(JavaOpt::new("-Dmanabrew.espresso.reuse=true"))
+                .java_opt(JavaOpt::new(&reuse_opt))
                 .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
                 .build()
                 .map_err(java_error)?;
@@ -1532,9 +1511,6 @@ fn explicit_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
 
 #[cfg(feature = "java-espresso")]
 fn espresso_host_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
-    // Polyglot/Espresso jars must stay separate (no uber jar) or Truffle's
-    // Multi-Release classes and internal resources break — so the thin host jar
-    // plus its sibling lib/ dir of dependency jars all go on individually.
     let mut entries = vec![config.espresso_host_jar.clone()];
     let lib_dir = config
         .espresso_host_jar

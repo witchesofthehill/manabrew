@@ -73,8 +73,22 @@ export function deckMainAsDraftCards(deck: Deck): DraftCard[] {
   return deck.cards.map(deckCardToDraftCard);
 }
 
+// 1x1 transparent png — image renderers (<img>, PIXI textures) accept it
+// without throwing or 404'ing. Used as a placeholder until the Scryfall
+// store catches up; consumers that need a real image (DraftCardTile, deck
+// thumbnails) gate on `uris` separately and show a skeleton in the meantime.
+const PLACEHOLDER_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+const PLACEHOLDER_URIS = {
+  small: PLACEHOLDER_URI,
+  normal: PLACEHOLDER_URI,
+  large: PLACEHOLDER_URI,
+  png: PLACEHOLDER_URI,
+  art_crop: PLACEHOLDER_URI,
+  border_crop: PLACEHOLDER_URI,
+};
+
 export function draftCardToManaBrew(dc: DraftCard, idx: number): DeckCard {
-  if (!dc.uris) throw new Error(`Draft card has no image uris: ${dc.name}`);
   return {
     id: `pool-${idx}-${dc.setCode}-${dc.collectorNumber}`,
     name: frontFaceName(dc.name),
@@ -90,7 +104,7 @@ export function draftCardToManaBrew(dc: DraftCard, idx: number): DeckCard {
     isDoubleFaced: dc.isDoubleFaced,
     foil: dc.foil,
     colorIdentity: dc.colors ?? [],
-    uris: dc.uris,
+    uris: dc.uris ?? PLACEHOLDER_URIS,
   };
 }
 

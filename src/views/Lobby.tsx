@@ -17,10 +17,12 @@ import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
 import { getPlatform } from "@/platform";
+import { START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
   DraftConfig,
   GameStartedPayload,
   RoomMessagePayload,
+  ServerErrorCode,
   ServerErrorPayload,
 } from "@/types/server";
 import type { Deck, GameView } from "@/types/manabrew";
@@ -34,20 +36,6 @@ import { cn } from "@/lib/utils";
 import { Wifi, WifiOff, Loader2, Settings, RefreshCw, MessageSquare, Users } from "lucide-react";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
-
-// Server error codes from `forge-server/src/error.rs::ServerError::code`
-// that originate from a StartGame reaching `start_game_sync` and
-// failing validation. Other `server:error` events during the wait
-// belong to unrelated client actions and shouldn't abort the draft.
-const START_GAME_FAILURE_CODES = new Set([
-  "format_not_chosen",
-  "deck_not_selected",
-  "not_host",
-  "players_not_ready",
-  "game_already_started",
-  "room_not_found",
-  "not_in_room",
-]);
 
 function awaitGameStartedAck(roomId: string): Promise<void> {
   const events = getPlatform().events;
@@ -68,7 +56,7 @@ function awaitGameStartedAck(roomId: string): Promise<void> {
     );
     unsubs.push(
       events.on<ServerErrorPayload>("server:error", (payload) => {
-        if (!START_GAME_FAILURE_CODES.has(payload.code)) return;
+        if (!START_GAME_FAILURE_CODES.has(payload.code as ServerErrorCode)) return;
         clearTimeout(timeout);
         cleanup();
         reject(new Error(payload.message || payload.code));

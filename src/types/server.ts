@@ -178,8 +178,55 @@ export interface TurnChangedPayload {
   turn_number: number;
 }
 
+// Codes mirror `forge-server::error::ServerError::code()` — keep in sync.
+// Define each once so call-site comparisons, sets, and toast maps all
+// reference the same string instead of inlining literals.
+export const SERVER_ERROR_CODE = {
+  AuthFailed: "auth_failed",
+  AuthTimeout: "auth_timeout",
+  RoomNotFound: "room_not_found",
+  RoomFull: "room_full",
+  NotInRoom: "not_in_room",
+  NotHost: "not_host",
+  PlayersNotReady: "players_not_ready",
+  DeckNotSelected: "deck_not_selected",
+  GameAlreadyStarted: "game_already_started",
+  GameNotInProgress: "game_not_in_progress",
+  FormatNotChosen: "format_not_chosen",
+  AlreadyInRoom: "already_in_room",
+  DuplicateUsername: "duplicate_username",
+  WebSocket: "websocket_error",
+  Parse: "parse_error",
+} as const;
+
+export type ServerErrorCode = (typeof SERVER_ERROR_CODE)[keyof typeof SERVER_ERROR_CODE];
+
+// Codes a `StartGame` validation can emit. The Lobby start-flow ack
+// rejects on any of these and ignores others (e.g. errors from an
+// unrelated concurrent action that lands during the wait window).
+export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
+  SERVER_ERROR_CODE.FormatNotChosen,
+  SERVER_ERROR_CODE.DeckNotSelected,
+  SERVER_ERROR_CODE.NotHost,
+  SERVER_ERROR_CODE.PlayersNotReady,
+  SERVER_ERROR_CODE.GameAlreadyStarted,
+  SERVER_ERROR_CODE.RoomNotFound,
+  SERVER_ERROR_CODE.NotInRoom,
+]);
+
+// User-facing toast messages keyed by error code. Omit a code to skip
+// surfacing it (e.g. flow-internal errors handled at their own callsite).
+export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
+  [SERVER_ERROR_CODE.DeckNotSelected]: "Select a deck before getting ready",
+  [SERVER_ERROR_CODE.PlayersNotReady]: "Not all players are ready",
+  [SERVER_ERROR_CODE.NotHost]: "Only the host can do that",
+  [SERVER_ERROR_CODE.RoomFull]: "Room is full",
+  [SERVER_ERROR_CODE.AlreadyInRoom]: "You're already in a room",
+  [SERVER_ERROR_CODE.FormatNotChosen]: "Choose a format before starting",
+};
+
 export interface ServerErrorPayload {
-  code: string;
+  code: ServerErrorCode | string;
   message: string;
 }
 

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
+import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
   RoomInfo,
   PlayerInfo,
@@ -22,6 +23,7 @@ import type {
   PlayerConnectionPayload,
   ReadyChangedPayload,
   GameStartedPayload,
+  ServerErrorCode,
   ServerErrorPayload,
   ReconnectingPayload,
   DisconnectedPayload,
@@ -333,7 +335,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
-            if (payload.code === "not_in_room") {
+            if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,
                 gameStarted: false,
@@ -344,20 +346,7 @@ export const useServerStore = create<ServerState>()(
               void get().listRooms();
               return;
             }
-            // User-facing codes that originate from a lobby action and
-            // benefit from a visible toast (otherwise the user has no
-            // signal that Ready Up / Start Game failed). Other codes
-            // are flow-internal and already surfaced where they fire
-            // (e.g. StartGame failures hit the dialog's own ack handler).
-            const userFacing: Record<string, string> = {
-              deck_not_selected: "Select a deck before getting ready",
-              players_not_ready: "Not all players are ready",
-              not_host: "Only the host can do that",
-              room_full: "Room is full",
-              already_in_room: "You're already in a room",
-              format_not_chosen: "Choose a format before starting",
-            };
-            const message = userFacing[payload.code];
+            const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
             if (message) toast.error(message);
           }),
         );

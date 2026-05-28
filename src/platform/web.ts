@@ -24,6 +24,7 @@ import type {
   StartServerGameParams,
   SpawnAiBotParams,
 } from "./types";
+import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
@@ -922,10 +923,9 @@ class WebServerApi implements IServerApi {
       }
     }
 
-    // Handle error with not_in_room specially
-    if (type === "Error" && msg.code === "not_in_room") {
+    if (type === "Error" && msg.code === SERVER_ERROR_CODE.NotInRoom) {
       this.eventBus.emit("game:forced_end", {
-        reason: "not_in_room",
+        reason: SERVER_ERROR_CODE.NotInRoom,
         message: msg.message,
       });
     }

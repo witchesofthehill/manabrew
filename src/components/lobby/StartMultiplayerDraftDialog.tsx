@@ -24,15 +24,22 @@ import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { GameStartedPayload, ServerErrorPayload } from "@/types/server";
 
-/** How long to wait for the server's `GameStarted` ack after sending
- *  `StartGame`. If the server takes longer than this something is
- *  wrong upstream; abort rather than ship the draft-v1 broadcast into
- *  a room that hasn't transitioned. */
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
-/** Await `server:game_started` for the current room, or the matching
- *  `server:error`. Returns void on Ack, throws on error/timeout.
- *  Subscribers are torn down in every exit path. */
+// Server error codes (`forge-server/src/error.rs::ServerError::code`)
+// that come from a `StartGame` reaching `start_game_sync` and failing
+// validation. Any other `server:error` during the wait window belongs
+// to an unrelated client action and must not abort the draft start.
+const START_GAME_FAILURE_CODES = new Set([
+  "format_not_chosen",
+  "deck_not_selected",
+  "not_host",
+  "players_not_ready",
+  "game_already_started",
+  "room_not_found",
+  "not_in_room",
+]);
+
 function awaitGameStartedAck(roomId: string): Promise<void> {
   const events = getPlatform().events;
   return new Promise((resolve, reject) => {
@@ -52,6 +59,7 @@ function awaitGameStartedAck(roomId: string): Promise<void> {
     );
     unsubs.push(
       events.on<ServerErrorPayload>("server:error", (payload) => {
+        if (!START_GAME_FAILURE_CODES.has(payload.code)) return;
         clearTimeout(timeout);
         cleanup();
         reject(new Error(payload.message || payload.code));
@@ -150,15 +158,16 @@ export function StartMultiplayerDraftDialog({
         seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         fillWithBots,
       };
-      // Flip the room to `Draft` server-side first so the post-#82
-      // lifecycle (room.format `Any` → `Draft`, status `Lobby` →
-      // `InGame`) stays consistent with what the hosted Play-vs-AI
-      // path established. We then await the server's `GameStarted`
-      // ack before broadcasting `draft-v1` envelopes — otherwise the
-      // peer relay landing first races the lobby's RoomUpdate and
-      // peers see `currentRoom.format === "Any"` when the draft-start
-      // envelope arrives.
+      // Flip room to `Draft` server-side, then wait for the ack
+      // before broadcasting draft-v1 — otherwise peers may see
+      // `currentRoom.format === "Any"` when the start envelope lands.
+      // `ackPromise` registers before `serverStartGame` to close the
+      // race where the server's GameStarted arrives before the
+      // listener is attached. The detached-catch handles the case
+      // where `serverStartGame` throws synchronously, so the
+      // listeners + timeout don't leak.
       const ackPromise = awaitGameStartedAck(currentRoom.room_id);
+      ackPromise.catch(() => {});
       try {
         await serverStartGame("Draft");
         await ackPromise;

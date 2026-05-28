@@ -758,10 +758,8 @@ fn handle_client_message(
                         &started.room_id[..8],
                         started.player_order
                     );
-                    // Broadcast the room snapshot first so any client
-                    // branch keyed on `room.format` (e.g. mp draft
-                    // navigation) sees the resolved format before
-                    // `GameStarted` triggers downstream effects.
+                    // RoomUpdate first — clients keyed on room.format
+                    // (mp draft nav) need the flip before GameStarted.
                     broadcast_to_room(
                         state,
                         &started.room_id,

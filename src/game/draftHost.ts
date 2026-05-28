@@ -341,18 +341,9 @@ async function fetchSeatState(sessionId: string, seat: number): Promise<DraftSta
   }
 }
 
-/** Wrap up the session: broadcast every pool, flip the local store
- *  into `complete`, signal the matchmaking server to reset the room,
- *  and detach.
- *
- *  By construction this runs *inside* the active `pendingChain` link
- *  (called from `applyPick` after the engine signals `isComplete`), so
- *  there is no need to `await active.pendingChain` here — that would
- *  deadlock. Any peer picks that arrive while `finishDraft` is mid-
- *  await get queued onto the chain via `enqueuePick`; after teardown
- *  sets `active = null`, those queued links bail at `applyPick`'s
- *  `if (!active) return` guard, so the wasm session never sees a
- *  post-complete `limited_submit_pick`. */
+// Runs inside the active pendingChain link via `applyPick`, so do not
+// re-await `pendingChain` here — would deadlock. Late peer picks are
+// caught by `applyPick`'s `!active` guard after teardown.
 async function finishDraft(): Promise<void> {
   if (!active) return;
   const server = getPlatform().server;
@@ -394,25 +385,9 @@ async function finishDraft(): Promise<void> {
   teardownHost();
 }
 
-/** Detach the relay listener and drop host state. Called automatically
- *  on `finishDraft`; the lobby calls it explicitly on host disconnect /
- *  leave-room so a future draft on the same client starts clean.
- *
- *  `signalEnd: true` also fires `ClientMessage::EndGame` so the
- *  matchmaking server resets the room to `Lobby` (`Any` if hosted).
- *  `finishDraft` handles its own endGame before calling teardown, so
- *  it passes `false`; mid-draft exits in `MultiplayerDraft.tsx` pass
- *  `true` to mirror that lifecycle. Server-side `EndGame` is a no-op
- *  for already-`Lobby` rooms (the connection handler logs at debug
- *  level), so duplicate signals are safe.
- *
- *  Known limitation: does not await `pendingChain`. If a peer pick is
- *  mid-`applyPick` when teardown fires (e.g. host disconnect mid-draft),
- *  the in-flight call's `if (!active) return;` guard catches it on the
- *  next async boundary but any broadcast already in motion completes
- *  with a half-shipped state. Peers observe a stale view until the
- *  session is rebuilt. Live with it for v1 — the existing multiplayer
- *  game flow has the same shape. */
+// `signalEnd: true` fires ClientMessage::EndGame so the server resets
+// the room (Any if hosted). Server ignores EndGame on Lobby rooms, so
+// finishDraft's call + a later mid-draft-exit call are both safe.
 export function teardownHost(signalEnd = false): void {
   if (!active) return;
   active.unsubscribe();

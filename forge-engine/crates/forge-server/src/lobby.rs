@@ -183,9 +183,6 @@ pub fn set_ready_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        // `Any` rooms (post-#82) defer format choice to `StartGame`, and
-        // `Draft`/`Sealed` rooms produce decks during the session — none
-        // of them have a deck to require at ready-up time.
         let format_requires_deck = !matches!(
             room.format,
             GameFormat::Any | GameFormat::Draft | GameFormat::Sealed
@@ -238,11 +235,8 @@ pub struct StartedGame {
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
-    /// Post-flip room snapshot. Callers broadcast this as `RoomUpdate`
-    /// alongside `GameStarted` so clients learn the resolved format
-    /// (e.g. `Any` → `Draft`) without waiting for the next list-rooms
-    /// poll. Otherwise post-#82 `Any`-room features (mp draft) race
-    /// the format-flip against any UI branch keyed on `room.format`.
+    /// Post-flip snapshot — broadcast as `RoomUpdate` so clients see
+    /// the resolved format (`Any` → `Draft`) without polling.
     pub room_info: RoomInfo,
 }
 
@@ -284,8 +278,7 @@ pub fn start_game_sync(
             }
         }
 
-        // Draft doesn't bring a pre-built deck — players draft one during the
-        // session. Every other format still requires a selected deck.
+        // Draft/Sealed produce decks during the session, not at room-join.
         if !matches!(room.format, GameFormat::Draft | GameFormat::Sealed)
             && room
                 .players
@@ -296,9 +289,6 @@ pub fn start_game_sync(
         }
 
         room.status = RoomStatus::InGame;
-        // `Any` is converted to a concrete format above; reaching this
-        // match with `Any` would mean the conversion path was bypassed,
-        // which the above branch makes impossible.
         let starting_life = match room.format {
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,

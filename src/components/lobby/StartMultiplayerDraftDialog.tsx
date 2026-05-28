@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Cloud, Cpu, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,7 @@ export function StartMultiplayerDraftDialog({
 }: StartMultiplayerDraftDialogProps) {
   const currentRoom = useServerStore((s) => s.currentRoom);
   const username = useServerStore((s) => s.username);
+  const serverStartGame = useServerStore((s) => s.startGame);
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
 
@@ -110,6 +112,18 @@ export function StartMultiplayerDraftDialog({
         seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         fillWithBots,
       };
+      // Flip the room to `Draft` server-side first so the post-#82
+      // lifecycle (room.format `Any` → `Draft`, status `Lobby` →
+      // `InGame`) stays consistent with what the hosted Play-vs-AI
+      // path established. Server broadcasts `GameStarted` to every
+      // member; the host then drives the WASM draft via `draft-v1`
+      // relay envelopes.
+      try {
+        await serverStartGame("Draft");
+      } catch (e) {
+        toast.error(`Failed to start draft: ${String(e)}`);
+        return;
+      }
       const result = await startDraftAsHost({
         roomId: currentRoom.room_id,
         hostSlot: username,
@@ -207,6 +221,53 @@ export function StartMultiplayerDraftDialog({
               {podSize - humans === 1 ? "" : "s"})
             </span>
           </label>
+
+          {/* Engine seam — drafting itself is pure card-selection in
+              forge-limited, but surfacing the room's `EngineKind` keeps
+              the UI honest about which backend will pick up the drafted
+              pool for a follow-on match. Java draft host is not wired
+              yet (#82 only covered play-vs-ai); show it as disabled. */}
+          <div className="grid grid-cols-2 gap-2">
+            <div
+              className={cn(
+                "rounded-lg border px-3 py-2 flex items-start gap-2",
+                "border-primary bg-primary/5",
+              )}
+            >
+              <Cpu className="h-4 w-4 text-primary mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold">Rust (Wasm)</span>
+                  <Badge variant="outline" className="text-[9px]">
+                    in-browser
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Host runs the draft locally. The drafted pool feeds whichever engine the room was
+                  created with.
+                </p>
+              </div>
+            </div>
+            <div
+              className={cn(
+                "rounded-lg border px-3 py-2 flex items-start gap-2 opacity-50",
+                "border-border",
+              )}
+            >
+              <Cloud className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold">Forge (hosted)</span>
+                  <Badge variant="secondary" className="text-[9px]">
+                    coming soon
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Java-Forge node as draft host. Not available yet.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>

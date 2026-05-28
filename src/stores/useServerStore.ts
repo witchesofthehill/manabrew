@@ -58,7 +58,10 @@ interface ServerState {
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
-  startGame(): Promise<void>;
+  /** `format` resolves `GameFormat::Any` rooms (post-#82) to a concrete format
+   *  at start time. Omit for rooms already created with a specific format. */
+  startGame(format?: GameFormat): Promise<void>;
+  endGame(): Promise<void>;
 
   setupListeners(): () => void;
 }
@@ -178,10 +181,16 @@ export const useServerStore = create<ServerState>()(
         });
       },
 
-      async startGame() {
+      async startGame(format) {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.startGame();
+        await platform.server.startGame(format ? { format } : undefined);
+      },
+
+      async endGame() {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.endGame();
       },
 
       setupListeners() {

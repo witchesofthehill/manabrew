@@ -21,8 +21,9 @@ interface TablesListProps {
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
-  /** Draft-format rooms only. Lobby passes this when the host is
-   *  ready to open the draft-setup modal. */
+  /** Lobby passes this when the host is ready to open the draft-setup
+   *  modal. Available on any room — format is resolved to `Draft` at
+   *  start time (post-#82 `GameFormat::Any` lifecycle). */
   onStartDraft?: () => void;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
@@ -55,6 +56,11 @@ export function TablesList({
   const allReady = currentRoom
     ? currentRoom.players.length >= 2 && currentRoom.players.every((p) => p.ready)
     : false;
+  // `Any` rooms (post-#82) resolve format at start time; for a draft start
+  // the players never bring decks, so ready-up can't require one. Specific
+  // formats keep the existing deck-before-ready gate.
+  const isOpenFormat = currentRoom?.format === "Any";
+  const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
     ? [...currentRoom.players].sort((a, b) => {
@@ -177,7 +183,7 @@ export function TablesList({
                   size="sm"
                   className="gap-1"
                   onClick={() => onSetReady(true)}
-                  disabled={!myPlayerHasDeck}
+                  disabled={readyDisabled}
                 >
                   Ready Up
                 </Button>
@@ -207,11 +213,18 @@ export function TablesList({
                       <Hand className="h-3 w-3" /> Tabletop
                     </Button>
                   )}
-                  {onStartDraft && currentRoom.format === "Draft" ? (
-                    <Button size="sm" className="gap-1" onClick={onStartDraft}>
+                  {onStartDraft && isOpenFormat && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={onStartDraft}
+                      disabled={!allReady}
+                    >
                       <Swords className="h-3 w-3" /> Start Draft
                     </Button>
-                  ) : (
+                  )}
+                  {!isOpenFormat && (
                     <Button size="sm" className="gap-1" onClick={onStartGame} disabled={!allReady}>
                       <Swords className="h-3 w-3" /> Start Game
                     </Button>

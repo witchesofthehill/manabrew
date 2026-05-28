@@ -257,19 +257,22 @@ pub fn start_game_sync(
             return Err(ServerError::PlayersNotReady);
         }
 
-        if room
-            .players
-            .iter()
-            .any(|p| p.selected_deck_name.is_none() || p.selected_deck.is_none())
-        {
-            return Err(ServerError::DeckNotSelected);
-        }
-
         if room.format == GameFormat::Any {
             match format {
                 Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
                 _ => return Err(ServerError::FormatNotChosen),
             }
+        }
+
+        // Draft doesn't bring a pre-built deck — players draft one during the
+        // session. Every other format still requires a selected deck.
+        if !matches!(room.format, GameFormat::Draft | GameFormat::Sealed)
+            && room
+                .players
+                .iter()
+                .any(|p| p.selected_deck_name.is_none() || p.selected_deck.is_none())
+        {
+            return Err(ServerError::DeckNotSelected);
         }
 
         room.status = RoomStatus::InGame;

@@ -16,7 +16,6 @@ import {
   Coins,
   Sparkles,
   Wand2,
-  BookOpen,
   Package,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
@@ -31,6 +30,12 @@ const FORMATS: {
   icon: React.ComponentType<{ className?: string }>;
   description: string;
 }[] = [
+  {
+    value: "Any",
+    label: "Open",
+    icon: Sparkles,
+    description: "Pick the format at start time — required for draft/sealed",
+  },
   {
     value: "Standard",
     label: "Standard",
@@ -65,7 +70,6 @@ const FORMATS: {
     icon: Wand2,
     description: "60-card singleton, planeswalker cmdr",
   },
-  { value: "Draft", label: "Draft", icon: BookOpen, description: "40-card limited, drafted cards" },
   { value: "Sealed", label: "Sealed", icon: Package, description: "40-card limited, sealed pool" },
 ];
 

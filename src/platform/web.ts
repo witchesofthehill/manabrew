@@ -21,6 +21,7 @@ import type {
   JoinRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
+  StartServerGameParams,
   SpawnAiBotParams,
 } from "./types";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
@@ -790,8 +791,12 @@ class WebServerApi implements IServerApi {
     });
   }
 
-  async startGame(): Promise<void> {
-    this.send({ type: "StartGame" });
+  async startGame(params?: StartServerGameParams): Promise<void> {
+    this.send({ type: "StartGame", format: params?.format ?? null });
+  }
+
+  async endGame(): Promise<void> {
+    this.send({ type: "EndGame" });
   }
 
   /** Broadcast game state to other players in the room */

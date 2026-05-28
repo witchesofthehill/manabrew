@@ -30,6 +30,7 @@ import {
 } from "@/game/draftRelay";
 import { getPlatform } from "@/platform";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import { useServerStore } from "@/stores/useServerStore";
 import type { DraftCard, DraftState } from "@/types/limited";
 import type { RoomRelayEnvelope } from "@/types/server";
 
@@ -369,12 +370,29 @@ async function finishDraft(): Promise<void> {
       }),
     );
   }
+  // Signal the matchmaking server that the draft is over so the room
+  // transitions back to `Lobby` and (for hosted rooms) resets format
+  // to `Any`. Matches the post-#82 lifecycle established for play-vs-ai
+  // — the room becomes reusable for whatever the players do next.
+  try {
+    await useServerStore.getState().endGame();
+  } catch (err) {
+    console.warn("[draftHost] endGame after finishDraft failed:", err);
+  }
   teardownHost();
 }
 
 /** Detach the relay listener and drop host state. Called automatically
  *  on `finishDraft`; the lobby calls it explicitly on host disconnect /
  *  leave-room so a future draft on the same client starts clean.
+ *
+ *  `signalEnd: true` also fires `ClientMessage::EndGame` so the
+ *  matchmaking server resets the room to `Lobby` (`Any` if hosted).
+ *  `finishDraft` handles its own endGame before calling teardown, so
+ *  it passes `false`; mid-draft exits in `MultiplayerDraft.tsx` pass
+ *  `true` to mirror that lifecycle. Server-side `EndGame` is a no-op
+ *  for already-`Lobby` rooms (the connection handler logs at debug
+ *  level), so duplicate signals are safe.
  *
  *  Known limitation: does not await `pendingChain`. If a peer pick is
  *  mid-`applyPick` when teardown fires (e.g. host disconnect mid-draft),
@@ -383,8 +401,16 @@ async function finishDraft(): Promise<void> {
  *  with a half-shipped state. Peers observe a stale view until the
  *  session is rebuilt. Live with it for v1 — the existing multiplayer
  *  game flow has the same shape. */
-export function teardownHost(): void {
+export function teardownHost(signalEnd = false): void {
   if (!active) return;
   active.unsubscribe();
   active = null;
+  if (signalEnd) {
+    void useServerStore
+      .getState()
+      .endGame()
+      .catch((err) => {
+        console.warn("[draftHost] endGame on teardown failed:", err);
+      });
+  }
 }

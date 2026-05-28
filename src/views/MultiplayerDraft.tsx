@@ -58,6 +58,8 @@ export default function MultiplayerDraft() {
         pools={finalPools}
         myPool={myPool?.pool ?? []}
         onExit={() => {
+          // Completion flow already sent EndGame in `finishDraft`;
+          // teardown here just clears local host state.
           if (amHost) teardownHost();
           // `clear()` flips mode → "idle"; the useEffect above watches
           // for that and navigates to /lobby. Avoid double-navigating.
@@ -113,7 +115,17 @@ export default function MultiplayerDraft() {
             )}
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate("/lobby")}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            // Mid-draft exit on the host kills the session for every
+            // peer (no fallback host), so reset the room state too.
+            // Peers just leave their local state and bail.
+            if (amHost) teardownHost(true);
+            clear();
+            navigate("/lobby");
+          }}
+        >
           Back to lobby
         </Button>
       </header>

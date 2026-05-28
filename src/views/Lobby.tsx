@@ -133,35 +133,44 @@ export default function Lobby() {
   }, [connected, listRooms, listPlayers]);
 
   useEffect(() => {
-    if (gameStarted && playerOrder.length > 0) {
-      const isHost = currentRoom?.host === username;
-      if (
-        currentRoom &&
-        !samePlayers(
-          playerOrder,
-          currentRoom.players.map((player) => player.username),
-        )
-      ) {
-        toast.error("Server player order does not match the current room.");
-        return;
-      }
-      const myIndex = playerOrder.indexOf(username ?? "");
-      if (myIndex < 0) {
-        toast.error("Could not determine your player slot for this game.");
-        return;
-      }
+    if (!gameStarted || playerOrder.length === 0) return;
+    // Draft is server-acknowledged via `GameStarted` (room.format flipped
+    // from `Any` to `Draft`), but the actual draft flow goes through the
+    // `draft-v1` relay envelopes and `useMultiplayerDraftStore`. Don't
+    // hijack the navigation here — the draftMode effect above handles it
+    // for both host and peers. Just clear the flag so a later non-draft
+    // `Start Game` in the same room isn't blocked.
+    if (currentRoom?.format === "Draft") {
       useServerStore.setState({ gameStarted: false });
-      navigate("/play", {
-        state: {
-          multiplayer: true,
-          playerOrder,
-          playerDecks,
-          isHost,
-          startingLife,
-          myPlayerSlot: `player-${myIndex}`,
-        },
-      });
+      return;
     }
+    const isHost = currentRoom?.host === username;
+    if (
+      currentRoom &&
+      !samePlayers(
+        playerOrder,
+        currentRoom.players.map((player) => player.username),
+      )
+    ) {
+      toast.error("Server player order does not match the current room.");
+      return;
+    }
+    const myIndex = playerOrder.indexOf(username ?? "");
+    if (myIndex < 0) {
+      toast.error("Could not determine your player slot for this game.");
+      return;
+    }
+    useServerStore.setState({ gameStarted: false });
+    navigate("/play", {
+      state: {
+        multiplayer: true,
+        playerOrder,
+        playerDecks,
+        isHost,
+        startingLife,
+        myPlayerSlot: `player-${myIndex}`,
+      },
+    });
   }, [gameStarted, currentRoom, navigate, playerDecks, playerOrder, startingLife, username]);
 
   useEffect(() => {

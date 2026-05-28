@@ -26,6 +26,7 @@ import type {
   JoinRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
+  StartServerGameParams,
   SpawnAiBotParams,
 } from "./types";
 import type { RoomRelayEnvelope } from "@/types/server";
@@ -122,8 +123,12 @@ class TauriServerApi implements IServerApi {
     return invoke<void>("server_set_deck_selection", { ...params });
   }
 
-  async startGame(): Promise<void> {
-    return invoke<void>("server_start_game");
+  async startGame(params?: StartServerGameParams): Promise<void> {
+    return invoke<void>("server_start_game", { format: params?.format ?? null });
+  }
+
+  async endGame(): Promise<void> {
+    return invoke<void>("server_end_game");
   }
 
   async broadcastState(state: Record<string, unknown>): Promise<void> {

@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SetPicker } from "@/components/limited/SetPicker";
+import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { EngineKind, GameFormat } from "@/types/server";
+import type { DraftConfig, EngineKind, GameFormat } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
   Cloud,
@@ -69,10 +72,8 @@ const FORMATS: {
   },
 ];
 
-// Match: realistic MTG game pods. Draft: standard pod sizes — 8 is the
-// canonical drafting pod, 4/6 are common casual sizes, 2/3 are small-pod.
-// `max_players` is the upper bound on humans; bot fill happens client-side
-// when the host enables it in `StartMultiplayerDraftDialog`.
+// Match: realistic MTG game pods. Draft: 8 is the canonical pod, 4/6
+// are common casual sizes. Bot fill comes from the room's draft_config.
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
 const PLAYER_OPTIONS_DRAFT = [2, 4, 6, 8] as const;
 
@@ -85,12 +86,23 @@ interface CreateRoomDialogProps {
 
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { createRoom, username } = useServerStore();
+  const allSets = useScryfallStore((s) => s.sets);
+  const prefetchSet = useScryfallStore((s) => s.prefetchSet);
   const [kind, setKind] = useState<RoomKind>("match");
   const [roomName, setRoomName] = useState("");
   const [matchPlayers, setMatchPlayers] = useState(4);
   const [draftPlayers, setDraftPlayers] = useState(8);
   const [format, setFormat] = useState<GameFormat>("Standard");
   const [engine, setEngine] = useState<EngineKind>("Wasm");
+
+  // Draft-specific config baked into the room.
+  const [draftSet, setDraftSet] = useState<string>("");
+  const [draftRounds, setDraftRounds] = useState(3);
+  const [draftPicksPerPass, setDraftPicksPerPass] = useState(1);
+  const [draftSeed, setDraftSeed] = useState("");
+  const [draftFillWithBots, setDraftFillWithBots] = useState(true);
+  const [prefetchingSet, setPrefetchingSet] = useState<string | null>(null);
+
   const [creating, setCreating] = useState(false);
 
   const defaultName = `${username ?? "Player"}'s Room`;
@@ -99,13 +111,55 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const maxPlayers = kind === "draft" ? draftPlayers : matchPlayers;
   const setMaxPlayers = kind === "draft" ? setDraftPlayers : setMatchPlayers;
 
+  const draftableSets = useMemo(
+    () =>
+      [...(allSets ?? [])]
+        .filter((s) => DRAFTABLE_SET_TYPES.has(s.set_type) && !s.digital && s.card_count > 0)
+        .sort((a, b) => (b.released_at ?? "").localeCompare(a.released_at ?? "")),
+    [allSets],
+  );
+
+  // Warm the Scryfall cache for the chosen set so the first pack
+  // doesn't render as a wall of skeletons when the draft starts.
+  useEffect(() => {
+    if (!draftSet) return;
+    let cancelled = false;
+    setPrefetchingSet(draftSet);
+    void prefetchSet(draftSet).finally(() => {
+      if (!cancelled) setPrefetchingSet((cur) => (cur === draftSet ? null : cur));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftSet, prefetchSet]);
+
+  const draftConfigReady = kind !== "draft" || !!draftSet;
+
   async function handleCreate() {
+    if (!draftConfigReady) return;
     setCreating(true);
     try {
-      // Draft rooms ride on the post-#82 `Any` lifecycle: format flips
-      // to `Draft` at start time via `StartMultiplayerDraftDialog`.
       const submittedFormat: GameFormat = kind === "draft" ? "Any" : format;
-      await createRoom(roomName.trim() || defaultName, maxPlayers, submittedFormat, engine);
+      let draftConfig: DraftConfig | undefined;
+      if (kind === "draft") {
+        // `Number("0") || undefined` collapses an explicit 0 seed to
+        // undefined; `Number.isFinite` keeps seed 0 as a valid value.
+        const parsedSeed = draftSeed.trim() ? Number(draftSeed) : NaN;
+        draftConfig = {
+          set_code: draftSet,
+          rounds: draftRounds,
+          picks_per_pass: draftPicksPerPass,
+          seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
+          fill_with_bots: draftFillWithBots,
+        };
+      }
+      await createRoom(
+        roomName.trim() || defaultName,
+        maxPlayers,
+        submittedFormat,
+        engine,
+        draftConfig,
+      );
       onOpenChange(false);
       setRoomName("");
     } finally {
@@ -249,12 +303,85 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 </button>
               ))}
             </div>
-            {kind === "draft" && (
-              <p className="text-[10px] text-muted-foreground">
-                Bots fill any empty seats if you start solo.
-              </p>
-            )}
           </div>
+
+          {/* Draft config (Draft only) */}
+          {kind === "draft" && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Set</Label>
+                {draftableSets.length === 0 ? (
+                  <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading sets from Scryfall…
+                  </p>
+                ) : (
+                  <SetPicker
+                    sets={draftableSets}
+                    selectedCode={draftSet}
+                    prefetching={prefetchingSet}
+                    onSelect={setDraftSet}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="draft-rounds" className="text-xs font-medium">
+                    Rounds
+                  </Label>
+                  <Input
+                    id="draft-rounds"
+                    type="number"
+                    min={1}
+                    max={6}
+                    value={draftRounds}
+                    onChange={(e) =>
+                      setDraftRounds(Math.max(1, Math.min(6, Number(e.target.value) || 3)))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="draft-picks-per-pass" className="text-xs font-medium">
+                    Picks / pass
+                  </Label>
+                  <Input
+                    id="draft-picks-per-pass"
+                    type="number"
+                    min={1}
+                    max={4}
+                    value={draftPicksPerPass}
+                    onChange={(e) =>
+                      setDraftPicksPerPass(Math.max(1, Math.min(4, Number(e.target.value) || 1)))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="draft-seed" className="text-xs font-medium">
+                    Seed
+                  </Label>
+                  <Input
+                    id="draft-seed"
+                    type="text"
+                    inputMode="numeric"
+                    value={draftSeed}
+                    onChange={(e) => setDraftSeed(e.target.value)}
+                    placeholder="random"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={draftFillWithBots}
+                  onChange={(e) => setDraftFillWithBots(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                <span>Fill empty seats with AI bots</span>
+              </label>
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -265,8 +392,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           <Button
             size="sm"
             onClick={handleCreate}
-            disabled={creating}
+            disabled={creating || !draftConfigReady}
             className="gap-1.5 min-w-[100px]"
+            title={!draftConfigReady ? "Pick a set for the draft" : undefined}
           >
             {creating ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

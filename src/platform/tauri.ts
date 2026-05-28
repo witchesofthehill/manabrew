@@ -104,7 +104,14 @@ class TauriServerApi implements IServerApi {
   }
 
   async createRoom(params: CreateRoomParams): Promise<void> {
-    return invoke<void>("server_create_room", { ...params });
+    return invoke<void>("server_create_room", {
+      roomName: params.roomName,
+      maxPlayers: params.maxPlayers,
+      format: params.format,
+      hosted: params.hosted ?? false,
+      engine: params.engine ?? "Wasm",
+      draftConfig: params.draftConfig ?? null,
+    });
   }
 
   async joinRoom(params: JoinRoomParams): Promise<void> {

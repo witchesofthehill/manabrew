@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::error::ServerError;
-use crate::protocol::{EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus};
+use crate::protocol::{DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus};
 use crate::room::Room;
 use crate::state::ServerState;
 use forge_agent_interface::deck_dto::Deck;
@@ -14,6 +14,7 @@ pub fn create_room_sync(
     format: GameFormat,
     hosted: bool,
     engine: EngineKind,
+    draft_config: Option<DraftConfig>,
 ) -> Result<RoomInfo, ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
@@ -45,6 +46,7 @@ pub fn create_room_sync(
         format,
         engine,
         !hosted,
+        draft_config,
     );
     let info = room.to_room_info();
 

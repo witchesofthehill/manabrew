@@ -36,9 +36,22 @@ export interface RoomInfo {
   format: GameFormat;
   status: "Lobby" | "InGame";
   engine: EngineKind;
+  /** Set when the room was created as a Draft room — mirrors the
+   *  server's `Room.draft_config`. Joining players see the set
+   *  before they commit, and "Start Draft" reads from here instead
+   *  of opening a config dialog. */
+  draft_config?: DraftConfig;
 }
 
 export type EngineKind = "Wasm" | "Java";
+
+export interface DraftConfig {
+  set_code: string;
+  rounds: number;
+  picks_per_pass: number;
+  seed?: number;
+  fill_with_bots: boolean;
+}
 
 export interface RoomPlayerInfo {
   username: string;

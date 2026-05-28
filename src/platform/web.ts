@@ -768,6 +768,7 @@ class WebServerApi implements IServerApi {
       format: params.format,
       hosted: params.hosted ?? false,
       engine: params.engine ?? "Wasm",
+      draft_config: params.draftConfig ?? null,
     });
   }
 

@@ -25,6 +25,7 @@ interface TablesListProps {
    *  modal. Available on any room — format is resolved to `Draft` at
    *  start time (post-#82 `GameFormat::Any` lifecycle). */
   onStartDraft?: () => void;
+  startingDraft?: boolean;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
   /** Bots this host process spawned — used to show the remove button. The
@@ -43,6 +44,7 @@ export function TablesList({
   onStartGame,
   onStartTabletop,
   onStartDraft,
+  startingDraft = false,
   onAddBot,
   onRemoveBot,
   mySpawnedBots = [],
@@ -93,8 +95,13 @@ export function TablesList({
                 <span className="font-semibold text-sm truncate">{currentRoom.room_name}</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                {currentRoom.draft_config && (
+                  <Badge variant="secondary" className="text-[10px] uppercase">
+                    {currentRoom.draft_config.set_code}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-[10px]">
-                  {currentRoom.format}
+                  {isOpenFormat && currentRoom.draft_config ? "Draft" : currentRoom.format}
                 </Badge>
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
@@ -104,6 +111,16 @@ export function TablesList({
                 </Badge>
               </div>
             </div>
+
+            {currentRoom.draft_config && (
+              <div className="text-[11px] text-muted-foreground">
+                {currentRoom.draft_config.rounds} packs · {currentRoom.draft_config.picks_per_pass}{" "}
+                pick{currentRoom.draft_config.picks_per_pass === 1 ? "" : "s"}/pass
+                {currentRoom.draft_config.fill_with_bots
+                  ? " · empty seats fill with bots"
+                  : " · humans only"}
+              </div>
+            )}
 
             {/* Player slots */}
             <div className="grid gap-2 sm:grid-cols-2">
@@ -166,9 +183,8 @@ export function TablesList({
                   </div>
                 );
               })}
-              {/* Add Bot slot — hidden on Open rooms because draft bots
-                  fill in via the StartMultiplayerDraftDialog, not via
-                  the lobby's deck-pick Add Bot flow. */}
+              {/* Hidden on Open rooms — draft bots come from the room's
+                  draft_config.fill_with_bots, not this deck-picker flow. */}
               {isHost &&
                 !isOpenFormat &&
                 currentRoom.players.length < currentRoom.max_players &&
@@ -228,12 +244,19 @@ export function TablesList({
                   {onStartDraft && isOpenFormat && (
                     <Button
                       size="sm"
-                      variant="outline"
                       className="gap-1"
                       onClick={onStartDraft}
-                      disabled={!allReady}
+                      disabled={!allReady || startingDraft || !currentRoom.draft_config}
+                      title={
+                        !currentRoom.draft_config
+                          ? "This room has no draft config"
+                          : !allReady
+                            ? "All players must be ready"
+                            : undefined
+                      }
                     >
-                      <Swords className="h-3 w-3" /> Start Draft
+                      <Swords className="h-3 w-3" />
+                      {startingDraft ? "Starting…" : "Start Draft"}
                     </Button>
                   )}
                   {!isOpenFormat && (
@@ -292,6 +315,11 @@ export function TablesList({
                           {room.hosted && (
                             <Badge variant="secondary" className="text-[10px]">
                               ManaBrew
+                            </Badge>
+                          )}
+                          {room.draft_config && (
+                            <Badge variant="secondary" className="text-[10px] uppercase">
+                              {room.draft_config.set_code}
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px]">

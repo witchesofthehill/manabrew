@@ -96,6 +96,12 @@ pub enum ClientMessage {
         hosted: bool,
         #[serde(default)]
         engine: EngineKind,
+        /// Optional limited-format config baked at room creation. Lets
+        /// peers see the set / bot-fill choice before they join, and
+        /// makes "Start Draft" a single click for the host instead of
+        /// a configuration dialog.
+        #[serde(default)]
+        draft_config: Option<DraftConfig>,
     },
 
     JoinRoom {
@@ -224,6 +230,18 @@ pub struct RoomInfo {
     pub status: RoomStatus,
     #[serde(default)]
     pub engine: EngineKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_config: Option<DraftConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DraftConfig {
+    pub set_code: String,
+    pub rounds: u8,
+    pub picks_per_pass: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed: Option<u64>,
+    pub fill_with_bots: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

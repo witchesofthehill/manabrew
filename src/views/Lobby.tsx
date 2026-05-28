@@ -9,13 +9,18 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServerStore } from "@/stores/useServerStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
-import { StartMultiplayerDraftDialog } from "@/components/lobby/StartMultiplayerDraftDialog";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import { getFormat } from "@/lib/formats";
 import { getPlatform } from "@/platform";
-import type { RoomMessagePayload } from "@/types/server";
+import type {
+  DraftConfig,
+  GameStartedPayload,
+  RoomMessagePayload,
+  ServerErrorPayload,
+} from "@/types/server";
 import type { Deck, GameView } from "@/types/manabrew";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
@@ -25,6 +30,50 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Wifi, WifiOff, Loader2, Settings, RefreshCw, MessageSquare, Users } from "lucide-react";
+
+const START_GAME_ACK_TIMEOUT_MS = 5000;
+
+// Server error codes from `forge-server/src/error.rs::ServerError::code`
+// that originate from a StartGame reaching `start_game_sync` and
+// failing validation. Other `server:error` events during the wait
+// belong to unrelated client actions and shouldn't abort the draft.
+const START_GAME_FAILURE_CODES = new Set([
+  "format_not_chosen",
+  "deck_not_selected",
+  "not_host",
+  "players_not_ready",
+  "game_already_started",
+  "room_not_found",
+  "not_in_room",
+]);
+
+function awaitGameStartedAck(roomId: string): Promise<void> {
+  const events = getPlatform().events;
+  return new Promise((resolve, reject) => {
+    const unsubs: Array<() => void> = [];
+    const cleanup = () => unsubs.forEach((fn) => fn());
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("server did not acknowledge StartGame in time"));
+    }, START_GAME_ACK_TIMEOUT_MS);
+    unsubs.push(
+      events.on<GameStartedPayload>("server:game_started", (payload) => {
+        if (payload.room_id !== roomId) return;
+        clearTimeout(timeout);
+        cleanup();
+        resolve();
+      }),
+    );
+    unsubs.push(
+      events.on<ServerErrorPayload>("server:error", (payload) => {
+        if (!START_GAME_FAILURE_CODES.has(payload.code)) return;
+        clearTimeout(timeout);
+        cleanup();
+        reject(new Error(payload.message || payload.code));
+      }),
+    );
+  });
+}
 
 interface ManualTabletopLaunchPayload {
   type: "launch";
@@ -93,7 +142,7 @@ export default function Lobby() {
   const [sidePanel, setSidePanel] = useState<"chat" | "players" | null>(null);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
-  const [draftDialogOpen, setDraftDialogOpen] = useState(false);
+  const [startingDraft, setStartingDraft] = useState(false);
 
   // Auto-navigate into the multiplayer draft view as soon as the
   // store reports a session — works for both the host (after their
@@ -314,6 +363,51 @@ export default function Lobby() {
     setAiDeckDialogOpen(true);
   }
 
+  async function handleStartDraft() {
+    const room = currentRoom;
+    if (!room || !username) return;
+    const config: DraftConfig | undefined = room.draft_config;
+    if (!config) {
+      toast.error("This room has no draft config — recreate it as a Draft room.");
+      return;
+    }
+    setStartingDraft(true);
+    try {
+      const participants: DraftHostParticipant[] = room.players
+        .filter((p) => p.username !== username)
+        .map((p) => ({ playerSlot: p.username, displayName: p.username }));
+      // Flip room → Draft on the server, wait for the ack, then kick
+      // off the WASM draft. Awaiting the ack closes the race where the
+      // draft-v1 envelope reaches peers before their RoomUpdate.
+      const ackPromise = awaitGameStartedAck(room.room_id);
+      ackPromise.catch(() => {});
+      try {
+        await startGame("Draft");
+        await ackPromise;
+      } catch (e) {
+        toast.error(`Failed to start draft: ${String(e)}`);
+        return;
+      }
+      const result = await startDraftAsHost({
+        roomId: room.room_id,
+        hostSlot: username,
+        hostName: username,
+        participants,
+        config: {
+          setCode: config.set_code,
+          podSize: room.max_players,
+          rounds: config.rounds,
+          picksPerPass: config.picks_per_pass,
+          seed: config.seed,
+          fillWithBots: config.fill_with_bots,
+        },
+      });
+      if (!result.ok) toast.error(`Failed to start draft: ${result.error}`);
+    } finally {
+      setStartingDraft(false);
+    }
+  }
+
   async function spawnBot(botName: string, deck: SelectedAiDeck) {
     const room = currentRoom;
     if (!room || !username || !getPlatform().server) return;
@@ -469,7 +563,8 @@ export default function Lobby() {
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
             onStartGame={startGame}
             onStartTabletop={handleStartTabletop}
-            onStartDraft={() => setDraftDialogOpen(true)}
+            onStartDraft={handleStartDraft}
+            startingDraft={startingDraft}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}
@@ -486,7 +581,6 @@ export default function Lobby() {
       </div>
 
       <CreateRoomDialog open={createRoomOpen} onOpenChange={setCreateRoomOpen} />
-      <StartMultiplayerDraftDialog open={draftDialogOpen} onOpenChange={setDraftDialogOpen} />
       <CreateGameDialog
         open={deckDialogOpen}
         onOpenChange={setDeckDialogOpen}

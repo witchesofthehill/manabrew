@@ -6,7 +6,7 @@
  * work with both desktop (Tauri) and web (WASM) deployments.
  */
 
-import type { EngineKind, GameFormat, RoomRelayEnvelope } from "@/types/server";
+import type { DraftConfig, EngineKind, GameFormat, RoomRelayEnvelope } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
 // ============================================================================
@@ -57,6 +57,9 @@ export interface CreateRoomParams {
   /** Defaults to `Wasm` server-side when omitted. Java requires a
    *  hosted engine node to be the actual game host. */
   engine?: EngineKind;
+  /** Set only for Draft rooms; baked into the room so peers see the
+   *  set + bot-fill choice before joining. */
+  draftConfig?: DraftConfig;
 }
 
 export interface JoinRoomParams {

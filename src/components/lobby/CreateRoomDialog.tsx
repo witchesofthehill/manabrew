@@ -11,7 +11,7 @@ import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { CubeImportResult } from "@/types/limited";
-import type { DraftConfig, EngineKind, GameFormat } from "@/types/server";
+import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
   Boxes,
@@ -109,7 +109,7 @@ const LIMITED_KINDS: LimitedKindMeta[] = [
     label: "Sealed",
     icon: Boxes,
     description: "Each player opens packs and builds independently.",
-    enabled: false,
+    enabled: true,
   },
   {
     value: "winston",
@@ -159,6 +159,12 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
   const [importingCube, setImportingCube] = useState(false);
 
+  // Sealed-specific config.
+  const [sealedSet, setSealedSet] = useState<string>("");
+  const [sealedNumBoosters, setSealedNumBoosters] = useState(6);
+  const [sealedSeed, setSealedSeed] = useState("");
+  const [prefetchingSealedSet, setPrefetchingSealedSet] = useState<string | null>(null);
+
   const [creating, setCreating] = useState(false);
 
   const defaultName = `${username ?? "Player"}'s Room`;
@@ -189,14 +195,28 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     };
   }, [draftSet, prefetchSet]);
 
+  useEffect(() => {
+    if (!sealedSet) return;
+    let cancelled = false;
+    setPrefetchingSealedSet(sealedSet);
+    void prefetchSet(sealedSet).finally(() => {
+      if (!cancelled) setPrefetchingSealedSet((cur) => (cur === sealedSet ? null : cur));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sealedSet, prefetchSet]);
+
   // Submission gate: limited rooms must pick an enabled subtype and a
   // valid pool source. Match rooms are always ready once name/players/
   // format are present, which they always are by default.
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
+  const isSealed = kind === "limited" && limitedKind === "sealed";
   const limitedKindEnabled =
     kind !== "limited" || (LIMITED_KINDS.find((k) => k.value === limitedKind)?.enabled ?? false);
-  const draftConfigReady = (!isBoosterDraft || !!draftSet) && (!isCube || !!importedCube);
+  const draftConfigReady =
+    (!isBoosterDraft || !!draftSet) && (!isCube || !!importedCube) && (!isSealed || !!sealedSet);
   const canSubmit = limitedKindEnabled && draftConfigReady;
 
   async function handleImportCube() {
@@ -221,6 +241,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
       // front so peers know what to bring.
       const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
       let draftConfig: DraftConfig | undefined;
+      let sealedConfig: SealedConfig | undefined;
       if (isBoosterDraft || isCube) {
         // `Number("0") || undefined` collapses an explicit 0 seed to
         // undefined; `Number.isFinite` keeps seed 0 as a valid value.
@@ -234,6 +255,13 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
           fill_with_bots: draftFillWithBots,
         };
+      } else if (isSealed) {
+        const parsedSeed = sealedSeed.trim() ? Number(sealedSeed) : NaN;
+        sealedConfig = {
+          set_code: sealedSet,
+          num_boosters: sealedNumBoosters,
+          base_seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
+        };
       }
       await createRoom(
         roomName.trim() || defaultName,
@@ -241,6 +269,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         submittedFormat,
         engine,
         draftConfig,
+        sealedConfig,
       );
       onOpenChange(false);
       setRoomName("");
@@ -427,6 +456,62 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
             </div>
           )}
 
+          {isSealed && (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Set</Label>
+                {draftableSets.length === 0 ? (
+                  <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading sets from Scryfall…
+                  </p>
+                ) : (
+                  <SetPicker
+                    sets={draftableSets}
+                    selectedCode={sealedSet}
+                    prefetching={prefetchingSealedSet}
+                    onSelect={setSealedSet}
+                  />
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="sealed-boosters" className="text-xs font-medium">
+                    Packs per player
+                  </Label>
+                  <Input
+                    id="sealed-boosters"
+                    type="number"
+                    min={3}
+                    max={12}
+                    value={sealedNumBoosters}
+                    onChange={(e) =>
+                      setSealedNumBoosters(Math.max(3, Math.min(12, Number(e.target.value) || 6)))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sealed-seed" className="text-xs font-medium">
+                    Seed
+                  </Label>
+                  <Input
+                    id="sealed-seed"
+                    type="text"
+                    inputMode="numeric"
+                    value={sealedSeed}
+                    onChange={(e) => setSealedSeed(e.target.value)}
+                    placeholder="random"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Each player opens their own pool — pools are independent but reproducible from the
+                seed.
+              </p>
+            </>
+          )}
+
           {isCube && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Cube</Label>
@@ -543,9 +628,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 ? "That limited mode isn't wired for multiplayer yet"
                 : isBoosterDraft && !draftSet
                   ? "Pick a set for the draft"
-                  : isCube && !importedCube
-                    ? "Import a cube before creating the room"
-                    : undefined
+                  : isSealed && !sealedSet
+                    ? "Pick a set for sealed"
+                    : isCube && !importedCube
+                      ? "Import a cube before creating the room"
+                      : undefined
             }
           >
             {creating ? (

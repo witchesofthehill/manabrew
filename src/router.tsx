@@ -9,6 +9,7 @@ import Play from "@/views/Play";
 import Tabletop from "@/views/Tabletop";
 import Draft from "@/views/Draft";
 import MultiplayerDraft from "@/views/MultiplayerDraft";
+import MultiplayerSealed from "@/views/MultiplayerSealed";
 import Limited from "@/views/Limited";
 import Sealed from "@/views/Sealed";
 import Winston from "@/views/Winston";
@@ -91,6 +92,14 @@ export const router = createBrowserRouter([
         element: (
           <ErrorBoundary context="MultiplayerDraft">
             <MultiplayerDraft />
+          </ErrorBoundary>
+        ),
+      },
+      {
+        path: "sealed/multiplayer",
+        element: (
+          <ErrorBoundary context="MultiplayerSealed">
+            <MultiplayerSealed />
           </ErrorBoundary>
         ),
       },

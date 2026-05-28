@@ -1,5 +1,6 @@
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
+    SealedConfig,
 };
 use forge_agent_interface::deck_dto::Deck;
 
@@ -34,6 +35,7 @@ pub struct Room {
     pub players: Vec<RoomSlot>,
     pub observers: Vec<RoomObserver>,
     pub draft_config: Option<DraftConfig>,
+    pub sealed_config: Option<SealedConfig>,
 }
 
 impl Room {
@@ -47,6 +49,7 @@ impl Room {
         engine: EngineKind,
         host_plays: bool,
         draft_config: Option<DraftConfig>,
+        sealed_config: Option<SealedConfig>,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
         let (players, observers) = if host_plays {
@@ -84,6 +87,7 @@ impl Room {
             players,
             observers,
             draft_config,
+            sealed_config,
         }
     }
 
@@ -295,6 +299,7 @@ impl Room {
             engine: self.engine,
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
+            sealed_config: self.sealed_config.clone(),
         }
     }
 }

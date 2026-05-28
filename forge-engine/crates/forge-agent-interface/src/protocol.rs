@@ -96,12 +96,16 @@ pub enum ClientMessage {
         hosted: bool,
         #[serde(default)]
         engine: EngineKind,
-        /// Optional limited-format config baked at room creation. Lets
-        /// peers see the set / bot-fill choice before they join, and
-        /// makes "Start Draft" a single click for the host instead of
-        /// a configuration dialog.
+        /// Booster Draft / Cube config baked at room creation. Lets
+        /// peers see the set/cube choice before joining, and makes
+        /// "Start Draft" a single click on the host.
         #[serde(default)]
         draft_config: Option<DraftConfig>,
+        /// Sealed config baked at room creation — set + boosters per
+        /// player. Each client generates its own pool deterministically
+        /// from this config when the host starts the sealed phase.
+        #[serde(default)]
+        sealed_config: Option<SealedConfig>,
     },
 
     JoinRoom {
@@ -232,6 +236,20 @@ pub struct RoomInfo {
     pub engine: EngineKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draft_config: Option<DraftConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_config: Option<SealedConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SealedConfig {
+    pub set_code: String,
+    pub num_boosters: u8,
+    /// Base seed shared by every peer. Each client XORs in their own
+    /// player index so pools are independent but the room is still
+    /// reproducible from `(base_seed, peer ordering)`. `None` lets each
+    /// peer pick randomly — pools differ but won't replay identically.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_seed: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

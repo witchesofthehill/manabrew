@@ -6,7 +6,13 @@
  * work with both desktop (Tauri) and web (WASM) deployments.
  */
 
-import type { DraftConfig, EngineKind, GameFormat, RoomRelayEnvelope } from "@/types/server";
+import type {
+  DraftConfig,
+  EngineKind,
+  GameFormat,
+  RoomRelayEnvelope,
+  SealedConfig,
+} from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
 // ============================================================================
@@ -60,6 +66,8 @@ export interface CreateRoomParams {
   /** Set only for Draft rooms; baked into the room so peers see the
    *  set + bot-fill choice before joining. */
   draftConfig?: DraftConfig;
+  /** Set only for Sealed rooms. */
+  sealedConfig?: SealedConfig;
 }
 
 export interface JoinRoomParams {

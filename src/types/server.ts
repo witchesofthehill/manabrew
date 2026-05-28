@@ -41,9 +41,19 @@ export interface RoomInfo {
    *  before they commit, and "Start Draft" reads from here instead
    *  of opening a config dialog. */
   draft_config?: DraftConfig;
+  /** Set when the room was created as a Sealed room. */
+  sealed_config?: SealedConfig;
 }
 
 export type EngineKind = "Wasm" | "Java";
+
+export interface SealedConfig {
+  set_code: string;
+  num_boosters: number;
+  /** Base seed XORed with each player's seat index — pools are
+   *  independent but reproducible from `(base_seed, peer ordering)`. */
+  base_seed?: number;
+}
 
 export interface DraftConfig {
   /** Set code for a Scryfall-set draft. Exactly one of `set_code` or

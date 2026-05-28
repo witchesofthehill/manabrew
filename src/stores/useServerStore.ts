@@ -10,6 +10,7 @@ import type {
   GameFormat,
   EngineKind,
   DraftConfig,
+  SealedConfig,
   PlayerDeckInfo,
   AuthResultPayload,
   RoomListPayload,
@@ -62,6 +63,7 @@ interface ServerState {
     format: GameFormat,
     engine?: EngineKind,
     draftConfig?: DraftConfig,
+    sealedConfig?: SealedConfig,
   ): Promise<void>;
   joinRoom(roomId: string): Promise<void>;
   leaveRoom(): Promise<void>;
@@ -136,7 +138,7 @@ export const useServerStore = create<ServerState>()(
         await platform.server.listPlayers();
       },
 
-      async createRoom(roomName, maxPlayers, format, engine, draftConfig) {
+      async createRoom(roomName, maxPlayers, format, engine, draftConfig, sealedConfig) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.createRoom({
@@ -145,6 +147,7 @@ export const useServerStore = create<ServerState>()(
           format,
           engine,
           draftConfig,
+          sealedConfig,
         });
       },
 

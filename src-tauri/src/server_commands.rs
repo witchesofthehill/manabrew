@@ -91,6 +91,7 @@ pub async fn server_create_room(
     hosted: Option<bool>,
     engine: Option<String>,
     draft_config: Option<serde_json::Value>,
+    sealed_config: Option<serde_json::Value>,
 ) -> Result<(), String> {
     send_server_message(
         &client,
@@ -102,6 +103,7 @@ pub async fn server_create_room(
             "hosted": hosted.unwrap_or(false),
             "engine": engine.unwrap_or_else(|| "Wasm".to_string()),
             "draft_config": draft_config,
+            "sealed_config": sealed_config,
         }),
     )
 }

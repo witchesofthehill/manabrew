@@ -561,16 +561,18 @@ fn handle_client_message(
             hosted,
             engine,
             draft_config,
+            sealed_config,
         } => {
             info!(
-                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={})",
+                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
                 username,
                 room_name,
                 max_players,
                 format,
                 hosted,
                 engine,
-                draft_config.is_some()
+                draft_config.is_some(),
+                sealed_config.is_some(),
             );
             match lobby::create_room_sync(
                 state,
@@ -581,6 +583,7 @@ fn handle_client_message(
                 hosted,
                 engine,
                 draft_config,
+                sealed_config,
             ) {
                 Ok(info) => {
                     info!(

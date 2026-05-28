@@ -25,6 +25,7 @@ interface TablesListProps {
    *  modal. Available on any room — format is resolved to `Draft` at
    *  start time (post-#82 `GameFormat::Any` lifecycle). */
   onStartDraft?: () => void;
+  onStartSealed?: () => void;
   startingDraft?: boolean;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
@@ -44,6 +45,7 @@ export function TablesList({
   onStartGame,
   onStartTabletop,
   onStartDraft,
+  onStartSealed,
   startingDraft = false,
   onAddBot,
   onRemoveBot,
@@ -100,12 +102,19 @@ export function TablesList({
                     {currentRoom.draft_config.cube_name ?? currentRoom.draft_config.set_code}
                   </Badge>
                 )}
+                {currentRoom.sealed_config && (
+                  <Badge variant="secondary" className="text-[10px] uppercase">
+                    {currentRoom.sealed_config.set_code}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-[10px]">
                   {isOpenFormat && currentRoom.draft_config
                     ? currentRoom.draft_config.cube_id
                       ? "Cube"
                       : "Draft"
-                    : currentRoom.format}
+                    : isOpenFormat && currentRoom.sealed_config
+                      ? "Sealed"
+                      : currentRoom.format}
                 </Badge>
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
@@ -123,6 +132,12 @@ export function TablesList({
                 {currentRoom.draft_config.fill_with_bots
                   ? " · empty seats fill with bots"
                   : " · humans only"}
+              </div>
+            )}
+            {currentRoom.sealed_config && (
+              <div className="text-[11px] text-muted-foreground">
+                {currentRoom.sealed_config.num_boosters} packs per player · each player opens their
+                own pool
               </div>
             )}
 
@@ -245,22 +260,28 @@ export function TablesList({
                       <Hand className="h-3 w-3" /> Tabletop
                     </Button>
                   )}
-                  {onStartDraft && isOpenFormat && (
+                  {onStartDraft && isOpenFormat && currentRoom.draft_config && (
                     <Button
                       size="sm"
                       className="gap-1"
                       onClick={onStartDraft}
-                      disabled={!allReady || startingDraft || !currentRoom.draft_config}
-                      title={
-                        !currentRoom.draft_config
-                          ? "This room has no draft config"
-                          : !allReady
-                            ? "All players must be ready"
-                            : undefined
-                      }
+                      disabled={!allReady || startingDraft}
+                      title={!allReady ? "All players must be ready" : undefined}
                     >
                       <Swords className="h-3 w-3" />
                       {startingDraft ? "Starting…" : "Start Draft"}
+                    </Button>
+                  )}
+                  {onStartSealed && isOpenFormat && currentRoom.sealed_config && (
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={onStartSealed}
+                      disabled={!allReady || startingDraft}
+                      title={!allReady ? "All players must be ready" : undefined}
+                    >
+                      <Swords className="h-3 w-3" />
+                      {startingDraft ? "Starting…" : "Start Sealed"}
                     </Button>
                   )}
                   {!isOpenFormat && (
@@ -324,6 +345,11 @@ export function TablesList({
                           {room.draft_config && (
                             <Badge variant="secondary" className="text-[10px] uppercase">
                               {room.draft_config.cube_name ?? room.draft_config.set_code}
+                            </Badge>
+                          )}
+                          {room.sealed_config && (
+                            <Badge variant="secondary" className="text-[10px] uppercase">
+                              {room.sealed_config.set_code}
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px]">

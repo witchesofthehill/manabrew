@@ -9,10 +9,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServerStore } from "@/stores/useServerStore";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
+import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
 import { getPlatform } from "@/platform";
 import type {
@@ -156,6 +158,16 @@ export default function Lobby() {
     }
   }, [draftMode, draftSessionId, navigate]);
 
+  // Same auto-navigation for the sealed phase. Each peer enters the
+  // store independently via `startMpSealed` (no host relay), so this
+  // effect fires whenever any client transitions into "building".
+  const sealedMode = useMultiplayerSealedStore((s) => s.mode);
+  useEffect(() => {
+    if (sealedMode === "building") {
+      navigate("/sealed/multiplayer");
+    }
+  }, [sealedMode, navigate]);
+
   useEffect(() => {
     if (!connected && !connecting && !error && prefs.serverUsername) {
       connect(prefs.serverHost, prefs.serverPort, prefs.serverUsername, prefs.serverPassword);
@@ -183,14 +195,21 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
-    // Draft is server-acknowledged via `GameStarted` (room.format flipped
-    // from `Any` to `Draft`), but the actual draft flow goes through the
-    // `draft-v1` relay envelopes and `useMultiplayerDraftStore`. Don't
-    // hijack the navigation here — the draftMode effect above handles it
-    // for both host and peers. Just clear the flag so a later non-draft
-    // `Start Game` in the same room isn't blocked.
+    // Draft and Sealed both ride the post-#82 `GameStarted` ack but
+    // run their own UI paths (draft-v1 relay / per-peer sealed start),
+    // so don't hijack the `/play` navigation here. Just clear the flag
+    // so a later non-limited Start Game isn't blocked.
     if (currentRoom?.format === "Draft") {
       useServerStore.setState({ gameStarted: false });
+      return;
+    }
+    if (currentRoom?.format === "Sealed") {
+      useServerStore.setState({ gameStarted: false });
+      if (currentRoom.sealed_config && username) {
+        void startMpSealed({ room: currentRoom, username }).catch((err) => {
+          toast.error(`Failed to open sealed pool: ${String(err)}`);
+        });
+      }
       return;
     }
     const isHost = currentRoom?.host === username;
@@ -410,6 +429,32 @@ export default function Lobby() {
     }
   }
 
+  async function handleStartSealed() {
+    const room = currentRoom;
+    if (!room || !username) return;
+    if (!room.sealed_config) {
+      toast.error("This room has no sealed config — recreate it as a Sealed room.");
+      return;
+    }
+    setStartingDraft(true);
+    try {
+      // Flip room → Sealed server-side. Peers see the RoomUpdate, the
+      // gameStarted effect calls `startMpSealed` for them individually,
+      // and the sealed mode → navigate effect routes everyone to the
+      // build view. No host coordinator — each peer is self-sufficient.
+      const ackPromise = awaitGameStartedAck(room.room_id);
+      ackPromise.catch(() => {});
+      try {
+        await startGame("Sealed");
+        await ackPromise;
+      } catch (e) {
+        toast.error(`Failed to start sealed: ${String(e)}`);
+      }
+    } finally {
+      setStartingDraft(false);
+    }
+  }
+
   async function spawnBot(botName: string, deck: SelectedAiDeck) {
     const room = currentRoom;
     if (!room || !username || !getPlatform().server) return;
@@ -566,6 +611,7 @@ export default function Lobby() {
             onStartGame={startGame}
             onStartTabletop={handleStartTabletop}
             onStartDraft={handleStartDraft}
+            onStartSealed={handleStartSealed}
             startingDraft={startingDraft}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}

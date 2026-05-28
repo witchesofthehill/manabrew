@@ -111,6 +111,7 @@ class TauriServerApi implements IServerApi {
       hosted: params.hosted ?? false,
       engine: params.engine ?? "Wasm",
       draftConfig: params.draftConfig ?? null,
+      sealedConfig: params.sealedConfig ?? null,
     });
   }
 

@@ -93,7 +93,14 @@ impl Room {
     }
 
     pub fn all_ready(&self) -> bool {
-        self.players.len() >= 2 && self.players.iter().all(|p| p.ready)
+        // Draft/Sealed pull the rest of the seats from bots client-side,
+        // so a solo human + AI fill is a valid pod. Other formats need
+        // an actual opponent.
+        let min_players = match self.format {
+            GameFormat::Draft | GameFormat::Sealed => 1,
+            _ => 2,
+        };
+        self.players.len() >= min_players && self.players.iter().all(|p| p.ready)
     }
 
     pub fn add_player(&mut self, player_id: String, username: String) -> Result<(), String> {

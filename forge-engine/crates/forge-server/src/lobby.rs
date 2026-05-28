@@ -267,15 +267,17 @@ pub fn start_game_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        if !room.all_ready() {
-            return Err(ServerError::PlayersNotReady);
-        }
-
+        // Flip format before all_ready: the minimum-player threshold is
+        // format-aware (Draft/Sealed allow solo + bots, others need 2+).
         if room.format == GameFormat::Any {
             match format {
                 Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
                 _ => return Err(ServerError::FormatNotChosen),
             }
+        }
+
+        if !room.all_ready() {
+            return Err(ServerError::PlayersNotReady);
         }
 
         // Draft/Sealed produce decks during the session, not at room-join.

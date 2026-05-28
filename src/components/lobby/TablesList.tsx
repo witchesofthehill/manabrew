@@ -53,13 +53,14 @@ export function TablesList({
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
   const isHost = currentRoom?.host === username;
-  const allReady = currentRoom
-    ? currentRoom.players.length >= 2 && currentRoom.players.every((p) => p.ready)
-    : false;
-  // `Any` rooms (post-#82) resolve format at start time; for a draft start
-  // the players never bring decks, so ready-up can't require one. Specific
-  // formats keep the existing deck-before-ready gate.
+  // `Any` rooms (post-#82) resolve format at start time; the multiplayer
+  // draft path uses bot fill so a solo human + AI is a valid pod. Match
+  // formats still need an actual opponent (min 2).
   const isOpenFormat = currentRoom?.format === "Any";
+  const minReady = isOpenFormat ? 1 : 2;
+  const allReady = currentRoom
+    ? currentRoom.players.length >= minReady && currentRoom.players.every((p) => p.ready)
+    : false;
   const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
@@ -175,9 +176,11 @@ export function TablesList({
 
             {/* Actions */}
             <div className="flex items-center gap-2 pt-1">
-              <Button size="sm" variant="outline" className="gap-1" onClick={onOpenDeckDialog}>
-                <Shield className="h-3 w-3" /> Select Deck
-              </Button>
+              {!isOpenFormat && (
+                <Button size="sm" variant="outline" className="gap-1" onClick={onOpenDeckDialog}>
+                  <Shield className="h-3 w-3" /> Select Deck
+                </Button>
+              )}
               {myPlayer && !myPlayer.ready ? (
                 <Button
                   size="sm"

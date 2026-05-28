@@ -69,7 +69,12 @@ const FORMATS: {
   },
 ];
 
-const PLAYER_OPTIONS = [2, 3, 4] as const;
+// Match: realistic MTG game pods. Draft: standard pod sizes — 8 is the
+// canonical drafting pod, 4/6 are common casual sizes, 2/3 are small-pod.
+// `max_players` is the upper bound on humans; bot fill happens client-side
+// when the host enables it in `StartMultiplayerDraftDialog`.
+const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
+const PLAYER_OPTIONS_DRAFT = [2, 4, 6, 8] as const;
 
 type RoomKind = "match" | "draft";
 
@@ -82,13 +87,17 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const { createRoom, username } = useServerStore();
   const [kind, setKind] = useState<RoomKind>("match");
   const [roomName, setRoomName] = useState("");
-  const [maxPlayers, setMaxPlayers] = useState(4);
+  const [matchPlayers, setMatchPlayers] = useState(4);
+  const [draftPlayers, setDraftPlayers] = useState(8);
   const [format, setFormat] = useState<GameFormat>("Standard");
   const [engine, setEngine] = useState<EngineKind>("Wasm");
   const [creating, setCreating] = useState(false);
 
   const defaultName = `${username ?? "Player"}'s Room`;
   const hostedAvailable = isHostedEngineAvailable();
+  const playerOptions = kind === "draft" ? PLAYER_OPTIONS_DRAFT : PLAYER_OPTIONS_MATCH;
+  const maxPlayers = kind === "draft" ? draftPlayers : matchPlayers;
+  const setMaxPlayers = kind === "draft" ? setDraftPlayers : setMatchPlayers;
 
   async function handleCreate() {
     setCreating(true);
@@ -219,9 +228,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
           {/* Max players */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Players</Label>
+            <Label className="text-xs font-medium">
+              {kind === "draft" ? "Pod size" : "Players"}
+            </Label>
             <div className="flex items-center gap-2">
-              {PLAYER_OPTIONS.map((n) => (
+              {playerOptions.map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -238,6 +249,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 </button>
               ))}
             </div>
+            {kind === "draft" && (
+              <p className="text-[10px] text-muted-foreground">
+                Bots fill any empty seats if you start solo.
+              </p>
+            )}
           </div>
         </div>
 

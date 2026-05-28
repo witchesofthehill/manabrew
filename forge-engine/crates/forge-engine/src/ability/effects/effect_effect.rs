@@ -191,6 +191,9 @@ fn resolve_impl(ctx: &mut EffectContext, sa: &SpellAbility) {
         }
 
         apply_duration_flags(&mut effect, duration, source_id);
+        if matches!(duration, Some(AbilityDuration::UntilTheEndOfYourNextTurn)) {
+            effect.set_temp_effect_until_player_next_eot(Some((owner, ctx.game.turn.turn_number)));
+        }
         apply_forget_on_moved_flags(&mut effect, sa);
         effect.add_remembered_cards(remember_cards.iter().copied());
         effect.add_remembered_players(remember_players.iter().copied());
@@ -418,12 +421,16 @@ pub enum EffectDuration {
     Permanent,
     UntilHostLeavesPlay,
     UntilHostLeavesPlayOrEOT,
+    UntilTheEndOfYourNextTurn,
 }
 
 fn apply_duration_flags(effect: &mut Card, duration: Option<&AbilityDuration>, source_id: CardId) {
     let d = match duration {
         Some(AbilityDuration::UntilHostLeavesPlay) => EffectDuration::UntilHostLeavesPlay,
         Some(AbilityDuration::UntilHostLeavesPlayOrEot) => EffectDuration::UntilHostLeavesPlayOrEOT,
+        Some(AbilityDuration::UntilTheEndOfYourNextTurn) => {
+            EffectDuration::UntilTheEndOfYourNextTurn
+        }
         Some(AbilityDuration::Unsupported(raw)) if raw.eq_ignore_ascii_case("Permanent") => {
             EffectDuration::Permanent
         }
@@ -441,6 +448,7 @@ fn apply_duration_flags(effect: &mut Card, duration: Option<&AbilityDuration>, s
         EffectDuration::EndOfTurn => {
             effect.set_temp_effect_until_eot(true);
         }
+        EffectDuration::UntilTheEndOfYourNextTurn => {}
     }
 }
 

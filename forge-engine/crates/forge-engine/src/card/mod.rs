@@ -484,6 +484,12 @@ pub struct Card {
     /// Host card this temporary effect is linked to; when host leaves the
     /// battlefield, this effect expires.
     pub temp_effect_host: Option<CardId>,
+    /// `Duration$ UntilTheEndOfYourNextTurn` — expire at the EOT cleanup of
+    /// the named player on any turn strictly after the registration turn.
+    /// Mirrors Java `addUntilEnd` / `registerUntilEnd` against the controller
+    /// (forge-game `SpellAbilityEffect.addUntilCommand`).
+    #[serde(default)]
+    pub temp_effect_until_player_next_eot: Option<(PlayerId, u32)>,
     /// Forget remembered cards when they move from this origin zone.
     pub forget_on_moved_origin: Option<ZoneType>,
     /// Exile this effect when remembered cards become empty after forget logic.
@@ -858,6 +864,7 @@ impl Card {
             lose_control_condition: None,
             temp_effect_until_eot: false,
             temp_effect_host: None,
+            temp_effect_until_player_next_eot: None,
             forget_on_moved_origin: None,
             exile_when_no_remembered: false,
             exiled_by: None,
@@ -1935,6 +1942,10 @@ impl Card {
 
     pub fn set_temp_effect_until_eot(&mut self, until_eot: bool) {
         self.temp_effect_until_eot = until_eot;
+    }
+
+    pub fn set_temp_effect_until_player_next_eot(&mut self, value: Option<(PlayerId, u32)>) {
+        self.temp_effect_until_player_next_eot = value;
     }
 
     pub fn set_forget_on_moved_origin(&mut self, zone: Option<ZoneType>) {

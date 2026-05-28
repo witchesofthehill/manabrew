@@ -702,10 +702,20 @@ impl GameLoop {
     fn cleanup_damage_and_eot(&mut self, game: &mut GameState) {
         // Remove temporary command-zone effect cards created by AB$ Effect
         // that expire at end of turn.
+        let active_player = game.active_player();
+        let current_turn = game.turn.turn_number;
         let temp_effect_ids: Vec<CardId> = game
             .cards
             .iter()
-            .filter(|c| c.zone == ZoneType::Command && c.temp_effect_until_eot)
+            .filter(|c| {
+                c.zone == ZoneType::Command
+                    && (c.temp_effect_until_eot
+                        || c.temp_effect_until_player_next_eot
+                            .map(|(p, registered_turn)| {
+                                p == active_player && current_turn > registered_turn
+                            })
+                            .unwrap_or(false))
+            })
             .map(|c| c.id)
             .collect();
         for effect_id in temp_effect_ids {

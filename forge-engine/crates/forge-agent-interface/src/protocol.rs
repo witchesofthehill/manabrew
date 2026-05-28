@@ -96,14 +96,8 @@ pub enum ClientMessage {
         hosted: bool,
         #[serde(default)]
         engine: EngineKind,
-        /// Booster Draft / Cube config baked at room creation. Lets
-        /// peers see the set/cube choice before joining, and makes
-        /// "Start Draft" a single click on the host.
         #[serde(default)]
         draft_config: Option<DraftConfig>,
-        /// Sealed config baked at room creation — set + boosters per
-        /// player. Each client generates its own pool deterministically
-        /// from this config when the host starts the sealed phase.
         #[serde(default)]
         sealed_config: Option<SealedConfig>,
     },
@@ -244,26 +238,18 @@ pub struct RoomInfo {
 pub struct SealedConfig {
     pub set_code: String,
     pub num_boosters: u8,
-    /// Base seed shared by every peer. Each client XORs in their own
-    /// player index so pools are independent but the room is still
-    /// reproducible from `(base_seed, peer ordering)`. `None` lets each
-    /// peer pick randomly — pools differ but won't replay identically.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_seed: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DraftConfig {
-    /// Set-pool source for a Booster Draft. Exactly one of `set_code`
-    /// or `cube_id` is set; the host resolves to a card pool at draft
-    /// start (either from `EditionsRegistry` for sets or by re-fetching
-    /// the cube list for cubes).
+    // Exactly one of `set_code` or `cube_id` is set; the host resolves
+    // it to a pool at draft start.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub set_code: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cube_id: Option<String>,
-    /// Human-readable cube name surfaced in the lobby card. Cube IDs
-    /// alone aren't meaningful to peers browsing the room list.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cube_name: Option<String>,
     pub rounds: u8,

@@ -36,12 +36,7 @@ export interface RoomInfo {
   format: GameFormat;
   status: "Lobby" | "InGame";
   engine: EngineKind;
-  /** Set when the room was created as a Draft room — mirrors the
-   *  server's `Room.draft_config`. Joining players see the set
-   *  before they commit, and "Start Draft" reads from here instead
-   *  of opening a config dialog. */
   draft_config?: DraftConfig;
-  /** Set when the room was created as a Sealed room. */
   sealed_config?: SealedConfig;
 }
 
@@ -50,18 +45,13 @@ export type EngineKind = "Wasm" | "Java";
 export interface SealedConfig {
   set_code: string;
   num_boosters: number;
-  /** Base seed XORed with each player's seat index — pools are
-   *  independent but reproducible from `(base_seed, peer ordering)`. */
   base_seed?: number;
 }
 
 export interface DraftConfig {
-  /** Set code for a Scryfall-set draft. Exactly one of `set_code` or
-   *  `cube_id` is populated. */
+  // Exactly one of `set_code` or `cube_id` is populated.
   set_code?: string;
-  /** Cube ID / URL for a CubeCobra draft. Re-fetched at draft start. */
   cube_id?: string;
-  /** Display name for the cube — surfaced in lobby badges. */
   cube_name?: string;
   rounds: number;
   picks_per_pass: number;

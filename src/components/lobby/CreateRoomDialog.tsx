@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SetPicker } from "@/components/limited/SetPicker";
 import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
-import { useLimitedStore } from "@/stores/useLimitedStore";
+import { fetchCubeMetadata } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { CubeImportResult } from "@/types/limited";
@@ -153,12 +153,14 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [draftFillWithBots, setDraftFillWithBots] = useState(true);
   const [prefetchingSet, setPrefetchingSet] = useState<string | null>(null);
 
-  // Cube-specific config.
-  const importCube = useLimitedStore((s) => s.importCubeFromCubeCobra);
-  const cubeImportError = useLimitedStore((s) => s.lastError);
+  // Cube-specific config. Local-only state — does NOT touch
+  // `useLimitedStore` so the offline Limited view's `lastImportedCube`
+  // / `lastError` aren't polluted when a user imports a cube just to
+  // create a room.
   const [cubeInput, setCubeInput] = useState("");
   const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
   const [importingCube, setImportingCube] = useState(false);
+  const [cubeImportError, setCubeImportError] = useState<string | null>(null);
 
   // Sealed-specific config.
   const [sealedSet, setSealedSet] = useState<string>("");
@@ -208,6 +210,28 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     };
   }, [sealedSet, prefetchSet]);
 
+  // Reset every transient input when the dialog closes — otherwise
+  // reopening shows the previous cube import, set selection, etc.
+  useEffect(() => {
+    if (open) return;
+    setKind("match");
+    setLimitedKind("draft");
+    setRoomName("");
+    setFormat("Standard");
+    setEngine("Wasm");
+    setDraftSet("");
+    setDraftRounds(3);
+    setDraftPicksPerPass(1);
+    setDraftSeed("");
+    setDraftFillWithBots(true);
+    setCubeInput("");
+    setImportedCube(null);
+    setCubeImportError(null);
+    setSealedSet("");
+    setSealedNumBoosters(6);
+    setSealedSeed("");
+  }, [open]);
+
   // Submission gate: limited rooms must pick an enabled subtype and a
   // valid pool source. Match rooms are always ready once name/players/
   // format are present, which they always are by default.
@@ -223,11 +247,12 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   async function handleImportCube() {
     if (!cubeInput.trim()) return;
     setImportingCube(true);
+    setCubeImportError(null);
     try {
-      const result = await importCube(cubeInput.trim());
+      const result = await fetchCubeMetadata(cubeInput.trim());
       setImportedCube(result);
-    } catch {
-      /* surfaced via lastError */
+    } catch (err) {
+      setCubeImportError(err instanceof Error ? err.message : String(err));
     } finally {
       setImportingCube(false);
     }

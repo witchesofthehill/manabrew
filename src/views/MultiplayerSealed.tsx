@@ -63,6 +63,14 @@ export default function MultiplayerSealed() {
           pool={pool}
           defaultDeckName={`Sealed ${setCode.toUpperCase()}`}
           format="sealed"
+          onSaved={() => {
+            // Once the player has banked their sealed deck there's nothing
+            // more to do in this view — drop them back to the lobby so
+            // they can ready up for a Match with the deck they just saved.
+            void endGame().catch(() => {});
+            clear();
+            navigate("/lobby");
+          }}
         />
       </div>
     </div>

@@ -111,6 +111,9 @@ export interface LimitedDeckBuilderProps {
   onChange?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
   confirmLabel?: string;
   onConfirm?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
+  /** Fires after a successful "Save to My Decks" — used by MP flows to
+   *  navigate away once the user has banked their deck. */
+  onSaved?: (deckName: string) => void;
 }
 
 export default function LimitedDeckBuilder({
@@ -124,6 +127,7 @@ export default function LimitedDeckBuilder({
   onChange,
   confirmLabel = "Save Deck",
   onConfirm,
+  onSaved,
 }: LimitedDeckBuilderProps) {
   const [extraBasics, setExtraBasics] = useState<DraftCard[]>([]);
   const fullPool = useMemo(() => [...pool, ...extraBasics], [pool, extraBasics]);
@@ -423,6 +427,7 @@ export default function LimitedDeckBuilder({
           } parked in maybeboard).`
         : `Saved "${name}" to My Decks.`,
     );
+    onSaved?.(name);
   };
 
   return (

@@ -144,7 +144,7 @@ export default function Lobby() {
   const [sidePanel, setSidePanel] = useState<"chat" | "players" | null>(null);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
-  const [startingDraft, setStartingDraft] = useState(false);
+  const [startingLimited, setStartingLimited] = useState(false);
 
   // Auto-navigate into the multiplayer draft view as soon as the
   // store reports a session — works for both the host (after their
@@ -205,7 +205,10 @@ export default function Lobby() {
     }
     if (currentRoom?.format === "Sealed") {
       useServerStore.setState({ gameStarted: false });
-      if (currentRoom.sealed_config && username) {
+      // Only kick off pool generation when the server has actually
+      // transitioned the room — a host racing endGame against their
+      // own startGame can land here with status still Lobby.
+      if (currentRoom.status === "InGame" && currentRoom.sealed_config && username) {
         void startMpSealed({ room: currentRoom, username }).catch((err) => {
           toast.error(`Failed to open sealed pool: ${String(err)}`);
         });
@@ -390,7 +393,7 @@ export default function Lobby() {
       toast.error("This room has no draft config — recreate it as a Draft room.");
       return;
     }
-    setStartingDraft(true);
+    setStartingLimited(true);
     try {
       const participants: DraftHostParticipant[] = room.players
         .filter((p) => p.username !== username)
@@ -425,7 +428,7 @@ export default function Lobby() {
       });
       if (!result.ok) toast.error(`Failed to start draft: ${result.error}`);
     } finally {
-      setStartingDraft(false);
+      setStartingLimited(false);
     }
   }
 
@@ -436,7 +439,7 @@ export default function Lobby() {
       toast.error("This room has no sealed config — recreate it as a Sealed room.");
       return;
     }
-    setStartingDraft(true);
+    setStartingLimited(true);
     try {
       // Flip room → Sealed server-side. Peers see the RoomUpdate, the
       // gameStarted effect calls `startMpSealed` for them individually,
@@ -451,7 +454,7 @@ export default function Lobby() {
         toast.error(`Failed to start sealed: ${String(e)}`);
       }
     } finally {
-      setStartingDraft(false);
+      setStartingLimited(false);
     }
   }
 
@@ -612,7 +615,7 @@ export default function Lobby() {
             onStartTabletop={handleStartTabletop}
             onStartDraft={handleStartDraft}
             onStartSealed={handleStartSealed}
-            startingDraft={startingDraft}
+            startingLimited={startingLimited}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}

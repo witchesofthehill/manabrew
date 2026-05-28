@@ -65,20 +65,49 @@ async function platformFetchText(url: string): Promise<string> {
   return r.text();
 }
 
-/**
- * Re-import a cube from CubeCobra and return its card pool. Used by the
- * multiplayer-draft host to resolve `DraftConfig.cubeId` to a pool at
- * start time — the cube list isn't stored on the room so we re-fetch on
- * each draft start (small upfront latency for a much smaller wire size).
- */
-export async function fetchCubePool(cubeIdOrUrl: string): Promise<DraftCard[]> {
+export function friendlyCubeError(err: unknown, input: string): string {
+  const msg = String(err ?? "");
+  if (/404|not.?found|http 404/i.test(msg)) {
+    return `Cube "${input}" not found on CubeCobra. Double-check the id or URL.`;
+  }
+  if (/network|failed to fetch|timeout|ENOTFOUND|EAI_AGAIN/i.test(msg)) {
+    return "Network error reaching CubeCobra. Check your connection and try again.";
+  }
+  if (/parse|deserial|JSON|malformed|invalid/i.test(msg)) {
+    return `CubeCobra returned an unexpected response for "${input}". The cube may be private or its format unsupported.`;
+  }
+  if (/empty|0 cards/i.test(msg)) {
+    return `Cube "${input}" appears empty.`;
+  }
+  return msg.length > 200 ? `${msg.slice(0, 197)}…` : msg;
+}
+
+async function importCubeRaw(cubeIdOrUrl: string): Promise<CubeImportResult> {
   const platform = getPlatform();
   const url = await platform.invoke<string>("limited_cubecobra_url", { cubeIdOrUrl });
   const body = await platformFetchText(url);
-  const result = await platform.invoke<CubeImportResult>("limited_import_cube", {
+  return platform.invoke<CubeImportResult>("limited_import_cube", {
     request: { cubeIdOrUrl },
     body,
   });
+}
+
+/** Import a cube and return its metadata + pool. Throws a friendly
+ *  message on failure. Does NOT touch `useLimitedStore` — safe to call
+ *  from contexts (the lobby room-creation dialog, the MP draft host)
+ *  that shouldn't bleed into the offline Limited view's state. */
+export async function fetchCubeMetadata(cubeIdOrUrl: string): Promise<CubeImportResult> {
+  try {
+    return await importCubeRaw(cubeIdOrUrl);
+  } catch (err) {
+    throw new Error(friendlyCubeError(err, cubeIdOrUrl));
+  }
+}
+
+/** Re-import a cube and return only its card pool — used by the MP
+ *  draft host to resolve `DraftConfig.cubeId` to a pool at start time. */
+export async function fetchCubePool(cubeIdOrUrl: string): Promise<DraftCard[]> {
+  const result = await fetchCubeMetadata(cubeIdOrUrl);
   if (!result.pool || result.pool.length === 0) {
     throw new Error(`Cube "${cubeIdOrUrl}" came back empty`);
   }

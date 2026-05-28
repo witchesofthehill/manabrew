@@ -273,13 +273,22 @@ pub fn start_game_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        // Flip format before all_ready: the minimum-player threshold is
-        // format-aware (Draft/Sealed allow solo + bots, others need 2+).
         if room.format == GameFormat::Any {
             match format {
                 Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
                 _ => return Err(ServerError::FormatNotChosen),
             }
+        }
+
+        // Reject a limited start without its baked config — peers
+        // would otherwise wait forever for a draft-v1 envelope from a
+        // host that never ran startDraftAsHost. Server-authoritative
+        // gate; the client UI also disables the corresponding CTA.
+        if matches!(room.format, GameFormat::Draft) && room.draft_config.is_none() {
+            return Err(ServerError::FormatNotChosen);
+        }
+        if matches!(room.format, GameFormat::Sealed) && room.sealed_config.is_none() {
+            return Err(ServerError::FormatNotChosen);
         }
 
         if !room.all_ready() {

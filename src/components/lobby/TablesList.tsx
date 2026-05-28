@@ -26,7 +26,7 @@ interface TablesListProps {
    *  start time (post-#82 `GameFormat::Any` lifecycle). */
   onStartDraft?: () => void;
   onStartSealed?: () => void;
-  startingDraft?: boolean;
+  startingLimited?: boolean;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
   /** Bots this host process spawned — used to show the remove button. The
@@ -46,7 +46,7 @@ export function TablesList({
   onStartTabletop,
   onStartDraft,
   onStartSealed,
-  startingDraft = false,
+  startingLimited = false,
   onAddBot,
   onRemoveBot,
   mySpawnedBots = [],
@@ -265,11 +265,11 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={onStartDraft}
-                      disabled={!allReady || startingDraft}
+                      disabled={!allReady || startingLimited}
                       title={!allReady ? "All players must be ready" : undefined}
                     >
                       <Swords className="h-3 w-3" />
-                      {startingDraft ? "Starting…" : "Start Draft"}
+                      {startingLimited ? "Starting…" : "Start Draft"}
                     </Button>
                   )}
                   {onStartSealed && isOpenFormat && currentRoom.sealed_config && (
@@ -277,11 +277,11 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={onStartSealed}
-                      disabled={!allReady || startingDraft}
+                      disabled={!allReady || startingLimited}
                       title={!allReady ? "All players must be ready" : undefined}
                     >
                       <Swords className="h-3 w-3" />
-                      {startingDraft ? "Starting…" : "Start Sealed"}
+                      {startingLimited ? "Starting…" : "Start Sealed"}
                     </Button>
                   )}
                   {!isOpenFormat && (

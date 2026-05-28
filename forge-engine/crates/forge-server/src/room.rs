@@ -100,9 +100,7 @@ impl Room {
     }
 
     pub fn all_ready(&self) -> bool {
-        // Draft/Sealed pull the rest of the seats from bots client-side,
-        // so a solo human + AI fill is a valid pod. Other formats need
-        // an actual opponent.
+        // Draft/Sealed allow a solo human + bot fill.
         let min_players = match self.format {
             GameFormat::Draft | GameFormat::Sealed => 1,
             _ => 2,

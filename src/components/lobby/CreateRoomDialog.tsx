@@ -84,8 +84,9 @@ const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
 type RoomKind = "match" | "limited";
 
 // Limited subtypes — mirrors the offline `Limited` view's mode picker.
-// Only `draft` is wired for multiplayer today; the others stay as a
-// disabled seam so the eventual feature surface is visible.
+// Draft / Sealed / Cube are wired for multiplayer. Winston is intentionally
+// deferred until there's demand — multi-human Winston needs a new engine
+// API plus a relay protocol on the scale of `draft-v1`.
 type LimitedKind = "draft" | "sealed" | "winston" | "cube";
 
 interface LimitedKindMeta {
@@ -115,7 +116,7 @@ const LIMITED_KINDS: LimitedKindMeta[] = [
     value: "winston",
     label: "Winston Draft",
     icon: Layers,
-    description: "2-player pile draft against a shared pool.",
+    description: "2-player pile draft from a shared pool. Single-player only for now.",
     enabled: false,
   },
   {

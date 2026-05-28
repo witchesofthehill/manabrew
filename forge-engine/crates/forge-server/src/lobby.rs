@@ -183,7 +183,14 @@ pub fn set_ready_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        if ready && !room.has_selected_deck(player_id) {
+        // `Any` rooms (post-#82) defer format choice to `StartGame`, and
+        // `Draft`/`Sealed` rooms produce decks during the session — none
+        // of them have a deck to require at ready-up time.
+        let format_requires_deck = !matches!(
+            room.format,
+            GameFormat::Any | GameFormat::Draft | GameFormat::Sealed
+        );
+        if ready && format_requires_deck && !room.has_selected_deck(player_id) {
             return Err(ServerError::DeckNotSelected);
         }
 
@@ -226,11 +233,24 @@ pub fn set_deck_selection_sync(
     Ok(room_id)
 }
 
+pub struct StartedGame {
+    pub room_id: String,
+    pub player_order: Vec<String>,
+    pub player_decks: Vec<PlayerDeckInfo>,
+    pub starting_life: i32,
+    /// Post-flip room snapshot. Callers broadcast this as `RoomUpdate`
+    /// alongside `GameStarted` so clients learn the resolved format
+    /// (e.g. `Any` → `Draft`) without waiting for the next list-rooms
+    /// poll. Otherwise post-#82 `Any`-room features (mp draft) race
+    /// the format-flip against any UI branch keyed on `room.format`.
+    pub room_info: RoomInfo,
+}
+
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
     format: Option<GameFormat>,
-) -> Result<(String, Vec<String>, Vec<PlayerDeckInfo>, i32), ServerError> {
+) -> Result<StartedGame, ServerError> {
     let room_id = {
         state
             .players
@@ -239,7 +259,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (player_order, player_decks, starting_life) = {
+    let (player_order, player_decks, starting_life, room_info) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -276,10 +296,12 @@ pub fn start_game_sync(
         }
 
         room.status = RoomStatus::InGame;
+        // `Any` is converted to a concrete format above; reaching this
+        // match with `Any` would mean the conversion path was bypassed,
+        // which the above branch makes impossible.
         let starting_life = match room.format {
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,
-            GameFormat::Any => return Err(ServerError::FormatNotChosen),
             GameFormat::Standard
             | GameFormat::Pioneer
             | GameFormat::Modern
@@ -289,11 +311,23 @@ pub fn start_game_sync(
             | GameFormat::Oathbreaker
             | GameFormat::Draft
             | GameFormat::Sealed => 20,
+            GameFormat::Any => unreachable!("Any resolved to concrete format above"),
         };
-        (room.player_usernames(), room.player_decks(), starting_life)
+        (
+            room.player_usernames(),
+            room.player_decks(),
+            starting_life,
+            room.to_room_info(),
+        )
     };
 
-    Ok((room_id, player_order, player_decks, starting_life))
+    Ok(StartedGame {
+        room_id,
+        player_order,
+        player_decks,
+        starting_life,
+        room_info,
+    })
 }
 
 pub fn end_game_sync(

@@ -130,16 +130,7 @@ export default function MultiplayerDraft() {
         </Button>
       </header>
 
-      <DraftingView
-        activeDraft={state}
-        onPick={handlePick}
-        onJumpToBuild={() => {
-          // Multiplayer build / sideboard phase is a follow-up PR.
-          // Until then, "Build" is a no-op except as visual hint.
-        }}
-        canBuild={false}
-        conspiracyHooks={conspiracyHooks}
-      />
+      <DraftingView activeDraft={state} onPick={handlePick} conspiracyHooks={conspiracyHooks} />
 
       {lastError && (
         <p className="rounded border border-destructive/70 bg-destructive/10 p-3 text-sm text-destructive">

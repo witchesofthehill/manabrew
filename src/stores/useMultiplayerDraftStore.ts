@@ -110,7 +110,7 @@ export const useMultiplayerDraftStore = create<MultiplayerDraftStore>()(
         });
       },
       setLocalState: (state) => set({ state }),
-      complete: (pools) => set({ mode: "complete", finalPools: pools }),
+      complete: (pools) => set({ mode: "complete", finalPools: pools, lastError: null }),
       setError: (msg) => set({ lastError: msg }),
       clear: () =>
         set({

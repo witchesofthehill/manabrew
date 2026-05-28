@@ -341,6 +341,18 @@ async function fetchSeatState(sessionId: string, seat: number): Promise<DraftSta
   }
 }
 
+/** Wrap up the session: broadcast every pool, flip the local store
+ *  into `complete`, signal the matchmaking server to reset the room,
+ *  and detach.
+ *
+ *  By construction this runs *inside* the active `pendingChain` link
+ *  (called from `applyPick` after the engine signals `isComplete`), so
+ *  there is no need to `await active.pendingChain` here — that would
+ *  deadlock. Any peer picks that arrive while `finishDraft` is mid-
+ *  await get queued onto the chain via `enqueuePick`; after teardown
+ *  sets `active = null`, those queued links bail at `applyPick`'s
+ *  `if (!active) return` guard, so the wasm session never sees a
+ *  post-complete `limited_submit_pick`. */
 async function finishDraft(): Promise<void> {
   if (!active) return;
   const server = getPlatform().server;

@@ -163,8 +163,10 @@ export default function Draft() {
 export interface DraftingViewProps {
   activeDraft: import("@/types/limited").DraftState;
   onPick: (card: DraftCard) => void;
-  onJumpToBuild: () => void;
-  canBuild: boolean;
+  /** Optional "Build" CTA — single-player wires it; multiplayer has no
+   *  in-draft build mode yet, so omits it and the button stays hidden. */
+  onJumpToBuild?: () => void;
+  canBuild?: boolean;
   conspiracyHooks: ReturnType<typeof useLimitedStore.getState>["conspiracyHooks"];
 }
 
@@ -172,7 +174,7 @@ export function DraftingView({
   activeDraft,
   onPick,
   onJumpToBuild,
-  canBuild,
+  canBuild = false,
   conspiracyHooks,
 }: DraftingViewProps) {
   const preview = useCardPreview();

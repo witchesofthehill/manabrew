@@ -822,6 +822,12 @@ pub fn limited_submit_pick(
             .get_mut(&session_id)
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
         let seat = seat_idx as usize;
+        if seat >= draft.pod_size() {
+            return Err(JsError::new(&format!(
+                "seat {seat} out of bounds (pod size {})",
+                draft.pod_size()
+            )));
+        }
         let pack_card = draft
             .current_pack_for_seat(seat)
             .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
@@ -861,9 +867,15 @@ pub fn limited_get_seat_state(session_id: String, seat_idx: u32) -> Result<JsVal
             .drafts
             .get(&session_id)
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let seat = seat_idx as usize;
+        if seat >= draft.pod_size() {
+            return Err(JsError::new(&format!(
+                "seat {seat} out of bounds (pod size {})",
+                draft.pod_size()
+            )));
+        }
         let awaiting = !draft.is_round_over() && draft.has_next_choice();
-        let dto =
-            DraftStateDto::from_engine_for_seat(session_id, draft, seat_idx as usize, awaiting);
+        let dto = DraftStateDto::from_engine_for_seat(session_id, draft, seat, awaiting);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
 }

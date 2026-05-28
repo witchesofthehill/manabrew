@@ -19,8 +19,46 @@ import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
 import type { MpDraftConfig } from "@/game/draftRelay";
 import { cn } from "@/lib/utils";
+import { getPlatform } from "@/platform";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
+import type { GameStartedPayload, ServerErrorPayload } from "@/types/server";
+
+/** How long to wait for the server's `GameStarted` ack after sending
+ *  `StartGame`. If the server takes longer than this something is
+ *  wrong upstream; abort rather than ship the draft-v1 broadcast into
+ *  a room that hasn't transitioned. */
+const START_GAME_ACK_TIMEOUT_MS = 5000;
+
+/** Await `server:game_started` for the current room, or the matching
+ *  `server:error`. Returns void on Ack, throws on error/timeout.
+ *  Subscribers are torn down in every exit path. */
+function awaitGameStartedAck(roomId: string): Promise<void> {
+  const events = getPlatform().events;
+  return new Promise((resolve, reject) => {
+    const unsubs: Array<() => void> = [];
+    const cleanup = () => unsubs.forEach((fn) => fn());
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("server did not acknowledge StartGame in time"));
+    }, START_GAME_ACK_TIMEOUT_MS);
+    unsubs.push(
+      events.on<GameStartedPayload>("server:game_started", (payload) => {
+        if (payload.room_id !== roomId) return;
+        clearTimeout(timeout);
+        cleanup();
+        resolve();
+      }),
+    );
+    unsubs.push(
+      events.on<ServerErrorPayload>("server:error", (payload) => {
+        clearTimeout(timeout);
+        cleanup();
+        reject(new Error(payload.message || payload.code));
+      }),
+    );
+  });
+}
 
 interface StartMultiplayerDraftDialogProps {
   open: boolean;
@@ -115,11 +153,15 @@ export function StartMultiplayerDraftDialog({
       // Flip the room to `Draft` server-side first so the post-#82
       // lifecycle (room.format `Any` → `Draft`, status `Lobby` →
       // `InGame`) stays consistent with what the hosted Play-vs-AI
-      // path established. Server broadcasts `GameStarted` to every
-      // member; the host then drives the WASM draft via `draft-v1`
-      // relay envelopes.
+      // path established. We then await the server's `GameStarted`
+      // ack before broadcasting `draft-v1` envelopes — otherwise the
+      // peer relay landing first races the lobby's RoomUpdate and
+      // peers see `currentRoom.format === "Any"` when the draft-start
+      // envelope arrives.
+      const ackPromise = awaitGameStartedAck(currentRoom.room_id);
       try {
         await serverStartGame("Draft");
+        await ackPromise;
       } catch (e) {
         toast.error(`Failed to start draft: ${String(e)}`);
         return;

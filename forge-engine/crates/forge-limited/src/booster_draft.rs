@@ -158,6 +158,14 @@ impl BoosterDraft {
     }
 
     pub fn undo_last_human_pick(&mut self) -> Result<(), String> {
+        // Undo rewinds shared draft state (round, direction, every seat's
+        // pack queue and picks), so in a multi-human pod the operation
+        // would silently roll back every other human's last pick too —
+        // ambiguous and almost certainly wrong. Reject it; the multi-
+        // human flow has no undo affordance in the UI.
+        if self.seats.iter().filter(|s| s.is_human).count() > 1 {
+            return Err("undo not supported in multi-human drafts".to_string());
+        }
         let snap = self
             .pick_history
             .pop()
@@ -215,19 +223,25 @@ impl BoosterDraft {
         seat_idx: usize,
         card: PaperCard,
     ) -> Result<(), String> {
+        // Validate before snapshotting — otherwise a peer spamming bad
+        // seat indices would push junk into the bounded undo history and
+        // evict legitimate snapshots.
+        {
+            let seat = self
+                .seats
+                .get(seat_idx)
+                .ok_or_else(|| format!("no seat at index {seat_idx}"))?;
+            if !seat.is_human {
+                return Err(format!("seat {seat_idx} is not human"));
+            }
+        }
         let snap = self.snapshot();
         if self.pick_history.len() >= 20 {
             self.pick_history.remove(0);
         }
         self.pick_history.push(snap);
 
-        let seat = self
-            .seats
-            .get_mut(seat_idx)
-            .ok_or_else(|| format!("no seat at index {seat_idx}"))?;
-        if !seat.is_human {
-            return Err(format!("seat {seat_idx} is not human"));
-        }
+        let seat = self.seats.get_mut(seat_idx).expect("validated above");
         let agent = seat.agent.as_mut();
         if let Some(human) = downcast_human(agent) {
             human.submit_pick(card);

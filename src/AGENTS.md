@@ -20,7 +20,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 | `hooks/`             | App-wide hooks. Component-specific hooks co-locate with the component.                                                  |
 | `themes/`            | The 12 color presets. Schema is `GameThemeColors`. See `docs/agents/UI_THEME_RULES.md`.                                 |
 | `types/`             | Shared TS interfaces. `manabrew.ts` is the engine ↔ UI DTO contract.                                                    |
-| `game/`              | Frontend game runtime: room host, relay, runtime registry. The seam between UI and engine transports.                   |
+| `game/`              | Frontend game runtime: room host, relay, runtime registry, multiplayer draft host/peer (`draft*.ts`). UI ↔ engine seam. |
 | `pixi/`              | PIXI.js scene. Reads theme directly via `getTheme().gameTheme.*` — never literal hex.                                   |
 | `platform/`          | Web vs Tauri detection / IPC. New platform calls route through this — never `window.__TAURI__` directly.                |
 | `lib/`               | Pure utilities (no React). Scryfall helpers, mana parsing, deck import.                                                 |

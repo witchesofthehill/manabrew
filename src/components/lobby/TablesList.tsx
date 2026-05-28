@@ -134,7 +134,11 @@ export function TablesList({
                         )}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate">
-                        {p.selected_deck_name ?? "No deck selected"}
+                        {isOpenFormat
+                          ? p.ready
+                            ? "Ready"
+                            : "Waiting to ready up"
+                          : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
                     {canRemove && isHost ? (
@@ -162,16 +166,21 @@ export function TablesList({
                   </div>
                 );
               })}
-              {/* Add Bot slot */}
-              {isHost && currentRoom.players.length < currentRoom.max_players && onAddBot && (
-                <button
-                  className="rounded-lg border border-dashed px-3 py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
-                  onClick={onAddBot}
-                >
-                  <Bot className="h-3.5 w-3.5" />
-                  Add Bot
-                </button>
-              )}
+              {/* Add Bot slot — hidden on Open rooms because draft bots
+                  fill in via the StartMultiplayerDraftDialog, not via
+                  the lobby's deck-pick Add Bot flow. */}
+              {isHost &&
+                !isOpenFormat &&
+                currentRoom.players.length < currentRoom.max_players &&
+                onAddBot && (
+                  <button
+                    className="rounded-lg border border-dashed px-3 py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
+                    onClick={onAddBot}
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                    Add Bot
+                  </button>
+                )}
             </div>
 
             {/* Actions */}

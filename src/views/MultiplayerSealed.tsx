@@ -15,9 +15,19 @@ export default function MultiplayerSealed() {
   const lastError = useMultiplayerSealedStore((s) => s.lastError);
   const clear = useMultiplayerSealedStore((s) => s.clear);
   const endGame = useServerStore((s) => s.endGame);
+  const currentRoom = useServerStore((s) => s.currentRoom);
+  const username = useServerStore((s) => s.username);
+  const amHost = !!currentRoom && currentRoom.host === username;
 
-  // Bail back to the lobby if the sealed session was never started or
-  // got cleared mid-route.
+  // Host owns the room lifecycle (EndGame resets it). Peers just drop
+  // their local sealed state — if they want to leave the room entirely
+  // they use the lobby's Leave Room button.
+  const exit = () => {
+    if (amHost) void endGame().catch(() => {});
+    clear();
+    navigate("/lobby");
+  };
+
   useEffect(() => {
     if (mode === "idle") navigate("/lobby");
   }, [mode, navigate]);
@@ -44,16 +54,7 @@ export default function MultiplayerSealed() {
             saved deck is then selectable in any Match room.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            // Host closing the sealed phase resets the room. Peers don't
-            // own the room, so their EndGame is a server no-op.
-            void endGame().catch(() => {});
-            clear();
-            navigate("/lobby");
-          }}
-        >
+        <Button variant="outline" onClick={exit}>
           Exit
         </Button>
       </header>
@@ -63,14 +64,7 @@ export default function MultiplayerSealed() {
           pool={pool}
           defaultDeckName={`Sealed ${setCode.toUpperCase()}`}
           format="sealed"
-          onSaved={() => {
-            // Once the player has banked their sealed deck there's nothing
-            // more to do in this view — drop them back to the lobby so
-            // they can ready up for a Match with the deck they just saved.
-            void endGame().catch(() => {});
-            clear();
-            navigate("/lobby");
-          }}
+          onSaved={exit}
         />
       </div>
     </div>

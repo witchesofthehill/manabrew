@@ -100,7 +100,7 @@ export async function fetchCubeMetadata(cubeIdOrUrl: string): Promise<CubeImport
   try {
     return await importCubeRaw(cubeIdOrUrl);
   } catch (err) {
-    throw new Error(friendlyCubeError(err, cubeIdOrUrl));
+    throw new Error(friendlyCubeError(err, cubeIdOrUrl), { cause: err });
   }
 }
 

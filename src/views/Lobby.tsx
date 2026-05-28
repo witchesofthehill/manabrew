@@ -197,8 +197,19 @@ export default function Lobby() {
       // transitioned the room — a host racing endGame against their
       // own startGame can land here with status still Lobby.
       if (currentRoom.status === "InGame" && currentRoom.sealed_config && username) {
-        void startMpSealed({ room: currentRoom, username }).catch((err) => {
+        const room = currentRoom;
+        const amHost = room.host === username;
+        void startMpSealed({ room, username }).catch((err) => {
           toast.error(`Failed to open sealed pool: ${String(err)}`);
+          // Roll the room back to Lobby/Any so the host can retry. Peers
+          // can't trigger EndGame (server returns NotHost) — they wait
+          // for the host's reset, surfacing the toast in the meantime.
+          if (amHost) {
+            void useServerStore
+              .getState()
+              .endGame()
+              .catch(() => {});
+          }
         });
       }
       return;

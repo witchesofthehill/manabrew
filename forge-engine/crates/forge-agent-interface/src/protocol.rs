@@ -94,6 +94,8 @@ pub enum ClientMessage {
         format: GameFormat,
         #[serde(default)]
         hosted: bool,
+        #[serde(default)]
+        engine: EngineKind,
     },
 
     JoinRoom {
@@ -114,7 +116,12 @@ pub enum ClientMessage {
         commander_name: Option<String>,
     },
 
-    StartGame,
+    StartGame {
+        #[serde(default)]
+        format: Option<GameFormat>,
+    },
+
+    EndGame,
 
     BroadcastState {
         state: serde_json::Value,
@@ -215,6 +222,8 @@ pub struct RoomInfo {
     pub max_players: u8,
     pub format: GameFormat,
     pub status: RoomStatus,
+    #[serde(default)]
+    pub engine: EngineKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -243,6 +252,7 @@ pub enum RoomStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum GameFormat {
+    Any,
     Standard,
     Pioneer,
     Modern,
@@ -254,4 +264,11 @@ pub enum GameFormat {
     Oathbreaker,
     Draft,
     Sealed,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum EngineKind {
+    #[default]
+    Wasm,
+    Java,
 }

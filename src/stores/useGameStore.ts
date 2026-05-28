@@ -14,11 +14,11 @@ import { getFormat } from "@/lib/formats";
 import { startHostedAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
-import { usePreferencesStore } from "./usePreferencesStore";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
 import type { AgentPrompt } from "./gameStore.types";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
+import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
@@ -93,11 +93,13 @@ async function initializeGame({
   formatId,
   set,
   commanderName,
+  engine,
 }: {
   deck: Deck;
   opponentDeck?: Deck;
   formatId?: string;
   commanderName?: string;
+  engine?: EngineKind;
   set: (partial: Partial<GameState>) => void;
   get: () => GameState;
 }): Promise<void> {
@@ -111,7 +113,7 @@ async function initializeGame({
   if (
     getPlatform().type === "web" &&
     isHostedEngineAvailable() &&
-    usePreferencesStore.getState().preferHostedEngine &&
+    engine === "Java" &&
     opponentDeck
   ) {
     set({
@@ -209,9 +211,9 @@ export const useGameStore = create<GameState>()(
 
       setGameConfig: (config) => set({ gameConfig: config }),
 
-      startGame: async (deck, formatId, commanderName, opponentDeck) => {
+      startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
         try {
-          await initializeGame({ deck, opponentDeck, formatId, commanderName, set, get });
+          await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
         } catch (e) {
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);

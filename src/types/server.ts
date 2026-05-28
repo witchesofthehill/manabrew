@@ -1,6 +1,7 @@
 import type { Deck } from "@/types/manabrew";
 
 export type GameFormat =
+  | "Any"
   | "Standard"
   | "Pioneer"
   | "Modern"
@@ -34,7 +35,10 @@ export interface RoomInfo {
   max_players: number;
   format: GameFormat;
   status: "Lobby" | "InGame";
+  engine: EngineKind;
 }
+
+export type EngineKind = "Wasm" | "Java";
 
 export interface RoomPlayerInfo {
   username: string;

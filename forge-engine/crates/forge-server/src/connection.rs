@@ -559,13 +559,21 @@ fn handle_client_message(
             max_players,
             format,
             hosted,
+            engine,
         } => {
             info!(
-                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={})",
-                username, room_name, max_players, format, hosted
+                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?})",
+                username, room_name, max_players, format, hosted, engine
             );
-            match lobby::create_room_sync(state, player_id, room_name, max_players, format, hosted)
-            {
+            match lobby::create_room_sync(
+                state,
+                player_id,
+                room_name,
+                max_players,
+                format,
+                hosted,
+                engine,
+            ) {
                 Ok(info) => {
                     info!(
                         "[lobby] room created: {} (id={})",
@@ -741,9 +749,9 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::StartGame => {
+        ClientMessage::StartGame { format } => {
             info!("[game] '{}' starting game", username);
-            match lobby::start_game_sync(state, player_id) {
+            match lobby::start_game_sync(state, player_id, format) {
                 Ok((room_id, player_order, player_decks, starting_life)) => {
                     info!(
                         "[game] game started in room {} | order: {:?}",
@@ -773,6 +781,16 @@ fn handle_client_message(
                 }
             }
         }
+
+        ClientMessage::EndGame => match lobby::end_game_sync(state, player_id) {
+            Ok((room_id, info)) => {
+                info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
+                broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+            }
+            Err(e) => {
+                debug!("[game] '{}' end game ignored: {}", username, e);
+            }
+        },
 
         ClientMessage::BroadcastState { state: game_state } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
@@ -882,7 +900,8 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::LeaveRoom => "LeaveRoom",
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
-        ClientMessage::StartGame => "StartGame",
+        ClientMessage::StartGame { .. } => "StartGame",
+        ClientMessage::EndGame => "EndGame",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
     }

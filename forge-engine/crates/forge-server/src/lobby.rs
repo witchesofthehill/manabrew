@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::error::ServerError;
-use crate::protocol::{GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus};
+use crate::protocol::{EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus};
 use crate::room::Room;
 use crate::state::ServerState;
 use forge_agent_interface::deck_dto::Deck;
@@ -13,6 +13,7 @@ pub fn create_room_sync(
     max_players: u8,
     format: GameFormat,
     hosted: bool,
+    engine: EngineKind,
 ) -> Result<RoomInfo, ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
@@ -42,6 +43,7 @@ pub fn create_room_sync(
         username,
         max_players,
         format,
+        engine,
         !hosted,
     );
     let info = room.to_room_info();
@@ -227,6 +229,7 @@ pub fn set_deck_selection_sync(
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
+    format: Option<GameFormat>,
 ) -> Result<(String, Vec<String>, Vec<PlayerDeckInfo>, i32), ServerError> {
     let room_id = {
         state
@@ -262,10 +265,18 @@ pub fn start_game_sync(
             return Err(ServerError::DeckNotSelected);
         }
 
+        if room.format == GameFormat::Any {
+            match format {
+                Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
+                _ => return Err(ServerError::FormatNotChosen),
+            }
+        }
+
         room.status = RoomStatus::InGame;
         let starting_life = match room.format {
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,
+            GameFormat::Any => return Err(ServerError::FormatNotChosen),
             GameFormat::Standard
             | GameFormat::Pioneer
             | GameFormat::Modern
@@ -280,4 +291,51 @@ pub fn start_game_sync(
     };
 
     Ok((room_id, player_order, player_decks, starting_life))
+}
+
+pub fn end_game_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+) -> Result<(String, RoomInfo), ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+
+    let (info, cleared) = {
+        let mut room = state
+            .rooms
+            .get_mut(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+        if !room.is_host(player_id) {
+            return Err(ServerError::NotHost);
+        }
+        if room.status != RoomStatus::InGame {
+            return Err(ServerError::GameNotInProgress);
+        }
+        let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
+        room.status = RoomStatus::Lobby;
+        room.players.clear();
+        if room.hosted {
+            room.format = GameFormat::Any;
+        }
+        (room.to_room_info(), cleared)
+    };
+
+    for pid in cleared {
+        match state.players.get(&pid).map(|p| p.disconnected_at.is_some()) {
+            Some(true) => {
+                state.players.remove(&pid);
+            }
+            Some(false) => {
+                if let Some(mut p) = state.players.get_mut(&pid) {
+                    p.room_id = None;
+                }
+            }
+            None => {}
+        }
+    }
+
+    Ok((room_id, info))
 }

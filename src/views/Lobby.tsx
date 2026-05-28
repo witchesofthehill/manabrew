@@ -395,6 +395,8 @@ export default function Lobby() {
         participants,
         config: {
           setCode: config.set_code,
+          cubeId: config.cube_id,
+          cubeName: config.cube_name,
           podSize: room.max_players,
           rounds: config.rounds,
           picksPerPass: config.picks_per_pass,

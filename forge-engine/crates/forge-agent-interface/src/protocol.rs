@@ -236,7 +236,18 @@ pub struct RoomInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DraftConfig {
-    pub set_code: String,
+    /// Set-pool source for a Booster Draft. Exactly one of `set_code`
+    /// or `cube_id` is set; the host resolves to a card pool at draft
+    /// start (either from `EditionsRegistry` for sets or by re-fetching
+    /// the cube list for cubes).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cube_id: Option<String>,
+    /// Human-readable cube name surfaced in the lobby card. Cube IDs
+    /// alone aren't meaningful to peers browsing the room list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cube_name: Option<String>,
     pub rounds: u8,
     pub picks_per_pass: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { SetPicker } from "@/components/limited/SetPicker";
 import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import { useLimitedStore } from "@/stores/useLimitedStore";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
+import type { CubeImportResult } from "@/types/limited";
 import type { DraftConfig, EngineKind, GameFormat } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
@@ -121,7 +123,7 @@ const LIMITED_KINDS: LimitedKindMeta[] = [
     label: "Cube",
     icon: Wand2,
     description: "Pod draft from a CubeCobra cube.",
-    enabled: false,
+    enabled: true,
   },
 ];
 
@@ -149,6 +151,13 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [draftSeed, setDraftSeed] = useState("");
   const [draftFillWithBots, setDraftFillWithBots] = useState(true);
   const [prefetchingSet, setPrefetchingSet] = useState<string | null>(null);
+
+  // Cube-specific config.
+  const importCube = useLimitedStore((s) => s.importCubeFromCubeCobra);
+  const cubeImportError = useLimitedStore((s) => s.lastError);
+  const [cubeInput, setCubeInput] = useState("");
+  const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
+  const [importingCube, setImportingCube] = useState(false);
 
   const [creating, setCreating] = useState(false);
 
@@ -180,14 +189,28 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     };
   }, [draftSet, prefetchSet]);
 
-  // Submission gate: limited rooms must pick an enabled subtype and (for
-  // draft) a set. Match rooms are always ready once name/players/format
-  // are present, which they always are by default.
-  const isDraft = kind === "limited" && limitedKind === "draft";
+  // Submission gate: limited rooms must pick an enabled subtype and a
+  // valid pool source. Match rooms are always ready once name/players/
+  // format are present, which they always are by default.
+  const isBoosterDraft = kind === "limited" && limitedKind === "draft";
+  const isCube = kind === "limited" && limitedKind === "cube";
   const limitedKindEnabled =
     kind !== "limited" || (LIMITED_KINDS.find((k) => k.value === limitedKind)?.enabled ?? false);
-  const draftConfigReady = !isDraft || !!draftSet;
+  const draftConfigReady = (!isBoosterDraft || !!draftSet) && (!isCube || !!importedCube);
   const canSubmit = limitedKindEnabled && draftConfigReady;
+
+  async function handleImportCube() {
+    if (!cubeInput.trim()) return;
+    setImportingCube(true);
+    try {
+      const result = await importCube(cubeInput.trim());
+      setImportedCube(result);
+    } catch {
+      /* surfaced via lastError */
+    } finally {
+      setImportingCube(false);
+    }
+  }
 
   async function handleCreate() {
     if (!canSubmit) return;
@@ -198,12 +221,14 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
       // front so peers know what to bring.
       const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
       let draftConfig: DraftConfig | undefined;
-      if (isDraft) {
+      if (isBoosterDraft || isCube) {
         // `Number("0") || undefined` collapses an explicit 0 seed to
         // undefined; `Number.isFinite` keeps seed 0 as a valid value.
         const parsedSeed = draftSeed.trim() ? Number(draftSeed) : NaN;
         draftConfig = {
-          set_code: draftSet,
+          set_code: isBoosterDraft ? draftSet : undefined,
+          cube_id: isCube ? importedCube!.cubeId : undefined,
+          cube_name: isCube ? importedCube!.name : undefined,
           rounds: draftRounds,
           picks_per_pass: draftPicksPerPass,
           seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
@@ -380,26 +405,70 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
             </div>
           </div>
 
-          {/* Draft config (Limited > Booster Draft only) */}
-          {isDraft && (
-            <>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Set</Label>
-                {draftableSets.length === 0 ? (
-                  <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading sets from Scryfall…
-                  </p>
-                ) : (
-                  <SetPicker
-                    sets={draftableSets}
-                    selectedCode={draftSet}
-                    prefetching={prefetchingSet}
-                    onSelect={setDraftSet}
-                  />
-                )}
-              </div>
+          {/* Pool source — Booster Draft uses a Scryfall set, Cube uses
+              a CubeCobra import. The downstream draftHost branches on
+              draft_config.cube_id vs set_code. */}
+          {isBoosterDraft && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Set</Label>
+              {draftableSets.length === 0 ? (
+                <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading sets from Scryfall…
+                </p>
+              ) : (
+                <SetPicker
+                  sets={draftableSets}
+                  selectedCode={draftSet}
+                  prefetching={prefetchingSet}
+                  onSelect={setDraftSet}
+                />
+              )}
+            </div>
+          )}
 
+          {isCube && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Cube</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  value={cubeInput}
+                  onChange={(e) => setCubeInput(e.target.value)}
+                  placeholder="cubeid or cubecobra.com/…"
+                  className="h-9 text-sm flex-1"
+                  disabled={importingCube}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleImportCube}
+                  disabled={importingCube || !cubeInput.trim()}
+                  className="gap-1.5"
+                >
+                  {importingCube ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  {importingCube ? "Importing…" : "Import"}
+                </Button>
+              </div>
+              {importedCube && (
+                <p className="text-[11px] text-muted-foreground">
+                  Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
+                  {importedCube.cardCount} cards
+                </p>
+              )}
+              {cubeImportError && !importedCube && !importingCube && (
+                <p className="text-[11px] text-destructive">{cubeImportError}</p>
+              )}
+            </div>
+          )}
+
+          {(isBoosterDraft || isCube) && (
+            <>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="draft-rounds" className="text-xs font-medium">
@@ -472,9 +541,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
             title={
               !limitedKindEnabled
                 ? "That limited mode isn't wired for multiplayer yet"
-                : !draftConfigReady
+                : isBoosterDraft && !draftSet
                   ? "Pick a set for the draft"
-                  : undefined
+                  : isCube && !importedCube
+                    ? "Import a cube before creating the room"
+                    : undefined
             }
           >
             {creating ? (

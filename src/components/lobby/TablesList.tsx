@@ -97,11 +97,15 @@ export function TablesList({
               <div className="flex items-center gap-1.5 shrink-0">
                 {currentRoom.draft_config && (
                   <Badge variant="secondary" className="text-[10px] uppercase">
-                    {currentRoom.draft_config.set_code}
+                    {currentRoom.draft_config.cube_name ?? currentRoom.draft_config.set_code}
                   </Badge>
                 )}
                 <Badge variant="outline" className="text-[10px]">
-                  {isOpenFormat && currentRoom.draft_config ? "Draft" : currentRoom.format}
+                  {isOpenFormat && currentRoom.draft_config
+                    ? currentRoom.draft_config.cube_id
+                      ? "Cube"
+                      : "Draft"
+                    : currentRoom.format}
                 </Badge>
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
@@ -319,7 +323,7 @@ export function TablesList({
                           )}
                           {room.draft_config && (
                             <Badge variant="secondary" className="text-[10px] uppercase">
-                              {room.draft_config.set_code}
+                              {room.draft_config.cube_name ?? room.draft_config.set_code}
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px]">

@@ -1,5 +1,6 @@
-import { getPlatform } from "@/platform";
-import type { DraftCard } from "@/types/limited";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { getPlatform, getPlatformType } from "@/platform";
+import type { CubeImportResult, DraftCard } from "@/types/limited";
 
 export interface EditionSlot {
   label: string;
@@ -51,4 +52,35 @@ export async function fetchEditionInfo(setCode: string): Promise<EditionInfo | n
  */
 export async function fetchSetPool(setCode: string): Promise<DraftCard[]> {
   return getPlatform().invoke<DraftCard[]>("limited_get_set_pool", { setCode });
+}
+
+async function platformFetchText(url: string): Promise<string> {
+  if (getPlatformType() === "tauri") {
+    const r = await tauriFetch(url, { method: "GET" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.text();
+  }
+  const r = await fetch(url, { method: "GET" });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.text();
+}
+
+/**
+ * Re-import a cube from CubeCobra and return its card pool. Used by the
+ * multiplayer-draft host to resolve `DraftConfig.cubeId` to a pool at
+ * start time — the cube list isn't stored on the room so we re-fetch on
+ * each draft start (small upfront latency for a much smaller wire size).
+ */
+export async function fetchCubePool(cubeIdOrUrl: string): Promise<DraftCard[]> {
+  const platform = getPlatform();
+  const url = await platform.invoke<string>("limited_cubecobra_url", { cubeIdOrUrl });
+  const body = await platformFetchText(url);
+  const result = await platform.invoke<CubeImportResult>("limited_import_cube", {
+    request: { cubeIdOrUrl },
+    body,
+  });
+  if (!result.pool || result.pool.length === 0) {
+    throw new Error(`Cube "${cubeIdOrUrl}" came back empty`);
+  }
+  return result.pool;
 }

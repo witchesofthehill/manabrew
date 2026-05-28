@@ -18,12 +18,15 @@ import type { RoomRelayEnvelope } from "@/types/server";
  *  an older version see an unknown protocol and skip the payload. */
 export const DRAFT_RELAY_PROTOCOL = "draft-v1";
 
-/** Configuration baked into a draft room. Mirrors the existing
- *  single-player `BoosterDraftSetup` minus the pool itself (the pool is
- *  resolved from `setCode` at draft start so we don't blast ~250 card
- *  refs through every join). */
+/** Configuration baked into a draft room. The pool itself is resolved
+ *  at start time (set-pool via `EditionsRegistry` or cube via
+ *  CubeCobra re-fetch) so joining peers don't carry ~250+ card refs. */
 export interface MpDraftConfig {
-  setCode: string;
+  /** Exactly one of `setCode` or `cubeId` is populated. */
+  setCode?: string;
+  cubeId?: string;
+  /** Display name for the cube — empty for set drafts. */
+  cubeName?: string;
   podSize: number;
   rounds: number;
   picksPerPass: number;

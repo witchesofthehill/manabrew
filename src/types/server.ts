@@ -46,7 +46,13 @@ export interface RoomInfo {
 export type EngineKind = "Wasm" | "Java";
 
 export interface DraftConfig {
-  set_code: string;
+  /** Set code for a Scryfall-set draft. Exactly one of `set_code` or
+   *  `cube_id` is populated. */
+  set_code?: string;
+  /** Cube ID / URL for a CubeCobra draft. Re-fetched at draft start. */
+  cube_id?: string;
+  /** Display name for the cube — surfaced in lobby badges. */
+  cube_name?: string;
   rounds: number;
   picks_per_pass: number;
   seed?: number;

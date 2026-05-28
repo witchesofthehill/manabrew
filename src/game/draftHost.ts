@@ -17,7 +17,7 @@
 // disconnects mid-draft the session dies — same model as the existing
 // multiplayer game flow.
 
-import { fetchSetPool } from "@/api/limitedEdition";
+import { fetchCubePool, fetchSetPool } from "@/api/limitedEdition";
 import {
   type DraftPickMessage,
   type DraftStartMessage,
@@ -148,9 +148,16 @@ export async function startDraftAsHost(args: {
   const server = platform.server;
   let pool: DraftCard[];
   try {
-    pool = await fetchSetPool(config.setCode);
+    if (config.cubeId) {
+      pool = await fetchCubePool(config.cubeId);
+    } else if (config.setCode) {
+      pool = await fetchSetPool(config.setCode);
+    } else {
+      return { ok: false, error: "draft config has no pool source (set or cube)" };
+    }
   } catch (err) {
-    return { ok: false, error: `failed to load set ${config.setCode}: ${String(err)}` };
+    const source = config.cubeId ? `cube ${config.cubeId}` : `set ${config.setCode}`;
+    return { ok: false, error: `failed to load ${source}: ${String(err)}` };
   }
   let initialState: DraftState;
   try {

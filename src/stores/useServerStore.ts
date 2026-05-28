@@ -7,6 +7,7 @@ import type {
   RoomInfo,
   PlayerInfo,
   GameFormat,
+  EngineKind,
   PlayerDeckInfo,
   AuthResultPayload,
   RoomListPayload,
@@ -53,7 +54,12 @@ interface ServerState {
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
-  createRoom(roomName: string, maxPlayers: number, format: GameFormat): Promise<void>;
+  createRoom(
+    roomName: string,
+    maxPlayers: number,
+    format: GameFormat,
+    engine?: EngineKind,
+  ): Promise<void>;
   joinRoom(roomId: string): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
@@ -127,10 +133,10 @@ export const useServerStore = create<ServerState>()(
         await platform.server.listPlayers();
       },
 
-      async createRoom(roomName, maxPlayers, format) {
+      async createRoom(roomName, maxPlayers, format, engine) {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.createRoom({ roomName, maxPlayers, format });
+        await platform.server.createRoom({ roomName, maxPlayers, format, engine });
       },
 
       async joinRoom(roomId) {

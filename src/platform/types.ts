@@ -6,7 +6,7 @@
  * work with both desktop (Tauri) and web (WASM) deployments.
  */
 
-import type { GameFormat, RoomRelayEnvelope } from "@/types/server";
+import type { EngineKind, GameFormat, RoomRelayEnvelope } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
 // ============================================================================
@@ -54,6 +54,9 @@ export interface CreateRoomParams {
   maxPlayers: number;
   format: GameFormat;
   hosted?: boolean;
+  /** Defaults to `Wasm` server-side when omitted. Java requires a
+   *  hosted engine node to be the actual game host. */
+  engine?: EngineKind;
 }
 
 export interface JoinRoomParams {

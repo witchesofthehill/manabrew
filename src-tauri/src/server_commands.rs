@@ -89,6 +89,7 @@ pub async fn server_create_room(
     max_players: u8,
     format: String,
     hosted: Option<bool>,
+    engine: Option<String>,
 ) -> Result<(), String> {
     send_server_message(
         &client,
@@ -98,6 +99,7 @@ pub async fn server_create_room(
             "max_players": max_players,
             "format": format,
             "hosted": hosted.unwrap_or(false),
+            "engine": engine.unwrap_or_else(|| "Wasm".to_string()),
         }),
     )
 }

@@ -767,6 +767,7 @@ class WebServerApi implements IServerApi {
       max_players: params.maxPlayers,
       format: params.format,
       hosted: params.hosted ?? false,
+      engine: params.engine ?? "Wasm",
     });
   }
 

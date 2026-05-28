@@ -12,6 +12,7 @@ import { useServerStore } from "@/stores/useServerStore";
 import type { DraftConfig, EngineKind, GameFormat } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
+  Boxes,
   Cloud,
   Coins,
   Cpu,
@@ -72,12 +73,57 @@ const FORMATS: {
   },
 ];
 
-// Match: realistic MTG game pods. Draft: 8 is the canonical pod, 4/6
-// are common casual sizes. Bot fill comes from the room's draft_config.
+// Match: realistic MTG game pods. Limited: 8 is the canonical draft pod,
+// 4/6 are common casual sizes, 2 covers Winston. Bot fill comes from
+// the room's draft_config.
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
-const PLAYER_OPTIONS_DRAFT = [2, 4, 6, 8] as const;
+const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
 
-type RoomKind = "match" | "draft";
+type RoomKind = "match" | "limited";
+
+// Limited subtypes — mirrors the offline `Limited` view's mode picker.
+// Only `draft` is wired for multiplayer today; the others stay as a
+// disabled seam so the eventual feature surface is visible.
+type LimitedKind = "draft" | "sealed" | "winston" | "cube";
+
+interface LimitedKindMeta {
+  value: LimitedKind;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  enabled: boolean;
+}
+
+const LIMITED_KINDS: LimitedKindMeta[] = [
+  {
+    value: "draft",
+    label: "Booster Draft",
+    icon: Swords,
+    description: "Pod draft — pass packs around the table.",
+    enabled: true,
+  },
+  {
+    value: "sealed",
+    label: "Sealed",
+    icon: Boxes,
+    description: "Each player opens packs and builds independently.",
+    enabled: false,
+  },
+  {
+    value: "winston",
+    label: "Winston Draft",
+    icon: Layers,
+    description: "2-player pile draft against a shared pool.",
+    enabled: false,
+  },
+  {
+    value: "cube",
+    label: "Cube",
+    icon: Wand2,
+    description: "Pod draft from a CubeCobra cube.",
+    enabled: false,
+  },
+];
 
 interface CreateRoomDialogProps {
   open: boolean;
@@ -89,9 +135,10 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
   const [kind, setKind] = useState<RoomKind>("match");
+  const [limitedKind, setLimitedKind] = useState<LimitedKind>("draft");
   const [roomName, setRoomName] = useState("");
   const [matchPlayers, setMatchPlayers] = useState(4);
-  const [draftPlayers, setDraftPlayers] = useState(8);
+  const [limitedPlayers, setLimitedPlayers] = useState(8);
   const [format, setFormat] = useState<GameFormat>("Standard");
   const [engine, setEngine] = useState<EngineKind>("Wasm");
 
@@ -107,9 +154,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
   const defaultName = `${username ?? "Player"}'s Room`;
   const hostedAvailable = isHostedEngineAvailable();
-  const playerOptions = kind === "draft" ? PLAYER_OPTIONS_DRAFT : PLAYER_OPTIONS_MATCH;
-  const maxPlayers = kind === "draft" ? draftPlayers : matchPlayers;
-  const setMaxPlayers = kind === "draft" ? setDraftPlayers : setMatchPlayers;
+  const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
+  const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
+  const setMaxPlayers = kind === "limited" ? setLimitedPlayers : setMatchPlayers;
 
   const draftableSets = useMemo(
     () =>
@@ -133,15 +180,25 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     };
   }, [draftSet, prefetchSet]);
 
-  const draftConfigReady = kind !== "draft" || !!draftSet;
+  // Submission gate: limited rooms must pick an enabled subtype and (for
+  // draft) a set. Match rooms are always ready once name/players/format
+  // are present, which they always are by default.
+  const isDraft = kind === "limited" && limitedKind === "draft";
+  const limitedKindEnabled =
+    kind !== "limited" || (LIMITED_KINDS.find((k) => k.value === limitedKind)?.enabled ?? false);
+  const draftConfigReady = !isDraft || !!draftSet;
+  const canSubmit = limitedKindEnabled && draftConfigReady;
 
   async function handleCreate() {
-    if (!draftConfigReady) return;
+    if (!canSubmit) return;
     setCreating(true);
     try {
-      const submittedFormat: GameFormat = kind === "draft" ? "Any" : format;
+      // Limited rooms get `format: Any`; the actual format (Draft/Sealed)
+      // is resolved at StartGame. Match rooms commit to their format up
+      // front so peers know what to bring.
+      const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
       let draftConfig: DraftConfig | undefined;
-      if (kind === "draft") {
+      if (isDraft) {
         // `Number("0") || undefined` collapses an explicit 0 seed to
         // undefined; `Number.isFinite` keeps seed 0 as a valid value.
         const parsedSeed = draftSeed.trim() ? Number(draftSeed) : NaN;
@@ -190,14 +247,32 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 description="Constructed game — pick a format and bring a deck."
               />
               <RoomKindCard
-                selected={kind === "draft"}
-                onClick={() => setKind("draft")}
+                selected={kind === "limited"}
+                onClick={() => setKind("limited")}
                 icon={Sparkles}
-                label="Draft"
-                description="Multiplayer booster draft — no deck required; pick a set at start."
+                label="Limited"
+                description="Draft, sealed, or other built-on-the-fly formats."
               />
             </div>
           </div>
+
+          {/* Limited subtype picker — mirrors the offline Limited view's
+              mode grid so the multiplayer surface area lines up. */}
+          {kind === "limited" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Limited mode</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {LIMITED_KINDS.map((meta) => (
+                  <LimitedKindCard
+                    key={meta.value}
+                    meta={meta}
+                    selected={limitedKind === meta.value}
+                    onClick={() => meta.enabled && setLimitedKind(meta.value)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Room name */}
           <div className="space-y-1.5">
@@ -283,7 +358,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           {/* Max players */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">
-              {kind === "draft" ? "Pod size" : "Players"}
+              {kind === "limited" ? "Pod size" : "Players"}
             </Label>
             <div className="flex items-center gap-2">
               {playerOptions.map((n) => (
@@ -305,8 +380,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
             </div>
           </div>
 
-          {/* Draft config (Draft only) */}
-          {kind === "draft" && (
+          {/* Draft config (Limited > Booster Draft only) */}
+          {isDraft && (
             <>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Set</Label>
@@ -392,9 +467,15 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           <Button
             size="sm"
             onClick={handleCreate}
-            disabled={creating || !draftConfigReady}
+            disabled={creating || !canSubmit}
             className="gap-1.5 min-w-[100px]"
-            title={!draftConfigReady ? "Pick a set for the draft" : undefined}
+            title={
+              !limitedKindEnabled
+                ? "That limited mode isn't wired for multiplayer yet"
+                : !draftConfigReady
+                  ? "Pick a set for the draft"
+                  : undefined
+            }
           >
             {creating ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -434,6 +515,48 @@ function RoomKindCard({ selected, onClick, icon: Icon, label, description }: Roo
         <span className="text-sm font-medium">{label}</span>
       </div>
       <span className="text-[11px] text-muted-foreground leading-snug">{description}</span>
+    </button>
+  );
+}
+
+function LimitedKindCard({
+  meta,
+  selected,
+  onClick,
+}: {
+  meta: LimitedKindMeta;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const Icon = meta.icon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!meta.enabled}
+      className={cn(
+        "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
+        selected && meta.enabled
+          ? "border-primary bg-primary/5"
+          : "border-border enabled:hover:border-primary/30 enabled:hover:bg-muted/30",
+        !meta.enabled && "opacity-50 cursor-not-allowed",
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <Icon
+          className={cn(
+            "h-4 w-4",
+            selected && meta.enabled ? "text-primary" : "text-muted-foreground",
+          )}
+        />
+        <span className="text-sm font-medium">{meta.label}</span>
+        {!meta.enabled && (
+          <Badge variant="secondary" className="text-[9px]">
+            coming soon
+          </Badge>
+        )}
+      </div>
+      <span className="text-[11px] text-muted-foreground leading-snug">{meta.description}</span>
     </button>
   );
 }

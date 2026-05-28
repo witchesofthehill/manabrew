@@ -169,15 +169,15 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden">
-        <div className="px-6 pt-6 pb-4">
+      <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="text-lg">Create Room</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
             Set up a new game room for others to join.
           </DialogDescription>
         </div>
 
-        <div className="px-6 pb-6 space-y-5">
+        <div className="px-6 pb-6 space-y-5 overflow-y-auto flex-1 min-h-0">
           {/* Room kind */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Room type</Label>
@@ -246,7 +246,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           {kind === "match" && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Format</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[240px] overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {FORMATS.map((f) => {
                   const Icon = f.icon;
                   return (
@@ -385,7 +385,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t bg-muted/20 flex items-center justify-end gap-2">
+        <div className="px-6 py-4 border-t bg-muted/20 flex items-center justify-end gap-2 shrink-0">
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

@@ -572,12 +572,13 @@ impl GameLoop {
                         entry
                             .spell_ability
                             .source
-                            .map(|cid| game.card(cid).card_name.clone())
+                            .map(|cid| format!("{}@{}", game.card(cid).card_name, cid.index()))
                             .unwrap_or_else(|| "<effect>".to_string())
                     })
                     .collect();
                 eprintln!(
-                    "[stack-trace] AFTER priority_round phase={:?} active={:?} priority={:?} depth={} {:?}",
+                    "[stack-trace] T{} AFTER priority_round phase={:?} active={:?} priority={:?} depth={} {:?}",
+                    game.turn.turn_number,
                     game.turn.phase,
                     game.active_player(),
                     game.turn.priority_player,
@@ -837,23 +838,15 @@ impl GameLoop {
             agents,
             phase_pending,
         );
-        // Fire Always trigger alongside every phase trigger.
-        let always_pending = self.trigger_handler.run_trigger_with_game(
-            game,
-            TriggerType::Always,
-            RunParams {
-                phase: Some(phase),
-                player: Some(active),
-                ..Default::default()
-            },
-            false,
-        );
-        let _ = self.trigger_handler.process_pending_triggers(
-            &self.mana_pools,
-            game,
-            agents,
-            always_pending,
-        );
+        // `Mode$ Always | Static$ True` triggers (Ascend, Cipher's "where you
+        // have City's Blessing", etc.) resolve INLINE per CR 603.6c — Java
+        // fires them via `GameAction.checkStaticAbilities` after each
+        // continuous-effect recompute, and `TriggerHandler` skips the stack
+        // for `isStatic()` triggers. Mirror that here instead of pushing
+        // them onto the stack alongside Phase triggers, which was causing
+        // a duplicate trigger entry (Ocelot Pride's Ascend showing up next
+        // to its end-step `TrigToken` at T10 EOT in starter_boros_energy).
+        self.resolve_static_always_triggers(game, agents);
     }
 
     /// Fire DamageDone and LifeGained triggers from combat damage events.

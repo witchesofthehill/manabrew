@@ -36,15 +36,20 @@ impl GameLoop {
                 .stack
                 .iter()
                 .map(|entry| {
-                    entry
+                    let card_part = entry
                         .spell_ability
                         .source
-                        .map(|cid| game.card(cid).card_name.clone())
-                        .unwrap_or_else(|| "<effect>".to_string())
+                        .map(|cid| format!("{}@{}", game.card(cid).card_name, cid.index()))
+                        .unwrap_or_else(|| "<effect>".to_string());
+                    format!(
+                        "{}/api={:?}/trig={}",
+                        card_part, entry.spell_ability.api, entry.spell_ability.is_trigger
+                    )
                 })
                 .collect();
             eprintln!(
-                "[stack-trace] RESOLVE start phase={:?} active={:?} priority={:?} depth={} {:?}",
+                "[stack-trace] T{} RESOLVE start phase={:?} active={:?} priority={:?} depth={} {:?}",
+                game.turn.turn_number,
                 game.turn.phase,
                 game.active_player(),
                 game.turn.priority_player,
@@ -1037,7 +1042,7 @@ impl GameLoop {
     /// its override ability resolves inline outside the stack (CR 603.6c).
     /// Without this, sub-abilities that read the same player state in the same
     /// resolution chain see stale values.
-    fn resolve_static_always_triggers(
+    pub(crate) fn resolve_static_always_triggers(
         &mut self,
         game: &mut GameState,
         agents: &mut [Box<dyn PlayerAgent>],

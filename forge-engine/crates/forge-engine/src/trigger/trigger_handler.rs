@@ -125,6 +125,8 @@ pub struct TriggerPushLog {
     pub player_name: String,
     pub optional: bool,
     pub trigger_api: String,
+    pub cause_card_name: Option<String>,
+    pub affected_card_name: Option<String>,
 }
 
 type MatchedTrigger = (PendingTrigger, PlayerId, u64, u8, u32);
@@ -495,11 +497,21 @@ impl TriggerHandler {
                     self.run_trigger(TriggerType::AbilityTriggered, ability_triggered, false);
                 }
             }
+            let cause_card_name = pushed_entry
+                .spell_ability
+                .get_triggering_card(crate::ability::ability_key::AbilityKey::Card)
+                .and_then(|cid| game.cards.get(cid.index()).map(|c| c.card_name.clone()));
+            let affected_card_name = pushed_entry
+                .spell_ability
+                .get_triggering_card(crate::ability::ability_key::AbilityKey::Source)
+                .and_then(|cid| game.cards.get(cid.index()).map(|c| c.card_name.clone()));
             push_logs.push(TriggerPushLog {
                 source_name,
                 player_name,
                 optional: is_optional,
                 trigger_api,
+                cause_card_name,
+                affected_card_name,
             });
         }
         push_logs

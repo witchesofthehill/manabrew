@@ -387,13 +387,15 @@ export default function LimitedDeckBuilder({
     // Leftover pool cards (drafted but neither main nor sideboard) get
     // parked in the maybeboard so the saved draft deck is a lossless
     // snapshot of every pick — the player can re-open it later and
-    // shuffle cards around without re-running the draft. Synthesised
-    // basics from the "fix manabase" helper carry `setCode === ""` so
-    // we drop them here; they weren't drafted and surfacing them in
-    // the maybeboard would surprise the player.
+    // shuffle cards around without re-running the draft. Drop only
+    // synthesised basics from the "fix manabase" helper — those carry
+    // `setCode === ""` + a `basic-<name>-<idx>` cardNumber, so the
+    // combined check is exact and survives cube imports that ship
+    // cards with an empty setCode but real cardNumbers.
+    const isSynthBasic = (c: DraftCard) => c.setCode === "" && c.cardNumber.startsWith("basic-");
     const leftoverCards = unused
       .map((i) => fullPool[i])
-      .filter((c): c is DraftCard => Boolean(c) && c.setCode !== "");
+      .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
 
     // Decks persist to localStorage and feed the in-game card renderer,
     // so resolve real Scryfall data before serialising — engine DTOs

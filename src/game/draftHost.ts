@@ -212,14 +212,19 @@ export async function startDraftAsHost(args: {
 /**
  * Enqueue a pick through the host's serialisation chain so concurrent
  * peer picks (or peer + host picks landing in the same tick) apply
- * one at a time. Errors are swallowed into the chain so a failing
- * pick doesn't poison subsequent submissions.
+ * one at a time. Errors are logged + swallowed into the chain so a
+ * failing pick doesn't poison subsequent submissions; user-facing
+ * errors still land on the store via `applyPick`'s `setError`.
  */
 function enqueuePick(seat: number, cardName: string): Promise<void> {
   if (!active) return Promise.resolve();
   const next = active.pendingChain
-    .catch(() => {
-      /* prior pick already surfaced via `setError`; don't block the queue */
+    .catch((err) => {
+      // `applyPick` already piped the user-facing error to the store
+      // via `setError`. Log to console for synchronous throws that
+      // don't go through that path (e.g. unexpected `getPlatform()`
+      // failures) so they aren't completely silent.
+      console.error("[draftHost] pick chain swallowed error:", err);
     })
     .then(() => applyPick(seat, cardName));
   active.pendingChain = next;
@@ -369,7 +374,15 @@ async function finishDraft(): Promise<void> {
 
 /** Detach the relay listener and drop host state. Called automatically
  *  on `finishDraft`; the lobby calls it explicitly on host disconnect /
- *  leave-room so a future draft on the same client starts clean. */
+ *  leave-room so a future draft on the same client starts clean.
+ *
+ *  Known limitation: does not await `pendingChain`. If a peer pick is
+ *  mid-`applyPick` when teardown fires (e.g. host disconnect mid-draft),
+ *  the in-flight call's `if (!active) return;` guard catches it on the
+ *  next async boundary but any broadcast already in motion completes
+ *  with a half-shipped state. Peers observe a stale view until the
+ *  session is rebuilt. Live with it for v1 — the existing multiplayer
+ *  game flow has the same shape. */
 export function teardownHost(): void {
   if (!active) return;
   active.unsubscribe();

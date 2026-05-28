@@ -1,9 +1,20 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
+import { EngineChoiceModal } from "@/components/lobby/EngineChoiceModal";
 import Game from "./Game";
-import type { PlayerDeckInfo } from "@/types/server";
+import { getPlatform } from "@/platform";
+import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
+import type { Deck } from "@/types/manabrew";
+import type { EngineKind, PlayerDeckInfo } from "@/types/server";
+
+interface PendingAiStart {
+  playerDeck: Deck;
+  opponentDeck: Deck;
+  formatId?: string;
+  commanderName?: string;
+}
 
 interface MultiplayerLocationState {
   multiplayer: true;
@@ -20,6 +31,7 @@ export default function Play() {
   const { isGameActive, startGame, startMultiplayerGame, setMultiplayerState } = useGameStore();
   const multiplayerStarted = useRef(false);
   const gameWasActive = useRef(false);
+  const [pendingAiStart, setPendingAiStart] = useState<PendingAiStart | null>(null);
 
   const routeState = location.state as MultiplayerLocationState | null;
   const mpState = useMemo(
@@ -102,10 +114,31 @@ export default function Play() {
       <div className="relative h-full">
         <DeckVsSelector
           onStart={(playerDeck, opponentDeck, formatId, commanderName) => {
-            startGame(playerDeck, formatId, commanderName, opponentDeck);
+            if (getPlatform().type === "web") {
+              setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
+            } else {
+              startGame(playerDeck, formatId, commanderName, opponentDeck, "Wasm");
+            }
           }}
         />
       </div>
+      {pendingAiStart && (
+        <EngineChoiceModal
+          hostedAvailable={isHostedEngineAvailable()}
+          onChoose={(engine: EngineKind) => {
+            const pending = pendingAiStart;
+            setPendingAiStart(null);
+            startGame(
+              pending.playerDeck,
+              pending.formatId,
+              pending.commanderName,
+              pending.opponentDeck,
+              engine,
+            );
+          }}
+          onCancel={() => setPendingAiStart(null)}
+        />
+      )}
     </div>
   );
 }

@@ -18,3 +18,5 @@ uuid = { version = "1", features = ["v4"] }
 dashmap = "6"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+socket2 = "0.5"
+axum = "0.7"

@@ -28,14 +28,19 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM debian:bookworm-slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/forge-server /usr/local/bin/forge-server
 
 ENV FORGE_HOST=0.0.0.0
 ENV FORGE_PORT=9443
+ENV FORGE_HEALTH_PORT=9444
 
 EXPOSE 9443
+EXPOSE 9444
+
+HEALTHCHECK --interval=15s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -fsS http://localhost:9444/health || exit 1
 
 ENTRYPOINT ["forge-server"]

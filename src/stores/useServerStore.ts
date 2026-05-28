@@ -19,10 +19,18 @@ import type {
   ReadyChangedPayload,
   GameStartedPayload,
   ServerErrorPayload,
+  ReconnectingPayload,
+  DisconnectedPayload,
 } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
 export const DEFAULT_STARTING_LIFE = 20;
+
+export interface ReconnectState {
+  phase: "idle" | "reconnecting" | "failed";
+  attempt: number;
+  reason?: "network" | "server-shutdown";
+}
 
 interface ServerState {
   connected: boolean;
@@ -30,6 +38,7 @@ interface ServerState {
   error: string | null;
   playerId: string | null;
   username: string | null;
+  reconnect: ReconnectState;
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -62,6 +71,7 @@ export const useServerStore = create<ServerState>()(
       error: null,
       playerId: null,
       username: null,
+      reconnect: { phase: "idle", attempt: 0 },
       rooms: [],
       currentRoom: null,
       players: [],
@@ -186,7 +196,13 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
             if (payload.success) {
-              set({ connected: true, connecting: false, error: null, playerId: payload.player_id });
+              set({
+                connected: true,
+                connecting: false,
+                error: null,
+                playerId: payload.player_id,
+                reconnect: { phase: "idle", attempt: 0 },
+              });
               get().listRooms();
               get().listPlayers();
               // Subscribe to draft-v1 relay envelopes once authed so an
@@ -204,6 +220,19 @@ export const useServerStore = create<ServerState>()(
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
             }
+          }),
+        );
+
+        unsubscribers.push(
+          platform.events.on<ReconnectingPayload>("server:reconnecting", (payload) => {
+            set({
+              reconnect: {
+                phase: payload.phase,
+                attempt: payload.attempt,
+                reason: payload.reason,
+              },
+              connected: payload.phase === "idle" ? get().connected : false,
+            });
           }),
         );
 
@@ -291,26 +320,29 @@ export const useServerStore = create<ServerState>()(
         );
 
         unsubscribers.push(
-          platform.events.on("server:disconnected", () => {
-            // Tear down both halves of any in-flight multiplayer
-            // draft so the next session on this client starts clean.
-            // `teardownHost` is a no-op when the local user wasn't
-            // hosting.
-            detachDraftPeer();
-            teardownDraftHost();
-            set({
-              connected: false,
-              connecting: false,
-              error: "Disconnected from server",
-              playerId: null,
-              currentRoom: null,
-              gameStarted: false,
-              playerOrder: [],
-              playerDecks: [],
-              startingLife: DEFAULT_STARTING_LIFE,
-              rooms: [],
-              players: [],
-            });
+          platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
+            if (payload?.terminal) {
+              // Tear down both halves of any in-flight multiplayer
+              // draft so the next session on this client starts clean.
+              // `teardownHost` is a no-op when the local user wasn't
+              // hosting.
+              detachDraftPeer();
+              teardownDraftHost();
+              set({
+                connected: false,
+                connecting: false,
+                error: "Disconnected from server",
+                playerId: null,
+                currentRoom: null,
+                gameStarted: false,
+                playerOrder: [],
+                playerDecks: [],
+                startingLife: DEFAULT_STARTING_LIFE,
+                rooms: [],
+                players: [],
+                reconnect: { phase: "idle", attempt: 0 },
+              });
+            }
           }),
         );
 

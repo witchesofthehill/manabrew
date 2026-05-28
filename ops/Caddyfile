@@ -81,7 +81,12 @@ manabrew.app {
 }
 
 relay.manabrew.app {
-    reverse_proxy forge-server:9443
+    reverse_proxy forge-server:9443 {
+        health_uri /health
+        health_port 9444
+        health_interval 15s
+        health_timeout 3s
+    }
 }
 
 # Per-PR preview slot (compose.staging.yml). 502 when none is deployed.
@@ -90,5 +95,10 @@ staging.manabrew.app {
 }
 
 relay-staging.manabrew.app {
-    reverse_proxy forge-server-staging:9443
+    reverse_proxy forge-server-staging:9443 {
+        health_uri /health
+        health_port 9444
+        health_interval 15s
+        health_timeout 3s
+    }
 }

@@ -24,11 +24,14 @@ async fn main() {
     let addr: SocketAddr = format!("{}:{}", config.host, config.port)
         .parse()
         .expect("Invalid address");
+    let health_addr: SocketAddr = format!("{}:{}", config.host, config.health_port)
+        .parse()
+        .expect("Invalid health address");
 
     let state = Arc::new(state::ServerState::new(
         config.server_key.clone(),
         config.max_rooms,
     ));
 
-    server::run_server(state, addr).await;
+    server::run_server(state, addr, health_addr).await;
 }

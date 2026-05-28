@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -16,7 +17,8 @@ use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use forge_bot::{run_bot, AgentKind, BotConfig};
 use forge_engine_core::game::TypeRegistry;
 use forge_server::protocol::{
-    ClientMessage, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage, StateEnvelope,
+    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope,
 };
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -49,6 +51,7 @@ enum EngineSession {
     },
     Java {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<Value>>,
+        cancel: Arc<AtomicBool>,
     },
 }
 
@@ -74,6 +77,15 @@ struct SpawnBotDeckPayload {
 }
 
 type SharedEngineSession = Arc<Mutex<Option<EngineSession>>>;
+
+#[derive(Default)]
+struct DisconnectTracker {
+    grace: Option<Arc<AtomicBool>>,
+}
+
+type SharedDisconnectTracker = Arc<Mutex<DisconnectTracker>>;
+
+const DISCONNECT_GRACE_SECS: u64 = 30;
 type SharedBotState = Arc<Mutex<BotState>>;
 
 #[tokio::main]
@@ -115,15 +127,42 @@ async fn main() {
             .ok()
             .and_then(|value| value.parse().ok())
             .unwrap_or(2_000);
+        let games = std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY_GAMES")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(1);
         if let Err(error) =
-            java_backend::run_self_play(&cfg.seats, cfg.starting_life, cfg.seed, max_prompts)
+            java_backend::run_self_play(&cfg.seats, cfg.starting_life, cfg.seed, max_prompts, games)
         {
             error!(%error, "java-forge self-play failed");
             std::process::exit(1);
         }
         info!(
             players = cfg.seats.len(),
-            max_prompts, "java-forge self-play completed"
+            max_prompts, games, "java-forge self-play completed"
+        );
+        return;
+    }
+    if let Ok(value) = std::env::var("SELF_HOSTED_NODE_JAVA_CONCURRENT_GAMES") {
+        let cfg = SelfPlayConfig::from_env();
+        let max_prompts = std::env::var("SELF_HOSTED_NODE_JAVA_SELF_PLAY_PROMPTS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(2_000);
+        let concurrency = value.parse().unwrap_or(2);
+        if let Err(error) = java_backend::run_concurrent_self_play(
+            &cfg.seats,
+            cfg.starting_life,
+            cfg.seed,
+            max_prompts,
+            concurrency,
+        ) {
+            error!(%error, "java-forge concurrent self-play failed");
+            std::process::exit(1);
+        }
+        info!(
+            players = cfg.seats.len(),
+            concurrency, "java-forge concurrent self-play completed"
         );
         return;
     }
@@ -153,17 +192,65 @@ async fn main() {
     }
 }
 
-async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     load_type_registry()?;
+
+    let backend = EngineBackendKind::from_env();
+    if config.engine_enabled
+        && backend.is_supported()
+        && matches!(backend, EngineBackendKind::JavaForge)
+    {
+        info!("initializing shared java engine (one JVM for all hosted games)");
+        java_backend::init_engine()?;
+    }
+
+    if config.room_id.is_some() {
+        return host_one_room(config, None).await;
+    }
+
+    config.format = GameFormat::Any;
+    let slots = config.max_games.max(1);
+    if slots <= 1 {
+        return host_one_room(config, None).await;
+    }
+    let hosts: Vec<(Config, String)> = (0..slots)
+        .map(|slot| (config.clone(), (slot + 1).to_string()))
+        .collect();
+
+    info!(rooms = hosts.len(), "hosting multiple rooms on one node");
+    let mut handles = Vec::with_capacity(hosts.len());
+    for (cfg, label) in hosts {
+        handles.push(tokio::spawn(async move {
+            if let Err(error) = host_one_room(cfg, Some(label.clone())).await {
+                error!(%error, label, "room host exited");
+            }
+        }));
+    }
+    for handle in handles {
+        let _ = handle.await;
+    }
+    Ok(())
+}
+
+async fn host_one_room(
+    mut config: Config,
+    label: Option<String>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    if let Some(label) = &label {
+        config.username = format!("{}-{label}", config.username);
+        config.bot_username = format!("{}-{label}", config.bot_username);
+        config.room_name = format!("{} ({label})", config.room_name);
+    }
 
     info!(
         relay_url = %config.relay_url,
         username = %config.username,
+        room_name = %config.room_name,
         auto_start = config.auto_start,
         engine_enabled = config.engine_enabled,
         host_plays = config.host_plays,
         bot_enabled = config.bot_enabled,
-        "starting self-hosted node"
+        "starting room host"
     );
 
     let mut host =
@@ -178,11 +265,17 @@ async fn run(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sy
         info!(room_id, "joining configured room");
         room_id.clone()
     } else {
+        let engine = if matches!(EngineBackendKind::from_env(), EngineBackendKind::JavaForge) {
+            EngineKind::Java
+        } else {
+            EngineKind::Wasm
+        };
         host.send(&ClientMessage::CreateRoom {
             room_name: config.room_name.clone(),
             max_players: config.max_players,
             format: config.format.clone(),
             hosted: !config.host_plays,
+            engine,
         })
         .await?;
         info!(room_name = %config.room_name, "creating room");
@@ -332,6 +425,8 @@ async fn run_client_loop(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut heartbeat = time::interval(Duration::from_secs(30));
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+    let disconnect_tracker: SharedDisconnectTracker =
+        Arc::new(Mutex::new(DisconnectTracker::default()));
 
     loop {
         tokio::select! {
@@ -339,6 +434,7 @@ async fn run_client_loop(
                 client.broadcast_room_message(SELF_HOSTED_NODE_PROTOCOL, json!({
                     "type": "heartbeat",
                     "node": client.username,
+                    "capacity": config.max_games,
                 })).await?;
             }
             outbound = outbound_rx.recv() => {
@@ -360,6 +456,7 @@ async fn run_client_loop(
                     &engine_session,
                     &bot_state,
                     &outbound_tx,
+                    &disconnect_tracker,
                     message,
                 ).await?;
             }
@@ -374,11 +471,13 @@ async fn handle_server_message(
     engine_session: &SharedEngineSession,
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    disconnect_tracker: &SharedDisconnectTracker,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
         ServerMessage::RoomUpdate { room } => {
             log_room_update(&client.username, &room);
+            handle_disconnect_grace(&room, engine_session, outbound_tx, disconnect_tracker);
             maybe_auto_start_room(client, config, &room).await?;
         }
         ServerMessage::StateUpdate { from_player, state } => {
@@ -401,6 +500,7 @@ async fn handle_server_message(
         }
         ServerMessage::PlayerLeft { username, room_id } => {
             info!(username, room_id, observer = %client.username, "player left");
+            end_hosted_game_on_abandon(engine_session, outbound_tx);
         }
         ServerMessage::GameStarted {
             room_id,
@@ -473,7 +573,10 @@ async fn handle_state_update(
                 }
                 Some("startGame") => {
                     info!(observer = %client.username, "received startGame request");
-                    client.send(&ClientMessage::StartGame).await?;
+                    let format = payload
+                        .get("format")
+                        .and_then(|value| serde_json::from_value::<GameFormat>(value.clone()).ok());
+                    client.send(&ClientMessage::StartGame { format }).await?;
                 }
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
@@ -530,6 +633,9 @@ async fn maybe_auto_start_room(
     if !config.auto_start {
         return Ok(());
     }
+    if config.format == GameFormat::Any {
+        return Ok(());
+    }
     if room.host != config.username
         || room.status != RoomStatus::Lobby
         || room.players.len() < config.max_players as usize
@@ -546,9 +652,23 @@ async fn maybe_auto_start_room(
             players = room.players.len(),
             "all players ready; auto-starting hosted game"
         );
-        client.send(&ClientMessage::StartGame).await?;
+        client
+            .send(&ClientMessage::StartGame { format: None })
+            .await?;
     }
     Ok(())
+}
+
+const ENGINE_STACK_BYTES: usize = 64 * 1024 * 1024;
+
+fn spawn_engine_thread<F: FnOnce() + Send + 'static>(body: F) {
+    if let Err(error) = thread::Builder::new()
+        .name("hosted-engine".to_string())
+        .stack_size(ENGINE_STACK_BYTES)
+        .spawn(body)
+    {
+        error!(%error, "failed to spawn hosted engine thread");
+    }
 }
 
 fn maybe_start_hosted_engine(
@@ -612,6 +732,7 @@ fn maybe_start_hosted_engine(
         return;
     }
 
+    let session_handle = engine_session.clone();
     let num_players = player_order.len();
     if num_players < 2 {
         warn!(num_players, "not enough players to start hosted engine");
@@ -655,7 +776,9 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            thread::spawn(move || {
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
+            spawn_engine_thread(move || {
                 info!(
                     game_id,
                     backend = backend.label(),
@@ -673,9 +796,11 @@ fn maybe_start_hosted_engine(
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,
+                        game_over_tx,
                     )
                 }));
                 log_hosted_engine_result(result);
+                clear_engine_session(&session_handle);
             });
         }
         EngineBackendKind::JavaForge => {
@@ -690,13 +815,17 @@ fn maybe_start_hosted_engine(
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
+            let cancel = Arc::new(AtomicBool::new(false));
             *guard = Some(EngineSession::Java {
                 remote_response_txs,
+                cancel: cancel.clone(),
             });
             drop(guard);
 
             spawn_raw_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            thread::spawn(move || {
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
+            spawn_engine_thread(move || {
                 info!(
                     game_id,
                     backend = backend.label(),
@@ -714,11 +843,81 @@ fn maybe_start_hosted_engine(
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,
+                        game_over_tx,
+                        cancel,
                     )
                 }));
                 log_hosted_engine_result(result);
+                clear_engine_session(&session_handle);
             });
         }
+    }
+}
+
+fn clear_engine_session(engine_session: &SharedEngineSession) {
+    match engine_session.lock() {
+        Ok(mut guard) => *guard = None,
+        Err(error) => warn!(%error, "engine session lock poisoned on reset"),
+    }
+}
+
+fn handle_disconnect_grace(
+    room: &RoomInfo,
+    engine_session: &SharedEngineSession,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    tracker: &SharedDisconnectTracker,
+) {
+    let any_offline = room.players.iter().any(|player| !player.connected);
+    let game_active = engine_session
+        .lock()
+        .map(|guard| guard.is_some())
+        .unwrap_or(false);
+    let mut tracker = match tracker.lock() {
+        Ok(tracker) => tracker,
+        Err(error) => {
+            warn!(%error, "disconnect tracker lock poisoned");
+            return;
+        }
+    };
+    if any_offline && game_active {
+        if tracker.grace.is_none() {
+            let token = Arc::new(AtomicBool::new(true));
+            tracker.grace = Some(token.clone());
+            let engine_session = engine_session.clone();
+            let outbound_tx = outbound_tx.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(DISCONNECT_GRACE_SECS)).await;
+                if token.load(Ordering::Relaxed) {
+                    info!("player did not reconnect within grace; ending hosted game");
+                    end_hosted_game_on_abandon(&engine_session, &outbound_tx);
+                }
+            });
+        }
+    } else if let Some(token) = tracker.grace.take() {
+        token.store(false, Ordering::Relaxed);
+    }
+}
+
+fn end_hosted_game_on_abandon(
+    engine_session: &SharedEngineSession,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+) {
+    let cancelled = match engine_session.lock() {
+        Ok(guard) => match guard.as_ref() {
+            Some(EngineSession::Java { cancel, .. }) => {
+                cancel.store(true, Ordering::Relaxed);
+                true
+            }
+            _ => false,
+        },
+        Err(error) => {
+            warn!(%error, "engine session lock poisoned");
+            false
+        }
+    };
+    if cancelled {
+        info!("player abandoned an in-progress hosted game; ending it to free the room");
+        let _ = outbound_tx.send(ClientMessage::EndGame);
     }
 }
 
@@ -791,6 +990,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
         }
         EngineSession::Java {
             remote_response_txs,
+            ..
         } => {
             let Some(tx) = remote_response_txs.get(&player_index) else {
                 debug!(from_player, player_index, "no response channel for player");
@@ -845,6 +1045,36 @@ fn spawn_raw_prompt_forwarder(
                 .send(ClientMessage::BroadcastState { state })
                 .is_err()
             {
+                break;
+            }
+        }
+    });
+}
+
+fn spawn_game_over_forwarder(
+    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
+    game_over_rx: std_mpsc::Receiver<String>,
+) {
+    thread::spawn(move || {
+        while let Ok(game_id) = game_over_rx.recv() {
+            let Ok(state) = serde_json::to_value(StateEnvelope::RoomRelay {
+                protocol: SELF_HOSTED_NODE_PROTOCOL.to_string(),
+                version: 1,
+                message_id: Uuid::new_v4().to_string(),
+                from_player: None,
+                target_player: None,
+                room_id: None,
+                payload: json!({ "type": "gameOver", "gameId": game_id }),
+            }) else {
+                continue;
+            };
+            if outbound_tx
+                .send(ClientMessage::BroadcastState { state })
+                .is_err()
+            {
+                break;
+            }
+            if outbound_tx.send(ClientMessage::EndGame).is_err() {
                 break;
             }
         }

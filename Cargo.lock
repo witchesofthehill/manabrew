@@ -5959,7 +5959,6 @@ dependencies = [
  "forge-game-runtime",
  "forge-server",
  "futures-util",
- "j4rs",
  "memmap2",
  "rand 0.8.6",
  "serde",

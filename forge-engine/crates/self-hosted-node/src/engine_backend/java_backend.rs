@@ -3,14 +3,20 @@
 #[cfg(feature = "java-forge")]
 use std::collections::HashMap;
 use std::env;
+#[cfg(feature = "java-forge")]
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
+#[cfg(feature = "java-forge")]
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc as std_mpsc;
 #[cfg(feature = "java-forge")]
 use std::sync::mpsc::TryRecvError;
 use std::sync::Arc;
 #[cfg(feature = "java-forge")]
-use std::time::Duration;
+use std::sync::Mutex;
+#[cfg(feature = "java-forge")]
+use std::time::{Duration, Instant};
 
 use forge_agent_interface::deck_dto::{CardIdentity, Deck};
 
@@ -23,8 +29,6 @@ use forge_agent_interface::java_prompt_normalizer::{
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 #[cfg(feature = "java-forge")]
 use forge_bot::{BotAgent, SimpleAi};
-#[cfg(feature = "java-forge")]
-use j4rs::{Instance, InvocationArg, JavaOpt, Jvm, JvmBuilder};
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
 use serde_json::json;
@@ -36,14 +40,14 @@ use tracing::{debug, info};
 use crate::config::workspace_root;
 
 pub fn unsupported_message() -> &'static str {
-    "hosted java-forge backend is recognized, but hosted GameAPI dispatch is not wired to the j4rs Forge session yet"
+    "hosted java-forge backend is unavailable; rebuild self-hosted-node with --features java-forge"
 }
 
 #[cfg(feature = "java-forge")]
 pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
-    let bridge = J4rsBridge::new(&config)?;
+    let bridge = SubprocessBridge::spawn(&config)?;
     let mut session = JavaForgeSession::new(bridge);
     session.initialize(&assets_dir)?;
 
@@ -117,7 +121,7 @@ pub fn run_scenario(name: &str, max_prompts: usize) -> Result<(), String> {
     let scenario = JavaScenario::from_name(name)?;
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
-    let bridge = J4rsBridge::new(&config)?;
+    let bridge = SubprocessBridge::spawn(&config)?;
     let mut session = JavaForgeSession::new(bridge);
     session.initialize(&assets_dir)?;
 
@@ -160,7 +164,7 @@ pub fn run_self_play(
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
-    let bridge = J4rsBridge::new(&config)?;
+    let bridge = SubprocessBridge::spawn(&config)?;
     let mut session = JavaForgeSession::new(bridge);
     session.initialize(&assets_dir)?;
 
@@ -213,93 +217,49 @@ pub fn run_self_play(
 }
 
 #[cfg(feature = "java-forge")]
-enum EngineCommand {
-    Start(String, std_mpsc::Sender<Result<String, String>>),
-    Submit(String, String, std_mpsc::Sender<Result<String, String>>),
-    Prompt(
-        String,
-        usize,
-        std_mpsc::Sender<Result<Option<String>, String>>,
-    ),
-    GameOver(String, std_mpsc::Sender<Result<bool, String>>),
-    End(String, std_mpsc::Sender<Result<(), String>>),
-    Abort(String, std_mpsc::Sender<Result<(), String>>),
-    Shutdown,
-}
+type SharedBridge = Arc<Mutex<SubprocessBridge>>;
 
 #[cfg(feature = "java-forge")]
 pub struct JavaEngine {
-    tx: std_mpsc::Sender<EngineCommand>,
-    worker: Option<std::thread::JoinHandle<()>>,
+    inner: Arc<JavaEnginePool>,
+}
+
+#[cfg(feature = "java-forge")]
+struct JavaEnginePool {
+    config: JavaRuntimeConfig,
+    max_size: usize,
+    free: Mutex<Vec<SharedBridge>>,
+    in_use: Mutex<HashMap<String, SharedBridge>>,
 }
 
 #[cfg(feature = "java-forge")]
 #[derive(Clone)]
 pub struct JavaEngineHandle {
-    tx: std_mpsc::Sender<EngineCommand>,
+    pool: Arc<JavaEnginePool>,
 }
 
 #[cfg(feature = "java-forge")]
 impl JavaEngine {
-    pub fn start(config: &JavaRuntimeConfig) -> Result<Self, String> {
-        let assets_dir = config.assets_dir.to_string_lossy().to_string();
-        let config = config.clone();
-        let (tx, rx) = std_mpsc::channel::<EngineCommand>();
-        let (ready_tx, ready_rx) = std_mpsc::channel::<Result<(), String>>();
-        let worker = std::thread::Builder::new()
-            .name("java-engine".to_string())
-            .spawn(move || {
-                let mut bridge = match J4rsBridge::new(&config) {
-                    Ok(bridge) => bridge,
-                    Err(error) => {
-                        let _ = ready_tx.send(Err(error));
-                        return;
-                    }
-                };
-                if let Err(error) = bridge.initialize(&assets_dir) {
-                    let _ = ready_tx.send(Err(error));
-                    return;
-                }
-                let _ = ready_tx.send(Ok(()));
-                for command in rx {
-                    match command {
-                        EngineCommand::Start(request, reply) => {
-                            let _ = reply.send(bridge.start_game_json(&request));
-                        }
-                        EngineCommand::Submit(session_id, action, reply) => {
-                            let _ = reply.send(bridge.submit_action(&session_id, &action));
-                        }
-                        EngineCommand::Prompt(session_id, player_index, reply) => {
-                            let _ = reply.send(bridge.get_prompt(&session_id, player_index));
-                        }
-                        EngineCommand::GameOver(session_id, reply) => {
-                            let _ = reply.send(bridge.is_game_over(&session_id));
-                        }
-                        EngineCommand::End(session_id, reply) => {
-                            let _ = reply.send(bridge.end_game(&session_id));
-                        }
-                        EngineCommand::Abort(session_id, reply) => {
-                            let _ = reply.send(bridge.abort_game(&session_id));
-                        }
-                        EngineCommand::Shutdown => break,
-                    }
-                }
-            })
-            .map_err(|error| format!("failed to spawn java engine thread: {error}"))?;
-
-        match ready_rx.recv() {
-            Ok(Ok(())) => Ok(Self {
-                tx,
-                worker: Some(worker),
-            }),
-            Ok(Err(error)) => Err(error),
-            Err(_) => Err("java engine thread exited before initializing".to_string()),
+    pub fn start(config: &JavaRuntimeConfig, max_size: usize) -> Result<Self, String> {
+        let max_size = max_size.max(1);
+        let mut free = Vec::with_capacity(max_size);
+        for slot in 0..max_size {
+            info!(slot, max_size, "pre-warming java subprocess");
+            let bridge = SubprocessBridge::spawn(config)?;
+            free.push(Arc::new(Mutex::new(bridge)));
         }
+        let pool = Arc::new(JavaEnginePool {
+            config: config.clone(),
+            max_size,
+            free: Mutex::new(free),
+            in_use: Mutex::new(HashMap::new()),
+        });
+        Ok(Self { inner: pool })
     }
 
     pub fn handle(&self) -> JavaEngineHandle {
         JavaEngineHandle {
-            tx: self.tx.clone(),
+            pool: Arc::clone(&self.inner),
         }
     }
 }
@@ -307,39 +267,121 @@ impl JavaEngine {
 #[cfg(feature = "java-forge")]
 impl Drop for JavaEngine {
     fn drop(&mut self) {
-        let _ = self.tx.send(EngineCommand::Shutdown);
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+        if let Ok(mut free) = self.inner.free.lock() {
+            free.clear();
+        }
+        if let Ok(mut in_use) = self.inner.in_use.lock() {
+            in_use.clear();
+        }
+    }
+}
+
+#[cfg(feature = "java-forge")]
+impl JavaEnginePool {
+    fn acquire(&self) -> Result<SharedBridge, String> {
+        let deadline = Instant::now() + Duration::from_secs(60);
+        loop {
+            {
+                let mut free = self
+                    .free
+                    .lock()
+                    .map_err(|_| "java engine free queue poisoned".to_string())?;
+                if let Some(bridge) = free.pop() {
+                    return Ok(bridge);
+                }
+            }
+            if Instant::now() >= deadline {
+                return Err(format!(
+                    "java engine pool exhausted (max_size={}); no free subprocess after 60s",
+                    self.max_size
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    fn release(&self, bridge: SharedBridge) {
+        let healthy = {
+            let mut guard = match bridge.lock() {
+                Ok(guard) => guard,
+                Err(_) => return,
+            };
+            guard.is_alive() && guard.reset().is_ok()
+        };
+        if healthy {
+            if let Ok(mut free) = self.free.lock() {
+                free.push(bridge);
+                return;
+            }
+        }
+        drop(bridge);
+        match SubprocessBridge::spawn(&self.config) {
+            Ok(replacement) => {
+                if let Ok(mut free) = self.free.lock() {
+                    free.push(Arc::new(Mutex::new(replacement)));
+                }
+            }
+            Err(error) => {
+                warn!(%error, "failed to respawn java subprocess after release");
+            }
         }
     }
 }
 
 #[cfg(feature = "java-forge")]
 impl JavaEngineHandle {
-    fn call<T>(
-        &self,
-        make: impl FnOnce(std_mpsc::Sender<Result<T, String>>) -> EngineCommand,
-    ) -> Result<T, String> {
-        let (reply_tx, reply_rx) = std_mpsc::channel();
-        self.tx
-            .send(make(reply_tx))
-            .map_err(|_| "java engine thread is gone".to_string())?;
-        reply_rx
-            .recv()
-            .map_err(|_| "java engine dropped the reply".to_string())?
+    fn bridge_for(&self, session_id: &str) -> Result<SharedBridge, String> {
+        let in_use = self
+            .pool
+            .in_use
+            .lock()
+            .map_err(|_| "java engine in_use map poisoned".to_string())?;
+        in_use
+            .get(session_id)
+            .cloned()
+            .ok_or_else(|| format!("unknown java session: {session_id}"))
     }
 
     pub fn start_game(&self, request_json: &str) -> Result<String, String> {
-        let response = self.call(|reply| EngineCommand::Start(request_json.to_string(), reply))?;
-        let parsed: StartGameResponse =
-            serde_json::from_str(&response).map_err(|error| error.to_string())?;
-        Ok(parsed.session_id)
+        let bridge = self.pool.acquire()?;
+        let response = {
+            let mut guard = bridge
+                .lock()
+                .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+            guard.start_game_json(request_json)
+        };
+        let response = match response {
+            Ok(response) => response,
+            Err(error) => {
+                self.pool.release(bridge);
+                return Err(error);
+            }
+        };
+        let parsed: StartGameResponse = match serde_json::from_str(&response) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                self.pool.release(bridge);
+                return Err(format!("malformed startGame response: {error}"));
+            }
+        };
+        let session_id = parsed.session_id.clone();
+        {
+            let mut in_use = self
+                .pool
+                .in_use
+                .lock()
+                .map_err(|_| "java engine in_use map poisoned".to_string())?;
+            in_use.insert(session_id.clone(), bridge);
+        }
+        Ok(session_id)
     }
 
     pub fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
-        self.call(|reply| {
-            EngineCommand::Submit(session_id.to_string(), action_json.to_string(), reply)
-        })
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.submit_action(session_id, action_json)
     }
 
     pub fn get_prompt(
@@ -347,25 +389,68 @@ impl JavaEngineHandle {
         session_id: &str,
         player_index: usize,
     ) -> Result<Option<String>, String> {
-        self.call(|reply| EngineCommand::Prompt(session_id.to_string(), player_index, reply))
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.get_prompt(session_id, player_index)
     }
 
     pub fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
-        self.call(|reply| EngineCommand::GameOver(session_id.to_string(), reply))
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.is_game_over(session_id)
     }
 
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
-        self.call(|reply| EngineCommand::End(session_id.to_string(), reply))
+        let bridge = {
+            let mut in_use = self
+                .pool
+                .in_use
+                .lock()
+                .map_err(|_| "java engine in_use map poisoned".to_string())?;
+            in_use.remove(session_id)
+        };
+        let Some(bridge) = bridge else {
+            return Ok(());
+        };
+        let result = {
+            let mut guard = bridge
+                .lock()
+                .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+            guard.end_game(session_id)
+        };
+        self.pool.release(bridge);
+        result
     }
 
     pub fn abort_game(&self, session_id: &str) -> Result<(), String> {
-        self.call(|reply| EngineCommand::Abort(session_id.to_string(), reply))
+        let bridge = {
+            let mut in_use = self
+                .pool
+                .in_use
+                .lock()
+                .map_err(|_| "java engine in_use map poisoned".to_string())?;
+            in_use.remove(session_id)
+        };
+        let Some(bridge) = bridge else {
+            return Ok(());
+        };
+        let result = {
+            let mut guard = bridge
+                .lock()
+                .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+            guard.abort_game(session_id)
+        };
+        self.pool.release(bridge);
+        result
     }
 }
 
 #[cfg(feature = "java-forge")]
-static JAVA_ENGINE: std::sync::OnceLock<std::sync::Mutex<JavaEngineHandle>> =
-    std::sync::OnceLock::new();
+static JAVA_ENGINE: std::sync::OnceLock<JavaEngineHandle> = std::sync::OnceLock::new();
 
 #[cfg(feature = "java-forge")]
 pub fn init_engine() -> Result<(), String> {
@@ -373,11 +458,16 @@ pub fn init_engine() -> Result<(), String> {
         return Ok(());
     }
     let config = JavaRuntimeConfig::from_env();
-    let engine = JavaEngine::start(&config)?;
+    let max_size = env::var("SELF_HOSTED_NODE_MAX_GAMES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(1);
+    let engine = JavaEngine::start(&config, max_size)?;
     let handle = engine.handle();
     std::mem::forget(engine);
     JAVA_ENGINE
-        .set(std::sync::Mutex::new(handle))
+        .set(handle)
         .map_err(|_| "java engine already initialized".to_string())
 }
 
@@ -390,10 +480,8 @@ pub fn init_engine() -> Result<(), String> {
 fn engine_handle() -> Result<JavaEngineHandle, String> {
     JAVA_ENGINE
         .get()
-        .ok_or_else(|| "java engine is not initialized".to_string())?
-        .lock()
-        .map_err(|_| "java engine handle lock poisoned".to_string())
-        .map(|handle| handle.clone())
+        .ok_or_else(|| "java engine is not initialized".to_string())
+        .cloned()
 }
 
 #[cfg(feature = "java-forge")]
@@ -405,7 +493,7 @@ pub fn run_concurrent_self_play(
     concurrency: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
-    let engine = JavaEngine::start(&config)?;
+    let engine = JavaEngine::start(&config, concurrency.max(1))?;
     info!(
         concurrency,
         "java-engine started; launching concurrent games"
@@ -1322,76 +1410,160 @@ impl JavaBridge for UnavailableJavaBridge {
 }
 
 #[cfg(feature = "java-forge")]
-pub struct J4rsBridge {
-    jvm: Jvm,
-    adapter: Instance,
+#[derive(serde::Deserialize)]
+struct SubprocessReply {
+    ok: bool,
+    #[serde(default)]
+    result: String,
+    #[serde(default)]
+    error: Option<String>,
 }
 
 #[cfg(feature = "java-forge")]
-impl J4rsBridge {
-    pub fn new(config: &JavaRuntimeConfig) -> Result<Self, String> {
+pub struct SubprocessBridge {
+    child: Child,
+    stdin: BufWriter<ChildStdin>,
+    stdout: BufReader<ChildStdout>,
+    stderr_handle: Option<std::thread::JoinHandle<()>>,
+    initialized: bool,
+}
+
+#[cfg(feature = "java-forge")]
+impl SubprocessBridge {
+    pub fn spawn(config: &JavaRuntimeConfig) -> Result<Self, String> {
         config.validate()?;
-        if let Some(java_home) = &config.java_home {
-            env::set_var("JAVA_HOME", java_home);
+
+        let java_bin = resolve_java_bin(config);
+        let mut cmd = Command::new(&java_bin);
+        cmd.arg("-Dfile.encoding=UTF-8");
+        cmd.arg("-Dsun.stdout.encoding=UTF-8");
+        cmd.arg("-Dsun.stderr.encoding=UTF-8");
+        cmd.arg("-Djava.awt.headless=true");
+        cmd.arg("-jar").arg(&config.harness_jar);
+        cmd.arg("--interactive-server");
+        cmd.arg("--forge-home")
+            .arg(format!("{}/", config.assets_dir.display()));
+
+        let mut child = cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|err| format!("failed to spawn java subprocess: {err}"))?;
+
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| "java subprocess has no stdin".to_string())?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| "java subprocess has no stdout".to_string())?;
+        let stderr = child.stderr.take();
+
+        let stderr_handle = std::thread::spawn(move || {
+            if let Some(stderr) = stderr {
+                let reader = BufReader::new(stderr);
+                for line in reader.lines().map_while(Result::ok) {
+                    debug!(target: "self_hosted_node::java", "[java] {line}");
+                }
+            }
+        });
+
+        Ok(Self {
+            child,
+            stdin: BufWriter::new(stdin),
+            stdout: BufReader::new(stdout),
+            stderr_handle: Some(stderr_handle),
+            initialized: true,
+        })
+    }
+
+    fn call(&mut self, request_json: &str) -> Result<String, String> {
+        self.stdin
+            .write_all(request_json.as_bytes())
+            .map_err(|err| format!("failed to write subprocess stdin: {err}"))?;
+        self.stdin
+            .write_all(b"\n")
+            .map_err(|err| format!("failed to write subprocess newline: {err}"))?;
+        self.stdin
+            .flush()
+            .map_err(|err| format!("failed to flush subprocess stdin: {err}"))?;
+
+        let mut line = String::new();
+        loop {
+            line.clear();
+            let bytes = self
+                .stdout
+                .read_line(&mut line)
+                .map_err(|err| format!("failed to read subprocess stdout: {err}"))?;
+            if bytes == 0 {
+                return Err("java subprocess closed stdout (crashed?)".to_string());
+            }
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            match serde_json::from_str::<SubprocessReply>(trimmed) {
+                Ok(reply) if reply.ok => return Ok(reply.result),
+                Ok(reply) => {
+                    return Err(reply.error.unwrap_or_else(|| "unknown java error".into()));
+                }
+                Err(_) => {
+                    debug!(target: "self_hosted_node::java", line = trimmed, "non-protocol stdout line");
+                }
+            }
         }
-
-        let classpath_opt = format!("-Djava.class.path={}", explicit_classpath(config)?);
-        let jvm = JvmBuilder::new()
-            .with_no_implicit_classpath()
-            .with_default_classloader()
-            .java_opt(JavaOpt::new(&classpath_opt))
-            .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
-            .build()
-            .map_err(java_error)?;
-        let adapter = jvm
-            .create_instance(
-                "forge.harness.ManaBrewEngineAdapter",
-                InvocationArg::empty(),
-            )
-            .map_err(java_error)?;
-        Ok(Self { jvm, adapter })
     }
 
-    fn invoke_string(&self, method: &str, args: &[InvocationArg]) -> Result<String, String> {
-        let response = self
-            .jvm
-            .invoke(&self.adapter, method, args)
-            .map_err(java_error)?;
-        self.jvm.to_rust(response).map_err(java_error)
+    pub fn reset(&mut self) -> Result<(), String> {
+        self.call("{\"command\":\"reset\"}").map(|_| ())
     }
 
-    fn invoke_void(&self, method: &str, args: &[InvocationArg]) -> Result<(), String> {
-        self.jvm
-            .invoke(&self.adapter, method, args)
-            .map(|_| ())
-            .map_err(java_error)
+    pub fn is_alive(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(None))
+    }
+
+    pub fn shutdown(mut self) {
+        let _ = self.stdin.write_all(b"{\"command\":\"quit\"}\n");
+        let _ = self.stdin.flush();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match self.child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if Instant::now() >= deadline => {
+                    let _ = self.child.kill();
+                    let _ = self.child.wait();
+                    break;
+                }
+                Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+                Err(_) => break,
+            }
+        }
+        if let Some(handle) = self.stderr_handle.take() {
+            let _ = handle.join();
+        }
     }
 }
 
 #[cfg(feature = "java-forge")]
-impl JavaBridge for J4rsBridge {
-    fn initialize(&mut self, assets_dir: &str) -> Result<(), String> {
-        self.invoke_void(
-            "initialize",
-            &[InvocationArg::try_from(assets_dir.to_string()).map_err(java_error)?],
-        )
+impl JavaBridge for SubprocessBridge {
+    fn initialize(&mut self, _assets_dir: &str) -> Result<(), String> {
+        Ok(())
     }
 
     fn start_game_json(&mut self, request_json: &str) -> Result<String, String> {
-        self.invoke_string(
-            "startGameJson",
-            &[InvocationArg::try_from(request_json.to_string()).map_err(java_error)?],
-        )
+        let body = json!({ "command": "startGame", "payload": request_json });
+        self.call(&body.to_string())
     }
 
     fn submit_action(&mut self, session_id: &str, action_json: &str) -> Result<String, String> {
-        self.invoke_string(
-            "submitAction",
-            &[
-                InvocationArg::try_from(session_id.to_string()).map_err(java_error)?,
-                InvocationArg::try_from(action_json.to_string()).map_err(java_error)?,
-            ],
-        )
+        let body = json!({
+            "command": "submitAction",
+            "sessionId": session_id,
+            "payload": action_json,
+        });
+        self.call(&body.to_string())
     }
 
     fn get_prompt(
@@ -1399,94 +1571,62 @@ impl JavaBridge for J4rsBridge {
         session_id: &str,
         player_index: usize,
     ) -> Result<Option<String>, String> {
-        let prompt = self.invoke_string(
-            "getPrompt",
-            &[
-                InvocationArg::try_from(session_id.to_string()).map_err(java_error)?,
-                InvocationArg::try_from(player_index as i32)
-                    .map_err(java_error)?
-                    .into_primitive()
-                    .map_err(java_error)?,
-            ],
-        )?;
+        let body = json!({
+            "command": "getPrompt",
+            "sessionId": session_id,
+            "playerIndex": player_index,
+        });
+        let prompt = self.call(&body.to_string())?;
         Ok((!prompt.is_empty()).then_some(prompt))
     }
 
     fn get_snapshot(&mut self, session_id: &str) -> Result<String, String> {
-        self.invoke_string(
-            "getSnapshot",
-            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
-        )
+        let body = json!({ "command": "getSnapshot", "sessionId": session_id });
+        self.call(&body.to_string())
     }
 
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String> {
-        let value = self.invoke_string(
-            "getGameOver",
-            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
-        )?;
+        let body = json!({ "command": "getGameOver", "sessionId": session_id });
+        let value = self.call(&body.to_string())?;
         Ok(value.trim() == "true")
     }
 
     fn end_game(&mut self, session_id: &str) -> Result<(), String> {
-        self.invoke_void(
-            "endGameJson",
-            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
-        )
+        let body = json!({ "command": "endGame", "sessionId": session_id });
+        self.call(&body.to_string()).map(|_| ())
     }
 
     fn abort_game(&mut self, session_id: &str) -> Result<(), String> {
-        self.invoke_void(
-            "abortGameJson",
-            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
-        )
+        let body = json!({ "command": "abortGame", "sessionId": session_id });
+        self.call(&body.to_string()).map(|_| ())
     }
 }
 
 #[cfg(feature = "java-forge")]
-fn java_error(error: impl std::fmt::Display) -> String {
-    error.to_string()
-}
-
-#[cfg(feature = "java-forge")]
-fn explicit_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
-    let mut entries = config.classpath_entries();
-    entries.push(j4rs_runtime_jar()?);
-    Ok(entries
-        .iter()
-        .map(|entry| entry.to_string_lossy())
-        .collect::<Vec<_>>()
-        .join(classpath_separator()))
-}
-
-#[cfg(feature = "java-forge")]
-fn j4rs_runtime_jar() -> Result<PathBuf, String> {
-    let exe = env::current_exe().map_err(java_error)?;
-    let Some(exe_dir) = exe.parent() else {
-        return Err(format!(
-            "cannot resolve executable directory: {}",
-            exe.display()
-        ));
-    };
-    let jar = exe_dir
-        .join("jassets")
-        .join("j4rs-0.25.1-jar-with-dependencies.jar");
-    if jar.is_file() {
-        Ok(jar)
-    } else {
-        Err(format!(
-            "j4rs runtime jar does not exist: {}",
-            jar.display()
-        ))
+impl Drop for SubprocessBridge {
+    fn drop(&mut self) {
+        if self.initialized {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
     }
 }
 
 #[cfg(feature = "java-forge")]
-fn classpath_separator() -> &'static str {
-    if cfg!(windows) {
-        ";"
-    } else {
-        ":"
+fn resolve_java_bin(config: &JavaRuntimeConfig) -> String {
+    if let Some(home) = &config.java_home {
+        let bin = home.join("bin").join("java");
+        if bin.is_file() {
+            return bin.to_string_lossy().to_string();
+        }
     }
+    if let Ok(home) = env::var("JAVA_HOME") {
+        let bin = PathBuf::from(home).join("bin").join("java");
+        if bin.is_file() {
+            return bin.to_string_lossy().to_string();
+        }
+    }
+    "java".to_string()
 }
 
 #[derive(Debug, Clone, Serialize)]

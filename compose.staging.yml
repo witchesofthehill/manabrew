@@ -59,7 +59,8 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
-      # One game per JVM; scale concurrent games by running more node replicas.
+      # Pool size of Java subprocesses; each room runs in its own JVM.
+      # Staging box has 3GB RAM, so pool at 1 until we size up.
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:

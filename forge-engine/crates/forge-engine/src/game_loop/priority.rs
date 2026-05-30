@@ -205,6 +205,27 @@ impl GameLoop {
                 )
             };
 
+            // Concede preempts any pending snapshot restore so an in-flight
+            // rewind can't block exit. Drop the conceder's pending request
+            // so the next iteration doesn't replay it via apply_pending_snapshot_restore.
+            if action == PlayerAction::Concede {
+                let _ = agents[priority_player.index()].take_restore_request();
+                self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                    crate::player::concede(game, priority_player);
+                });
+                if game.alive_players().len() > 1 {
+                    agents[priority_player.index()].snapshot_state(game, &self.mana_pools);
+                    agents[priority_player.index()]
+                        .notify(crate::agent::notification::GameNotification::GameOver);
+                }
+                passed_count = 0;
+                priority_player = game.next_player(priority_player);
+                self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                    game.turn.priority_player = priority_player;
+                });
+                continue;
+            }
+
             if self.apply_pending_snapshot_restore(game, agents) {
                 passed_count = 0;
                 priority_player = game.turn.priority_player;

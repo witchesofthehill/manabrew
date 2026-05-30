@@ -4,9 +4,11 @@
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc as std_mpsc;
 #[cfg(feature = "java-forge")]
 use std::sync::mpsc::TryRecvError;
+use std::sync::Arc;
 #[cfg(feature = "java-forge")]
 use std::time::Duration;
 
@@ -154,6 +156,7 @@ pub fn run_self_play(
     starting_life: i32,
     seed: u64,
     max_prompts: usize,
+    games: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
@@ -170,25 +173,29 @@ pub fn run_self_play(
             seat.commander_name.clone(),
         ));
     }
-    let request = StartGameRequest::new(
-        "self-hosted-java-self-play".to_string(),
-        starting_life,
-        seed,
-        players,
-    );
-    let session_id = session.start_game(&request)?;
-    info!(
-        session_id,
-        players = seats.len(),
-        starting_life,
-        seed,
-        max_prompts,
-        "java-forge self-play session started"
-    );
 
-    let result = run_self_play_loop(&mut session, max_prompts);
-    let end_result = session.end_game();
-    result.and(end_result)
+    for game_index in 0..games.max(1) {
+        let request = StartGameRequest::new(
+            format!("self-hosted-java-self-play-{game_index}"),
+            starting_life,
+            seed.wrapping_add(game_index as u64),
+            players.clone(),
+        );
+        let session_id = session.start_game(&request)?;
+        info!(
+            session_id,
+            game_index,
+            games,
+            players = seats.len(),
+            starting_life,
+            max_prompts,
+            "java-forge self-play game started"
+        );
+        let result = run_self_play_loop(&mut session, max_prompts);
+        let end_result = session.end_game();
+        result.and(end_result)?;
+    }
+    Ok(())
 }
 
 #[cfg(not(feature = "java-forge"))]
@@ -197,11 +204,320 @@ pub fn run_self_play(
     _starting_life: i32,
     _seed: u64,
     _max_prompts: usize,
+    _games: usize,
 ) -> Result<(), String> {
     Err(
         "java-forge self-play requires building self-hosted-node with --features java-forge"
             .to_string(),
     )
+}
+
+#[cfg(feature = "java-forge")]
+enum EngineCommand {
+    Start(String, std_mpsc::Sender<Result<String, String>>),
+    Submit(String, String, std_mpsc::Sender<Result<String, String>>),
+    Prompt(
+        String,
+        usize,
+        std_mpsc::Sender<Result<Option<String>, String>>,
+    ),
+    GameOver(String, std_mpsc::Sender<Result<bool, String>>),
+    End(String, std_mpsc::Sender<Result<(), String>>),
+    Abort(String, std_mpsc::Sender<Result<(), String>>),
+    Shutdown,
+}
+
+#[cfg(feature = "java-forge")]
+pub struct JavaEngine {
+    tx: std_mpsc::Sender<EngineCommand>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+
+#[cfg(feature = "java-forge")]
+#[derive(Clone)]
+pub struct JavaEngineHandle {
+    tx: std_mpsc::Sender<EngineCommand>,
+}
+
+#[cfg(feature = "java-forge")]
+impl JavaEngine {
+    pub fn start(config: &JavaRuntimeConfig) -> Result<Self, String> {
+        let assets_dir = config.assets_dir.to_string_lossy().to_string();
+        let config = config.clone();
+        let (tx, rx) = std_mpsc::channel::<EngineCommand>();
+        let (ready_tx, ready_rx) = std_mpsc::channel::<Result<(), String>>();
+        let worker = std::thread::Builder::new()
+            .name("java-engine".to_string())
+            .spawn(move || {
+                let mut bridge = match J4rsBridge::new(&config) {
+                    Ok(bridge) => bridge,
+                    Err(error) => {
+                        let _ = ready_tx.send(Err(error));
+                        return;
+                    }
+                };
+                if let Err(error) = bridge.initialize(&assets_dir) {
+                    let _ = ready_tx.send(Err(error));
+                    return;
+                }
+                let _ = ready_tx.send(Ok(()));
+                for command in rx {
+                    match command {
+                        EngineCommand::Start(request, reply) => {
+                            let _ = reply.send(bridge.start_game_json(&request));
+                        }
+                        EngineCommand::Submit(session_id, action, reply) => {
+                            let _ = reply.send(bridge.submit_action(&session_id, &action));
+                        }
+                        EngineCommand::Prompt(session_id, player_index, reply) => {
+                            let _ = reply.send(bridge.get_prompt(&session_id, player_index));
+                        }
+                        EngineCommand::GameOver(session_id, reply) => {
+                            let _ = reply.send(bridge.is_game_over(&session_id));
+                        }
+                        EngineCommand::End(session_id, reply) => {
+                            let _ = reply.send(bridge.end_game(&session_id));
+                        }
+                        EngineCommand::Abort(session_id, reply) => {
+                            let _ = reply.send(bridge.abort_game(&session_id));
+                        }
+                        EngineCommand::Shutdown => break,
+                    }
+                }
+            })
+            .map_err(|error| format!("failed to spawn java engine thread: {error}"))?;
+
+        match ready_rx.recv() {
+            Ok(Ok(())) => Ok(Self {
+                tx,
+                worker: Some(worker),
+            }),
+            Ok(Err(error)) => Err(error),
+            Err(_) => Err("java engine thread exited before initializing".to_string()),
+        }
+    }
+
+    pub fn handle(&self) -> JavaEngineHandle {
+        JavaEngineHandle {
+            tx: self.tx.clone(),
+        }
+    }
+}
+
+#[cfg(feature = "java-forge")]
+impl Drop for JavaEngine {
+    fn drop(&mut self) {
+        let _ = self.tx.send(EngineCommand::Shutdown);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
+#[cfg(feature = "java-forge")]
+impl JavaEngineHandle {
+    fn call<T>(
+        &self,
+        make: impl FnOnce(std_mpsc::Sender<Result<T, String>>) -> EngineCommand,
+    ) -> Result<T, String> {
+        let (reply_tx, reply_rx) = std_mpsc::channel();
+        self.tx
+            .send(make(reply_tx))
+            .map_err(|_| "java engine thread is gone".to_string())?;
+        reply_rx
+            .recv()
+            .map_err(|_| "java engine dropped the reply".to_string())?
+    }
+
+    pub fn start_game(&self, request_json: &str) -> Result<String, String> {
+        let response = self.call(|reply| EngineCommand::Start(request_json.to_string(), reply))?;
+        let parsed: StartGameResponse =
+            serde_json::from_str(&response).map_err(|error| error.to_string())?;
+        Ok(parsed.session_id)
+    }
+
+    pub fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
+        self.call(|reply| {
+            EngineCommand::Submit(session_id.to_string(), action_json.to_string(), reply)
+        })
+    }
+
+    pub fn get_prompt(
+        &self,
+        session_id: &str,
+        player_index: usize,
+    ) -> Result<Option<String>, String> {
+        self.call(|reply| EngineCommand::Prompt(session_id.to_string(), player_index, reply))
+    }
+
+    pub fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
+        self.call(|reply| EngineCommand::GameOver(session_id.to_string(), reply))
+    }
+
+    pub fn end_game(&self, session_id: &str) -> Result<(), String> {
+        self.call(|reply| EngineCommand::End(session_id.to_string(), reply))
+    }
+
+    pub fn abort_game(&self, session_id: &str) -> Result<(), String> {
+        self.call(|reply| EngineCommand::Abort(session_id.to_string(), reply))
+    }
+}
+
+#[cfg(feature = "java-forge")]
+static JAVA_ENGINE: std::sync::OnceLock<std::sync::Mutex<JavaEngineHandle>> =
+    std::sync::OnceLock::new();
+
+#[cfg(feature = "java-forge")]
+pub fn init_engine() -> Result<(), String> {
+    if JAVA_ENGINE.get().is_some() {
+        return Ok(());
+    }
+    let config = JavaRuntimeConfig::from_env();
+    let engine = JavaEngine::start(&config)?;
+    let handle = engine.handle();
+    std::mem::forget(engine);
+    JAVA_ENGINE
+        .set(std::sync::Mutex::new(handle))
+        .map_err(|_| "java engine already initialized".to_string())
+}
+
+#[cfg(not(feature = "java-forge"))]
+pub fn init_engine() -> Result<(), String> {
+    Err("java engine requires building self-hosted-node with --features java-forge".to_string())
+}
+
+#[cfg(feature = "java-forge")]
+fn engine_handle() -> Result<JavaEngineHandle, String> {
+    JAVA_ENGINE
+        .get()
+        .ok_or_else(|| "java engine is not initialized".to_string())?
+        .lock()
+        .map_err(|_| "java engine handle lock poisoned".to_string())
+        .map(|handle| handle.clone())
+}
+
+#[cfg(feature = "java-forge")]
+pub fn run_concurrent_self_play(
+    seats: &[DeckSelection],
+    starting_life: i32,
+    seed: u64,
+    max_prompts: usize,
+    concurrency: usize,
+) -> Result<(), String> {
+    let config = JavaRuntimeConfig::from_env();
+    let engine = JavaEngine::start(&config)?;
+    info!(
+        concurrency,
+        "java-engine started; launching concurrent games"
+    );
+
+    let mut players = Vec::with_capacity(seats.len());
+    for (i, seat) in seats.iter().enumerate() {
+        let identities = deck_card_identities(&seat.deck);
+        players.push(PlayerConfig::new(
+            format!("Self-Play {}", i + 1),
+            &identities,
+            seat.commander_name.clone(),
+        ));
+    }
+
+    let mut joins = Vec::with_capacity(concurrency.max(1));
+    for game_index in 0..concurrency.max(1) {
+        let handle = engine.handle();
+        let request = StartGameRequest::new(
+            format!("self-hosted-java-concurrent-{game_index}"),
+            starting_life,
+            seed.wrapping_add(game_index as u64),
+            players.clone(),
+        );
+        joins.push(std::thread::spawn(move || -> Result<(), String> {
+            let request_json = request.to_json().map_err(|error| error.to_string())?;
+            let session_id = handle.start_game(&request_json)?;
+            info!(session_id, game_index, "concurrent java game started");
+            let result = drive_game_via_handle(&handle, &session_id, max_prompts);
+            let _ = handle.end_game(&session_id);
+            result
+        }));
+    }
+
+    let mut outcome = Ok(());
+    for join in joins {
+        match join.join() {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => outcome = Err(error),
+            Err(_) => outcome = Err("concurrent game thread panicked".to_string()),
+        }
+    }
+    outcome
+}
+
+#[cfg(not(feature = "java-forge"))]
+pub fn run_concurrent_self_play(
+    _seats: &[DeckSelection],
+    _starting_life: i32,
+    _seed: u64,
+    _max_prompts: usize,
+    _concurrency: usize,
+) -> Result<(), String> {
+    Err(
+        "java-forge concurrent self-play requires building self-hosted-node with --features java-forge"
+            .to_string(),
+    )
+}
+
+#[cfg(feature = "java-forge")]
+fn drive_game_via_handle(
+    handle: &JavaEngineHandle,
+    session_id: &str,
+    max_prompts: usize,
+) -> Result<(), String> {
+    let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
+    let mut last_prompt: Option<String> = None;
+    let mut acted = 0usize;
+    let mut seen_prompt = false;
+    let max_iterations = max_prompts.saturating_mul(200).max(2_000);
+
+    for _ in 0..max_iterations {
+        if let Some(prompt_json) = handle.get_prompt(session_id, 0)? {
+            seen_prompt = true;
+            if last_prompt.as_deref() == Some(prompt_json.as_str()) {
+                if handle.is_game_over(session_id)? {
+                    return Ok(());
+                }
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
+            }
+            let prompt: Value = serde_json::from_str(&prompt_json)
+                .map_err(|error| format!("failed to parse concurrent prompt: {error}"))?;
+            let player = prompt
+                .get("player")
+                .and_then(Value::as_u64)
+                .unwrap_or_default() as usize;
+            let normalized = normalize_java_prompt(prompt);
+            let agent_prompt: AgentPrompt = serde_json::from_value(normalized)
+                .map_err(|error| format!("concurrent prompt did not deserialize: {error}"))?;
+            if let Some(action) = bots.entry(player).or_default().decide(agent_prompt) {
+                let action_value = serde_json::to_value(&action).map_err(|e| e.to_string())?;
+                let java_action = translate_java_action_value(&action_value);
+                handle.submit_action(session_id, &java_action.to_string())?;
+                acted += 1;
+                if acted >= max_prompts {
+                    return Err(format!(
+                        "concurrent game {session_id} did not finish within {max_prompts} decisions"
+                    ));
+                }
+            }
+            last_prompt = Some(prompt_json);
+            continue;
+        }
+        if seen_prompt && handle.is_game_over(session_id)? {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    Err(format!(
+        "concurrent game {session_id} exceeded its iteration cap"
+    ))
 }
 
 #[derive(Debug, Clone)]
@@ -210,6 +526,7 @@ pub struct JavaRuntimeConfig {
     pub harness_jar: PathBuf,
     pub java_home: Option<PathBuf>,
     pub extra_classpath: Vec<PathBuf>,
+    pub espresso_host_jar: PathBuf,
 }
 
 impl JavaRuntimeConfig {
@@ -231,12 +548,22 @@ impl JavaRuntimeConfig {
                 .into_iter()
                 .chain(env_classpath("MANA_BREW_FORGE_EXTRA_CLASSPATH"))
                 .collect(),
+            espresso_host_jar: env_path("SELF_HOSTED_NODE_ESPRESSO_HOST_JAR").unwrap_or_else(
+                || {
+                    root.join(
+                        "forge-engine/crates/self-hosted-node/java-espresso-host/target/manabrew-espresso-host.jar",
+                    )
+                },
+            ),
         }
     }
 
     pub fn validate(&self) -> Result<(), String> {
         require_dir(&self.assets_dir, "Forge assets directory")?;
         require_file(&self.harness_jar, "Forge harness jar")?;
+        if cfg!(feature = "java-espresso") {
+            require_file(&self.espresso_host_jar, "Espresso host jar")?;
+        }
         if let Some(java_home) = &self.java_home {
             require_dir(java_home, "Java home")?;
         }
@@ -269,6 +596,8 @@ pub fn run_hosted_engine_game(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
+    game_over_tx: std_mpsc::Sender<String>,
+    cancel: Arc<AtomicBool>,
 ) {
     if let Err(error) = run_hosted_engine_game_inner(
         game_id,
@@ -279,6 +608,8 @@ pub fn run_hosted_engine_game(
         starting_life,
         remote_prompt_tx,
         remote_response_rxs,
+        game_over_tx,
+        cancel,
     ) {
         warn!(%error, "hosted java-forge engine exited with error");
     }
@@ -294,6 +625,8 @@ pub fn run_hosted_engine_game(
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
+    _game_over_tx: std_mpsc::Sender<String>,
+    _cancel: Arc<AtomicBool>,
 ) {
     warn!(
         message = unsupported_message(),
@@ -311,12 +644,10 @@ fn run_hosted_engine_game_inner(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, Value)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<Value>)>,
+    game_over_tx: std_mpsc::Sender<String>,
+    cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
-    let config = JavaRuntimeConfig::from_env();
-    let assets_dir = config.assets_dir.to_string_lossy().to_string();
-    let bridge = J4rsBridge::new(&config)?;
-    let mut session = JavaForgeSession::new(bridge);
-    session.initialize(&assets_dir)?;
+    let engine = engine_handle()?;
 
     let mut players = Vec::with_capacity(player_names.len());
     for (index, name) in player_names.iter().enumerate() {
@@ -328,14 +659,41 @@ fn run_hosted_engine_game_inner(
         ));
     }
     let request = StartGameRequest::new(game_id.clone(), starting_life, rand::random(), players);
-    let session_id = session.start_game(&request)?;
+    let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
     info!(game_id, session_id, "hosted java-forge session started");
+
+    struct SessionGuard {
+        engine: JavaEngineHandle,
+        session_id: String,
+        armed: std::cell::Cell<bool>,
+    }
+    impl Drop for SessionGuard {
+        fn drop(&mut self) {
+            if self.armed.get() {
+                if let Err(error) = self.engine.abort_game(&self.session_id) {
+                    warn!(session_id = %self.session_id, %error, "failed to abort java session; context may leak");
+                }
+            }
+        }
+    }
+    let guard = SessionGuard {
+        engine: engine.clone(),
+        session_id: session_id.clone(),
+        armed: std::cell::Cell::new(true),
+    };
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<Value>> =
         remote_response_rxs.into_iter().collect();
     let mut last_prompt_json: Option<String> = None;
 
     loop {
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            info!(
+                session_id,
+                "hosted java-forge session cancelled; player left the game"
+            );
+            return Ok(());
+        }
         for (player_index, rx) in &mut remote_response_rxs {
             loop {
                 match rx.try_recv() {
@@ -346,7 +704,7 @@ fn run_hosted_engine_game_inner(
                             )
                         })?;
                         debug!(player_index, %action_json, "submitting remote response to java");
-                        session.submit_action(&action_json)?;
+                        engine.submit_action(&session_id, &action_json)?;
                     }
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => {
@@ -357,7 +715,7 @@ fn run_hosted_engine_game_inner(
             }
         }
 
-        if let Some(prompt_json) = session.get_prompt(0)? {
+        if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
             if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
                 let prompt: Value = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
@@ -376,12 +734,12 @@ fn run_hosted_engine_game_inner(
                         prompt_kind, "forwarding java prompt to remote"
                     );
                     if Some(player_index) == local_player_index {
-                        session.submit_action(&auto_java_action(&prompt).to_string())?;
+                        engine
+                            .submit_action(&session_id, &auto_java_action(&prompt).to_string())?;
                     } else if remote_prompt_tx
                         .send((player_index, normalize_java_prompt(prompt)))
                         .is_err()
                     {
-                        session.end_game()?;
                         return Ok(());
                     }
                 }
@@ -389,16 +747,11 @@ fn run_hosted_engine_game_inner(
             }
         }
 
-        let snapshot_json = session.get_snapshot()?;
-        let snapshot: Value = serde_json::from_str(&snapshot_json)
-            .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
-        if snapshot
-            .get("game_over")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-        {
+        if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
-            session.end_game()?;
+            let _ = game_over_tx.send(game_id.clone());
+            engine.end_game(&session_id)?;
+            guard.armed.set(false);
             return Ok(());
         }
 
@@ -633,8 +986,6 @@ fn run_self_play_loop<B: JavaBridge>(
     session: &mut JavaForgeSession<B>,
     max_prompts: usize,
 ) -> Result<(), String> {
-    // Same prompt re-emitted this many times after the bot acted = our action
-    // didn't advance the game; dump it as a stall instead of spinning to the cap.
     const STALL_REPEATS: usize = 100;
 
     let mut bots: HashMap<usize, SimpleAi> = HashMap::new();
@@ -645,13 +996,9 @@ fn run_self_play_loop<B: JavaBridge>(
     let max_iterations = max_prompts.saturating_mul(200).max(2_000);
 
     for _ in 0..max_iterations {
-        // Only snapshot when parked on a prompt: the game thread mutates zones
-        // while it runs, so a snapshot during setup races into a CME.
         if let Some(prompt_json) = session.get_prompt(0)? {
             seen_prompt = true;
             if last_prompt_json.as_deref() == Some(prompt_json.as_str()) {
-                // Java re-issues a terminal prompt after the game ends — confirm
-                // it's not simply over before counting the repeat as a stall.
                 if session.is_game_over()? {
                     info!(acted, "java-forge self-play reached game over");
                     return Ok(());
@@ -882,6 +1229,7 @@ pub trait JavaBridge {
     fn get_snapshot(&mut self, session_id: &str) -> Result<String, String>;
     fn is_game_over(&mut self, session_id: &str) -> Result<bool, String>;
     fn end_game(&mut self, session_id: &str) -> Result<(), String>;
+    fn abort_game(&mut self, session_id: &str) -> Result<(), String>;
 }
 
 pub struct JavaForgeSession<B> {
@@ -978,6 +1326,10 @@ impl JavaBridge for UnavailableJavaBridge {
     fn end_game(&mut self, _session_id: &str) -> Result<(), String> {
         Err(unsupported_message().to_string())
     }
+
+    fn abort_game(&mut self, _session_id: &str) -> Result<(), String> {
+        Err(unsupported_message().to_string())
+    }
 }
 
 #[cfg(feature = "java-forge")]
@@ -993,23 +1345,62 @@ impl J4rsBridge {
         if let Some(java_home) = &config.java_home {
             env::set_var("JAVA_HOME", java_home);
         }
-        let classpath = explicit_classpath(config)?;
-        let classpath_opt = format!("-Djava.class.path={classpath}");
 
-        let jvm = JvmBuilder::new()
-            .with_no_implicit_classpath()
-            .with_default_classloader()
-            .java_opt(JavaOpt::new(&classpath_opt))
-            .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
-            .build()
-            .map_err(java_error)?;
-        let adapter = jvm
-            .create_instance(
-                "forge.harness.ManaBrewEngineAdapter",
-                InvocationArg::empty(),
-            )
-            .map_err(java_error)?;
-        Ok(Self { jvm, adapter })
+        #[cfg(feature = "java-espresso")]
+        {
+            let classpath_opt = format!("-Djava.class.path={}", espresso_host_classpath(config)?);
+            let guest_opt = format!("-Dmanabrew.guest.classpath={}", guest_classpath(config));
+            let pool_size = env::var("SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            let pool_opt = format!("-Dmanabrew.espresso.poolSize={pool_size}");
+            let reuse = env::var("SELF_HOSTED_NODE_ESPRESSO_REUSE")
+                .map(|value| {
+                    matches!(
+                        value.to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "on"
+                    )
+                })
+                .unwrap_or(false);
+            let reuse_opt = format!("-Dmanabrew.espresso.reuse={reuse}");
+            let jvm = JvmBuilder::new()
+                .with_no_implicit_classpath()
+                .with_default_classloader()
+                .java_opt(JavaOpt::new(&classpath_opt))
+                .java_opt(JavaOpt::new(&guest_opt))
+                .java_opt(JavaOpt::new(&pool_opt))
+                .java_opt(JavaOpt::new(&reuse_opt))
+                .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
+                .build()
+                .map_err(java_error)?;
+            let adapter = jvm
+                .create_instance(
+                    "manabrew.espresso.ManaBrewEspressoAdapter",
+                    InvocationArg::empty(),
+                )
+                .map_err(java_error)?;
+            return Ok(Self { jvm, adapter });
+        }
+
+        #[cfg(not(feature = "java-espresso"))]
+        {
+            let classpath_opt = format!("-Djava.class.path={}", explicit_classpath(config)?);
+            let jvm = JvmBuilder::new()
+                .with_no_implicit_classpath()
+                .with_default_classloader()
+                .java_opt(JavaOpt::new(&classpath_opt))
+                .java_opt(JavaOpt::new("-Djava.awt.headless=true"))
+                .build()
+                .map_err(java_error)?;
+            let adapter = jvm
+                .create_instance(
+                    "forge.harness.ManaBrewEngineAdapter",
+                    InvocationArg::empty(),
+                )
+                .map_err(java_error)?;
+            Ok(Self { jvm, adapter })
+        }
     }
 
     fn invoke_string(&self, method: &str, args: &[InvocationArg]) -> Result<String, String> {
@@ -1093,6 +1484,13 @@ impl JavaBridge for J4rsBridge {
             &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
         )
     }
+
+    fn abort_game(&mut self, session_id: &str) -> Result<(), String> {
+        self.invoke_void(
+            "abortGameJson",
+            &[InvocationArg::try_from(session_id.to_string()).map_err(java_error)?],
+        )
+    }
 }
 
 #[cfg(feature = "java-forge")]
@@ -1109,6 +1507,45 @@ fn explicit_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
         .map(|entry| entry.to_string_lossy())
         .collect::<Vec<_>>()
         .join(classpath_separator()))
+}
+
+#[cfg(feature = "java-espresso")]
+fn espresso_host_classpath(config: &JavaRuntimeConfig) -> Result<String, String> {
+    let mut entries = vec![config.espresso_host_jar.clone()];
+    let lib_dir = config
+        .espresso_host_jar
+        .parent()
+        .map(|parent| parent.join("lib"))
+        .ok_or_else(|| "espresso host jar has no parent directory".to_string())?;
+    let mut lib_jars = std::fs::read_dir(&lib_dir)
+        .map_err(|err| {
+            format!(
+                "cannot read espresso host lib dir {}: {err}",
+                lib_dir.display()
+            )
+        })?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "jar"))
+        .collect::<Vec<_>>();
+    lib_jars.sort();
+    entries.extend(lib_jars);
+    entries.push(j4rs_runtime_jar()?);
+    Ok(entries
+        .iter()
+        .map(|entry| entry.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(classpath_separator()))
+}
+
+#[cfg(feature = "java-espresso")]
+fn guest_classpath(config: &JavaRuntimeConfig) -> String {
+    config
+        .classpath_entries()
+        .iter()
+        .map(|entry| entry.to_string_lossy())
+        .collect::<Vec<_>>()
+        .join(classpath_separator())
 }
 
 #[cfg(feature = "java-forge")]
@@ -1142,7 +1579,7 @@ fn classpath_separator() -> &'static str {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartGameRequest {
     game_id: String,
@@ -1151,7 +1588,7 @@ pub struct StartGameRequest {
     players: Vec<PlayerConfig>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerConfig {
     name: String,
@@ -1159,7 +1596,7 @@ pub struct PlayerConfig {
     commander_name: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardIdentityForJava {
     name: String,

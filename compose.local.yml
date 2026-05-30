@@ -1,0 +1,39 @@
+# Local hosted-engine stack for testing "Play vs AI" off any shared box.
+# Self-contained (own bridge network) — relay + the Espresso Java node.
+#
+#   docker compose -f compose.local.yml up --build
+#
+# Then either:
+#   * headless E2E: cargo test -p self-hosted-node --test hosted_smoke -- --ignored --nocapture
+#   * browser playtest: VITE_RELAY_HOST=localhost VITE_RELAY_PORT=9443 \
+#       VITE_HOSTED_AI_ENABLED=true yarn dev  (then open the dev server)
+services:
+  forge-server:
+    build:
+      context: .
+      dockerfile: forge-engine/crates/forge-server/Dockerfile
+    environment:
+      FORGE_HOST: "0.0.0.0"
+      FORGE_PORT: "9443"
+      FORGE_MAX_ROOMS: "100"
+      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      RUST_LOG: "forge_server=info"
+    ports:
+      - "9443:9443"
+    restart: unless-stopped
+
+  self-hosted-node:
+    build:
+      context: .
+      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+    environment:
+      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-standard}"
+      SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-2}"
+      SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE: "${SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE:-2}"
+      RUST_LOG: "self_hosted_node=info"
+    depends_on:
+      - forge-server
+    restart: unless-stopped

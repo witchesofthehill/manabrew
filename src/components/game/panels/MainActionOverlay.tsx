@@ -34,6 +34,7 @@ export function MainActionOverlay({
   onConcede,
   resolveCardName,
   resolveCard,
+  isMyPriority,
   isMyTurn,
   step,
   payManaCostInfo,
@@ -130,12 +131,18 @@ export function MainActionOverlay({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
+              disabled={!isMyPriority}
               className="text-destructive focus:text-destructive"
               onSelect={(event) => {
                 event.preventDefault();
+                if (!isMyPriority) return;
                 onConcede();
               }}
-              onClick={onConcede}
+              onClick={() => {
+                if (!isMyPriority) return;
+                onConcede();
+              }}
+              title={isMyPriority ? undefined : "Wait until you have priority to concede"}
             >
               Concede
             </DropdownMenuItem>

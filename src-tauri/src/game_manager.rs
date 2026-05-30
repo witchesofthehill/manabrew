@@ -4,7 +4,7 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use serde_json::{json, Value};
+use serde_json::Value;
 use tauri::{AppHandle, Emitter};
 
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind};
@@ -15,12 +15,11 @@ use crate::multiplayer_controller::{
 use crate::preset_decks::CardIdentity;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::game_view_dto::GameViewDto;
 use forge_agent_interface::ids_codec::player_slot;
 use forge_agent_interface::java_prompt_normalizer::{
     normalize_java_prompt, translate_java_player_action,
 };
-use forge_agent_interface::prompt::{AgentPrompt, AgentPromptInner, PlayerAction};
+use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
@@ -185,55 +184,7 @@ impl GameManager {
         Ok(game_id)
     }
 
-    pub fn respond(&self, app: AppHandle, action: PlayerAction) -> Result<(), String> {
-        if matches!(action, PlayerAction::Concede) {
-            let game_view = {
-                let lp = self.latest_prompt.lock().map_err(|e| e.to_string())?;
-                let base_view = lp.as_ref().map(|p| p.inner.game_view().clone());
-                let mut view = base_view.unwrap_or_else(|| GameViewDto::empty(String::new()));
-                let opponent_id = view
-                    .players
-                    .iter()
-                    .find(|p| !p.is_human)
-                    .map(|p| p.id.clone());
-                view.game_over = true;
-                view.winner_id = opponent_id;
-                view
-            };
-            let prompt = AgentPrompt {
-                deciding_player_id: String::new(),
-                display_events: vec![],
-                source_card_id: None,
-                inner: AgentPromptInner::GameOver { game_view },
-            };
-            if let Ok(mut lp) = self.latest_prompt.lock() {
-                *lp = Some(prompt.clone());
-            }
-            if let Ok(mut lp) = self.latest_prompt_payload.lock() {
-                *lp = serde_json::to_value(&prompt).ok();
-            }
-            let _ = app.emit("game:prompt", &prompt);
-
-            let session_opt = {
-                let mut session_guard = self.session.lock().map_err(|e| e.to_string())?;
-                session_guard.take()
-            };
-            if let Some(session) = session_opt {
-                session.abort_signal.store(true, Ordering::Relaxed);
-                if let Some(tx) = session.response_tx.as_ref() {
-                    let _ = tx.send(PlayerAction::Pass { until_phase: None });
-                }
-                if let Some(tx) = session.java_response_tx.as_ref() {
-                    let _ = tx.send(json!({ "kind": "pass" }));
-                }
-                drop(session.response_tx);
-                drop(session.java_response_tx);
-                drop(session.remote_response_txs);
-            }
-            self.clear_latest_prompt();
-            return Ok(());
-        }
-
+    pub fn respond(&self, action: PlayerAction) -> Result<(), String> {
         let session_guard = self.session.lock().map_err(|e| e.to_string())?;
         if let Some(session) = session_guard.as_ref() {
             if let Some(tx) = session.response_tx.as_ref() {

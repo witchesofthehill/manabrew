@@ -1,6 +1,7 @@
 import type { Deck } from "@/types/manabrew";
 
 export type GameFormat =
+  | "Any"
   | "Standard"
   | "Pioneer"
   | "Modern"
@@ -34,7 +35,10 @@ export interface RoomInfo {
   max_players: number;
   format: GameFormat;
   status: "Lobby" | "InGame";
+  engine: EngineKind;
 }
+
+export type EngineKind = "Wasm" | "Java";
 
 export interface RoomPlayerInfo {
   username: string;
@@ -158,4 +162,17 @@ export interface TurnChangedPayload {
 export interface ServerErrorPayload {
   code: string;
   message: string;
+}
+
+export type ReconnectPhase = "idle" | "reconnecting" | "failed";
+
+export interface ReconnectingPayload {
+  phase: ReconnectPhase;
+  attempt: number;
+  delayMs?: number;
+  reason?: "network" | "server-shutdown";
+}
+
+export interface DisconnectedPayload {
+  terminal?: boolean;
 }

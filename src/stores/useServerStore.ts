@@ -17,8 +17,18 @@ import type {
   ReadyChangedPayload,
   GameStartedPayload,
   ServerErrorPayload,
+  ReconnectingPayload,
+  DisconnectedPayload,
 } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
+
+export const DEFAULT_STARTING_LIFE = 20;
+
+export interface ReconnectState {
+  phase: "idle" | "reconnecting" | "failed";
+  attempt: number;
+  reason?: "network" | "server-shutdown";
+}
 
 interface ServerState {
   connected: boolean;
@@ -26,6 +36,7 @@ interface ServerState {
   error: string | null;
   playerId: string | null;
   username: string | null;
+  reconnect: ReconnectState;
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -58,13 +69,14 @@ export const useServerStore = create<ServerState>()(
       error: null,
       playerId: null,
       username: null,
+      reconnect: { phase: "idle", attempt: 0 },
       rooms: [],
       currentRoom: null,
       players: [],
       gameStarted: false,
       playerOrder: [],
       playerDecks: [],
-      startingLife: 20,
+      startingLife: DEFAULT_STARTING_LIFE,
 
       async connect(host, port, username, password) {
         const platform = getPlatform();
@@ -92,7 +104,7 @@ export const useServerStore = create<ServerState>()(
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
-          startingLife: 20,
+          startingLife: DEFAULT_STARTING_LIFE,
           rooms: [],
           players: [],
         });
@@ -123,11 +135,29 @@ export const useServerStore = create<ServerState>()(
       },
 
       async leaveRoom() {
+        // Reset local room state synchronously so a hung relay socket can't
+        // strand the user in a "still-in-room" UI. The server-side teardown
+        // is attempted afterwards as best-effort; if it fails, the next
+        // listRooms() call will reconcile.
+        set({
+          currentRoom: null,
+          gameStarted: false,
+          playerOrder: [],
+          playerDecks: [],
+          startingLife: DEFAULT_STARTING_LIFE,
+        });
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.leaveRoom();
-        set({ currentRoom: null });
-        get().listRooms();
+        try {
+          await platform.server.leaveRoom();
+        } catch (e) {
+          console.warn("server.leaveRoom() failed:", e);
+        }
+        try {
+          await get().listRooms();
+        } catch (e) {
+          console.warn("listRooms() after leaveRoom failed:", e);
+        }
       },
 
       async setReady(ready) {
@@ -164,12 +194,31 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
             if (payload.success) {
-              set({ connected: true, connecting: false, error: null, playerId: payload.player_id });
+              set({
+                connected: true,
+                connecting: false,
+                error: null,
+                playerId: payload.player_id,
+                reconnect: { phase: "idle", attempt: 0 },
+              });
               get().listRooms();
               get().listPlayers();
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
             }
+          }),
+        );
+
+        unsubscribers.push(
+          platform.events.on<ReconnectingPayload>("server:reconnecting", (payload) => {
+            set({
+              reconnect: {
+                phase: payload.phase,
+                attempt: payload.attempt,
+                reason: payload.reason,
+              },
+              connected: payload.phase === "idle" ? get().connected : false,
+            });
           }),
         );
 
@@ -249,7 +298,7 @@ export const useServerStore = create<ServerState>()(
                 gameStarted: false,
                 playerOrder: [],
                 playerDecks: [],
-                startingLife: 20,
+                startingLife: DEFAULT_STARTING_LIFE,
               });
               void get().listRooms();
             }
@@ -257,20 +306,23 @@ export const useServerStore = create<ServerState>()(
         );
 
         unsubscribers.push(
-          platform.events.on("server:disconnected", () => {
-            set({
-              connected: false,
-              connecting: false,
-              error: "Disconnected from server",
-              playerId: null,
-              currentRoom: null,
-              gameStarted: false,
-              playerOrder: [],
-              playerDecks: [],
-              startingLife: 20,
-              rooms: [],
-              players: [],
-            });
+          platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
+            if (payload?.terminal) {
+              set({
+                connected: false,
+                connecting: false,
+                error: "Disconnected from server",
+                playerId: null,
+                currentRoom: null,
+                gameStarted: false,
+                playerOrder: [],
+                playerDecks: [],
+                startingLife: DEFAULT_STARTING_LIFE,
+                rooms: [],
+                players: [],
+                reconnect: { phase: "idle", attempt: 0 },
+              });
+            }
           }),
         );
 

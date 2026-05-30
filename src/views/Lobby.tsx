@@ -3,6 +3,7 @@ import { UserList } from "@/components/lobby/UserList";
 import { ChatComponent } from "@/components/lobby/ChatComponent";
 import { CreateRoomDialog } from "@/components/lobby/CreateRoomDialog";
 import { CreateGameDialog } from "@/components/lobby/CreateGameDialog";
+import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -320,6 +321,8 @@ export default function Lobby() {
       <div className="px-4 py-3 border-b shrink-0 flex items-center gap-3">
         <div className="flex-1" />
 
+        <ReconnectBanner />
+
         {/* Connection status */}
         <div
           className={cn(
@@ -427,13 +430,8 @@ export default function Lobby() {
       <div className="flex-1 min-h-0 flex">
         {/* Rooms — takes full width when panels are closed */}
         <div className="flex-1 min-w-0 h-full">
-          {/* Hosted rooms are observer/AI-host rooms (e.g. the self-hosted
-              node's) — not human PvP tables, so keep them out of the lobby
-              browse list. The hosted "Play vs AI" flow still discovers them
-              server-side. This is browse-only: a direct room ID could still be
-              joined until forge-server enforces it (#30). */}
           <TablesList
-            rooms={rooms.filter((room) => !room.hosted)}
+            rooms={rooms}
             currentRoom={currentRoom}
             username={username}
             onNewGame={() => setCreateRoomOpen(true)}

@@ -1095,9 +1095,16 @@ fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
                 .get("label")
                 .and_then(Value::as_str)
                 .unwrap_or("Unknown Card");
+            let owner_id = card
+                .get("owner")
+                .and_then(Value::as_u64)
+                .map(|owner| format!("player-{owner}"));
             Some(json!({
                 "id": id,
                 "name": name,
+                "setCode": card.get("setCode").and_then(Value::as_str).unwrap_or(""),
+                "cardNumber": card.get("cardNumber").and_then(Value::as_str).unwrap_or(""),
+                "ownerId": owner_id,
             }))
         })
         .collect()

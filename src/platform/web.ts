@@ -540,6 +540,8 @@ interface BotEntry {
   };
 }
 
+const RECONNECT_BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
+
 class WebServerApi implements IServerApi {
   private ws: WebSocket | null = null;
   private eventBus: WebEventBus;
@@ -548,6 +550,12 @@ class WebServerApi implements IServerApi {
   private bots = new Map<string, BotEntry>();
   private wasmReady: Promise<typeof import("@/wasm/forge_wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  private connectParams: ServerConnectParams | null = null;
+  private connectedAt: number | null = null;
+  private manualDisconnect = false;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempt = 0;
+  private serverShutdownPending: { reconnectInS: number } | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
@@ -571,6 +579,13 @@ class WebServerApi implements IServerApi {
 
   async connect(params: ServerConnectParams): Promise<void> {
     await this.disconnect();
+    this.manualDisconnect = false;
+    this.connectParams = params;
+    this.reconnectAttempt = 0;
+    return this.openSocket(params);
+  }
+
+  private openSocket(params: ServerConnectParams): Promise<void> {
     const url = buildServerUrl(params);
     this.relayUrl = url;
     this.serverPassword = params.password;
@@ -579,7 +594,7 @@ class WebServerApi implements IServerApi {
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
-        // Send authentication immediately
+        this.connectedAt = Date.now();
         this.send({
           type: "Authenticate",
           username: params.username,
@@ -593,9 +608,8 @@ class WebServerApi implements IServerApi {
         reject(new Error(`Failed to connect to ${url}`));
       };
 
-      this.ws.onclose = () => {
-        this.eventBus.emit("server:disconnected", {});
-        this.ws = null;
+      this.ws.onclose = (event) => {
+        this.handleSocketClose(event);
       };
 
       this.ws.onmessage = (e: MessageEvent) => {
@@ -608,6 +622,86 @@ class WebServerApi implements IServerApi {
         }
       };
     });
+  }
+
+  private handleSocketClose(event: CloseEvent): void {
+    const connectedForS =
+      this.connectedAt !== null ? Math.round((Date.now() - this.connectedAt) / 1000) : null;
+    const shutdownPending = this.serverShutdownPending;
+    console.warn("[relay-disconnect]", {
+      code: event.code,
+      reason: event.reason,
+      wasClean: event.wasClean,
+      connected_for_s: connectedForS,
+      visibility: typeof document !== "undefined" ? document.visibilityState : "unknown",
+      hadServerShutdown: shutdownPending !== null,
+    });
+
+    this.stopKeepalive();
+    this.ws = null;
+    this.connectedAt = null;
+
+    if (this.manualDisconnect) {
+      this.eventBus.emit("server:disconnected", { terminal: true });
+      return;
+    }
+
+    if (this.connectParams === null) {
+      this.eventBus.emit("server:disconnected", { terminal: true });
+      return;
+    }
+
+    if (shutdownPending !== null) {
+      this.serverShutdownPending = null;
+      this.scheduleReconnect("server-shutdown", shutdownPending.reconnectInS * 1000);
+      return;
+    }
+
+    this.scheduleReconnect("network", this.nextBackoffMs());
+  }
+
+  private nextBackoffMs(): number {
+    const idx = Math.min(this.reconnectAttempt, RECONNECT_BACKOFF_MS.length - 1);
+    const base = RECONNECT_BACKOFF_MS[idx]!;
+    const jitter = base * (Math.random() * 0.4 - 0.2);
+    return Math.max(250, Math.round(base + jitter));
+  }
+
+  private scheduleReconnect(reason: "network" | "server-shutdown", delayMs: number): void {
+    this.clearReconnectTimer();
+    this.reconnectAttempt += 1;
+    this.eventBus.emit("server:reconnecting", {
+      phase: "reconnecting" as const,
+      attempt: this.reconnectAttempt,
+      delayMs,
+      reason,
+    });
+    this.reconnectTimer = setTimeout(() => {
+      void this.tryReconnect();
+    }, delayMs);
+  }
+
+  private async tryReconnect(): Promise<void> {
+    this.reconnectTimer = null;
+    const params = this.connectParams;
+    if (params === null || this.manualDisconnect) {
+      return;
+    }
+    try {
+      await this.openSocket(params);
+      this.reconnectAttempt = 0;
+      this.eventBus.emit("server:reconnecting", { phase: "idle" as const, attempt: 0 });
+    } catch (e) {
+      console.warn("[relay-disconnect] reconnect attempt failed", e);
+      this.scheduleReconnect("network", this.nextBackoffMs());
+    }
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   private startKeepalive(): void {
@@ -625,6 +719,11 @@ class WebServerApi implements IServerApi {
   }
 
   async disconnect(): Promise<void> {
+    this.manualDisconnect = true;
+    this.clearReconnectTimer();
+    this.serverShutdownPending = null;
+    this.reconnectAttempt = 0;
+    this.connectParams = null;
     this.stopKeepalive();
     for (const username of [...this.bots.keys()]) {
       await this.removeAiBot(username);
@@ -633,6 +732,7 @@ class WebServerApi implements IServerApi {
     this.ws = null;
     this.relayUrl = null;
     this.serverPassword = null;
+    this.connectedAt = null;
     if (!ws || ws.readyState === WebSocket.CLOSED) return;
     // Wait for the actual close event before resolving. Resolving on
     // ws.close() alone races against the server still cleaning up the
@@ -774,6 +874,18 @@ class WebServerApi implements IServerApi {
 
   private handleServerMessage(msg: Record<string, unknown>): void {
     const type = msg.type as string;
+
+    if (type === "ServerShuttingDown") {
+      const reconnectInS = typeof msg.reconnect_in_s === "number" ? msg.reconnect_in_s : 5;
+      this.serverShutdownPending = { reconnectInS };
+      this.eventBus.emit("server:reconnecting", {
+        phase: "reconnecting" as const,
+        attempt: this.reconnectAttempt + 1,
+        delayMs: reconnectInS * 1000,
+        reason: "server-shutdown" as const,
+      });
+      return;
+    }
 
     if (type === "StateUpdate" && msg.state) {
       const envelope = msg.state as StateEnvelope;

@@ -14,11 +14,11 @@ import { getFormat } from "@/lib/formats";
 import { startHostedAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
-import { usePreferencesStore } from "./usePreferencesStore";
-import { useServerStore } from "./useServerStore";
+import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
 import type { AgentPrompt } from "./gameStore.types";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
+import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
@@ -93,17 +93,19 @@ async function initializeGame({
   formatId,
   set,
   commanderName,
+  engine,
 }: {
   deck: Deck;
   opponentDeck?: Deck;
   formatId?: string;
   commanderName?: string;
+  engine?: EngineKind;
   set: (partial: Partial<GameState>) => void;
   get: () => GameState;
 }): Promise<void> {
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
-  const startingLife = format?.deckRules.startingLife ?? 20;
+  const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
 
   // On web, "Play vs AI" can be routed through a self-hosted-node room when
   // the deployment enables it: the node runs the engine and spawns the bot,
@@ -111,7 +113,7 @@ async function initializeGame({
   if (
     getPlatform().type === "web" &&
     isHostedEngineAvailable() &&
-    usePreferencesStore.getState().preferHostedEngine &&
+    engine === "Java" &&
     opponentDeck
   ) {
     set({
@@ -209,9 +211,9 @@ export const useGameStore = create<GameState>()(
 
       setGameConfig: (config) => set({ gameConfig: config }),
 
-      startGame: async (deck, formatId, commanderName, opponentDeck) => {
+      startGame: async (deck, formatId, commanderName, opponentDeck, engine) => {
         try {
-          await initializeGame({ deck, opponentDeck, formatId, commanderName, set, get });
+          await initializeGame({ deck, opponentDeck, formatId, commanderName, engine, set, get });
         } catch (e) {
           set({ isGameActive: false, debugInfo: `Start failed: ${e}`, isPrefetchingCards: false });
           console.error("[store] Failed to start game:", e);
@@ -618,45 +620,67 @@ export const useGameStore = create<GameState>()(
         get().respond({ type: "rollSwapValueDecision", choice });
       },
 
-      concede: () => {
+      concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
           void get().endGame();
           return;
         }
-        get().respond({ type: "concede" });
+        // Await the concede send so the relay-bound message is on the wire
+        // before we tear down the runtime / leave the room — otherwise the
+        // host engine never sees the concede and waits out the 120 s
+        // recv_timeout while the other players sit idle.
+        try {
+          await get().respond({ type: "concede" });
+        } catch (e) {
+          console.warn("[store] concede respond failed:", e);
+        }
+        // Conceding always exits the room: the player explicitly opted out
+        // of the match, so don't strand them on the game-over screen
+        // waiting for the GameOver prompt to round-trip.
+        void get().endGame();
       },
 
       endGame: async () => {
+        const runtime = getSelectedGameRuntime();
+        const wasMultiplayer = get().isMultiplayer;
+        set({
+          isGameActive: false,
+          gameView: null,
+          currentPrompt: null,
+          gameLog: [],
+          snapshots: [],
+          deferredQueue: [],
+          isFlashing: false,
+          isWaitingForResponse: false,
+          isMultiplayer: false,
+          isHost: false,
+          myPlayerSlot: null,
+          gameDecks: {},
+        });
+        stopActiveManualRoomSync();
+        resetSelectedGameRuntime();
+        const withTimeout = <T>(p: Promise<T>, label: string) =>
+          Promise.race([
+            p,
+            new Promise<void>((resolve) =>
+              setTimeout(() => {
+                console.warn(`${label} timed out after 2s`);
+                resolve();
+              }, 2000),
+            ),
+          ]);
         try {
-          const runtime = getSelectedGameRuntime();
-          const wasMultiplayer = get().isMultiplayer;
-          await runtime.api.endGame();
-          if (wasMultiplayer) {
-            try {
-              await useServerStore.getState().leaveRoom();
-            } catch (e) {
-              console.debug("Failed to leave multiplayer room after game end:", e);
-            }
-          }
-          stopActiveManualRoomSync();
-          resetSelectedGameRuntime();
-          set({
-            isGameActive: false,
-            gameView: null,
-            currentPrompt: null,
-            gameLog: [],
-            snapshots: [],
-            deferredQueue: [],
-            isFlashing: false,
-            isWaitingForResponse: false,
-            isMultiplayer: false,
-            isHost: false,
-            myPlayerSlot: null,
-            gameDecks: {},
-          });
+          await withTimeout(runtime.api.endGame(), "runtime.endGame()");
         } catch (e) {
-          console.error("Failed to end game:", e);
+          console.warn("runtime.endGame() failed:", e);
+        }
+        if (wasMultiplayer) {
+          try {
+            await withTimeout(useServerStore.getState().leaveRoom(), "leaveRoom()");
+          } catch (e) {
+            console.warn("Failed to leave multiplayer room after game end:", e);
+          }
         }
       },
 

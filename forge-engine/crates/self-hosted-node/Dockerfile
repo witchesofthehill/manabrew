@@ -76,9 +76,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 # ── Stage 3: Runtime (Temurin 21 JRE) ────────────────────────────────
 # Each game runs in its own `java` subprocess spawned by the node, so the
-# runtime image needs the JRE on PATH. The node resolves Forge assets /
-# TypeLists / preset decks relative to its compile-time workspace root
-# (/build), so the image reproduces that layout.
+# runtime image needs the JRE on PATH. JRE 21 happily runs the harness's
+# release-17 bytecode (Forge's maven.compiler.release=17), so the build stage
+# can stay on Temurin 17 even though the runtime is 21.
+# The node resolves Forge assets / TypeLists / preset decks relative to its
+# compile-time workspace root (/build), so the image reproduces that layout.
 FROM eclipse-temurin:21-jre-jammy
 
 COPY --from=rust-builder /usr/local/bin/self-hosted-node /usr/local/bin/self-hosted-node

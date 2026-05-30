@@ -7,11 +7,11 @@ use std::env;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 #[cfg(feature = "java-forge")]
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc as std_mpsc;
 #[cfg(feature = "java-forge")]
-use std::sync::mpsc::TryRecvError;
+use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
 use std::sync::Arc;
 #[cfg(feature = "java-forge")]
 use std::sync::Mutex;
@@ -220,12 +220,7 @@ pub fn run_self_play(
 type SharedBridge = Arc<Mutex<SubprocessBridge>>;
 
 #[cfg(feature = "java-forge")]
-pub struct JavaEngine {
-    inner: Arc<JavaEnginePool>,
-}
-
-#[cfg(feature = "java-forge")]
-struct JavaEnginePool {
+pub struct JavaEnginePool {
     config: JavaRuntimeConfig,
     max_size: usize,
     free: Mutex<Vec<SharedBridge>>,
@@ -239,8 +234,8 @@ pub struct JavaEngineHandle {
 }
 
 #[cfg(feature = "java-forge")]
-impl JavaEngine {
-    pub fn start(config: &JavaRuntimeConfig, max_size: usize) -> Result<Self, String> {
+impl JavaEnginePool {
+    pub fn start(config: &JavaRuntimeConfig, max_size: usize) -> Result<Arc<Self>, String> {
         let max_size = max_size.max(1);
         let mut free = Vec::with_capacity(max_size);
         for slot in 0..max_size {
@@ -248,30 +243,31 @@ impl JavaEngine {
             let bridge = SubprocessBridge::spawn(config)?;
             free.push(Arc::new(Mutex::new(bridge)));
         }
-        let pool = Arc::new(JavaEnginePool {
+        Ok(Arc::new(Self {
             config: config.clone(),
             max_size,
             free: Mutex::new(free),
             in_use: Mutex::new(HashMap::new()),
-        });
-        Ok(Self { inner: pool })
+        }))
     }
 
-    pub fn handle(&self) -> JavaEngineHandle {
+    pub fn handle(self: &Arc<Self>) -> JavaEngineHandle {
         JavaEngineHandle {
-            pool: Arc::clone(&self.inner),
+            pool: Arc::clone(self),
         }
     }
 }
 
 #[cfg(feature = "java-forge")]
-impl Drop for JavaEngine {
+impl Drop for JavaEnginePool {
     fn drop(&mut self) {
-        if let Ok(mut free) = self.inner.free.lock() {
-            free.clear();
-        }
-        if let Ok(mut in_use) = self.inner.in_use.lock() {
-            in_use.clear();
+        let free = self.free.get_mut().map(std::mem::take).unwrap_or_default();
+        for bridge in free {
+            if let Ok(mutex) = Arc::try_unwrap(bridge) {
+                if let Ok(inner) = mutex.into_inner() {
+                    inner.shutdown();
+                }
+            }
         }
     }
 }
@@ -365,13 +361,20 @@ impl JavaEngineHandle {
             }
         };
         let session_id = parsed.session_id.clone();
-        {
+        let displaced = {
             let mut in_use = self
                 .pool
                 .in_use
                 .lock()
                 .map_err(|_| "java engine in_use map poisoned".to_string())?;
-            in_use.insert(session_id.clone(), bridge);
+            in_use.insert(session_id.clone(), bridge)
+        };
+        if let Some(displaced) = displaced {
+            warn!(
+                session_id,
+                "session_id collision; releasing displaced java subprocess"
+            );
+            self.pool.release(displaced);
         }
         Ok(session_id)
     }
@@ -450,7 +453,7 @@ impl JavaEngineHandle {
 }
 
 #[cfg(feature = "java-forge")]
-static JAVA_ENGINE: std::sync::OnceLock<JavaEngineHandle> = std::sync::OnceLock::new();
+static JAVA_ENGINE: std::sync::OnceLock<Arc<JavaEnginePool>> = std::sync::OnceLock::new();
 
 #[cfg(feature = "java-forge")]
 pub fn init_engine() -> Result<(), String> {
@@ -458,16 +461,17 @@ pub fn init_engine() -> Result<(), String> {
         return Ok(());
     }
     let config = JavaRuntimeConfig::from_env();
+    // SELF_HOSTED_NODE_MAX_GAMES doubles as the subprocess pool size: each room
+    // checks out one java subprocess for its lifetime, so the pool ceiling is
+    // also the concurrent-room ceiling for this node.
     let max_size = env::var("SELF_HOSTED_NODE_MAX_GAMES")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|n| *n >= 1)
         .unwrap_or(1);
-    let engine = JavaEngine::start(&config, max_size)?;
-    let handle = engine.handle();
-    std::mem::forget(engine);
+    let pool = JavaEnginePool::start(&config, max_size)?;
     JAVA_ENGINE
-        .set(handle)
+        .set(pool)
         .map_err(|_| "java engine already initialized".to_string())
 }
 
@@ -480,8 +484,8 @@ pub fn init_engine() -> Result<(), String> {
 fn engine_handle() -> Result<JavaEngineHandle, String> {
     JAVA_ENGINE
         .get()
+        .map(JavaEnginePool::handle)
         .ok_or_else(|| "java engine is not initialized".to_string())
-        .cloned()
 }
 
 #[cfg(feature = "java-forge")]
@@ -493,7 +497,7 @@ pub fn run_concurrent_self_play(
     concurrency: usize,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
-    let engine = JavaEngine::start(&config, concurrency.max(1))?;
+    let pool = JavaEnginePool::start(&config, concurrency.max(1))?;
     info!(
         concurrency,
         "java-engine started; launching concurrent games"
@@ -511,7 +515,7 @@ pub fn run_concurrent_self_play(
 
     let mut joins = Vec::with_capacity(concurrency.max(1));
     for game_index in 0..concurrency.max(1) {
-        let handle = engine.handle();
+        let handle = pool.handle();
         let request = StartGameRequest::new(
             format!("self-hosted-java-concurrent-{game_index}"),
             starting_life,
@@ -1420,12 +1424,17 @@ struct SubprocessReply {
 }
 
 #[cfg(feature = "java-forge")]
+const CALL_TIMEOUT: Duration = Duration::from_secs(60);
+#[cfg(feature = "java-forge")]
+const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
+
+#[cfg(feature = "java-forge")]
 pub struct SubprocessBridge {
     child: Child,
     stdin: BufWriter<ChildStdin>,
-    stdout: BufReader<ChildStdout>,
+    stdout_rx: std_mpsc::Receiver<String>,
+    stdout_handle: Option<std::thread::JoinHandle<()>>,
     stderr_handle: Option<std::thread::JoinHandle<()>>,
-    initialized: bool,
 }
 
 #[cfg(feature = "java-forge")]
@@ -1461,6 +1470,16 @@ impl SubprocessBridge {
             .ok_or_else(|| "java subprocess has no stdout".to_string())?;
         let stderr = child.stderr.take();
 
+        let (stdout_tx, stdout_rx) = std_mpsc::channel::<String>();
+        let stdout_handle = std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines().map_while(Result::ok) {
+                if stdout_tx.send(line).is_err() {
+                    break;
+                }
+            }
+        });
+
         let stderr_handle = std::thread::spawn(move || {
             if let Some(stderr) = stderr {
                 let reader = BufReader::new(stderr);
@@ -1473,9 +1492,9 @@ impl SubprocessBridge {
         Ok(Self {
             child,
             stdin: BufWriter::new(stdin),
-            stdout: BufReader::new(stdout),
+            stdout_rx,
+            stdout_handle: Some(stdout_handle),
             stderr_handle: Some(stderr_handle),
-            initialized: true,
         })
     }
 
@@ -1490,27 +1509,39 @@ impl SubprocessBridge {
             .flush()
             .map_err(|err| format!("failed to flush subprocess stdin: {err}"))?;
 
-        let mut line = String::new();
+        let deadline = Instant::now() + CALL_TIMEOUT;
         loop {
-            line.clear();
-            let bytes = self
-                .stdout
-                .read_line(&mut line)
-                .map_err(|err| format!("failed to read subprocess stdout: {err}"))?;
-            if bytes == 0 {
-                return Err("java subprocess closed stdout (crashed?)".to_string());
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(format!(
+                    "java subprocess timed out after {}s",
+                    CALL_TIMEOUT.as_secs()
+                ));
             }
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            match serde_json::from_str::<SubprocessReply>(trimmed) {
-                Ok(reply) if reply.ok => return Ok(reply.result),
-                Ok(reply) => {
-                    return Err(reply.error.unwrap_or_else(|| "unknown java error".into()));
+            match self.stdout_rx.recv_timeout(remaining) {
+                Ok(line) => {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match serde_json::from_str::<SubprocessReply>(trimmed) {
+                        Ok(reply) if reply.ok => return Ok(reply.result),
+                        Ok(reply) => {
+                            return Err(reply.error.unwrap_or_else(|| "unknown java error".into()));
+                        }
+                        Err(_) => {
+                            debug!(target: "self_hosted_node::java", line = trimmed, "non-protocol stdout line");
+                        }
+                    }
                 }
-                Err(_) => {
-                    debug!(target: "self_hosted_node::java", line = trimmed, "non-protocol stdout line");
+                Err(RecvTimeoutError::Timeout) => {
+                    return Err(format!(
+                        "java subprocess timed out after {}s",
+                        CALL_TIMEOUT.as_secs()
+                    ));
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err("java subprocess closed stdout (crashed?)".to_string());
                 }
             }
         }
@@ -1527,7 +1558,7 @@ impl SubprocessBridge {
     pub fn shutdown(mut self) {
         let _ = self.stdin.write_all(b"{\"command\":\"quit\"}\n");
         let _ = self.stdin.flush();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let deadline = Instant::now() + SHUTDOWN_GRACE;
         loop {
             match self.child.try_wait() {
                 Ok(Some(_)) => break,
@@ -1539,6 +1570,9 @@ impl SubprocessBridge {
                 Ok(None) => std::thread::sleep(Duration::from_millis(100)),
                 Err(_) => break,
             }
+        }
+        if let Some(handle) = self.stdout_handle.take() {
+            let _ = handle.join();
         }
         if let Some(handle) = self.stderr_handle.take() {
             let _ = handle.join();
@@ -1605,9 +1639,13 @@ impl JavaBridge for SubprocessBridge {
 #[cfg(feature = "java-forge")]
 impl Drop for SubprocessBridge {
     fn drop(&mut self) {
-        if self.initialized {
-            let _ = self.child.kill();
-            let _ = self.child.wait();
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        if let Some(handle) = self.stdout_handle.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.stderr_handle.take() {
+            let _ = handle.join();
         }
     }
 }

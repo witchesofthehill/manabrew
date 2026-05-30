@@ -7,10 +7,14 @@
 use forge_foundation::ZoneType;
 
 use super::EffectContext;
+use crate::ability::ability_factory::build_spell_ability;
 use crate::event::RunParams;
+use crate::game::GameState;
 use crate::ids::{CardId, PlayerId};
-use crate::player::player_factory_util::{add_static_ability, add_trigger_ability};
+use crate::player::player_factory_util::add_static_ability;
 use crate::spellability::SpellAbility;
+use crate::trigger::parse_trigger;
+use crate::trigger::TriggerHandler;
 use crate::trigger::TriggerType;
 
 /// Controller-change / leaves-play callback for the Ring-bearer.
@@ -51,8 +55,8 @@ fn ring_tempts(ctx: &mut EffectContext, _sa: &SpellAbility, player: PlayerId) {
     let current_level = ctx.game.player(player).ring_level;
     if current_level < 4 {
         ctx.game.player_ring_tempt(player);
-        set_ring_level(ctx, player, current_level + 1);
     }
+    sync_ring_effect(ctx.game, ctx.trigger_handler, player);
 
     let creatures: Vec<CardId> = ctx
         .game
@@ -94,15 +98,37 @@ fn ring_tempts(ctx: &mut EffectContext, _sa: &SpellAbility, player: PlayerId) {
     );
 }
 
-fn set_ring_level(ctx: &mut EffectContext, player: PlayerId, level: i32) {
-    let Some(effect_id) = ctx.game.player(player).ring_effect_card else {
+pub fn sync_ring_effect(
+    game: &mut GameState,
+    trigger_handler: &mut TriggerHandler,
+    player: PlayerId,
+) {
+    if game.player(player).ring_level <= 0 {
+        return;
+    }
+    crate::player::create_the_ring(game, player);
+    let level = game.player(player).ring_level.min(4);
+    for ring_level in 1..=level {
+        set_ring_level(game, trigger_handler, player, ring_level);
+    }
+}
+
+fn set_ring_level(
+    game: &mut GameState,
+    trigger_handler: &mut TriggerHandler,
+    player: PlayerId,
+    level: i32,
+) {
+    let Some(effect_id) = game.player(player).ring_effect_card else {
         return;
     };
 
-    let changed = {
-        let effect = ctx.game.card_mut(effect_id);
-        match level {
-            1 => {
+    let changed = match level {
+        1 => {
+            let effect = game.card_mut(effect_id);
+            if effect.static_abilities.len() >= 2 {
+                false
+            } else {
                 add_static_ability(
                     effect,
                     "Mode$ Continuous | EffectZone$ Command | Affected$ Card.YouCtrl+IsRingbearer | AddType$ Legendary | Description$ Your Ring-bearer is legendary.",
@@ -111,27 +137,48 @@ fn set_ring_level(ctx: &mut EffectContext, player: PlayerId, level: i32) {
                     "Mode$ CantBlockBy | EffectZone$ Command | ValidAttacker$ Card.YouCtrl+IsRingbearer | ValidBlockerRelative$ Creature.powerGTX | Description$ Your Ring-bearer can't be blocked by creatures with greater power.",
                 )
             }
-            2 => add_trigger_ability(
-                effect,
-                "Mode$ Attacks | ValidCard$ Card.YouCtrl+IsRingbearer | Execute$ RingAttackDraw | TriggerDescription$ Whenever your Ring-bearer attacks, draw a card, then discard a card. | TriggerZones$ Command",
-                [
-                    (
-                        "RingAttackDraw",
-                        "DB$ Draw | Defined$ You | NumCards$ 1 | SubAbility$ RingAttackDiscard",
-                    ),
-                    (
-                        "RingAttackDiscard",
-                        "DB$ Discard | Defined$ You | NumCards$ 1 | Mode$ TgtChoose",
-                    ),
-                ],
-            ),
-            _ => false,
         }
+        2 => add_ring_attack_trigger(game, effect_id, player),
+        _ => false,
     };
 
     if changed {
-        ctx.trigger_handler.unregister_active_triggers(effect_id);
-        ctx.trigger_handler
-            .register_active_trigger(ctx.game, effect_id);
+        trigger_handler.unregister_active_triggers(effect_id);
+        trigger_handler.register_active_trigger(game, effect_id);
     }
+}
+
+fn add_ring_attack_trigger(game: &mut GameState, effect_id: CardId, player: PlayerId) -> bool {
+    if game.card(effect_id).triggers.iter().any(|trigger| {
+        trigger
+            .description
+            .contains("Whenever your Ring-bearer attacks")
+    }) {
+        return false;
+    }
+
+    {
+        let effect = game.card_mut(effect_id);
+        effect.set_s_var(
+            "RingAttackDiscard",
+            "DB$ Discard | Defined$ You | NumCards$ 1 | Mode$ TgtChoose",
+        );
+    }
+
+    let Some(mut trigger) = parse_trigger(
+        "Mode$ Attacks | ValidCard$ Card.YouCtrl+IsRingbearer | TriggerDescription$ Whenever your Ring-bearer attacks, draw a card, then discard a card. | TriggerZones$ Command",
+        &mut 0,
+    ) else {
+        return false;
+    };
+
+    let ability = build_spell_ability(
+        game,
+        effect_id,
+        "DB$ Draw | Defined$ You | NumCards$ 1 | SubAbility$ RingAttackDiscard",
+        player,
+    );
+    trigger.bind_host_card_id(effect_id);
+    trigger.set_overriding_ability(ability);
+    game.card_mut(effect_id).add_trigger(trigger)
 }

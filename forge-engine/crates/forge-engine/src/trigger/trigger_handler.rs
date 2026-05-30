@@ -247,6 +247,10 @@ impl TriggerHandler {
         self.waiting_triggers.len()
     }
 
+    pub fn pre_matched_trigger_count(&self) -> usize {
+        self.pre_matched_triggers.len()
+    }
+
     /// Match waiting triggers NOW, while source cards are still in their
     /// current zones.  Stores results in `pre_matched_triggers` so that a
     /// subsequent `run_waiting_triggers` call returns them even if SBA has

@@ -288,7 +288,7 @@ impl GameLoop {
                 game.copy_last_state();
                 self.set_phase(game, agents, phase);
                 if emit_phase_trigger {
-                    self.emit_phase_trigger(game, agents, phase);
+                    self.emit_phase_trigger(game, phase);
                 }
                 // Suspend: at the beginning of each upkeep, remove a time counter
                 // from each suspended card in exile. If last counter removed, cast for free.
@@ -601,12 +601,8 @@ impl GameLoop {
             // onPhaseBegin(CLEANUP) every iteration.
             self.cleanup_damage_and_eot(game);
 
-            // Process triggers from cleanup actions (e.g. madness exile trigger).
-            self.process_triggers(game, agents);
-
-            // Rule 514.3a: If anything is on the stack (triggers fired, SBAs
-            // created triggers, etc.), give players priority and repeat cleanup.
-            if game.stack.is_empty() {
+            self.trigger_handler.flush_waiting_triggers(game);
+            if game.stack.is_empty() && self.trigger_handler.pre_matched_trigger_count() == 0 {
                 break;
             }
             self.step_with_priority(game, agents, false);
@@ -738,15 +734,9 @@ impl GameLoop {
             }
         }
     }
-    pub(crate) fn emit_phase_trigger(
-        &mut self,
-        game: &mut GameState,
-        agents: &mut [Box<dyn PlayerAgent>],
-        phase: PhaseType,
-    ) {
+    pub(crate) fn emit_phase_trigger(&mut self, game: &mut GameState, phase: PhaseType) {
         let active = game.active_player();
-        let phase_pending = self.trigger_handler.run_trigger_with_game(
-            game,
+        self.trigger_handler.run_trigger(
             TriggerType::Phase,
             RunParams {
                 phase: Some(phase),
@@ -755,15 +745,7 @@ impl GameLoop {
             },
             false,
         );
-        let _ = self.trigger_handler.process_pending_triggers(
-            &self.mana_pools,
-            game,
-            agents,
-            phase_pending,
-        );
-        // Fire Always trigger alongside every phase trigger.
-        let always_pending = self.trigger_handler.run_trigger_with_game(
-            game,
+        self.trigger_handler.run_trigger(
             TriggerType::Always,
             RunParams {
                 phase: Some(phase),
@@ -771,12 +753,6 @@ impl GameLoop {
                 ..Default::default()
             },
             false,
-        );
-        let _ = self.trigger_handler.process_pending_triggers(
-            &self.mana_pools,
-            game,
-            agents,
-            always_pending,
         );
     }
 

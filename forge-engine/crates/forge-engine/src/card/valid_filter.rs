@@ -874,28 +874,32 @@ fn matches_relation_predicate(
 ) -> bool {
     match predicate {
         RelationPredicate::SharesNameWith(target) => {
-            relation_target_card_any(target, context, |target| {
+            relation_target_card_any(target, card, context, |target| {
                 card.card_name.eq_ignore_ascii_case(&target.card_name)
             })
         }
         RelationPredicate::DoesNotShareNameWith(target) => {
-            !relation_target_card_any(target, context, |target| {
+            !relation_target_card_any(target, card, context, |target| {
                 card.card_name.eq_ignore_ascii_case(&target.card_name)
             })
         }
         RelationPredicate::SharesCardTypeWith(target) => {
-            relation_target_card_any(target, context, |target| card.shares_card_type_with(target))
+            relation_target_card_any(target, card, context, |target| {
+                card.shares_card_type_with(target)
+            })
         }
         RelationPredicate::SharesCreatureTypeWith(target) => {
-            relation_target_card_any(target, context, |target| shares_creature_type(card, target))
+            relation_target_card_any(target, card, context, |target| {
+                shares_creature_type(card, target)
+            })
         }
         RelationPredicate::SharesColorWith(target) => {
-            relation_target_card_any(target, context, |target| {
+            relation_target_card_any(target, card, context, |target| {
                 card.color.shares_color_with(target.color)
             })
         }
         RelationPredicate::SharesManaValueWith(target) => {
-            relation_target_card_any(target, context, |target| {
+            relation_target_card_any(target, card, context, |target| {
                 card.mana_cost.cmc() == target.mana_cost.cmc()
             })
         }
@@ -932,6 +936,7 @@ fn matches_relation_predicate(
 
 fn relation_target_card_any(
     target: &TargetRef,
+    subject: &Card,
     context: MatchContext<'_>,
     mut predicate: impl FnMut(&Card) -> bool,
 ) -> bool {
@@ -974,7 +979,7 @@ fn relation_target_card_any(
             game.cards_in_zone(ZoneType::Battlefield, context.source_controller)
                 .iter()
                 .copied()
-                .filter(|id| *id != context.source_card.id)
+                .filter(|id| *id != subject.id)
                 .any(|id| predicate(game.card(id)))
         }),
         TargetRef::YourGraveyard => context.game.is_some_and(|game| {

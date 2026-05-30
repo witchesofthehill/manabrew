@@ -972,16 +972,23 @@ impl Trigger {
         params: &RunParams,
     ) -> SpellAbility {
         let host = game.card(host_card);
-        let svar_text = host.get_s_var(&self.execute).map(str::to_string).unwrap_or_else(|| {
-            panic!(
-                "Trigger::build_triggered_spell_ability missing/empty Execute SVar: host={} execute={} trigger_index={} description={}",
-                host.card_name,
-                self.execute,
-                trigger_index,
-                self.description
+        let (mut sa, svar_text) = if let Some(overriding_ability) = self.get_overriding_ability() {
+            (overriding_ability.clone(), String::new())
+        } else {
+            let svar_text = host.get_s_var(&self.execute).map(str::to_string).unwrap_or_else(|| {
+                panic!(
+                    "Trigger::build_triggered_spell_ability missing/empty Execute SVar: host={} execute={} trigger_index={} description={}",
+                    host.card_name,
+                    self.execute,
+                    trigger_index,
+                    self.description
+                )
+            });
+            (
+                build_spell_ability(game, host_card, &svar_text, host_controller),
+                svar_text,
             )
-        });
-        let mut sa = build_spell_ability(game, host_card, &svar_text, host_controller);
+        };
         sa.is_trigger = true;
         sa.trigger_source = Some(host_card);
         sa.trigger_source_zone_timestamp = Some(game.card(host_card).zone_timestamp);

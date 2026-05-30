@@ -14,7 +14,7 @@ impl GameLoop {
 
         // Begin Combat
         self.set_phase(game, agents, PhaseType::CombatBegin);
-        self.emit_phase_trigger(game, agents, PhaseType::CombatBegin);
+        self.emit_phase_trigger(game, PhaseType::CombatBegin);
         self.step_with_priority(game, agents, false);
         if game.game_over {
             self.combat.clear_with_cards(&mut game.cards);
@@ -544,6 +544,12 @@ impl GameLoop {
                 }
             }
 
+            crate::ability::effects::ring_tempts_you_effect::sync_ring_effect(
+                game,
+                &mut self.trigger_handler,
+                active,
+            );
+
             // Fire Attacks trigger for each attacker
             self.trigger_handler.run_trigger(
                 TriggerType::Attacks,
@@ -1033,7 +1039,7 @@ impl GameLoop {
 
         // End combat
         self.set_phase(game, agents, PhaseType::CombatEnd);
-        self.emit_phase_trigger(game, agents, PhaseType::CombatEnd);
+        self.emit_phase_trigger(game, PhaseType::CombatEnd);
         // Revert any `ControlGain$ LoseControl$ EndOfCombat` steals (Threaten-
         // style "attack and return").
         crate::ability::effects::control_gain_effect::end_of_combat_hook(game);

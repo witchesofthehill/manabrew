@@ -1059,7 +1059,6 @@ export class PixiGameScene {
     if (topLevel.length < 2) return;
 
     const isStackable = (c: GameCard): boolean =>
-      !c.tapped &&
       !c.isAttacking &&
       !c.attachedTo &&
       !c.isBestowed &&
@@ -1068,15 +1067,16 @@ export class PixiGameScene {
       (!c.attachmentIds || c.attachmentIds.length === 0) &&
       !this.userPlacedCards.has(c.id);
 
-    const byName = new Map<string, GameCard[]>();
+    const byNameAndTap = new Map<string, GameCard[]>();
     for (const c of topLevel) {
       if (!isStackable(c)) continue;
-      const list = byName.get(c.name);
+      const key = `${c.tapped ? "t" : "u"}:${c.name}`;
+      const list = byNameAndTap.get(key);
       if (list) list.push(c);
-      else byName.set(c.name, [c]);
+      else byNameAndTap.set(key, [c]);
     }
 
-    for (const group of byName.values()) {
+    for (const group of byNameAndTap.values()) {
       if (group.length < 2) continue;
       const parent = group[0]!;
       for (let i = 1; i < group.length; i++) {

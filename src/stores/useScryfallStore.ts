@@ -26,6 +26,7 @@ export interface ScryfallCardLookup {
   name?: string;
   setCode?: string;
   collectorNumber?: string;
+  cardNumber?: string;
 }
 
 type CardEntry = {
@@ -46,7 +47,7 @@ interface TokenArchiveIndex {
   byName: Map<string, DeckCard>;
 }
 
-interface ScryfallEntry {
+export interface ScryfallEntry {
   card?: CardEntry;
   pendingPromise?: Promise<CardEntry>;
 }
@@ -82,7 +83,7 @@ interface ScryfallState {
  */
 export function cardKey(lookup: ScryfallCardLookup): string {
   const set = lookup.setCode?.toLowerCase();
-  const cn = lookup.collectorNumber?.toLowerCase();
+  const cn = (lookup.collectorNumber ?? lookup.cardNumber)?.toLowerCase();
   if (set && cn) return `set:${set}::cn:${cn}`;
   if (lookup.name) return `name:${lookup.name.toLowerCase()}`;
   if (lookup.id) return `id:${lookup.id}`;
@@ -129,8 +130,9 @@ async function fetchScryfallCard(lookup: ScryfallCardLookup): Promise<ScryfallCa
   if (lookup.id) {
     return getCardById(lookup.id);
   }
-  if (lookup.setCode && lookup.collectorNumber) {
-    return getCardBySetAndNumber(lookup.setCode, lookup.collectorNumber);
+  const cn = lookup.collectorNumber ?? lookup.cardNumber;
+  if (lookup.setCode && cn) {
+    return getCardBySetAndNumber(lookup.setCode, cn);
   }
   if (!lookup.name) {
     throw new Error("Scryfall lookup requires a name or id");
@@ -485,7 +487,7 @@ export const useCard = (lookup: ScryfallCardLookup | null | undefined) => {
   const name = lookup?.name;
   const id = lookup?.id;
   const setCode = lookup?.setCode;
-  const collectorNumber = lookup?.collectorNumber;
+  const collectorNumber = lookup?.collectorNumber ?? lookup?.cardNumber;
   // Some prompts have no source card (e.g. keyword-driven dice modifiers).
   // Treat that as a no-op rather than throwing inside `cardKey`.
   const hasLookup = Boolean(id) || Boolean(name) || Boolean(setCode && collectorNumber);

@@ -1,10 +1,17 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { toast } from "sonner";
 import { getPlatform } from "@/platform";
+import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
+import { teardownHost as teardownDraftHost } from "@/game/draftHost";
+import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
   RoomInfo,
   PlayerInfo,
   GameFormat,
+  EngineKind,
+  DraftConfig,
+  SealedConfig,
   PlayerDeckInfo,
   AuthResultPayload,
   RoomListPayload,
@@ -16,6 +23,7 @@ import type {
   PlayerConnectionPayload,
   ReadyChangedPayload,
   GameStartedPayload,
+  ServerErrorCode,
   ServerErrorPayload,
   ReconnectingPayload,
   DisconnectedPayload,
@@ -51,12 +59,20 @@ interface ServerState {
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
-  createRoom(roomName: string, maxPlayers: number, format: GameFormat): Promise<void>;
+  createRoom(
+    roomName: string,
+    maxPlayers: number,
+    format: GameFormat,
+    engine?: EngineKind,
+    draftConfig?: DraftConfig,
+    sealedConfig?: SealedConfig,
+  ): Promise<void>;
   joinRoom(roomId: string): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
-  startGame(): Promise<void>;
+  startGame(format?: GameFormat): Promise<void>;
+  endGame(): Promise<void>;
 
   setupListeners(): () => void;
 }
@@ -122,10 +138,17 @@ export const useServerStore = create<ServerState>()(
         await platform.server.listPlayers();
       },
 
-      async createRoom(roomName, maxPlayers, format) {
+      async createRoom(roomName, maxPlayers, format, engine, draftConfig, sealedConfig) {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.createRoom({ roomName, maxPlayers, format });
+        await platform.server.createRoom({
+          roomName,
+          maxPlayers,
+          format,
+          engine,
+          draftConfig,
+          sealedConfig,
+        });
       },
 
       async joinRoom(roomId) {
@@ -176,10 +199,16 @@ export const useServerStore = create<ServerState>()(
         });
       },
 
-      async startGame() {
+      async startGame(format) {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.startGame();
+        await platform.server.startGame(format ? { format } : undefined);
+      },
+
+      async endGame() {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.endGame();
       },
 
       setupListeners() {
@@ -203,6 +232,10 @@ export const useServerStore = create<ServerState>()(
               });
               get().listRooms();
               get().listPlayers();
+              const username = get().username;
+              if (username) {
+                attachDraftPeer(username);
+              }
             } else {
               set({ connecting: false, error: payload.error ?? "Authentication failed" });
             }
@@ -292,7 +325,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
-            if (payload.code === "not_in_room") {
+            if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,
                 gameStarted: false,
@@ -301,13 +334,18 @@ export const useServerStore = create<ServerState>()(
                 startingLife: DEFAULT_STARTING_LIFE,
               });
               void get().listRooms();
+              return;
             }
+            const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
+            if (message) toast.error(message);
           }),
         );
 
         unsubscribers.push(
           platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
             if (payload?.terminal) {
+              detachDraftPeer();
+              teardownDraftHost();
               set({
                 connected: false,
                 connecting: false,

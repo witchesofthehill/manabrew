@@ -31,22 +31,26 @@ import { LimitedCompareDialog } from "@/components/limited/LimitedCompareDialog"
 import { LimitedDeckStats } from "@/components/limited/LimitedDeckStats";
 import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
 import { RaritySetSymbol } from "@/components/limited/RaritySetSymbol";
-import { peekCard, useScryfallStore } from "@/stores/useScryfallStore";
+import { peekCard, useCard, useScryfallStore, type ScryfallEntry } from "@/stores/useScryfallStore";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useDeckStore } from "@/stores/useDeckStore";
 import {
   BASIC_LAND_MANA,
   BASIC_LAND_NAMES,
   type BasicLandName,
-  draftCardToManaBrew,
   countManaPips,
+  effectiveRarity,
   groupByName,
   groupByRarity,
   indexPool,
+  isSynthBasic,
   type LimitedZone,
   makeBasicLand,
   type PoolEntry,
   RARITY_LABEL,
+  refToDeckCard,
+  resolveDeckCards,
+  type UIRarity,
   unusedIndices,
   validateLimitedDeck,
 } from "@/lib/limited.utils";
@@ -80,9 +84,18 @@ const POOL_COLOR_CHIPS: Array<{
   { key: "M", symbol: null, fallback: "★", label: "Multicolour" },
 ];
 
-function passesColorFilter(card: DraftCard, filter: PoolColorFilter): boolean {
+function passesColorFilter(
+  card: DraftCard,
+  filter: PoolColorFilter,
+  cache: Record<string, ScryfallEntry>,
+): boolean {
   if (filter.size === 0) return true;
-  const colors = (card.colors ?? []).map((c) => c.toUpperCase());
+  const scry = peekCard(cache, {
+    name: card.name,
+    setCode: card.setCode,
+    cardNumber: card.cardNumber,
+  });
+  const colors = (scry?.colors ?? []).map((c) => c.toUpperCase());
   if (filter.has("M") && colors.length >= 2) return true;
   if (filter.has("C") && colors.length === 0) return true;
   return colors.some((c) => filter.has(c as PoolColorChip));
@@ -99,6 +112,7 @@ export interface LimitedDeckBuilderProps {
   onChange?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
   confirmLabel?: string;
   onConfirm?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
+  onSaved?: (deckName: string) => void;
 }
 
 export default function LimitedDeckBuilder({
@@ -112,10 +126,12 @@ export default function LimitedDeckBuilder({
   onChange,
   confirmLabel = "Save Deck",
   onConfirm,
+  onSaved,
 }: LimitedDeckBuilderProps) {
   const [extraBasics, setExtraBasics] = useState<DraftCard[]>([]);
   const fullPool = useMemo(() => [...pool, ...extraBasics], [pool, extraBasics]);
   const entries = useMemo(() => indexPool(fullPool), [fullPool]);
+  const scryfallCache = useScryfallStore((s) => s.cards);
 
   const [main, setMain] = useState<number[]>(() => matchInitial(fullPool, initialMain ?? []));
   const [sideboard, setSideboard] = useState<number[]>(() =>
@@ -188,7 +204,17 @@ export default function LimitedDeckBuilder({
     const mainCards = main.map((i) => fullPool[i]).filter(Boolean);
     const sideboardCards = sideboard.map((i) => fullPool[i]).filter(Boolean);
     const basicNames = new Set<string>(BASIC_LAND_NAMES);
-    const nonLand = mainCards.filter((c) => !basicNames.has(c.name) && c.rarity !== "land");
+    const nonLand = mainCards.filter(
+      (c) =>
+        !basicNames.has(c.name) &&
+        effectiveRarity(
+          peekCard(cache, {
+            name: c.name,
+            setCode: c.setCode,
+            cardNumber: c.cardNumber,
+          }),
+        ) !== "land",
+    );
     const targetLands = Math.max(0, targetMainSize - nonLand.length);
     if (targetLands === 0) {
       toast.info("No room for basics — main deck is already at target size.");
@@ -214,7 +240,7 @@ export default function LimitedDeckBuilder({
       const cost = peekCard(cache, {
         name: card.name,
         setCode: card.setCode,
-        collectorNumber: card.collectorNumber,
+        cardNumber: card.cardNumber,
       })?.mana_cost;
       if (!cost) continue;
       for (const letter of ["W", "U", "B", "R", "G"]) {
@@ -334,7 +360,7 @@ export default function LimitedDeckBuilder({
     setSaveDialogOpen(true);
   };
 
-  const handleSaveToMyDecks = () => {
+  const handleSaveToMyDecks = async () => {
     const name = saveDeckName.trim();
     if (!name) {
       toast.error("Deck name cannot be empty.");
@@ -358,17 +384,34 @@ export default function LimitedDeckBuilder({
       toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
       return;
     }
+    const leftoverCards = unused
+      .map((i) => fullPool[i])
+      .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
+
+    const [resolvedMain, resolvedSide, resolvedMaybe] = await Promise.all([
+      resolveDeckCards(mainCards),
+      resolveDeckCards(sideboardCards),
+      resolveDeckCards(leftoverCards),
+    ]);
     const deck: Deck = {
       name,
       format,
-      cards: mainCards.map((c, i) => draftCardToManaBrew(c, i)),
-      sideboard: sideboardCards.map((c, i) => draftCardToManaBrew(c, mainCards.length + i)),
-      draft: mainCards.length < targetMainSize,
+      cards: resolvedMain,
+      sideboard: resolvedSide,
+      draft: resolvedMain.length < targetMainSize,
     };
+    if (resolvedMaybe.length > 0) deck.maybeboard = resolvedMaybe;
     loadDeck(deck);
     saveCurrentDeck();
     setSaveDialogOpen(false);
-    toast.success(`Saved "${name}" to My Decks.`);
+    toast.success(
+      resolvedMaybe.length > 0
+        ? `Saved "${name}" to My Decks (${resolvedMaybe.length} card${
+            resolvedMaybe.length === 1 ? "" : "s"
+          } parked in maybeboard).`
+        : `Saved "${name}" to My Decks.`,
+    );
+    onSaved?.(name);
   };
 
   return (
@@ -403,7 +446,7 @@ export default function LimitedDeckBuilder({
           <Zone
             title={`Pool (${unused.length})`}
             entries={pickEntries(entries, unused).filter((e) =>
-              passesColorFilter(e.card, poolColorFilter),
+              passesColorFilter(e.card, poolColorFilter, scryfallCache),
             )}
             groupMode={groupMode}
             zone="pool"
@@ -463,11 +506,7 @@ export default function LimitedDeckBuilder({
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeDrag && (
-          <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
-            <CardThumbnail card={draftCardToManaBrew(activeDrag.card, activeDrag.index)} />
-          </div>
-        )}
+        {activeDrag && <DragPreview card={activeDrag.card} index={activeDrag.index} />}
       </DragOverlay>
 
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
@@ -723,18 +762,19 @@ function Zone({
   onCardClick,
   preview,
 }: ZoneProps) {
+  const cache = useScryfallStore((s) => s.cards);
   const groups = useMemo(() => {
     switch (groupMode) {
       case "rarity":
-        return renderByRarity(entries);
+        return renderByRarity(entries, cache);
       case "name":
         return renderByName(entries);
       case "cmc":
-        return renderByCmc(entries);
+        return renderByCmc(entries, cache);
       case "color":
-        return renderByColor(entries);
+        return renderByColor(entries, cache);
     }
-  }, [entries, groupMode]);
+  }, [entries, groupMode, cache]);
   const { setNodeRef, isOver } = useDroppable({ id: ZONE_DROP_ID[zone] });
 
   return (
@@ -873,6 +913,26 @@ function DraggableTile({
   );
 }
 
+function DragPreview({ card, index }: { card: DraftCard; index: number }) {
+  const scry = useCard({
+    name: card.name,
+    setCode: card.setCode,
+    cardNumber: card.cardNumber,
+  });
+  if (!scry) {
+    return (
+      <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
+        <div className="aspect-[5/7] w-full animate-pulse rounded-lg border border-border/50 bg-muted/40" />
+      </div>
+    );
+  }
+  return (
+    <div className="pointer-events-none w-24 rotate-3 rounded-lg opacity-90 shadow-2xl ring-2 ring-selection">
+      <CardThumbnail card={refToDeckCard(card, scry, index)} />
+    </div>
+  );
+}
+
 function pickEntries(all: PoolEntry[], indices: number[]): PoolEntry[] {
   return indices.map((i) => all[i]).filter((e): e is PoolEntry => Boolean(e));
 }
@@ -884,11 +944,22 @@ function addUnique(arr: number[], v: number): number[] {
 interface RenderedGroup {
   label: string;
   entries: PoolEntry[];
-  rarity?: DraftCard["rarity"];
+  rarity?: UIRarity;
 }
 
-function renderByRarity(entries: PoolEntry[]): RenderedGroup[] {
-  return groupByRarity(entries).map((g) => ({
+function renderByRarity(
+  entries: PoolEntry[],
+  cache: Record<string, ScryfallEntry>,
+): RenderedGroup[] {
+  return groupByRarity(entries, (ref) =>
+    effectiveRarity(
+      peekCard(cache, {
+        name: ref.name,
+        setCode: ref.setCode,
+        cardNumber: ref.cardNumber,
+      }),
+    ),
+  ).map((g) => ({
     label: RARITY_LABEL[g.rarity],
     entries: g.entries,
     rarity: g.rarity,
@@ -899,7 +970,10 @@ function renderByName(entries: PoolEntry[]): RenderedGroup[] {
   return groupByName(entries).map((g) => ({ label: g.name, entries: g.entries }));
 }
 
-function renderByColor(entries: PoolEntry[]): RenderedGroup[] {
+function renderByColor(
+  entries: PoolEntry[],
+  cache: Record<string, ScryfallEntry>,
+): RenderedGroup[] {
   const buckets: Record<string, PoolEntry[]> = {
     White: [],
     Blue: [],
@@ -918,11 +992,16 @@ function renderByColor(entries: PoolEntry[]): RenderedGroup[] {
     G: "Green",
   };
   for (const entry of entries) {
-    if (entry.card.rarity === "land") {
+    const scry = peekCard(cache, {
+      name: entry.card.name,
+      setCode: entry.card.setCode,
+      cardNumber: entry.card.cardNumber,
+    });
+    if (effectiveRarity(scry) === "land") {
       buckets.Lands.push(entry);
       continue;
     }
-    const cs = (entry.card.colors ?? []).map((c) => c.toUpperCase());
+    const cs = (scry?.colors ?? []).map((c) => c.toUpperCase());
     if (cs.length === 0) buckets.Colourless.push(entry);
     else if (cs.length >= 2) buckets.Multicolour.push(entry);
     else buckets[colorLabel[cs[0]] ?? "Colourless"].push(entry);
@@ -932,24 +1011,19 @@ function renderByColor(entries: PoolEntry[]): RenderedGroup[] {
     .map(([label, list]) => ({ label, entries: list }));
 }
 
-function renderByCmc(entries: PoolEntry[]): RenderedGroup[] {
-  const cache = useScryfallStore.getState().cards;
-  const cmcOf = (entry: PoolEntry): number | null => {
-    const cached = peekCard(cache, {
-      name: entry.card.name,
-      setCode: entry.card.setCode,
-      collectorNumber: entry.card.collectorNumber,
-    });
-    return typeof cached?.cmc === "number" ? cached.cmc : null;
-  };
-
+function renderByCmc(entries: PoolEntry[], cache: Record<string, ScryfallEntry>): RenderedGroup[] {
   const buckets: PoolEntry[][] = [[], [], [], [], [], [], [], []]; // 0..6, 7 = unknown
   for (const e of entries) {
-    if (e.card.rarity === "land") {
+    const scry = peekCard(cache, {
+      name: e.card.name,
+      setCode: e.card.setCode,
+      cardNumber: e.card.cardNumber,
+    });
+    if (effectiveRarity(scry) === "land") {
       buckets[7].push(e);
       continue;
     }
-    const cmc = cmcOf(e);
+    const cmc = typeof scry?.cmc === "number" ? scry.cmc : null;
     if (cmc == null) {
       buckets[7].push(e);
       continue;
@@ -971,11 +1045,7 @@ function matchInitial(pool: DraftCard[], initial: DraftCard[]): number[] {
     for (let i = 0; i < pool.length; i++) {
       if (used.has(i)) continue;
       const p = pool[i];
-      if (
-        p.name === want.name &&
-        p.setCode === want.setCode &&
-        p.collectorNumber === want.collectorNumber
-      ) {
+      if (p.name === want.name && p.setCode === want.setCode && p.cardNumber === want.cardNumber) {
         foundIdx = i;
         break;
       }

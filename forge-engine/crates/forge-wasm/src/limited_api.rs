@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use forge_agent_interface::deck_dto::CardIdentity;
 use forge_foundation::sealed_product::{PaperCard, Rarity, SealedTemplate};
 use forge_foundation::ColorSet;
 use forge_limited::{
@@ -22,132 +23,99 @@ use crate::card_loader::get_card_db;
 pub struct SealedSetupDto {
     pub pool_type: String,
     pub num_boosters: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DraftCardDto {
-    pub name: String,
-    pub set_code: String,
-    pub collector_number: String,
-    pub rarity: String,
-    #[serde(default)]
-    pub colors: Vec<String>,
-    #[serde(default)]
-    pub is_double_faced: bool,
-    #[serde(default)]
-    pub foil: bool,
-}
-
-impl From<&PaperCard> for DraftCardDto {
-    fn from(c: &PaperCard) -> Self {
-        Self {
-            name: c.name.clone(),
-            set_code: c.set_code.clone(),
-            collector_number: c.collector_number.clone(),
-            rarity: rarity_str(c.rarity).to_string(),
-            colors: color_letters(c.colors),
-            is_double_faced: c.is_double_faced,
-            foil: c.foil,
-        }
+fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
+    CardIdentity {
+        id: String::new(),
+        name: c.name.clone(),
+        set_code: c.set_code.clone(),
+        card_number: c.collector_number.clone(),
+        foil: if c.foil { Some(true) } else { None },
     }
 }
 
-impl DraftCardDto {
-    fn to_paper_card(&self) -> PaperCard {
-        let mut pc = PaperCard::new(
-            self.name.clone(),
-            self.set_code.clone(),
-            self.collector_number.clone(),
-            rarity_from_str(&self.rarity),
-        )
-        .with_colors(parse_colors(&self.colors))
-        .with_double_faced(self.is_double_faced);
-        pc.foil = self.foil;
-        pc
-    }
+fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
+    let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
+    let mut pc = PaperCard::new(
+        c.name.clone(),
+        c.set_code.clone(),
+        c.card_number.clone(),
+        rarity,
+    )
+    .with_colors(colors)
+    .with_double_faced(dual_faced);
+    pc.foil = c.foil.unwrap_or(false);
+    pc
 }
 
-fn color_letters(colors: ColorSet) -> Vec<String> {
-    let mut out = Vec::new();
-    if colors.has_white() {
-        out.push("W".to_string());
-    }
-    if colors.has_blue() {
-        out.push("U".to_string());
-    }
-    if colors.has_black() {
-        out.push("B".to_string());
-    }
-    if colors.has_red() {
-        out.push("R".to_string());
-    }
-    if colors.has_green() {
-        out.push("G".to_string());
-    }
-    out
+fn resolve_card_meta(
+    name: &str,
+    set_code: &str,
+    collector_number: &str,
+) -> (Rarity, ColorSet, bool) {
+    let editions = crate::limited_bootstrap::editions();
+    let card_db = crate::card_loader::get_card_db();
+    let rarity = editions
+        .and_then(|reg| reg.get(set_code))
+        .and_then(|ed| {
+            ed.cards
+                .iter()
+                .find(|e| e.collector_number == collector_number)
+        })
+        .map(|e| e.rarity)
+        .or_else(|| {
+            if is_basic_land_name(name) {
+                Some(Rarity::BasicLand)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(Rarity::Unknown);
+    let (colors, dual_faced) = card_db
+        .and_then(|db| db.get_by_card_name(name))
+        .map(|r| (r.color(), r.split_type.is_dual_faced()))
+        .unwrap_or_default();
+    (rarity, colors, dual_faced)
 }
 
-fn parse_colors(letters: &[String]) -> ColorSet {
-    let mut mask: u8 = 0;
-    for l in letters {
-        match l.trim().to_ascii_uppercase().as_str() {
-            "W" => mask |= ColorSet::WHITE.mask(),
-            "U" => mask |= ColorSet::BLUE.mask(),
-            "B" => mask |= ColorSet::BLACK.mask(),
-            "R" => mask |= ColorSet::RED.mask(),
-            "G" => mask |= ColorSet::GREEN.mask(),
-            _ => {}
-        }
-    }
-    ColorSet::from_mask(mask)
-}
-
-fn rarity_str(r: Rarity) -> &'static str {
-    match r {
-        Rarity::Common => "common",
-        Rarity::Uncommon => "uncommon",
-        Rarity::Rare => "rare",
-        Rarity::Mythic => "mythic",
-        Rarity::Special => "special",
-        Rarity::BasicLand => "land",
-        Rarity::Token => "token",
-        Rarity::Unknown => "unknown",
-    }
-}
-
-fn rarity_from_str(s: &str) -> Rarity {
-    match s.to_lowercase().as_str() {
-        "common" | "c" => Rarity::Common,
-        "uncommon" | "u" => Rarity::Uncommon,
-        "rare" | "r" => Rarity::Rare,
-        "mythic" | "mythic rare" | "m" => Rarity::Mythic,
-        "special" | "bonus" | "s" => Rarity::Special,
-        "land" | "basic land" | "l" => Rarity::BasicLand,
-        "token" | "t" => Rarity::Token,
-        _ => Rarity::Unknown,
-    }
+fn is_basic_land_name(name: &str) -> bool {
+    matches!(
+        name,
+        "Plains"
+            | "Island"
+            | "Swamp"
+            | "Mountain"
+            | "Forest"
+            | "Wastes"
+            | "Snow-Covered Plains"
+            | "Snow-Covered Island"
+            | "Snow-Covered Swamp"
+            | "Snow-Covered Mountain"
+            | "Snow-Covered Forest"
+            | "Snow-Covered Wastes"
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LimitedDeckDto {
     pub name: String,
-    pub main: Vec<DraftCardDto>,
-    pub sideboard: Vec<DraftCardDto>,
+    pub main: Vec<CardIdentity>,
+    pub sideboard: Vec<CardIdentity>,
 }
 
 impl From<&LimitedDeck> for LimitedDeckDto {
     fn from(d: &LimitedDeck) -> Self {
         Self {
             name: d.name.clone(),
-            main: d.main.iter().map(DraftCardDto::from).collect(),
-            sideboard: d.sideboard.iter().map(DraftCardDto::from).collect(),
+            main: d.main.iter().map(paper_card_to_identity).collect(),
+            sideboard: d.sideboard.iter().map(paper_card_to_identity).collect(),
         }
     }
 }
@@ -158,7 +126,7 @@ pub struct SealedPoolDto {
     pub session_id: String,
     pub deck_name: String,
     pub land_set_code: Option<String>,
-    pub cards: Vec<DraftCardDto>,
+    pub cards: Vec<CardIdentity>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
@@ -169,7 +137,11 @@ impl SealedPoolDto {
             session_id,
             deck_name: group.deck_name.clone(),
             land_set_code: group.land_set_code.clone(),
-            cards: group.human_pool.iter().map(DraftCardDto::from).collect(),
+            cards: group
+                .human_pool
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             suggested_deck: group
                 .suggested_human_deck
                 .as_ref()
@@ -193,7 +165,7 @@ pub struct SealedTemplateMetadataDto {
 pub struct BoosterDraftSetupDto {
     pub pod_size: u32,
     pub rounds: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -220,8 +192,8 @@ pub struct DraftStateDto {
     pub total_rounds: u32,
     pub pick_number: u32,
     pub pack_size: u32,
-    pub current_pack: Vec<DraftCardDto>,
-    pub picked_pile: Vec<DraftCardDto>,
+    pub current_pack: Vec<CardIdentity>,
+    pub picked_pile: Vec<CardIdentity>,
     pub seat_summaries: Vec<DraftSeatDto>,
     pub is_round_over: bool,
     pub is_complete: bool,
@@ -233,14 +205,23 @@ pub struct DraftStateDto {
 
 impl DraftStateDto {
     fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
-        let human = draft.human_player();
-        let pack: Vec<DraftCardDto> = draft
-            .current_pack_for_human()
-            .map(|p| p.cards().iter().map(DraftCardDto::from).collect())
+        Self::from_engine_for_seat(session_id, draft, 0, awaiting_human)
+    }
+
+    fn from_engine_for_seat(
+        session_id: String,
+        draft: &BoosterDraft,
+        seat_idx: usize,
+        awaiting_human: bool,
+    ) -> Self {
+        let viewer = draft.seat(seat_idx);
+        let pack: Vec<CardIdentity> = draft
+            .current_pack_for_seat(seat_idx)
+            .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();
-        let pick_number = (human.picked.len() + 1) as u32;
-        let mut seat_summaries: Vec<DraftSeatDto> = std::iter::once(human)
-            .chain(draft.opposing_players().iter())
+        let pick_number = viewer.map(|s| s.picked.len() + 1).unwrap_or(1) as u32;
+        let mut seat_summaries: Vec<DraftSeatDto> = (0..draft.pod_size())
+            .filter_map(|i| draft.seat(i))
             .map(|p| DraftSeatDto {
                 seat: p.seat as u32,
                 name: p.name.clone(),
@@ -250,15 +231,22 @@ impl DraftStateDto {
             })
             .collect();
         seat_summaries.sort_by_key(|s| s.seat);
-        let human_conspiracies: Vec<String> = forge_limited::CONSPIRACY_HOOKS
-            .iter()
-            .filter(|h| human.flags.contains(h.flag))
-            .map(|h| h.card_name.to_string())
-            .collect();
+        let human_conspiracies: Vec<String> = viewer
+            .map(|s| {
+                forge_limited::CONSPIRACY_HOOKS
+                    .iter()
+                    .filter(|h| s.flags.contains(h.flag))
+                    .map(|h| h.card_name.to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
         let picks_remaining_in_pack = draft
-            .current_pack_for_human()
+            .current_pack_for_seat(seat_idx)
             .map(|p| p.picks_remaining())
             .unwrap_or(0);
+        let picked_pile = viewer
+            .map(|s| s.picked.iter().map(paper_card_to_identity).collect())
+            .unwrap_or_default();
         Self {
             session_id,
             round: draft.round(),
@@ -266,7 +254,7 @@ impl DraftStateDto {
             pick_number,
             pack_size: pack.len() as u32,
             current_pack: pack,
-            picked_pile: human.picked.iter().map(DraftCardDto::from).collect(),
+            picked_pile,
             seat_summaries,
             is_round_over: draft.is_round_over(),
             is_complete: !draft.has_next_choice() && draft.round() >= draft.total_rounds(),
@@ -284,9 +272,9 @@ pub struct WinstonStateDto {
     pub session_id: String,
     pub active_seat: u32,
     pub current_pile: u32,
-    pub piles: Vec<Vec<DraftCardDto>>,
+    pub piles: Vec<Vec<CardIdentity>>,
     pub deck_size: u32,
-    pub picked_pile: Vec<DraftCardDto>,
+    pub picked_pile: Vec<CardIdentity>,
     pub ai_pick_count: u32,
     pub awaiting_human: bool,
     pub is_complete: bool,
@@ -294,10 +282,10 @@ pub struct WinstonStateDto {
 
 impl WinstonStateDto {
     fn from_engine(session_id: String, draft: &WinstonDraft) -> Self {
-        let piles: Vec<Vec<DraftCardDto>> = draft
+        let piles: Vec<Vec<CardIdentity>> = draft
             .piles()
             .iter()
-            .map(|p| p.iter().map(DraftCardDto::from).collect())
+            .map(|p| p.iter().map(paper_card_to_identity).collect())
             .collect();
         Self {
             session_id,
@@ -308,7 +296,7 @@ impl WinstonStateDto {
             picked_pile: draft
                 .human_picked()
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             ai_pick_count: draft.ai_picked_count() as u32,
             awaiting_human: draft.is_human_turn() && !draft.is_complete(),
@@ -321,7 +309,7 @@ impl WinstonStateDto {
 #[serde(rename_all = "camelCase")]
 pub struct WinstonSetupDto {
     pub pool_packs: u32,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -419,19 +407,19 @@ pub struct GauntletOutcomeDto {
 #[serde(rename_all = "camelCase")]
 pub struct GauntletMatchDecksDto {
     pub human_deck_name: String,
-    pub human_main: Vec<DraftCardDto>,
-    pub human_sideboard: Vec<DraftCardDto>,
+    pub human_main: Vec<CardIdentity>,
+    pub human_sideboard: Vec<CardIdentity>,
     pub opponent_name: String,
-    pub opponent_main: Vec<DraftCardDto>,
-    pub opponent_sideboard: Vec<DraftCardDto>,
+    pub opponent_main: Vec<CardIdentity>,
+    pub opponent_sideboard: Vec<CardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GauntletDeckUpdateDto {
     pub gauntlet_id: String,
-    pub main: Vec<DraftCardDto>,
-    pub sideboard: Vec<DraftCardDto>,
+    pub main: Vec<CardIdentity>,
+    pub sideboard: Vec<CardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -448,7 +436,7 @@ pub struct CubeImportResultDto {
     pub card_count: u32,
     pub num_packs: u32,
     pub singleton: bool,
-    pub pool: Vec<DraftCardDto>,
+    pub pool: Vec<CardIdentity>,
 }
 
 struct WasmLimitedState {
@@ -501,15 +489,10 @@ fn rebuild_name_index(state: &mut WasmLimitedState) {
     }
 }
 
-/// Return every card in a given set, formatted as a `DraftCardDto[]` —
 /// the same shape `limited_start_sealed` / `limited_start_booster_draft`
 /// expect for their `setup.pool` field.
 ///
 /// Replaces the React-side Scryfall round-trip: the archive's
-/// `EditionsRegistry` already knows every card in every set, and the
-/// engine's `CardDatabase` already knows each card's colors and
-/// dual-faced-ness, so there's no need to call out to Scryfall just to
-/// learn what's in a set. Card images remain a Scryfall concern.
 #[wasm_bindgen]
 pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
     let editions = crate::limited_bootstrap::editions()
@@ -517,26 +500,16 @@ pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
     let edition = editions
         .get(&set_code)
         .ok_or_else(|| JsError::new(&format!("unknown set: {set_code}")))?;
-    let card_db = crate::card_loader::get_card_db()
-        .ok_or_else(|| JsError::new("card database not loaded"))?;
 
-    let pool: Vec<DraftCardDto> = edition
+    let pool: Vec<CardIdentity> = edition
         .cards
         .iter()
-        .map(|entry| {
-            let (colors, dual_faced) = card_db
-                .get_by_card_name(&entry.name)
-                .map(|r| (r.color(), r.split_type.is_dual_faced()))
-                .unwrap_or_default();
-            DraftCardDto {
-                name: entry.name.clone(),
-                set_code: edition.code.clone(),
-                collector_number: entry.collector_number.clone(),
-                rarity: rarity_str(entry.rarity).to_string(),
-                colors: color_letters(colors),
-                is_double_faced: dual_faced,
-                foil: false,
-            }
+        .map(|entry| CardIdentity {
+            id: String::new(),
+            name: entry.name.clone(),
+            set_code: edition.code.clone(),
+            card_number: entry.collector_number.clone(),
+            foil: None,
         })
         .collect();
 
@@ -594,13 +567,13 @@ pub fn limited_list_conspiracy_hooks() -> Result<JsValue, JsError> {
     serde_wasm_bindgen::to_value(&out).map_err(|e| JsError::new(&format!("serialize: {e}")))
 }
 
-fn filter_playable(state: &mut WasmLimitedState, pool: &[DraftCardDto]) -> Vec<PaperCard> {
+fn filter_playable(state: &mut WasmLimitedState, pool: &[CardIdentity]) -> Vec<PaperCard> {
     if state.name_index.is_empty() {
         rebuild_name_index(state);
     }
     pool.iter()
         .filter(|c| state.card_name_known(&c.name))
-        .map(|c| c.to_paper_card())
+        .map(identity_to_paper_card)
         .collect()
 }
 
@@ -742,6 +715,127 @@ pub fn limited_get_draft_state(session_id: String) -> Result<JsValue, JsError> {
             .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
         let awaiting = !draft.is_round_over() && draft.has_next_choice();
         let dto = DraftStateDto::from_engine(session_id, draft, awaiting);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MpDraftHumanSeatDto {
+    pub seat: u32,
+    pub name: String,
+}
+
+#[wasm_bindgen]
+pub fn limited_start_multiplayer_draft(
+    setup_json: JsValue,
+    humans_json: JsValue,
+) -> Result<JsValue, JsError> {
+    let setup: BoosterDraftSetupDto =
+        serde_wasm_bindgen::from_value(setup_json).map_err(|e| JsError::new(&e.to_string()))?;
+    let humans: Vec<MpDraftHumanSeatDto> =
+        serde_wasm_bindgen::from_value(humans_json).map_err(|e| JsError::new(&e.to_string()))?;
+    STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        let card_pool = filter_playable(&mut state, &setup.pool);
+        if card_pool.is_empty() {
+            return Err(JsError::new(&empty_pool_error(setup.pool.len())));
+        }
+        let pod_size = setup.pod_size.clamp(2, 8) as usize;
+        let rounds = setup.rounds.clamp(1, 6);
+        if humans.is_empty() || humans.len() > pod_size {
+            return Err(JsError::new(&format!(
+                "multiplayer draft needs 1..={pod_size} humans, got {}",
+                humans.len()
+            )));
+        }
+        let humans: Vec<(usize, String)> = humans
+            .into_iter()
+            .map(|h| (h.seat as usize, h.name))
+            .collect();
+        let ranker = Arc::new(CardRanker::new(state.rank_cache.clone()));
+        let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
+            Arc::new(|c: &PaperCard| c.colors);
+        let template = template_for_pool(&card_pool, setup.variant.as_deref());
+        let mut draft = BoosterDraft::with_human_seats(
+            pod_size, rounds, template, card_pool, ranker, color_of, &humans,
+        );
+        if let Some(n) = setup.picks_per_pass {
+            draft.set_picks_per_pass(n);
+        }
+        draft.start_round();
+        let outcome = draft.tick();
+        let awaiting = matches!(outcome, TickOutcome::AwaitingHuman);
+        let session_id = state.fresh_id("draft");
+        let dto = DraftStateDto::from_engine_for_seat(session_id.clone(), &draft, 0, awaiting);
+        state.drafts.insert(session_id, draft);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+#[wasm_bindgen]
+pub fn limited_submit_pick(
+    session_id: String,
+    seat_idx: u32,
+    card_name: String,
+) -> Result<JsValue, JsError> {
+    STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        let draft = state
+            .drafts
+            .get_mut(&session_id)
+            .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let seat = seat_idx as usize;
+        if seat >= draft.pod_size() {
+            return Err(JsError::new(&format!(
+                "seat {seat} out of bounds (pod size {})",
+                draft.pod_size()
+            )));
+        }
+        let pack_card = draft
+            .current_pack_for_seat(seat)
+            .and_then(|p: &DraftPack| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .ok_or_else(|| {
+                JsError::new(&format!("card {card_name:?} not in seat {seat}'s pack"))
+            })?;
+        draft
+            .submit_human_pick_for(seat, pack_card)
+            .map_err(|e| JsError::new(&e))?;
+        loop {
+            match draft.tick() {
+                TickOutcome::Progress => continue,
+                TickOutcome::AwaitingHuman => break,
+                TickOutcome::RoundOver => {
+                    if !draft.start_round() {
+                        break;
+                    }
+                }
+                TickOutcome::Complete => break,
+            }
+        }
+        let awaiting = !draft.is_round_over() && draft.has_next_choice();
+        let dto = DraftStateDto::from_engine_for_seat(session_id, draft, seat, awaiting);
+        serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
+    })
+}
+
+#[wasm_bindgen]
+pub fn limited_get_seat_state(session_id: String, seat_idx: u32) -> Result<JsValue, JsError> {
+    STATE.with(|cell| {
+        let state = cell.borrow();
+        let draft = state
+            .drafts
+            .get(&session_id)
+            .ok_or_else(|| JsError::new(&format!("no draft session for id {session_id}")))?;
+        let seat = seat_idx as usize;
+        if seat >= draft.pod_size() {
+            return Err(JsError::new(&format!(
+                "seat {seat} out of bounds (pod size {})",
+                draft.pod_size()
+            )));
+        }
+        let awaiting = !draft.is_round_over() && draft.has_next_choice();
+        let dto = DraftStateDto::from_engine_for_seat(session_id, draft, seat, awaiting);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
 }
@@ -944,16 +1038,25 @@ pub fn limited_get_gauntlet_match_decks(gauntlet_id: String) -> Result<JsValue, 
             .ok_or_else(|| JsError::new("gauntlet has no current opponent"))?;
         let dto = GauntletMatchDecksDto {
             human_deck_name: g.human_deck.name.clone(),
-            human_main: g.human_deck.main.iter().map(DraftCardDto::from).collect(),
+            human_main: g
+                .human_deck
+                .main
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             human_sideboard: g
                 .human_deck
                 .sideboard
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             opponent_name: opponent.name.clone(),
-            opponent_main: opponent.main.iter().map(DraftCardDto::from).collect(),
-            opponent_sideboard: opponent.sideboard.iter().map(DraftCardDto::from).collect(),
+            opponent_main: opponent.main.iter().map(paper_card_to_identity).collect(),
+            opponent_sideboard: opponent
+                .sideboard
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
         };
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
@@ -969,8 +1072,12 @@ pub fn limited_update_gauntlet_human_deck(update_json: JsValue) -> Result<JsValu
             .gauntlets
             .get_mut(&update.gauntlet_id)
             .ok_or_else(|| JsError::new(&format!("no gauntlet for id {}", update.gauntlet_id)))?;
-        g.human_deck.main = update.main.iter().map(|c| c.to_paper_card()).collect();
-        g.human_deck.sideboard = update.sideboard.iter().map(|c| c.to_paper_card()).collect();
+        g.human_deck.main = update.main.iter().map(identity_to_paper_card).collect();
+        g.human_deck.sideboard = update
+            .sideboard
+            .iter()
+            .map(identity_to_paper_card)
+            .collect();
         let dto = GauntletStateDto::from_engine(update.gauntlet_id, g);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
@@ -1003,17 +1110,15 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
     let imp = CubeImporter::new(&request.cube_id_or_url).map_err(|e| JsError::new(&e))?;
     let cube = imp.parse(&body).map_err(|e| JsError::new(&e))?;
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
-    let mut pool: Vec<DraftCardDto> = Vec::with_capacity(card_count as usize);
+    let mut pool: Vec<CardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
         for copy in 0..entry.count {
-            pool.push(DraftCardDto {
+            pool.push(CardIdentity {
+                id: String::new(),
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
-                collector_number: format!("cube-{copy}"),
-                rarity: rarity_str(Rarity::Unknown).to_string(),
-                colors: Vec::new(),
-                is_double_faced: false,
-                foil: false,
+                card_number: format!("cube-{copy}"),
+                foil: None,
             });
         }
     }

@@ -560,10 +560,19 @@ fn handle_client_message(
             format,
             hosted,
             engine,
+            draft_config,
+            sealed_config,
         } => {
             info!(
-                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?})",
-                username, room_name, max_players, format, hosted, engine
+                "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
+                username,
+                room_name,
+                max_players,
+                format,
+                hosted,
+                engine,
+                draft_config.is_some(),
+                sealed_config.is_some(),
             );
             match lobby::create_room_sync(
                 state,
@@ -573,6 +582,8 @@ fn handle_client_message(
                 format,
                 hosted,
                 engine,
+                draft_config,
+                sealed_config,
             ) {
                 Ok(info) => {
                     info!(
@@ -752,20 +763,27 @@ fn handle_client_message(
         ClientMessage::StartGame { format } => {
             info!("[game] '{}' starting game", username);
             match lobby::start_game_sync(state, player_id, format) {
-                Ok((room_id, player_order, player_decks, starting_life)) => {
+                Ok(started) => {
                     info!(
                         "[game] game started in room {} | order: {:?}",
-                        &room_id[..8],
-                        player_order
+                        &started.room_id[..8],
+                        started.player_order
                     );
                     broadcast_to_room(
                         state,
-                        &room_id,
+                        &started.room_id,
+                        &ServerMessage::RoomUpdate {
+                            room: started.room_info,
+                        },
+                    );
+                    broadcast_to_room(
+                        state,
+                        &started.room_id,
                         &ServerMessage::GameStarted {
-                            room_id: room_id.clone(),
-                            player_order,
-                            player_decks,
-                            starting_life,
+                            room_id: started.room_id.clone(),
+                            player_order: started.player_order,
+                            player_decks: started.player_decks,
+                            starting_life: started.starting_life,
                         },
                     );
                 }

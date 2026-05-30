@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://manabrew.app"><img alt="Open app" src="https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
   &nbsp;
-  <a href="https://discord.gg/CES3KNVt"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+  <a href="https://discord.gg/NqrKpbhtcd"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
   &nbsp;
   <a href="./CONTRIBUTING.md"><img alt="Contributing" src="https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white"></a>
   &nbsp;
@@ -44,7 +44,7 @@
 
 - **App** — try the current build at <https://manabrew.app>.
 - **Discord** — ask questions, share decks, report rough edges, and follow
-  development at <https://discord.gg/CES3KNVt>.
+  development at <https://discord.gg/NqrKpbhtcd>.
 
 ## Contents
 

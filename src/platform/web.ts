@@ -21,8 +21,10 @@ import type {
   JoinRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
+  StartServerGameParams,
   SpawnAiBotParams,
 } from "./types";
+import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
@@ -766,6 +768,9 @@ class WebServerApi implements IServerApi {
       max_players: params.maxPlayers,
       format: params.format,
       hosted: params.hosted ?? false,
+      engine: params.engine ?? "Wasm",
+      draft_config: params.draftConfig ?? null,
+      sealed_config: params.sealedConfig ?? null,
     });
   }
 
@@ -790,8 +795,12 @@ class WebServerApi implements IServerApi {
     });
   }
 
-  async startGame(): Promise<void> {
-    this.send({ type: "StartGame" });
+  async startGame(params?: StartServerGameParams): Promise<void> {
+    this.send({ type: "StartGame", format: params?.format ?? null });
+  }
+
+  async endGame(): Promise<void> {
+    this.send({ type: "EndGame" });
   }
 
   /** Broadcast game state to other players in the room */
@@ -914,10 +923,9 @@ class WebServerApi implements IServerApi {
       }
     }
 
-    // Handle error with not_in_room specially
-    if (type === "Error" && msg.code === "not_in_room") {
+    if (type === "Error" && msg.code === SERVER_ERROR_CODE.NotInRoom) {
       this.eventBus.emit("game:forced_end", {
-        reason: "not_in_room",
+        reason: SERVER_ERROR_CODE.NotInRoom,
         message: msg.message,
       });
     }

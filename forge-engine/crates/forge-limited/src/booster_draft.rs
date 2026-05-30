@@ -73,15 +73,52 @@ impl BoosterDraft {
         ranker: Arc<CardRanker>,
         color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync>,
     ) -> Self {
-        assert!(pod_size >= 2, "draft needs at least 2 seats");
-        let human_agent: Box<dyn LimitedAgent> = Box::new(HumanLimitedAgent::new());
-        let mut seats = vec![LimitedPlayer::new(0, "You", true, human_agent)];
-        seats.extend(BoosterDraftAI::build_ai_seats(
-            pod_size - 1,
-            1,
+        Self::with_human_seats(
+            pod_size,
+            rounds,
+            template,
+            pool,
             ranker,
             color_of,
-        ));
+            &[(0, "You".to_string())],
+        )
+    }
+
+    pub fn with_human_seats(
+        pod_size: usize,
+        rounds: u32,
+        template: SealedTemplate,
+        pool: Vec<PaperCard>,
+        ranker: Arc<CardRanker>,
+        color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync>,
+        humans: &[(usize, String)],
+    ) -> Self {
+        assert!(pod_size >= 2, "draft needs at least 2 seats");
+        for (idx, _) in humans {
+            assert!(
+                *idx < pod_size,
+                "human seat {idx} outside pod of {pod_size}"
+            );
+        }
+        let human_lookup: std::collections::HashMap<usize, &str> = humans
+            .iter()
+            .map(|(idx, name)| (*idx, name.as_str()))
+            .collect();
+        let mut seats = Vec::with_capacity(pod_size);
+        let mut ai_iter =
+            BoosterDraftAI::build_ai_seats(pod_size - humans.len(), 0, ranker, color_of)
+                .into_iter();
+        for seat_idx in 0..pod_size {
+            if let Some(name) = human_lookup.get(&seat_idx) {
+                let agent: Box<dyn LimitedAgent> = Box::new(HumanLimitedAgent::new());
+                seats.push(LimitedPlayer::new(seat_idx, *name, true, agent));
+            } else {
+                let mut ai = ai_iter.next().expect("AI seat for non-human slot");
+                ai.seat = seat_idx;
+                ai.name = format!("AI {seat_idx}");
+                seats.push(ai);
+            }
+        }
         Self {
             pod_size,
             rounds,
@@ -111,6 +148,9 @@ impl BoosterDraft {
     }
 
     pub fn undo_last_human_pick(&mut self) -> Result<(), String> {
+        if self.seats.iter().filter(|s| s.is_human).count() > 1 {
+            return Err("undo not supported in multi-human drafts".to_string());
+        }
         let snap = self
             .pick_history
             .pop()
@@ -124,7 +164,10 @@ impl BoosterDraft {
             seat.pack_queue = snap.pack_queue;
             seat.flags = snap.flags;
         }
-        if let Some(seat) = self.seats.get_mut(0) {
+        for seat in &mut self.seats {
+            if !seat.is_human {
+                continue;
+            }
             if let Some(human) = downcast_human(seat.agent.as_mut()) {
                 human.clear_pending();
             }
@@ -158,25 +201,55 @@ impl BoosterDraft {
         self.direction
     }
 
-    pub fn submit_human_pick(&mut self, card: PaperCard) -> Result<(), String> {
+    pub fn submit_human_pick_for(
+        &mut self,
+        seat_idx: usize,
+        card: PaperCard,
+    ) -> Result<(), String> {
+        {
+            let seat = self
+                .seats
+                .get(seat_idx)
+                .ok_or_else(|| format!("no seat at index {seat_idx}"))?;
+            if !seat.is_human {
+                return Err(format!("seat {seat_idx} is not human"));
+            }
+        }
         let snap = self.snapshot();
         if self.pick_history.len() >= 20 {
             self.pick_history.remove(0);
         }
         self.pick_history.push(snap);
 
-        let agent = self
-            .seats
-            .get_mut(0)
-            .ok_or_else(|| "no human seat".to_string())?
-            .agent
-            .as_mut();
+        let seat = self.seats.get_mut(seat_idx).expect("validated above");
+        let agent = seat.agent.as_mut();
         if let Some(human) = downcast_human(agent) {
             human.submit_pick(card);
             Ok(())
         } else {
-            Err("human seat agent isn't a HumanLimitedAgent".into())
+            Err(format!("seat {seat_idx} agent isn't a HumanLimitedAgent"))
         }
+    }
+
+    pub fn submit_human_pick(&mut self, card: PaperCard) -> Result<(), String> {
+        self.submit_human_pick_for(0, card)
+    }
+
+    pub fn current_pack_for_seat(&self, seat_idx: usize) -> Option<&DraftPack> {
+        self.seats.get(seat_idx).and_then(|s| s.current_pack())
+    }
+
+    pub fn seat(&self, seat_idx: usize) -> Option<&LimitedPlayer> {
+        self.seats.get(seat_idx)
+    }
+
+    pub fn human_seat_indices(&self) -> Vec<usize> {
+        self.seats
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| s.is_human)
+            .map(|(i, _)| i)
+            .collect()
     }
 
     pub fn start_round(&mut self) -> bool {
@@ -215,9 +288,11 @@ impl BoosterDraft {
         }
 
         loop {
-            if self.seats[0].current_pack().is_some() {
-                let human = &self.seats[0];
-                if !is_human_ready(human) {
+            for seat in &self.seats {
+                if !seat.is_human {
+                    continue;
+                }
+                if seat.current_pack().is_some() && !is_human_ready(seat) {
                     return TickOutcome::AwaitingHuman;
                 }
             }

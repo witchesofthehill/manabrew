@@ -318,6 +318,15 @@ fn emit_server_message(app: &AppHandle, msg: &ServerMessage) {
             "server:error",
             serde_json::json!({ "code": code, "message": message }),
         ),
+        ServerMessage::ServerShuttingDown { reconnect_in_s } => (
+            "server:reconnecting",
+            serde_json::json!({
+                "phase": "reconnecting",
+                "reason": "server-shutdown",
+                "delayMs": reconnect_in_s * 1000,
+                "attempt": 1,
+            }),
+        ),
     };
 
     let _ = app.emit(event, payload);

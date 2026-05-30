@@ -6,7 +6,13 @@
  * work with both desktop (Tauri) and web (WASM) deployments.
  */
 
-import type { GameFormat, RoomRelayEnvelope } from "@/types/server";
+import type {
+  DraftConfig,
+  EngineKind,
+  GameFormat,
+  RoomRelayEnvelope,
+  SealedConfig,
+} from "@/types/server";
 import type { Deck } from "@/types/manabrew";
 
 // ============================================================================
@@ -54,6 +60,9 @@ export interface CreateRoomParams {
   maxPlayers: number;
   format: GameFormat;
   hosted?: boolean;
+  engine?: EngineKind;
+  draftConfig?: DraftConfig;
+  sealedConfig?: SealedConfig;
 }
 
 export interface JoinRoomParams {
@@ -69,6 +78,10 @@ export interface SetDeckSelectionParams {
   deckName: string;
   deck: Deck;
   commanderName: string | null;
+}
+
+export interface StartServerGameParams {
+  format?: GameFormat;
 }
 
 export type BotAgentKind = "simple";
@@ -125,7 +138,8 @@ export interface IServerApi {
   leaveRoom(): Promise<void>;
   setReady(params: SetReadyParams): Promise<void>;
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
-  startGame(): Promise<void>;
+  startGame(params?: StartServerGameParams): Promise<void>;
+  endGame(): Promise<void>;
   broadcastState(state: Record<string, unknown>): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;

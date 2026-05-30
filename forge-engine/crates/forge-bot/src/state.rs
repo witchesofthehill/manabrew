@@ -4,7 +4,7 @@ use forge_agent_interface::prompt::AgentPrompt;
 use forge_agent_interface::protocol::{ClientMessage, ServerMessage, StateEnvelope};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 use crate::agent::{AgentKind, BotAgent};
 
@@ -157,31 +157,41 @@ impl BotState {
             return Vec::new();
         }
 
-        // Java-side prompts can arrive in shapes that don't deserialize as
-        // `AgentPrompt`; passing priority is always a safe default in that case.
-        let action_value =
-            if prompt.get("kind").and_then(serde_json::Value::as_str) == Some("priority") {
-                json!({ "kind": "pass" })
-            } else {
-                let parsed: AgentPrompt = match serde_json::from_value(prompt) {
-                    Ok(p) => p,
-                    Err(error) => {
-                        warn!(%error, "bot prompt payload was invalid");
-                        return Vec::new();
-                    }
-                };
-                let Some(action) = self.agent.decide(parsed) else {
-                    debug!("bot agent returned no action for prompt");
-                    return Vec::new();
-                };
-                match serde_json::to_value(action) {
-                    Ok(v) => {
-                        debug!(action = %v, "bot sending action");
-                        v
-                    }
-                    Err(_) => return Vec::new(),
+        // A bot that can't answer a prompt must still pass, or the game
+        // soft-locks waiting on it (#77) — never return without responding.
+        let action_value = if prompt.get("kind").and_then(serde_json::Value::as_str)
+            == Some("priority")
+        {
+            json!({ "kind": "pass" })
+        } else {
+            let action = match serde_json::from_value::<AgentPrompt>(prompt.clone()) {
+                Ok(parsed) => self.agent.decide(parsed).or_else(|| {
+                    error!(
+                        prompt_type,
+                        "bot agent returned no action for prompt; passing"
+                    );
+                    None
+                }),
+                Err(error) => {
+                    error!(%error, prompt_type, prompt = %prompt, "bot prompt payload did not deserialize; passing");
+                    None
                 }
             };
+            let serialized = action.and_then(|action| {
+                serde_json::to_value(action)
+                    .map_err(|error| {
+                        error!(%error, prompt_type, "bot action did not serialize; passing");
+                    })
+                    .ok()
+            });
+            match serialized {
+                Some(v) => {
+                    debug!(action = %v, "bot sending action");
+                    v
+                }
+                None => json!({ "kind": "pass", "type": "pass", "untilPhase": null }),
+            }
+        };
 
         let response = StateEnvelope::Response {
             from_player: for_player,

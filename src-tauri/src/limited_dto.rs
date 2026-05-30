@@ -89,6 +89,7 @@ fn is_basic_land_name(name: &str) -> bool {
             | "Snow-Covered Swamp"
             | "Snow-Covered Mountain"
             | "Snow-Covered Forest"
+            | "Snow-Covered Wastes"
     )
 }
 

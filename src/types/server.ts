@@ -189,6 +189,7 @@ export const SERVER_ERROR_CODE = {
   GameAlreadyStarted: "game_already_started",
   GameNotInProgress: "game_not_in_progress",
   FormatNotChosen: "format_not_chosen",
+  InvalidDraftConfig: "invalid_draft_config",
   AlreadyInRoom: "already_in_room",
   DuplicateUsername: "duplicate_username",
   WebSocket: "websocket_error",
@@ -214,6 +215,7 @@ export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>
   [SERVER_ERROR_CODE.RoomFull]: "Room is full",
   [SERVER_ERROR_CODE.AlreadyInRoom]: "You're already in a room",
   [SERVER_ERROR_CODE.FormatNotChosen]: "Choose a format before starting",
+  [SERVER_ERROR_CODE.InvalidDraftConfig]: "Draft config is invalid",
 };
 
 export interface ServerErrorPayload {

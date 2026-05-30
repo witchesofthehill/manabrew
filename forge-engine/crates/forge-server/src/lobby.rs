@@ -19,6 +19,22 @@ pub fn create_room_sync(
     draft_config: Option<DraftConfig>,
     sealed_config: Option<SealedConfig>,
 ) -> Result<RoomInfo, ServerError> {
+    if let Some(cfg) = &draft_config {
+        match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
+            (Some(_), Some(_)) => {
+                return Err(ServerError::InvalidDraftConfig(
+                    "set_code and cube_id are mutually exclusive".into(),
+                ));
+            }
+            (None, None) => {
+                return Err(ServerError::InvalidDraftConfig(
+                    "set_code or cube_id required".into(),
+                ));
+            }
+            _ => {}
+        }
+    }
+
     {
         if let Some(player) = state.players.get(player_id) {
             if let Some(rid) = &player.room_id {

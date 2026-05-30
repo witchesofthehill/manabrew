@@ -43,6 +43,7 @@ import {
   groupByName,
   groupByRarity,
   indexPool,
+  isSynthBasic,
   type LimitedZone,
   makeBasicLand,
   type PoolEntry,
@@ -383,7 +384,6 @@ export default function LimitedDeckBuilder({
       toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
       return;
     }
-    const isSynthBasic = (c: DraftCard) => c.setCode === "" && c.cardNumber.startsWith("basic-");
     const leftoverCards = unused
       .map((i) => fullPool[i])
       .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));

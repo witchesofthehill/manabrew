@@ -312,3 +312,7 @@ export function makeBasicLand(name: BasicLandName, idx: number): DraftCard {
     cardNumber: `basic-${name.toLowerCase()}-${idx}`,
   };
 }
+
+export function isSynthBasic(card: DraftCard): boolean {
+  return card.setCode === "" && card.cardNumber.startsWith("basic-");
+}

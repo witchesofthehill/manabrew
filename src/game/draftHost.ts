@@ -42,13 +42,14 @@ function buildSeatAssignments(
   participants: DraftHostParticipant[],
   config: MpDraftConfig,
 ): MpDraftSeatAssignment[] | null {
-  const totalHumans = 1 + participants.length;
+  const others = participants.filter((p) => p.playerSlot !== hostSlot);
+  const totalHumans = 1 + others.length;
   if (totalHumans > config.podSize) return null;
   if (totalHumans < config.podSize && !config.fillWithBots) return null;
 
   const seats: MpDraftSeatAssignment[] = [];
   seats.push({ seat: 0, playerSlot: hostSlot, displayName: hostName, isHuman: true });
-  participants.forEach((p, i) => {
+  others.forEach((p, i) => {
     seats.push({
       seat: i + 1,
       playerSlot: p.playerSlot,
@@ -70,7 +71,10 @@ export async function startDraftAsHost(args: {
   config: MpDraftConfig;
 }): Promise<DraftHostStartResult> {
   if (active) {
-    return { ok: false, error: "a draft is already in progress on this host" };
+    console.warn(
+      `[draftHost] stale active session ${active.sessionId} in room ${active.roomId} — tearing down before starting a new one`,
+    );
+    teardownHost();
   }
   const { roomId, hostSlot, hostName, participants, config } = args;
   const seats = buildSeatAssignments(hostSlot, hostName, participants, config);

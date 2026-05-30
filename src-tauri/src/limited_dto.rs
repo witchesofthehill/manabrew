@@ -21,26 +21,16 @@ pub struct SealedSetupDto {
     pub seed: Option<u64>,
 }
 
-/// Engine → UI: build an identity ref from an internal `PaperCard`.
-/// `id` is left empty — limited cards don't have a stable instance UUID
-/// (that's a live-game-state concept), only an identity tuple.
 pub fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
     CardIdentity {
         id: String::new(),
         name: c.name.clone(),
         set_code: c.set_code.clone(),
         card_number: c.collector_number.clone(),
-        // `Some(false)` would serialise to `"foil":false` on every
-        // non-foil card; `None` is skipped by the `skip_serializing_if`
-        // on `CardIdentity::foil`, keeping the wire clean.
         foil: if c.foil { Some(true) } else { None },
     }
 }
 
-/// UI → engine: rebuild a `PaperCard` from an identity ref. Rarity,
-/// colors, and dual-faced status are re-derived from the editions
-/// registry + card database rather than trusted to round-trip through
-/// JS — those facts are the engine's to own.
 pub fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
     let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
     let mut pc = PaperCard::new(
@@ -70,10 +60,6 @@ fn resolve_card_meta(
         })
         .map(|e| e.rarity)
         .or_else(|| {
-            // Synthesised basics (setCode="") fall through here — the
-            // limited deck builder makes them client-side. Pin them to
-            // BasicLand so AI rarity-aware logic still treats them as
-            // lands instead of Unknown.
             if is_basic_land_name(name) {
                 Some(Rarity::BasicLand)
             } else {
@@ -416,14 +402,10 @@ pub struct ConspiracyHookDto {
 }
 
 impl DraftStateDto {
-    /// Single-player convenience — renders the state from seat 0's
-    /// perspective. Used by the existing single-player flow.
     pub fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
         Self::from_engine_for_seat(session_id, draft, 0, awaiting_human)
     }
 
-    /// Multiplayer host calls this once per connected peer to broadcast
-    /// each player their own pack + picked pile.
     pub fn from_engine_for_seat(
         session_id: String,
         draft: &BoosterDraft,
@@ -482,7 +464,6 @@ impl DraftStateDto {
     }
 }
 
-/// One element of the `humans` argument to `start_multiplayer_draft`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MpDraftHumanSeatDto {

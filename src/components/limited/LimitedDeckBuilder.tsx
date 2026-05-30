@@ -111,8 +111,6 @@ export interface LimitedDeckBuilderProps {
   onChange?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
   confirmLabel?: string;
   onConfirm?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
-  /** Fires after a successful "Save to My Decks" — used by MP flows to
-   *  navigate away once the user has banked their deck. */
   onSaved?: (deckName: string) => void;
 }
 
@@ -132,9 +130,6 @@ export default function LimitedDeckBuilder({
   const [extraBasics, setExtraBasics] = useState<DraftCard[]>([]);
   const fullPool = useMemo(() => [...pool, ...extraBasics], [pool, extraBasics]);
   const entries = useMemo(() => indexPool(fullPool), [fullPool]);
-  // Reactive cache subscription — every per-card lookup (color filter,
-  // group-by-rarity, drag overlay) reads from this bucket so the pool
-  // recomputes as Scryfall hydrates the set.
   const scryfallCache = useScryfallStore((s) => s.cards);
 
   const [main, setMain] = useState<number[]>(() => matchInitial(fullPool, initialMain ?? []));
@@ -388,22 +383,11 @@ export default function LimitedDeckBuilder({
       toast.error("Deck violates the 4-of rule. Remove duplicates before saving.");
       return;
     }
-    // Leftover pool cards (drafted but neither main nor sideboard) get
-    // parked in the maybeboard so the saved draft deck is a lossless
-    // snapshot of every pick — the player can re-open it later and
-    // shuffle cards around without re-running the draft. Drop only
-    // synthesised basics from the "fix manabase" helper — those carry
-    // `setCode === ""` + a `basic-<name>-<idx>` cardNumber, so the
-    // combined check is exact and survives cube imports that ship
-    // cards with an empty setCode but real cardNumbers.
     const isSynthBasic = (c: DraftCard) => c.setCode === "" && c.cardNumber.startsWith("basic-");
     const leftoverCards = unused
       .map((i) => fullPool[i])
       .filter((c): c is DraftCard => Boolean(c) && !isSynthBasic(c));
 
-    // Decks persist to localStorage and feed the in-game card renderer,
-    // so resolve real Scryfall data before serialising — engine DTOs
-    // ship as identity refs only.
     const [resolvedMain, resolvedSide, resolvedMaybe] = await Promise.all([
       resolveDeckCards(mainCards),
       resolveDeckCards(sideboardCards),
@@ -929,9 +913,6 @@ function DraggableTile({
   );
 }
 
-// Drag overlay floats above the deck while @dnd-kit transitions a card.
-// Resolves the Scryfall entry on the fly so it shows the real artwork
-// instead of the placeholder PNG that an unhydrated ref would yield.
 function DragPreview({ card, index }: { card: DraftCard; index: number }) {
   const scry = useCard({
     name: card.name,

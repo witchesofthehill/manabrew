@@ -4,7 +4,6 @@ import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import type { DraftCard, SealedPool } from "@/types/limited";
 import type { RoomInfo } from "@/types/server";
 
-// FNV-1a so the same username derives the same seed every reconnect.
 function hashStringToU32(s: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -16,9 +15,6 @@ function hashStringToU32(s: string): number {
 
 const U53_MASK = (1n << 53n) - 1n;
 
-// BigInt XOR over u64 avoids the silent u32 truncation a plain `^`
-// would cause for base_seed above 2^31. Truncate to u53 so the result
-// fits a JS Number.
 function seatSeed(baseSeed: number | undefined, username: string, roomId: string): number {
   const base = BigInt(baseSeed ?? 0);
   const userHash = BigInt(hashStringToU32(username));

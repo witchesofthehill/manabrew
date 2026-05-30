@@ -13,12 +13,6 @@ export interface PoolEntry {
   card: DraftCard;
 }
 
-/**
- * Rarity bucket used by the limited UI for grouping/badges. `land` and
- * `token` aren't Scryfall rarity values — they're derived from the card's
- * type line so basics still get their own visual slot instead of clumping
- * inside "Common".
- */
 export type UIRarity =
   | "common"
   | "uncommon"
@@ -74,12 +68,6 @@ export function rarityToken(rarity: UIRarity): RarityToken | null {
   return RARITY_TOKEN[rarity] ?? null;
 }
 
-/**
- * Map a Scryfall card onto our internal `UIRarity` enum. Basic-land and
- * token buckets are typed via the type line because Scryfall's `rarity`
- * field always reports basics as `common` and never marks tokens
- * specially. Anything missing a card here falls into `unknown`.
- */
 export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity {
   if (!card) return "unknown";
   const typeLine = card.type_line ?? "";
@@ -102,8 +90,6 @@ export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity
   }
 }
 
-/** Reverse of `refToDeckCard` — used by the limited compare dialog to
- *  re-interpret a saved `Deck` as a draft pool for visualization. */
 export function deckCardToDraftCard(card: DeckCard): DraftCard {
   return {
     id: "",
@@ -118,10 +104,6 @@ export function deckMainAsDraftCards(deck: Deck): DraftCard[] {
   return deck.cards.map(deckCardToDraftCard);
 }
 
-// 1x1 transparent png — image renderers (<img>, PIXI textures) accept it
-// without throwing or 404'ing. Used as a placeholder so a card lookup
-// that hasn't resolved yet doesn't propagate `undefined` into renderers
-// that demand a uris object.
 const PLACEHOLDER_URI =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 const PLACEHOLDER_URIS = {
@@ -133,18 +115,6 @@ const PLACEHOLDER_URIS = {
   border_crop: PLACEHOLDER_URI,
 };
 
-/**
- * Pure conversion from a `DraftCard` identity + the resolved Scryfall
- * entry into the canonical `DeckCard`. The Scryfall fields drive
- * everything visual (mana cost, type line, text, image, layout); the
- * draft-card foil flag is the only piece the engine owns and threads
- * through unchanged.
- *
- * Callers that have a `CardEntry` in hand (DraftCardTile, drag overlay)
- * pass it directly. Callers without one (save flow, gauntlet launch)
- * should resolve a batch via `resolveDeckCards` first instead of feeding
- * `null` in — a `null` here yields placeholder uris that propagate.
- */
 export function refToDeckCard(
   ref: DraftCard,
   entry: {
@@ -183,13 +153,6 @@ export function refToDeckCard(
   };
 }
 
-/**
- * Batch-resolve draft-card refs into canonical `DeckCard[]` by reading
- * the Scryfall store (sync cache first, async `getCard` fallback for
- * misses). Used at boundaries that persist or play the deck — save to
- * My Decks, gauntlet match launch — so saved/in-game decks never carry
- * the placeholder PNG or empty rules data.
- */
 export async function resolveDeckCards(refs: DraftCard[]): Promise<DeckCard[]> {
   const store = useScryfallStore.getState();
   return Promise.all(
@@ -209,11 +172,6 @@ export async function resolveDeckCards(refs: DraftCard[]): Promise<DeckCard[]> {
   );
 }
 
-/**
- * Hook variant for components that need a single ref turned into a
- * `DeckCard`. Returns `null` until the Scryfall store has the entry —
- * callers render a skeleton in that window.
- */
 export function useDeckCard(ref: DraftCard, idx: number): DeckCard | null {
   const entry = useCard({
     name: ref.name,
@@ -234,12 +192,6 @@ export function unusedIndices(poolSize: number, main: number[], sideboard: numbe
   return out;
 }
 
-/**
- * Group pool entries by rarity. Rarity is now a property of the
- * Scryfall card, not the draft-card identity, so the caller provides a
- * resolver that pulls it from the Scryfall store (typically
- * `effectiveRarity(peekCard(bucket, ref))`).
- */
 export function groupByRarity(
   entries: PoolEntry[],
   rarityOf: (ref: DraftCard) => UIRarity,
@@ -259,10 +211,6 @@ export function groupByRarity(
     }));
 }
 
-/**
- * Hook wrapper around `groupByRarity` that resolves rarity through the
- * live Scryfall store. Re-groups whenever the bucket gains new entries.
- */
 export function useGroupByRarity(
   entries: PoolEntry[],
 ): Array<{ rarity: UIRarity; entries: PoolEntry[] }> {
@@ -356,12 +304,6 @@ export const BASIC_LAND_MANA: Record<BasicLandName, ManaLetter> = Object.fromEnt
   BASIC_LAND_NAMES.map((name, i) => [name, WUBRG[i]]),
 ) as Record<BasicLandName, ManaLetter>;
 
-/**
- * Synthesize a basic-land entry for the deck builder's "fill manabase"
- * action. Carries only identity — Scryfall will resolve the actual card
- * data when the tile renders. `setCode=""` is the engine's signal that
- * this came from the UI, not from an edition.
- */
 export function makeBasicLand(name: BasicLandName, idx: number): DraftCard {
   return {
     id: "",

@@ -30,26 +30,16 @@ pub struct SealedSetupDto {
     pub seed: Option<u64>,
 }
 
-/// Engine → UI: build an identity ref from an internal `PaperCard`.
-/// `id` is left empty — limited cards don't have a stable instance UUID
-/// (that's a live-game-state concept), only an identity tuple.
 fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
     CardIdentity {
         id: String::new(),
         name: c.name.clone(),
         set_code: c.set_code.clone(),
         card_number: c.collector_number.clone(),
-        // `Some(false)` would serialise to `"foil":false` on every
-        // non-foil card; `None` is skipped by the `skip_serializing_if`
-        // on `CardIdentity::foil`, keeping the wire clean.
         foil: if c.foil { Some(true) } else { None },
     }
 }
 
-/// UI → engine: rebuild a `PaperCard` from an identity ref. Rarity,
-/// colors, and dual-faced status are re-derived from the editions
-/// registry + card database rather than trusted to round-trip through
-/// JS — those facts are owned by the engine.
 fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
     let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
     let mut pc = PaperCard::new(
@@ -80,10 +70,6 @@ fn resolve_card_meta(
         })
         .map(|e| e.rarity)
         .or_else(|| {
-            // Synthesised basics (setCode="") fall through here — the
-            // limited deck builder makes them client-side. Pin them to
-            // BasicLand so the AI's rarity-aware logic still treats them
-            // like lands instead of Unknown.
             if is_basic_land_name(name) {
                 Some(Rarity::BasicLand)
             } else {
@@ -217,16 +203,10 @@ pub struct DraftStateDto {
 }
 
 impl DraftStateDto {
-    /// Single-player convenience — renders the state from seat 0's
-    /// perspective. Used by the existing single-player flow which only
-    /// ever cared about "the human".
     fn from_engine(session_id: String, draft: &BoosterDraft, awaiting_human: bool) -> Self {
         Self::from_engine_for_seat(session_id, draft, 0, awaiting_human)
     }
 
-    /// Build a draft state from any seat's perspective. The
-    /// multiplayer host calls this once per connected peer to
-    /// broadcast each player their own pack + picked pile.
     fn from_engine_for_seat(
         session_id: String,
         draft: &BoosterDraft,
@@ -508,14 +488,10 @@ fn rebuild_name_index(state: &mut WasmLimitedState) {
     }
 }
 
-/// Return every card in a given set, formatted as a `CardIdentity[]` —
 /// the same shape `limited_start_sealed` / `limited_start_booster_draft`
 /// expect for their `setup.pool` field.
 ///
 /// Replaces the React-side Scryfall round-trip: the archive's
-/// `EditionsRegistry` already knows every card in every set. Rarity,
-/// colors, dual-faced status, and images are all UI-side Scryfall
-/// lookups — the engine only ships card identity here.
 #[wasm_bindgen]
 pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
     let editions = crate::limited_bootstrap::editions()
@@ -742,10 +718,6 @@ pub fn limited_get_draft_state(session_id: String) -> Result<JsValue, JsError> {
     })
 }
 
-/// One element of the `humans` list passed to
-/// `limited_start_multiplayer_draft`. `seat` is the slot in the pod
-/// (0..pod_size), `name` is the display name shown in the seat
-/// summaries.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MpDraftHumanSeatDto {
@@ -753,10 +725,6 @@ pub struct MpDraftHumanSeatDto {
     pub name: String,
 }
 
-/// Host-side entry point for multiplayer draft. Wraps
-/// `BoosterDraft::with_human_seats` and runs one initial `tick()` so
-/// the returned state already reflects any AI seats whose packs are
-/// ready before a human needs to pick.
 #[wasm_bindgen]
 pub fn limited_start_multiplayer_draft(
     setup_json: JsValue,
@@ -798,17 +766,12 @@ pub fn limited_start_multiplayer_draft(
         let outcome = draft.tick();
         let awaiting = matches!(outcome, TickOutcome::AwaitingHuman);
         let session_id = state.fresh_id("draft");
-        // Return the host's POV (seat 0) plus the seat list; the host
-        // re-broadcasts per-seat views via `limited_get_seat_state`.
         let dto = DraftStateDto::from_engine_for_seat(session_id.clone(), &draft, 0, awaiting);
         state.drafts.insert(session_id, draft);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
 }
 
-/// Submit a pick for an arbitrary human seat in a multiplayer draft.
-/// The single-player flow continues to use `limited_pick_card` (seat
-/// 0); this exists so the host can relay picks from non-host peers.
 #[wasm_bindgen]
 pub fn limited_submit_pick(
     session_id: String,
@@ -850,15 +813,11 @@ pub fn limited_submit_pick(
             }
         }
         let awaiting = !draft.is_round_over() && draft.has_next_choice();
-        // Return the picker's view so the host can confirm the move
-        // landed; peer broadcasts pull each seat via `limited_get_seat_state`.
         let dto = DraftStateDto::from_engine_for_seat(session_id, draft, seat, awaiting);
         serde_wasm_bindgen::to_value(&dto).map_err(|e| JsError::new(&e.to_string()))
     })
 }
 
-/// Render the draft state from a specific seat's perspective. Used by
-/// the host to assemble per-peer broadcasts after every pick.
 #[wasm_bindgen]
 pub fn limited_get_seat_state(session_id: String, seat_idx: u32) -> Result<JsValue, JsError> {
     STATE.with(|cell| {

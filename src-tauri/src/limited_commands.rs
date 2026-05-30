@@ -18,11 +18,7 @@ pub async fn limited_get_edition_info(set_code: String) -> Option<EditionInfoDto
     limited_bootstrap::edition_info(&set_code)
 }
 
-/// Return every card in a given set, formatted as a `CardIdentity[]` — the
 /// same shape `limited_start_sealed` / `limited_start_booster_draft` expect
-/// for their `setup.pool` field. Rarity / colors / dual-faced status /
-/// images are all UI-side Scryfall lookups; the engine only ships card
-/// identity here. Mirrors `forge-wasm::limited_get_set_pool`.
 #[tauri::command]
 pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<CardIdentity>, String> {
     let edition = limited_bootstrap::editions()

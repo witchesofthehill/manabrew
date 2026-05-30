@@ -21,9 +21,6 @@ interface TablesListProps {
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
-  /** Lobby passes this when the host is ready to open the draft-setup
-   *  modal. Available on any room — format is resolved to `Draft` at
-   *  start time (post-#82 `GameFormat::Any` lifecycle). */
   onStartDraft?: () => void;
   onStartSealed?: () => void;
   startingLimited?: boolean;
@@ -57,9 +54,6 @@ export function TablesList({
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
   const isHost = currentRoom?.host === username;
-  // `Any` rooms (post-#82) resolve format at start time; the multiplayer
-  // draft path uses bot fill so a solo human + AI is a valid pod. Match
-  // formats still need an actual opponent (min 2).
   const isOpenFormat = currentRoom?.format === "Any";
   const minReady = isOpenFormat ? 1 : 2;
   const allReady = currentRoom

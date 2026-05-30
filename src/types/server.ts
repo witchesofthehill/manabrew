@@ -49,7 +49,6 @@ export interface SealedConfig {
 }
 
 export interface DraftConfig {
-  // Exactly one of `set_code` or `cube_id` is populated.
   set_code?: string;
   cube_id?: string;
   cube_name?: string;
@@ -178,9 +177,6 @@ export interface TurnChangedPayload {
   turn_number: number;
 }
 
-// Codes mirror `forge-server::error::ServerError::code()` — keep in sync.
-// Define each once so call-site comparisons, sets, and toast maps all
-// reference the same string instead of inlining literals.
 export const SERVER_ERROR_CODE = {
   AuthFailed: "auth_failed",
   AuthTimeout: "auth_timeout",
@@ -201,9 +197,6 @@ export const SERVER_ERROR_CODE = {
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODE)[keyof typeof SERVER_ERROR_CODE];
 
-// Codes a `StartGame` validation can emit. The Lobby start-flow ack
-// rejects on any of these and ignores others (e.g. errors from an
-// unrelated concurrent action that lands during the wait window).
 export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.FormatNotChosen,
   SERVER_ERROR_CODE.DeckNotSelected,
@@ -214,8 +207,6 @@ export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
   SERVER_ERROR_CODE.NotInRoom,
 ]);
 
-// User-facing toast messages keyed by error code. Omit a code to skip
-// surfacing it (e.g. flow-internal errors handled at their own callsite).
 export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
   [SERVER_ERROR_CODE.DeckNotSelected]: "Select a deck before getting ready",
   [SERVER_ERROR_CODE.PlayersNotReady]: "Not all players are ready",

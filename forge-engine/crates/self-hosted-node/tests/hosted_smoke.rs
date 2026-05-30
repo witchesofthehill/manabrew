@@ -1,7 +1,3 @@
-//! End-to-end smoke for hosted Play-vs-AI. Ignored by default (needs a running relay
-//! + node — bring up compose.local.yml), run with:
-//!   cargo test -p self-hosted-node --test hosted_smoke -- --ignored --nocapture
-
 use std::time::Duration;
 
 use forge_agent_interface::ids_codec::player_slot;
@@ -276,8 +272,6 @@ fn is_game_over(state: &Value) -> bool {
         || text.contains("\"winner\"")
 }
 
-// 40 lands + 20 creatures castable off that land, so games end via combat rather than a
-// ~turn-53 deck-out (which trips a deep-recursion path in the engine and stalls the test).
 fn basic_deck(name: &str, land: &str, creature: &str) -> Value {
     let mut cards: Vec<Value> = (0..40)
         .map(|i| card(format!("{}-{}", land.to_lowercase(), i), land))
@@ -316,7 +310,6 @@ async fn recv(write: &mut WsWrite, read: &mut WsRead) -> Option<ServerMessage> {
                     return Some(message);
                 }
             }
-            // Idle java games drop the connection if relay pings go unanswered.
             Ok(Message::Ping(payload)) => {
                 let _ = write.send(Message::Pong(payload)).await;
             }

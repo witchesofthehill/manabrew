@@ -19,9 +19,6 @@ export default function MultiplayerSealed() {
   const username = useServerStore((s) => s.username);
   const amHost = !!currentRoom && currentRoom.host === username;
 
-  // Host owns the room lifecycle (EndGame resets it). Peers just drop
-  // their local sealed state — if they want to leave the room entirely
-  // they use the lobby's Leave Room button.
   const exit = () => {
     if (amHost) void endGame().catch(() => {});
     clear();

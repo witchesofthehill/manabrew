@@ -134,10 +134,6 @@ export default function Lobby() {
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
 
-  // Auto-navigate into the multiplayer draft view as soon as the
-  // store reports a session — works for both the host (after their
-  // own `startDraftAsHost` succeeds) and every peer (after the relay
-  // listener flips them into drafting on the host's broadcast).
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
   useEffect(() => {
@@ -146,9 +142,6 @@ export default function Lobby() {
     }
   }, [draftMode, draftSessionId, navigate]);
 
-  // Same auto-navigation for the sealed phase. Each peer enters the
-  // store independently via `startMpSealed` (no host relay), so this
-  // effect fires whenever any client transitions into "building".
   const sealedMode = useMultiplayerSealedStore((s) => s.mode);
   useEffect(() => {
     if (sealedMode === "building") {
@@ -183,27 +176,17 @@ export default function Lobby() {
 
   useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
-    // Draft and Sealed both ride the post-#82 `GameStarted` ack but
-    // run their own UI paths (draft-v1 relay / per-peer sealed start),
-    // so don't hijack the `/play` navigation here. Just clear the flag
-    // so a later non-limited Start Game isn't blocked.
     if (currentRoom?.format === "Draft") {
       useServerStore.setState({ gameStarted: false });
       return;
     }
     if (currentRoom?.format === "Sealed") {
       useServerStore.setState({ gameStarted: false });
-      // Only kick off pool generation when the server has actually
-      // transitioned the room — a host racing endGame against their
-      // own startGame can land here with status still Lobby.
       if (currentRoom.status === "InGame" && currentRoom.sealed_config && username) {
         const room = currentRoom;
         const amHost = room.host === username;
         void startMpSealed({ room, username }).catch((err) => {
           toast.error(`Failed to open sealed pool: ${String(err)}`);
-          // Roll the room back to Lobby/Any so the host can retry. Peers
-          // can't trigger EndGame (server returns NotHost) — they wait
-          // for the host's reset, surfacing the toast in the meantime.
           if (amHost) {
             void useServerStore
               .getState()
@@ -397,9 +380,6 @@ export default function Lobby() {
       const participants: DraftHostParticipant[] = room.players
         .filter((p) => p.username !== username)
         .map((p) => ({ playerSlot: p.username, displayName: p.username }));
-      // Flip room → Draft on the server, wait for the ack, then kick
-      // off the WASM draft. Awaiting the ack closes the race where the
-      // draft-v1 envelope reaches peers before their RoomUpdate.
       const ackPromise = awaitGameStartedAck(room.room_id);
       ackPromise.catch(() => {});
       try {
@@ -440,10 +420,6 @@ export default function Lobby() {
     }
     setStartingLimited(true);
     try {
-      // Flip room → Sealed server-side. Peers see the RoomUpdate, the
-      // gameStarted effect calls `startMpSealed` for them individually,
-      // and the sealed mode → navigate effect routes everyone to the
-      // build view. No host coordinator — each peer is self-sufficient.
       const ackPromise = awaitGameStartedAck(room.room_id);
       ackPromise.catch(() => {});
       try {

@@ -29,12 +29,6 @@ export async function fetchEditionInfo(setCode: string): Promise<EditionInfo | n
       setCode,
     });
     if (!result) {
-      // Most common cause: the set has no `Booster=` line in Forge's data
-      // (e.g. masters reprints, mini-drops, supplemental products), so the
-      // engine can't tell us a recipe and the UI falls back to a generic
-      // 10C/3U/1RM/1L booster. Log here so we can spot real engine miscues
-      // (registry never populated, alias mismatch) instead of silently
-      // swallowing them like before.
       console.warn(`[limited] no Forge edition info for set ${setCode}`);
     }
     return result ?? null;
@@ -92,10 +86,6 @@ async function importCubeRaw(cubeIdOrUrl: string): Promise<CubeImportResult> {
   });
 }
 
-/** Import a cube and return its metadata + pool. Throws a friendly
- *  message on failure. Does NOT touch `useLimitedStore` — safe to call
- *  from contexts (the lobby room-creation dialog, the MP draft host)
- *  that shouldn't bleed into the offline Limited view's state. */
 export async function fetchCubeMetadata(cubeIdOrUrl: string): Promise<CubeImportResult> {
   try {
     return await importCubeRaw(cubeIdOrUrl);
@@ -104,8 +94,6 @@ export async function fetchCubeMetadata(cubeIdOrUrl: string): Promise<CubeImport
   }
 }
 
-/** Re-import a cube and return only its card pool — used by the MP
- *  draft host to resolve `DraftConfig.cubeId` to a pool at start time. */
 export async function fetchCubePool(cubeIdOrUrl: string): Promise<DraftCard[]> {
   const result = await fetchCubeMetadata(cubeIdOrUrl);
   if (!result.pool || result.pool.length === 0) {

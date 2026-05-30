@@ -188,10 +188,6 @@ impl LimitedManager {
         })
     }
 
-    /// Multiplayer entry point — builds a draft with one seat per
-    /// supplied human (plus AI seats filling any unseated indices) and
-    /// ticks once. Returns the host's POV; per-peer broadcasts use
-    /// `get_seat_state`.
     pub fn start_multiplayer_draft(
         &self,
         setup: &BoosterDraftSetupDto,
@@ -225,7 +221,6 @@ impl LimitedManager {
         Ok(dto)
     }
 
-    /// Submit a pick for a specific seat in a multiplayer draft.
     pub fn submit_pick_for_seat(
         &self,
         session_id: &str,

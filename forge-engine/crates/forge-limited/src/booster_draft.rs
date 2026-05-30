@@ -105,13 +105,9 @@ impl BoosterDraft {
             .map(|(idx, name)| (*idx, name.as_str()))
             .collect();
         let mut seats = Vec::with_capacity(pod_size);
-        let mut ai_iter = BoosterDraftAI::build_ai_seats(
-            pod_size - humans.len(),
-            0, // numbering reassigned below
-            ranker,
-            color_of,
-        )
-        .into_iter();
+        let mut ai_iter =
+            BoosterDraftAI::build_ai_seats(pod_size - humans.len(), 0, ranker, color_of)
+                .into_iter();
         for seat_idx in 0..pod_size {
             if let Some(name) = human_lookup.get(&seat_idx) {
                 let agent: Box<dyn LimitedAgent> = Box::new(HumanLimitedAgent::new());
@@ -152,11 +148,6 @@ impl BoosterDraft {
     }
 
     pub fn undo_last_human_pick(&mut self) -> Result<(), String> {
-        // Undo rewinds shared draft state (round, direction, every seat's
-        // pack queue and picks), so in a multi-human pod the operation
-        // would silently roll back every other human's last pick too —
-        // ambiguous and almost certainly wrong. Reject it; the multi-
-        // human flow has no undo affordance in the UI.
         if self.seats.iter().filter(|s| s.is_human).count() > 1 {
             return Err("undo not supported in multi-human drafts".to_string());
         }
@@ -210,16 +201,11 @@ impl BoosterDraft {
         self.direction
     }
 
-    /// Multi-human variant — queues a pick for the named seat. The
-    /// single-human path calls this with `seat_idx = 0`.
     pub fn submit_human_pick_for(
         &mut self,
         seat_idx: usize,
         card: PaperCard,
     ) -> Result<(), String> {
-        // Validate before snapshotting — otherwise a peer spamming bad
-        // seat indices would push junk into the bounded undo history and
-        // evict legitimate snapshots.
         {
             let seat = self
                 .seats
@@ -245,8 +231,6 @@ impl BoosterDraft {
         }
     }
 
-    /// Single-human convenience wrapper — preserved for the original
-    /// Forge / single-player UI which only ever submitted seat 0.
     pub fn submit_human_pick(&mut self, card: PaperCard) -> Result<(), String> {
         self.submit_human_pick_for(0, card)
     }
@@ -304,9 +288,6 @@ impl BoosterDraft {
         }
 
         loop {
-            // Block the whole tick until every human seat with an open
-            // pack has queued a pick. Single-human flows fall through
-            // immediately since there's only one seat to check.
             for seat in &self.seats {
                 if !seat.is_human {
                     continue;

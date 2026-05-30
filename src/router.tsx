@@ -86,8 +86,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        // Literal `multiplayer` must come before the `:draftId` route
-        // so React Router doesn't treat "multiplayer" as a draft id.
         path: "draft/multiplayer",
         element: (
           <ErrorBoundary context="MultiplayerDraft">

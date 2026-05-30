@@ -244,8 +244,6 @@ pub struct SealedConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DraftConfig {
-    // Exactly one of `set_code` or `cube_id` is set; the host resolves
-    // it to a pool at draft start.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub set_code: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

@@ -10,8 +10,6 @@ import type { ScryfallSet } from "@/types/scryfall";
 interface SetPickerProps {
   sets: ScryfallSet[];
   selectedCode: string;
-  /** Set code currently being prefetched (or `null`). Renders a
-   *  small pulsing dot on the matching tile. */
   prefetching: string | null;
   onSelect: (code: string) => void;
 }

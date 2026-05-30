@@ -278,10 +278,6 @@ pub fn start_game_sync(
             }
         }
 
-        // Reject a limited start without its baked config — peers
-        // would otherwise wait forever for a draft-v1 envelope from a
-        // host that never ran startDraftAsHost. Server-authoritative
-        // gate; the client UI also disables the corresponding CTA.
         if matches!(room.format, GameFormat::Draft) && room.draft_config.is_none() {
             return Err(ServerError::FormatNotChosen);
         }
@@ -293,7 +289,6 @@ pub fn start_game_sync(
             return Err(ServerError::PlayersNotReady);
         }
 
-        // Draft/Sealed produce decks during the session, not at room-join.
         if !matches!(room.format, GameFormat::Draft | GameFormat::Sealed)
             && room
                 .players

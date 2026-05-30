@@ -16,11 +16,6 @@ interface DraftCardTileProps {
 }
 
 function DraftCardTileImpl({ card, index, onClick, disabled, overlay }: DraftCardTileProps) {
-  // The engine ships DraftCards as identity refs (name + set + collector
-  // + foil); useDeckCard resolves them through the canonical Scryfall
-  // store and produces a full DeckCard once the lookup lands. While
-  // pending we render a card-shaped skeleton so the missing image can
-  // never crash the draft view.
   const deckCard = useDeckCard(card, index);
   if (!deckCard) {
     return (

@@ -71,8 +71,6 @@ interface ServerState {
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
-  /** `format` resolves `GameFormat::Any` rooms (post-#82) to a concrete format
-   *  at start time. Omit for rooms already created with a specific format. */
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
 
@@ -234,14 +232,6 @@ export const useServerStore = create<ServerState>()(
               });
               get().listRooms();
               get().listPlayers();
-              // Subscribe to draft-v1 relay envelopes once authed so an
-              // incoming `start` message can flip the local store into
-              // drafting mode no matter where the user is in the UI.
-              // Server stamps `StateUpdate.from_player` with the
-              // *username* (see forge-server connection.rs), and the
-              // host's seat assignments use username too — so the peer
-              // listener must compare against username, not the UUID
-              // in `player_id`.
               const username = get().username;
               if (username) {
                 attachDraftPeer(username);
@@ -354,10 +344,6 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<DisconnectedPayload>("server:disconnected", (payload) => {
             if (payload?.terminal) {
-              // Tear down both halves of any in-flight multiplayer
-              // draft so the next session on this client starts clean.
-              // `teardownHost` is a no-op when the local user wasn't
-              // hosting.
               detachDraftPeer();
               teardownDraftHost();
               set({

@@ -93,18 +93,9 @@ let remoteSharedBuffers: SharedArrayBuffer[] = [];
 let gameRunning = false;
 
 /**
- * Manifest pointing at the current content-addressed cardset archive,
- * emitted by `scripts/build-wasm.mjs` into `public/wasm/`. Filename of the
- * archive itself encodes the sha256 of its bytes (`cardset.<sha>.rkyv`), so
- * any shape change (e.g. editions/block_data added) yields a fresh URL and
- * an automatic Cache API miss. Manifest is fetched `cache: no-cache` so a
- * fresh deploy can never be hidden behind a stale `Cache-Control`.
  */
 const CARD_ARCHIVE_MANIFEST_URL = "/wasm/cardset.manifest.json";
 const CARD_ARCHIVE_CACHE = "manabrew-card-archive";
-/** Caches written by older versions before the content-addressed switch.
- *  Browsers that touched a previous build still hold ~27 MiB of dead
- *  bytes under these names; clean them up once on worker init. */
 const LEGACY_CARD_ARCHIVE_CACHES = ["manabrew-card-archive-v4"];
 
 interface CardArchiveManifest {
@@ -115,9 +106,7 @@ interface CardArchiveManifest {
 
 async function purgeLegacyArchiveCaches(): Promise<void> {
   for (const name of LEGACY_CARD_ARCHIVE_CACHES) {
-    await caches.delete(name).catch(() => {
-      /* best-effort cleanup */
-    });
+    await caches.delete(name).catch(() => {});
   }
 }
 
@@ -265,8 +254,6 @@ async function fetchCardArchive(silent: boolean): Promise<ArrayBuffer> {
   const archiveUrl = `/wasm/${manifest.archive}`;
 
   const cache = await caches.open(CARD_ARCHIVE_CACHE);
-  // Evict prior content-hashed entries so the cache doesn't keep one copy
-  // per build forever. Only the manifest's current archive survives.
   for (const req of await cache.keys()) {
     if (req.url !== new Request(archiveUrl).url) {
       await cache.delete(req).catch(() => {});

@@ -25,9 +25,6 @@ export interface ScryfallCardLookup {
   id?: string;
   name?: string;
   setCode?: string;
-  /** Accept either spelling — `collectorNumber` matches Scryfall's wire
-   *  field, `cardNumber` matches our canonical `CardIdentity`. The
-   *  store collapses them in `cardKey`. */
   collectorNumber?: string;
   cardNumber?: string;
 }

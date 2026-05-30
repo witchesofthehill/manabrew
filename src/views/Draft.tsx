@@ -156,15 +156,9 @@ export default function Draft() {
   );
 }
 
-// Exported so the multiplayer draft view (`MultiplayerDraft.tsx`) can
-// reuse the same pack / pile / pod layout against the store driven by
-// `useMultiplayerDraftStore`. Pure presentational — all data + handlers
-// flow in via props.
 export interface DraftingViewProps {
   activeDraft: import("@/types/limited").DraftState;
   onPick: (card: DraftCard) => void;
-  /** Optional "Build" CTA — single-player wires it; multiplayer has no
-   *  in-draft build mode yet, so omits it and the button stays hidden. */
   onJumpToBuild?: () => void;
   canBuild?: boolean;
   conspiracyHooks: ReturnType<typeof useLimitedStore.getState>["conspiracyHooks"];

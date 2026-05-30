@@ -31,9 +31,6 @@ export default function MultiplayerDraft() {
     if (conspiracyHooks.length === 0) fetchConspiracyHooks();
   }, [conspiracyHooks.length, fetchConspiracyHooks]);
 
-  // Kick back to the lobby if the draft was never started or got
-  // cleared mid-route (host disconnected, user landed on the URL
-  // directly, etc.). Avoids a confusing empty render.
   useEffect(() => {
     if (mode === "idle") navigate("/lobby");
   }, [mode, navigate]);
@@ -58,11 +55,7 @@ export default function MultiplayerDraft() {
         pools={finalPools}
         myPool={myPool?.pool ?? []}
         onExit={() => {
-          // Completion flow already sent EndGame in `finishDraft`;
-          // teardown here just clears local host state.
           if (amHost) teardownHost();
-          // `clear()` flips mode → "idle"; the useEffect above watches
-          // for that and navigates to /lobby. Avoid double-navigating.
           clear();
         }}
       />
@@ -118,9 +111,6 @@ export default function MultiplayerDraft() {
         <Button
           variant="outline"
           onClick={() => {
-            // Mid-draft exit on the host kills the session for every
-            // peer (no fallback host), so reset the room state too.
-            // Peers just leave their local state and bail.
             if (amHost) teardownHost(true);
             clear();
             navigate("/lobby");
@@ -164,9 +154,6 @@ function CompletionView({ pools, myPool, onExit }: CompletionViewProps) {
       </header>
 
       {myPool.length === 0 ? (
-        // Observer / weren't seated — show the pod summary instead of
-        // an empty builder so the user understands why they have no
-        // cards to build with.
         <section>
           <p className="mb-3 text-sm text-muted-foreground">
             You weren't seated in this draft. Pod final pools:

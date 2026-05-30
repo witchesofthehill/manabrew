@@ -27,9 +27,6 @@ async function buildGauntletDeck(
   sideboard: DraftCard[],
   format: DeckFormatId,
 ): Promise<Deck> {
-  // Engine ships identity-only refs; resolve full DeckCards (uris, type
-  // line, mana cost, …) via the canonical Scryfall store before handing
-  // anything to the game runtime.
   const [resolvedMain, resolvedSide] = await Promise.all([
     resolveDeckCards(main),
     resolveDeckCards(sideboard),

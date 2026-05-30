@@ -75,18 +75,11 @@ const FORMATS: {
   },
 ];
 
-// Match: realistic MTG game pods. Limited: 8 is the canonical draft pod,
-// 4/6 are common casual sizes, 2 covers Winston. Bot fill comes from
-// the room's draft_config.
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
 const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
 
 type RoomKind = "match" | "limited";
 
-// Limited subtypes — mirrors the offline `Limited` view's mode picker.
-// Draft / Sealed / Cube are wired for multiplayer. Winston is intentionally
-// deferred until there's demand — multi-human Winston needs a new engine
-// API plus a relay protocol on the scale of `draft-v1`.
 type LimitedKind = "draft" | "sealed" | "winston" | "cube";
 
 interface LimitedKindMeta {
@@ -145,7 +138,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [format, setFormat] = useState<GameFormat>("Standard");
   const [engine, setEngine] = useState<EngineKind>("Wasm");
 
-  // Draft-specific config baked into the room.
   const [draftSet, setDraftSet] = useState<string>("");
   const [draftRounds, setDraftRounds] = useState(3);
   const [draftPicksPerPass, setDraftPicksPerPass] = useState(1);
@@ -153,16 +145,11 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [draftFillWithBots, setDraftFillWithBots] = useState(true);
   const [prefetchingSet, setPrefetchingSet] = useState<string | null>(null);
 
-  // Cube-specific config. Local-only state — does NOT touch
-  // `useLimitedStore` so the offline Limited view's `lastImportedCube`
-  // / `lastError` aren't polluted when a user imports a cube just to
-  // create a room.
   const [cubeInput, setCubeInput] = useState("");
   const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
   const [importingCube, setImportingCube] = useState(false);
   const [cubeImportError, setCubeImportError] = useState<string | null>(null);
 
-  // Sealed-specific config.
   const [sealedSet, setSealedSet] = useState<string>("");
   const [sealedNumBoosters, setSealedNumBoosters] = useState(6);
   const [sealedSeed, setSealedSeed] = useState("");
@@ -184,8 +171,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     [allSets],
   );
 
-  // Warm the Scryfall cache for the chosen set so the first pack
-  // doesn't render as a wall of skeletons when the draft starts.
   useEffect(() => {
     if (!draftSet) return;
     let cancelled = false;
@@ -210,8 +195,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     };
   }, [sealedSet, prefetchSet]);
 
-  // Reset every transient input when the dialog closes — otherwise
-  // reopening shows the previous cube import, set selection, etc.
   useEffect(() => {
     if (open) return;
     setKind("match");
@@ -232,9 +215,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setSealedSeed("");
   }, [open]);
 
-  // Submission gate: limited rooms must pick an enabled subtype and a
-  // valid pool source. Match rooms are always ready once name/players/
-  // format are present, which they always are by default.
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
   const isSealed = kind === "limited" && limitedKind === "sealed";
@@ -262,15 +242,10 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     if (!canSubmit) return;
     setCreating(true);
     try {
-      // Limited rooms get `format: Any`; the actual format (Draft/Sealed)
-      // is resolved at StartGame. Match rooms commit to their format up
-      // front so peers know what to bring.
       const submittedFormat: GameFormat = kind === "limited" ? "Any" : format;
       let draftConfig: DraftConfig | undefined;
       let sealedConfig: SealedConfig | undefined;
       if (isBoosterDraft || isCube) {
-        // `Number("0") || undefined` collapses an explicit 0 seed to
-        // undefined; `Number.isFinite` keeps seed 0 as a valid value.
         const parsedSeed = draftSeed.trim() ? Number(draftSeed) : NaN;
         draftConfig = {
           set_code: isBoosterDraft ? draftSet : undefined,

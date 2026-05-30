@@ -60,13 +60,8 @@ export interface CreateRoomParams {
   maxPlayers: number;
   format: GameFormat;
   hosted?: boolean;
-  /** Defaults to `Wasm` server-side when omitted. Java requires a
-   *  hosted engine node to be the actual game host. */
   engine?: EngineKind;
-  /** Set only for Draft rooms; baked into the room so peers see the
-   *  set + bot-fill choice before joining. */
   draftConfig?: DraftConfig;
-  /** Set only for Sealed rooms. */
   sealedConfig?: SealedConfig;
 }
 
@@ -86,8 +81,6 @@ export interface SetDeckSelectionParams {
 }
 
 export interface StartServerGameParams {
-  /** Resolves a `GameFormat::Any` room to a concrete format at start time.
-   *  Omit for rooms that were created with a specific format. */
   format?: GameFormat;
 }
 
@@ -146,8 +139,6 @@ export interface IServerApi {
   setReady(params: SetReadyParams): Promise<void>;
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
-  /** Sends `ClientMessage::EndGame` so the server transitions the room
-   *  back to `Lobby` and resets a hosted room's format to `Any`. */
   endGame(): Promise<void>;
   broadcastState(state: Record<string, unknown>): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;

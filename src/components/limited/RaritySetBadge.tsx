@@ -8,9 +8,6 @@ interface RaritySetBadgeProps {
 }
 
 export function RaritySetBadge({ card }: RaritySetBadgeProps) {
-  // Rarity is a Scryfall fact, not something the engine echoes back —
-  // resolve it via the canonical store. Renders nothing while the
-  // lookup is pending so the badge can't briefly flash as Unknown.
   const scry = useCard({
     name: card.name,
     setCode: card.setCode,

@@ -769,8 +769,6 @@ fn handle_client_message(
                         &started.room_id[..8],
                         started.player_order
                     );
-                    // RoomUpdate first — clients keyed on room.format
-                    // (mp draft nav) need the flip before GameStarted.
                     broadcast_to_room(
                         state,
                         &started.room_id,

@@ -241,8 +241,6 @@ pub struct StartedGame {
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
-    /// Post-flip snapshot — broadcast as `RoomUpdate` so clients see
-    /// the resolved format (`Any` → `Draft`) without polling.
     pub room_info: RoomInfo,
 }
 

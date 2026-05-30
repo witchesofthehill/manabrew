@@ -65,8 +65,6 @@ struct SeatSnapshot {
 }
 
 impl BoosterDraft {
-    /// Single-human draft (seat 0 is the human, the rest are AI). Matches
-    /// the original Forge model and the existing single-player UI.
     pub fn new(
         pod_size: usize,
         rounds: u32,
@@ -86,10 +84,6 @@ impl BoosterDraft {
         )
     }
 
-    /// Multi-human draft. `humans` lists every seat that should be a
-    /// human player along with its display name; every other seat in
-    /// `0..pod_size` becomes an AI seat. Used by the multiplayer draft
-    /// host to seat each connected player at their own index.
     pub fn with_human_seats(
         pod_size: usize,
         rounds: u32,

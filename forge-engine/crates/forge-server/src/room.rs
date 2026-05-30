@@ -100,7 +100,6 @@ impl Room {
     }
 
     pub fn all_ready(&self) -> bool {
-        // Draft/Sealed allow a solo human + bot fill.
         let min_players = match self.format {
             GameFormat::Draft | GameFormat::Sealed => 1,
             _ => 2,

@@ -6,14 +6,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Pure printing identity, the single source of truth shared across the
-/// engine ↔ UI boundary. TS mirror at `src/types/manabrew.ts`. `id` is
-/// only set for live game-state cards (UUID for zone tracking) and
-/// omitted from the wire for static identity refs (saved decks, draft
-/// pools). `foil` is the only per-copy runtime flag — rarity / colors /
-/// type-line / images all come from Scryfall on the UI side and from
-/// the engine's registry on the Rust side, never echoed through this
-/// struct.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardIdentity {

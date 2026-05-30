@@ -59,9 +59,7 @@ public final class ManaBrewEngineAdapter {
         Objects.requireNonNull(request, "request");
         requireInitialized();
 
-        // Seed Forge's global RNG before any shuffle so a (seed, decks) pair
-        // replays identically — same mechanism parity's Main uses.
-        forge.util.MyRandom.setRandom(new CountingRandom(request.getSeed(), "hosted"));
+        final CountingRandom rng = new CountingRandom(request.getSeed(), "hosted");
 
         final int playerCount = request.getPlayers().size();
         final boolean commanderGame = playerCount > 2
@@ -91,7 +89,7 @@ public final class ManaBrewEngineAdapter {
         final Game game = match.createGame();
         session.attach(match, game);
         sessions.put(session.getSessionId(), session);
-        session.start();
+        session.start(rng);
 
         List<Integer> playerIndexes = new ArrayList<>();
         for (int i = 0; i < playerCount; i++) {

@@ -13,8 +13,8 @@ concurrency:
 
 jobs:
   hosted-smoke:
-    # Heavy (builds the GraalVM/Espresso node image), so only on the `hosted-smoke`
-    # label, the nightly schedule, or a manual dispatch.
+    # Heavy (builds the JVM node image), so only on the `hosted-smoke` label,
+    # the nightly schedule, or a manual dispatch.
     if: >-
       github.event_name != 'pull_request' ||
       github.event.label.name == 'hosted-smoke'

@@ -1,6 +1,7 @@
 package forge.harness;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Reflection-based reset of private static ID counters in forge-game classes.
@@ -17,21 +18,26 @@ public final class ParityReset {
             System.err.println("[parity-reset] Resetting all forge-game ID counters via reflection");
             logged = true;
         }
-        resetStaticInt("forge.game.spellability.SpellAbility", "maxId");
-        resetStaticInt("forge.game.spellability.SpellAbilityStackInstance", "maxId");
-        resetStaticInt("forge.game.trigger.Trigger", "maxId");
-        resetStaticInt("forge.game.cost.IndividualCostPaymentInstance", "maxId");
-        resetStaticInt("forge.game.replacement.ReplacementEffect", "maxId");
-        resetStaticInt("forge.game.staticability.StaticAbility", "maxId");
-        resetStaticInt("forge.game.Game", "maxId");
+        resetStaticCounter("forge.game.spellability.SpellAbility", "maxId");
+        resetStaticCounter("forge.game.spellability.SpellAbilityStackInstance", "maxId");
+        resetStaticCounter("forge.game.trigger.Trigger", "maxId");
+        resetStaticCounter("forge.game.cost.IndividualCostPaymentInstance", "maxId");
+        resetStaticCounter("forge.game.replacement.ReplacementEffect", "maxId");
+        resetStaticCounter("forge.game.staticability.StaticAbility", "maxId");
+        resetStaticCounter("forge.game.Game", "maxId");
     }
 
-    private static void resetStaticInt(String className, String fieldName) {
+    private static void resetStaticCounter(String className, String fieldName) {
         try {
             Class<?> clazz = Class.forName(className);
             Field field = clazz.getDeclaredField(fieldName);
             field.setAccessible(true);
-            field.setInt(null, 0);
+            Object value = field.get(null);
+            if (value instanceof AtomicInteger) {
+                ((AtomicInteger) value).set(0);
+            } else {
+                field.setInt(null, 0);
+            }
         } catch (Exception e) {
             System.err.printf("[parity-reset] WARNING: Failed to reset %s.%s: %s%n",
                 className, fieldName, e.getMessage());

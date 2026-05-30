@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -53,9 +54,11 @@ public final class ManaBrewInteractiveSession {
         return game;
     }
 
-    public void start() {
+    public void start(final Random rng) {
         requireAttached();
+        Objects.requireNonNull(rng, "rng");
         gameThread = new Thread(() -> {
+            forge.util.MyRandom.setRandom(rng);
             try {
                 match.startGame(game);
             } catch (RuntimeException error) {

@@ -241,6 +241,16 @@ impl Room {
         self.host_player_id == player_id
     }
 
+    /// The room controller is the first player to take a seat. The controller
+    /// drives the lobby (format, bots, start) regardless of who holds the
+    /// engine (`host`). In a normal self-created room the host is also the
+    /// first player, so the two coincide.
+    pub fn is_controller(&self, player_id: &str) -> bool {
+        self.players
+            .first()
+            .is_some_and(|p| p.player_id == player_id)
+    }
+
     pub fn host_username(&self) -> String {
         self.host_username.clone()
     }

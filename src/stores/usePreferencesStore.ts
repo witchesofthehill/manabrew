@@ -26,10 +26,6 @@ interface PreferencesState {
   setServerUsername: (username: string) => void;
   setServerPassword: (password: string) => void;
 
-  /** Auto-pass priority when no legal actions are available */
-  autoPassEnabled: boolean;
-  setAutoPassEnabled: (enabled: boolean) => void;
-
   /** Battlefield zone column order */
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
@@ -68,7 +64,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverPort",
   "serverUsername",
   "serverPassword",
-  "autoPassEnabled",
   "zonePanelOrder",
   "handSize",
   "battlefieldCardScale",
@@ -118,9 +113,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           setServerPort: (serverPort) => set({ serverPort }),
           setServerUsername: (serverUsername) => set({ serverUsername }),
           setServerPassword: (serverPassword) => set({ serverPassword }),
-
-          autoPassEnabled: true,
-          setAutoPassEnabled: (autoPassEnabled) => set({ autoPassEnabled }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),

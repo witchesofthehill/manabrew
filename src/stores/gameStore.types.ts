@@ -24,8 +24,6 @@ export interface AgentPrompt {
   playableCardIds?: string[];
   /** All play options with modes (normal, spectacle, evoke, etc.) */
   playableOptions?: { cardId: string; mode: string; modeLabel: string }[];
-  /** Semantic auto-pass guard for prompts whose available actions are opaque to normal heuristics. */
-  autoPassDisabled?: boolean;
   handCardIds?: string[];
   availableAttackerIds?: string[];
   attackerIds?: string[];

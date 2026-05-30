@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { AgentPrompt } from "@/stores/useGameStore";
 import type { LibraryPeekMode } from "@/components/game/modals";
@@ -71,7 +70,6 @@ export function usePromptEffects({
   stackLength,
 }: UsePromptEffectsOptions) {
   const promptType = currentPrompt?.type;
-  const autoPassEnabled = usePreferencesStore((s) => s.autoPassEnabled);
   const [isAutoPassing, setIsAutoPassing] = useState(false);
 
   // Phase-stop auto-pass state lives in the store so non-pass actions can clear it
@@ -219,56 +217,9 @@ export function usePromptEffects({
         return () => clearTimeout(timer);
       }
     }
-
-    // ── Normal auto-pass (no user action, just skip trivial prompts) ──
-    if (!autoPassEnabled) return;
-    if (currentPrompt.autoPassDisabled === true) return;
-
-    let shouldAutoPass = false;
-
-    if (currentPrompt.type === PromptType.ChooseAction) {
-      const hasPlayableCards = (currentPrompt.playableCardIds ?? []).length > 0;
-      const hasActivatableAbilities = (currentPrompt.activatableAbilityIds ?? []).length > 0;
-      const isMyMainPhase =
-        currentPrompt.gameView.activePlayerId === currentPrompt.gameView.priorityPlayerId &&
-        (currentPrompt.gameView.step === "main1" || currentPrompt.gameView.step === "main2") &&
-        stackLength === 0;
-      const priorityPlayer = currentPrompt.gameView.players.find(
-        (player) => player.id === currentPrompt.gameView.priorityPlayerId,
-      );
-      const hasFloatingMana =
-        isMyMainPhase &&
-        !!priorityPlayer &&
-        Object.values(priorityPlayer.manaPool ?? {}).some((amount) => amount > 0);
-      const hasManaSources =
-        isMyMainPhase &&
-        ((currentPrompt.tappableLandIds ?? []).length > 0 ||
-          (currentPrompt.manaAbilityOptions ?? []).length > 0);
-      shouldAutoPass =
-        !hasPlayableCards && !hasActivatableAbilities && !hasManaSources && !hasFloatingMana;
-    } else if (currentPrompt.type === PromptType.ChooseAttackers) {
-      shouldAutoPass = (currentPrompt.availableAttackerIds ?? []).length === 0;
-    } else if (currentPrompt.type === PromptType.ChooseBlockers) {
-      shouldAutoPass = (currentPrompt.availableBlockerIds ?? []).length === 0;
-    }
-
-    if (!shouldAutoPass) return;
-
-    // Compute next stop for the engine
-    const gv2 = currentPrompt.gameView;
-    const isMyTurn2 = gv2.activePlayerId === myPlayerId;
-    const store2 = usePhaseStopStore.getState();
-    const stops2 = isMyTurn2 ? store2.selfStops : store2.getOpponentStops(gv2.activePlayerId);
-    const autoNextStop = getNextStopPhase(gv2.step, stops2);
-
-    setIsAutoPassing(true);
-    const timer = setTimeout(() => passPriority(autoNextStop), getAutoPassDelayMs());
-
-    return () => clearTimeout(timer);
   }, [
     currentPrompt,
     isWaitingForResponse,
-    autoPassEnabled,
     passPriority,
     passUntilTurn,
     passUntilPhase,

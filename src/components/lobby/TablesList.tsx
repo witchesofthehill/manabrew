@@ -53,7 +53,10 @@ export function TablesList({
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
-  const isHost = currentRoom?.host === username;
+  // The controller is the first seated player — they drive the lobby (format,
+  // bots, start) even when the host is a non-playing engine node. In a normal
+  // self-created room the host is the first player, so the two coincide.
+  const isController = currentRoom?.players[0]?.username === username;
   const isOpenFormat = currentRoom?.format === "Any";
   const minReady = isOpenFormat ? 1 : 2;
   const allReady = currentRoom
@@ -171,7 +174,7 @@ export function TablesList({
                           : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
-                    {canRemove && isHost ? (
+                    {canRemove && isController ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -198,7 +201,7 @@ export function TablesList({
               })}
               {/* Hidden on Open rooms — draft bots come from the room's
                   draft_config.fill_with_bots, not this deck-picker flow. */}
-              {isHost &&
+              {isController &&
                 !isOpenFormat &&
                 currentRoom.players.length < currentRoom.max_players &&
                 onAddBot && (
@@ -241,7 +244,7 @@ export function TablesList({
               >
                 <LogOut className="h-3 w-3" /> Leave
               </Button>
-              {isHost && (
+              {isController && (
                 <div className="ml-auto flex items-center gap-2">
                   {onStartTabletop && (
                     <Button
@@ -279,7 +282,12 @@ export function TablesList({
                     </Button>
                   )}
                   {!isOpenFormat && (
-                    <Button size="sm" className="gap-1" onClick={onStartGame} disabled={!allReady}>
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => onStartGame()}
+                      disabled={!allReady}
+                    >
                       <Swords className="h-3 w-3" /> Start Game
                     </Button>
                   )}

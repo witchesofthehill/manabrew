@@ -87,7 +87,11 @@ impl Config {
                 .filter(|games| *games >= 1)
                 .unwrap_or(1),
             format,
-            auto_start: env_bool("SELF_HOSTED_NODE_AUTO_START", "FORGE_ROOM_AUTO_START", true),
+            auto_start: env_bool(
+                "SELF_HOSTED_NODE_AUTO_START",
+                "FORGE_ROOM_AUTO_START",
+                false,
+            ),
             engine_enabled: env_bool(
                 "SELF_HOSTED_NODE_ENGINE_ENABLED",
                 "FORGE_ROOM_ENGINE_ENABLED",

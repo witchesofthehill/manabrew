@@ -548,23 +548,6 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Preferences</h2>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <div className="rounded-lg border bg-card/40 p-4 flex items-start gap-3">
-              <input
-                id="auto-pass"
-                type="checkbox"
-                checked={prefs.autoPassEnabled}
-                onChange={(e) => prefs.setAutoPassEnabled(e.target.checked)}
-                className="mt-1 accent-primary h-4 w-4"
-              />
-              <div className="space-y-1">
-                <Label htmlFor="auto-pass">Auto-pass when no actions</Label>
-                <p className="text-xs text-muted-foreground">
-                  Automatically pass priority when you have no playable cards. Uses a random delay
-                  to prevent information leaking in multiplayer.
-                </p>
-              </div>
-            </div>
-
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Battlefield Zone Column Order</Label>
               <div className="grid grid-cols-3 gap-2">

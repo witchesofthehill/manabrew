@@ -337,7 +337,7 @@ export const useServerStore = create<ServerState>()(
               return;
             }
             const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
-            if (message) toast.error(message);
+            toast.error(message ?? payload.message ?? `Server error: ${payload.code}`);
           }),
         );
 

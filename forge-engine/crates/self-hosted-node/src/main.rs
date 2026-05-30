@@ -12,7 +12,6 @@ use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
 use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
-use forge_agent_interface::java_prompt_normalizer::translate_java_action_value;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use forge_bot::{run_bot, AgentKind, BotConfig};
 use forge_engine_core::game::TypeRegistry;
@@ -50,7 +49,7 @@ enum EngineSession {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
     },
     Java {
-        remote_response_txs: HashMap<usize, std_mpsc::Sender<Value>>,
+        remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
         cancel: Arc<AtomicBool>,
     },
 }
@@ -208,11 +207,12 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         return host_one_room(config, None).await;
     }
 
-    config.format = GameFormat::Any;
     let slots = config.max_games.max(1);
     if slots <= 1 {
         return host_one_room(config, None).await;
     }
+
+    config.format = GameFormat::Any;
     let hosts: Vec<(Config, String)> = (0..slots)
         .map(|slot| (config.clone(), (slot + 1).to_string()))
         .collect();
@@ -806,14 +806,14 @@ fn maybe_start_hosted_engine(
             });
         }
         EngineBackendKind::JavaForge => {
-            let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, Value)>();
+            let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentPrompt)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
             for i in 0..num_players {
                 if Some(i) == local_player_index {
                     continue;
                 }
-                let (response_tx, response_rx) = std_mpsc::channel::<Value>();
+                let (response_tx, response_rx) = std_mpsc::channel::<PlayerAction>();
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
@@ -824,7 +824,7 @@ fn maybe_start_hosted_engine(
             });
             drop(guard);
 
-            spawn_raw_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
+            spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
@@ -994,6 +994,13 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
             remote_response_txs,
             ..
         } => {
+            let action: PlayerAction = match serde_json::from_value(action_value) {
+                Ok(action) => action,
+                Err(error) => {
+                    warn!(from_player, %error, "relay response has invalid java action");
+                    return;
+                }
+            };
             let Some(tx) = remote_response_txs.get(&player_index) else {
                 debug!(from_player, player_index, "no response channel for player");
                 return;
@@ -1002,7 +1009,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
                 from_player,
                 player_index, "routing relay response to java engine"
             );
-            if let Err(error) = tx.send(translate_java_action_value(&action_value)) {
+            if let Err(error) = tx.send(action) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
@@ -1018,28 +1025,6 @@ fn spawn_remote_prompt_forwarder(
             let Ok(state) = serde_json::to_value(StateEnvelope::Prompt {
                 for_player: player_slot(player_index),
                 prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
-            }) else {
-                continue;
-            };
-            if outbound_tx
-                .send(ClientMessage::BroadcastState { state })
-                .is_err()
-            {
-                break;
-            }
-        }
-    });
-}
-
-fn spawn_raw_prompt_forwarder(
-    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    remote_prompt_rx: std_mpsc::Receiver<(usize, Value)>,
-) {
-    thread::spawn(move || {
-        while let Ok((player_index, prompt)) = remote_prompt_rx.recv() {
-            let Ok(state) = serde_json::to_value(StateEnvelope::Prompt {
-                for_player: player_slot(player_index),
-                prompt,
             }) else {
                 continue;
             };

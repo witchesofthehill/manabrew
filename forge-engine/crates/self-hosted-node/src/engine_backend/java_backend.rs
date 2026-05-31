@@ -277,14 +277,30 @@ impl JavaEnginePool {
     fn acquire(&self) -> Result<SharedBridge, String> {
         let deadline = Instant::now() + Duration::from_secs(60);
         loop {
-            {
+            let popped = {
                 let mut free = self
                     .free
                     .lock()
                     .map_err(|_| "java engine free queue poisoned".to_string())?;
-                if let Some(bridge) = free.pop() {
+                free.pop()
+            };
+            if let Some(bridge) = popped {
+                let alive = bridge
+                    .lock()
+                    .ok()
+                    .map(|mut guard| guard.is_alive())
+                    .unwrap_or(false);
+                if alive {
                     return Ok(bridge);
                 }
+                warn!("discarding dead java subprocess from pool");
+                drop(bridge);
+                if let Ok(replacement) = SubprocessBridge::spawn(&self.config) {
+                    if let Ok(mut free) = self.free.lock() {
+                        free.push(Arc::new(Mutex::new(replacement)));
+                    }
+                }
+                continue;
             }
             if Instant::now() >= deadline {
                 return Err(format!(
@@ -1439,7 +1455,7 @@ pub struct SubprocessBridge {
 
 #[cfg(feature = "java-forge")]
 impl SubprocessBridge {
-    pub fn spawn(config: &JavaRuntimeConfig) -> Result<Self, String> {
+    fn spawn(config: &JavaRuntimeConfig) -> Result<Self, String> {
         config.validate()?;
 
         let java_bin = resolve_java_bin(config);
@@ -1470,7 +1486,9 @@ impl SubprocessBridge {
             .ok_or_else(|| "java subprocess has no stdout".to_string())?;
         let stderr = child.stderr.take();
 
-        let (stdout_tx, stdout_rx) = std_mpsc::channel::<String>();
+        // Bounded so a chatty Java side can't grow the queue without bound.
+        // Cap is generous — protocol replies are one line per request.
+        let (stdout_tx, stdout_rx) = std_mpsc::sync_channel::<String>(1024);
         let stdout_handle = std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
             for line in reader.lines().map_while(Result::ok) {
@@ -1499,6 +1517,21 @@ impl SubprocessBridge {
     }
 
     fn call(&mut self, request_json: &str) -> Result<String, String> {
+        // Drain anything still queued from a prior request — a previous call()
+        // that timed out may have left its reply in the channel, and consuming
+        // it now would shift every subsequent call off-by-one.
+        loop {
+            match self.stdout_rx.try_recv() {
+                Ok(stale) => {
+                    debug!(target: "self_hosted_node::java", line = %stale, "discarding stale stdout line");
+                }
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    return Err("java subprocess closed stdout (crashed?)".to_string());
+                }
+            }
+        }
+
         self.stdin
             .write_all(request_json.as_bytes())
             .map_err(|err| format!("failed to write subprocess stdin: {err}"))?;
@@ -1547,15 +1580,15 @@ impl SubprocessBridge {
         }
     }
 
-    pub fn reset(&mut self) -> Result<(), String> {
+    fn reset(&mut self) -> Result<(), String> {
         self.call("{\"command\":\"reset\"}").map(|_| ())
     }
 
-    pub fn is_alive(&mut self) -> bool {
+    fn is_alive(&mut self) -> bool {
         matches!(self.child.try_wait(), Ok(None))
     }
 
-    pub fn shutdown(mut self) {
+    fn shutdown(mut self) {
         let _ = self.stdin.write_all(b"{\"command\":\"quit\"}\n");
         let _ = self.stdin.flush();
         let deadline = Instant::now() + SHUTDOWN_GRACE;

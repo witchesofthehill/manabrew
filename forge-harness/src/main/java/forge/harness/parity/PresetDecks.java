@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.parity;
 
 import forge.card.CardDb;
 import forge.deck.CardPool;

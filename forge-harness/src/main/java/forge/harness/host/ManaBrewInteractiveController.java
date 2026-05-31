@@ -1,4 +1,16 @@
-package forge.harness;
+package forge.harness.host;
+
+import forge.harness.parity.GuiRepro;
+
+import forge.harness.common.ActionSpace;
+import forge.harness.common.AutoPay;
+import forge.harness.common.ChoiceSpace;
+import forge.harness.common.CombatChoiceSpace;
+import forge.harness.common.HarnessCostPlumbing;
+import forge.harness.common.HarnessPlayHooks;
+import forge.harness.common.HarnessPlayPlumbing;
+import forge.harness.common.ParityOrder;
+import forge.harness.common.SnapshotExtractor;
 
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;

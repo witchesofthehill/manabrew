@@ -347,7 +347,7 @@ impl J4rsBridge {
             .map_err(java_error)?;
         let adapter = jvm
             .create_instance(
-                "forge.harness.ManaBrewEngineAdapter",
+                "forge.harness.host.ManaBrewEngineAdapter",
                 InvocationArg::empty(),
             )
             .map_err(java_error)?;

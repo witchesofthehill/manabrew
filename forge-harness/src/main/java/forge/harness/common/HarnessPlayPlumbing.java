@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.ai.ComputerUtilCost;
 import forge.game.Game;
@@ -32,12 +32,12 @@ import java.util.Map;
  * - forge/forge-ai/src/main/java/forge/ai/ComputerUtil.java (playNoStack/playStack)
  * - forge/forge-ai/src/main/java/forge/ai/PlayerControllerAi.java
  */
-final class HarnessPlayPlumbing {
+public final class HarnessPlayPlumbing {
     private final HarnessPlayHooks hooks;
     private final Player payer;
     private final HarnessCostPlumbing costPlumbing;
 
-    HarnessPlayPlumbing(
+    public HarnessPlayPlumbing(
             final HarnessPlayHooks hooks,
             final Player payer,
             final HarnessCostPlumbing costPlumbing
@@ -47,7 +47,7 @@ final class HarnessPlayPlumbing {
         this.costPlumbing = costPlumbing;
     }
 
-    boolean playNoStack(final Player ai, SpellAbility sa, final Game game, final boolean effect) {
+    public boolean playNoStack(final Player ai, SpellAbility sa, final Game game, final boolean effect) {
         sa.setActivatingPlayer(ai);
         clearPaymentState(sa);
         if (!ComputerUtilCost.canPayCost(sa, ai, effect)) {
@@ -102,7 +102,7 @@ final class HarnessPlayPlumbing {
         return false;
     }
 
-    boolean handlePlayingSpellAbility(final Player ai, SpellAbility sa, final Game game) {
+    public boolean handlePlayingSpellAbility(final Player ai, SpellAbility sa, final Game game) {
         final Card source = sa.getHostCard();
         final Card host = sa.getHostCard();
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
@@ -286,7 +286,7 @@ final class HarnessPlayPlumbing {
         }
     }
 
-    boolean prepareSingleSa(final Card host, final SpellAbility sa, final boolean isMandatory) {
+    public boolean prepareSingleSa(final Card host, final SpellAbility sa, final boolean isMandatory) {
         if (sa.getApi() == ApiType.Charm) {
             if (!CharmEffect.makeChoices(sa)) {
                 return false;
@@ -298,7 +298,7 @@ final class HarnessPlayPlumbing {
         return sa.setupTargets();
     }
 
-    void orderAndPlaySimultaneousSa(List<SpellAbility> activePlayerSAs, final Game game) {
+    public void orderAndPlaySimultaneousSa(List<SpellAbility> activePlayerSAs, final Game game) {
         // Sort simultaneous triggers deterministically by host card zone-entry
         // timestamp, with trigger ID as tiebreaker.  The engine's
         // TriggerWaiting stores triggers in a HashMap which does not preserve
@@ -341,7 +341,7 @@ final class HarnessPlayPlumbing {
         }
     }
 
-    boolean playSaFromPlayEffect(SpellAbility tgtSA, final Game game) {
+    public boolean playSaFromPlayEffect(SpellAbility tgtSA, final Game game) {
         final boolean optional = !tgtSA.getPayCosts().isMandatory();
         if (tgtSA instanceof Spell) {
             if (optional && !hooks.confirmPlayEffectOptional()) {

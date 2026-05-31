@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.ai.ComputerUtilMana;
 import forge.card.MagicColor;
@@ -32,11 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Harness-side action-space enumeration.
- *
- * Uses engine legality directly via {@code Card#getAllPossibleAbilities(player, true)}.
- */
 public final class ActionSpace {
     private ActionSpace() {}
 
@@ -53,13 +48,6 @@ public final class ActionSpace {
         return kind + ":" + name + fbTag;
     }
 
-    /**
-     * Build deterministic logged labels for main-action options.
-     * <p>
-     * If a single host card presents multiple spell abilities with the same base
-     * label (e.g. normal and alternative cost casts), suffix them as `$1`, `$2`, ...
-     * For single-variant cards, omit the suffix.
-     */
     public static List<String> buildMainActionLabels(final List<SpellAbility> actions) {
         final List<String> baseLabels = new ArrayList<>(actions.size());
         for (final SpellAbility sa : actions) {
@@ -149,13 +137,6 @@ public final class ActionSpace {
         return actions;
     }
 
-    /**
-     * Enumerate stack spell targets for a targeting spell ability.
-     *
-     * Mirrors Java engine stack-target candidate checks used by
-     * {@link TargetRestrictions#getNumCandidates(SpellAbility, boolean)} while
-     * preserving parity sort keys via the stack spell's source card.
-     */
     public static List<Pair<GameEntity, GameObject>> getStackTargetCandidates(final SpellAbility sa) {
         final List<Pair<GameEntity, GameObject>> valid = new ArrayList<>();
         final TargetRestrictions tr = sa.getTargetRestrictions();
@@ -210,7 +191,7 @@ public final class ActionSpace {
         return canPayManaCostFromCurrentSources(manaCost, sa, player, reservedSacrifices);
     }
 
-    static boolean canPayManaCostFromCurrentSources(
+    public static boolean canPayManaCostFromCurrentSources(
             final ManaCost manaCost,
             final SpellAbility sa,
             final Player player,

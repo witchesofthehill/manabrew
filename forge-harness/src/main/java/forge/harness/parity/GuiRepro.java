@@ -1,4 +1,6 @@
-package forge.harness;
+package forge.harness.parity;
+
+import forge.harness.common.ChoiceSpace;
 
 import forge.game.ability.AbilityUtils;
 import forge.game.card.Card;

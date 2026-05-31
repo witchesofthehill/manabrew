@@ -1,20 +1,21 @@
-package forge.harness;
+package forge.harness.common;
 
 import java.lang.reflect.Field;
 
 /**
  * Reflection-based reset of private static ID counters in forge-game classes.
- * Used by the parity harness to isolate cross-game state without modifying forge-game.
+ * Used by both harness engines (parity batches and the hosted session pool) to
+ * isolate cross-game state without modifying forge-game.
  */
-public final class ParityReset {
-    private ParityReset() {}
+public final class ForgeEngineReset {
+    private ForgeEngineReset() {}
 
     private static boolean logged = false;
 
     /** Reset all known static ID counters in forge-game to 0. */
     public static void resetAllIdCounters() {
         if (!logged) {
-            System.err.println("[parity-reset] Resetting all forge-game ID counters via reflection");
+            System.err.println("[forge-engine-reset] Resetting all forge-game ID counters via reflection");
             logged = true;
         }
         resetStaticInt("forge.game.spellability.SpellAbility", "maxId");
@@ -33,7 +34,7 @@ public final class ParityReset {
             field.setAccessible(true);
             field.setInt(null, 0);
         } catch (Exception e) {
-            System.err.printf("[parity-reset] WARNING: Failed to reset %s.%s: %s%n",
+            System.err.printf("[forge-engine-reset] WARNING: Failed to reset %s.%s: %s%n",
                 className, fieldName, e.getMessage());
         }
     }

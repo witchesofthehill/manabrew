@@ -1,4 +1,6 @@
-package forge.harness;
+package forge.harness.host;
+
+import forge.harness.common.SnapshotExtractor;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

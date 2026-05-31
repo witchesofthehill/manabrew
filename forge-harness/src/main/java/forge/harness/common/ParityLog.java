@@ -1,4 +1,5 @@
-package forge.harness;
+package forge.harness.common;
+
 
 import com.google.gson.Gson;
 

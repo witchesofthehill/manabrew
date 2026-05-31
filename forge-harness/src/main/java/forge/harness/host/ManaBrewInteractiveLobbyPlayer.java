@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.host;
 
 import forge.LobbyPlayer;
 import forge.game.Game;

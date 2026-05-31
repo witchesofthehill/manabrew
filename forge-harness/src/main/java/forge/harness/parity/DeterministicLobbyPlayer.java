@@ -1,4 +1,6 @@
-package forge.harness;
+package forge.harness.parity;
+
+import forge.harness.common.CountingRandom;
 
 import forge.LobbyPlayer;
 import forge.game.Game;

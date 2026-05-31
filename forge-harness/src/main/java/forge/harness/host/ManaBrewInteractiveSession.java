@@ -1,4 +1,9 @@
-package forge.harness;
+package forge.harness.host;
+
+import forge.harness.common.ActionSpace;
+import forge.harness.common.ParityCardMap;
+import forge.harness.common.ParityOrder;
+import forge.harness.common.SnapshotExtractor;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

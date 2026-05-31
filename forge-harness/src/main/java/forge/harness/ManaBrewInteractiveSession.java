@@ -998,17 +998,22 @@ public final class ManaBrewInteractiveSession {
         final List<String> labels = ActionSpace.buildMainActionLabels(actionsForPrompt);
         com.google.gson.JsonArray options = new com.google.gson.JsonArray();
         for (int i = 0; i < actionsForPrompt.size(); i++) {
+            final SpellAbility sa = actionsForPrompt.get(i);
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
             option.addProperty("label", labels.get(i));
             // id encodes the action index so the client can echo back a
-            // choose_action{index}; cardName lets the normalizer resolve the
-            // option to the deciding player's hand/command-zone card.
+            // choose_action{index}. kind + cardId let the normalizer route the
+            // option to the exact card and category without parsing the label —
+            // essential for casts from graveyard/exile (flashback, escape, …).
             option.addProperty("id", "prompt-action-" + i);
-            final Card host = actionsForPrompt.get(i).getHostCard();
+            option.addProperty("kind", sa.isLandAbility() ? "land"
+                    : sa.isSpell() ? "spell"
+                    : sa.isManaAbility() ? "mana"
+                    : "ability");
+            final Card host = sa.getHostCard();
             if (host != null) {
-                option.addProperty("cardName",
-                        InteractiveSnapshotExtractor.normalizeCardName(host.getName()));
+                option.addProperty("cardId", SnapshotExtractor.javaCardId(host));
             }
             options.add(option);
         }

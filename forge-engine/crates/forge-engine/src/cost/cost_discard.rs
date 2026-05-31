@@ -59,6 +59,9 @@ pub fn can_pay(
     if type_filter == "CARDNAME" {
         return card.zone == ZoneType::Hand;
     }
+    if type_filter == "Hand" {
+        return true;
+    }
     if type_filter == "Card" || type_filter.is_empty() {
         let mut hand_size = game.cards_in_zone(ZoneType::Hand, player).len() as i32;
         if card.zone == ZoneType::Hand && card.owner == player {

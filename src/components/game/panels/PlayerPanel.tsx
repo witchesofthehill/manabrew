@@ -10,6 +10,8 @@ import { useTheme } from "@/hooks/useTheme";
 import type { OrbitBadge } from "./BadgeOrbit";
 import type { ZonePanelItem } from "@/stores/usePreferencesStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RING_ABILITIES } from "../game.constants";
 import type { PlayerSeat } from "../game.types";
 
 interface PlayerPanelProps {
@@ -285,24 +287,67 @@ export function PlayerPanel({
     <div className="flex h-7 w-fit items-center justify-start gap-2 px-1 pointer-events-auto">
       {rowBadges.length > 0 && (
         <div className="flex items-center gap-1.5">
-          {rowBadges.map((b) => (
-            <span
-              key={b.id}
-              title={b.label}
-              className="inline-flex items-center gap-0.5"
-              style={{ color: b.color }}
-            >
-              <span className="inline-flex items-center">{b.icon}</span>
-              {b.count !== undefined && (
-                <span
-                  className="font-extrabold leading-none tabular-nums"
-                  style={{ fontSize: fontSizes.badgeCount }}
-                >
-                  {b.count}
-                </span>
-              )}
-            </span>
-          ))}
+          {rowBadges.map((b) => {
+            const content = (
+              <>
+                <span className="inline-flex items-center">{b.icon}</span>
+                {b.count !== undefined && (
+                  <span
+                    className="font-extrabold leading-none tabular-nums"
+                    style={{ fontSize: fontSizes.badgeCount }}
+                  >
+                    {b.count}
+                    {b.id === "ring" && (
+                      <span className="opacity-60">/{RING_ABILITIES.length}</span>
+                    )}
+                  </span>
+                )}
+              </>
+            );
+            if (b.id === "ring") {
+              const level = Math.min(b.count ?? 0, RING_ABILITIES.length);
+              return (
+                <Tooltip key={b.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-0.5 cursor-help"
+                      style={{ color: b.color }}
+                    >
+                      {content}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs whitespace-normal p-0">
+                    <div className="px-3 py-2">
+                      <div
+                        className="mb-1.5 font-semibold tracking-wide"
+                        style={{ color: b.color }}
+                      >
+                        The Ring tempts you — {level}/{RING_ABILITIES.length}
+                      </div>
+                      <ol className="list-decimal pl-5 space-y-1">
+                        {RING_ABILITIES.map((text, i) => (
+                          <li key={i} className={cn(i < level ? "opacity-100" : "opacity-40")}>
+                            {text}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+            return (
+              <span
+                key={b.id}
+                title={b.label}
+                className="inline-flex items-center gap-0.5"
+                style={{ color: b.color }}
+              >
+                {content}
+              </span>
+            );
+          })}
         </div>
       )}
       <ManaPoolDisplay pool={player.manaPool} />

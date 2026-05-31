@@ -169,6 +169,8 @@ pub struct CardDto {
     pub phased_out: bool,
     /// True if this creature has been exerted (won't untap next untap step).
     pub exerted: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_ring_bearer: bool,
     /// ID of the card this permanent is attached to (equipment host, enchanted creature).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attached_to: Option<String>,
@@ -699,6 +701,7 @@ pub fn card_to_dto(
             .collect(),
         phased_out: card.phased_out,
         exerted: card.exerted,
+        is_ring_bearer: game.player(card.controller).ring_bearer == Some(cid),
         effective_mana_cost: {
             let is_command_zone_commander =
                 card.zone == ZoneType::Command && game.player_is_commander(card.controller, cid);

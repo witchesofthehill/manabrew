@@ -49,7 +49,6 @@ fn draw_for_player(
     //   if (upto)     chooseNumber(0..=N) for the actual count.
     let upto = sa.ir.upto;
     let optional = sa.ir.optional_present || sa.ir.optional_decider.is_some() || upto;
-    let mut num = num;
     if optional {
         let source_name = sa.source.map(|cid| ctx.game.card(cid).card_name.as_str());
         let accepted = ctx.agents[target.index()].confirm_action(
@@ -65,10 +64,10 @@ fn draw_for_player(
         }
     }
     if upto {
-        match ctx.agents[target.index()].choose_number(target, 0, num) {
+        match ctx.agents[target.index()].choose_number(target, 0, actual_num) {
             Some(picked) => {
-                num = picked.clamp(0, num);
-                if num == 0 {
+                actual_num = picked.clamp(0, actual_num);
+                if actual_num == 0 {
                     return;
                 }
             }

@@ -10,6 +10,7 @@ use crate::game::GameState;
 use crate::ids::{CardId, PlayerId};
 use crate::parsing::compare::compare_expr;
 use crate::parsing::{Params, ParsedParams};
+use crate::spellability::SpellAbility;
 
 use super::spell_ability_variables::SpellAbilityVariables;
 
@@ -176,6 +177,16 @@ impl SpellAbilityRestriction {
     /// Check if this spell ability can be played given the current game state.
     /// Mirrors Java's `SpellAbilityRestriction.canPlay(Card, SpellAbility)`.
     pub fn can_play(&self, game: &GameState, card_id: CardId, player: PlayerId) -> bool {
+        self.can_play_with_sa(game, card_id, player, None)
+    }
+
+    pub fn can_play_with_sa(
+        &self,
+        game: &GameState,
+        card_id: CardId,
+        player: PlayerId,
+        sa: Option<&SpellAbility>,
+    ) -> bool {
         // Check zone restriction
         let card_zone = game.card_current_zone(card_id);
         if card_zone != self.variables.zone() {
@@ -245,6 +256,10 @@ impl SpellAbilityRestriction {
             return false;
         }
 
+        if !self.check_presence_restriction(game, card_id, player, sa) {
+            return false;
+        }
+
         if let Some(class_level) = self.variables.class_level() {
             let Some(operator) = self.variables.class_level_operator() else {
                 return false;
@@ -256,6 +271,55 @@ impl SpellAbilityRestriction {
         }
 
         true
+    }
+
+    fn check_presence_restriction(
+        &self,
+        game: &GameState,
+        card_id: CardId,
+        player: PlayerId,
+        sa: Option<&SpellAbility>,
+    ) -> bool {
+        let Some(is_present) = self.variables.is_present() else {
+            return true;
+        };
+        let cards = if let Some(defined) = self.variables.present_defined() {
+            crate::ability::ability_utils::get_defined_cards(
+                game,
+                Some(card_id),
+                defined,
+                Some(player),
+            )
+        } else {
+            game.cards_in_zone(self.variables.present_zone(), player)
+                .iter()
+                .copied()
+                .collect()
+        };
+        let count = cards
+            .into_iter()
+            .filter(|&cid| {
+                if let Some(sa) = sa {
+                    crate::ability::ability_utils::matches_valid_cards_for_sa(
+                        game,
+                        sa,
+                        game.card(cid),
+                        None,
+                        is_present,
+                    )
+                } else {
+                    crate::ability::ability_utils::matches_valid_cards_for_source(
+                        game,
+                        card_id,
+                        game.card(cid),
+                        None,
+                        is_present,
+                    )
+                }
+            })
+            .count() as i32;
+        let compare = self.variables.present_compare().unwrap_or("GE1");
+        compare_expr(count, compare)
     }
 
     /// Check zone restrictions only.

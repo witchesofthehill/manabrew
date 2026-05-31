@@ -105,6 +105,7 @@ fn apply_metadata(edition: &mut CardEdition, line: &str) {
             edition.sheet_replace_card_from_sheet2 = nonempty(value);
         }
         "booster" => edition.booster = Some(value.to_string()),
+        "draftbooster" => edition.draft_booster = Some(value.to_string()),
         other if other.starts_with("booster") && other != "booster" => {
             let suffix = &key["Booster".len()..];
             if !matches!(

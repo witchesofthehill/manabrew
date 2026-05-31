@@ -18,20 +18,24 @@ import { ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { arm as armGauntletReturn } from "@/lib/gauntletReturn";
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
-import { draftCardToManaBrew } from "@/lib/limited.utils";
+import { resolveDeckCards } from "@/lib/limited.utils";
 import type { Deck, DeckFormatId } from "@/types/manabrew";
 
-function draftCardsToDeck(
+async function buildGauntletDeck(
   name: string,
   main: DraftCard[],
   sideboard: DraftCard[],
   format: DeckFormatId,
-): Deck {
+): Promise<Deck> {
+  const [resolvedMain, resolvedSide] = await Promise.all([
+    resolveDeckCards(main),
+    resolveDeckCards(sideboard),
+  ]);
   return {
     name,
     format,
-    cards: main.map((card, index) => draftCardToManaBrew(card, index)),
-    sideboard: sideboard.map((card, index) => draftCardToManaBrew(card, main.length + index)),
+    cards: resolvedMain,
+    sideboard: resolvedSide,
   };
 }
 
@@ -98,18 +102,15 @@ export default function Gauntlet() {
       const decks = await fetchMatchDecks(gauntletId);
       setMatchDecks(decks);
       const formatId = activeGauntlet.kind === "sealed" ? "sealed" : "draft";
-      const human = draftCardsToDeck(
-        "Gauntlet Deck",
-        decks.humanMain,
-        decks.humanSideboard,
-        formatId,
-      );
-      const opponent = draftCardsToDeck(
-        activeGauntlet.currentOpponent?.deckName ?? "Gauntlet Opponent",
-        decks.opponentMain,
-        decks.opponentSideboard,
-        formatId,
-      );
+      const [human, opponent] = await Promise.all([
+        buildGauntletDeck("Gauntlet Deck", decks.humanMain, decks.humanSideboard, formatId),
+        buildGauntletDeck(
+          activeGauntlet.currentOpponent?.deckName ?? "Gauntlet Opponent",
+          decks.opponentMain,
+          decks.opponentSideboard,
+          formatId,
+        ),
+      ]);
       armGauntletReturn(gauntletId, activeGauntlet.currentRound);
       await startGame(human, formatId, undefined, opponent);
       navigate(ROUTES.PLAY);

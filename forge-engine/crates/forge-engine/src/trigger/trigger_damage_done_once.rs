@@ -26,6 +26,64 @@ impl TriggerDamageDoneOnce {
             combat_damage_only: params.is_true(keys::COMBAT_DAMAGE),
         })
     }
+
+    fn damage_amount(
+        &self,
+        trigger: &super::trigger::Trigger,
+        params: &RunParams,
+        game: &GameState,
+    ) -> i32 {
+        if let Some(map) = params.damage_map.as_ref() {
+            return map
+                .entries()
+                .into_iter()
+                .filter(|(source, _, _)| {
+                    trigger.matches_optional_valid_card_filter(
+                        &self.valid_source,
+                        Some(*source),
+                        game,
+                    )
+                })
+                .map(|(_, _, amount)| amount)
+                .sum();
+        }
+        if self.valid_source.is_some()
+            && !trigger.matches_optional_valid_card_filter(
+                &self.valid_source,
+                params.damage_source,
+                game,
+            )
+        {
+            return 0;
+        }
+        params.damage_amount.unwrap_or(0)
+    }
+
+    fn damage_sources(
+        &self,
+        trigger: &super::trigger::Trigger,
+        params: &RunParams,
+        game: &GameState,
+    ) -> Vec<CardId> {
+        if let Some(map) = params.damage_map.as_ref() {
+            let mut seen = HashSet::new();
+            let mut sources = Vec::new();
+            for (source, _, _) in map.entries() {
+                if !trigger.matches_optional_valid_card_filter(
+                    &self.valid_source,
+                    Some(source),
+                    game,
+                ) {
+                    continue;
+                }
+                if seen.insert(source) {
+                    sources.push(source);
+                }
+            }
+            return sources;
+        }
+        params.damage_source.into_iter().collect()
+    }
 }
 
 #[typetag::serde]
@@ -43,16 +101,18 @@ impl TriggerBehavior for TriggerDamageDoneOnce {
         if self.combat_damage_only && params.is_combat_damage != Some(true) {
             return false;
         }
-        trigger.matches_optional_valid_card_filter(&self.valid_source, params.damage_source, game)
-            && trigger.matches_damage_target_filter(&self.valid_target, params, game, true)
+        if !trigger.matches_damage_target_filter(&self.valid_target, params, game, true) {
+            return false;
+        }
+        self.damage_amount(trigger, params, game) > 0
     }
 
     fn set_triggering_objects(
         &self,
-        _trigger: &super::trigger::Trigger,
+        trigger: &super::trigger::Trigger,
         sa: &mut SpellAbility,
         params: &RunParams,
-        _game: &GameState,
+        game: &GameState,
     ) {
         if let Some(card) = params.damage_target_card {
             sa.set_triggering_object(crate::ability::AbilityKey::Target, card);
@@ -61,16 +121,15 @@ impl TriggerBehavior for TriggerDamageDoneOnce {
             sa.set_triggering_object(crate::ability::AbilityKey::Target, player);
             sa.set_triggering_object(crate::ability::AbilityKey::TargetPlayer, player);
         }
-        let sources = get_damage_sources(params);
+        let sources = self.damage_sources(trigger, params, game);
         if !sources.is_empty() {
             sa.set_triggering_object(crate::ability::AbilityKey::Sources, sources);
         }
         if let Some(p) = params.attacking_player {
             sa.set_triggering_object(crate::ability::AbilityKey::AttackingPlayer, p);
         }
-        if let Some(amount) = params.damage_amount {
-            sa.set_triggering_object(crate::ability::AbilityKey::DamageAmount, amount.to_string());
-        }
+        let amount = self.damage_amount(trigger, params, game);
+        sa.set_triggering_object(crate::ability::AbilityKey::DamageAmount, amount.to_string());
     }
 
     fn get_important_stack_objects(

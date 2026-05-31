@@ -20,10 +20,11 @@ export type DeckFormatId =
   | "sealed";
 
 export interface CardIdentity {
-  id: string; // UUID
+  id: string;
   name: string;
   setCode: string;
   cardNumber: string;
+  foil?: boolean;
 }
 
 export interface CardRulesSummary {
@@ -72,6 +73,7 @@ export interface GameCard extends CardIdentity, CardRulesSummary {
   attachmentIds?: string[];
   phasedOut?: boolean;
   exerted?: boolean;
+  isRingBearer?: boolean;
   flashbackCost?: string;
   kickerCost?: string;
   effectiveManaCost?: string;
@@ -85,7 +87,6 @@ export type AllPartsComponent = "token" | "combo_piece" | "meld_part" | "meld_re
 
 export interface DeckCard extends CardIdentity, CardRulesSummary {
   uris: ScryfallImageUris;
-  foil?: boolean;
   /** Scryfall `all_parts` — entries this card references. `component` discriminates
    *  tokens from combo pieces, meld parts/results, and the self-reference Scryfall
    *  always includes. Token resolution is generic: name-only lookup against the

@@ -1,5 +1,6 @@
 use crate::protocol::{
-    EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
+    SealedConfig,
 };
 use forge_agent_interface::deck_dto::Deck;
 
@@ -33,6 +34,8 @@ pub struct Room {
     pub status: RoomStatus,
     pub players: Vec<RoomSlot>,
     pub observers: Vec<RoomObserver>,
+    pub draft_config: Option<DraftConfig>,
+    pub sealed_config: Option<SealedConfig>,
 }
 
 impl Room {
@@ -45,6 +48,8 @@ impl Room {
         format: GameFormat,
         engine: EngineKind,
         host_plays: bool,
+        draft_config: Option<DraftConfig>,
+        sealed_config: Option<SealedConfig>,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
         let (players, observers) = if host_plays {
@@ -81,6 +86,8 @@ impl Room {
             status: RoomStatus::Lobby,
             players,
             observers,
+            draft_config,
+            sealed_config,
         }
     }
 
@@ -93,7 +100,11 @@ impl Room {
     }
 
     pub fn all_ready(&self) -> bool {
-        self.players.len() >= 2 && self.players.iter().all(|p| p.ready)
+        let min_players = match self.format {
+            GameFormat::Draft | GameFormat::Sealed => 1,
+            _ => 2,
+        };
+        self.players.len() >= min_players && self.players.iter().all(|p| p.ready)
     }
 
     pub fn add_player(&mut self, player_id: String, username: String) -> Result<(), String> {
@@ -284,6 +295,8 @@ impl Room {
             format: self.format.clone(),
             engine: self.engine,
             status: self.status.clone(),
+            draft_config: self.draft_config.clone(),
+            sealed_config: self.sealed_config.clone(),
         }
     }
 }

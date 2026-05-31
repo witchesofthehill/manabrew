@@ -276,6 +276,8 @@ async fn host_one_room(
             format: config.format.clone(),
             hosted: !config.host_plays,
             engine,
+            draft_config: None,
+            sealed_config: None,
         })
         .await?;
         info!(room_name = %config.room_name, "creating room");

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::error::ServerError;
-use crate::protocol::{EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus};
+use crate::protocol::{
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
+};
 use crate::room::Room;
 use crate::state::ServerState;
 use forge_agent_interface::deck_dto::Deck;
@@ -14,7 +16,25 @@ pub fn create_room_sync(
     format: GameFormat,
     hosted: bool,
     engine: EngineKind,
+    draft_config: Option<DraftConfig>,
+    sealed_config: Option<SealedConfig>,
 ) -> Result<RoomInfo, ServerError> {
+    if let Some(cfg) = &draft_config {
+        match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
+            (Some(_), Some(_)) => {
+                return Err(ServerError::InvalidDraftConfig(
+                    "set_code and cube_id are mutually exclusive".into(),
+                ));
+            }
+            (None, None) => {
+                return Err(ServerError::InvalidDraftConfig(
+                    "set_code or cube_id required".into(),
+                ));
+            }
+            _ => {}
+        }
+    }
+
     {
         if let Some(player) = state.players.get(player_id) {
             if let Some(rid) = &player.room_id {
@@ -45,6 +65,8 @@ pub fn create_room_sync(
         format,
         engine,
         !hosted,
+        draft_config,
+        sealed_config,
     );
     let info = room.to_room_info();
 
@@ -183,7 +205,11 @@ pub fn set_ready_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        if ready && !room.has_selected_deck(player_id) {
+        let format_requires_deck = !matches!(
+            room.format,
+            GameFormat::Any | GameFormat::Draft | GameFormat::Sealed
+        );
+        if ready && format_requires_deck && !room.has_selected_deck(player_id) {
             return Err(ServerError::DeckNotSelected);
         }
 
@@ -226,11 +252,19 @@ pub fn set_deck_selection_sync(
     Ok(room_id)
 }
 
+pub struct StartedGame {
+    pub room_id: String,
+    pub player_order: Vec<String>,
+    pub player_decks: Vec<PlayerDeckInfo>,
+    pub starting_life: i32,
+    pub room_info: RoomInfo,
+}
+
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
     format: Option<GameFormat>,
-) -> Result<(String, Vec<String>, Vec<PlayerDeckInfo>, i32), ServerError> {
+) -> Result<StartedGame, ServerError> {
     let room_id = {
         state
             .players
@@ -239,7 +273,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (player_order, player_decks, starting_life) = {
+    let (player_order, player_decks, starting_life, room_info) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -253,18 +287,6 @@ pub fn start_game_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        if !room.all_ready() {
-            return Err(ServerError::PlayersNotReady);
-        }
-
-        if room
-            .players
-            .iter()
-            .any(|p| p.selected_deck_name.is_none() || p.selected_deck.is_none())
-        {
-            return Err(ServerError::DeckNotSelected);
-        }
-
         if room.format == GameFormat::Any {
             match format {
                 Some(chosen) if chosen != GameFormat::Any => room.format = chosen,
@@ -272,11 +294,30 @@ pub fn start_game_sync(
             }
         }
 
+        if matches!(room.format, GameFormat::Draft) && room.draft_config.is_none() {
+            return Err(ServerError::FormatNotChosen);
+        }
+        if matches!(room.format, GameFormat::Sealed) && room.sealed_config.is_none() {
+            return Err(ServerError::FormatNotChosen);
+        }
+
+        if !room.all_ready() {
+            return Err(ServerError::PlayersNotReady);
+        }
+
+        if !matches!(room.format, GameFormat::Draft | GameFormat::Sealed)
+            && room
+                .players
+                .iter()
+                .any(|p| p.selected_deck_name.is_none() || p.selected_deck.is_none())
+        {
+            return Err(ServerError::DeckNotSelected);
+        }
+
         room.status = RoomStatus::InGame;
         let starting_life = match room.format {
             GameFormat::Commander => 40,
             GameFormat::Brawl => 25,
-            GameFormat::Any => return Err(ServerError::FormatNotChosen),
             GameFormat::Standard
             | GameFormat::Pioneer
             | GameFormat::Modern
@@ -286,11 +327,23 @@ pub fn start_game_sync(
             | GameFormat::Oathbreaker
             | GameFormat::Draft
             | GameFormat::Sealed => 20,
+            GameFormat::Any => unreachable!("Any resolved to concrete format above"),
         };
-        (room.player_usernames(), room.player_decks(), starting_life)
+        (
+            room.player_usernames(),
+            room.player_decks(),
+            starting_life,
+            room.to_room_info(),
+        )
     };
 
-    Ok((room_id, player_order, player_decks, starting_life))
+    Ok(StartedGame {
+        room_id,
+        player_order,
+        player_decks,
+        starting_life,
+        room_info,
+    })
 }
 
 pub fn end_game_sync(

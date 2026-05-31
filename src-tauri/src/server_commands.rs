@@ -89,6 +89,9 @@ pub async fn server_create_room(
     max_players: u8,
     format: String,
     hosted: Option<bool>,
+    engine: Option<String>,
+    draft_config: Option<serde_json::Value>,
+    sealed_config: Option<serde_json::Value>,
 ) -> Result<(), String> {
     send_server_message(
         &client,
@@ -98,6 +101,9 @@ pub async fn server_create_room(
             "max_players": max_players,
             "format": format,
             "hosted": hosted.unwrap_or(false),
+            "engine": engine.unwrap_or_else(|| "Wasm".to_string()),
+            "draft_config": draft_config,
+            "sealed_config": sealed_config,
         }),
     )
 }
@@ -157,8 +163,19 @@ pub async fn server_set_deck_selection(
 }
 
 #[tauri::command]
-pub async fn server_start_game(client: State<'_, ServerClient>) -> Result<(), String> {
-    send_server_message(&client, serde_json::json!({"type": "StartGame"}))
+pub async fn server_start_game(
+    client: State<'_, ServerClient>,
+    format: Option<String>,
+) -> Result<(), String> {
+    send_server_message(
+        &client,
+        serde_json::json!({"type": "StartGame", "format": format}),
+    )
+}
+
+#[tauri::command]
+pub async fn server_end_game(client: State<'_, ServerClient>) -> Result<(), String> {
+    send_server_message(&client, serde_json::json!({"type": "EndGame"}))
 }
 
 #[tauri::command]

@@ -28,6 +28,10 @@
     "args": "--variant Commander --commander 'Neheb, the Worthy' --commander 'Neheb, the Worthy' --deck1 neheb_minotaur_commander --deck2 neheb_minotaur_commander --seed 42 --max-turns 40 --games 10"
   },
   {
+    "name": "sauronCommander",
+    "args": "--variant Commander --commander 'Sauron, the Dark Lord' --commander 'Sauron, the Dark Lord' --deck1 sauron_the_dark_lord --deck2 sauron_the_dark_lord --seed 42 --max-turns 40"
+  },
+  {
     "name": "jund",
     "args": "--deck1 real_jund_wildfire --deck2 real_mono_red_madness --seed 42 --max-turns 40 --games 20"
   },

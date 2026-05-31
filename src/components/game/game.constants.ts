@@ -91,3 +91,10 @@ export const CARD_BADGES = {
 export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;
+
+export const RING_ABILITIES: readonly string[] = [
+  "Your Ring-bearer is legendary and can't be blocked by creatures with greater power.",
+  "Whenever your Ring-bearer attacks, draw a card, then discard a card.",
+  "Whenever your Ring-bearer becomes blocked by a creature, that creature's controller sacrifices it at the end of combat.",
+  "Whenever your Ring-bearer deals combat damage to a player, each opponent loses 3 life.",
+] as const;

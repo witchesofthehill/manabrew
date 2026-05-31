@@ -5,9 +5,6 @@ export interface ServerConnectionDefaults {
   password: string;
 }
 
-/** Whether this deployment offers the hosted (server-side Java) engine — i.e.
- *  a self-hosted-node is available. Drives the Forge option in the per-game
- *  engine-choice modal. Baked at build time via VITE_HOSTED_AI_ENABLED. */
 export function isHostedEngineAvailable(): boolean {
   return ["1", "true", "yes", "on"].includes(
     (import.meta.env.VITE_HOSTED_AI_ENABLED ?? "").toLowerCase(),

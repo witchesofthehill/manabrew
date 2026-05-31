@@ -104,6 +104,11 @@ fn create_army_token(
 ) {
     let army_script = format!("b_0_0_{}_army", amass_type.to_lowercase());
     let mut token = TOKEN_EFFECT_BASE.require_token_template(ctx.token_templates, &army_script);
+    token.set_owner(controller);
+    token.set_controller(controller);
+    token.set_is_token(true);
+    token.set_s_var("TokenScript", army_script);
+    token.set_s_var("TokenSpawningAbility", _sa.ability_text.clone());
     token.card_name = format!("{} Army Token", amass_type);
     token.type_line = CardTypeLine::parse(&format!("Creature - {} Army", amass_type));
 

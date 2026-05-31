@@ -8,12 +8,23 @@ import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useServerStore } from "@/stores/useServerStore";
+import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import { useMultiplayerSealedStore } from "@/stores/useMultiplayerSealedStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
+import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
 import { getPlatform } from "@/platform";
-import type { RoomMessagePayload } from "@/types/server";
+import { START_GAME_FAILURE_CODES } from "@/types/server";
+import type {
+  DraftConfig,
+  GameStartedPayload,
+  RoomMessagePayload,
+  ServerErrorCode,
+  ServerErrorPayload,
+} from "@/types/server";
 import type { Deck, GameView } from "@/types/manabrew";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
@@ -23,6 +34,36 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Wifi, WifiOff, Loader2, Settings, RefreshCw, MessageSquare, Users } from "lucide-react";
+
+const START_GAME_ACK_TIMEOUT_MS = 5000;
+
+function awaitGameStartedAck(roomId: string): Promise<void> {
+  const events = getPlatform().events;
+  return new Promise((resolve, reject) => {
+    const unsubs: Array<() => void> = [];
+    const cleanup = () => unsubs.forEach((fn) => fn());
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("server did not acknowledge StartGame in time"));
+    }, START_GAME_ACK_TIMEOUT_MS);
+    unsubs.push(
+      events.on<GameStartedPayload>("server:game_started", (payload) => {
+        if (payload.room_id !== roomId) return;
+        clearTimeout(timeout);
+        cleanup();
+        resolve();
+      }),
+    );
+    unsubs.push(
+      events.on<ServerErrorPayload>("server:error", (payload) => {
+        if (!START_GAME_FAILURE_CODES.has(payload.code as ServerErrorCode)) return;
+        clearTimeout(timeout);
+        cleanup();
+        reject(new Error(payload.message || payload.code));
+      }),
+    );
+  });
+}
 
 interface ManualTabletopLaunchPayload {
   type: "launch";
@@ -91,15 +132,32 @@ export default function Lobby() {
   const [sidePanel, setSidePanel] = useState<"chat" | "players" | null>(null);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
+  const [startingLimited, setStartingLimited] = useState(false);
+
+  const draftMode = useMultiplayerDraftStore((s) => s.mode);
+  const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
+  useEffect(() => {
+    if (draftMode === "drafting" && draftSessionId) {
+      navigate("/draft/multiplayer");
+    }
+  }, [draftMode, draftSessionId, navigate]);
+
+  const sealedMode = useMultiplayerSealedStore((s) => s.mode);
+  useEffect(() => {
+    if (sealedMode === "building") {
+      navigate("/sealed/multiplayer");
+    }
+  }, [sealedMode, navigate]);
 
   useEffect(() => {
-    if (!connected && !connecting && prefs.serverUsername) {
+    if (!connected && !connecting && !error && prefs.serverUsername) {
       connect(prefs.serverHost, prefs.serverPort, prefs.serverUsername, prefs.serverPassword);
     }
   }, [
     connect,
     connected,
     connecting,
+    error,
     prefs.serverHost,
     prefs.serverPort,
     prefs.serverUsername,
@@ -117,35 +175,55 @@ export default function Lobby() {
   }, [connected, listRooms, listPlayers]);
 
   useEffect(() => {
-    if (gameStarted && playerOrder.length > 0) {
-      const isHost = currentRoom?.host === username;
-      if (
-        currentRoom &&
-        !samePlayers(
-          playerOrder,
-          currentRoom.players.map((player) => player.username),
-        )
-      ) {
-        toast.error("Server player order does not match the current room.");
-        return;
-      }
-      const myIndex = playerOrder.indexOf(username ?? "");
-      if (myIndex < 0) {
-        toast.error("Could not determine your player slot for this game.");
-        return;
-      }
+    if (!gameStarted || playerOrder.length === 0) return;
+    if (currentRoom?.format === "Draft") {
       useServerStore.setState({ gameStarted: false });
-      navigate("/play", {
-        state: {
-          multiplayer: true,
-          playerOrder,
-          playerDecks,
-          isHost,
-          startingLife,
-          myPlayerSlot: `player-${myIndex}`,
-        },
-      });
+      return;
     }
+    if (currentRoom?.format === "Sealed") {
+      useServerStore.setState({ gameStarted: false });
+      if (currentRoom.status === "InGame" && currentRoom.sealed_config && username) {
+        const room = currentRoom;
+        const amHost = room.host === username;
+        void startMpSealed({ room, username }).catch((err) => {
+          toast.error(`Failed to open sealed pool: ${String(err)}`);
+          if (amHost) {
+            void useServerStore
+              .getState()
+              .endGame()
+              .catch(() => {});
+          }
+        });
+      }
+      return;
+    }
+    const isHost = currentRoom?.host === username;
+    if (
+      currentRoom &&
+      !samePlayers(
+        playerOrder,
+        currentRoom.players.map((player) => player.username),
+      )
+    ) {
+      toast.error("Server player order does not match the current room.");
+      return;
+    }
+    const myIndex = playerOrder.indexOf(username ?? "");
+    if (myIndex < 0) {
+      toast.error("Could not determine your player slot for this game.");
+      return;
+    }
+    useServerStore.setState({ gameStarted: false });
+    navigate("/play", {
+      state: {
+        multiplayer: true,
+        playerOrder,
+        playerDecks,
+        isHost,
+        startingLife,
+        myPlayerSlot: `player-${myIndex}`,
+      },
+    });
   }, [gameStarted, currentRoom, navigate, playerDecks, playerOrder, startingLife, username]);
 
   useEffect(() => {
@@ -287,6 +365,72 @@ export default function Lobby() {
     const botName = `${username}-bot-${Date.now().toString(36)}`;
     setBotDeckTarget(botName);
     setAiDeckDialogOpen(true);
+  }
+
+  async function handleStartDraft() {
+    const room = currentRoom;
+    if (!room || !username) return;
+    const config: DraftConfig | undefined = room.draft_config;
+    if (!config) {
+      toast.error("This room has no draft config — recreate it as a Draft room.");
+      return;
+    }
+    setStartingLimited(true);
+    try {
+      const participants: DraftHostParticipant[] = room.players
+        .filter((p) => p.username !== username)
+        .map((p) => ({ playerSlot: p.username, displayName: p.username }));
+      const ackPromise = awaitGameStartedAck(room.room_id);
+      ackPromise.catch(() => {});
+      try {
+        await startGame("Draft");
+        await ackPromise;
+      } catch (e) {
+        toast.error(`Failed to start draft: ${String(e)}`);
+        return;
+      }
+      const result = await startDraftAsHost({
+        roomId: room.room_id,
+        hostSlot: username,
+        hostName: username,
+        participants,
+        config: {
+          setCode: config.set_code,
+          cubeId: config.cube_id,
+          cubeName: config.cube_name,
+          podSize: room.max_players,
+          rounds: config.rounds,
+          picksPerPass: config.picks_per_pass,
+          seed: config.seed,
+          fillWithBots: config.fill_with_bots,
+        },
+      });
+      if (!result.ok) toast.error(`Failed to start draft: ${result.error}`);
+    } finally {
+      setStartingLimited(false);
+    }
+  }
+
+  async function handleStartSealed() {
+    const room = currentRoom;
+    if (!room || !username) return;
+    if (!room.sealed_config) {
+      toast.error("This room has no sealed config — recreate it as a Sealed room.");
+      return;
+    }
+    setStartingLimited(true);
+    try {
+      const ackPromise = awaitGameStartedAck(room.room_id);
+      ackPromise.catch(() => {});
+      try {
+        await startGame("Sealed");
+        await ackPromise;
+      } catch (e) {
+        toast.error(`Failed to start sealed: ${String(e)}`);
+      }
+    } finally {
+      setStartingLimited(false);
+    }
   }
 
   async function spawnBot(botName: string, deck: SelectedAiDeck) {
@@ -444,6 +588,9 @@ export default function Lobby() {
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
             onStartGame={startGame}
             onStartTabletop={handleStartTabletop}
+            onStartDraft={handleStartDraft}
+            onStartSealed={handleStartSealed}
+            startingLimited={startingLimited}
             onAddBot={handleAddAiBot}
             onRemoveBot={handleRemoveBot}
             mySpawnedBots={mySpawnedBots}

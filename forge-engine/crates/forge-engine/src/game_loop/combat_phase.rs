@@ -544,6 +544,12 @@ impl GameLoop {
                 }
             }
 
+            crate::ability::effects::ring_tempts_you_effect::sync_ring_effect(
+                game,
+                &mut self.trigger_handler,
+                active,
+            );
+
             // Fire Attacks trigger for each attacker
             self.trigger_handler.run_trigger(
                 TriggerType::Attacks,

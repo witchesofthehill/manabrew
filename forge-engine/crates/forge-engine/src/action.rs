@@ -1423,7 +1423,7 @@ impl GameState {
         let cards: Vec<CardId> = self.cards_in_zone(ZoneType::Battlefield, player).to_vec();
         for cid in cards {
             // Use untap() which runs replacement effects
-            self.untap(cid);
+            self.untap_during_untap_step(cid, player);
         }
     }
 
@@ -1510,6 +1510,14 @@ impl GameState {
     /// Untap a card. Returns true if it was tapped.
     /// Runs Untap replacement effects before untapping.
     pub fn untap(&mut self, card_id: CardId) -> bool {
+        self.untap_internal(card_id, None)
+    }
+
+    pub fn untap_during_untap_step(&mut self, card_id: CardId, player: PlayerId) -> bool {
+        self.untap_internal(card_id, Some(player))
+    }
+
+    fn untap_internal(&mut self, card_id: CardId, player: Option<PlayerId>) -> bool {
         let card = &self.cards[card_id.index()];
         if !card.tapped {
             return false;
@@ -1522,7 +1530,10 @@ impl GameState {
             return false;
         }
         // Run Untap replacement effects.
-        let mut event = ReplacementEvent::Untap { card: card_id };
+        let mut event = ReplacementEvent::Untap {
+            card: card_id,
+            player,
+        };
         let result = apply_replacements(self, &mut event);
         if result == ReplacementResult::Skipped || result == ReplacementResult::Replaced {
             return false; // Untap was prevented

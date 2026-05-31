@@ -1,6 +1,10 @@
+import { useMemo } from "react";
+
 import type { DraftCard } from "@/types/limited";
 import type { Deck, DeckCard } from "@/types/manabrew";
-import { frontFaceName } from "@/lib/scryfall.utils";
+import type { ScryfallCard } from "@/types/scryfall";
+import { frontFaceName, parseTypeLine } from "@/lib/scryfall.utils";
+import { cardKey, peekCard, useCard, useScryfallStore } from "@/stores/useScryfallStore";
 
 export type LimitedZone = "pool" | "main" | "sideboard";
 
@@ -9,7 +13,17 @@ export interface PoolEntry {
   card: DraftCard;
 }
 
-export const RARITY_ORDER: Record<DraftCard["rarity"], number> = {
+export type UIRarity =
+  | "common"
+  | "uncommon"
+  | "rare"
+  | "mythic"
+  | "special"
+  | "land"
+  | "token"
+  | "unknown";
+
+export const RARITY_ORDER: Record<UIRarity, number> = {
   mythic: 0,
   rare: 1,
   uncommon: 2,
@@ -20,7 +34,7 @@ export const RARITY_ORDER: Record<DraftCard["rarity"], number> = {
   unknown: 7,
 };
 
-export const RARITY_LABEL: Record<DraftCard["rarity"], string> = {
+export const RARITY_LABEL: Record<UIRarity, string> = {
   mythic: "Mythic",
   rare: "Rare",
   uncommon: "Uncommon",
@@ -41,7 +55,7 @@ export function countManaPips(cost: string, letter: string): number {
 
 export type RarityToken = keyof import("@/themes/gameTheme").GameThemeColors["rarity"];
 
-const RARITY_TOKEN: Partial<Record<DraftCard["rarity"], RarityToken>> = {
+const RARITY_TOKEN: Partial<Record<UIRarity, RarityToken>> = {
   common: "common",
   uncommon: "uncommon",
   rare: "rare",
@@ -50,21 +64,38 @@ const RARITY_TOKEN: Partial<Record<DraftCard["rarity"], RarityToken>> = {
   land: "land",
 };
 
-export function rarityToken(rarity: DraftCard["rarity"]): RarityToken | null {
+export function rarityToken(rarity: UIRarity): RarityToken | null {
   return RARITY_TOKEN[rarity] ?? null;
 }
 
-/** Reverse of `draftCardToManaBrew` — used by the limited compare dialog to
- *  re-interpret a saved `Deck` as a draft pool for visualization. Rarity is
- *  unknown because saved decks don't carry it. */
+export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity {
+  if (!card) return "unknown";
+  const typeLine = card.type_line ?? "";
+  if (/\bToken\b/i.test(typeLine)) return "token";
+  if (/\bBasic\b.*\bLand\b/i.test(typeLine)) return "land";
+  switch (card.rarity) {
+    case "common":
+      return "common";
+    case "uncommon":
+      return "uncommon";
+    case "rare":
+      return "rare";
+    case "mythic":
+      return "mythic";
+    case "special":
+    case "bonus":
+      return "special";
+    default:
+      return "unknown";
+  }
+}
+
 export function deckCardToDraftCard(card: DeckCard): DraftCard {
   return {
+    id: "",
     name: card.name,
     setCode: card.setCode,
-    collectorNumber: card.cardNumber,
-    rarity: "unknown",
-    colors: card.colorIdentity,
-    isDoubleFaced: card.isDoubleFaced,
+    cardNumber: card.cardNumber,
     foil: card.foil,
   };
 }
@@ -73,25 +104,81 @@ export function deckMainAsDraftCards(deck: Deck): DraftCard[] {
   return deck.cards.map(deckCardToDraftCard);
 }
 
-export function draftCardToManaBrew(dc: DraftCard, idx: number): DeckCard {
-  if (!dc.uris) throw new Error(`Draft card has no image uris: ${dc.name}`);
+const PLACEHOLDER_URI =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+const PLACEHOLDER_URIS = {
+  small: PLACEHOLDER_URI,
+  normal: PLACEHOLDER_URI,
+  large: PLACEHOLDER_URI,
+  png: PLACEHOLDER_URI,
+  art_crop: PLACEHOLDER_URI,
+  border_crop: PLACEHOLDER_URI,
+};
+
+export function refToDeckCard(
+  ref: DraftCard,
+  entry: {
+    info: ScryfallCard;
+    uris: {
+      small: string;
+      normal: string;
+      large: string;
+      png: string;
+      art_crop: string;
+      border_crop: string;
+    };
+  } | null,
+  idx: number,
+): DeckCard {
+  const info = entry?.info;
+  const typeLine = parseTypeLine(info?.type_line ?? "");
+  const isDfc = info?.layout === "transform" || info?.layout === "modal_dfc";
   return {
-    id: `pool-${idx}-${dc.setCode}-${dc.collectorNumber}`,
-    name: frontFaceName(dc.name),
-    setCode: dc.setCode,
-    cardNumber: dc.collectorNumber,
-    color: "",
-    manaCost: "",
-    cmc: 0,
-    types: [],
-    subtypes: [],
-    supertypes: [],
-    text: "",
-    isDoubleFaced: dc.isDoubleFaced,
-    foil: dc.foil,
-    colorIdentity: dc.colors ?? [],
-    uris: dc.uris,
+    id: `pool-${idx}-${ref.setCode}-${ref.cardNumber}`,
+    name: frontFaceName(ref.name),
+    setCode: ref.setCode,
+    cardNumber: ref.cardNumber,
+    color: (info?.colors ?? []).join(""),
+    manaCost: info?.mana_cost ?? "",
+    cmc: info?.cmc ?? 0,
+    types: typeLine.types,
+    subtypes: typeLine.subtypes,
+    supertypes: typeLine.supertypes,
+    text: info?.oracle_text ?? "",
+    layout: info?.layout,
+    isDoubleFaced: isDfc,
+    foil: ref.foil,
+    colorIdentity: info?.color_identity ?? [],
+    uris: entry?.uris ?? PLACEHOLDER_URIS,
   };
+}
+
+export async function resolveDeckCards(refs: DraftCard[]): Promise<DeckCard[]> {
+  const store = useScryfallStore.getState();
+  return Promise.all(
+    refs.map(async (ref, idx) => {
+      const lookup = { name: ref.name, setCode: ref.setCode, cardNumber: ref.cardNumber };
+      const key = cardKey(lookup);
+      let entry = store.cards[key]?.card ?? null;
+      if (!entry) {
+        try {
+          entry = await store.getCard(lookup);
+        } catch {
+          entry = null;
+        }
+      }
+      return refToDeckCard(ref, entry, idx);
+    }),
+  );
+}
+
+export function useDeckCard(ref: DraftCard, idx: number): DeckCard | null {
+  const entry = useCard({
+    name: ref.name,
+    setCode: ref.setCode,
+    cardNumber: ref.cardNumber,
+  });
+  return useMemo(() => (entry ? refToDeckCard(ref, entry, idx) : null), [entry, ref, idx]);
 }
 
 export function indexPool(pool: DraftCard[]): PoolEntry[] {
@@ -107,12 +194,14 @@ export function unusedIndices(poolSize: number, main: number[], sideboard: numbe
 
 export function groupByRarity(
   entries: PoolEntry[],
-): Array<{ rarity: DraftCard["rarity"]; entries: PoolEntry[] }> {
-  const map = new Map<DraftCard["rarity"], PoolEntry[]>();
+  rarityOf: (ref: DraftCard) => UIRarity,
+): Array<{ rarity: UIRarity; entries: PoolEntry[] }> {
+  const map = new Map<UIRarity, PoolEntry[]>();
   for (const e of entries) {
-    const list = map.get(e.card.rarity) ?? [];
+    const rarity = rarityOf(e.card);
+    const list = map.get(rarity) ?? [];
     list.push(e);
-    map.set(e.card.rarity, list);
+    map.set(rarity, list);
   }
   return Array.from(map.entries())
     .sort((a, b) => RARITY_ORDER[a[0]] - RARITY_ORDER[b[0]])
@@ -120,6 +209,25 @@ export function groupByRarity(
       rarity,
       entries: list.sort((a, b) => a.card.name.localeCompare(b.card.name)),
     }));
+}
+
+export function useGroupByRarity(
+  entries: PoolEntry[],
+): Array<{ rarity: UIRarity; entries: PoolEntry[] }> {
+  const cache = useScryfallStore((s) => s.cards);
+  return useMemo(
+    () =>
+      groupByRarity(entries, (ref) =>
+        effectiveRarity(
+          peekCard(cache, {
+            name: ref.name,
+            setCode: ref.setCode,
+            cardNumber: ref.cardNumber,
+          }),
+        ),
+      ),
+    [entries, cache],
+  );
 }
 
 /** Group entries by name (count duplicates), sorted alphabetically. */
@@ -167,8 +275,6 @@ export function validateLimitedDeck(
       message: `Main deck has ${main.length} cards, needs ${targetMainSize}.`,
     });
   }
-  // Some formats cap main + sideboard at a hard ceiling; for limited
-  // we only flag a vastly oversized main as a soft warning.
   if (main.length > targetMainSize + 20) {
     issues.push({
       kind: "main_too_large",
@@ -198,13 +304,15 @@ export const BASIC_LAND_MANA: Record<BasicLandName, ManaLetter> = Object.fromEnt
   BASIC_LAND_NAMES.map((name, i) => [name, WUBRG[i]]),
 ) as Record<BasicLandName, ManaLetter>;
 
-/** Synthesize a basic-land entry — used when the player wants to fill
- *  out the manabase with cards the pool doesn't include. */
 export function makeBasicLand(name: BasicLandName, idx: number): DraftCard {
   return {
+    id: "",
     name,
     setCode: "",
-    collectorNumber: `basic-${name.toLowerCase()}-${idx}`,
-    rarity: "land",
+    cardNumber: `basic-${name.toLowerCase()}-${idx}`,
   };
+}
+
+export function isSynthBasic(card: DraftCard): boolean {
+  return card.setCode === "" && card.cardNumber.startsWith("basic-");
 }

@@ -23,13 +23,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         body,
     } = prompt;
 
-    let action_card_names: Vec<String> = match &body {
-        JavaRawPromptBody::Priority { actions } => to_actions(actions)
-            .into_iter()
-            .filter_map(|action| action.card_name)
-            .collect(),
-        _ => Vec::new(),
-    };
     let choosable_ids: Vec<String> = match &body {
         JavaRawPromptBody::ChooseAttackers { attackers, .. } => card_ids(attackers),
         JavaRawPromptBody::ChooseBlockers { blockers, .. } => card_ids(blockers),
@@ -41,19 +34,11 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         | JavaRawPromptBody::ChooseImprovise { cards, .. } => card_ids(cards),
         _ => Vec::new(),
     };
-    let game_view = build_game_view(
-        &snapshot,
-        session_id.as_deref(),
-        player,
-        &action_card_names,
-        &choosable_ids,
-    );
+    let game_view = build_game_view(&snapshot, session_id.as_deref(), player, &choosable_ids);
 
     let mut source_card_id = None;
     let inner = match body {
-        JavaRawPromptBody::Priority { actions } => {
-            build_choose_action(&game_view, &actions, player)
-        }
+        JavaRawPromptBody::Priority { actions } => build_choose_action(&game_view, &actions),
         JavaRawPromptBody::ChooseDiscard { cards, min, max } => AgentPromptInner::ChooseDiscard {
             game_view,
             hand_card_ids: card_ids(&cards),
@@ -571,84 +556,75 @@ struct NormalizedAction {
     index: usize,
     id: String,
     label: String,
-    card_name: Option<String>,
-    card_key: Option<String>,
+    card_id: Option<String>,
     kind: Option<&'static str>,
 }
 
-fn build_choose_action(
-    game_view: &GameViewDto,
-    raw_actions: &[JavaRawAction],
-    viewer: usize,
-) -> AgentPromptInner {
+fn build_choose_action(game_view: &GameViewDto, raw_actions: &[JavaRawAction]) -> AgentPromptInner {
     let actions = to_actions(raw_actions);
 
     let mut playable_options = Vec::new();
-    let mut hand_by_key =
-        card_ids_by_key(game_view.my_hand.iter().chain(&game_view.my_command_zone));
-    let mut hand_by_name =
-        card_ids_by_name(game_view.my_hand.iter().chain(&game_view.my_command_zone));
-    for action in &actions {
-        let Some(card_name) = action.card_name.as_deref() else {
-            continue;
-        };
-        if action.kind == Some("mana") || action.kind == Some("ability") {
-            continue;
-        }
-        if let Some(card_id) =
-            resolve_card_id(action, &mut hand_by_key, &mut hand_by_name, card_name)
-        {
-            playable_options.push(PlayOptionDto {
-                card_id,
-                mode: action.id.clone(),
-                mode_label: action.label.clone(),
-            });
-        }
-    }
-
-    let my_slot = format!("player-{viewer}");
-    let controlled = || {
-        game_view
-            .battlefield
-            .iter()
-            .filter(|card| card.controller_id == my_slot)
-    };
-    let mut bf_by_key = card_ids_by_key(controlled());
-    let mut bf_by_name = card_ids_by_name(controlled());
     let mut activatable_ability_ids = Vec::new();
     let mut mana_ability_options = Vec::new();
     let mut tappable_land_ids: Vec<String> = Vec::new();
+
+    // Each action carries the exact host card id and its kind from the Java
+    // SpellAbility — so routing needs no label parsing and no zone-scoped name
+    // lookup; a card id identifies the card in whatever zone it lives.
     for action in &actions {
-        let is_mana = action.kind == Some("mana");
-        if !is_mana && action.kind != Some("ability") {
-            continue;
-        }
-        let Some(card_name) = action.card_name.as_deref() else {
+        let Some(card_id) = action.card_id.clone() else {
             continue;
         };
-        let Some(card_id) = resolve_card_id(action, &mut bf_by_key, &mut bf_by_name, card_name)
-        else {
-            continue;
-        };
-        let info = ActivatableAbilityInfo {
-            card_id: card_id.clone(),
-            ability_index: action.index,
-            description: action.label.clone(),
-            is_mana_ability: is_mana,
-            cost: None,
-        };
-        if is_mana {
-            if !tappable_land_ids.contains(&card_id) {
-                tappable_land_ids.push(card_id);
+        match action.kind {
+            Some("mana") => {
+                if !tappable_land_ids.contains(&card_id) {
+                    tappable_land_ids.push(card_id.clone());
+                }
+                mana_ability_options.push(ActivatableAbilityInfo {
+                    card_id,
+                    ability_index: action.index,
+                    description: action.label.clone(),
+                    is_mana_ability: true,
+                    cost: None,
+                });
             }
-            mana_ability_options.push(info);
-        } else {
-            activatable_ability_ids.push(info);
+            Some("ability") => {
+                activatable_ability_ids.push(ActivatableAbilityInfo {
+                    card_id,
+                    ability_index: action.index,
+                    description: action.label.clone(),
+                    is_mana_ability: false,
+                    cost: None,
+                });
+            }
+            _ => {
+                playable_options.push(PlayOptionDto {
+                    card_id,
+                    mode: action.id.clone(),
+                    mode_label: action.label.clone(),
+                });
+            }
         }
     }
 
+    // Single source of truth: a card is playable iff it produced a cast option.
+    let playable_ids: std::collections::HashSet<String> = playable_options
+        .iter()
+        .map(|option| option.card_id.clone())
+        .collect();
+    let mut view = game_view.clone();
+    for card in view
+        .my_hand
+        .iter_mut()
+        .chain(view.my_command_zone.iter_mut())
+        .chain(view.graveyard.iter_mut())
+        .chain(view.exile.iter_mut())
+    {
+        card.is_playable = playable_ids.contains(&card.id);
+    }
+
     AgentPromptInner::ChooseAction {
-        game_view: game_view.clone(),
+        game_view: view,
         playable_card_ids: playable_options
             .iter()
             .map(|option| option.card_id.clone())
@@ -662,30 +638,10 @@ fn build_choose_action(
     }
 }
 
-fn resolve_card_id(
-    action: &NormalizedAction,
-    by_key: &mut HashMap<String, String>,
-    by_name: &mut HashMap<String, Vec<String>>,
-    card_name: &str,
-) -> Option<String> {
-    action
-        .card_key
-        .as_deref()
-        .and_then(|key| by_key.get(key).cloned())
-        .or_else(|| {
-            let card_id = pop_card_id(by_name, card_name)?;
-            if let Some(key) = action.card_key.as_deref() {
-                by_key.insert(key.to_string(), card_id.clone());
-            }
-            Some(card_id)
-        })
-}
-
 fn build_game_view(
     snapshot: &JavaRawSnapshot,
     session_id: Option<&str>,
     viewer: usize,
-    action_card_names: &[String],
     choosable_ids: &[String],
 ) -> GameViewDto {
     let mut players: Vec<PlayerDto> = snapshot
@@ -710,7 +666,6 @@ fn build_game_view(
                 player_index,
                 card_index,
                 "battlefield",
-                action_card_names,
                 choosable_ids,
             ));
         }
@@ -725,48 +680,16 @@ fn build_game_view(
 
     let me = snapshot.players.get(viewer);
     let my_hand = me
-        .map(|player| {
-            build_cards(
-                player.hand_zone(),
-                viewer,
-                "hand",
-                action_card_names,
-                choosable_ids,
-            )
-        })
+        .map(|player| build_cards(player.hand_zone(), viewer, "hand", choosable_ids))
         .unwrap_or_default();
     let my_command_zone = me
-        .map(|player| {
-            build_cards(
-                &player.command_zone_cards,
-                viewer,
-                "command",
-                action_card_names,
-                choosable_ids,
-            )
-        })
+        .map(|player| build_cards(&player.command_zone_cards, viewer, "command", choosable_ids))
         .unwrap_or_default();
     let graveyard = me
-        .map(|player| {
-            build_cards(
-                player.graveyard_zone(),
-                viewer,
-                "graveyard",
-                action_card_names,
-                choosable_ids,
-            )
-        })
+        .map(|player| build_cards(player.graveyard_zone(), viewer, "graveyard", choosable_ids))
         .unwrap_or_default();
     let exile = me
-        .map(|player| {
-            build_cards(
-                player.exile_zone(),
-                viewer,
-                "exile",
-                action_card_names,
-                choosable_ids,
-            )
-        })
+        .map(|player| build_cards(player.exile_zone(), viewer, "exile", choosable_ids))
         .unwrap_or_default();
 
     let mut opponent_zones = HashMap::new();
@@ -779,27 +702,9 @@ fn build_game_view(
         opponent_zones.insert(
             format!("player-{index}"),
             OpponentZonesDto {
-                graveyard: build_cards(
-                    opp.graveyard_zone(),
-                    index,
-                    "graveyard",
-                    action_card_names,
-                    choosable_ids,
-                ),
-                exile: build_cards(
-                    opp.exile_zone(),
-                    index,
-                    "exile",
-                    action_card_names,
-                    choosable_ids,
-                ),
-                command_zone: build_cards(
-                    &opp.command_zone_cards,
-                    index,
-                    "command",
-                    action_card_names,
-                    choosable_ids,
-                ),
+                graveyard: build_cards(opp.graveyard_zone(), index, "graveyard", choosable_ids),
+                exile: build_cards(opp.exile_zone(), index, "exile", choosable_ids),
+                command_zone: build_cards(&opp.command_zone_cards, index, "command", choosable_ids),
             },
         );
     }
@@ -844,7 +749,6 @@ fn build_cards(
     cards: &[JavaRawCard],
     player_index: usize,
     zone_id: &str,
-    action_card_names: &[String],
     choosable_ids: &[String],
 ) -> Vec<CardDto> {
     cards
@@ -856,7 +760,6 @@ fn build_cards(
                 player_index,
                 card_index,
                 zone_id,
-                action_card_names,
                 choosable_ids,
             )
         })
@@ -890,7 +793,6 @@ fn to_card(
     player_index: usize,
     card_index: usize,
     zone_id: &str,
-    action_card_names: &[String],
     choosable_ids: &[String],
 ) -> CardDto {
     let name = card
@@ -911,7 +813,7 @@ fn to_card(
         toughness: card.toughness.map(|value| value.to_string()),
         base_power: card.power.map(|value| value as i32),
         base_toughness: card.toughness.map(|value| value as i32),
-        is_playable: action_card_names.iter().any(|candidate| candidate == &name),
+        is_playable: false,
         is_choosable,
         controller_id: format!("player-{controller_index}"),
         owner_id: format!("player-{player_index}"),
@@ -1098,50 +1000,11 @@ fn to_actions(actions: &[JavaRawAction]) -> Vec<NormalizedAction> {
                 index,
                 id: format!("prompt-action-{index}"),
                 label,
-                card_name: action_card_name(raw_label),
-                card_key: action_card_key(raw_label),
-                kind: action_kind(raw_label),
+                card_id: action.card_id.clone(),
+                kind: java_action_kind(action.kind.as_deref()),
             })
         })
         .collect()
-}
-
-fn card_ids_by_name<'a, I>(cards: I) -> HashMap<String, Vec<String>>
-where
-    I: IntoIterator<Item = &'a CardDto>,
-{
-    let mut ids_by_name: HashMap<String, Vec<String>> = HashMap::new();
-    for card in cards {
-        ids_by_name
-            .entry(card.name.clone())
-            .or_default()
-            .push(card.id.clone());
-    }
-    ids_by_name
-}
-
-fn card_ids_by_key<'a, I>(cards: I) -> HashMap<String, String>
-where
-    I: IntoIterator<Item = &'a CardDto>,
-{
-    let mut ids_by_key = HashMap::new();
-    for card in cards {
-        if let Some(key) = card.id.strip_prefix("engine-card-") {
-            if !key.contains('-') {
-                ids_by_key.insert(key.to_string(), card.id.clone());
-            }
-        }
-    }
-    ids_by_key
-}
-
-fn pop_card_id(ids_by_name: &mut HashMap<String, Vec<String>>, card_name: &str) -> Option<String> {
-    let ids = ids_by_name.get_mut(card_name)?;
-    if ids.is_empty() {
-        None
-    } else {
-        Some(ids.remove(0))
-    }
 }
 
 fn card_ids(cards: &[JavaRawCardOption]) -> Vec<String> {
@@ -1189,16 +1052,12 @@ fn defender_ids(defenders: &[JavaRawCardOption]) -> Vec<DefenderIdDto> {
         .collect()
 }
 
-fn action_kind(label: &str) -> Option<&'static str> {
-    match strip_action_suffix(label)
-        .split_once(':')
-        .map(|(kind, _)| kind)
-    {
-        Some("LAND") => Some("play"),
-        Some("SPELL") => Some("cast"),
-        Some("CYCLE") => Some("ability"),
-        Some("MANA") => Some("mana"),
-        Some("AB") => Some("ability"),
+fn java_action_kind(kind: Option<&str>) -> Option<&'static str> {
+    match kind {
+        Some("land") => Some("play"),
+        Some("spell") => Some("cast"),
+        Some("mana") => Some("mana"),
+        Some("ability") => Some("ability"),
         _ => None,
     }
 }
@@ -1219,32 +1078,11 @@ fn format_action_label(label: &str) -> String {
     }
 }
 
-fn action_card_name(label: &str) -> Option<String> {
-    strip_action_suffix(label)
-        .split_once(':')
-        .map(|(_, card_name)| action_host_name(card_name).to_string())
-}
-
 fn action_display_name(card_name: &str) -> &str {
     card_name
         .split_once('|')
         .map(|(_, face_name)| face_name)
         .unwrap_or(card_name)
-}
-
-fn action_host_name(card_name: &str) -> &str {
-    card_name
-        .split_once('|')
-        .map(|(host, _)| host)
-        .unwrap_or(card_name)
-}
-
-fn action_card_key(label: &str) -> Option<String> {
-    label
-        .split('@')
-        .nth(1)
-        .filter(|key| !key.is_empty())
-        .map(str::to_string)
 }
 
 fn strip_action_suffix(label: &str) -> String {

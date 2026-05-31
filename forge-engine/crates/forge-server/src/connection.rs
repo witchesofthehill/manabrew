@@ -760,6 +760,33 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::SetFormat { format } => {
+            info!("[lobby] '{}' set format={:?}", username, format);
+            match lobby::set_format_sync(state, player_id, format) {
+                Ok(room_id) => {
+                    if let Some(room) = state.rooms.get(&room_id) {
+                        broadcast_to_room(
+                            state,
+                            &room_id,
+                            &ServerMessage::RoomUpdate {
+                                room: room.to_room_info(),
+                            },
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("[lobby] '{}' set format failed: {}", username, e);
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: e.code().into(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
         ClientMessage::StartGame { format } => {
             info!("[game] '{}' starting game", username);
             match lobby::start_game_sync(state, player_id, format) {
@@ -918,6 +945,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::LeaveRoom => "LeaveRoom",
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
+        ClientMessage::SetFormat { .. } => "SetFormat",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame => "EndGame",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

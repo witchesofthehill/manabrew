@@ -316,6 +316,9 @@ pub struct JavaRawAction {
     pub index: Option<usize>,
     #[serde(default)]
     pub label: String,
+    #[serde(rename = "cardId")]
+    pub card_id: Option<String>,
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

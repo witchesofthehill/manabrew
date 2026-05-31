@@ -2,10 +2,29 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Hand, Users, Swords, Shield, LogOut, Bot, X } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Hand, Users, Swords, Shield, LogOut, Bot, X, ChevronDown } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
-import type { RoomInfo } from "@/types/server";
+import type { GameFormat, RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
+
+const HOST_SELECTABLE_FORMATS: GameFormat[] = [
+  "Any",
+  "Standard",
+  "Pioneer",
+  "Modern",
+  "Legacy",
+  "Vintage",
+  "Pauper",
+  "Commander",
+  "Brawl",
+  "Oathbreaker",
+];
 
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -18,6 +37,7 @@ interface TablesListProps {
   onJoinRoom: (roomId: string) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
+  onSetFormat?: (format: GameFormat) => void;
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
@@ -38,6 +58,7 @@ export function TablesList({
   onJoinRoom,
   onLeaveRoom,
   onSetReady,
+  onSetFormat,
   onOpenDeckDialog,
   onStartGame,
   onStartTabletop,
@@ -104,15 +125,45 @@ export function TablesList({
                     {currentRoom.sealed_config.set_code}
                   </Badge>
                 )}
-                <Badge variant="outline" className="text-[10px]">
-                  {isOpenFormat && currentRoom.draft_config
-                    ? currentRoom.draft_config.cube_id
-                      ? "Cube"
-                      : "Draft"
-                    : isOpenFormat && currentRoom.sealed_config
-                      ? "Sealed"
-                      : currentRoom.format}
-                </Badge>
+                {isHost &&
+                currentRoom.status === "Lobby" &&
+                onSetFormat &&
+                !currentRoom.draft_config &&
+                !currentRoom.sealed_config ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted/60"
+                      >
+                        {currentRoom.format}
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {HOST_SELECTABLE_FORMATS.map((f) => (
+                        <DropdownMenuItem
+                          key={f}
+                          onSelect={() => onSetFormat(f)}
+                          disabled={f === currentRoom.format}
+                          className="text-xs"
+                        >
+                          {f}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">
+                    {isOpenFormat && currentRoom.draft_config
+                      ? currentRoom.draft_config.cube_id
+                        ? "Cube"
+                        : "Draft"
+                      : isOpenFormat && currentRoom.sealed_config
+                        ? "Sealed"
+                        : currentRoom.format}
+                  </Badge>
+                )}
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
                   className="text-[10px]"

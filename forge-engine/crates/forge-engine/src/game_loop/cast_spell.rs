@@ -2012,17 +2012,27 @@ impl GameLoop {
             }
         }
 
-        // Pay Escape exile cost: exile N other graveyard cards
+        // Pay Escape exile cost: exile N other graveyard cards. Java prompts the
+        // player to pick the N cards (see Cost::payCost → CostExile), so mirror
+        // that here instead of taking the first N — the choice affects what
+        // remains in the graveyard for later effects (other Escapes, delve, …)
+        // and the agent RNG consumed by the prompt is part of the parity trace.
         if is_escape {
             if let Some((_, exile_count)) = game.card(card_id).get_escape_cost() {
-                let gy_cards: Vec<CardId> = game
+                let valid: Vec<CardId> = game
                     .cards_in_zone(ZoneType::Graveyard, player)
                     .iter()
                     .filter(|&&cid| cid != card_id)
                     .copied()
-                    .take(exile_count as usize)
                     .collect();
-                for cid in gy_cards {
+                let exile_count = exile_count as usize;
+                let chosen = agents[player.0 as usize].choose_cards_for_effect(
+                    player,
+                    &valid,
+                    exile_count,
+                    exile_count,
+                );
+                for cid in chosen {
                     self.move_card_with_runtime(game, cid, ZoneType::Exile, player, agents);
                 }
             }

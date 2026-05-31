@@ -1307,13 +1307,23 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (players.size() <= 1) {
             return players.get(0);
         }
-        final List<String> labels = new ArrayList<>();
-        for (final Player p : players) {
-            labels.add(p.getName());
+        final boolean playFirst = session.awaitBooleanChoice(
+                "confirm_action",
+                me(),
+                "Play first?",
+                null,
+                "choose_starting_player",
+                null,
+                null);
+        if (playFirst) {
+            return player;
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, null);
-        final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
-        return idx >= 0 && idx < players.size() ? players.get(idx) : players.get(0);
+        for (final Player other : players) {
+            if (other != player) {
+                return other;
+            }
+        }
+        return player;
     }
 
     @Override

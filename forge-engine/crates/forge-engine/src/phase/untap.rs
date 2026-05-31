@@ -114,7 +114,7 @@ pub fn do_untap(game: &mut GameState, active: PlayerId) -> Vec<CardId> {
             continue;
         }
 
-        game.untap(cid);
+        game.untap_during_untap_step(cid, active);
         untapped.push(cid);
     }
 

@@ -1,1006 +1,1106 @@
 use std::collections::HashMap;
 
-use serde_json::{json, Value};
-use std::str::FromStr;
-use strum_macros::{EnumString, IntoStaticStr};
-use tracing::warn;
+use crate::game_view_dto::{
+    CardDto, CombatAssignmentDto, GameViewDto, OpponentZonesDto, PlayerDto, StackObjectDto,
+    StackTargetDto, StackTargetKindDto, TargetingIntent,
+};
+use crate::java_raw::{
+    JavaAction, JavaActionError, JavaAttackAssignment, JavaBlockAssignment, JavaCombatAssignment,
+    JavaRawAction, JavaRawCard, JavaRawCardData, JavaRawCardOption, JavaRawManaOption,
+    JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
+    JavaRawStackTarget, JavaTarget, JavaTargetKind,
+};
+use crate::prompt::{
+    ActivatableAbilityInfo, AgentPrompt, AgentPromptInner, DefenderIdDto, PlayOptionDto,
+    PlayerAction, TargetAnyChoice,
+};
 
-use crate::prompt::{PlayerAction, TargetAnyChoice};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, IntoStaticStr)]
-enum JavaPromptKind {
-    #[strum(to_string = "chooseDiscard", serialize = "choose_discard")]
-    ChooseDiscard,
-    #[strum(serialize = "mulligan")]
-    Mulligan,
-    #[strum(to_string = "mulliganPutBack", serialize = "mulligan_put_back")]
-    MulliganPutBack,
-    #[strum(to_string = "revealCards", serialize = "reveal_cards")]
-    RevealCards,
-    #[strum(to_string = "chooseAttackers", serialize = "choose_attackers")]
-    ChooseAttackers,
-    #[strum(to_string = "chooseBlockers", serialize = "choose_blockers")]
-    ChooseBlockers,
-    #[strum(
-        to_string = "chooseDamageAssignmentOrder",
-        serialize = "choose_damage_assignment_order"
-    )]
-    ChooseDamageAssignmentOrder,
-    #[strum(
-        to_string = "chooseCombatDamageAssignment",
-        serialize = "choose_combat_damage_assignment"
-    )]
-    ChooseCombatDamageAssignment,
-    #[strum(
-        to_string = "chooseCardsForEffect",
-        serialize = "choose_cards_for_effect"
-    )]
-    ChooseCardsForEffect,
-    #[strum(to_string = "chooseMode", serialize = "choose_mode")]
-    ChooseMode,
-    #[strum(
-        to_string = "chooseOptionalTrigger",
-        serialize = "choose_optional_trigger",
-        serialize = "confirm_action"
-    )]
-    ConfirmOrTrigger,
-    #[strum(
-        to_string = "payCostToPreventEffect",
-        serialize = "pay_cost_to_prevent_effect"
-    )]
-    PayCostToPreventEffect,
-    #[strum(to_string = "chooseNumber", serialize = "choose_number")]
-    ChooseNumber,
-    #[strum(to_string = "chooseColor", serialize = "choose_color")]
-    ChooseColor,
-    #[strum(to_string = "chooseType", serialize = "choose_type")]
-    ChooseType,
-    #[strum(to_string = "chooseCardName", serialize = "choose_card_name")]
-    ChooseCardName,
-    #[strum(to_string = "scry", serialize = "choose_scry")]
-    Scry,
-    #[strum(to_string = "surveil", serialize = "choose_surveil")]
-    Surveil,
-    #[strum(to_string = "dig", serialize = "choose_dig")]
-    Dig,
-    #[strum(to_string = "chooseDelve", serialize = "choose_delve")]
-    ChooseDelve,
-    #[strum(to_string = "chooseConvoke", serialize = "choose_convoke")]
-    ChooseConvoke,
-    #[strum(to_string = "chooseImprovise", serialize = "choose_improvise")]
-    ChooseImprovise,
-    #[strum(to_string = "reorderLibrary", serialize = "reorder_library")]
-    ReorderLibrary,
-    #[strum(to_string = "chooseTargetPlayer", serialize = "choose_target_player")]
-    ChooseTargetPlayer,
-    #[strum(to_string = "chooseTargetCard", serialize = "choose_target_card")]
-    ChooseTargetCard,
-    #[strum(to_string = "chooseTargetAny", serialize = "choose_target_any")]
-    ChooseTargetAny,
-    #[strum(to_string = "chooseTargetSpell", serialize = "choose_target_spell")]
-    ChooseTargetSpell,
-    #[strum(to_string = "chooseAction")]
-    Other,
-}
-
-impl JavaPromptKind {
-    fn parse(kind: Option<&str>) -> Self {
-        kind.and_then(|k| Self::from_str(k).ok())
-            .unwrap_or(Self::Other)
-    }
-
-    fn output_type(self) -> &'static str {
-        self.into()
-    }
-}
-
-pub fn normalize_java_prompt(prompt: Value) -> Value {
-    if !is_java_prompt(&prompt) {
-        return prompt;
-    }
-
-    let actions = to_actions(prompt.get("actions"));
-    let player = as_usize(prompt.get("player"), 0);
-    let prompt_kind = JavaPromptKind::parse(prompt.get("kind").and_then(Value::as_str));
-    let game_view = snapshot_to_game_view(
-        prompt.get("snapshot").unwrap_or(&Value::Null),
-        prompt.get("sessionId"),
-        &actions,
+pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
+    let JavaRawPrompt {
+        session_id,
         player,
+        snapshot,
+        body,
+    } = prompt;
+
+    let action_card_names: Vec<String> = match &body {
+        JavaRawPromptBody::Priority { actions } => to_actions(actions)
+            .into_iter()
+            .filter_map(|action| action.card_name)
+            .collect(),
+        _ => Vec::new(),
+    };
+    let choosable_ids: Vec<String> = match &body {
+        JavaRawPromptBody::ChooseAttackers { attackers, .. } => card_ids(attackers),
+        JavaRawPromptBody::ChooseBlockers { blockers, .. } => card_ids(blockers),
+        JavaRawPromptBody::ChooseTargetCard { cards, .. }
+        | JavaRawPromptBody::ChooseTargetAny { cards, .. }
+        | JavaRawPromptBody::ChooseCardsForEffect { cards, .. }
+        | JavaRawPromptBody::ChooseDelve { cards, .. }
+        | JavaRawPromptBody::ChooseConvoke { cards, .. }
+        | JavaRawPromptBody::ChooseImprovise { cards, .. } => card_ids(cards),
+        _ => Vec::new(),
+    };
+    let game_view = build_game_view(
+        &snapshot,
+        session_id.as_deref(),
+        player,
+        &action_card_names,
+        &choosable_ids,
     );
-    let prompt_type = prompt_kind.output_type();
 
-    if prompt_kind == JavaPromptKind::ChooseDiscard {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "handCardIds": to_card_ids(prompt.get("cards")),
-            "numToDiscard": as_usize(prompt.get("max"), as_usize(prompt.get("min"), 1)),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::Mulligan {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "handCardIds": to_card_ids(prompt.get("cards")),
-            "mulliganCount": as_usize(prompt.get("count"), 0),
-        });
-    }
-    if prompt_kind == JavaPromptKind::MulliganPutBack {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "handCardIds": to_card_ids(prompt.get("cards")),
-            "cards": to_prompt_cards(prompt.get("cards")),
-            "count": as_usize(prompt.get("count"), as_usize(prompt.get("max"), 0)),
-        });
-    }
-    if prompt_kind == JavaPromptKind::RevealCards {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "cards": to_prompt_cards(prompt.get("cards")),
-            "zone": optional_string(prompt.get("zone")).unwrap_or_else(|| "unknown".to_string()),
-            "ownerPlayerId": optional_string(prompt.get("ownerPlayerId")).unwrap_or_else(|| format!("player-{player}")),
-            "message": optional_string(prompt.get("message")).unwrap_or_else(|| "Look at these cards".to_string()),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseAttackers {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "availableAttackerIds": to_card_ids(prompt.get("attackers")),
-            "possibleDefenderIds": to_defender_ids(prompt.get("defenders")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseBlockers {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "attackerIds": to_card_ids(prompt.get("attackers")),
-            "availableBlockerIds": to_card_ids(prompt.get("blockers")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseDamageAssignmentOrder {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "attackerId": optional_string(prompt.get("attackerId")).unwrap_or_default(),
-            "blockerIds": to_card_ids(prompt.get("blockers")),
-            "blockerCards": to_prompt_cards(prompt.get("blockers")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseCombatDamageAssignment {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "attackerId": optional_string(prompt.get("attackerId")).unwrap_or_default(),
-            "blockerIds": to_card_ids(prompt.get("blockers")),
-            "defenderId": optional_string(prompt.get("defenderId")),
-            "totalDamage": as_i64(prompt.get("totalDamage"), 0),
-            "attackerHasDeathtouch": prompt
-                .get("attackerHasDeathtouch")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseCardsForEffect {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validCardIds": to_card_ids(prompt.get("cards")),
-            "zoneCards": to_prompt_cards(prompt.get("cards")),
-            "minChoices": as_usize(prompt.get("min"), 1),
-            "maxChoices": as_usize(prompt.get("max"), 1),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "description": optional_string(prompt.get("description")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseMode {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "options": to_strings(prompt.get("options")),
-            "minChoices": as_usize(prompt.get("min"), 1),
-            "maxChoices": as_usize(prompt.get("max"), 1),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ConfirmOrTrigger {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "description": optional_string(prompt.get("description")).unwrap_or_else(|| "Confirm?".to_string()),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "promptKind": optional_string(prompt.get("promptKind")),
-            "optionLabels": to_strings(prompt.get("optionLabels")),
-            "mode": optional_string(prompt.get("mode")),
-            "api": optional_string(prompt.get("api")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::PayCostToPreventEffect {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "description": optional_string(prompt.get("description")).unwrap_or_else(|| "Pay cost?".to_string()),
-            "costKind": optional_string(prompt.get("mode")).unwrap_or_else(|| "Cost".to_string()),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "api": optional_string(prompt.get("api")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseNumber {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "min": as_i64(prompt.get("min"), 0),
-            "max": as_i64(prompt.get("max"), 0),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "description": optional_string(prompt.get("description")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseColor {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validColors": to_strings(prompt.get("options")),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseType {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "typeCategory": optional_string(prompt.get("description")).unwrap_or_else(|| "Card".to_string()),
-            "validTypes": to_strings(prompt.get("options")),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseCardName {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validNames": to_strings(prompt.get("options")),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::Scry {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "cardIds": to_card_ids(prompt.get("cards")),
-            "cards": to_prompt_cards(prompt.get("cards")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::Surveil {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "cardIds": to_card_ids(prompt.get("cards")),
-            "cards": to_prompt_cards(prompt.get("cards")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::Dig {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "cardIds": to_card_ids(prompt.get("cards")),
-            "cards": to_prompt_cards(prompt.get("cards")),
-            "numToTake": as_usize(prompt.get("max"), 1),
-            "optional": prompt.get("optional").and_then(Value::as_bool).unwrap_or(false),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseDelve {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validCardIds": to_card_ids(prompt.get("cards")),
-            "zoneCards": to_prompt_cards(prompt.get("cards")),
-            "maxCards": as_usize(prompt.get("max"), 0),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseConvoke {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validCardIds": to_card_ids(prompt.get("cards")),
-            "remainingCost": optional_string(prompt.get("description")).unwrap_or_default(),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseImprovise {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validCardIds": to_card_ids(prompt.get("cards")),
-            "remainingCost": optional_string(prompt.get("description")).unwrap_or_default(),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ReorderLibrary {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "cardIds": to_card_ids(prompt.get("cards")),
-            "cards": to_prompt_cards(prompt.get("cards")),
-            "sourceCardName": optional_string(prompt.get("sourceCardName")),
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseTargetPlayer {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validPlayerIds": to_target_ids(prompt.get("players")),
-            "sourceCardId": optional_string(prompt.get("sourceCardId")),
-            "hostile": true,
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseTargetCard {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validCardIds": to_target_card_ids(prompt.get("cards")),
-            "sourceCardId": optional_string(prompt.get("sourceCardId")),
-            "hostile": true,
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseTargetAny {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validPlayerIds": to_target_ids(prompt.get("players")),
-            "validCardIds": to_target_card_ids(prompt.get("cards")),
-            "sourceCardId": optional_string(prompt.get("sourceCardId")),
-            "hostile": true,
-            "autoPassDisabled": true,
-        });
-    }
-    if prompt_kind == JavaPromptKind::ChooseTargetSpell {
-        return json!({
-            "type": prompt_type,
-            "gameView": game_view,
-            "displayEvents": [],
-            "validSpellIds": to_target_ids(prompt.get("spells")),
-            "sourceCardId": optional_string(prompt.get("sourceCardId")),
-            "autoPassDisabled": true,
-        });
-    }
-
-    if let Some(kind) = prompt.get("kind").and_then(Value::as_str) {
-        if kind != "priority" {
-            warn!(
-                kind,
-                "unrecognized java prompt kind; coercing to chooseAction"
-            );
+    let mut source_card_id = None;
+    let inner = match body {
+        JavaRawPromptBody::Priority { actions } => {
+            build_choose_action(&game_view, &actions, player)
         }
-    }
-
-    let my_hand = game_view
-        .get("myHand")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let my_command_zone = game_view
-        .get("myCommandZone")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let mut playable_options = Vec::new();
-    let mut playable_card_ids_by_key =
-        card_ids_by_key(my_hand.iter().chain(my_command_zone.iter()));
-    let mut playable_card_ids_by_name =
-        card_ids_by_name(my_hand.iter().chain(my_command_zone.iter()));
-    for action in &actions {
-        let Some(card_name) = action.get("cardName").and_then(Value::as_str) else {
-            continue;
-        };
-        let card_id = action
-            .get("cardKey")
-            .and_then(Value::as_str)
-            .and_then(|card_key| playable_card_ids_by_key.get(card_key).cloned())
-            .or_else(|| {
-                let card_id = pop_card_id(&mut playable_card_ids_by_name, card_name)?;
-                if let Some(card_key) = action.get("cardKey").and_then(Value::as_str) {
-                    playable_card_ids_by_key.insert(card_key.to_string(), card_id.clone());
-                }
-                Some(card_id)
-            });
-        if let Some(card_id) = card_id {
-            playable_options.push(json!({
-                "cardId": card_id,
-                "mode": action.get("id").and_then(Value::as_str).unwrap_or_default(),
-                "modeLabel": action.get("label").and_then(Value::as_str).unwrap_or_default(),
-            }));
-        }
-    }
-
-    let battlefield = game_view
-        .get("battlefield")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let mut activatable_ability_ids = Vec::new();
-    let mut mana_ability_options = Vec::new();
-    let mut tappable_land_ids = Vec::new();
-    let my_slot = format!("player-{player}");
-    let mut battlefield_card_ids_by_key =
-        card_ids_by_key(battlefield.iter().filter(|card| {
-            card.get("controllerId").and_then(Value::as_str) == Some(my_slot.as_str())
-        }));
-    let mut battlefield_card_ids_by_name =
-        card_ids_by_name(battlefield.iter().filter(|card| {
-            card.get("controllerId").and_then(Value::as_str) == Some(my_slot.as_str())
-        }));
-    for action in &actions {
-        let kind = action.get("kind").and_then(Value::as_str);
-        if kind != Some("mana") && kind != Some("ability") {
-            continue;
-        }
-        let Some(card_name) = action.get("cardName").and_then(Value::as_str) else {
-            continue;
-        };
-        let card_id = action
-            .get("cardKey")
-            .and_then(Value::as_str)
-            .and_then(|card_key| battlefield_card_ids_by_key.get(card_key).cloned())
-            .or_else(|| {
-                let card_id = pop_card_id(&mut battlefield_card_ids_by_name, card_name)?;
-                if let Some(card_key) = action.get("cardKey").and_then(Value::as_str) {
-                    battlefield_card_ids_by_key.insert(card_key.to_string(), card_id.clone());
-                }
-                Some(card_id)
-            });
-        if let Some(card_id) = card_id {
-            let ability = json!({
-                "cardId": card_id,
-                "abilityIndex": action_index(action.get("id")).unwrap_or(usize::MAX),
-                "description": action.get("label").and_then(Value::as_str).unwrap_or_default(),
-                "isManaAbility": kind == Some("mana"),
-            });
-            if kind == Some("mana") {
-                if !tappable_land_ids.iter().any(|id| id == &card_id) {
-                    tappable_land_ids.push(card_id);
-                }
-                mana_ability_options.push(ability);
+        JavaRawPromptBody::ChooseDiscard { cards, min, max } => AgentPromptInner::ChooseDiscard {
+            game_view,
+            hand_card_ids: card_ids(&cards),
+            num_to_discard: if max > 0 {
+                max
+            } else if min > 0 {
+                min
             } else {
-                activatable_ability_ids.push(ability);
+                1
+            },
+        },
+        JavaRawPromptBody::Mulligan { cards, count } => AgentPromptInner::Mulligan {
+            game_view,
+            hand_card_ids: card_ids(&cards),
+            mulligan_count: count,
+        },
+        JavaRawPromptBody::MulliganPutBack { cards, count, max } => {
+            AgentPromptInner::MulliganPutBack {
+                game_view,
+                hand_card_ids: card_ids(&cards),
+                cards: prompt_cards(&cards),
+                count: if count > 0 { count } else { max },
             }
         }
-    }
+        JavaRawPromptBody::RevealCards {
+            cards,
+            zone,
+            owner_player_id,
+            message,
+        } => AgentPromptInner::RevealCards {
+            game_view,
+            cards: prompt_cards(&cards),
+            zone: zone.unwrap_or_else(|| "unknown".to_string()),
+            owner_player_id: owner_player_id.unwrap_or_else(|| format!("player-{player}")),
+            message: message.unwrap_or_else(|| "Look at these cards".to_string()),
+        },
+        JavaRawPromptBody::ChooseAttackers {
+            attackers,
+            defenders,
+        } => AgentPromptInner::ChooseAttackers {
+            game_view,
+            available_attacker_ids: card_ids(&attackers),
+            possible_defender_ids: defender_ids(&defenders),
+        },
+        JavaRawPromptBody::ChooseBlockers {
+            attackers,
+            blockers,
+        } => AgentPromptInner::ChooseBlockers {
+            game_view,
+            attacker_ids: card_ids(&attackers),
+            available_blocker_ids: card_ids(&blockers),
+        },
+        JavaRawPromptBody::ChooseDamageAssignmentOrder {
+            attacker_id,
+            blockers,
+        } => AgentPromptInner::ChooseDamageAssignmentOrder {
+            game_view,
+            attacker_id: attacker_id.unwrap_or_default(),
+            blocker_ids: card_ids(&blockers),
+            blocker_cards: prompt_cards(&blockers),
+        },
+        JavaRawPromptBody::ChooseCombatDamageAssignment {
+            attacker_id,
+            defender_id,
+            total_damage,
+            attacker_has_deathtouch,
+            blockers,
+        } => AgentPromptInner::ChooseCombatDamageAssignment {
+            game_view,
+            attacker_id: attacker_id.unwrap_or_default(),
+            blocker_ids: card_ids(&blockers),
+            defender_id,
+            total_damage: total_damage as i32,
+            attacker_has_deathtouch,
+        },
+        JavaRawPromptBody::ChooseCardsForEffect {
+            cards,
+            min,
+            max,
+            source_card_name,
+            description: _,
+        } => AgentPromptInner::ChooseCardsForEffect {
+            game_view,
+            valid_card_ids: card_ids(&cards),
+            zone_cards: prompt_cards(&cards),
+            min_choices: min,
+            max_choices: max,
+            source_card_name,
+        },
+        JavaRawPromptBody::ChooseMode {
+            options,
+            min,
+            max,
+            source_card_name,
+        } => AgentPromptInner::ChooseMode {
+            game_view,
+            options,
+            min_choices: min,
+            max_choices: max,
+            source_card_name,
+        },
+        JavaRawPromptBody::ConfirmOrTrigger {
+            description,
+            source_card_name: _,
+            prompt_kind,
+            option_labels,
+            mode,
+            api,
+        } => AgentPromptInner::ChooseOptionalTrigger {
+            game_view,
+            description: description.unwrap_or_else(|| "Confirm?".to_string()),
+            cards: Vec::new(),
+            prompt_kind,
+            option_labels: Some(option_labels),
+            mode,
+            api,
+        },
+        JavaRawPromptBody::PayCostToPreventEffect {
+            description,
+            mode,
+            source_card_name: _,
+            api,
+        } => AgentPromptInner::PayCostToPreventEffect {
+            game_view,
+            description: description.unwrap_or_else(|| "Pay cost?".to_string()),
+            cost_kind: mode.unwrap_or_else(|| "Cost".to_string()),
+            api,
+        },
+        JavaRawPromptBody::ChooseNumber {
+            min,
+            max,
+            source_card_name: _,
+            description: _,
+        } => AgentPromptInner::ChooseNumber {
+            game_view,
+            min: min as i32,
+            max: max as i32,
+        },
+        JavaRawPromptBody::ChooseColor {
+            options,
+            source_card_name: _,
+        } => AgentPromptInner::ChooseColor {
+            game_view,
+            valid_colors: options,
+        },
+        JavaRawPromptBody::ChooseType {
+            options,
+            description,
+            source_card_name: _,
+        } => AgentPromptInner::ChooseType {
+            game_view,
+            type_category: description.unwrap_or_else(|| "Card".to_string()),
+            valid_types: options,
+        },
+        JavaRawPromptBody::ChooseCardName {
+            options,
+            source_card_name: _,
+        } => AgentPromptInner::ChooseCardName {
+            game_view,
+            valid_names: options,
+        },
+        JavaRawPromptBody::ChooseScry { cards } => AgentPromptInner::Scry {
+            game_view,
+            card_ids: card_ids(&cards),
+            cards: prompt_cards(&cards),
+        },
+        JavaRawPromptBody::ChooseSurveil { cards } => AgentPromptInner::Surveil {
+            game_view,
+            card_ids: card_ids(&cards),
+            cards: prompt_cards(&cards),
+        },
+        JavaRawPromptBody::ChooseDig {
+            cards,
+            max,
+            optional,
+            source_card_name: _,
+        } => AgentPromptInner::Dig {
+            game_view,
+            card_ids: card_ids(&cards),
+            cards: prompt_cards(&cards),
+            num_to_take: max,
+            optional,
+        },
+        JavaRawPromptBody::ChooseDelve {
+            cards,
+            max,
+            source_card_name: _,
+        } => AgentPromptInner::ChooseDelve {
+            game_view,
+            valid_card_ids: card_ids(&cards),
+            zone_cards: prompt_cards(&cards),
+            max_cards: max,
+        },
+        JavaRawPromptBody::ChooseConvoke {
+            cards,
+            description,
+            source_card_name: _,
+        } => AgentPromptInner::ChooseConvoke {
+            game_view,
+            valid_card_ids: card_ids(&cards),
+            remaining_cost: description.unwrap_or_default(),
+        },
+        JavaRawPromptBody::ChooseImprovise {
+            cards,
+            description,
+            source_card_name: _,
+        } => AgentPromptInner::ChooseImprovise {
+            game_view,
+            valid_card_ids: card_ids(&cards),
+            remaining_cost: description.unwrap_or_default(),
+        },
+        JavaRawPromptBody::ReorderLibrary {
+            cards,
+            source_card_name: _,
+        } => AgentPromptInner::ReorderLibrary {
+            game_view,
+            card_ids: card_ids(&cards),
+            cards: prompt_cards(&cards),
+        },
+        JavaRawPromptBody::ChooseTargetPlayer {
+            players,
+            source_card_id: source,
+            api,
+            destination,
+            counter_type,
+        } => {
+            source_card_id = source;
+            let intent = intent_from_api(&api, &destination, &counter_type);
+            AgentPromptInner::ChooseTargetPlayer {
+                game_view,
+                valid_player_ids: target_ids(&players),
+                hostile: intent.is_hostile(),
+                intent,
+            }
+        }
+        JavaRawPromptBody::ChooseTargetCard {
+            cards,
+            source_card_id: source,
+            api,
+            destination,
+            counter_type,
+        } => {
+            source_card_id = source;
+            let intent = intent_from_api(&api, &destination, &counter_type);
+            AgentPromptInner::ChooseTargetCard {
+                game_view,
+                valid_card_ids: target_ids(&cards),
+                hostile: intent.is_hostile(),
+                intent,
+            }
+        }
+        JavaRawPromptBody::ChooseTargetAny {
+            players,
+            cards,
+            source_card_id: source,
+            api,
+            destination,
+            counter_type,
+        } => {
+            source_card_id = source;
+            let intent = intent_from_api(&api, &destination, &counter_type);
+            AgentPromptInner::ChooseTargetAny {
+                game_view,
+                valid_player_ids: target_ids(&players),
+                valid_card_ids: target_ids(&cards),
+                hostile: intent.is_hostile(),
+                intent,
+            }
+        }
+        JavaRawPromptBody::ChooseTargetSpell {
+            spells,
+            source_card_id: source,
+            api,
+            destination,
+            counter_type,
+        } => {
+            source_card_id = source;
+            AgentPromptInner::ChooseTargetSpell {
+                game_view,
+                valid_spell_ids: target_ids(&spells),
+                intent: intent_from_api(&api, &destination, &counter_type),
+            }
+        }
+        JavaRawPromptBody::PayManaCost {
+            card_id,
+            card_name,
+            mana_cost,
+            mana_ability_options,
+            tappable_land_ids,
+            untappable_land_ids,
+            mana_pool_total,
+            can_confirm_from_pool,
+        } => AgentPromptInner::PayManaCost {
+            game_view,
+            card_id: card_id.unwrap_or_default(),
+            card_name: card_name.unwrap_or_default(),
+            mana_cost: mana_cost.unwrap_or_default(),
+            mana_ability_options: mana_ability_options
+                .iter()
+                .map(to_mana_ability_info)
+                .collect(),
+            tappable_land_ids,
+            untappable_land_ids,
+            mana_pool_total,
+            can_confirm_from_pool,
+        },
+    };
 
-    json!({
-        "type": prompt_type,
-        "gameView": game_view,
-        "displayEvents": [],
-        "playableCardIds": playable_options
-            .iter()
-            .filter_map(|option| option.get("cardId").and_then(Value::as_str))
-            .collect::<Vec<_>>(),
-        "playableOptions": playable_options,
-        "autoPassDisabled": true,
-        "tappableLandIds": tappable_land_ids,
-        "untappableLandIds": [],
-        "activatableAbilityIds": activatable_ability_ids,
-        "manaAbilityOptions": mana_ability_options,
-    })
+    AgentPrompt {
+        deciding_player_id: format!("player-{player}"),
+        display_events: Vec::new(),
+        source_card_id,
+        inner,
+    }
 }
 
-pub fn translate_java_player_action(action: &PlayerAction) -> Value {
-    match action {
-        PlayerAction::PlayCard { card_id, mode } => mode
-            .as_deref()
-            .and_then(|mode| {
-                mode.strip_prefix("prompt-action-")
-                    .or_else(|| mode.strip_prefix("java-forge-action:"))
-            })
-            .or_else(|| {
-                if mode.as_deref() == Some("java-forge-action") {
-                    card_id.strip_prefix("java-action-")
-                } else {
-                    None
-                }
-            })
-            .and_then(|index| index.parse::<usize>().ok())
-            .map(|index| json!({ "kind": "choose_action", "index": index }))
-            .unwrap_or_else(|| json!({ "kind": "pass" })),
-        PlayerAction::DiscardDecision { discarded_card_ids } => {
-            json!({ "kind": "choose_cards", "card_ids": discarded_card_ids })
+pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction, JavaActionError> {
+    let java = match action {
+        PlayerAction::PlayCard { card_id, mode } => {
+            let index = mode
+                .as_deref()
+                .and_then(|mode| {
+                    mode.strip_prefix("prompt-action-")
+                        .or_else(|| mode.strip_prefix("java-forge-action:"))
+                })
+                .or_else(|| {
+                    (mode.as_deref() == Some("java-forge-action"))
+                        .then(|| card_id.strip_prefix("java-action-"))
+                        .flatten()
+                })
+                .and_then(|index| index.parse::<usize>().ok())
+                .ok_or(JavaActionError {
+                    action_type: "playCard",
+                })?;
+            JavaAction::ChooseAction { index }
         }
-        PlayerAction::MulliganDecision { keep } => {
-            json!({ "kind": "mulligan_decision", "keep": keep })
-        }
-        PlayerAction::MulliganPutBackDecision { card_ids } => {
-            json!({ "kind": "choose_cards", "card_ids": card_ids })
-        }
-        PlayerAction::RevealCardsAcknowledged => {
-            json!({ "kind": "reveal_cards_acknowledged" })
-        }
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => {
-            json!({ "kind": "choose_cards", "card_ids": chosen_card_ids })
-        }
-        PlayerAction::ModeDecision { chosen_indices } => {
-            json!({ "kind": "mode_decision", "indices": chosen_indices })
-        }
+        PlayerAction::DiscardDecision { discarded_card_ids } => JavaAction::ChooseCards {
+            card_ids: discarded_card_ids.clone(),
+        },
+        PlayerAction::MulliganDecision { keep } => JavaAction::MulliganDecision { keep: *keep },
+        PlayerAction::MulliganPutBackDecision { card_ids } => JavaAction::ChooseCards {
+            card_ids: card_ids.clone(),
+        },
+        PlayerAction::RevealCardsAcknowledged => JavaAction::RevealCardsAcknowledged,
+        PlayerAction::ChooseCardsDecision { chosen_card_ids } => JavaAction::ChooseCards {
+            card_ids: chosen_card_ids.clone(),
+        },
+        PlayerAction::ModeDecision { chosen_indices } => JavaAction::ModeDecision {
+            indices: chosen_indices.clone(),
+        },
         PlayerAction::OptionalTriggerDecision { accept }
         | PlayerAction::PayCostToPreventEffectDecision { accept } => {
-            json!({ "kind": "boolean_decision", "accept": accept })
+            JavaAction::BooleanDecision { accept: *accept }
         }
-        PlayerAction::ColorDecision { color } => {
-            json!({ "kind": "string_decision", "value": color.as_deref().unwrap_or_default() })
-        }
-        PlayerAction::TypeDecision { chosen_type } => {
-            json!({ "kind": "string_decision", "value": chosen_type.as_deref().unwrap_or_default() })
-        }
-        PlayerAction::NumberDecision { chosen_number } => {
-            json!({ "kind": "number_decision", "number": chosen_number.unwrap_or_default() })
-        }
-        PlayerAction::CardNameDecision { chosen_name } => {
-            json!({ "kind": "string_decision", "value": chosen_name.as_deref().unwrap_or_default() })
-        }
-        PlayerAction::ScryDecision { bottom_card_ids } => {
-            json!({ "kind": "scry_decision", "bottom_card_ids": bottom_card_ids })
-        }
-        PlayerAction::SurveilDecision { graveyard_card_ids } => {
-            json!({ "kind": "surveil_decision", "graveyard_card_ids": graveyard_card_ids })
-        }
-        PlayerAction::DigDecision { chosen_card_ids } => {
-            json!({ "kind": "dig_decision", "chosen_card_ids": chosen_card_ids })
-        }
+        PlayerAction::ColorDecision { color } => JavaAction::StringDecision {
+            value: color.clone().unwrap_or_default(),
+        },
+        PlayerAction::TypeDecision { chosen_type } => JavaAction::StringDecision {
+            value: chosen_type.clone().unwrap_or_default(),
+        },
+        PlayerAction::CardNameDecision { chosen_name } => JavaAction::StringDecision {
+            value: chosen_name.clone().unwrap_or_default(),
+        },
+        PlayerAction::NumberDecision { chosen_number } => JavaAction::NumberDecision {
+            number: chosen_number.unwrap_or_default(),
+        },
+        PlayerAction::ScryDecision { bottom_card_ids } => JavaAction::ScryDecision {
+            bottom_card_ids: bottom_card_ids.clone(),
+        },
+        PlayerAction::SurveilDecision { graveyard_card_ids } => JavaAction::SurveilDecision {
+            graveyard_card_ids: graveyard_card_ids.clone(),
+        },
+        PlayerAction::DigDecision { chosen_card_ids } => JavaAction::DigDecision {
+            chosen_card_ids: chosen_card_ids.clone(),
+        },
         PlayerAction::DelveDecision { chosen_card_ids }
         | PlayerAction::ConvokeDecision { chosen_card_ids }
-        | PlayerAction::ImproviseDecision { chosen_card_ids } => {
-            json!({ "kind": "choose_cards", "card_ids": chosen_card_ids })
-        }
+        | PlayerAction::ImproviseDecision { chosen_card_ids } => JavaAction::ChooseCards {
+            card_ids: chosen_card_ids.clone(),
+        },
         PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
-            json!({ "kind": "reorder_library_decision", "ordered_card_ids": ordered_card_ids })
+            JavaAction::ReorderLibraryDecision {
+                ordered_card_ids: ordered_card_ids.clone(),
+            }
         }
         PlayerAction::DamageAssignmentOrderDecision {
             ordered_blocker_ids,
-        } => {
-            json!({ "kind": "damage_assignment_order_decision", "ordered_card_ids": ordered_blocker_ids })
-        }
-        PlayerAction::CombatDamageAssignmentDecision { assignments } => json!({
-            "kind": "combat_damage_assignment_decision",
-            "assignments": assignments
-                .iter()
-                .map(|assignment| json!({
-                    "assigneeId": assignment.assignee_id,
-                    "damage": assignment.damage,
-                }))
-                .collect::<Vec<_>>(),
-        }),
-        PlayerAction::TargetPlayer { player_id } => json!({
-            "kind": "target_choice",
-            "target": {
-                "kind": "player",
-                "id": player_id.as_deref().unwrap_or_default(),
-            },
-        }),
-        PlayerAction::TargetCard { card_id } => json!({
-            "kind": "target_choice",
-            "target": {
-                "kind": "card",
-                "id": card_id.as_deref().unwrap_or_default(),
-            },
-        }),
-        PlayerAction::TargetAny { target } => match target {
-            TargetAnyChoice::Player { player_id } => json!({
-                "kind": "target_choice",
-                "target": { "kind": "player", "id": player_id },
-            }),
-            TargetAnyChoice::Card { card_id } => json!({
-                "kind": "target_choice",
-                "target": { "kind": "card", "id": card_id },
-            }),
-            TargetAnyChoice::None => json!({ "kind": "pass" }),
+        } => JavaAction::DamageAssignmentOrderDecision {
+            ordered_card_ids: ordered_blocker_ids.clone(),
         },
-        PlayerAction::TargetSpell { spell_id } => json!({
-            "kind": "target_choice",
-            "target": {
-                "kind": "spell",
-                "id": spell_id.as_deref().unwrap_or_default(),
-            },
-        }),
-        PlayerAction::DeclareAttackers { assignments } => json!({
-            "kind": "declare_attackers",
-            "assignments": assignments
-                .iter()
-                .map(|assignment| json!({
-                    "attackerId": assignment.attacker_id,
-                    "defenderId": assignment.defender_id,
-                }))
-                .collect::<Vec<_>>(),
-        }),
-        PlayerAction::DeclareBlockers { assignments } => json!({
-            "kind": "declare_blockers",
-            "assignments": assignments
-                .iter()
-                .map(|assignment| json!({
-                    "blockerId": assignment.blocker_id,
-                    "attackerId": assignment.attacker_id,
-                }))
-                .collect::<Vec<_>>(),
-        }),
-        PlayerAction::TapLand {
-            ability_index: Some(index),
-            ..
+        PlayerAction::CombatDamageAssignmentDecision { assignments } => {
+            JavaAction::CombatDamageAssignmentDecision {
+                assignments: assignments
+                    .iter()
+                    .map(|assignment| JavaCombatAssignment {
+                        assignee_id: assignment.assignee_id.clone(),
+                        damage: assignment.damage,
+                    })
+                    .collect(),
+            }
         }
-        | PlayerAction::ActivateAbility {
+        PlayerAction::TargetPlayer { player_id } => JavaAction::TargetChoice {
+            target: JavaTarget {
+                kind: JavaTargetKind::Player,
+                id: player_id.clone().unwrap_or_default(),
+            },
+        },
+        PlayerAction::TargetCard { card_id } => JavaAction::TargetChoice {
+            target: JavaTarget {
+                kind: JavaTargetKind::Card,
+                id: card_id.clone().unwrap_or_default(),
+            },
+        },
+        PlayerAction::TargetAny { target } => match target {
+            TargetAnyChoice::Player { player_id } => JavaAction::TargetChoice {
+                target: JavaTarget {
+                    kind: JavaTargetKind::Player,
+                    id: player_id.clone(),
+                },
+            },
+            TargetAnyChoice::Card { card_id } => JavaAction::TargetChoice {
+                target: JavaTarget {
+                    kind: JavaTargetKind::Card,
+                    id: card_id.clone(),
+                },
+            },
+            TargetAnyChoice::None => JavaAction::Pass,
+        },
+        PlayerAction::TargetSpell { spell_id } => JavaAction::TargetChoice {
+            target: JavaTarget {
+                kind: JavaTargetKind::Spell,
+                id: spell_id.clone().unwrap_or_default(),
+            },
+        },
+        PlayerAction::DeclareAttackers { assignments } => JavaAction::DeclareAttackers {
+            assignments: assignments
+                .iter()
+                .map(|assignment| JavaAttackAssignment {
+                    attacker_id: assignment.attacker_id.clone(),
+                    defender_id: assignment.defender_id.clone(),
+                })
+                .collect(),
+        },
+        PlayerAction::DeclareBlockers { assignments } => JavaAction::DeclareBlockers {
+            assignments: assignments
+                .iter()
+                .map(|assignment| JavaBlockAssignment {
+                    blocker_id: assignment.blocker_id.clone(),
+                    attacker_id: assignment.attacker_id.clone(),
+                })
+                .collect(),
+        },
+        PlayerAction::ActivateAbility {
             ability_index: index,
             ..
-        } => json!({ "kind": "choose_action", "index": index }),
-        PlayerAction::Pass { .. } => json!({ "kind": "pass" }),
-        PlayerAction::Concede => json!({ "kind": "pass" }),
+        } => JavaAction::ChooseAction { index: *index },
+        PlayerAction::TapLand {
+            card_id,
+            ability_index,
+            color,
+        } => JavaAction::TapLand {
+            card_id: card_id.clone(),
+            mana_ability_index: *ability_index,
+            color: color.clone(),
+        },
+        PlayerAction::UntapLand { card_id } => JavaAction::UntapLand {
+            card_id: card_id.clone(),
+        },
+        PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
+        PlayerAction::CancelManaCost => JavaAction::CancelMana,
+        PlayerAction::Pass { .. } | PlayerAction::Concede => JavaAction::Pass,
         other => {
-            warn!(
-                action = serde_json::to_string(other).unwrap_or_default(),
-                "PlayerAction has no java translation; defaulting to pass"
-            );
-            json!({ "kind": "pass" })
+            return Err(JavaActionError {
+                action_type: player_action_label(other),
+            })
+        }
+    };
+    Ok(java)
+}
+
+fn player_action_label(action: &PlayerAction) -> &'static str {
+    match action {
+        PlayerAction::EngineAction { .. } => "engineAction",
+        PlayerAction::TapLand { .. } => "tapLand",
+        PlayerAction::UntapLand { .. } => "untapLand",
+        PlayerAction::TargetSpell { .. } => "targetSpell",
+        PlayerAction::PhyrexianDecision { .. } => "phyrexianDecision",
+        PlayerAction::KickerDecision { .. } => "kickerDecision",
+        PlayerAction::BuybackDecision { .. } => "buybackDecision",
+        PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
+        PlayerAction::ReplicateDecision { .. } => "replicateDecision",
+        PlayerAction::AlternativeCostDecision { .. } => "alternativeCostDecision",
+        PlayerAction::ExertDecision { .. } => "exertDecision",
+        PlayerAction::EnlistDecision { .. } => "enlistDecision",
+        PlayerAction::ExploreResponse { .. } => "exploreResponse",
+        PlayerAction::AssistDecision { .. } => "assistDecision",
+        PlayerAction::PayCombatCost => "payCombatCost",
+        PlayerAction::DeclineCombatCost => "declineCombatCost",
+        PlayerAction::RestoreSnapshot { .. } => "restoreSnapshot",
+        PlayerAction::ManaComboDecision { .. } => "manaComboDecision",
+        PlayerAction::PayManaCost { .. } => "payManaCost",
+        PlayerAction::CancelManaCost => "cancelManaCost",
+        PlayerAction::DiceRolledAcknowledged => "diceRolledAcknowledged",
+        PlayerAction::FirstPlayerRollAcknowledged => "firstPlayerRollAcknowledged",
+        PlayerAction::RollToIgnoreDecision { .. } => "rollToIgnoreDecision",
+        PlayerAction::RollToSwapDecision { .. } => "rollToSwapDecision",
+        PlayerAction::RollToModifyDecision { .. } => "rollToModifyDecision",
+        PlayerAction::DiceToRerollDecision { .. } => "diceToRerollDecision",
+        PlayerAction::RollSwapValueDecision { .. } => "rollSwapValueDecision",
+        _ => "unknown",
+    }
+}
+
+struct NormalizedAction {
+    index: usize,
+    id: String,
+    label: String,
+    card_name: Option<String>,
+    card_key: Option<String>,
+    kind: Option<&'static str>,
+}
+
+fn build_choose_action(
+    game_view: &GameViewDto,
+    raw_actions: &[JavaRawAction],
+    viewer: usize,
+) -> AgentPromptInner {
+    let actions = to_actions(raw_actions);
+
+    let mut playable_options = Vec::new();
+    let mut hand_by_key =
+        card_ids_by_key(game_view.my_hand.iter().chain(&game_view.my_command_zone));
+    let mut hand_by_name =
+        card_ids_by_name(game_view.my_hand.iter().chain(&game_view.my_command_zone));
+    for action in &actions {
+        let Some(card_name) = action.card_name.as_deref() else {
+            continue;
+        };
+        if action.kind == Some("mana") || action.kind == Some("ability") {
+            continue;
+        }
+        if let Some(card_id) =
+            resolve_card_id(action, &mut hand_by_key, &mut hand_by_name, card_name)
+        {
+            playable_options.push(PlayOptionDto {
+                card_id,
+                mode: action.id.clone(),
+                mode_label: action.label.clone(),
+            });
         }
     }
-}
 
-pub fn translate_java_action_value(action_value: &Value) -> Value {
-    if action_value.get("kind").is_some() {
-        return action_value.clone();
+    let my_slot = format!("player-{viewer}");
+    let controlled = || {
+        game_view
+            .battlefield
+            .iter()
+            .filter(|card| card.controller_id == my_slot)
+    };
+    let mut bf_by_key = card_ids_by_key(controlled());
+    let mut bf_by_name = card_ids_by_name(controlled());
+    let mut activatable_ability_ids = Vec::new();
+    let mut mana_ability_options = Vec::new();
+    let mut tappable_land_ids: Vec<String> = Vec::new();
+    for action in &actions {
+        let is_mana = action.kind == Some("mana");
+        if !is_mana && action.kind != Some("ability") {
+            continue;
+        }
+        let Some(card_name) = action.card_name.as_deref() else {
+            continue;
+        };
+        let Some(card_id) = resolve_card_id(action, &mut bf_by_key, &mut bf_by_name, card_name)
+        else {
+            continue;
+        };
+        let info = ActivatableAbilityInfo {
+            card_id: card_id.clone(),
+            ability_index: action.index,
+            description: action.label.clone(),
+            is_mana_ability: is_mana,
+            cost: None,
+        };
+        if is_mana {
+            if !tappable_land_ids.contains(&card_id) {
+                tappable_land_ids.push(card_id);
+            }
+            mana_ability_options.push(info);
+        } else {
+            activatable_ability_ids.push(info);
+        }
     }
-    serde_json::from_value::<PlayerAction>(action_value.clone())
-        .map(|action| translate_java_player_action(&action))
-        .unwrap_or_else(|_| json!({ "kind": "pass" }))
+
+    AgentPromptInner::ChooseAction {
+        game_view: game_view.clone(),
+        playable_card_ids: playable_options
+            .iter()
+            .map(|option| option.card_id.clone())
+            .collect(),
+        playable_options,
+        tappable_land_ids,
+        untappable_land_ids: Vec::new(),
+        activatable_ability_ids,
+        mana_ability_options,
+        available_player_actions: Vec::new(),
+    }
 }
 
-fn is_java_prompt(prompt: &Value) -> bool {
-    matches!(
-        prompt.get("kind").and_then(Value::as_str),
-        Some(
-            "priority"
-                | "choose_discard"
-                | "mulligan"
-                | "mulligan_put_back"
-                | "reveal_cards"
-                | "choose_attackers"
-                | "choose_blockers"
-                | "choose_damage_assignment_order"
-                | "choose_combat_damage_assignment"
-                | "choose_cards_for_effect"
-                | "choose_mode"
-                | "choose_optional_trigger"
-                | "confirm_action"
-                | "pay_cost_to_prevent_effect"
-                | "choose_number"
-                | "choose_color"
-                | "choose_type"
-                | "choose_card_name"
-                | "choose_scry"
-                | "choose_surveil"
-                | "choose_dig"
-                | "choose_delve"
-                | "choose_convoke"
-                | "choose_improvise"
-                | "reorder_library"
-                | "choose_target_player"
-                | "choose_target_card"
-                | "choose_target_any"
-                | "choose_target_spell"
-        )
-    ) && prompt.get("snapshot").is_some_and(Value::is_object)
+fn resolve_card_id(
+    action: &NormalizedAction,
+    by_key: &mut HashMap<String, String>,
+    by_name: &mut HashMap<String, Vec<String>>,
+    card_name: &str,
+) -> Option<String> {
+    action
+        .card_key
+        .as_deref()
+        .and_then(|key| by_key.get(key).cloned())
+        .or_else(|| {
+            let card_id = pop_card_id(by_name, card_name)?;
+            if let Some(key) = action.card_key.as_deref() {
+                by_key.insert(key.to_string(), card_id.clone());
+            }
+            Some(card_id)
+        })
 }
 
-fn snapshot_to_game_view(
-    snapshot: &Value,
-    session_id: Option<&Value>,
-    actions: &[Value],
+fn build_game_view(
+    snapshot: &JavaRawSnapshot,
+    session_id: Option<&str>,
     viewer: usize,
-) -> Value {
-    let players_source = snapshot
-        .get("players")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let mut players: Vec<Value> = players_source
+    action_card_names: &[String],
+    choosable_ids: &[String],
+) -> GameViewDto {
+    let mut players: Vec<PlayerDto> = snapshot
+        .players
         .iter()
         .enumerate()
-        .map(|(index, player)| to_player(player, index))
+        .map(|(index, player)| to_player(player, index, viewer))
         .collect();
     while players.len() < 2 {
         let index = players.len();
-        players.push(to_player(&Value::Null, index));
+        players.push(to_player(&JavaRawSnapshotPlayer::default(), index, viewer));
     }
 
-    let action_card_names: Vec<&str> = actions
-        .iter()
-        .filter_map(|action| action.get("cardName").and_then(Value::as_str))
-        .collect();
-    let active_player_id = player_id(snapshot.get("active_player"));
+    let active_player_id = format!("player-{}", snapshot.active_player.unwrap_or(0));
+    let priority_player_id = format!("player-{}", snapshot.priority_player.unwrap_or(0));
+
     let mut battlefield = Vec::new();
-    for (player_index, player) in players_source.iter().enumerate() {
-        for (card_index, card) in player
-            .get("battlefield_cards")
-            .or_else(|| player.get("battlefield"))
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .enumerate()
-        {
+    for (player_index, player) in snapshot.players.iter().enumerate() {
+        for (card_index, card) in player.battlefield().iter().enumerate() {
             battlefield.push(to_card(
-                &card,
+                &card.data(),
                 player_index,
                 card_index,
                 "battlefield",
-                &action_card_names,
+                action_card_names,
+                choosable_ids,
             ));
         }
     }
-    let stack: Vec<Value> = snapshot
-        .get("stack")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .enumerate()
-        .map(|(index, entry)| to_stack_object(&entry, index, &active_player_id))
-        .collect();
-    let me = players_source.get(viewer);
-    let my_hand = zone_cards(me, "hand_cards", viewer, "hand", &action_card_names);
-    let my_command_zone = zone_cards(
-        me,
-        "command_zone_cards",
-        viewer,
-        "command",
-        &action_card_names,
-    );
-    let graveyard = zone_cards(me, "graveyard", viewer, "graveyard", &action_card_names);
-    let exile = zone_cards(me, "exile", viewer, "exile", &action_card_names);
 
-    let mut opponent_zones = serde_json::Map::new();
-    for (i, opp) in players_source
+    let stack: Vec<StackObjectDto> = snapshot
+        .stack
         .iter()
         .enumerate()
-        .filter(|(i, _)| *i != viewer)
+        .map(|(index, entry)| to_stack_object(entry, index, &active_player_id))
+        .collect();
+
+    let me = snapshot.players.get(viewer);
+    let my_hand = me
+        .map(|player| {
+            build_cards(
+                player.hand_zone(),
+                viewer,
+                "hand",
+                action_card_names,
+                choosable_ids,
+            )
+        })
+        .unwrap_or_default();
+    let my_command_zone = me
+        .map(|player| {
+            build_cards(
+                &player.command_zone_cards,
+                viewer,
+                "command",
+                action_card_names,
+                choosable_ids,
+            )
+        })
+        .unwrap_or_default();
+    let graveyard = me
+        .map(|player| {
+            build_cards(
+                player.graveyard_zone(),
+                viewer,
+                "graveyard",
+                action_card_names,
+                choosable_ids,
+            )
+        })
+        .unwrap_or_default();
+    let exile = me
+        .map(|player| {
+            build_cards(
+                player.exile_zone(),
+                viewer,
+                "exile",
+                action_card_names,
+                choosable_ids,
+            )
+        })
+        .unwrap_or_default();
+
+    let mut opponent_zones = HashMap::new();
+    for (index, opp) in snapshot
+        .players
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| *index != viewer)
     {
-        let opp_graveyard = zone_cards(
-            Some(opp),
-            "graveyard",
-            i,
-            "opponentGraveyard",
-            &action_card_names,
-        );
-        let opp_exile = zone_cards(Some(opp), "exile", i, "opponentExile", &action_card_names);
-        let opp_command = zone_cards(
-            Some(opp),
-            "command_zone_cards",
-            i,
-            "opponentCommand",
-            &action_card_names,
-        );
         opponent_zones.insert(
-            format!("player-{i}"),
-            json!({
-                "graveyard": opp_graveyard,
-                "exile": opp_exile,
-                "commandZone": opp_command,
-            }),
+            format!("player-{index}"),
+            OpponentZonesDto {
+                graveyard: build_cards(
+                    opp.graveyard_zone(),
+                    index,
+                    "graveyard",
+                    action_card_names,
+                    choosable_ids,
+                ),
+                exile: build_cards(
+                    opp.exile_zone(),
+                    index,
+                    "exile",
+                    action_card_names,
+                    choosable_ids,
+                ),
+                command_zone: build_cards(
+                    &opp.command_zone_cards,
+                    index,
+                    "command",
+                    action_card_names,
+                    choosable_ids,
+                ),
+            },
         );
     }
 
-    json!({
-        "gameId": session_id.and_then(Value::as_str).unwrap_or("engine-game"),
-        "turn": as_i64(snapshot.get("turn"), 0),
-        "step": normalize_step(snapshot.get("phase")),
-        "activePlayerId": active_player_id,
-        "priorityPlayerId": player_id(snapshot.get("priority_player")),
-        "players": players,
-        "myHand": my_hand,
-        "battlefield": battlefield,
-        "stack": stack,
-        "exile": exile,
-        "graveyard": graveyard,
-        "myCommandZone": my_command_zone,
-        "opponentZones": opponent_zones,
-        "combatAssignments": [],
-        "gameOver": snapshot.get("game_over").and_then(Value::as_bool).unwrap_or(false),
-        "winnerId": snapshot.get("winner").and_then(Value::as_u64).map(|_| player_id(snapshot.get("winner"))),
-        "monarchId": null,
-        "initiativeHolderId": null,
-    })
+    GameViewDto {
+        game_id: session_id.unwrap_or("engine-game").to_string(),
+        turn: snapshot.turn.unwrap_or(0),
+        step: normalize_step(snapshot.phase.as_deref()).to_string(),
+        combat_assignments: snapshot
+            .combat
+            .iter()
+            .map(|block| CombatAssignmentDto {
+                blocker_id: block.blocker_id.clone(),
+                attacker_id: block.attacker_id.clone(),
+            })
+            .collect(),
+        active_player_id,
+        priority_player_id,
+        players,
+        my_hand,
+        battlefield,
+        stack,
+        exile,
+        graveyard,
+        my_command_zone,
+        opponent_zones,
+        game_over: snapshot.game_over,
+        winner_id: snapshot.winner.map(|index| format!("player-{index}")),
+        conceded_player_ids: snapshot
+            .players
+            .iter()
+            .enumerate()
+            .filter(|(_, player)| player.has_conceded.unwrap_or(false))
+            .map(|(index, player)| format!("player-{}", player.index.unwrap_or(index)))
+            .collect(),
+        monarch_id: snapshot.monarch.map(|index| format!("player-{index}")),
+        initiative_holder_id: snapshot.initiative.map(|index| format!("player-{index}")),
+    }
 }
 
-fn to_player(player: &Value, fallback_index: usize) -> Value {
-    let index = as_usize(player.get("index"), fallback_index);
-    json!({
-        "id": player_id(Some(&json!(index))),
-        "name": player.get("name").and_then(Value::as_str).unwrap_or("Player"),
-        "isHuman": index == 0,
-        "life": as_i64(player.get("life"), 20),
-        "poison": as_i64(player.get("poison"), 0),
-        "handCount": array_len(player.get("hand")),
-        "libraryCount": as_i64(player.get("library_size"), 0),
-        "graveyardCount": array_len(player.get("graveyard")),
-        "exileCount": array_len(player.get("exile")),
-        "manaPool": {},
-        "commanderDamage": {},
-        "energyCounters": 0,
-        "radiationCounters": 0,
-        "hasCityBlessing": false,
-        "ringLevel": 0,
-        "speed": 0,
-    })
-}
-
-fn zone_cards(
-    player: Option<&Value>,
-    source_zone: &str,
+fn build_cards(
+    cards: &[JavaRawCard],
     player_index: usize,
     zone_id: &str,
-    action_card_names: &[&str],
-) -> Vec<Value> {
-    player
-        .and_then(|player| {
-            player.get(source_zone).or_else(|| {
-                source_zone
-                    .strip_suffix("_cards")
-                    .and_then(|fallback_zone| player.get(fallback_zone))
-            })
-        })
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
+    action_card_names: &[String],
+    choosable_ids: &[String],
+) -> Vec<CardDto> {
+    cards
+        .iter()
         .enumerate()
         .map(|(card_index, card)| {
-            to_card(&card, player_index, card_index, zone_id, action_card_names)
+            to_card(
+                &card.data(),
+                player_index,
+                card_index,
+                zone_id,
+                action_card_names,
+                choosable_ids,
+            )
         })
         .collect()
 }
 
+fn to_player(player: &JavaRawSnapshotPlayer, fallback_index: usize, viewer: usize) -> PlayerDto {
+    let index = player.index.unwrap_or(fallback_index);
+    PlayerDto {
+        id: format!("player-{index}"),
+        name: player.name.clone().unwrap_or_else(|| "Player".to_string()),
+        is_human: index == viewer,
+        life: player.life.unwrap_or(20),
+        poison: player.poison.unwrap_or(0),
+        hand_count: player.hand.len(),
+        library_count: player.library_size.unwrap_or(0).max(0) as usize,
+        graveyard_count: player.graveyard.len(),
+        exile_count: player.exile.len(),
+        mana_pool: player.mana_pool.clone().into_iter().collect(),
+        commander_damage: player.commander_damage.clone().into_iter().collect(),
+        energy_counters: player.energy.unwrap_or(0),
+        radiation_counters: player.radiation.unwrap_or(0),
+        has_city_blessing: player.city_blessing.unwrap_or(false),
+        ring_level: player.ring_level.unwrap_or(0),
+        speed: player.speed.unwrap_or(0),
+    }
+}
+
 fn to_card(
-    card: &Value,
+    card: &JavaRawCardData,
     player_index: usize,
     card_index: usize,
     zone_id: &str,
-    action_card_names: &[&str],
-) -> Value {
+    action_card_names: &[String],
+    choosable_ids: &[String],
+) -> CardDto {
     let name = card
-        .as_str()
-        .or_else(|| card.get("name").and_then(Value::as_str))
-        .unwrap_or("Unknown Card");
-    let power = card.get("power").and_then(Value::as_i64);
-    let toughness = card.get("toughness").and_then(Value::as_i64);
-    let controller_index = card
-        .get("controller")
-        .and_then(Value::as_u64)
-        .map(|value| value as usize)
-        .unwrap_or(player_index);
+        .name
+        .clone()
+        .unwrap_or_else(|| "Unknown Card".to_string());
+    let controller_index = card.controller.unwrap_or(player_index);
     let id = card
-        .get("id")
-        .and_then(Value::as_str)
-        .map(str::to_string)
+        .id
+        .clone()
         .unwrap_or_else(|| format!("engine-card-{player_index}-{zone_id}-{card_index}"));
-    json!({
-        "id": id,
-        "name": name,
-        "setCode": card.get("setCode").and_then(Value::as_str).unwrap_or(""),
-        "cardNumber": card.get("cardNumber").and_then(Value::as_str).unwrap_or(""),
-        "color": "",
-        "manaCost": "",
-        "types": [],
-        "subtypes": [],
-        "supertypes": [],
-        "power": power.map(|value| value.to_string()),
-        "toughness": toughness.map(|value| value.to_string()),
-        "basePower": power,
-        "baseToughness": toughness,
-        "text": "",
-        "isPlayable": action_card_names.contains(&name),
-        "isSelected": false,
-        "isChoosable": false,
-        "controllerId": format!("player-{controller_index}"),
-        "ownerId": format!("player-{player_index}"),
-        "zoneId": zone_id,
-        "tapped": card.get("tapped").and_then(Value::as_bool).unwrap_or(false),
-        "counters": card.get("counters").cloned().unwrap_or_else(|| json!({})),
-        "damage": card.get("damage").and_then(Value::as_i64).unwrap_or(0),
-        "summoningSick": card.get("summoning_sick").and_then(Value::as_bool).unwrap_or(false),
+    let is_choosable = choosable_ids.iter().any(|candidate| candidate == &id);
+    CardDto {
+        id,
+        set_code: card.set_code.clone().unwrap_or_default(),
+        card_number: card.card_number.clone().unwrap_or_default(),
+        power: card.power.map(|value| value.to_string()),
+        toughness: card.toughness.map(|value| value.to_string()),
+        base_power: card.power.map(|value| value as i32),
+        base_toughness: card.toughness.map(|value| value as i32),
+        is_playable: action_card_names.iter().any(|candidate| candidate == &name),
+        is_choosable,
+        controller_id: format!("player-{controller_index}"),
+        owner_id: format!("player-{player_index}"),
+        zone_id: zone_id.to_string(),
+        tapped: card.tapped,
+        counters: card.counters.clone().into_iter().collect(),
+        damage: card.damage,
+        summoning_sick: card.summoning_sick,
+        color: card.color.clone().unwrap_or_default(),
+        mana_cost: card.mana_cost.clone().unwrap_or_default(),
+        cmc: card.cmc.unwrap_or(0),
+        text: card.text.clone().unwrap_or_default(),
+        types: card.types.clone(),
+        subtypes: card.subtypes.clone(),
+        supertypes: card.supertypes.clone(),
+        keywords: card.keywords.clone(),
+        is_token: card.is_token,
+        is_copy: card.is_copy,
+        is_double_faced: card.is_double_faced,
+        is_transformed: card.is_transformed,
+        is_face_down: card.is_face_down,
+        is_bestowed: card.is_bestowed,
+        is_attacking: card.is_attacking,
+        attacking_player_id: card.attacking_player_id.clone(),
+        attached_to: card.attached_to.clone(),
+        attachment_ids: card.attachment_ids.clone(),
+        phased_out: card.phased_out,
+        exerted: card.exerted,
+        is_ring_bearer: card.is_ring_bearer,
+        is_crewed: card.is_crewed,
+        is_madness_exiled: card.is_madness_exiled,
+        is_plotted: card.is_plotted,
+        is_warp_exiled: card.is_warp_exiled,
+        foil: card.foil,
+        flashback_cost: keyword_cost(&card.keywords, "Flashback"),
+        kicker_cost: keyword_cost(&card.keywords, "Kicker"),
+        madness_cost: keyword_cost(&card.keywords, "Madness"),
+        effective_mana_cost: card.effective_mana_cost.clone(),
+        name,
+        ..CardDto::default()
+    }
+}
+
+/// Extract the cost portion from a Forge keyword string (`"Flashback:2 R"` →
+/// `"2 R"`), mirroring the engine's `alt_costs::get_keyword_cost`.
+fn keyword_cost(keywords: &[String], name: &str) -> Option<String> {
+    keywords.iter().find_map(|keyword| {
+        let rest = keyword.strip_prefix(name)?.strip_prefix(':')?;
+        let cost = rest.split(':').next().unwrap_or(rest).trim();
+        (!cost.is_empty()).then(|| cost.to_string())
     })
 }
 
-fn to_stack_object(entry: &Value, index: usize, controller_id: &str) -> Value {
-    json!({
-        "id": entry
-            .get("id")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .unwrap_or_else(|| format!("engine-stack-{index}")),
-        "sourceId": format!("engine-stack-source-{index}"),
-        "controllerId": controller_id,
-        "name": entry
-            .as_str()
-            .or_else(|| entry.get("name").and_then(Value::as_str))
-            .unwrap_or("Stack object"),
-        "text": entry
-            .get("description")
-            .and_then(Value::as_str)
-            .unwrap_or_default(),
-        "isPermanentSpell": false,
-        "isCasting": false,
-        "targets": [],
-    })
+/// Map a Forge `ApiType` name (plus the `ChangeZone`/`PutCounter` context the
+/// harness sends) to a targeting intent. Mirrors
+/// `game_view_dto::targeting_intent_of` so Java target prompts show the same
+/// pointer/glow the Rust engine produces.
+fn intent_from_api(
+    api: &Option<String>,
+    destination: &Option<String>,
+    counter_type: &Option<String>,
+) -> TargetingIntent {
+    use TargetingIntent::*;
+    let Some(api) = api.as_deref() else {
+        return Hostile;
+    };
+    match api {
+        "DealDamage" | "DamageAll" | "EachDamage" => Damage,
+        "Destroy" | "DestroyAll" => Destroy,
+        "Sacrifice" | "SacrificeAll" => Sacrifice,
+        "ChangeZone" | "ChangeZoneAll" => match destination.as_deref() {
+            Some("Exile") => Exile,
+            Some("Hand") | Some("Library") => Bounce,
+            Some("Graveyard") => Destroy,
+            Some("Battlefield") => Friendly,
+            _ => Hostile,
+        },
+        "Mill" => Mill,
+        "Discard" => Discard,
+        "Counter" => Counter,
+        "ControlSpell" => GainControl,
+        "Tap" | "TapAll" | "TapOrUntap" | "TapOrUntapAll" => Tap,
+        "Untap" | "UntapAll" => Untap,
+        "CopyPermanent" | "CopySpellAbility" | "Clone" => Copy,
+        "Pump" | "PumpAll" | "Animate" | "AnimateAll" | "Protection" | "ProtectionAll" => Buff,
+        "PutCounter" | "PutCounterAll" => match counter_type.as_deref() {
+            Some(ct) if ct.starts_with("M1M1") || ct.contains("-1/-1") => Debuff,
+            _ => Buff,
+        },
+        "RemoveCounter" | "RemoveCounterAll" | "Debuff" => Debuff,
+        "GainLife" => Heal,
+        "LoseLife" => LoseLife,
+        "Draw" => Draw,
+        "Reveal" | "RevealHand" | "LookAt" | "PeekAndReveal" => Reveal,
+        "GainControl" | "GainControlVariant" | "ExchangeControl" | "ExchangeControlVariant" => {
+            GainControl
+        }
+        "Fight" => Fight,
+        "Attach" | "Unattach" => Attach,
+        _ => Hostile,
+    }
 }
 
-fn to_actions(actions: Option<&Value>) -> Vec<Value> {
+fn to_stack_object(entry: &JavaRawStackEntry, index: usize, controller_id: &str) -> StackObjectDto {
+    match entry {
+        JavaRawStackEntry::Name(name) => StackObjectDto {
+            id: format!("engine-stack-{index}"),
+            source_id: format!("engine-stack-source-{index}"),
+            controller_id: controller_id.to_string(),
+            name: name.clone(),
+            ..StackObjectDto::default()
+        },
+        JavaRawStackEntry::Full {
+            id,
+            name,
+            description,
+            controller,
+            source_id,
+            set_code,
+            card_number,
+            is_permanent_spell,
+            is_casting,
+            targets,
+        } => StackObjectDto {
+            id: id
+                .clone()
+                .unwrap_or_else(|| format!("engine-stack-{index}")),
+            source_id: source_id
+                .clone()
+                .unwrap_or_else(|| format!("engine-stack-source-{index}")),
+            controller_id: controller
+                .map(|index| format!("player-{index}"))
+                .unwrap_or_else(|| controller_id.to_string()),
+            name: name.clone().unwrap_or_else(|| "Stack object".to_string()),
+            text: description.clone().unwrap_or_default(),
+            set_code: set_code.clone().unwrap_or_default(),
+            card_number: card_number.clone().unwrap_or_default(),
+            is_permanent_spell: *is_permanent_spell,
+            is_casting: *is_casting,
+            targets: targets
+                .iter()
+                .enumerate()
+                .map(|(target_index, target)| to_stack_target(target, target_index))
+                .collect(),
+        },
+    }
+}
+
+fn to_mana_ability_info(option: &JavaRawManaOption) -> ActivatableAbilityInfo {
+    ActivatableAbilityInfo {
+        card_id: option.card_id.clone().unwrap_or_default(),
+        ability_index: option.ability_index.unwrap_or(0),
+        description: option.description.clone().unwrap_or_default(),
+        is_mana_ability: true,
+        cost: option.cost.clone(),
+    }
+}
+
+fn to_stack_target(target: &JavaRawStackTarget, target_index: usize) -> StackTargetDto {
+    let kind = match target.kind.as_str() {
+        "player" => StackTargetKindDto::Player,
+        "stack" => StackTargetKindDto::Stack,
+        _ => StackTargetKindDto::Card,
+    };
+    StackTargetDto {
+        kind,
+        id: target.id.clone(),
+        node_index: 0,
+        target_index: target_index as u32,
+        hostile: true,
+        intent: TargetingIntent::Hostile,
+    }
+}
+
+fn to_actions(actions: &[JavaRawAction]) -> Vec<NormalizedAction> {
     actions
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
+        .iter()
         .enumerate()
         .filter_map(|(fallback_index, action)| {
-            let index = as_usize(action.get("index"), fallback_index);
-            let raw_label = action
-                .get("label")
-                .and_then(Value::as_str)
-                .unwrap_or_default();
+            let index = action.index.unwrap_or(fallback_index);
+            let raw_label = action.label.as_str();
             let label = format_action_label(raw_label);
-            (!label.is_empty()).then(|| {
-                json!({
-                    "id": format!("prompt-action-{index}"),
-                    "label": label,
-                    "cardName": action_card_name(raw_label),
-                    "cardKey": action_card_key(raw_label),
-                    "kind": action_kind(raw_label),
-                })
+            (!label.is_empty()).then(|| NormalizedAction {
+                index,
+                id: format!("prompt-action-{index}"),
+                label,
+                card_name: action_card_name(raw_label),
+                card_key: action_card_key(raw_label),
+                kind: action_kind(raw_label),
             })
         })
         .collect()
@@ -1008,36 +1108,27 @@ fn to_actions(actions: Option<&Value>) -> Vec<Value> {
 
 fn card_ids_by_name<'a, I>(cards: I) -> HashMap<String, Vec<String>>
 where
-    I: IntoIterator<Item = &'a Value>,
+    I: IntoIterator<Item = &'a CardDto>,
 {
     let mut ids_by_name: HashMap<String, Vec<String>> = HashMap::new();
     for card in cards {
-        let Some(name) = card.get("name").and_then(Value::as_str) else {
-            continue;
-        };
-        let Some(id) = card.get("id").and_then(Value::as_str) else {
-            continue;
-        };
         ids_by_name
-            .entry(name.to_string())
+            .entry(card.name.clone())
             .or_default()
-            .push(id.to_string());
+            .push(card.id.clone());
     }
     ids_by_name
 }
 
 fn card_ids_by_key<'a, I>(cards: I) -> HashMap<String, String>
 where
-    I: IntoIterator<Item = &'a Value>,
+    I: IntoIterator<Item = &'a CardDto>,
 {
     let mut ids_by_key = HashMap::new();
     for card in cards {
-        let Some(id) = card.get("id").and_then(Value::as_str) else {
-            continue;
-        };
-        if let Some(key) = id.strip_prefix("engine-card-") {
+        if let Some(key) = card.id.strip_prefix("engine-card-") {
             if !key.contains('-') {
-                ids_by_key.insert(key.to_string(), id.to_string());
+                ids_by_key.insert(key.to_string(), card.id.clone());
             }
         }
     }
@@ -1053,91 +1144,47 @@ fn pop_card_id(ids_by_name: &mut HashMap<String, Vec<String>>, card_name: &str) 
     }
 }
 
-fn to_card_ids(cards: Option<&Value>) -> Vec<String> {
-    cards
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|card| card.get("id").and_then(Value::as_str).map(str::to_string))
-        .collect()
+fn card_ids(cards: &[JavaRawCardOption]) -> Vec<String> {
+    cards.iter().filter_map(|card| card.id.clone()).collect()
 }
 
-fn to_target_ids(targets: Option<&Value>) -> Vec<String> {
+fn target_ids(targets: &[JavaRawCardOption]) -> Vec<String> {
     targets
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
         .iter()
-        .filter_map(|target| target.get("id").and_then(Value::as_str).map(str::to_string))
+        .filter_map(|target| target.id.clone())
         .collect()
 }
 
-fn to_target_card_ids(cards: Option<&Value>) -> Vec<String> {
+fn prompt_cards(cards: &[JavaRawCardOption]) -> Vec<CardDto> {
     cards
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .filter_map(|card| card.get("id").and_then(Value::as_str).map(str::to_string))
-        .collect()
-}
-
-fn to_prompt_cards(cards: Option<&Value>) -> Vec<Value> {
-    cards
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
         .iter()
         .filter_map(|card| {
-            let id = card.get("id").and_then(Value::as_str)?;
-            let name = card
-                .get("label")
-                .and_then(Value::as_str)
-                .unwrap_or("Unknown Card");
-            let owner_id = card
-                .get("owner")
-                .and_then(Value::as_u64)
-                .map(|owner| format!("player-{owner}"));
-            Some(json!({
-                "id": id,
-                "name": name,
-                "setCode": card.get("setCode").and_then(Value::as_str).unwrap_or(""),
-                "cardNumber": card.get("cardNumber").and_then(Value::as_str).unwrap_or(""),
-                "ownerId": owner_id,
-            }))
+            let id = card.id.clone()?;
+            Some(CardDto {
+                id,
+                name: card
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| "Unknown Card".to_string()),
+                set_code: card.set_code.clone().unwrap_or_default(),
+                card_number: card.card_number.clone().unwrap_or_default(),
+                owner_id: card
+                    .owner
+                    .map(|owner| format!("player-{owner}"))
+                    .unwrap_or_default(),
+                ..CardDto::default()
+            })
         })
         .collect()
 }
 
-fn to_strings(value: Option<&Value>) -> Vec<String> {
-    value
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .iter()
-        .filter_map(Value::as_str)
-        .map(str::to_string)
-        .collect()
-}
-
-fn optional_string(value: Option<&Value>) -> Option<String> {
-    value.and_then(Value::as_str).map(str::to_string)
-}
-
-fn to_defender_ids(defenders: Option<&Value>) -> Vec<Value> {
+fn defender_ids(defenders: &[JavaRawCardOption]) -> Vec<DefenderIdDto> {
     defenders
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
         .iter()
         .filter_map(|defender| {
-            let id = defender.get("id").and_then(Value::as_str)?;
-            let label = defender.get("label").and_then(Value::as_str).unwrap_or(id);
-            Some(json!({
-                "id": id,
-                "label": label,
-            }))
+            let id = defender.id.clone()?;
+            let label = defender.label.clone().unwrap_or_else(|| id.clone());
+            Some(DefenderIdDto { id, label })
         })
         .collect()
 }
@@ -1211,19 +1258,8 @@ fn strip_action_suffix(label: &str) -> String {
         .to_string()
 }
 
-fn action_index(value: Option<&Value>) -> Option<usize> {
-    value
-        .and_then(Value::as_str)
-        .and_then(|id| id.strip_prefix("prompt-action-"))
-        .and_then(|index| index.parse::<usize>().ok())
-}
-
-fn player_id(index: Option<&Value>) -> String {
-    format!("player-{}", as_usize(index, 0))
-}
-
-fn normalize_step(value: Option<&Value>) -> &'static str {
-    match value.and_then(Value::as_str).unwrap_or_default() {
+fn normalize_step(value: Option<&str>) -> &'static str {
+    match value.unwrap_or_default() {
         "Untap" | "untap" => "untap",
         "Upkeep" | "upkeep" => "upkeep",
         "Draw" | "draw" => "draw",
@@ -1239,19 +1275,4 @@ fn normalize_step(value: Option<&Value>) -> &'static str {
         "Cleanup" | "cleanup" => "cleanup",
         _ => "untap",
     }
-}
-
-fn as_usize(value: Option<&Value>, fallback: usize) -> usize {
-    value
-        .and_then(Value::as_u64)
-        .map(|value| value as usize)
-        .unwrap_or(fallback)
-}
-
-fn as_i64(value: Option<&Value>, fallback: i64) -> i64 {
-    value.and_then(Value::as_i64).unwrap_or(fallback)
-}
-
-fn array_len(value: Option<&Value>) -> usize {
-    value.and_then(Value::as_array).map(Vec::len).unwrap_or(0)
 }

@@ -428,6 +428,7 @@ pub enum CardStateSelector {
     Suspended,
     SingleTarget,
     PromisedGift,
+    RingBearer,
 }
 
 // Numeric selector comparisons (`cmcGE3`, `powerLEX`, `counters_EQ1_P1P1`).
@@ -1123,6 +1124,7 @@ fn lower_selector_part(value: &str, is_first_part: bool) -> SelectorPredicate {
         "suspended" => SelectorPredicate::CardState(CardStateSelector::Suspended),
         "singletarget" => SelectorPredicate::CardState(CardStateSelector::SingleTarget),
         "promisedgift" => SelectorPredicate::CardState(CardStateSelector::PromisedGift),
+        "isringbearer" => SelectorPredicate::CardState(CardStateSelector::RingBearer),
         "wascast" => SelectorPredicate::WasCast { by_you: false },
         "wascastbyyou" => SelectorPredicate::WasCast { by_you: true },
         named if named.starts_with("named") => {

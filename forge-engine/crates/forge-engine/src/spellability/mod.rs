@@ -742,7 +742,7 @@ impl SpellAbility {
         if let Some(card_id) = self.source {
             if !self
                 .restriction
-                .can_play(game, card_id, self.activating_player)
+                .can_play_with_sa(game, card_id, self.activating_player, Some(self))
             {
                 return false;
             }

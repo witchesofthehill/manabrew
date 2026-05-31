@@ -299,7 +299,7 @@ impl Card {
                 let mut parts = rest.splitn(3, ':');
                 let level = parts.next().unwrap_or_default().trim();
                 let cost = parts.next().unwrap_or_default().trim();
-                let _params = parts.next().unwrap_or_default();
+                let params = parts.next().unwrap_or_default().trim();
 
                 let Ok(level_num) = level.parse::<i32>() else {
                     continue;
@@ -319,7 +319,7 @@ impl Card {
                     self.activated_abilities.push(ab);
                 }
 
-                if let Some(params) = parts.next().map(str::trim).filter(|s| !s.is_empty()) {
+                if !params.is_empty() {
                     let parsed = Params::from_raw(params);
                     let mut desc_parts: Vec<String> = Vec::new();
 

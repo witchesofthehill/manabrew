@@ -6,14 +6,16 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Pure printing identity. The single source of truth — the TS mirror
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardIdentity {
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub id: String,
     pub name: String,
     pub set_code: String,
     pub card_number: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub foil: Option<bool>,
 }
 
 /// Mirror of `manabrew.ts:CardRulesSummary`. The engine derives most
@@ -62,8 +64,6 @@ pub struct DeckCard {
     pub rules: CardRulesSummary,
     #[serde(default)]
     pub uris: serde_json::Value,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub foil: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

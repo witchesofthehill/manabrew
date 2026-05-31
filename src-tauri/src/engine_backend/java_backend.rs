@@ -12,10 +12,16 @@ use std::time::Duration;
 use j4rs::{Instance, InvocationArg, JavaOpt, Jvm, JvmBuilder};
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
-use serde_json::json;
 use serde_json::Value;
 
 use crate::preset_decks::CardIdentity;
+#[cfg(feature = "java-forge")]
+use forge_agent_interface::java_prompt_normalizer::{
+    normalize_java_prompt, translate_java_player_action,
+};
+#[cfg(feature = "java-forge")]
+use forge_agent_interface::java_raw::{JavaAction, JavaRawPrompt, JavaRawPromptBody};
+use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 
 pub fn unsupported_error() -> String {
     "Engine backend 'java-forge' requires building Tauri with --features java-forge".to_string()
@@ -28,8 +34,8 @@ pub fn run_game(
     starting_life: i32,
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
-    prompt_tx: mpsc::Sender<Value>,
-    response_rx: mpsc::Receiver<Value>,
+    prompt_tx: mpsc::Sender<AgentPrompt>,
+    response_rx: mpsc::Receiver<PlayerAction>,
 ) {
     if let Err(error) = run_game_inner(
         game_id,
@@ -51,8 +57,8 @@ pub fn run_game(
     _starting_life: i32,
     _commander_name: Option<String>,
     _opponent_deck_list: Option<Vec<CardIdentity>>,
-    _prompt_tx: mpsc::Sender<Value>,
-    _response_rx: mpsc::Receiver<Value>,
+    _prompt_tx: mpsc::Sender<AgentPrompt>,
+    _response_rx: mpsc::Receiver<PlayerAction>,
 ) {
     eprintln!("[java_game_thread] {}", unsupported_error());
 }
@@ -64,8 +70,8 @@ fn run_game_inner(
     starting_life: i32,
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
-    prompt_tx: mpsc::Sender<Value>,
-    response_rx: mpsc::Receiver<Value>,
+    prompt_tx: mpsc::Sender<AgentPrompt>,
+    response_rx: mpsc::Receiver<PlayerAction>,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();
@@ -98,11 +104,12 @@ fn run_game_inner(
     loop {
         loop {
             match response_rx.try_recv() {
-                Ok(action) => {
-                    let action_json = serde_json::to_string(&action)
-                        .map_err(|err| format!("failed to serialize java action: {err}"))?;
-                    session.submit_action(&action_json)?;
-                }
+                Ok(action) => match translate_java_player_action(&action) {
+                    Ok(java_action) => submit_java_action(&mut session, &java_action)?,
+                    Err(error) => {
+                        eprintln!("[java_game_thread] dropping untranslatable action: {error}");
+                    }
+                },
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     session.end_game()?;
@@ -113,21 +120,18 @@ fn run_game_inner(
 
         if let Some(prompt_json) = session.get_prompt(0)? {
             if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
-                let prompt: Value = serde_json::from_str(&prompt_json)
+                let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
-                let player_index = prompt
-                    .get("player")
-                    .and_then(Value::as_u64)
-                    .map(|value| value as usize)
-                    .unwrap_or_default();
+                let player_index = raw.player;
                 if player_index == 0 {
-                    if prompt_tx.send(prompt).is_err() {
+                    if prompt_tx.send(normalize_java_prompt(raw)).is_err() {
                         session.end_game()?;
                         return Ok(());
                     }
                 } else {
-                    let _ = prompt_tx.send(prompt.clone());
-                    session.submit_action(&auto_java_action(&prompt).to_string())?;
+                    let auto = auto_java_action(&raw);
+                    let _ = prompt_tx.send(normalize_java_prompt(raw));
+                    submit_java_action(&mut session, &auto)?;
                 }
                 last_prompt_json = Some(prompt_json);
             }
@@ -151,17 +155,24 @@ fn run_game_inner(
 }
 
 #[cfg(feature = "java-forge")]
-fn auto_java_action(prompt: &Value) -> Value {
-    prompt
-        .get("actions")
-        .and_then(Value::as_array)
-        .and_then(|actions| {
-            actions
-                .iter()
-                .find_map(|action| action.get("index").and_then(Value::as_u64))
-        })
-        .map(|index| json!({ "kind": "choose_action", "index": index }))
-        .unwrap_or_else(|| json!({ "kind": "pass" }))
+fn auto_java_action(prompt: &JavaRawPrompt) -> JavaAction {
+    if let JavaRawPromptBody::Priority { actions } = &prompt.body {
+        if let Some(index) = actions.iter().find_map(|action| action.index) {
+            return JavaAction::ChooseAction { index };
+        }
+    }
+    JavaAction::Pass
+}
+
+#[cfg(feature = "java-forge")]
+fn submit_java_action<B: JavaBridge>(
+    session: &mut JavaForgeSession<B>,
+    action: &JavaAction,
+) -> Result<(), String> {
+    let action_json = serde_json::to_string(action)
+        .map_err(|err| format!("failed to serialize java action: {err}"))?;
+    session.submit_action(&action_json)?;
+    Ok(())
 }
 
 #[derive(Debug, Clone)]

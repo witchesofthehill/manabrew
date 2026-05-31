@@ -21,6 +21,9 @@ interface TablesListProps {
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
+  onStartDraft?: () => void;
+  onStartSealed?: () => void;
+  startingLimited?: boolean;
   onAddBot?: () => void;
   onRemoveBot?: (username: string) => void;
   /** Bots this host process spawned — used to show the remove button. The
@@ -38,6 +41,9 @@ export function TablesList({
   onOpenDeckDialog,
   onStartGame,
   onStartTabletop,
+  onStartDraft,
+  onStartSealed,
+  startingLimited = false,
   onAddBot,
   onRemoveBot,
   mySpawnedBots = [],
@@ -47,10 +53,16 @@ export function TablesList({
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
-  const isHost = currentRoom?.host === username;
+  // The controller is the first seated player — they drive the lobby (format,
+  // bots, start) even when the host is a non-playing engine node. In a normal
+  // self-created room the host is the first player, so the two coincide.
+  const isController = currentRoom?.players[0]?.username === username;
+  const isOpenFormat = currentRoom?.format === "Any";
+  const minReady = isOpenFormat ? 1 : 2;
   const allReady = currentRoom
-    ? currentRoom.players.length >= 2 && currentRoom.players.every((p) => p.ready)
+    ? currentRoom.players.length >= minReady && currentRoom.players.every((p) => p.ready)
     : false;
+  const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
     ? [...currentRoom.players].sort((a, b) => {
@@ -82,8 +94,24 @@ export function TablesList({
                 <span className="font-semibold text-sm truncate">{currentRoom.room_name}</span>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                {currentRoom.draft_config && (
+                  <Badge variant="secondary" className="text-[10px] uppercase">
+                    {currentRoom.draft_config.cube_name ?? currentRoom.draft_config.set_code}
+                  </Badge>
+                )}
+                {currentRoom.sealed_config && (
+                  <Badge variant="secondary" className="text-[10px] uppercase">
+                    {currentRoom.sealed_config.set_code}
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-[10px]">
-                  {currentRoom.format}
+                  {isOpenFormat && currentRoom.draft_config
+                    ? currentRoom.draft_config.cube_id
+                      ? "Cube"
+                      : "Draft"
+                    : isOpenFormat && currentRoom.sealed_config
+                      ? "Sealed"
+                      : currentRoom.format}
                 </Badge>
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
@@ -93,6 +121,22 @@ export function TablesList({
                 </Badge>
               </div>
             </div>
+
+            {currentRoom.draft_config && (
+              <div className="text-[11px] text-muted-foreground">
+                {currentRoom.draft_config.rounds} packs · {currentRoom.draft_config.picks_per_pass}{" "}
+                pick{currentRoom.draft_config.picks_per_pass === 1 ? "" : "s"}/pass
+                {currentRoom.draft_config.fill_with_bots
+                  ? " · empty seats fill with bots"
+                  : " · humans only"}
+              </div>
+            )}
+            {currentRoom.sealed_config && (
+              <div className="text-[11px] text-muted-foreground">
+                {currentRoom.sealed_config.num_boosters} packs per player · each player opens their
+                own pool
+              </div>
+            )}
 
             {/* Player slots */}
             <div className="grid gap-2 sm:grid-cols-2">
@@ -123,10 +167,14 @@ export function TablesList({
                         )}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate">
-                        {p.selected_deck_name ?? "No deck selected"}
+                        {isOpenFormat
+                          ? p.ready
+                            ? "Ready"
+                            : "Waiting to ready up"
+                          : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
-                    {canRemove && isHost ? (
+                    {canRemove && isController ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -151,29 +199,35 @@ export function TablesList({
                   </div>
                 );
               })}
-              {/* Add Bot slot */}
-              {isHost && currentRoom.players.length < currentRoom.max_players && onAddBot && (
-                <button
-                  className="rounded-lg border border-dashed px-3 py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
-                  onClick={onAddBot}
-                >
-                  <Bot className="h-3.5 w-3.5" />
-                  Add Bot
-                </button>
-              )}
+              {/* Hidden on Open rooms — draft bots come from the room's
+                  draft_config.fill_with_bots, not this deck-picker flow. */}
+              {isController &&
+                !isOpenFormat &&
+                currentRoom.players.length < currentRoom.max_players &&
+                onAddBot && (
+                  <button
+                    className="rounded-lg border border-dashed px-3 py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
+                    onClick={onAddBot}
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                    Add Bot
+                  </button>
+                )}
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 pt-1">
-              <Button size="sm" variant="outline" className="gap-1" onClick={onOpenDeckDialog}>
-                <Shield className="h-3 w-3" /> Select Deck
-              </Button>
+              {!isOpenFormat && (
+                <Button size="sm" variant="outline" className="gap-1" onClick={onOpenDeckDialog}>
+                  <Shield className="h-3 w-3" /> Select Deck
+                </Button>
+              )}
               {myPlayer && !myPlayer.ready ? (
                 <Button
                   size="sm"
                   className="gap-1"
                   onClick={() => onSetReady(true)}
-                  disabled={!myPlayerHasDeck}
+                  disabled={readyDisabled}
                 >
                   Ready Up
                 </Button>
@@ -190,7 +244,7 @@ export function TablesList({
               >
                 <LogOut className="h-3 w-3" /> Leave
               </Button>
-              {isHost && (
+              {isController && (
                 <div className="ml-auto flex items-center gap-2">
                   {onStartTabletop && (
                     <Button
@@ -203,9 +257,40 @@ export function TablesList({
                       <Hand className="h-3 w-3" /> Tabletop
                     </Button>
                   )}
-                  <Button size="sm" className="gap-1" onClick={onStartGame} disabled={!allReady}>
-                    <Swords className="h-3 w-3" /> Start Game
-                  </Button>
+                  {onStartDraft && isOpenFormat && currentRoom.draft_config && (
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={onStartDraft}
+                      disabled={!allReady || startingLimited}
+                      title={!allReady ? "All players must be ready" : undefined}
+                    >
+                      <Swords className="h-3 w-3" />
+                      {startingLimited ? "Starting…" : "Start Draft"}
+                    </Button>
+                  )}
+                  {onStartSealed && isOpenFormat && currentRoom.sealed_config && (
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={onStartSealed}
+                      disabled={!allReady || startingLimited}
+                      title={!allReady ? "All players must be ready" : undefined}
+                    >
+                      <Swords className="h-3 w-3" />
+                      {startingLimited ? "Starting…" : "Start Sealed"}
+                    </Button>
+                  )}
+                  {!isOpenFormat && (
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => onStartGame()}
+                      disabled={!allReady}
+                    >
+                      <Swords className="h-3 w-3" /> Start Game
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -257,6 +342,16 @@ export function TablesList({
                           {room.hosted && (
                             <Badge variant="secondary" className="text-[10px]">
                               ManaBrew
+                            </Badge>
+                          )}
+                          {room.draft_config && (
+                            <Badge variant="secondary" className="text-[10px] uppercase">
+                              {room.draft_config.cube_name ?? room.draft_config.set_code}
+                            </Badge>
+                          )}
+                          {room.sealed_config && (
+                            <Badge variant="secondary" className="text-[10px] uppercase">
+                              {room.sealed_config.set_code}
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-[10px]">

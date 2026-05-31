@@ -125,7 +125,10 @@ pub enum ReplacementEvent {
     Tap { card: CardId },
 
     /// A permanent is being untapped.
-    Untap { card: CardId },
+    Untap {
+        card: CardId,
+        player: Option<PlayerId>,
+    },
 
     /// Life is being reduced (distinct from damage).
     LifeReduced {
@@ -408,7 +411,7 @@ fn affected_player_for_event(event: &ReplacementEvent, game: &GameState) -> Play
         ReplacementEvent::Counter { card } => game.cards[card.index()].controller,
         ReplacementEvent::ProduceMana { activator, .. } => *activator,
         ReplacementEvent::Tap { card } => game.cards[card.index()].controller,
-        ReplacementEvent::Untap { card } => game.cards[card.index()].controller,
+        ReplacementEvent::Untap { card, .. } => game.cards[card.index()].controller,
         ReplacementEvent::LifeReduced { player, .. } => *player,
         ReplacementEvent::RemoveCounter { target, .. } => game.cards[target.index()].controller,
         ReplacementEvent::DealtDamage { target, .. } => game.cards[target.index()].controller,

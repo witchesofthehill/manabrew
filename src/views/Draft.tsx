@@ -156,19 +156,19 @@ export default function Draft() {
   );
 }
 
-interface DraftingViewProps {
-  activeDraft: NonNullable<ReturnType<typeof useLimitedStore.getState>["activeDraft"]>;
+export interface DraftingViewProps {
+  activeDraft: import("@/types/limited").DraftState;
   onPick: (card: DraftCard) => void;
-  onJumpToBuild: () => void;
-  canBuild: boolean;
+  onJumpToBuild?: () => void;
+  canBuild?: boolean;
   conspiracyHooks: ReturnType<typeof useLimitedStore.getState>["conspiracyHooks"];
 }
 
-function DraftingView({
+export function DraftingView({
   activeDraft,
   onPick,
   onJumpToBuild,
-  canBuild,
+  canBuild = false,
   conspiracyHooks,
 }: DraftingViewProps) {
   const preview = useCardPreview();
@@ -184,7 +184,7 @@ function DraftingView({
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {activeDraft.currentPack.map((c, i) => (
               <DraftCardTile
-                key={`${c.setCode}:${c.collectorNumber}:${c.name}:${i}`}
+                key={`${c.setCode}:${c.cardNumber}:${c.name}:${i}`}
                 card={c}
                 index={i}
                 onClick={() => onPick(c)}

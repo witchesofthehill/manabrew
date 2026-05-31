@@ -49,12 +49,12 @@ function extractPromptTypeReferences(relativePath) {
 }
 
 function extractJavaPromptKinds() {
-  const source = read("forge-engine/crates/forge-agent-interface/src/java_prompt_normalizer.rs");
-  const match = source.match(/fn is_java_prompt[\s\S]*?matches!\([\s\S]*?Some\(([^)]+)\)/);
+  const source = read("forge-engine/crates/forge-agent-interface/src/java_raw.rs");
+  const match = source.match(/fn kind_label\(&self\) -> &'static str \{[\s\S]*?\n {4}\}/);
   if (!match) {
     return [];
   }
-  return [...match[1].matchAll(/"([^"]+)"/g)].map(([, kind]) => kind).sort();
+  return [...match[0].matchAll(/"([a-z_]+)"/g)].map(([, kind]) => kind).sort();
 }
 
 function diff(left, right) {

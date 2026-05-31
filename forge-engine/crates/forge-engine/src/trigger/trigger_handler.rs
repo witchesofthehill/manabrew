@@ -247,6 +247,10 @@ impl TriggerHandler {
         self.waiting_triggers.len()
     }
 
+    pub fn pre_matched_trigger_count(&self) -> usize {
+        self.pre_matched_triggers.len()
+    }
+
     /// Match waiting triggers NOW, while source cards are still in their
     /// current zones.  Stores results in `pre_matched_triggers` so that a
     /// subsequent `run_waiting_triggers` call returns them even if SBA has
@@ -294,6 +298,7 @@ impl TriggerHandler {
             entries.sort_by_key(|(_, controller, ts, trigger_bucket, trigger_order)| {
                 (
                     if *controller == active_player { 0u8 } else { 1 },
+                    if *trigger_bucket == 2 { 1u8 } else { 0 },
                     *ts,
                     *trigger_bucket,
                     *trigger_order,
@@ -321,6 +326,7 @@ impl TriggerHandler {
         entries.sort_by_key(|(_, controller, ts, trigger_bucket, trigger_order)| {
             (
                 if *controller == active_player { 0u8 } else { 1 },
+                if *trigger_bucket == 2 { 1u8 } else { 0 },
                 *ts,
                 *trigger_bucket,
                 *trigger_order,
@@ -785,7 +791,11 @@ impl TriggerHandler {
                     decider: delayed.controller,
                     description: String::new(),
                 };
-                let delayed_ts = game.card(delayed.source_card).zone_timestamp;
+                let delayed_ts = if delayed.mode == TriggerType::Phase {
+                    0
+                } else {
+                    game.card(delayed.source_card).zone_timestamp
+                };
                 let delayed_bucket = if delayed.sort_after_active { 2 } else { 0 };
                 let delayed_order = delayed.trigger_order.unwrap_or(0);
                 // Java parity: Panharmonicon-class statics (e.g. Yarok, Roaming Throne)
@@ -969,7 +979,11 @@ impl TriggerHandler {
                     decider: delayed.controller,
                     description: String::new(),
                 };
-                let ts = game.card(delayed.source_card).zone_timestamp;
+                let ts = if delayed.mode == TriggerType::Phase {
+                    0
+                } else {
+                    game.card(delayed.source_card).zone_timestamp
+                };
                 let trigger_bucket = if delayed.sort_after_active { 2 } else { 0 };
                 entries.push((
                     pending,

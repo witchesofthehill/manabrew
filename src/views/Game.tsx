@@ -1348,10 +1348,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   // pre-mark them during attacker declaration.
   const markIfDefender = (c: GameCard): GameCard =>
     cardIsAttackTarget(c.id) ? { ...c, isChoosable: true } : c;
-  // The rust engine marks legal targets `isChoosable` in its gameView; the hosted
-  // java snapshot does not, so its battlefield cards stay unclickable during a
-  // target prompt. Mark any card whose id is in the prompt's validCardIds choosable
-  // so battlefield clicks land on it. Idempotent for the rust path.
   const targetCardIdSet = new Set(
     promptType === PromptType.ChooseTargetCard || promptType === PromptType.ChooseTargetAny
       ? (activePrompt?.validCardIds ?? [])

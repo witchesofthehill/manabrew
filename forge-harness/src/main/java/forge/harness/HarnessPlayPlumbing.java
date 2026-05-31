@@ -26,28 +26,28 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Deterministic cast/payment plumbing extracted from {@link DeterministicController}.
+ * Cast/payment plumbing shared by the harness controllers.
  *
  * Source references mirrored with minimal changes:
  * - forge/forge-ai/src/main/java/forge/ai/ComputerUtil.java (playNoStack/playStack)
  * - forge/forge-ai/src/main/java/forge/ai/PlayerControllerAi.java
  */
-final class DeterministicPlayPlumbing {
-    private final DeterministicController controller;
+final class HarnessPlayPlumbing {
+    private final HarnessPlayHooks hooks;
     private final Player payer;
-    private final DeterministicCostPlumbing costPlumbing;
+    private final HarnessCostPlumbing costPlumbing;
 
-    DeterministicPlayPlumbing(
-            final DeterministicController controller,
+    HarnessPlayPlumbing(
+            final HarnessPlayHooks hooks,
             final Player payer,
-            final DeterministicCostPlumbing costPlumbing
+            final HarnessCostPlumbing costPlumbing
     ) {
-        this.controller = controller;
+        this.hooks = hooks;
         this.payer = payer;
         this.costPlumbing = costPlumbing;
     }
 
-    boolean playNoStackDeterministic(final Player ai, SpellAbility sa, final Game game, final boolean effect) {
+    boolean playNoStack(final Player ai, SpellAbility sa, final Game game, final boolean effect) {
         sa.setActivatingPlayer(ai);
         clearPaymentState(sa);
         if (!ComputerUtilCost.canPayCost(sa, ai, effect)) {
@@ -61,7 +61,7 @@ final class DeterministicPlayPlumbing {
         }
 
         final Cost cost = sa.getPayCosts();
-        if (costPlumbing.payWithDeterministicDecision(cost, sa, effect)) {
+        if (costPlumbing.payWithControllerDecision(cost, sa, effect)) {
             AbilityUtils.resolve(sa);
             return true;
         }
@@ -69,7 +69,7 @@ final class DeterministicPlayPlumbing {
         return false;
     }
 
-    boolean playStackDeterministic(SpellAbility sa, final Player ai, final Game game) {
+    boolean playStack(SpellAbility sa, final Player ai, final Game game) {
         sa.setActivatingPlayer(ai);
         clearPaymentState(sa);
         if (!ComputerUtilCost.canPayCost(sa, ai, false)) {
@@ -93,7 +93,7 @@ final class DeterministicPlayPlumbing {
             return false;
         }
 
-        if (costPlumbing.payWithDeterministicDecision(cost, sa, false)) {
+        if (costPlumbing.payWithControllerDecision(cost, sa, false)) {
             game.getStack().add(sa);
             return true;
         }
@@ -102,7 +102,7 @@ final class DeterministicPlayPlumbing {
         return false;
     }
 
-    boolean handlePlayingSpellAbilityDeterministic(final Player ai, SpellAbility sa, final Game game) {
+    boolean handlePlayingSpellAbility(final Player ai, SpellAbility sa, final Game game) {
         final Card source = sa.getHostCard();
         final Card host = sa.getHostCard();
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
@@ -135,16 +135,7 @@ final class DeterministicPlayPlumbing {
 
         sa = GameActionUtil.addExtraKeywordCost(sa);
 
-        // Mirror HumanPlaySpellAbility pre-cost prerequisites:
-        // targeting setup is evaluated directly, not gated by isTargetNumberValid().
         if (!sa.setupTargets()) {
-            // Mirror HumanPlaySpellAbility's rollback path
-            // (forge-gui/.../HumanPlaySpellAbility.java:179): when setupTargets
-            // fails after moveToStack, restore the host to its origin zone so
-            // the next priority window doesn't see a card stranded on the
-            // Stack. Without this the deterministic agent silently drops the
-            // card from its playable list and diverges from the Rust engine,
-            // which performs a full snapshot rollback (cast_spell.rs:1150).
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
                 GameActionUtil.rollbackAbility(sa, hz, zonePosition,
                         new CostPayment(sa.getPayCosts(), sa), host);
@@ -155,7 +146,7 @@ final class DeterministicPlayPlumbing {
         final Cost cost = sa.getPayCosts();
         game.getStack().freezeStack(sa);
 
-        if (costPlumbing.payWithDeterministicDecision(cost, sa, false)) {
+        if (costPlumbing.payWithControllerDecision(cost, sa, false)) {
             // Fix for LTB trigger collection during frozen stack.
             // When a card is sacrificed as a cost while the stack is frozen, its
             // LTB (leaves-the-battlefield) triggers are registered in activeTriggers
@@ -187,7 +178,7 @@ final class DeterministicPlayPlumbing {
             GameActionUtil.rollbackAbility(sa, hz, zonePosition, new CostPayment(cost, sa), host);
             final Card rolledBackHost = sa.getHostCard();
             if (rolledBackHost != null) {
-                controller.markFailedPaymentCard(rolledBackHost);
+                hooks.markFailedPaymentCard(rolledBackHost);
                 for (SpellAbility csa : rolledBackHost.getSpellAbilities()) {
                     csa.setSkip(true);
                 }
@@ -295,7 +286,7 @@ final class DeterministicPlayPlumbing {
         }
     }
 
-    boolean prepareSingleSaDeterministic(final Card host, final SpellAbility sa, final boolean isMandatory) {
+    boolean prepareSingleSa(final Card host, final SpellAbility sa, final boolean isMandatory) {
         if (sa.getApi() == ApiType.Charm) {
             if (!CharmEffect.makeChoices(sa)) {
                 return false;
@@ -324,9 +315,9 @@ final class DeterministicPlayPlumbing {
         });
         for (final SpellAbility sa : activePlayerSAs) {
             if (sa.isTrigger() && !sa.isCopied()) {
-                boolean prepared = prepareSingleSaDeterministic(sa.getHostCard(), sa, true);
+                boolean prepared = prepareSingleSa(sa.getHostCard(), sa, true);
                 if (prepared) {
-                    playStackDeterministic(sa, payer, game);
+                    playStack(sa, payer, game);
                 }
             } else {
                 if (sa.isCopied()) {
@@ -353,10 +344,10 @@ final class DeterministicPlayPlumbing {
     boolean playSaFromPlayEffect(SpellAbility tgtSA, final Game game) {
         final boolean optional = !tgtSA.getPayCosts().isMandatory();
         if (tgtSA instanceof Spell) {
-            if (optional && !controller.chooseDeterministicBoolean("play_effect_optional", "DECLINE", "ACCEPT")) {
+            if (optional && !hooks.confirmPlayEffectOptional()) {
                 return false;
             }
-            return playStackDeterministic(tgtSA, payer, game);
+            return playStack(tgtSA, payer, game);
         }
         return true;
     }

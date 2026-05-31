@@ -1,6 +1,6 @@
 use forge_foundation::ZoneType;
 
-use super::EffectContext;
+use super::{resolve_numeric_svar, EffectContext};
 use crate::ability::ability_ir::DefinedRef;
 use crate::card::card_util;
 use crate::event::RunParams;
@@ -27,10 +27,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let controller = sa.activating_player;
     let etb = sa.ir.etb;
 
-    let mut targets = resolve_untap_targets(ctx, sa);
-    if targets.is_empty() {
-        targets = choose_untap_type_targets(ctx, sa, controller);
-    }
+    let mut targets = if sa.ir.untap_up_to {
+        choose_untap_type_targets(ctx, sa, controller)
+    } else {
+        resolve_untap_targets(ctx, sa)
+    };
     targets.extend(card_util::get_radiance(ctx.game, sa).iter().copied());
     targets.sort_unstable_by_key(|cid| cid.0);
     targets.dedup();
@@ -55,7 +56,7 @@ fn resolve_untap_targets(ctx: &EffectContext, sa: &SpellAbility) -> Vec<CardId> 
         .as_ref()
         .and_then(|defined| defined.refs.first())
     {
-        Some(DefinedRef::SelfCard) => sa.source.into_iter().collect(),
+        None | Some(DefinedRef::SelfCard) => sa.source.into_iter().collect(),
         Some(DefinedRef::ParentTarget) => ctx.parent_target_card.into_iter().collect(),
         Some(DefinedRef::Remembered) => sa
             .source
@@ -111,12 +112,7 @@ fn choose_untap_type_targets(
         return Vec::new();
     }
 
-    let amount = sa
-        .ir
-        .amount
-        .as_deref()
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(valid.len());
+    let amount = resolve_numeric_svar(ctx.game, sa, "Amount", valid.len() as i32).max(0) as usize;
     let max = amount.min(valid.len());
     let min = if sa.ir.untap_up_to { 0 } else { max };
     ctx.agents[controller.index()].choose_cards_for_effect(controller, &valid, min, max)

@@ -79,6 +79,7 @@ pub struct CardEdition {
     pub small_set_override: bool,
 
     pub booster: Option<String>,
+    pub draft_booster: Option<String>,
     pub extra_boosters: HashMap<String, String>,
     pub custom_sheets: HashMap<String, Vec<String>>,
 
@@ -91,13 +92,10 @@ impl CardEdition {
     }
 
     pub fn to_sealed_template_named(&self, variant: Option<&str>) -> Option<SealedTemplate> {
+        let primary = self.booster.as_ref().or(self.draft_booster.as_ref());
         let line = match variant {
-            Some(v) if !v.is_empty() => self
-                .extra_boosters
-                .get(v)
-                .or(self.booster.as_ref())?
-                .as_str(),
-            _ => self.booster.as_deref()?,
+            Some(v) if !v.is_empty() => self.extra_boosters.get(v).or(primary)?.as_str(),
+            _ => primary?.as_str(),
         };
         let slots = crate::sealed_product::sealed_template::parse_slots(line);
         if slots.is_empty() {

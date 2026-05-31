@@ -1,4 +1,4 @@
-import type { ScryfallImageUris } from "@/types/scryfall";
+import type { CardIdentity } from "@/types/manabrew";
 
 export type LimitedPoolType =
   | "Full"
@@ -18,16 +18,7 @@ export interface GauntletMatchDecks {
   opponentSideboard: DraftCard[];
 }
 
-export interface DraftCard {
-  name: string;
-  setCode: string;
-  collectorNumber: string;
-  rarity: "common" | "uncommon" | "rare" | "mythic" | "land" | "special" | "token" | "unknown";
-  colors?: string[];
-  uris?: ScryfallImageUris;
-  isDoubleFaced?: boolean;
-  foil?: boolean;
-}
+export type DraftCard = CardIdentity;
 
 export interface LimitedDeck {
   name: string;

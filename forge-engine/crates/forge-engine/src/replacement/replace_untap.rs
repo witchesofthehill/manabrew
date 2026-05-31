@@ -2,7 +2,7 @@
 //!
 //! Mirrors Java `ReplaceUntap.java` in `forge/game/replacement/`.
 
-use crate::card::Card;
+use crate::card::{valid_filter, Card};
 use crate::game::GameState;
 use crate::ids::CardId;
 
@@ -22,13 +22,21 @@ pub fn can_replace(
     if effect.event != ReplacementType::Untap {
         return false;
     }
-    let card = match event {
-        ReplacementEvent::Untap { card } => *card,
+    let (card, player) = match event {
+        ReplacementEvent::Untap { card, player } => (*card, *player),
         _ => return false,
     };
     let target_card = &game.cards[card.index()];
     if let Some(valid) = effect.ir.valid_card_selector.as_ref() {
         if !effect.matches_compiled_valid_card(valid, target_card, source_card) {
+            return false;
+        }
+    }
+    if let Some(valid) = effect.ir.valid_step_turn_to_controller_text.as_deref() {
+        let Some(player) = player else {
+            return false;
+        };
+        if !valid_filter::matches_valid_player(valid, player, target_card.controller) {
             return false;
         }
     }

@@ -769,6 +769,9 @@ fn matches_card_state(state: CardStateSelector, card: &Card, context: MatchConte
         CardStateSelector::Suspended => card.has_keyword("Suspend") && card.zone == ZoneType::Exile,
         CardStateSelector::SingleTarget => false,
         CardStateSelector::PromisedGift => card.promised_gift.is_some(),
+        CardStateSelector::RingBearer => context
+            .game
+            .is_some_and(|game| game.player(card.controller).ring_bearer == Some(card.id)),
     }
 }
 
@@ -871,28 +874,32 @@ fn matches_relation_predicate(
 ) -> bool {
     match predicate {
         RelationPredicate::SharesNameWith(target) => {
-            relation_target_card_any(target, context, |target| {
+            relation_target_card_any(target, card, context, |target| {
                 card.card_name.eq_ignore_ascii_case(&target.card_name)
             })
         }
         RelationPredicate::DoesNotShareNameWith(target) => {
-            !relation_target_card_any(target, context, |target| {
+            !relation_target_card_any(target, card, context, |target| {
                 card.card_name.eq_ignore_ascii_case(&target.card_name)
             })
         }
         RelationPredicate::SharesCardTypeWith(target) => {
-            relation_target_card_any(target, context, |target| card.shares_card_type_with(target))
+            relation_target_card_any(target, card, context, |target| {
+                card.shares_card_type_with(target)
+            })
         }
         RelationPredicate::SharesCreatureTypeWith(target) => {
-            relation_target_card_any(target, context, |target| shares_creature_type(card, target))
+            relation_target_card_any(target, card, context, |target| {
+                shares_creature_type(card, target)
+            })
         }
         RelationPredicate::SharesColorWith(target) => {
-            relation_target_card_any(target, context, |target| {
+            relation_target_card_any(target, card, context, |target| {
                 card.color.shares_color_with(target.color)
             })
         }
         RelationPredicate::SharesManaValueWith(target) => {
-            relation_target_card_any(target, context, |target| {
+            relation_target_card_any(target, card, context, |target| {
                 card.mana_cost.cmc() == target.mana_cost.cmc()
             })
         }
@@ -929,6 +936,7 @@ fn matches_relation_predicate(
 
 fn relation_target_card_any(
     target: &TargetRef,
+    subject: &Card,
     context: MatchContext<'_>,
     mut predicate: impl FnMut(&Card) -> bool,
 ) -> bool {
@@ -971,7 +979,7 @@ fn relation_target_card_any(
             game.cards_in_zone(ZoneType::Battlefield, context.source_controller)
                 .iter()
                 .copied()
-                .filter(|id| *id != context.source_card.id)
+                .filter(|id| *id != subject.id)
                 .any(|id| predicate(game.card(id)))
         }),
         TargetRef::YourGraveyard => context.game.is_some_and(|game| {
@@ -1594,6 +1602,27 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         "wasdealtdamagethisturn" => {
             matches_card_state(CardStateSelector::WasDealtDamageThisTurn, card, context)
         }
+        dealt if dealt.starts_with("dealtcombatdamagethisturn") => {
+            let Some(target_text) = value.split_once(' ').map(|(_, target)| target.trim()) else {
+                return card
+                    .damage_history
+                    .damage_done_this_turn
+                    .iter()
+                    .any(|damage| damage.is_combat && damage.amount > 0);
+            };
+            let Some(target) = raw_target_ref(target_text) else {
+                return false;
+            };
+            card.damage_history.damage_done_this_turn.iter().any(|damage| {
+                damage.is_combat
+                    && damage.amount > 0
+                    && matches!(
+                        damage.target,
+                        Some(crate::card::card_damage_history::TrackedEntity::Player(player))
+                            if relation_target_player_any(&target, context, |target_player| target_player == player)
+                    )
+            })
+        }
         "historic" => matches_card_state(CardStateSelector::Historic, card, context),
         "modified" => matches_card_state(CardStateSelector::Modified, card, context),
         "issaddled" => matches_card_state(CardStateSelector::Saddled, card, context),
@@ -1605,6 +1634,7 @@ fn legacy_matches_card_atom(raw: &str, card: &Card, context: MatchContext<'_>) -
         "suspended" => matches_card_state(CardStateSelector::Suspended, card, context),
         "singletarget" => matches_card_state(CardStateSelector::SingleTarget, card, context),
         "promisedgift" => matches_card_state(CardStateSelector::PromisedGift, card, context),
+        "isringbearer" => matches_card_state(CardStateSelector::RingBearer, card, context),
         "rememberedplayerctrl" => {
             matches_context_predicate(&ContextPredicate::RememberedPlayerCtrl, card, context)
         }
@@ -1998,6 +2028,13 @@ fn matches_type_and_qualifier_parts(
                 }
                 "iscommander" => {
                     if !card.is_commander {
+                        return false;
+                    }
+                }
+                "isringbearer" => {
+                    if !context.game.is_some_and(|game| {
+                        game.player(card.controller).ring_bearer == Some(card.id)
+                    }) {
                         return false;
                     }
                 }

@@ -16,39 +16,11 @@ import type {
   WinstonSetup,
   WinstonState,
 } from "@/types/limited";
-import { getPlatform, getPlatformType } from "@/platform";
-import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+import { fetchCubeMetadata } from "@/api/limitedEdition";
+import { getPlatform } from "@/platform";
 
 function invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   return getPlatform().invoke<T>(command, args);
-}
-
-async function platformFetchText(url: string): Promise<string> {
-  if (getPlatformType() === "tauri") {
-    const r = await tauriFetch(url, { method: "GET" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.text();
-  }
-  const r = await fetch(url, { method: "GET" });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.text();
-}
-
-function friendlyCubeError(err: unknown, input: string): string {
-  const msg = String(err ?? "");
-  if (/404|not.?found|http 404/i.test(msg)) {
-    return `Cube "${input}" not found on CubeCobra. Double-check the id or URL.`;
-  }
-  if (/network|failed to fetch|timeout|ENOTFOUND|EAI_AGAIN/i.test(msg)) {
-    return "Network error reaching CubeCobra. Check your connection and try again.";
-  }
-  if (/parse|deserial|JSON|malformed|invalid/i.test(msg)) {
-    return `CubeCobra returned an unexpected response for "${input}". The cube may be private or its format unsupported.`;
-  }
-  if (/empty|0 cards/i.test(msg)) {
-    return `Cube "${input}" appears empty.`;
-  }
-  return msg.length > 200 ? `${msg.slice(0, 197)}…` : msg;
 }
 
 interface LimitedStore {
@@ -254,18 +226,13 @@ export const useLimitedStore = create<LimitedStore>((set) => ({
   importCubeFromCubeCobra: async (cubeIdOrUrl) => {
     set({ isStarting: true, lastError: null });
     try {
-      const url = await invoke<string>("limited_cubecobra_url", { cubeIdOrUrl });
-      const body = await platformFetchText(url);
-      const result = await invoke<CubeImportResult>("limited_import_cube", {
-        request: { cubeIdOrUrl },
-        body,
-      });
+      const result = await fetchCubeMetadata(cubeIdOrUrl);
       set({ lastImportedCube: result, isStarting: false });
       return result;
     } catch (err) {
-      const msg = friendlyCubeError(err, cubeIdOrUrl);
+      const msg = err instanceof Error ? err.message : String(err);
       set({ isStarting: false, lastError: msg });
-      throw new Error(msg);
+      throw err;
     }
   },
 

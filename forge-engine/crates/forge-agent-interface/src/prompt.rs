@@ -24,13 +24,6 @@ pub enum DisplayEvent {
         active_player_name: String,
         turn_number: u32,
     },
-    #[serde(rename_all = "camelCase")]
-    RevealCards {
-        cards: Vec<CardDto>,
-        zone: String,
-        owner_player_id: String,
-        message: String,
-    },
 }
 
 /// Sent from game thread to frontend: what the human player must decide,

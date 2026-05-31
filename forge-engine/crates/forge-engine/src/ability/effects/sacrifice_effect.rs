@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use forge_foundation::ZoneType;
 
-use super::{emit_zone_trigger_with_lki_counters, matches_change_type, EffectContext};
+use super::{emit_zone_trigger_with_lki_counters, EffectContext};
 use crate::ability::spell_ability_effect::get_target_players;
 use crate::card::CounterType;
 use crate::event::RunParams;
@@ -369,7 +369,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 .cards_in_zone(ZoneType::Battlefield, sacrificing_player)
                 .to_vec()
                 .into_iter()
-                .filter(|&cid| matches_change_type(ctx.game.card(cid), &sac_valid, &[]))
+                .filter(|&cid| {
+                    crate::ability::ability_utils::matches_valid_cards_for_sa(
+                        ctx.game,
+                        sa,
+                        ctx.game.card(cid),
+                        None,
+                        &sac_valid,
+                    )
+                })
                 .filter(|&cid| {
                     !crate::staticability::static_ability_cant_sacrifice::cant_sacrifice(
                         &ctx.game.cards,
@@ -424,7 +432,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     .cards_in_zone(ZoneType::Battlefield, sacrificing_player)
                     .to_vec()
                     .into_iter()
-                    .filter(|&cid| matches_change_type(ctx.game.card(cid), &sac_valid, &[]))
+                    .filter(|&cid| {
+                        crate::ability::ability_utils::matches_valid_cards_for_sa(
+                            ctx.game,
+                            sa,
+                            ctx.game.card(cid),
+                            None,
+                            &sac_valid,
+                        )
+                    })
                     .collect();
 
                 if valid.is_empty() {

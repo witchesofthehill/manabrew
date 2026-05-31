@@ -36,9 +36,27 @@ export interface RoomInfo {
   format: GameFormat;
   status: "Lobby" | "InGame";
   engine: EngineKind;
+  draft_config?: DraftConfig;
+  sealed_config?: SealedConfig;
 }
 
 export type EngineKind = "Wasm" | "Java";
+
+export interface SealedConfig {
+  set_code: string;
+  num_boosters: number;
+  base_seed?: number;
+}
+
+export interface DraftConfig {
+  set_code?: string;
+  cube_id?: string;
+  cube_name?: string;
+  rounds: number;
+  picks_per_pass: number;
+  seed?: number;
+  fill_with_bots: boolean;
+}
 
 export interface RoomPlayerInfo {
   username: string;
@@ -159,8 +177,49 @@ export interface TurnChangedPayload {
   turn_number: number;
 }
 
+export const SERVER_ERROR_CODE = {
+  AuthFailed: "auth_failed",
+  AuthTimeout: "auth_timeout",
+  RoomNotFound: "room_not_found",
+  RoomFull: "room_full",
+  NotInRoom: "not_in_room",
+  NotHost: "not_host",
+  PlayersNotReady: "players_not_ready",
+  DeckNotSelected: "deck_not_selected",
+  GameAlreadyStarted: "game_already_started",
+  GameNotInProgress: "game_not_in_progress",
+  FormatNotChosen: "format_not_chosen",
+  InvalidDraftConfig: "invalid_draft_config",
+  AlreadyInRoom: "already_in_room",
+  DuplicateUsername: "duplicate_username",
+  WebSocket: "websocket_error",
+  Parse: "parse_error",
+} as const;
+
+export type ServerErrorCode = (typeof SERVER_ERROR_CODE)[keyof typeof SERVER_ERROR_CODE];
+
+export const START_GAME_FAILURE_CODES: ReadonlySet<ServerErrorCode> = new Set([
+  SERVER_ERROR_CODE.FormatNotChosen,
+  SERVER_ERROR_CODE.DeckNotSelected,
+  SERVER_ERROR_CODE.NotHost,
+  SERVER_ERROR_CODE.PlayersNotReady,
+  SERVER_ERROR_CODE.GameAlreadyStarted,
+  SERVER_ERROR_CODE.RoomNotFound,
+  SERVER_ERROR_CODE.NotInRoom,
+]);
+
+export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>> = {
+  [SERVER_ERROR_CODE.DeckNotSelected]: "Select a deck before getting ready",
+  [SERVER_ERROR_CODE.PlayersNotReady]: "Not all players are ready",
+  [SERVER_ERROR_CODE.NotHost]: "Only the host can do that",
+  [SERVER_ERROR_CODE.RoomFull]: "Room is full",
+  [SERVER_ERROR_CODE.AlreadyInRoom]: "You're already in a room",
+  [SERVER_ERROR_CODE.FormatNotChosen]: "Choose a format before starting",
+  [SERVER_ERROR_CODE.InvalidDraftConfig]: "Draft config is invalid",
+};
+
 export interface ServerErrorPayload {
-  code: string;
+  code: ServerErrorCode | string;
   message: string;
 }
 

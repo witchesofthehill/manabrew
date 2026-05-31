@@ -96,6 +96,10 @@ pub enum ClientMessage {
         hosted: bool,
         #[serde(default)]
         engine: EngineKind,
+        #[serde(default)]
+        draft_config: Option<DraftConfig>,
+        #[serde(default)]
+        sealed_config: Option<SealedConfig>,
     },
 
     JoinRoom {
@@ -224,6 +228,33 @@ pub struct RoomInfo {
     pub status: RoomStatus,
     #[serde(default)]
     pub engine: EngineKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draft_config: Option<DraftConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sealed_config: Option<SealedConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SealedConfig {
+    pub set_code: String,
+    pub num_boosters: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_seed: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DraftConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cube_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cube_name: Option<String>,
+    pub rounds: u8,
+    pub picks_per_pass: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed: Option<u64>,
+    pub fill_with_bots: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,3 +1,4 @@
+use forge_agent_interface::deck_dto::CardIdentity;
 use forge_foundation::sealed_product::PaperCard;
 use forge_limited::{CubeImporter, ThemedChaosDraft, CONSPIRACY_HOOKS};
 use tauri::State;
@@ -5,10 +6,10 @@ use tauri::State;
 use crate::card_db::card_name_known;
 use crate::limited_bootstrap;
 use crate::limited_dto::{
-    BoosterDraftSetupDto, ChaosThemeDto, ConspiracyHookDto, CubeImportRequestDto,
-    CubeImportResultDto, DraftCardDto, DraftStateDto, EditionInfoDto, GauntletMatchDecksDto,
-    GauntletOutcomeDto, GauntletStateDto, SealedPoolDto, SealedSetupDto, SealedTemplateMetadataDto,
-    WinstonSetupDto, WinstonStateDto,
+    identity_to_paper_card, BoosterDraftSetupDto, ChaosThemeDto, ConspiracyHookDto,
+    CubeImportRequestDto, CubeImportResultDto, DraftStateDto, EditionInfoDto,
+    GauntletMatchDecksDto, GauntletOutcomeDto, GauntletStateDto, MpDraftHumanSeatDto,
+    SealedPoolDto, SealedSetupDto, SealedTemplateMetadataDto, WinstonSetupDto, WinstonStateDto,
 };
 use crate::limited_manager::LimitedManager;
 
@@ -17,60 +18,24 @@ pub async fn limited_get_edition_info(set_code: String) -> Option<EditionInfoDto
     limited_bootstrap::edition_info(&set_code)
 }
 
-/// Return every card in a given set, formatted as a `DraftCardDto[]` — the
 /// same shape `limited_start_sealed` / `limited_start_booster_draft` expect
-/// for their `setup.pool` field.
-///
-/// The archive's `EditionsRegistry` already lists every card in every set,
-/// and the engine's `CardDatabase` already knows each card's colors and
-/// dual-faced-ness, so there is no need to round-trip through Scryfall just
-/// to learn what's in a set. Mirrors `forge-wasm::limited_get_set_pool`.
 #[tauri::command]
-pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<DraftCardDto>, String> {
+pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<CardIdentity>, String> {
     let edition = limited_bootstrap::editions()
         .get(&set_code)
         .ok_or_else(|| format!("unknown set: {set_code}"))?;
-    let card_db = crate::card_db::get_card_db();
-    let pool: Vec<DraftCardDto> = edition
+    let pool: Vec<CardIdentity> = edition
         .cards
         .iter()
-        .map(|entry| {
-            let (colors, dual_faced) = card_db
-                .get_by_card_name(&entry.name)
-                .map(|r| (r.color(), r.split_type.is_dual_faced()))
-                .unwrap_or_default();
-            DraftCardDto {
-                name: entry.name.clone(),
-                set_code: edition.code.clone(),
-                collector_number: entry.collector_number.clone(),
-                rarity: rarity_label(entry.rarity),
-                colors: color_letters_dto(colors),
-                is_double_faced: dual_faced,
-                foil: false,
-            }
+        .map(|entry| CardIdentity {
+            id: String::new(),
+            name: entry.name.clone(),
+            set_code: edition.code.clone(),
+            card_number: entry.collector_number.clone(),
+            foil: None,
         })
         .collect();
     Ok(pool)
-}
-
-fn color_letters_dto(colors: forge_foundation::ColorSet) -> Vec<String> {
-    let mut out = Vec::new();
-    if colors.has_white() {
-        out.push("W".to_string());
-    }
-    if colors.has_blue() {
-        out.push("U".to_string());
-    }
-    if colors.has_black() {
-        out.push("B".to_string());
-    }
-    if colors.has_red() {
-        out.push("R".to_string());
-    }
-    if colors.has_green() {
-        out.push("G".to_string());
-    }
-    out
 }
 
 #[tauri::command]
@@ -133,6 +98,43 @@ pub async fn limited_undo_pick(
 }
 
 #[tauri::command]
+pub async fn limited_start_multiplayer_draft(
+    lm: State<'_, LimitedManager>,
+    setup: BoosterDraftSetupDto,
+    humans: Vec<MpDraftHumanSeatDto>,
+) -> Result<DraftStateDto, String> {
+    let card_pool = filter_playable(&setup.pool);
+    if card_pool.is_empty() {
+        return Err(empty_pool_error(setup.pool.len()));
+    }
+    let humans = humans
+        .into_iter()
+        .map(|h| (h.seat as usize, h.name))
+        .collect();
+    lm.start_multiplayer_draft(&setup, card_pool, humans)
+}
+
+#[tauri::command]
+pub async fn limited_submit_pick(
+    lm: State<'_, LimitedManager>,
+    session_id: String,
+    seat_idx: u32,
+    card_name: String,
+) -> Result<DraftStateDto, String> {
+    lm.submit_pick_for_seat(&session_id, seat_idx as usize, &card_name)
+}
+
+#[tauri::command]
+pub async fn limited_get_seat_state(
+    lm: State<'_, LimitedManager>,
+    session_id: String,
+    seat_idx: u32,
+) -> Result<DraftStateDto, String> {
+    lm.get_seat_state(&session_id, seat_idx as usize)
+        .ok_or_else(|| format!("no draft session for id {session_id}"))
+}
+
+#[tauri::command]
 pub async fn limited_start_winston(
     lm: State<'_, LimitedManager>,
     setup: WinstonSetupDto,
@@ -180,21 +182,18 @@ pub async fn limited_import_cube(
     request: CubeImportRequestDto,
     body: String,
 ) -> Result<CubeImportResultDto, String> {
-    use forge_foundation::sealed_product::Rarity;
     let importer = CubeImporter::new(&request.cube_id_or_url)?;
     let cube = importer.parse(&body)?;
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
-    let mut pool: Vec<DraftCardDto> = Vec::with_capacity(card_count as usize);
+    let mut pool: Vec<CardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
         for copy in 0..entry.count {
-            pool.push(DraftCardDto {
+            pool.push(CardIdentity {
+                id: String::new(),
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
-                collector_number: format!("cube-{copy}"),
-                rarity: rarity_label(Rarity::Unknown),
-                colors: Vec::new(),
-                is_double_faced: false,
-                foil: false,
+                card_number: format!("cube-{copy}"),
+                foil: None,
             });
         }
     }
@@ -206,21 +205,6 @@ pub async fn limited_import_cube(
         singleton: cube.singleton,
         pool,
     })
-}
-
-fn rarity_label(r: forge_foundation::sealed_product::Rarity) -> String {
-    use forge_foundation::sealed_product::Rarity;
-    match r {
-        Rarity::Common => "common",
-        Rarity::Uncommon => "uncommon",
-        Rarity::Rare => "rare",
-        Rarity::Mythic => "mythic",
-        Rarity::Special => "special",
-        Rarity::BasicLand => "land",
-        Rarity::Token => "token",
-        Rarity::Unknown => "unknown",
-    }
-    .to_string()
 }
 
 #[tauri::command]
@@ -264,11 +248,11 @@ pub async fn limited_get_gauntlet_match_decks(
 pub async fn limited_update_gauntlet_human_deck(
     lm: State<'_, LimitedManager>,
     gauntlet_id: String,
-    main: Vec<DraftCardDto>,
-    sideboard: Vec<DraftCardDto>,
+    main: Vec<CardIdentity>,
+    sideboard: Vec<CardIdentity>,
 ) -> Result<GauntletStateDto, String> {
-    let main_cards = main.iter().map(|c| c.to_paper_card()).collect();
-    let sideboard_cards = sideboard.iter().map(|c| c.to_paper_card()).collect();
+    let main_cards = main.iter().map(identity_to_paper_card).collect();
+    let sideboard_cards = sideboard.iter().map(identity_to_paper_card).collect();
     lm.update_gauntlet_human_deck(&gauntlet_id, main_cards, sideboard_cards)
 }
 
@@ -344,10 +328,10 @@ pub async fn limited_list_sealed_templates() -> Result<Vec<SealedTemplateMetadat
     ])
 }
 
-fn filter_playable(pool: &[DraftCardDto]) -> Vec<PaperCard> {
+fn filter_playable(pool: &[CardIdentity]) -> Vec<PaperCard> {
     pool.iter()
         .filter(|c| card_name_known(&c.name))
-        .map(|c| c.to_paper_card())
+        .map(identity_to_paper_card)
         .collect()
 }
 

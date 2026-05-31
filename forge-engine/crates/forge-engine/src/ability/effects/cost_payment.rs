@@ -530,6 +530,19 @@ fn try_pay_effect_cost(
                 amount,
                 type_filter,
             } => {
+                if type_filter == "Hand" {
+                    let hand = ctx.game.cards_in_zone(ZoneType::Hand, payer).to_vec();
+                    for cid in hand {
+                        ctx.game.discard_card(
+                            cid,
+                            payer,
+                            Some(sa),
+                            Some(ctx.agents),
+                            ctx.trigger_handler,
+                        );
+                    }
+                    continue;
+                }
                 for _ in 0..amount.resolve(ctx.game, source, payer) {
                     let valid: Vec<CardId> = ctx
                         .game

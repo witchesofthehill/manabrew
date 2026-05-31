@@ -40,9 +40,9 @@ import java.util.Set;
  */
 final class AutoPay {
     private final Player payer;
-    private final DeterministicCostPlumbing costPlumbing;
+    private final HarnessCostPlumbing costPlumbing;
 
-    AutoPay(final Player payer, final DeterministicCostPlumbing costPlumbing) {
+    AutoPay(final Player payer, final HarnessCostPlumbing costPlumbing) {
         this.payer = payer;
         this.costPlumbing = costPlumbing;
     }
@@ -125,12 +125,29 @@ final class AutoPay {
         return payManaCostWithTrace(toPay, saBeingPaid, effect).paid;
     }
 
+    List<SpellAbility> manaSources(final SpellAbility saBeingPaid) {
+        final List<SpellAbility> out = new ArrayList<>();
+        for (final ManaAbilityCandidate candidate : collectPlayableManaAbilities(saBeingPaid)) {
+            out.add(candidate.spellAbility);
+        }
+        return out;
+    }
+
+    boolean floatManaFromSource(final SpellAbility manaAbility, final boolean effect) {
+        manaAbility.setActivatingPlayer(payer);
+        if (!payAbilityActivationCosts(manaAbility, effect)) {
+            return false;
+        }
+        payer.getGame().getStack().addAndUnfreeze(manaAbility);
+        return true;
+    }
+
     private boolean payAbilityActivationCosts(final SpellAbility manaAbility, final boolean effect) {
         final Cost paymentCost = manaAbility.getPayCosts();
         if (paymentCost == null || paymentCost.getCostParts().isEmpty()) {
             return true;
         }
-        return costPlumbing.payWithDeterministicDecision(paymentCost, manaAbility, effect);
+        return costPlumbing.payWithControllerDecision(paymentCost, manaAbility, effect);
     }
 
     private ManaAbilityCandidate chooseCandidate(

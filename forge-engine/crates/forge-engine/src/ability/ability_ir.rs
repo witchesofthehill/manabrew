@@ -367,6 +367,7 @@ pub struct SpellAbilityIr {
     pub valid_types_text: Option<String>,
     pub remember_countered: bool,
     pub remember_countered_cmc: bool,
+    pub remember_for_counter: bool,
     pub lose_control: Option<crate::card::LoseControlCondition>,
     pub untap_on_resolve: bool,
     pub add_kws: Option<String>,
@@ -885,6 +886,7 @@ impl SpellAbilityIr {
             valid_types_text: params.get(keys::VALID_TYPES).map(str::to_string),
             remember_countered: params.has(keys::REMEMBER_COUNTERED),
             remember_countered_cmc: params.has(keys::REMEMBER_COUNTERED_CMC),
+            remember_for_counter: params.has(keys::REMEMBER_FOR_COUNTER),
             lose_control: params
                 .get(keys::LOSE_CONTROL)
                 .and_then(|raw| raw.parse::<crate::card::LoseControlCondition>().ok()),

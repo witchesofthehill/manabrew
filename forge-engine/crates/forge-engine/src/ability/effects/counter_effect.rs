@@ -92,6 +92,19 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Find the source card of the targeted stack entry.
     if let Some(entry) = ctx.game.stack.find_by_id(entry_id) {
         if let Some(source_card) = entry.spell_ability.source {
+            if sa.ir.remember_for_counter {
+                if let Some(source_id) = sa.source {
+                    ctx.game
+                        .card_mut(source_id)
+                        .add_remembered_card(source_card);
+                }
+            }
+            if sa.ir.remember_countered_cmc {
+                let cmc = ctx.game.card(source_card).mana_cost.cmc();
+                if let Some(source_id) = sa.source {
+                    ctx.game.card_mut(source_id).add_remembered_cmc(cmc);
+                }
+            }
             let mut event = ReplacementEvent::Counter { card: source_card };
             let result = apply_replacements(ctx.game, &mut event);
             if result == ReplacementResult::Replaced {
@@ -113,13 +126,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 ctx.game
                     .card_mut(sa.source.unwrap())
                     .add_remembered_card(source_card);
-            }
-            if sa.ir.remember_countered_cmc {
-                // Store CMC value
-                let cmc = ctx.game.card(source_card).mana_cost.cmc();
-                ctx.game
-                    .card_mut(sa.source.unwrap())
-                    .add_remembered_cmc(cmc);
             }
 
             if !countered_sa.is_activated && !countered_sa.is_trigger {

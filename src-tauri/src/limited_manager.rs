@@ -188,6 +188,83 @@ impl LimitedManager {
         })
     }
 
+    pub fn start_multiplayer_draft(
+        &self,
+        setup: &BoosterDraftSetupDto,
+        card_pool: Vec<PaperCard>,
+        humans: Vec<(usize, String)>,
+    ) -> Result<DraftStateDto, String> {
+        let pod_size = setup.pod_size.clamp(2, 8) as usize;
+        let rounds = setup.rounds.clamp(1, 6);
+        if humans.is_empty() || humans.len() > pod_size {
+            return Err(format!(
+                "multiplayer draft needs 1..={pod_size} humans, got {}",
+                humans.len()
+            ));
+        }
+        let ranker = Arc::new(CardRanker::new(self.rank_cache.clone()));
+        let color_of: Arc<dyn Fn(&PaperCard) -> ColorSet + Send + Sync> =
+            Arc::new(|c: &PaperCard| c.colors);
+        let template = self.template_for_pool(&card_pool, setup.variant.as_deref());
+        let mut draft = BoosterDraft::with_human_seats(
+            pod_size, rounds, template, card_pool, ranker, color_of, &humans,
+        );
+        if let Some(picks) = setup.picks_per_pass {
+            draft.set_picks_per_pass(picks);
+        }
+        draft.start_round();
+        let outcome = draft.tick();
+        let awaiting = matches!(outcome, TickOutcome::AwaitingHuman);
+        let session_id = format!("draft-{}", uuid_like());
+        let dto = DraftStateDto::from_engine_for_seat(session_id.clone(), &draft, 0, awaiting);
+        lock_recover(&self.drafts).insert(session_id, draft);
+        Ok(dto)
+    }
+
+    pub fn submit_pick_for_seat(
+        &self,
+        session_id: &str,
+        seat_idx: usize,
+        card_name: &str,
+    ) -> Result<DraftStateDto, String> {
+        let mut drafts = lock_recover(&self.drafts);
+        let draft = drafts
+            .get_mut(session_id)
+            .ok_or_else(|| format!("no draft session for id {session_id}"))?;
+        let pack_card = draft
+            .current_pack_for_seat(seat_idx)
+            .and_then(|p| p.cards().iter().find(|c| c.name == card_name).cloned())
+            .ok_or_else(|| format!("card {card_name:?} not in seat {seat_idx}'s pack"))?;
+        draft.submit_human_pick_for(seat_idx, pack_card)?;
+        loop {
+            match draft.tick() {
+                TickOutcome::Progress => continue,
+                TickOutcome::AwaitingHuman => break,
+                TickOutcome::RoundOver => {
+                    if !draft.start_round() {
+                        break;
+                    }
+                }
+                TickOutcome::Complete => break,
+            }
+        }
+        let awaiting = !draft.is_round_over() && draft.has_next_choice();
+        Ok(DraftStateDto::from_engine_for_seat(
+            session_id.to_string(),
+            draft,
+            seat_idx,
+            awaiting,
+        ))
+    }
+
+    pub fn get_seat_state(&self, session_id: &str, seat_idx: usize) -> Option<DraftStateDto> {
+        let drafts = lock_recover(&self.drafts);
+        drafts.get(session_id).map(|d| {
+            let awaiting = !d.is_round_over() && d.has_next_choice();
+            DraftStateDto::from_engine_for_seat(session_id.to_string(), d, seat_idx, awaiting)
+        })
+    }
+
     pub fn start_winston(
         &self,
         pool_packs: u32,
@@ -312,22 +389,31 @@ impl LimitedManager {
         &self,
         gauntlet_id: &str,
     ) -> Option<crate::limited_dto::GauntletMatchDecksDto> {
-        use crate::limited_dto::{DraftCardDto, GauntletMatchDecksDto};
+        use crate::limited_dto::{paper_card_to_identity, GauntletMatchDecksDto};
         let gauntlets = lock_recover(&self.gauntlets);
         let g = gauntlets.get(gauntlet_id)?;
         let opponent = g.current_opponent()?;
         Some(GauntletMatchDecksDto {
-            human_main: g.human_deck.main.iter().map(DraftCardDto::from).collect(),
+            human_main: g
+                .human_deck
+                .main
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
             human_sideboard: g
                 .human_deck
                 .sideboard
                 .iter()
-                .map(DraftCardDto::from)
+                .map(paper_card_to_identity)
                 .collect(),
             human_deck_name: g.human_deck.name.clone(),
             opponent_name: opponent.name.clone(),
-            opponent_main: opponent.main.iter().map(DraftCardDto::from).collect(),
-            opponent_sideboard: opponent.sideboard.iter().map(DraftCardDto::from).collect(),
+            opponent_main: opponent.main.iter().map(paper_card_to_identity).collect(),
+            opponent_sideboard: opponent
+                .sideboard
+                .iter()
+                .map(paper_card_to_identity)
+                .collect(),
         })
     }
 

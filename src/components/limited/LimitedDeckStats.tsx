@@ -30,7 +30,7 @@ export function LimitedDeckStats({ cards, className }: Props) {
       const cached = peekCard(cacheBucket, {
         name: card.name,
         setCode: card.setCode,
-        collectorNumber: card.collectorNumber,
+        cardNumber: card.cardNumber,
       });
       if (!cached) continue;
       const types = cached.type_line ?? "";
@@ -143,4 +143,3 @@ function StatRow({ label, value, total }: { label: string; value: number; total:
     </li>
   );
 }
-

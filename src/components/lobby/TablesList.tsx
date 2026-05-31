@@ -125,7 +125,7 @@ export function TablesList({
                     {currentRoom.sealed_config.set_code}
                   </Badge>
                 )}
-                {isHost &&
+                {isController &&
                 currentRoom.status === "Lobby" &&
                 onSetFormat &&
                 !currentRoom.draft_config &&

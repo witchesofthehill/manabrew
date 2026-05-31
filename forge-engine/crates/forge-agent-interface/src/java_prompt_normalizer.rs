@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use crate::game_view_dto::{
-    CardDto, GameViewDto, OpponentZonesDto, PlayerDto, StackObjectDto, TargetingIntent,
+    CardDto, CombatAssignmentDto, GameViewDto, OpponentZonesDto, PlayerDto, StackObjectDto,
+    StackTargetDto, StackTargetKindDto, TargetingIntent,
 };
 use crate::java_raw::{
     JavaAction, JavaActionError, JavaAttackAssignment, JavaBlockAssignment, JavaCombatAssignment,
     JavaRawAction, JavaRawCard, JavaRawCardData, JavaRawCardOption, JavaRawPrompt,
-    JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry, JavaTarget,
-    JavaTargetKind,
+    JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
+    JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
 use crate::prompt::{
     ActivatableAbilityInfo, AgentPrompt, AgentPromptInner, DefenderIdDto, PlayOptionDto,
@@ -258,50 +259,65 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::ChooseTargetPlayer {
             players,
             source_card_id: source,
+            api,
+            destination,
+            counter_type,
         } => {
             source_card_id = source;
+            let intent = intent_from_api(&api, &destination, &counter_type);
             AgentPromptInner::ChooseTargetPlayer {
                 game_view,
                 valid_player_ids: target_ids(&players),
-                hostile: true,
-                intent: TargetingIntent::Hostile,
+                hostile: intent.is_hostile(),
+                intent,
             }
         }
         JavaRawPromptBody::ChooseTargetCard {
             cards,
             source_card_id: source,
+            api,
+            destination,
+            counter_type,
         } => {
             source_card_id = source;
+            let intent = intent_from_api(&api, &destination, &counter_type);
             AgentPromptInner::ChooseTargetCard {
                 game_view,
                 valid_card_ids: target_ids(&cards),
-                hostile: true,
-                intent: TargetingIntent::Hostile,
+                hostile: intent.is_hostile(),
+                intent,
             }
         }
         JavaRawPromptBody::ChooseTargetAny {
             players,
             cards,
             source_card_id: source,
+            api,
+            destination,
+            counter_type,
         } => {
             source_card_id = source;
+            let intent = intent_from_api(&api, &destination, &counter_type);
             AgentPromptInner::ChooseTargetAny {
                 game_view,
                 valid_player_ids: target_ids(&players),
                 valid_card_ids: target_ids(&cards),
-                hostile: true,
-                intent: TargetingIntent::Hostile,
+                hostile: intent.is_hostile(),
+                intent,
             }
         }
         JavaRawPromptBody::ChooseTargetSpell {
             spells,
             source_card_id: source,
+            api,
+            destination,
+            counter_type,
         } => {
             source_card_id = source;
             AgentPromptInner::ChooseTargetSpell {
                 game_view,
                 valid_spell_ids: target_ids(&spells),
-                intent: TargetingIntent::Hostile,
+                intent: intent_from_api(&api, &destination, &counter_type),
             }
         }
     };
@@ -625,11 +641,11 @@ fn build_game_view(
         .players
         .iter()
         .enumerate()
-        .map(|(index, player)| to_player(player, index))
+        .map(|(index, player)| to_player(player, index, viewer))
         .collect();
     while players.len() < 2 {
         let index = players.len();
-        players.push(to_player(&JavaRawSnapshotPlayer::default(), index));
+        players.push(to_player(&JavaRawSnapshotPlayer::default(), index, viewer));
     }
 
     let active_player_id = format!("player-{}", snapshot.active_player.unwrap_or(0));
@@ -656,7 +672,9 @@ fn build_game_view(
         .collect();
 
     let me = snapshot.players.get(viewer);
-    let my_hand = zone_cards(me.map(hand_zone), viewer, "hand", action_card_names);
+    let my_hand = me
+        .map(|player| build_cards(player.hand_zone(), viewer, "hand", action_card_names))
+        .unwrap_or_default();
     let my_command_zone = me
         .map(|player| {
             build_cards(
@@ -668,10 +686,17 @@ fn build_game_view(
         })
         .unwrap_or_default();
     let graveyard = me
-        .map(|player| build_cards(&player.graveyard, viewer, "graveyard", action_card_names))
+        .map(|player| {
+            build_cards(
+                player.graveyard_zone(),
+                viewer,
+                "graveyard",
+                action_card_names,
+            )
+        })
         .unwrap_or_default();
     let exile = me
-        .map(|player| build_cards(&player.exile, viewer, "exile", action_card_names))
+        .map(|player| build_cards(player.exile_zone(), viewer, "exile", action_card_names))
         .unwrap_or_default();
 
     let mut opponent_zones = HashMap::new();
@@ -684,8 +709,8 @@ fn build_game_view(
         opponent_zones.insert(
             format!("player-{index}"),
             OpponentZonesDto {
-                graveyard: build_cards(&opp.graveyard, index, "graveyard", action_card_names),
-                exile: build_cards(&opp.exile, index, "exile", action_card_names),
+                graveyard: build_cards(opp.graveyard_zone(), index, "graveyard", action_card_names),
+                exile: build_cards(opp.exile_zone(), index, "exile", action_card_names),
                 command_zone: build_cards(
                     &opp.command_zone_cards,
                     index,
@@ -700,7 +725,14 @@ fn build_game_view(
         game_id: session_id.unwrap_or("engine-game").to_string(),
         turn: snapshot.turn.unwrap_or(0),
         step: normalize_step(snapshot.phase.as_deref()).to_string(),
-        combat_assignments: Vec::new(),
+        combat_assignments: snapshot
+            .combat
+            .iter()
+            .map(|block| CombatAssignmentDto {
+                blocker_id: block.blocker_id.clone(),
+                attacker_id: block.attacker_id.clone(),
+            })
+            .collect(),
         active_player_id,
         priority_player_id,
         players,
@@ -713,29 +745,16 @@ fn build_game_view(
         opponent_zones,
         game_over: snapshot.game_over,
         winner_id: snapshot.winner.map(|index| format!("player-{index}")),
-        conceded_player_ids: Vec::new(),
-        monarch_id: None,
-        initiative_holder_id: None,
+        conceded_player_ids: snapshot
+            .players
+            .iter()
+            .enumerate()
+            .filter(|(_, player)| player.has_conceded.unwrap_or(false))
+            .map(|(index, player)| format!("player-{}", player.index.unwrap_or(index)))
+            .collect(),
+        monarch_id: snapshot.monarch.map(|index| format!("player-{index}")),
+        initiative_holder_id: snapshot.initiative.map(|index| format!("player-{index}")),
     }
-}
-
-fn hand_zone(player: &JavaRawSnapshotPlayer) -> &[JavaRawCard] {
-    if player.hand_cards.is_empty() {
-        &player.hand
-    } else {
-        &player.hand_cards
-    }
-}
-
-fn zone_cards(
-    cards: Option<&[JavaRawCard]>,
-    player_index: usize,
-    zone_id: &str,
-    action_card_names: &[String],
-) -> Vec<CardDto> {
-    cards
-        .map(|cards| build_cards(cards, player_index, zone_id, action_card_names))
-        .unwrap_or_default()
 }
 
 fn build_cards(
@@ -759,25 +778,25 @@ fn build_cards(
         .collect()
 }
 
-fn to_player(player: &JavaRawSnapshotPlayer, fallback_index: usize) -> PlayerDto {
+fn to_player(player: &JavaRawSnapshotPlayer, fallback_index: usize, viewer: usize) -> PlayerDto {
     let index = player.index.unwrap_or(fallback_index);
     PlayerDto {
         id: format!("player-{index}"),
         name: player.name.clone().unwrap_or_else(|| "Player".to_string()),
-        is_human: index == 0,
+        is_human: index == viewer,
         life: player.life.unwrap_or(20),
         poison: player.poison.unwrap_or(0),
         hand_count: player.hand.len(),
         library_count: player.library_size.unwrap_or(0).max(0) as usize,
         graveyard_count: player.graveyard.len(),
         exile_count: player.exile.len(),
-        mana_pool: HashMap::new(),
-        commander_damage: HashMap::new(),
-        energy_counters: 0,
-        radiation_counters: 0,
-        has_city_blessing: false,
-        ring_level: 0,
-        speed: 0,
+        mana_pool: player.mana_pool.clone().into_iter().collect(),
+        commander_damage: player.commander_damage.clone().into_iter().collect(),
+        energy_counters: player.energy.unwrap_or(0),
+        radiation_counters: player.radiation.unwrap_or(0),
+        has_city_blessing: player.city_blessing.unwrap_or(false),
+        ring_level: player.ring_level.unwrap_or(0),
+        speed: player.speed.unwrap_or(0),
     }
 }
 
@@ -813,27 +832,159 @@ fn to_card(
         counters: card.counters.clone().into_iter().collect(),
         damage: card.damage,
         summoning_sick: card.summoning_sick,
+        color: card.color.clone().unwrap_or_default(),
+        mana_cost: card.mana_cost.clone().unwrap_or_default(),
+        cmc: card.cmc.unwrap_or(0),
+        text: card.text.clone().unwrap_or_default(),
+        types: card.types.clone(),
+        subtypes: card.subtypes.clone(),
+        supertypes: card.supertypes.clone(),
+        keywords: card.keywords.clone(),
+        is_token: card.is_token,
+        is_copy: card.is_copy,
+        is_double_faced: card.is_double_faced,
+        is_transformed: card.is_transformed,
+        is_face_down: card.is_face_down,
+        is_bestowed: card.is_bestowed,
+        is_attacking: card.is_attacking,
+        attacking_player_id: card.attacking_player_id.clone(),
+        attached_to: card.attached_to.clone(),
+        attachment_ids: card.attachment_ids.clone(),
+        phased_out: card.phased_out,
+        exerted: card.exerted,
+        is_ring_bearer: card.is_ring_bearer,
+        is_crewed: card.is_crewed,
+        is_madness_exiled: card.is_madness_exiled,
+        is_plotted: card.is_plotted,
+        is_warp_exiled: card.is_warp_exiled,
+        foil: card.foil,
+        flashback_cost: keyword_cost(&card.keywords, "Flashback"),
+        kicker_cost: keyword_cost(&card.keywords, "Kicker"),
+        madness_cost: keyword_cost(&card.keywords, "Madness"),
+        effective_mana_cost: card.effective_mana_cost.clone(),
         name,
         ..CardDto::default()
     }
 }
 
+/// Extract the cost portion from a Forge keyword string (`"Flashback:2 R"` →
+/// `"2 R"`), mirroring the engine's `alt_costs::get_keyword_cost`.
+fn keyword_cost(keywords: &[String], name: &str) -> Option<String> {
+    keywords.iter().find_map(|keyword| {
+        let rest = keyword.strip_prefix(name)?.strip_prefix(':')?;
+        let cost = rest.split(':').next().unwrap_or(rest).trim();
+        (!cost.is_empty()).then(|| cost.to_string())
+    })
+}
+
+/// Map a Forge `ApiType` name (plus the `ChangeZone`/`PutCounter` context the
+/// harness sends) to a targeting intent. Mirrors
+/// `game_view_dto::targeting_intent_of` so Java target prompts show the same
+/// pointer/glow the Rust engine produces.
+fn intent_from_api(
+    api: &Option<String>,
+    destination: &Option<String>,
+    counter_type: &Option<String>,
+) -> TargetingIntent {
+    use TargetingIntent::*;
+    let Some(api) = api.as_deref() else {
+        return Hostile;
+    };
+    match api {
+        "DealDamage" | "DamageAll" | "EachDamage" => Damage,
+        "Destroy" | "DestroyAll" => Destroy,
+        "Sacrifice" | "SacrificeAll" => Sacrifice,
+        "ChangeZone" | "ChangeZoneAll" => match destination.as_deref() {
+            Some("Exile") => Exile,
+            Some("Hand") | Some("Library") => Bounce,
+            Some("Graveyard") => Destroy,
+            Some("Battlefield") => Friendly,
+            _ => Hostile,
+        },
+        "Mill" => Mill,
+        "Discard" => Discard,
+        "Counter" => Counter,
+        "ControlSpell" => GainControl,
+        "Tap" | "TapAll" | "TapOrUntap" | "TapOrUntapAll" => Tap,
+        "Untap" | "UntapAll" => Untap,
+        "CopyPermanent" | "CopySpellAbility" | "Clone" => Copy,
+        "Pump" | "PumpAll" | "Animate" | "AnimateAll" | "Protection" | "ProtectionAll" => Buff,
+        "PutCounter" | "PutCounterAll" => match counter_type.as_deref() {
+            Some(ct) if ct.starts_with("M1M1") || ct.contains("-1/-1") => Debuff,
+            _ => Buff,
+        },
+        "RemoveCounter" | "RemoveCounterAll" | "Debuff" => Debuff,
+        "GainLife" => Heal,
+        "LoseLife" => LoseLife,
+        "Draw" => Draw,
+        "Reveal" | "RevealHand" | "LookAt" | "PeekAndReveal" => Reveal,
+        "GainControl" | "GainControlVariant" | "ExchangeControl" | "ExchangeControlVariant" => {
+            GainControl
+        }
+        "Fight" => Fight,
+        "Attach" | "Unattach" => Attach,
+        _ => Hostile,
+    }
+}
+
 fn to_stack_object(entry: &JavaRawStackEntry, index: usize, controller_id: &str) -> StackObjectDto {
-    let (id, name, text) = match entry {
-        JavaRawStackEntry::Name(name) => (None, Some(name.clone()), None),
+    match entry {
+        JavaRawStackEntry::Name(name) => StackObjectDto {
+            id: format!("engine-stack-{index}"),
+            source_id: format!("engine-stack-source-{index}"),
+            controller_id: controller_id.to_string(),
+            name: name.clone(),
+            ..StackObjectDto::default()
+        },
         JavaRawStackEntry::Full {
             id,
             name,
             description,
-        } => (id.clone(), name.clone(), description.clone()),
+            controller,
+            source_id,
+            set_code,
+            card_number,
+            is_permanent_spell,
+            is_casting,
+            targets,
+        } => StackObjectDto {
+            id: id
+                .clone()
+                .unwrap_or_else(|| format!("engine-stack-{index}")),
+            source_id: source_id
+                .clone()
+                .unwrap_or_else(|| format!("engine-stack-source-{index}")),
+            controller_id: controller
+                .map(|index| format!("player-{index}"))
+                .unwrap_or_else(|| controller_id.to_string()),
+            name: name.clone().unwrap_or_else(|| "Stack object".to_string()),
+            text: description.clone().unwrap_or_default(),
+            set_code: set_code.clone().unwrap_or_default(),
+            card_number: card_number.clone().unwrap_or_default(),
+            is_permanent_spell: *is_permanent_spell,
+            is_casting: *is_casting,
+            targets: targets
+                .iter()
+                .enumerate()
+                .map(|(target_index, target)| to_stack_target(target, target_index))
+                .collect(),
+        },
+    }
+}
+
+fn to_stack_target(target: &JavaRawStackTarget, target_index: usize) -> StackTargetDto {
+    let kind = match target.kind.as_str() {
+        "player" => StackTargetKindDto::Player,
+        "stack" => StackTargetKindDto::Stack,
+        _ => StackTargetKindDto::Card,
     };
-    StackObjectDto {
-        id: id.unwrap_or_else(|| format!("engine-stack-{index}")),
-        source_id: format!("engine-stack-source-{index}"),
-        controller_id: controller_id.to_string(),
-        name: name.unwrap_or_else(|| "Stack object".to_string()),
-        text: text.unwrap_or_default(),
-        ..StackObjectDto::default()
+    StackTargetDto {
+        kind,
+        id: target.id.clone(),
+        node_index: 0,
+        target_index: target_index as u32,
+        hostile: true,
+        intent: TargetingIntent::Hostile,
     }
 }
 

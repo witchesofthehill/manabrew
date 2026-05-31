@@ -200,12 +200,20 @@ pub enum JavaRawPromptBody {
         players: Vec<JavaRawCardOption>,
         #[serde(rename = "sourceCardId")]
         source_card_id: Option<String>,
+        api: Option<String>,
+        destination: Option<String>,
+        #[serde(rename = "counterType")]
+        counter_type: Option<String>,
     },
     ChooseTargetCard {
         #[serde(default)]
         cards: Vec<JavaRawCardOption>,
         #[serde(rename = "sourceCardId")]
         source_card_id: Option<String>,
+        api: Option<String>,
+        destination: Option<String>,
+        #[serde(rename = "counterType")]
+        counter_type: Option<String>,
     },
     ChooseTargetAny {
         #[serde(default)]
@@ -214,12 +222,20 @@ pub enum JavaRawPromptBody {
         cards: Vec<JavaRawCardOption>,
         #[serde(rename = "sourceCardId")]
         source_card_id: Option<String>,
+        api: Option<String>,
+        destination: Option<String>,
+        #[serde(rename = "counterType")]
+        counter_type: Option<String>,
     },
     ChooseTargetSpell {
         #[serde(default)]
         spells: Vec<JavaRawCardOption>,
         #[serde(rename = "sourceCardId")]
         source_card_id: Option<String>,
+        api: Option<String>,
+        destination: Option<String>,
+        #[serde(rename = "counterType")]
+        counter_type: Option<String>,
     },
 }
 
@@ -293,10 +309,22 @@ pub struct JavaRawSnapshot {
     #[serde(default)]
     pub game_over: bool,
     pub winner: Option<usize>,
+    pub monarch: Option<usize>,
+    pub initiative: Option<usize>,
+    #[serde(default)]
+    pub combat: Vec<JavaRawBlock>,
     #[serde(default)]
     pub players: Vec<JavaRawSnapshotPlayer>,
     #[serde(default)]
     pub stack: Vec<JavaRawStackEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct JavaRawBlock {
+    #[serde(rename = "blockerId")]
+    pub blocker_id: String,
+    #[serde(rename = "attackerId")]
+    pub attacker_id: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -305,13 +333,27 @@ pub struct JavaRawSnapshotPlayer {
     pub name: Option<String>,
     pub life: Option<i32>,
     pub poison: Option<i32>,
+    pub ring_level: Option<i32>,
+    pub energy: Option<i32>,
+    pub radiation: Option<i32>,
+    pub speed: Option<i32>,
+    pub city_blessing: Option<bool>,
+    pub has_conceded: Option<bool>,
+    #[serde(default)]
+    pub mana_pool: BTreeMap<String, i32>,
+    #[serde(default)]
+    pub commander_damage: BTreeMap<String, i32>,
     pub library_size: Option<i64>,
     #[serde(default)]
     pub hand: Vec<JavaRawCard>,
     #[serde(default)]
     pub graveyard: Vec<JavaRawCard>,
     #[serde(default)]
+    pub graveyard_cards: Vec<JavaRawCard>,
+    #[serde(default)]
     pub exile: Vec<JavaRawCard>,
+    #[serde(default)]
+    pub exile_cards: Vec<JavaRawCard>,
     #[serde(default)]
     pub battlefield: Vec<JavaRawCard>,
     #[serde(default)]
@@ -324,11 +366,27 @@ pub struct JavaRawSnapshotPlayer {
 
 impl JavaRawSnapshotPlayer {
     pub fn battlefield(&self) -> &[JavaRawCard] {
-        if self.battlefield_cards.is_empty() {
-            &self.battlefield
-        } else {
-            &self.battlefield_cards
-        }
+        prefer(&self.battlefield_cards, &self.battlefield)
+    }
+
+    pub fn hand_zone(&self) -> &[JavaRawCard] {
+        prefer(&self.hand_cards, &self.hand)
+    }
+
+    pub fn graveyard_zone(&self) -> &[JavaRawCard] {
+        prefer(&self.graveyard_cards, &self.graveyard)
+    }
+
+    pub fn exile_zone(&self) -> &[JavaRawCard] {
+        prefer(&self.exile_cards, &self.exile)
+    }
+}
+
+fn prefer<'a>(rich: &'a [JavaRawCard], fallback: &'a [JavaRawCard]) -> &'a [JavaRawCard] {
+    if rich.is_empty() {
+        fallback
+    } else {
+        rich
     }
 }
 
@@ -336,7 +394,7 @@ impl JavaRawSnapshotPlayer {
 #[serde(untagged)]
 pub enum JavaRawCard {
     Name(String),
-    Full(JavaRawCardData),
+    Full(Box<JavaRawCardData>),
 }
 
 impl JavaRawCard {
@@ -346,7 +404,7 @@ impl JavaRawCard {
                 name: Some(name.clone()),
                 ..JavaRawCardData::default()
             },
-            JavaRawCard::Full(data) => data.clone(),
+            JavaRawCard::Full(data) => (**data).clone(),
         }
     }
 }
@@ -372,6 +430,63 @@ pub struct JavaRawCardData {
     pub damage: i32,
     #[serde(default)]
     pub summoning_sick: bool,
+    pub color: Option<String>,
+    #[serde(rename = "manaCost")]
+    pub mana_cost: Option<String>,
+    pub cmc: Option<i32>,
+    pub text: Option<String>,
+    #[serde(default)]
+    pub types: Vec<String>,
+    #[serde(default)]
+    pub subtypes: Vec<String>,
+    #[serde(default)]
+    pub supertypes: Vec<String>,
+    #[serde(default)]
+    pub keywords: Vec<String>,
+    #[serde(default, rename = "isToken")]
+    pub is_token: bool,
+    #[serde(default, rename = "isCopy")]
+    pub is_copy: bool,
+    #[serde(default, rename = "isDoubleFaced")]
+    pub is_double_faced: bool,
+    #[serde(default, rename = "isTransformed")]
+    pub is_transformed: bool,
+    #[serde(default, rename = "isFaceDown")]
+    pub is_face_down: bool,
+    #[serde(default, rename = "isBestowed")]
+    pub is_bestowed: bool,
+    #[serde(default, rename = "isAttacking")]
+    pub is_attacking: bool,
+    #[serde(rename = "attackingPlayerId")]
+    pub attacking_player_id: Option<String>,
+    #[serde(rename = "attachedTo")]
+    pub attached_to: Option<String>,
+    #[serde(default, rename = "attachmentIds")]
+    pub attachment_ids: Vec<String>,
+    #[serde(default, rename = "phasedOut")]
+    pub phased_out: bool,
+    #[serde(default)]
+    pub exerted: bool,
+    #[serde(default, rename = "isRingBearer")]
+    pub is_ring_bearer: bool,
+    #[serde(default, rename = "isCrewed")]
+    pub is_crewed: bool,
+    #[serde(default, rename = "isMadnessExiled")]
+    pub is_madness_exiled: bool,
+    #[serde(default, rename = "isPlotted")]
+    pub is_plotted: bool,
+    #[serde(default, rename = "isWarpExiled")]
+    pub is_warp_exiled: bool,
+    #[serde(default)]
+    pub foil: bool,
+    #[serde(rename = "effectiveManaCost")]
+    pub effective_mana_cost: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct JavaRawStackTarget {
+    pub kind: String,
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -382,6 +497,19 @@ pub enum JavaRawStackEntry {
         id: Option<String>,
         name: Option<String>,
         description: Option<String>,
+        controller: Option<usize>,
+        #[serde(rename = "sourceId")]
+        source_id: Option<String>,
+        #[serde(rename = "setCode")]
+        set_code: Option<String>,
+        #[serde(rename = "cardNumber")]
+        card_number: Option<String>,
+        #[serde(default, rename = "isPermanentSpell")]
+        is_permanent_spell: bool,
+        #[serde(default, rename = "isCasting")]
+        is_casting: bool,
+        #[serde(default)]
+        targets: Vec<JavaRawStackTarget>,
     },
 }
 

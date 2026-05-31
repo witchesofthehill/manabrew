@@ -1228,6 +1228,15 @@ public final class ManaBrewInteractiveSession {
             prompt.addProperty("sourceCardId", SnapshotExtractor.javaCardId(source));
             prompt.addProperty("sourceCardName", source.getName());
         }
+        if (ability != null && ability.getApi() != null) {
+            prompt.addProperty("api", ability.getApi().name());
+            if (ability.hasParam("Destination")) {
+                prompt.addProperty("destination", ability.getParam("Destination"));
+            }
+            if (ability.hasParam("CounterType")) {
+                prompt.addProperty("counterType", ability.getParam("CounterType"));
+            }
+        }
         prompt.add("snapshot", JsonParser.parseString(InteractiveSnapshotExtractor.snapshotJson(game)));
 
         com.google.gson.JsonArray players = new com.google.gson.JsonArray();

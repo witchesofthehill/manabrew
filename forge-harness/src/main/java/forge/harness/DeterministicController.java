@@ -60,18 +60,17 @@ import java.util.stream.Collectors;
  * identically. Core decisions sort options alphabetically then use
  * {@code rng.nextInt()} to pick, consuming the RNG in the same order.
  */
-public class DeterministicController extends PlayerController {
+public class DeterministicController extends PlayerController implements HarnessPlayHooks {
     private static final int PREFER_ACTION_WEIGHT = 3;
     private static final int STACK_ACTION_SPACE_SKIP_THRESHOLD = 20;
     private static final int CARD_COPY_GUARD_THRESHOLD = 100;
     private final CountingRandom rng;
     private final boolean preferActions;
     private final boolean deep;
-    private final DeterministicCostPlumbing costPlumbing;
+    private final HarnessCostPlumbing costPlumbing;
     private final AutoPay autoPay;
-    private final DeterministicPlayPlumbing playPlumbing;
+    private final HarnessPlayPlumbing playPlumbing;
     private final Set<Integer> failedPaymentCardsThisTurn = new HashSet<>();
-    /** Turns for which verbose callback logging is active. Empty = all turns. Null = off. */
     private final int[] verboseTurns;
     /** Current turn number, updated via game events. */
     private int currentTurn;
@@ -87,9 +86,9 @@ public class DeterministicController extends PlayerController {
         this.deep = deep;
         this.verboseTurns = verboseTurns;
         this.currentTurn = 0;
-        this.costPlumbing = new DeterministicCostPlumbing(this, this.player);
+        this.costPlumbing = new HarnessCostPlumbing(this, this.player);
         this.autoPay = new AutoPay(this.player, this.costPlumbing);
-        this.playPlumbing = new DeterministicPlayPlumbing(this, this.player, this.costPlumbing);
+        this.playPlumbing = new HarnessPlayPlumbing(this, this.player, this.costPlumbing);
     }
 
     public int getCurrentTurn() {
@@ -229,10 +228,16 @@ public class DeterministicController extends PlayerController {
         return "[" + String.join(" | ", rendered) + "]";
     }
 
-    void markFailedPaymentCard(final Card card) {
+    @Override
+    public void markFailedPaymentCard(final Card card) {
         if (card != null) {
             failedPaymentCardsThisTurn.add(card.getId());
         }
+    }
+
+    @Override
+    public boolean confirmPlayEffectOptional() {
+        return chooseDeterministicBoolean("play_effect_optional", "DECLINE", "ACCEPT");
     }
 
     private List<SpellAbility> filterFailedPaymentActions(final List<SpellAbility> actions) {
@@ -346,7 +351,7 @@ public class DeterministicController extends PlayerController {
             }
         }
 
-        return playPlumbing.handlePlayingSpellAbilityDeterministic(player, sa, getGame());
+        return playPlumbing.handlePlayingSpellAbility(player, sa, getGame());
     }
 
     @Override
@@ -354,7 +359,7 @@ public class DeterministicController extends PlayerController {
         if (canSetupTargets && !effectSA.setupTargets()) {
             return;
         }
-        playPlumbing.playNoStackDeterministic(player, effectSA, getGame(), true);
+        playPlumbing.playNoStack(player, effectSA, getGame(), true);
     }
 
     boolean chooseDeterministicBoolean(
@@ -914,7 +919,7 @@ public class DeterministicController extends PlayerController {
         if (costPart == null || costPart instanceof CostPartMana) {
             return true;
         }
-        if (DeterministicCostPlumbing.isSpellPaymentContext(sa)) {
+        if (HarnessCostPlumbing.isSpellPaymentContext(sa)) {
             return true;
         }
         captureDeepCheckpoint("confirm_payment");
@@ -1152,7 +1157,7 @@ public class DeterministicController extends PlayerController {
             onCallback("pay_cost_to_prevent_effect", "false", "cannot_pay");
             return false;
         }
-        final boolean result = costPlumbing.payWithDeterministicDecision(cost, sa, true);
+        final boolean result = costPlumbing.payWithControllerDecision(cost, sa, true);
         onCallback("pay_cost_to_prevent_effect", Boolean.toString(result));
         return result;
     }
@@ -1170,7 +1175,7 @@ public class DeterministicController extends PlayerController {
 
     @Override
     public boolean payCombatCost(Card c, Cost cost, SpellAbility sa, String prompt) {
-        final boolean result = playPlumbing.playNoStackDeterministic(c.getController(), sa, getGame(), true);
+        final boolean result = playPlumbing.playNoStack(c.getController(), sa, getGame(), true);
         onCallback("pay_combat_cost", Boolean.toString(result), formatCard(c));
         return result;
     }
@@ -1182,8 +1187,8 @@ public class DeterministicController extends PlayerController {
 
     @Override
     public boolean playTrigger(Card host, WrappedAbility wrapperAbility, boolean isMandatory) {
-        if (playPlumbing.prepareSingleSaDeterministic(host, wrapperAbility, isMandatory)) {
-            return playPlumbing.playNoStackDeterministic(
+        if (playPlumbing.prepareSingleSa(host, wrapperAbility, isMandatory)) {
+            return playPlumbing.playNoStack(
                     wrapperAbility.getActivatingPlayer(), wrapperAbility, getGame(), true);
         }
         return false;
@@ -1717,7 +1722,7 @@ public class DeterministicController extends PlayerController {
             onCallback("pay_cost_during_roll", "false", "cannot_pay");
             return false;
         }
-        final boolean result = costPlumbing.payWithDeterministicDecision(cost, sa, true);
+        final boolean result = costPlumbing.payWithControllerDecision(cost, sa, true);
         onCallback("pay_cost_during_roll", Boolean.toString(result));
         return result;
     }

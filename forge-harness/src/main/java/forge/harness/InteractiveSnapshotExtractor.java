@@ -35,11 +35,19 @@ public final class InteractiveSnapshotExtractor {
     private static final Gson GSON = new GsonBuilder().create();
 
     public static String snapshotJson(final Game game) {
-        return GSON.toJson(extractSnapshot(game));
+        return snapshotJson(game, null);
+    }
+
+    public static String snapshotJson(final Game game, final SpellAbility castingAbility) {
+        return GSON.toJson(extractSnapshot(game, castingAbility));
+    }
+
+    public static Map<String, Object> extractSnapshot(final Game game) {
+        return extractSnapshot(game, null);
     }
 
     @SuppressWarnings("unchecked")
-    public static Map<String, Object> extractSnapshot(final Game game) {
+    public static Map<String, Object> extractSnapshot(final Game game, final SpellAbility castingAbility) {
         final Map<String, Object> snapshot = SnapshotExtractor.extractSnapshot(game);
         final List<Map<String, Object>> players = new ArrayList<>();
         final Object basePlayers = snapshot.get("players");
@@ -52,7 +60,7 @@ public final class InteractiveSnapshotExtractor {
             index++;
         }
         snapshot.put("players", players);
-        snapshot.put("stack", snapshotStack(game));
+        snapshot.put("stack", snapshotStack(game, castingAbility));
         snapshot.put("combat", snapshotCombat(game));
         final Player monarch = game.getMonarch();
         snapshot.put("monarch", monarch == null ? null : SnapshotExtractor.playerIndex(game, monarch));
@@ -303,7 +311,7 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static List<Map<String, Object>> snapshotStack(final Game game) {
+    private static List<Map<String, Object>> snapshotStack(final Game game, final SpellAbility castingAbility) {
         final List<Map<String, Object>> out = new ArrayList<>();
         for (final SpellAbilityStackInstance item : game.getStack()) {
             final Map<String, Object> stackItem = new LinkedHashMap<>();
@@ -328,7 +336,44 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
         }
+        final Map<String, Object> casting = castingStackEntry(game, castingAbility);
+        if (casting != null) {
+            out.add(casting);
+        }
         return out;
+    }
+
+    private static Map<String, Object> castingStackEntry(final Game game, final SpellAbility castingAbility) {
+        if (castingAbility == null) {
+            return null;
+        }
+        if (!castingAbility.isSpell()) {
+            return null;
+        }
+        final Card source = castingAbility.getHostCard();
+        if (source == null) {
+            return null;
+        }
+        for (final SpellAbilityStackInstance item : game.getStack()) {
+            if (item.getSpellAbility() == castingAbility || item.getSourceCard() == source) {
+                return null;
+            }
+        }
+        final Map<String, Object> stackItem = new LinkedHashMap<>();
+        stackItem.put("id", "casting-" + castingAbility.getId());
+        stackItem.put("name", normalizeCardName(source.getName()));
+        stackItem.put("description", castingAbility.getStackDescription());
+        if (castingAbility.getActivatingPlayer() != null) {
+            stackItem.put("controller", SnapshotExtractor.playerIndex(game, castingAbility.getActivatingPlayer()));
+        }
+        stackItem.put("sourceId", SnapshotExtractor.javaCardId(source));
+        final IPaperCard paper = source.getPaperCard();
+        stackItem.put("setCode", paper != null ? paper.getEdition() : source.getSetCode());
+        stackItem.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
+        stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
+        stackItem.put("isCasting", true);
+        stackItem.put("targets", stackTargets(game, castingAbility));
+        return stackItem;
     }
 
     private static List<Map<String, Object>> stackTargets(final Game game, final SpellAbility ability) {

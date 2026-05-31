@@ -6,8 +6,8 @@ use crate::game_view_dto::{
 };
 use crate::java_raw::{
     JavaAction, JavaActionError, JavaAttackAssignment, JavaBlockAssignment, JavaCombatAssignment,
-    JavaRawAction, JavaRawCard, JavaRawCardData, JavaRawCardOption, JavaRawPrompt,
-    JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
+    JavaRawAction, JavaRawCard, JavaRawCardData, JavaRawCardOption, JavaRawManaOption,
+    JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
 use crate::prompt::{
@@ -337,6 +337,29 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 intent: intent_from_api(&api, &destination, &counter_type),
             }
         }
+        JavaRawPromptBody::PayManaCost {
+            card_id,
+            card_name,
+            mana_cost,
+            mana_ability_options,
+            tappable_land_ids,
+            untappable_land_ids,
+            mana_pool_total,
+            can_confirm_from_pool,
+        } => AgentPromptInner::PayManaCost {
+            game_view,
+            card_id: card_id.unwrap_or_default(),
+            card_name: card_name.unwrap_or_default(),
+            mana_cost: mana_cost.unwrap_or_default(),
+            mana_ability_options: mana_ability_options
+                .iter()
+                .map(to_mana_ability_info)
+                .collect(),
+            tappable_land_ids,
+            untappable_land_ids,
+            mana_pool_total,
+            can_confirm_from_pool,
+        },
     };
 
     AgentPrompt {
@@ -483,14 +506,24 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                 })
                 .collect(),
         },
-        PlayerAction::TapLand {
-            ability_index: Some(index),
-            ..
-        }
-        | PlayerAction::ActivateAbility {
+        PlayerAction::ActivateAbility {
             ability_index: index,
             ..
         } => JavaAction::ChooseAction { index: *index },
+        PlayerAction::TapLand {
+            card_id,
+            ability_index,
+            color,
+        } => JavaAction::TapLand {
+            card_id: card_id.clone(),
+            mana_ability_index: *ability_index,
+            color: color.clone(),
+        },
+        PlayerAction::UntapLand { card_id } => JavaAction::UntapLand {
+            card_id: card_id.clone(),
+        },
+        PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
+        PlayerAction::CancelManaCost => JavaAction::CancelMana,
         PlayerAction::Pass { .. } | PlayerAction::Concede => JavaAction::Pass,
         other => {
             return Err(JavaActionError {
@@ -1024,6 +1057,16 @@ fn to_stack_object(entry: &JavaRawStackEntry, index: usize, controller_id: &str)
                 .map(|(target_index, target)| to_stack_target(target, target_index))
                 .collect(),
         },
+    }
+}
+
+fn to_mana_ability_info(option: &JavaRawManaOption) -> ActivatableAbilityInfo {
+    ActivatableAbilityInfo {
+        card_id: option.card_id.clone().unwrap_or_default(),
+        ability_index: option.ability_index.unwrap_or(0),
+        description: option.description.clone().unwrap_or_default(),
+        is_mana_ability: true,
+        cost: option.cost.clone(),
     }
 }
 

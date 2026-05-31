@@ -24,17 +24,17 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Deterministic cost-payment bridge used by {@link DeterministicController}.
- *
- * This implementation intentionally avoids all AI heuristics.
- * Every payment decision is derived from legality + controller RNG callbacks.
+ * Cost-payment bridge shared by the harness controllers. Drives Forge's
+ * {@link CostPayment} while routing every sub-decision back through the
+ * supplied {@link PlayerController}, so the same plumbing serves both the
+ * deterministic parity bot and the interactive player controller.
  */
-final class DeterministicCostPlumbing {
-    private final DeterministicController controller;
+final class HarnessCostPlumbing {
+    private final PlayerController controller;
     private final Player payer;
     private final List<Set<Card>> reservedSacrificeStack = new ArrayList<>();
 
-    DeterministicCostPlumbing(final DeterministicController controller, final Player payer) {
+    HarnessCostPlumbing(final PlayerController controller, final Player payer) {
         this.controller = controller;
         this.payer = payer;
     }
@@ -58,13 +58,13 @@ final class DeterministicCostPlumbing {
         return rootHost != null && (rootHost.isInstant() || rootHost.isSorcery());
     }
 
-    boolean payWithDeterministicDecision(final Cost cost, final SpellAbility sa, final boolean effect) {
+    boolean payWithControllerDecision(final Cost cost, final SpellAbility sa, final boolean effect) {
         final Set<Card> inheritedReserved = currentReservedSacrifices();
         final Set<Card> localReserved = new LinkedHashSet<>(inheritedReserved);
         reservedSacrificeStack.add(localReserved);
         try {
             final CostPayment pay = new CostPayment(cost, sa);
-            return pay.payComputerCosts(new DeterministicCostDecision(payer, sa, effect));
+            return pay.payComputerCosts(new HarnessCostDecision(payer, sa, effect));
         } finally {
             reservedSacrificeStack.remove(reservedSacrificeStack.size() - 1);
         }
@@ -93,8 +93,8 @@ final class DeterministicCostPlumbing {
         }
     }
 
-    private final class DeterministicCostDecision extends CostDecisionMakerBase {
-        DeterministicCostDecision(final Player player, final SpellAbility sa, final boolean effect) {
+    private final class HarnessCostDecision extends CostDecisionMakerBase {
+        HarnessCostDecision(final Player player, final SpellAbility sa, final boolean effect) {
             super(player, effect, sa, sa.getHostCard());
         }
 
@@ -610,7 +610,7 @@ final class DeterministicCostPlumbing {
                 final CardCollection all = new CardCollection(CardLists.filter(
                         CardLists.getValidCards(player.getCardsIn(ZoneType.Battlefield), cost.getType().split(";"), player, source, ability),
                         CardPredicates.canBeSacrificedBy(ability, isEffect())));
-                all.removeIf(DeterministicCostPlumbing.this::isSacrificeReserved);
+                all.removeIf(HarnessCostPlumbing.this::isSacrificeReserved);
                 reserveSacrifices(all);
                 return PaymentDecision.card(all);
             }
@@ -623,7 +623,7 @@ final class DeterministicCostPlumbing {
                     source,
                     ability));
             valid = new CardCollection(CardLists.filter(valid, CardPredicates.canBeSacrificedBy(ability, isEffect())));
-            valid.removeIf(DeterministicCostPlumbing.this::isSacrificeReserved);
+            valid.removeIf(HarnessCostPlumbing.this::isSacrificeReserved);
             if (valid.size() < amount) {
                 return null;
             }

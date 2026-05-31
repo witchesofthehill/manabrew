@@ -237,6 +237,34 @@ pub enum JavaRawPromptBody {
         #[serde(rename = "counterType")]
         counter_type: Option<String>,
     },
+    PayManaCost {
+        #[serde(rename = "cardId")]
+        card_id: Option<String>,
+        #[serde(rename = "cardName")]
+        card_name: Option<String>,
+        #[serde(rename = "manaCost")]
+        mana_cost: Option<String>,
+        #[serde(rename = "manaAbilityOptions", default)]
+        mana_ability_options: Vec<JavaRawManaOption>,
+        #[serde(rename = "tappableLandIds", default)]
+        tappable_land_ids: Vec<String>,
+        #[serde(rename = "untappableLandIds", default)]
+        untappable_land_ids: Vec<String>,
+        #[serde(rename = "manaPoolTotal", default)]
+        mana_pool_total: i32,
+        #[serde(rename = "canConfirmFromPool", default)]
+        can_confirm_from_pool: bool,
+    },
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct JavaRawManaOption {
+    #[serde(rename = "cardId")]
+    pub card_id: Option<String>,
+    #[serde(rename = "abilityIndex")]
+    pub ability_index: Option<usize>,
+    pub description: Option<String>,
+    pub cost: Option<String>,
 }
 
 fn one() -> usize {
@@ -278,6 +306,7 @@ impl JavaRawPromptBody {
             JavaRawPromptBody::ChooseTargetCard { .. } => "choose_target_card",
             JavaRawPromptBody::ChooseTargetAny { .. } => "choose_target_any",
             JavaRawPromptBody::ChooseTargetSpell { .. } => "choose_target_spell",
+            JavaRawPromptBody::PayManaCost { .. } => "pay_mana_cost",
         }
     }
 }
@@ -566,6 +595,21 @@ pub enum JavaAction {
         assignments: Vec<JavaBlockAssignment>,
     },
     RevealCardsAcknowledged,
+    TapLand {
+        #[serde(rename = "cardId")]
+        card_id: String,
+        #[serde(rename = "manaAbilityIndex")]
+        mana_ability_index: Option<usize>,
+        color: Option<String>,
+    },
+    UntapLand {
+        #[serde(rename = "cardId")]
+        card_id: String,
+    },
+    PayMana {
+        auto: bool,
+    },
+    CancelMana,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

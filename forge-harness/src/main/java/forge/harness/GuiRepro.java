@@ -24,6 +24,14 @@ public final class GuiRepro {
      */
     public static Integer announceRequirements(final Player player, final SpellAbility ability,
             final String announce, final Random rng) {
+        final int[] bounds = announceBounds(player, ability, announce);
+        if (bounds == null) {
+            return null;
+        }
+        return ChoiceSpace.pickIntInRange(bounds[0], bounds[1], rng);
+    }
+
+    public static int[] announceBounds(final Player player, final SpellAbility ability, final String announce) {
         final Card host = ability.getHostCard();
         int max = Integer.MAX_VALUE;
         int min = 0;
@@ -60,6 +68,6 @@ public final class GuiRepro {
         if (min > max) {
             return null;
         }
-        return ChoiceSpace.pickIntInRange(min, max, rng);
+        return new int[] {min, max};
     }
 }

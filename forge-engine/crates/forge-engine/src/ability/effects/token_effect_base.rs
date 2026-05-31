@@ -233,7 +233,15 @@ pub trait TokenEffectBase {
         for cell in token_table.cells().iter().cloned() {
             let script = cell.prototype.get_s_var("TokenScript").map(str::to_owned);
             if let Some(script) = script.as_deref() {
-                ctx.sync_token_art_rng(script, sa);
+                // CopyPermanent / Embalm / Eternalize copies route through
+                // Java's `CardFactory.copyCard` → `getImageKey`, skipping
+                // `TokenDb.getToken`'s `Aggregates.random` call. Mirror that
+                // here so the game RNG advances by 1 (not `art_count + 1`).
+                if cell.prototype.copied_permanent.is_some() {
+                    ctx.sync_token_image_key_rng();
+                } else {
+                    ctx.sync_token_art_rng(script, sa);
+                }
             }
 
             let controller = cell.prototype.controller;

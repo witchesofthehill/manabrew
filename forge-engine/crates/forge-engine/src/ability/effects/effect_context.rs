@@ -67,25 +67,29 @@ impl EffectContext<'_> {
         1
     }
 
-    /// Consume game-RNG calls to match Java's token prototype creation.
-    /// Java calls Aggregates.random(Set) which does nextInt() per element,
-    /// plus PaperToken.getImageKey() which does nextInt(artIndex).
+    /// Consume game-RNG calls to match Java's token prototype creation
+    /// (`TokenInfo.getProtoType` → `TokenDb.getToken` + `PaperToken.getImageKey`).
+    /// Java calls `Aggregates.random(Collection<PaperToken>)` which does
+    /// `nextInt()` per element, plus `PaperToken.getImageKey()` which does
+    /// `nextInt(artIndex)`.
     pub fn sync_token_art_rng(&mut self, token_script: &str, sa: &SpellAbility) {
-        // Java's TokenDb caches token prototypes globally. The first creation
-        // of a token type consumes game RNG (Aggregates.random + getImageKey);
-        // subsequent creations reuse the cached prototype without RNG.
         let host_edition = sa
             .source
             .and_then(|cid| self.game.card(cid).set_code.as_deref())
             .unwrap_or("");
         let art_count = self.token_art_variant_count(token_script, host_edition);
-        // Java's Aggregates.random(Collection<PaperToken>) uses min-random
-        // selection: for each element, call nextInt() (unbounded). Collection
-        // size = number of art variants in the resolved edition.
         for _ in 0..art_count {
             self.rng.next_int(1);
         }
-        // PaperToken.getImageKey(): nextInt(artIndex)
+        self.sync_token_image_key_rng();
+    }
+
+    /// Consume the single `PaperToken.getImageKey()` game-RNG draw that
+    /// Java's `CardFactory.getCard(IPaperCard)` performs. CopyPermanent and
+    /// Embalm/Eternalize paths route through `CardFactory.copyCard` →
+    /// `getImageKey` *without* an `Aggregates.random` call, so they consume
+    /// only this draw.
+    pub fn sync_token_image_key_rng(&mut self) {
         self.rng.next_int(1);
     }
 

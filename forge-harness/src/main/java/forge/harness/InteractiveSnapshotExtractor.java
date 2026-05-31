@@ -280,7 +280,7 @@ public final class InteractiveSnapshotExtractor {
         final Map<String, Integer> counters = new TreeMap<>();
         for (final Map.Entry<CounterType, Integer> entry : card.getCounters().entrySet()) {
             if (entry.getValue() > 0) {
-                counters.put(counterTypeName(entry.getKey()), entry.getValue());
+                counters.put(uiCounterName(entry.getKey()), entry.getValue());
             }
         }
         return counters;
@@ -366,15 +366,22 @@ public final class InteractiveSnapshotExtractor {
         return name;
     }
 
-    private static String counterTypeName(final CounterType counterType) {
+    private static String uiCounterName(final CounterType counterType) {
         if (counterType instanceof CounterEnumType) {
             final CounterEnumType counterEnumType = (CounterEnumType) counterType;
             switch (counterEnumType) {
-                case P1P1: return "+1/+1";
-                case M1M1: return "-1/-1";
-                default: return counterEnumType.name().toLowerCase();
+                case P1P1: return "P1P1";
+                case M1M1: return "M1M1";
+                default: return pascalCase(counterEnumType.name());
             }
         }
-        return counterType.getName().toLowerCase();
+        return pascalCase(counterType.getName());
+    }
+
+    private static String pascalCase(final String name) {
+        if (name == null || name.isEmpty()) {
+            return "";
+        }
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1).toLowerCase();
     }
 }

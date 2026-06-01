@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.game.Game;
 import forge.game.card.Card;

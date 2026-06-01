@@ -120,6 +120,7 @@ export default function Lobby() {
     leaveRoom,
     setDeckSelection,
     setReady,
+    setFormat,
     startGame,
   } = useServerStore();
   const prefs = usePreferencesStore();
@@ -585,6 +586,7 @@ export default function Lobby() {
             onJoinRoom={joinRoom}
             onLeaveRoom={leaveRoom}
             onSetReady={setReady}
+            onSetFormat={setFormat}
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
             onStartGame={startGame}
             onStartTabletop={handleStartTabletop}

@@ -156,7 +156,7 @@ fn run_game_inner(
 
 #[cfg(feature = "java-forge")]
 fn auto_java_action(prompt: &JavaRawPrompt) -> JavaAction {
-    if let JavaRawPromptBody::Priority { actions } = &prompt.body {
+    if let JavaRawPromptBody::Priority { actions, .. } = &prompt.body {
         if let Some(index) = actions.iter().find_map(|action| action.index) {
             return JavaAction::ChooseAction { index };
         }
@@ -347,7 +347,7 @@ impl J4rsBridge {
             .map_err(java_error)?;
         let adapter = jvm
             .create_instance(
-                "forge.harness.ManaBrewEngineAdapter",
+                "forge.harness.host.ManaBrewEngineAdapter",
                 InvocationArg::empty(),
             )
             .map_err(java_error)?;

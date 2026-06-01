@@ -1,4 +1,8 @@
-package forge.harness;
+package forge.harness.host;
+
+import forge.harness.common.CountingRandom;
+import forge.harness.common.HeadlessGuiBase;
+import forge.harness.common.ForgeEngineReset;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -72,7 +76,7 @@ public final class ManaBrewEngineAdapter {
         rules.setAppliedVariants(variants);
         rules.setSimTimeout(120);
 
-        ParityReset.resetAllIdCounters();
+        ForgeEngineReset.resetAllIdCounters();
         final ManaBrewInteractiveSession session =
                 new ManaBrewInteractiveSession(request.getGameId());
         final List<RegisteredPlayer> registeredPlayers = new ArrayList<>();

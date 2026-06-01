@@ -1,15 +1,8 @@
-package forge.harness;
+package forge.harness.common;
 
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * A {@link Random} subclass that counts every {@code nextInt()} call.
- *
- * Used for debugging RNG desync between the Java harness and the Rust engine:
- * both engines are seeded identically and must consume RNG in the same order,
- * so call counts should match at every decision boundary.
- */
 public final class CountingRandom extends Random {
     private final AtomicInteger callCount = new AtomicInteger(0);
     private final String label;
@@ -66,7 +59,6 @@ public final class CountingRandom extends Random {
         return result;
     }
 
-    /** Returns the total number of {@code nextInt} calls made so far. */
     public int getCallCount() {
         return callCount.get();
     }

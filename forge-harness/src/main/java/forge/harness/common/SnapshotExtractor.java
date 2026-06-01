@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -180,7 +180,7 @@ public final class SnapshotExtractor {
         return cs;
     }
 
-    static String javaCardId(Card c) {
+    public static String javaCardId(Card c) {
         return "engine-card-" + ParityCardMap.parityId(c);
     }
 

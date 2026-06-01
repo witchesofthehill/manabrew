@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import com.google.gson.Gson;
 import forge.game.Game;
@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** Emits structured decision records for parity comparison. */
 public final class DecisionLog {
     private static final Gson GSON = new Gson();
     private static Consumer<String> sink = s -> {};

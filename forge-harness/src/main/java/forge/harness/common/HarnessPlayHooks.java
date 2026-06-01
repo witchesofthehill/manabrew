@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.game.card.Card;
 
@@ -8,7 +8,7 @@ import forge.game.card.Card;
  * (RNG / parity bookkeeping vs. live prompts), so the shared plumbing routes
  * them out instead of depending on a concrete controller.
  */
-interface HarnessPlayHooks {
+public interface HarnessPlayHooks {
     void markFailedPaymentCard(Card card);
 
     boolean confirmPlayEffectOptional();

@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.card.ColorSet;
 import forge.card.MagicColor.Color;

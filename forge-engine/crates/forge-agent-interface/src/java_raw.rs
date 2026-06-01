@@ -20,6 +20,8 @@ pub enum JavaRawPromptBody {
     Priority {
         #[serde(default)]
         actions: Vec<JavaRawAction>,
+        #[serde(rename = "untappableLandIds", default)]
+        untappable_land_ids: Vec<String>,
     },
     ChooseDiscard {
         #[serde(default)]
@@ -316,6 +318,9 @@ pub struct JavaRawAction {
     pub index: Option<usize>,
     #[serde(default)]
     pub label: String,
+    #[serde(rename = "cardId")]
+    pub card_id: Option<String>,
+    pub kind: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

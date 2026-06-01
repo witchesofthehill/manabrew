@@ -120,6 +120,10 @@ pub enum ClientMessage {
         commander_name: Option<String>,
     },
 
+    SetFormat {
+        format: GameFormat,
+    },
+
     StartGame {
         #[serde(default)]
         format: Option<GameFormat>,

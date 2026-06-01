@@ -1,5 +1,19 @@
 package forge.harness;
 
+import forge.harness.host.ManaBrewEngineAdapter;
+
+import forge.harness.parity.DeterministicController;
+import forge.harness.parity.DeterministicLobbyPlayer;
+import forge.harness.common.ParityLog;
+import forge.harness.parity.PresetDecks;
+
+import forge.harness.common.CountingRandom;
+import forge.harness.common.DecisionLog;
+import forge.harness.common.HeadlessGuiBase;
+import forge.harness.common.ParityCardMap;
+import forge.harness.common.ForgeEngineReset;
+import forge.harness.common.SnapshotExtractor;
+
 import com.google.common.eventbus.Subscribe;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -308,7 +322,7 @@ public final class Main {
                             System.err.println("[harness] interactive server received quit");
                             return;
                         case "reset":
-                            ParityReset.resetAllIdCounters();
+                            ForgeEngineReset.resetAllIdCounters();
                             forge.ImageKeys.clearCaches();
                             System.gc();
                             sendOk("");
@@ -452,7 +466,7 @@ public final class Main {
         // Reset global state for cross-game isolation in multi-game batches
         CountingRandom gameRng = new CountingRandom(seed, "game");
         forge.util.MyRandom.setRandom(gameRng);
-        ParityReset.resetAllIdCounters();
+        ForgeEngineReset.resetAllIdCounters();
 
         // Create a shared Random for agent decisions, seeded identically to
         // the Rust side's JavaRandom(seed). Both players share this instance

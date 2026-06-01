@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.card.MagicColor;
 import forge.card.mana.ManaAtom;
@@ -28,32 +28,21 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Deterministic, legality-first mana auto-payment for harness parity.
- *
- * <p>Design goals:
- * - Never depend on Java AI controller classes (`PlayerControllerAi`, `AiCostDecision`).
- * - Pay only legal costs using engine legality checks.
- * - Keep deterministic behavior: no random selection inside auto-pay.
- * - Pay required costs first; optional decisions are delegated to controller callbacks only
- *   when the engine asks for them while paying a selected ability cost.
- */
-final class AutoPay {
+public final class AutoPay {
     private final Player payer;
     private final HarnessCostPlumbing costPlumbing;
 
-    AutoPay(final Player payer, final HarnessCostPlumbing costPlumbing) {
+    public AutoPay(final Player payer, final HarnessCostPlumbing costPlumbing) {
         this.payer = payer;
         this.costPlumbing = costPlumbing;
     }
 
-    PayManaCostResult payManaCostWithTrace(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
+    public PayManaCostResult payManaCostWithTrace(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
         final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(toPay);
         final ManaPool pool = payer.getManaPool();
         final List<Mana> spentFromPool = new ArrayList<>();
         final List<String> steps = new ArrayList<>();
 
-        // Consume already-floating mana first.
         if (pool.payManaCostFromPool(unpaid, saBeingPaid, false, spentFromPool)) {
             CostPayment.handleOfferings(saBeingPaid, false, true);
             steps.add("Pay");
@@ -73,17 +62,14 @@ final class AutoPay {
             }
 
             if (!payAbilityActivationCosts(chosen.spellAbility, effect)) {
-                // Candidate became unpayable after state changes; continue with remaining choices.
                 candidates.remove(chosen);
                 continue;
             }
 
             steps.add(chosen.describeStep());
 
-            // Mana abilities resolve immediately in engine flow.
             payer.getGame().getStack().addAndUnfreeze(chosen.spellAbility);
 
-            // Spend produced mana against the unpaid cost, then consume any matching floating mana.
             pool.payManaFromAbility(saBeingPaid, unpaid, chosen.spellAbility);
             pool.payManaCostFromPool(unpaid, saBeingPaid, false, spentFromPool);
         }
@@ -121,11 +107,11 @@ final class AutoPay {
         return new PayManaCostResult(paid, steps);
     }
 
-    boolean payManaCost(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
+    public boolean payManaCost(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
         return payManaCostWithTrace(toPay, saBeingPaid, effect).paid;
     }
 
-    List<SpellAbility> manaSources(final SpellAbility saBeingPaid) {
+    public List<SpellAbility> manaSources(final SpellAbility saBeingPaid) {
         final List<SpellAbility> out = new ArrayList<>();
         for (final ManaAbilityCandidate candidate : collectPlayableManaAbilities(saBeingPaid)) {
             out.add(candidate.spellAbility);
@@ -133,7 +119,7 @@ final class AutoPay {
         return out;
     }
 
-    boolean floatManaFromSource(final SpellAbility manaAbility, final boolean effect) {
+    public boolean floatManaFromSource(final SpellAbility manaAbility, final boolean effect) {
         manaAbility.setActivatingPlayer(payer);
         if (!payAbilityActivationCosts(manaAbility, effect)) {
             return false;
@@ -164,13 +150,6 @@ final class AutoPay {
         return null;
     }
 
-    /**
-     * Build shard payment priority: colored shards first (sorted by fewest
-     * available candidates — most constrained first), then generic.
-     * Mirrors Rust's get_next_shard_to_pay() which sorts by fewest sources.
-     * This eliminates HashMap iteration-order non-determinism from
-     * ManaCostBeingPaid.getUnpaidShards().
-     */
     private List<ManaCostShard> shardPriority(
             final ManaCostBeingPaid unpaid,
             final List<ManaAbilityCandidate> candidates
@@ -191,11 +170,6 @@ final class AutoPay {
                 colored.add(shard);
             }
         }
-        // Sort colored shards by fewest available candidates (most constrained first).
-        // This matches Rust's get_next_shard_to_pay() and ensures that when paying
-        // e.g. 1WU with a Hallowed Fountain (W/U) + Plains (W), U is paid first
-        // since it has fewer sources, preventing the dual land from being consumed
-        // for W and leaving U unpayable.
         colored.sort(Comparator
                 .comparingInt((ManaCostShard shard) -> countCandidatesForShard(candidates, shard))
                 .thenComparingInt(ParityOrder::colorShardRank));
@@ -215,11 +189,6 @@ final class AutoPay {
         return count;
     }
 
-    /**
-     * Choose the first candidate that can pay the given shard, but defer candidates
-     * that are the sole available source for another unpaid colored shard.
-     * Falls back to any valid candidate if all are sole sources.
-     */
     private ManaAbilityCandidate chooseLeastVersatileCandidate(
             final List<ManaAbilityCandidate> candidates,
             final ManaCostShard shard,
@@ -234,13 +203,10 @@ final class AutoPay {
             if (fallback == null) {
                 fallback = c;
             }
-            // Check if this candidate is the ONLY source for another unpaid colored shard.
-            // If so, defer it to preserve that source for the other shard.
             if (!isSoleSourceForOtherShard(c, shard, candidates, unpaid)) {
                 return c;
             }
         }
-        // All valid candidates are sole sources for some other shard — just use the first one.
         return fallback;
     }
 
@@ -261,7 +227,6 @@ final class AutoPay {
             if (!canPayShard(candidate.spellAbility, other)) {
                 continue;
             }
-            // This candidate can pay for 'other' shard — check if it's the only one.
             int sourcesForOther = 0;
             for (final ManaAbilityCandidate alt : candidates) {
                 if (canPayShard(alt.spellAbility, other)) {
@@ -272,7 +237,6 @@ final class AutoPay {
                 }
             }
             if (sourcesForOther <= 1) {
-                // This candidate is the sole source for 'other' shard — defer it.
                 return true;
             }
         }
@@ -310,10 +274,6 @@ final class AutoPay {
         if (manaPart == null) {
             return;
         }
-        // ManaReflected abilities have origProduced="1" so isAnyMana()/isComboMana()
-        // return false, but they still produce multiple colors.  Without express
-        // choice, ManaReflectedEffect falls through to controller.chooseColor()
-        // which uses RNG and may pick the wrong color.
         final boolean isReflected = manaAbility.getApi() == ApiType.ManaReflected;
         if (!isReflected && !manaPart.isAnyMana() && !manaPart.isComboMana()) {
             return;
@@ -346,7 +306,6 @@ final class AutoPay {
                     continue;
                 }
                 if (manaAbility.getPayCosts() != null && manaAbility.getPayCosts().hasManaCost()) {
-                    // Keep auto-pay non-recursive and deterministic.
                     continue;
                 }
                 manaAbility.setActivatingPlayer(payer);
@@ -369,12 +328,6 @@ final class AutoPay {
                 out.add(new ManaAbilityCandidate(manaAbility, sourceOrder++));
             }
         }
-        // Sort candidates so lands are tapped before non-land creatures.
-        // Mirrors Rust's sort_mana_abilities / score_mana_producing_card which
-        // assigns lower scores to lands and higher scores to creatures that can
-        // attack/block.  Without this sort, battlefield insertion order can cause
-        // a creature mana-dork to be tapped for a cost that lands could pay,
-        // leaving the dork unavailable for a later spell that needs its colors.
         out.sort(Comparator.comparingInt(ManaAbilityCandidate::score));
         return out;
     }
@@ -441,13 +394,6 @@ final class AutoPay {
         if (manaPart == null) {
             return out;
         }
-        // ManaReflected abilities report origProduced="1" which doesn't map to
-        // any color atom.  Use getReflectableManaColors to determine which colors
-        // the reflected ability can actually produce.  The set returned by
-        // getReflectableManaColors is a HashSet, so iteration order depends on
-        // JVM bucket layout — iterate the canonical WUBRG(C) order instead so
-        // that downstream auto-pay choices (notably preferredColorForShard's
-        // first-atom pick for generic shards) are deterministic and match Rust.
         if (manaAbility.getApi() == ApiType.ManaReflected) {
             final java.util.Set<String> reflectable = CardUtil.getReflectableManaColors(manaAbility);
             for (final String colorName : MagicColor.Constant.COLORS_AND_COLORLESS) {
@@ -507,17 +453,10 @@ final class AutoPay {
             this.sourceOrder = sourceOrder;
         }
 
-        /**
-         * Score for sorting — lower scores are tapped first.
-         * Mirrors Rust's score_mana_producing_card: lands get a low base
-         * score while creatures add +13 per combat role (attack/block).
-         * This ensures lands are consumed before valuable mana dorks.
-         */
         int score() {
             final Card source = spellAbility.getHostCard();
             int s = 0;
 
-            // Mana ability intrinsic score (mirrors Rust score_mana_ability).
             final AbilityManaPart manaPart = spellAbility.getManaPart();
             if (manaPart != null) {
                 if (manaPart.isAnyMana()) {
@@ -533,21 +472,15 @@ final class AutoPay {
                 s += 1;
             }
 
-            // Cost complexity (tap = +1 per cost part in Rust).
             if (spellAbility.getPayCosts() != null) {
                 s += spellAbility.getPayCosts().getCostParts().size();
             }
 
-            // Creatures that can participate in combat are more valuable
-            // and should be preserved — mirrors Rust's +13 per role.
             if (source.isCreature()) {
                 s += 13; // can_attack equivalent
                 s += 13; // can_block equivalent
             }
 
-            // Tie-break by battlefield insertion order for determinism.
-            // sourceOrder is a small int, multiply by a tiny factor so it
-            // only breaks ties without overwhelming the primary score.
             s = s * 1000 + sourceOrder;
             return s;
         }
@@ -570,7 +503,7 @@ final class AutoPay {
         }
     }
 
-    static final class PayManaCostResult {
+    public static final class PayManaCostResult {
         private final boolean paid;
         private final List<String> steps;
 
@@ -579,11 +512,11 @@ final class AutoPay {
             this.steps = steps;
         }
 
-        boolean paid() {
+        public boolean paid() {
             return paid;
         }
 
-        List<String> steps() {
+        public List<String> steps() {
             return steps;
         }
     }

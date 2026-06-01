@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.card.CardType;
 import forge.card.ColorSet;
@@ -23,23 +23,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Cost-payment bridge shared by the harness controllers. Drives Forge's
- * {@link CostPayment} while routing every sub-decision back through the
- * supplied {@link PlayerController}, so the same plumbing serves both the
- * deterministic parity bot and the interactive player controller.
- */
-final class HarnessCostPlumbing {
+public final class HarnessCostPlumbing {
     private final PlayerController controller;
     private final Player payer;
     private final List<Set<Card>> reservedSacrificeStack = new ArrayList<>();
 
-    HarnessCostPlumbing(final PlayerController controller, final Player payer) {
+    public HarnessCostPlumbing(final PlayerController controller, final Player payer) {
         this.controller = controller;
         this.payer = payer;
     }
 
-    static boolean isSpellPaymentContext(final SpellAbility sa) {
+    public static boolean isSpellPaymentContext(final SpellAbility sa) {
         if (sa == null) {
             return false;
         }
@@ -58,7 +52,7 @@ final class HarnessCostPlumbing {
         return rootHost != null && (rootHost.isInstant() || rootHost.isSorcery());
     }
 
-    boolean payWithControllerDecision(final Cost cost, final SpellAbility sa, final boolean effect) {
+    public boolean payWithControllerDecision(final Cost cost, final SpellAbility sa, final boolean effect) {
         final Set<Card> inheritedReserved = currentReservedSacrifices();
         final Set<Card> localReserved = new LinkedHashSet<>(inheritedReserved);
         reservedSacrificeStack.add(localReserved);
@@ -70,7 +64,7 @@ final class HarnessCostPlumbing {
         }
     }
 
-    Set<Card> currentReservedSacrifices() {
+    public Set<Card> currentReservedSacrifices() {
         if (reservedSacrificeStack.isEmpty()) {
             return Set.of();
         }

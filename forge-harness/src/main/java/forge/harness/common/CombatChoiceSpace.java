@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.game.GameEntity;
 import forge.game.card.Card;
@@ -10,11 +10,6 @@ import forge.game.player.Player;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Harness-side combat choice space extraction.
- *
- * All legality is delegated to Java engine combat APIs.
- */
 public final class CombatChoiceSpace {
     private CombatChoiceSpace() {}
 

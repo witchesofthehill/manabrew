@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.game.card.CardCollection;
 import forge.game.card.CardCollectionView;
@@ -10,12 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Harness-side choice sampling helpers.
- *
- * These utilities never invent legality: they only sample from option lists
- * already provided by Java engine callbacks (PlayerController methods).
- */
 public final class ChoiceSpace {
 
     public static final class ChoiceResult<T> {
@@ -116,7 +110,6 @@ public final class ChoiceSpace {
         return result;
     }
 
-    /** Pick an index in [0, size). Does not consume RNG when size <= 1. */
     public static int pickIndex(final int size, final Random rng) {
         if (size <= 0) {
             ParityLog.log("pick_index", 0, "idx=-1");
@@ -131,7 +124,6 @@ public final class ChoiceSpace {
         return idx;
     }
 
-    /** Pick an index in [0, size] where size means PASS. */
     public static int pickIndexWithPass(final int size, final Random rng) {
         if (size < 0) {
             return 0;
@@ -142,7 +134,6 @@ public final class ChoiceSpace {
         return idx;
     }
 
-    /** Canonical parity pipeline: native list -> parity sort -> choose (optionally PASS). */
     public static <T> List<T> sortNative(
             final List<T> nativeOptions,
             final Comparator<T> parityComparator
@@ -152,7 +143,6 @@ public final class ChoiceSpace {
         return sorted;
     }
 
-    /** Canonical parity pipeline: native list -> parity sort -> choose (optionally PASS). */
     public static <T> ChoiceResult<T> chooseFromNative(
             final List<T> nativeOptions,
             final Comparator<T> parityComparator,
@@ -168,7 +158,6 @@ public final class ChoiceSpace {
         return new ChoiceResult<>(sorted, idx, chosen);
     }
 
-    /** Weighted choose where each action has `actionWeight` and PASS has weight 1. */
     public static int pickWeightedIndexWithPass(final int size, final int actionWeight, final Random rng) {
         final int safeSize = Math.max(0, size);
         final int safeWeight = Math.max(1, actionWeight);

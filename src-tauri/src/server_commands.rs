@@ -163,6 +163,20 @@ pub async fn server_set_deck_selection(
 }
 
 #[tauri::command]
+pub async fn server_set_format(
+    client: State<'_, ServerClient>,
+    format: String,
+) -> Result<(), String> {
+    send_server_message(
+        &client,
+        serde_json::json!({
+            "type": "SetFormat",
+            "format": format,
+        }),
+    )
+}
+
+#[tauri::command]
 pub async fn server_start_game(
     client: State<'_, ServerClient>,
     format: Option<String>,

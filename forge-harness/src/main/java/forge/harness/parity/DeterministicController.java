@@ -1,4 +1,16 @@
-package forge.harness;
+package forge.harness.parity;
+
+import forge.harness.common.ActionSpace;
+import forge.harness.common.AutoPay;
+import forge.harness.common.ChoiceSpace;
+import forge.harness.common.CountingRandom;
+import forge.harness.common.DecisionLog;
+import forge.harness.common.HarnessCostPlumbing;
+import forge.harness.common.HarnessPlayHooks;
+import forge.harness.common.HarnessPlayPlumbing;
+import forge.harness.common.ParityCardMap;
+import forge.harness.common.ParityLog;
+import forge.harness.common.ParityOrder;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.ListMultimap;
@@ -308,7 +320,7 @@ public class DeterministicController extends PlayerController implements Harness
         }
         captureDeepCheckpoint("main_action");
         final List<SpellAbility> all = filterFailedPaymentActions(ChoiceSpace.sortNative(
-                new ArrayList<>(ActionSpace.getPossibleActions(player)),
+                new ArrayList<>(ActionSpace.getPossibleActions(player, false)),
                 ParityOrder.actionComparator()));
         if (!all.isEmpty()) {
             onCallback("$ACTION_SPACE", formatActionSpace(all, player));

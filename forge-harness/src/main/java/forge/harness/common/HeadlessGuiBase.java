@@ -1,4 +1,4 @@
-package forge.harness;
+package forge.harness.common;
 
 import forge.gamemodes.match.HostedMatch;
 import forge.gui.download.GuiDownloadService;

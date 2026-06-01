@@ -45,6 +45,7 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `forge-engine/crates/forge-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                      |
 | `forge-engine/crates/forge-parity/AGENTS.md`                     | Investigating a parity divergence or editing `regression.json`              |
 | `forge/AGENTS.md`                                                | Anything under `forge/` (read-only warning)                                 |
+| `forge-harness/src/main/java/forge/harness/AGENTS.md`            | Any change under `forge-harness/` (parity/host/common package boundaries)   |
 | `scripts/AGENTS.md`                                              | Adding or running a build/parity script                                     |
 
 Topic spinoffs (cross-cut multiple folders):

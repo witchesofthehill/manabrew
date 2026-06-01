@@ -1,4 +1,16 @@
-package forge.harness;
+package forge.harness.host;
+
+import forge.harness.parity.GuiRepro;
+
+import forge.harness.common.ActionSpace;
+import forge.harness.common.AutoPay;
+import forge.harness.common.ChoiceSpace;
+import forge.harness.common.CombatChoiceSpace;
+import forge.harness.common.HarnessCostPlumbing;
+import forge.harness.common.HarnessPlayHooks;
+import forge.harness.common.HarnessPlayPlumbing;
+import forge.harness.common.ParityOrder;
+import forge.harness.common.SnapshotExtractor;
 
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
@@ -107,11 +119,32 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
-        final List<SpellAbility> all = ChoiceSpace.sortNative(
-                new ArrayList<>(ActionSpace.getPossibleActions(player)),
-                ParityOrder.actionComparator());
-        final SpellAbility selected = session.awaitPriorityAction(me(), all);
-        return selected == null ? null : Lists.newArrayList(selected);
+        while (true) {
+            final List<SpellAbility> all = ChoiceSpace.sortNative(
+                    new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
+                    ParityOrder.actionComparator());
+            final ManaBrewInteractiveSession.PriorityChoice choice =
+                    session.awaitPriorityAction(me(), all, undoableManaSources());
+            if (choice.kind() == ManaBrewInteractiveSession.PriorityActionKind.UNDO) {
+                game.getStack().undo();
+                continue;
+            }
+            final SpellAbility selected = choice.action();
+            return selected == null ? null : Lists.newArrayList(selected);
+        }
+    }
+
+    private List<Card> undoableManaSources() {
+        if (!game.getStack().canUndo(player)) {
+            return new ArrayList<>();
+        }
+        final List<Card> sources = new ArrayList<>();
+        for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
+            if (game.getStack().filterUndoStackByHost(card).iterator().hasNext()) {
+                sources.add(card);
+            }
+        }
+        return sources;
     }
 
     @Override

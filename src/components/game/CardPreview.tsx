@@ -221,12 +221,12 @@ export function CardPreview({
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
   const isLoading = false;
   const imageUrl = deckCard.uris[imageSize];
-  const scryfallCard = useCard({
+  const scryfallEntry = useCard({
     name: card.name,
     setCode: deckCard.setCode,
     collectorNumber: deckCard.cardNumber,
   });
-  const faces = scryfallCard?.card_faces;
+  const faces = scryfallEntry?.info?.card_faces;
   const facesHaveImages =
     !!faces &&
     faces.length >= 2 &&

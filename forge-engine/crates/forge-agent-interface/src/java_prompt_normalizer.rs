@@ -15,6 +15,19 @@ use crate::prompt::{
     PlayerAction, TargetAnyChoice,
 };
 
+pub fn make_java_game_over_prompt(
+    snapshot: &JavaRawSnapshot,
+    session_id: Option<&str>,
+) -> AgentPrompt {
+    let game_view = build_game_view(snapshot, session_id, 0, &[]);
+    AgentPrompt {
+        deciding_player_id: String::new(),
+        display_events: Vec::new(),
+        source_card_id: None,
+        inner: AgentPromptInner::GameOver { game_view },
+    }
+}
+
 pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
     let JavaRawPrompt {
         session_id,

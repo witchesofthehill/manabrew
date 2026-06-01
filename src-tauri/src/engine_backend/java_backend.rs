@@ -17,10 +17,12 @@ use serde_json::Value;
 use crate::preset_decks::CardIdentity;
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_prompt_normalizer::{
-    normalize_java_prompt, translate_java_player_action,
+    make_java_game_over_prompt, normalize_java_prompt, translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_raw::{JavaAction, JavaRawPrompt, JavaRawPromptBody};
+use forge_agent_interface::java_raw::{
+    JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
+};
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 
 pub fn unsupported_error() -> String {
@@ -146,6 +148,10 @@ fn run_game_inner(
             .unwrap_or(false)
         {
             eprintln!("[java_game_thread] Java Forge session reached game over");
+            let raw_snapshot: JavaRawSnapshot = serde_json::from_str(&snapshot_json)
+                .map_err(|err| format!("failed to parse java snapshot for game-over: {err}"))?;
+            let prompt = make_java_game_over_prompt(&raw_snapshot, Some(&session_id));
+            let _ = prompt_tx.send(prompt);
             session.end_game()?;
             return Ok(());
         }

@@ -12,6 +12,7 @@ import init, {
   test_rng,
   test_foundation,
   load_card_archive,
+  has_card,
   run_interactive_game,
   run_multiplayer_game,
   limited_list_sealed_templates,
@@ -525,6 +526,15 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
         ...deck,
         coverCardName: deck.coverCardName ?? choosePresetCoverCardName(deck.cards),
       }));
+    }
+
+    case "is_card_supported": {
+      const name = (args?.name as string) ?? "";
+      if (!name) return false;
+      if (has_card(name)) return true;
+      const idx = name.indexOf(" // ");
+      if (idx > 0) return has_card(name.slice(0, idx));
+      return false;
     }
 
     case "limited_list_sealed_templates":

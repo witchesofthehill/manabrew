@@ -92,6 +92,7 @@ import {
   setLastSavedSnapshotRef,
 } from "./deckBuilder.unsavedChanges";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -484,17 +485,22 @@ export function DeckBuilder({
   })();
 
   // Filter
+  const unsupportedNames = useUnsupportedCards(currentDeck);
+  const hasUnsupportedCards = unsupportedNames.size > 0;
+
   // Compute deck legality for conditional save button
   const deckFormat = getFormat(currentDeck.format ?? "standard");
-  const isDeckLegal = deckFormat
-    ? validateDeckSections(
-        {
-          deck: currentDeck,
-          commanderName: currentDeck.commanders?.[0]?.name,
-        },
-        deckFormat,
-      ).legal
-    : false;
+  const isDeckLegal =
+    !hasUnsupportedCards &&
+    (deckFormat
+      ? validateDeckSections(
+          {
+            deck: currentDeck,
+            commanderName: currentDeck.commanders?.[0]?.name,
+          },
+          deckFormat,
+        ).legal
+      : false);
 
   const filterLc = deckFilter.toLowerCase();
   const filteredMain = useMemo(
@@ -788,6 +794,10 @@ export function DeckBuilder({
   }
 
   function handleSave() {
+    if (hasUnsupportedCards) {
+      handleSaveDraft();
+      return;
+    }
     saveCurrentDeck();
     const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
@@ -799,7 +809,13 @@ export function DeckBuilder({
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: true });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
-    toast.success(`Draft "${currentDeck.name}" saved`);
+    if (hasUnsupportedCards) {
+      toast.warning(
+        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
+      );
+    } else {
+      toast.success(`Draft "${currentDeck.name}" saved`);
+    }
   }
 
   /**
@@ -992,7 +1008,11 @@ export function DeckBuilder({
               size="sm"
               variant="outline"
               className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
-              title="Deck has errors — save as draft (not playable)"
+              title={
+                hasUnsupportedCards
+                  ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — draft only, can't be played`
+                  : "Deck has errors — save as draft (not playable)"
+              }
               onClick={handleSaveDraft}
             >
               <FileBox className="h-3.5 w-3.5" />
@@ -1343,7 +1363,7 @@ export function DeckBuilder({
           </div>
         )}
 
-        <DeckValidationPanel />
+        <DeckValidationPanel unsupportedNames={unsupportedNames} />
         <TokenSection
           tokens={mergedTokens}
           cardSize={cardSize}

@@ -85,6 +85,7 @@ pub fn run() {
             commands::restore_snapshot,
             commands::get_prompt,
             commands::get_preset_decks,
+            commands::is_card_supported,
             server_commands::server_connect,
             server_commands::server_disconnect,
             server_commands::server_spawn_ai_bot,

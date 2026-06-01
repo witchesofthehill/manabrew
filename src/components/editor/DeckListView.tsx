@@ -30,6 +30,7 @@ import {
   Trash2,
   Bookmark,
   Check,
+  AlertTriangle,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
@@ -48,6 +49,7 @@ import {
   EmptyDropZone,
 } from "./deckEditor.primitives";
 import { buildCardActions, handleCardClick } from "./deckEditor.utils";
+import { useIsUnsupported } from "@/stores/useCardSupportStore";
 
 type CardLocation = "main" | "side" | "maybe";
 
@@ -360,6 +362,7 @@ function DraggableStackCard({
     id: dragId,
     data: { type: "deck-card", card: group.card, name: group.card.name },
   });
+  const unsupported = useIsUnsupported(group.card.name);
 
   return (
     <div
@@ -370,15 +373,25 @@ function DraggableStackCard({
         "absolute left-0 group cursor-grab active:cursor-grabbing transition-[top] duration-200 ease-out",
         isDragging && "opacity-30",
         isSelected && cn(CARD_RING.selected, "z-50"),
+        unsupported && "ring-2 ring-warning/70 rounded-[4%]",
       )}
       style={{ top: topOffset, width: cardWidth, zIndex: index + 1 }}
       data-card-name={group.card.name}
+      data-card-supported={unsupported ? "false" : undefined}
       onMouseEnter={() => onCardHover(index)}
       onMouseLeave={onCardLeave}
       onClick={(e) => handleCardClick(e, group.card.name, onSelect, onShowInfo)}
     >
       <CardThumbnail card={group.card} />
       <CardCountBadge count={group.count} className="border-white/30 shadow" />
+      {unsupported && (
+        <div
+          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
+          title="Not implemented by the engine — deck can only be saved as draft"
+        >
+          <AlertTriangle className="h-3 w-3" />
+        </div>
+      )}
       <CardHoverOverlay
         actions={buildCardActions(
           onAddOne,
@@ -536,6 +549,7 @@ function CardVisual({
     id: dragId,
     data: { type: "deck-card", card: group.card, name: group.card.name },
   });
+  const unsupported = useIsUnsupported(group.card.name);
 
   const visualContent = (
     <div
@@ -546,12 +560,22 @@ function CardVisual({
         "relative group cursor-grab active:cursor-grabbing select-none transition-[box-shadow]",
         isDragging && "opacity-30",
         isSelected && cn(CARD_RING.selected, "rounded-lg"),
+        unsupported && "ring-2 ring-warning/70 rounded-lg",
       )}
       data-card-name={group.card.name}
+      data-card-supported={unsupported ? "false" : undefined}
       onClick={(e) => handleCardClick(e, group.card.name, onSelect, onShowInfo)}
     >
       <CardThumbnail card={group.card} />
       <CardCountBadge count={group.count} />
+      {unsupported && (
+        <div
+          className="absolute top-1 right-1 z-30 rounded-full bg-warning/90 text-white p-0.5 shadow"
+          title="Not implemented by the engine — deck can only be saved as draft"
+        >
+          <AlertTriangle className="h-3 w-3" />
+        </div>
+      )}
       <div className="absolute top-1 left-1 z-20 flex gap-0.5">
         {showCommander && (
           <button
@@ -716,6 +740,7 @@ function CardRow({
     id: dragId,
     data: { type: "deck-card", card: group.card, name: group.card.name },
   });
+  const unsupported = useIsUnsupported(group.card.name);
 
   const rowContent = (
     <div
@@ -726,8 +751,10 @@ function CardRow({
         "flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5 cursor-grab active:cursor-grabbing select-none transition-colors",
         isDragging && "opacity-30",
         isSelected && "bg-selection/20",
+        unsupported && "bg-warning/10 ring-1 ring-warning/40",
       )}
       data-card-name={group.card.name}
+      data-card-supported={unsupported ? "false" : undefined}
       onClick={(e) => {
         e.stopPropagation();
         if (e.shiftKey && onSelect) {
@@ -752,7 +779,20 @@ function CardRow({
       <span className="text-xs font-mono w-4 text-right text-muted-foreground shrink-0">
         {group.count}
       </span>
-      <span className="text-sm flex-1 truncate" title={group.card.name}>
+      {unsupported && (
+        <AlertTriangle
+          className="h-3 w-3 text-warning shrink-0"
+          aria-label="Card not supported by the engine"
+        />
+      )}
+      <span
+        className={cn("text-sm flex-1 truncate", unsupported && "text-warning")}
+        title={
+          unsupported
+            ? `${group.card.name} — not implemented by the engine; deck can only be saved as draft`
+            : group.card.name
+        }
+      >
         {group.card.name}
       </span>
       {group.card.manaCost && (

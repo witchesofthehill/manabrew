@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.0](https://github.com/witchesofthehill/manabrew/compare/v0.1.0...v0.2.0) (2026-06-01)
+
+
+### Fixes
+
+* **ci:** keep windows build green when discord rejects embed ([#103](https://github.com/witchesofthehill/manabrew/issues/103)) ([9962ca4](https://github.com/witchesofthehill/manabrew/commit/9962ca4760a70b36ac2e72dcced8fdcdb2a51598))
+* **ci:** send discord payload via file to preserve utf-8 on windows ([#105](https://github.com/witchesofthehill/manabrew/issues/105)) ([7b07604](https://github.com/witchesofthehill/manabrew/commit/7b07604b6f71ae8782b37aad095f6f3ea6c7aab8))
+* **ui:** keep limited lobby styling after StartGame flips room format ([#107](https://github.com/witchesofthehill/manabrew/issues/107)) ([36e4f68](https://github.com/witchesofthehill/manabrew/commit/36e4f681cb873c202595d04873eb7253d795fbda))
+
+
+### Refactors
+
+* **ui:** drop redundant TOP badge from stack display ([#106](https://github.com/witchesofthehill/manabrew/issues/106)) ([17ee5e7](https://github.com/witchesofthehill/manabrew/commit/17ee5e75f04f35aae91d04d43a3f56ffb6cdd33a))
+
 ## 0.1.0 (2026-06-01)
 
 

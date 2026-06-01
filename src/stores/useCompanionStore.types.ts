@@ -54,9 +54,14 @@ export type CompanionLayout =
   | "1v1"
   | "two-side"
   | "three-wedge"
+  | "pinwheel-3"
   | "quad"
+  | "four-sides"
   | "five-radial"
   | "six-grid"
+  | "pinwheel-6"
+  | "landscape-row"
+  | "vertical-stack"
   | "free";
 
 export type CompanionEvent =

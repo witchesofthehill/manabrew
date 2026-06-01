@@ -37,7 +37,8 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 ## When to extend
 
 - New counter preset → add to `COMPANION_COUNTER_PRESETS` in `useCompanionStore.constants.ts` and (if its icon is new) add a `case` to `CompanionIcon` in `icons.tsx`.
-- New layout → add an entry to `LAYOUT_SPECS` in `layouts/slots.ts`, `COMPANION_LAYOUT_LABELS`, `COMPANION_LAYOUT_OPTIONS`, and `COMPANION_DEFAULT_LAYOUT_BY_COUNT`.
+- New named layout → add the id to `CompanionLayout` (`useCompanionStore.types.ts`), add an entry to `LAYOUT_SPECS` in `layouts/slots.ts`, then update `COMPANION_LAYOUT_LABELS`, `COMPANION_LAYOUT_OPTIONS`, and `COMPANION_DEFAULT_LAYOUT_BY_COUNT`. Variable-player layouts (`landscape-row`, `vertical-stack`) build their template at runtime inside `getCompanionSlots`.
+- Layouts that rotate any slot ±90° rely on `PlayerTile`'s container-query dim-swap (`100cqh`/`100cqw`) to keep the rotated content within the grid cell. Don't reintroduce `transform: rotate()` on a `size-full` div without also swapping width/height.
 - New accent → add to `COMPANION_ACCENT_KEYS` and `COMPANION_ACCENT_COLORS`; update the type union in `useCompanionStore.types.ts`.
 
 ## Non-goals

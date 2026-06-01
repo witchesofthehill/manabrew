@@ -60,141 +60,148 @@ export function PlayerTile({
     onHoldTick: () => adjustLife(player.id, 1),
   });
 
+  const isPerpendicular = Math.abs(rotation) === 90;
+
   return (
-    <div
-      className={cn(
-        "relative size-full overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/5 transition",
-        player.isDead && "opacity-60 grayscale",
-        isActive && "ring-2 ring-white",
-        className,
-      )}
-      style={{
-        backgroundColor: accent,
-        transform: `rotate(${rotation}deg)`,
-      }}
-    >
-      <CommanderArt refs={player.commanders} />
+    <div className={cn("relative size-full", className)} style={{ containerType: "size" }}>
+      <div
+        className={cn(
+          "absolute overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/5 transition",
+          player.isDead && "opacity-60 grayscale",
+          isActive && "ring-2 ring-white",
+        )}
+        style={{
+          backgroundColor: accent,
+          top: "50%",
+          left: "50%",
+          width: isPerpendicular ? "100cqh" : "100cqw",
+          height: isPerpendicular ? "100cqw" : "100cqh",
+          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+        }}
+      >
+        <CommanderArt refs={player.commanders} />
 
-      <button
-        type="button"
-        aria-label="Decrease life"
-        className="absolute inset-y-0 left-0 z-10 w-1/2"
-        {...decBindings}
-      />
-      <button
-        type="button"
-        aria-label="Increase life"
-        className="absolute inset-y-0 right-0 z-10 w-1/2"
-        {...incBindings}
-      />
+        <button
+          type="button"
+          aria-label="Decrease life"
+          className="absolute inset-y-0 left-0 z-10 w-1/2"
+          {...decBindings}
+        />
+        <button
+          type="button"
+          aria-label="Increase life"
+          className="absolute inset-y-0 right-0 z-10 w-1/2"
+          {...incBindings}
+        />
 
-      <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-3 text-white">
-        <div className="pointer-events-auto flex items-start gap-2">
-          <button
-            type="button"
-            className="grid size-10 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20"
-            onClick={() => setPickerOpen(true)}
-            aria-label="Choose commander"
-          >
-            {player.commanders[0]?.imageUrl ? (
-              <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
-            ) : (
-              <Swords className="size-4 text-white/70" />
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-3 text-white">
+          <div className="pointer-events-auto flex items-start gap-2">
+            <button
+              type="button"
+              className="grid size-10 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20"
+              onClick={() => setPickerOpen(true)}
+              aria-label="Choose commander"
+            >
+              {player.commanders[0]?.imageUrl ? (
+                <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
+              ) : (
+                <Swords className="size-4 text-white/70" />
+              )}
+            </button>
+            <div className="flex flex-1 flex-col">
+              {renaming ? (
+                <Input
+                  autoFocus
+                  defaultValue={player.name}
+                  className="h-7 bg-black/30 text-sm text-white placeholder:text-white/50"
+                  onBlur={(e) => {
+                    const name = e.target.value.trim();
+                    if (name) renamePlayer(player.id, name);
+                    setRenaming(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    if (e.key === "Escape") setRenaming(false);
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="self-start truncate text-left text-sm font-semibold tracking-wide drop-shadow"
+                  onClick={() => setRenaming(true)}
+                  title="Rename"
+                >
+                  {player.name}
+                </button>
+              )}
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <StatusChips player={player} />
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <AddCounterMenu player={player} />
+              <PlayerMenu player={player} onPickCommander={() => setPickerOpen(true)} />
+            </div>
+          </div>
+
+          <div className="relative flex flex-1 items-center justify-center">
+            {pendingAmount !== 0 && (
+              <div
+                key={pendingAmount}
+                className={cn(
+                  "absolute -top-2 grid place-items-center rounded-full px-2 py-0.5 text-base font-bold shadow",
+                  pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
+                )}
+              >
+                {pendingAmount > 0 ? `+${pendingAmount}` : pendingAmount}
+              </div>
             )}
-          </button>
-          <div className="flex flex-1 flex-col">
-            {renaming ? (
-              <Input
+            {lifeEditing ? (
+              <input
                 autoFocus
-                defaultValue={player.name}
-                className="h-7 bg-black/30 text-sm text-white placeholder:text-white/50"
+                type="number"
+                defaultValue={player.life}
+                className="pointer-events-auto w-28 rounded-md border border-white/30 bg-black/50 text-center text-5xl font-extrabold text-white outline-none"
                 onBlur={(e) => {
-                  const name = e.target.value.trim();
-                  if (name) renamePlayer(player.id, name);
-                  setRenaming(false);
+                  const value = Number.parseInt(e.target.value, 10);
+                  if (!Number.isNaN(value)) setLife(player.id, value);
+                  setLifeEditing(false);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                  if (e.key === "Escape") setRenaming(false);
+                  if (e.key === "Escape") setLifeEditing(false);
                 }}
               />
             ) : (
               <button
                 type="button"
-                className="self-start truncate text-left text-sm font-semibold tracking-wide drop-shadow"
-                onClick={() => setRenaming(true)}
-                title="Rename"
+                className="pointer-events-auto select-none text-7xl font-black tabular-nums leading-none drop-shadow-md"
+                onClick={() => setLifeEditing(true)}
+                aria-label="Edit life total"
               >
-                {player.name}
+                {player.life}
               </button>
             )}
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <StatusChips player={player} />
-            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <AddCounterMenu player={player} />
-            <PlayerMenu player={player} onPickCommander={() => setPickerOpen(true)} />
+
+          <div className="pointer-events-auto flex items-end justify-between gap-2">
+            <CountersRail playerId={player.id} counters={player.counters} />
           </div>
         </div>
 
-        <div className="relative flex flex-1 items-center justify-center">
-          {pendingAmount !== 0 && (
-            <div
-              key={pendingAmount}
-              className={cn(
-                "absolute -top-2 grid place-items-center rounded-full px-2 py-0.5 text-base font-bold shadow",
-                pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
-              )}
-            >
-              {pendingAmount > 0 ? `+${pendingAmount}` : pendingAmount}
-            </div>
-          )}
-          {lifeEditing ? (
-            <input
-              autoFocus
-              type="number"
-              defaultValue={player.life}
-              className="pointer-events-auto w-28 rounded-md border border-white/30 bg-black/50 text-center text-5xl font-extrabold text-white outline-none"
-              onBlur={(e) => {
-                const value = Number.parseInt(e.target.value, 10);
-                if (!Number.isNaN(value)) setLife(player.id, value);
-                setLifeEditing(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") setLifeEditing(false);
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              className="pointer-events-auto select-none text-7xl font-black tabular-nums leading-none drop-shadow-md"
-              onClick={() => setLifeEditing(true)}
-              aria-label="Edit life total"
-            >
-              {player.life}
-            </button>
-          )}
-        </div>
+        {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
+          <div className="pointer-events-auto absolute right-2 top-1/2 z-30 -translate-y-1/2">
+            <CommanderDamageStrip target={player} opponents={opponents} />
+          </div>
+        )}
 
-        <div className="pointer-events-auto flex items-end justify-between gap-2">
-          <CountersRail playerId={player.id} counters={player.counters} />
-        </div>
+        <CommanderPickerDialog
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          playerId={player.id}
+          initial={player.commanders}
+        />
       </div>
-
-      {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
-        <div className="pointer-events-auto absolute right-2 top-1/2 z-30 -translate-y-1/2">
-          <CommanderDamageStrip target={player} opponents={opponents} />
-        </div>
-      )}
-
-      <CommanderPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        playerId={player.id}
-        initial={player.commanders}
-      />
     </div>
   );
 }

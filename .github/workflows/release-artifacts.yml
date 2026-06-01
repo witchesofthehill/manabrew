@@ -229,6 +229,14 @@ jobs:
               }]
             }')
 
+          # Write PAYLOAD to a file and use --data-binary @file so curl reads
+          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
+          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
+          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
+          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
+          REQ=$(mktemp)
+          printf '%s' "$PAYLOAD" > "$REQ"
+
           post_discord() {
             local attempt=0
             local max_attempts=3
@@ -240,21 +248,21 @@ jobs:
               http=$(curl -sS -X POST \
                 -H "Authorization: Bot $BOT_TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "$PAYLOAD" \
+                --data-binary "@$REQ" \
                 -o "$body" \
                 -w "%{http_code}" \
                 "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
 
               if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
                 echo "Discord notification posted (HTTP $http)."
-                rm -f "$body"
+                rm -f "$body" "$REQ"
                 return 0
               fi
 
               echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
               if [ "$attempt" -ge "$max_attempts" ]; then
                 echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body"
+                rm -f "$body" "$REQ"
                 return 0
               fi
               sleep "$delay"
@@ -414,6 +422,14 @@ jobs:
               }]
             }')
 
+          # Write PAYLOAD to a file and use --data-binary @file so curl reads
+          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
+          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
+          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
+          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
+          REQ=$(mktemp)
+          printf '%s' "$PAYLOAD" > "$REQ"
+
           post_discord() {
             local attempt=0
             local max_attempts=3
@@ -425,21 +441,21 @@ jobs:
               http=$(curl -sS -X POST \
                 -H "Authorization: Bot $BOT_TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "$PAYLOAD" \
+                --data-binary "@$REQ" \
                 -o "$body" \
                 -w "%{http_code}" \
                 "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
 
               if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
                 echo "Discord notification posted (HTTP $http)."
-                rm -f "$body"
+                rm -f "$body" "$REQ"
                 return 0
               fi
 
               echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
               if [ "$attempt" -ge "$max_attempts" ]; then
                 echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body"
+                rm -f "$body" "$REQ"
                 return 0
               fi
               sleep "$delay"
@@ -571,6 +587,14 @@ jobs:
               }]
             }')
 
+          # Write PAYLOAD to a file and use --data-binary @file so curl reads
+          # the body bytes verbatim. Passing via -d "$PAYLOAD" goes through
+          # Windows argv encoding (Bash → CreateProcess UTF-16 → curl), which
+          # mangles raw-UTF-8 emoji in the JSON and trips Discord error 50109
+          # (invalid JSON). Mac argv preserves UTF-8 so it didn't surface there.
+          REQ=$(mktemp)
+          printf '%s' "$PAYLOAD" > "$REQ"
+
           post_discord() {
             local attempt=0
             local max_attempts=3
@@ -582,21 +606,21 @@ jobs:
               http=$(curl -sS -X POST \
                 -H "Authorization: Bot $BOT_TOKEN" \
                 -H "Content-Type: application/json" \
-                -d "$PAYLOAD" \
+                --data-binary "@$REQ" \
                 -o "$body" \
                 -w "%{http_code}" \
                 "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
 
               if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
                 echo "Discord notification posted (HTTP $http)."
-                rm -f "$body"
+                rm -f "$body" "$REQ"
                 return 0
               fi
 
               echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
               if [ "$attempt" -ge "$max_attempts" ]; then
                 echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
-                rm -f "$body"
+                rm -f "$body" "$REQ"
                 return 0
               fi
               sleep "$delay"

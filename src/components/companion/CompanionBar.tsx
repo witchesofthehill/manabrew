@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Dices, Minus, Plus, Redo2, RotateCcw, Sparkles, Undo2, XOctagon } from "lucide-react";
+import {
+  Dices,
+  LayoutGrid,
+  Minus,
+  Plus,
+  Redo2,
+  RotateCcw,
+  Sparkles,
+  Undo2,
+  XOctagon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -122,9 +132,12 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           <Button
             size="sm"
             variant="outline"
-            className="hidden h-8 px-2 text-xs sm:inline-flex sm:h-9 sm:px-3 sm:text-sm"
+            className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+            aria-label={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
+            title={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
           >
-            {COMPANION_LAYOUT_LABELS[session.layout]}
+            <LayoutGrid className="size-3.5" />
+            <span className="hidden sm:inline">{COMPANION_LAYOUT_LABELS[session.layout]}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -143,7 +156,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
       </DropdownMenu>
 
       <div className="ml-auto flex flex-wrap items-center gap-1 sm:gap-2">
-        <TurnTimer className="hidden sm:flex" />
+        <TurnTimer />
         <Button
           size="icon"
           variant="outline"
@@ -171,20 +184,6 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <div className="sm:hidden">
-              <DropdownMenuLabel>Layout</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {layoutChoices.map((option) => (
-                <DropdownMenuItem
-                  key={`layout-${option}`}
-                  onSelect={() => setLayout(option)}
-                  className={cn(option === session.layout && "bg-accent")}
-                >
-                  {COMPANION_LAYOUT_LABELS[option]}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-            </div>
             <DropdownMenuLabel>Reset</DropdownMenuLabel>
             <DropdownMenuItem onSelect={() => resetCounters("life")}>
               <Redo2 className="mr-2 size-4" /> Life only

@@ -23,9 +23,14 @@ export function TurnTimer({ className }: { className?: string }) {
   const elapsedMs = timer.accumulatedMs + (timer.startedAt ? now - timer.startedAt : 0);
 
   return (
-    <div className={cn("flex items-center gap-1 rounded-md bg-muted/60 px-2 py-1", className)}>
+    <div
+      className={cn(
+        "flex items-center gap-0.5 rounded-md bg-muted/60 px-1.5 py-0.5 sm:gap-1 sm:px-2 sm:py-1",
+        className,
+      )}
+    >
       <Timer className="size-3.5 text-muted-foreground" />
-      <span className="min-w-[60px] text-center tabular-nums text-sm font-medium">
+      <span className="min-w-[44px] text-center tabular-nums text-xs font-medium sm:min-w-[60px] sm:text-sm">
         {formatElapsed(elapsedMs)}
       </span>
       <Button

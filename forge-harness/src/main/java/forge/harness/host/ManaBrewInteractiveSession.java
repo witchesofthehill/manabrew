@@ -337,6 +337,35 @@ public final class ManaBrewInteractiveSession {
         return null;
     }
 
+    private void publishFirstPlayerRollPrompt(
+            final int playerId,
+            final List<Player> players,
+            final Map<Player, Integer> rolls,
+            final Player winner,
+            final int sides
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "first_player_roll");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("sides", sides);
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        final com.google.gson.JsonArray rollOptions = new com.google.gson.JsonArray();
+        for (final Player p : players) {
+            if (!rolls.containsKey(p)) {
+                continue;
+            }
+            JsonObject entry = new JsonObject();
+            entry.addProperty("playerId", "player-" + SnapshotExtractor.playerIndex(game, p));
+            entry.addProperty("playerName", p.getName());
+            entry.addProperty("value", rolls.get(p));
+            rollOptions.add(entry);
+        }
+        prompt.add("rolls", rollOptions);
+        prompt.addProperty("winnerPlayerId", "player-" + SnapshotExtractor.playerIndex(game, winner));
+        latestPromptJson = prompt.toString();
+    }
+
     private void publishManaPaymentPrompt(
             final int playerId,
             final Card payingFor,
@@ -394,6 +423,54 @@ public final class ManaBrewInteractiveSession {
 
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         latestPromptJson = prompt.toString();
+    }
+
+    Player awaitFirstPlayerRoll(final int playerId, final List<Player> players) {
+        requireAttached();
+        final Random rng = forge.util.MyRandom.getRandom();
+        final int sides = 20;
+        List<Player> contenders = new ArrayList<Player>(players);
+        Map<Player, Integer> rolls = new LinkedHashMap<Player, Integer>();
+        Player winner;
+        while (true) {
+            rolls.clear();
+            int highest = 0;
+            for (final Player contender : contenders) {
+                final int value = rng.nextInt(sides) + 1;
+                rolls.put(contender, value);
+                highest = Math.max(highest, value);
+            }
+            final List<Player> top = new ArrayList<Player>();
+            for (final Player contender : contenders) {
+                if (rolls.get(contender) == highest) {
+                    top.add(contender);
+                }
+            }
+            if (top.size() == 1) {
+                winner = top.get(0);
+                break;
+            }
+            contenders = top;
+        }
+        publishFirstPlayerRollPrompt(playerId, players, rolls, winner, sides);
+        awaitFirstPlayerRollAcknowledgement();
+        return winner;
+    }
+
+    private void awaitFirstPlayerRollAcknowledgement() {
+        while (!closed && !game.isGameOver()) {
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                return;
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("first_player_roll_acknowledged".equals(actionKind)
+                    || "pass".equals(actionKind)
+                    || "pass_priority".equals(actionKind)) {
+                return;
+            }
+            throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+        }
     }
 
     boolean awaitMulliganDecision(final int playerId, final int cardsToReturn) {

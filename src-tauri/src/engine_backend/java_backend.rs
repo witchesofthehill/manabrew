@@ -123,7 +123,9 @@ fn run_game_inner(
                 let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
                 let player_index = raw.player;
-                if player_index == 0 {
+                let is_first_player_roll =
+                    matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. });
+                if player_index == 0 || is_first_player_roll {
                     if prompt_tx.send(normalize_java_prompt(raw)).is_err() {
                         session.end_game()?;
                         return Ok(());

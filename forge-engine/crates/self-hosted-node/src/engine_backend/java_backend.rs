@@ -781,6 +781,7 @@ fn run_hosted_engine_game_inner(
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<PlayerAction>> =
         remote_response_rxs.into_iter().collect();
     let mut last_prompt_json: Option<String> = None;
+    let mut pending_roll_acks: usize = 0;
 
     loop {
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
@@ -793,6 +794,19 @@ fn run_hosted_engine_game_inner(
         for (player_index, rx) in &mut remote_response_rxs {
             loop {
                 match rx.try_recv() {
+                    Ok(PlayerAction::FirstPlayerRollAcknowledged) => {
+                        if pending_roll_acks > 0 {
+                            pending_roll_acks -= 1;
+                            if pending_roll_acks == 0 {
+                                let ack =
+                                    serde_json::to_string(&JavaAction::FirstPlayerRollAcknowledged)
+                                        .map_err(|err| {
+                                            format!("failed to serialize java roll ack: {err}")
+                                        })?;
+                                engine.submit_action(&session_id, &ack)?;
+                            }
+                        }
+                    }
                     Ok(action) => match translate_java_player_action(&action) {
                         Ok(java_action) => {
                             let action_json = serde_json::to_string(&java_action).map_err(|err| {
@@ -826,7 +840,20 @@ fn run_hosted_engine_game_inner(
                     prompt_kind = raw.body.kind_label(),
                     "forwarding java prompt to remote"
                 );
-                if Some(player_index) == local_player_index {
+                if matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. }) {
+                    let normalized = normalize_java_prompt(raw);
+                    for &agent_index in remote_response_rxs.keys() {
+                        let _ = remote_prompt_tx.send((agent_index, normalized.clone()));
+                    }
+                    pending_roll_acks = remote_response_rxs.len();
+                    if pending_roll_acks == 0 {
+                        let ack = serde_json::to_string(&JavaAction::FirstPlayerRollAcknowledged)
+                            .map_err(|err| {
+                            format!("failed to serialize java roll ack: {err}")
+                        })?;
+                        engine.submit_action(&session_id, &ack)?;
+                    }
+                } else if Some(player_index) == local_player_index {
                     let auto = auto_java_action(&raw);
                     let action_json = serde_json::to_string(&auto)
                         .map_err(|err| format!("failed to serialize java auto action: {err}"))?;

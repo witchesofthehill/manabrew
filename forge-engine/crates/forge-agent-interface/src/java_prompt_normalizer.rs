@@ -78,6 +78,23 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             owner_player_id: owner_player_id.unwrap_or_else(|| format!("player-{player}")),
             message: message.unwrap_or_else(|| "Look at these cards".to_string()),
         },
+        JavaRawPromptBody::FirstPlayerRoll {
+            sides,
+            rolls,
+            winner_player_id,
+        } => AgentPromptInner::FirstPlayerRoll {
+            game_view,
+            sides,
+            rolls: rolls
+                .iter()
+                .map(|roll| crate::prompt::FirstPlayerRollEntry {
+                    player_id: roll.player_id.clone(),
+                    player_name: roll.player_name.clone(),
+                    value: roll.value,
+                })
+                .collect(),
+            winner_player_id: winner_player_id.unwrap_or_else(|| format!("player-{player}")),
+        },
         JavaRawPromptBody::ChooseAttackers {
             attackers,
             defenders,
@@ -349,9 +366,13 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             can_confirm_from_pool,
         },
     };
-
+    let deciding_player_id = if matches!(inner, AgentPromptInner::FirstPlayerRoll { .. }) {
+        String::new()
+    } else {
+        format!("player-{player}")
+    };
     AgentPrompt {
-        deciding_player_id: format!("player-{player}"),
+        deciding_player_id,
         display_events: Vec::new(),
         source_card_id,
         inner,
@@ -386,6 +407,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             card_ids: card_ids.clone(),
         },
         PlayerAction::RevealCardsAcknowledged => JavaAction::RevealCardsAcknowledged,
+        PlayerAction::FirstPlayerRollAcknowledged => JavaAction::FirstPlayerRollAcknowledged,
         PlayerAction::ChooseCardsDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },

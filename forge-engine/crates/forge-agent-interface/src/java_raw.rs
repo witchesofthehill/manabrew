@@ -53,6 +53,14 @@ pub enum JavaRawPromptBody {
         owner_player_id: Option<String>,
         message: Option<String>,
     },
+    FirstPlayerRoll {
+        #[serde(default)]
+        sides: i32,
+        #[serde(default)]
+        rolls: Vec<JavaRawFirstPlayerRoll>,
+        #[serde(rename = "winnerPlayerId")]
+        winner_player_id: Option<String>,
+    },
     ChooseAttackers {
         #[serde(default)]
         attackers: Vec<JavaRawCardOption>,
@@ -281,6 +289,7 @@ impl JavaRawPromptBody {
             JavaRawPromptBody::Mulligan { .. } => "mulligan",
             JavaRawPromptBody::MulliganPutBack { .. } => "mulligan_put_back",
             JavaRawPromptBody::RevealCards { .. } => "reveal_cards",
+            JavaRawPromptBody::FirstPlayerRoll { .. } => "first_player_roll",
             JavaRawPromptBody::ChooseAttackers { .. } => "choose_attackers",
             JavaRawPromptBody::ChooseBlockers { .. } => "choose_blockers",
             JavaRawPromptBody::ChooseDamageAssignmentOrder { .. } => {
@@ -321,6 +330,16 @@ pub struct JavaRawAction {
     #[serde(rename = "cardId")]
     pub card_id: Option<String>,
     pub kind: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct JavaRawFirstPlayerRoll {
+    #[serde(rename = "playerId", default)]
+    pub player_id: String,
+    #[serde(rename = "playerName", default)]
+    pub player_name: String,
+    #[serde(default)]
+    pub value: i32,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -603,6 +622,7 @@ pub enum JavaAction {
         assignments: Vec<JavaBlockAssignment>,
     },
     RevealCardsAcknowledged,
+    FirstPlayerRollAcknowledged,
     TapLand {
         #[serde(rename = "cardId")]
         card_id: String,

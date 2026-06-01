@@ -11,6 +11,7 @@
     "build": "tauri build",
     "web": "node scripts/ensure-wasm.mjs && vite",
     "ensure:wasm": "node scripts/ensure-wasm.mjs",
+    "ensure:harness": "node scripts/harness.mjs ensure",
     "vite:dev": "vite",
     "vite:build": "tsc -b && vite build",
     "tauri:before-build": "yarn build:harness && yarn vite:build",

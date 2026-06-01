@@ -1347,23 +1347,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (players.size() <= 1) {
             return players.get(0);
         }
-        final boolean playFirst = session.awaitBooleanChoice(
-                "confirm_action",
-                me(),
-                "Play first?",
-                null,
-                "choose_starting_player",
-                null,
-                null);
-        if (playFirst) {
-            return player;
-        }
-        for (final Player other : players) {
-            if (other != player) {
-                return other;
-            }
-        }
-        return player;
+        return session.awaitFirstPlayerRoll(me(), players);
     }
 
     @Override

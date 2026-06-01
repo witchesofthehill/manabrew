@@ -1,6 +1,5 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Card } from "@/components/game/Card";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -207,16 +206,6 @@ export function StackDisplay({
                 )}
                 style={cardStyle}
               />
-              {isTopOfStack && (
-                <div
-                  className="pointer-events-none absolute left-0 right-0 -top-6 flex justify-center"
-                  style={{ zIndex: 250 }}
-                >
-                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shadow">
-                    TOP · resolves next
-                  </Badge>
-                </div>
-              )}
             </div>
           );
         })}

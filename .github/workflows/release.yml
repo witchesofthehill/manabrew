@@ -53,9 +53,11 @@ jobs:
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: gh workflow run release-artifacts.yml --ref "$TAG"
 
-  # After a release PR is merged, bump the pinned `release-as` in
-  # release-please-config.json to the next minor (e.g. 0.1.0 -> 0.2.0) so the
-  # next release-please PR targets that version.
+  # After a release PR is merged, open a PR that bumps the pinned `release-as`
+  # in release-please-config.json to the next minor (e.g. 0.1.0 -> 0.2.0) so
+  # the next release-please PR targets that version. A PR (rather than a
+  # direct push) is required because `main` is protected by branch rules
+  # (PR-only + signed commits + required status checks).
   bump-release-as:
     name: Bump release-as to next minor
     needs: release-please
@@ -65,13 +67,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_BOT_TOKEN }}
       - name: Bump minor in release-please-config.json
+        id: bump
         run: |
           set -euo pipefail
           current=$(jq -r '.packages["."]["release-as"] // ""' release-please-config.json)
           if [ -z "$current" ]; then
             echo "release-as not set; nothing to bump"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           IFS='.' read -r major minor patch <<< "$current"
@@ -84,15 +88,22 @@ jobs:
           tmp=$(mktemp)
           jq --arg v "$new" '.packages["."]["release-as"] = $v' release-please-config.json > "$tmp"
           mv "$tmp" release-please-config.json
-      - name: Commit and push
-        run: |
-          set -euo pipefail
-          if git diff --quiet release-please-config.json; then
-            echo "release-please-config.json unchanged"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add release-please-config.json
-          git commit -m "chore(release): bump release-as to next minor"
-          git push origin main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+      - name: Open PR with bump
+        if: steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.RELEASE_BOT_TOKEN }}
+          branch: chore/bump-release-as-${{ steps.bump.outputs.new }}
+          base: main
+          commit-message: "chore(release): bump release-as to ${{ steps.bump.outputs.new }}"
+          title: "chore(release): bump release-as to ${{ steps.bump.outputs.new }}"
+          body: |
+            Automated bump of `release-please-config.json` `release-as` from `${{ steps.bump.outputs.current }}` to `${{ steps.bump.outputs.new }}`.
+
+            Opened by the `Release` workflow after the release PR for `${{ needs.release-please.outputs.tag_name }}` was merged. Merge this so the next release-please PR targets `${{ steps.bump.outputs.new }}`.
+          sign-commits: true
+          delete-branch: true
+          labels: automated, release

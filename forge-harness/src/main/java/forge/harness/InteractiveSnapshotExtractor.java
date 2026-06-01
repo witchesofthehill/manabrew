@@ -20,6 +20,7 @@ import forge.game.zone.ZoneType;
 import forge.item.IPaperCard;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -313,7 +314,12 @@ public final class InteractiveSnapshotExtractor {
 
     private static List<Map<String, Object>> snapshotStack(final Game game, final SpellAbility castingAbility) {
         final List<Map<String, Object>> out = new ArrayList<>();
+        final List<SpellAbilityStackInstance> entries = new ArrayList<>();
         for (final SpellAbilityStackInstance item : game.getStack()) {
+            entries.add(item);
+        }
+        Collections.reverse(entries);
+        for (final SpellAbilityStackInstance item : entries) {
             final Map<String, Object> stackItem = new LinkedHashMap<>();
             stackItem.put("id", stackItemId(item));
             final Card source = item.getSourceCard();

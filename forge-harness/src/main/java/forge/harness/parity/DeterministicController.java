@@ -320,7 +320,7 @@ public class DeterministicController extends PlayerController implements Harness
         }
         captureDeepCheckpoint("main_action");
         final List<SpellAbility> all = filterFailedPaymentActions(ChoiceSpace.sortNative(
-                new ArrayList<>(ActionSpace.getPossibleActions(player)),
+                new ArrayList<>(ActionSpace.getPossibleActions(player, false)),
                 ParityOrder.actionComparator()));
         if (!all.isEmpty()) {
             onCallback("$ACTION_SPACE", formatActionSpace(all, player));

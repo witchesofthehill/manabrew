@@ -120,7 +120,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
         final List<SpellAbility> all = ChoiceSpace.sortNative(
-                new ArrayList<>(ActionSpace.getPossibleActions(player)),
+                new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
                 ParityOrder.actionComparator());
         final SpellAbility selected = session.awaitPriorityAction(me(), all);
         return selected == null ? null : Lists.newArrayList(selected);

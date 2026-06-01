@@ -81,7 +81,7 @@ public final class ActionSpace {
         return out;
     }
 
-    public static List<SpellAbility> getPossibleActions(final Player player) {
+    public static List<SpellAbility> getPossibleActions(final Player player, final boolean includeManaAbilities) {
         final Game game = player.getGame();
         final Set<Card> candidates = new LinkedHashSet<>();
 
@@ -123,9 +123,7 @@ public final class ActionSpace {
                 if (!canPayMana) {
                     continue;
                 }
-                // Keep action space focused on actionable plays/abilities.
-                // Mana abilities are excluded to avoid redundant/noisy parity choices.
-                if (sa.isManaAbility()) {
+                if (!includeManaAbilities && sa.isManaAbility()) {
                     continue;
                 }
                 if (!validTargets) {

@@ -311,7 +311,6 @@ export function DeckBuilder({
     setLastSavedSnapshotRef(snap);
     return snap;
   });
-  const [pendingSwitchAction, setPendingSwitchAction] = useState<(() => void) | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [pendingDeleteDeck, setPendingDeleteDeck] = useState<{ id: string; name: string } | null>(
     null,
@@ -835,15 +834,6 @@ export function DeckBuilder({
     }
   }
 
-  /** If unsaved changes exist, queue the action behind a confirm dialog. Otherwise run it immediately. */
-  function guardUnsaved(action: () => void) {
-    if (hasUnsavedChanges) {
-      setPendingSwitchAction(() => action);
-    } else {
-      action();
-    }
-  }
-
   function handleImportPresetToMyDecks() {
     const importedName = currentDeck.name;
     importPresetToMyDecks();
@@ -893,11 +883,11 @@ export function DeckBuilder({
               tabIndex={0}
               className="h-7 w-7 shrink-0 rounded-md inline-flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Back to My Decks"
-              onClick={() => guardUnsaved(onBack)}
+              onClick={onBack}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  guardUnsaved(onBack);
+                  onBack();
                 }
               }}
             >
@@ -1457,44 +1447,6 @@ export function DeckBuilder({
                   }}
                 >
                   Delete
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Unsaved changes confirm dialog (for deck switching) */}
-        {pendingSwitchAction && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
-            <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
-              <h3 className="text-lg font-semibold">Unsaved Changes</h3>
-              <p className="text-sm text-muted-foreground">
-                You have unsaved changes. Do you want to discard them?
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPendingSwitchAction(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    handleSave();
-                    pendingSwitchAction();
-                    setPendingSwitchAction(null);
-                  }}
-                >
-                  Save & Switch
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    pendingSwitchAction();
-                    setPendingSwitchAction(null);
-                  }}
-                >
-                  Discard
                 </Button>
               </div>
             </div>

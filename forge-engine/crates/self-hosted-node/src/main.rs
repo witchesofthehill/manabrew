@@ -573,13 +573,6 @@ async fn handle_state_update(
                     info!(observer = %client.username, "received removeBot request");
                     stop_bot(bot_state);
                 }
-                Some("startGame") => {
-                    info!(observer = %client.username, "received startGame request");
-                    let format = payload
-                        .get("format")
-                        .and_then(|value| serde_json::from_value::<GameFormat>(value.clone()).ok());
-                    client.send(&ClientMessage::StartGame { format }).await?;
-                }
                 Some("spawnBot") => {
                     let effective_room_id = requested_room_id.as_deref().unwrap_or(room_id);
                     if effective_room_id == room_id {

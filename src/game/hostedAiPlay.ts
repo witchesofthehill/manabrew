@@ -72,13 +72,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
   );
 
   const gameStarted = waitForGameStarted(room.room_id);
-  await platform.server.sendRoomMessage(
-    createRoomRelayEnvelope({
-      protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
-      roomId: room.room_id,
-      payload: { type: "startGame", format },
-    }),
-  );
+  await platform.server.startGame({ format });
 
   const payload = await gameStarted;
   const enginePlayerIndex = payload.player_order.indexOf(username);

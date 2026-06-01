@@ -16,11 +16,7 @@ interface StackDisplayProps {
   showPreStackFlash?: boolean;
   rightPanelCollapsed?: boolean;
   playerColorMap?: Map<string, string>;
-  /** Stack entry IDs the player may target (counter). Empty disables in-pile
-   *  click-to-counter; the pile reverts to its passive (read-only) state. */
   validSpellIds?: string[];
-  /** Called when the player clicks a glowing stack entry during a counter
-   *  prompt. When omitted, valid entries fall back to `onOpenStack`. */
   onTargetSpell?: (spellId: string) => void;
 }
 
@@ -100,9 +96,6 @@ export function StackDisplay({
     setPrevStackIds(new Set(stack.map((obj) => obj.id)));
   }
 
-  // Vertical positions: top-of-stack (highest idx) sits at top: 0 so it
-  // visually rises above older entries, matching MTG convention ("top of
-  // the stack" = next to resolve = highest on screen).
   const topForIndex = (idx: number) => (stack.length - 1 - idx) * STACK_UI.offsetY;
 
   // Snapshot previous layout (left/top per id) for transition decisions.
@@ -212,34 +205,21 @@ export function StackDisplay({
                   isTopOfStack && !obj.isCasting && "playable-card",
                   isValidTarget && "ring-4",
                 )}
-                style={Object.keys(cardStyle).length > 0 ? cardStyle : undefined}
+                style={cardStyle}
               />
-            </div>
-          );
-        })}
-
-        {stack.length > 0 &&
-          (() => {
-            const topIdx = stack.length - 1;
-            const badgeLeft = lefts[topIdx] + xShift;
-            return (
-              <div
-                className="pointer-events-none absolute"
-                style={{
-                  left: `${badgeLeft}px`,
-                  top: `${topForIndex(topIdx) - 22}px`,
-                  width: `${STACK_UI.cardWidth}px`,
-                  zIndex: 250,
-                }}
-              >
-                <div className="flex justify-center">
+              {isTopOfStack && (
+                <div
+                  className="pointer-events-none absolute left-0 right-0 -top-6 flex justify-center"
+                  style={{ zIndex: 250 }}
+                >
                   <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shadow">
                     TOP · resolves next
                   </Badge>
                 </div>
-              </div>
-            );
-          })()}
+              )}
+            </div>
+          );
+        })}
 
         {flashCard && flashStackIndex < 0 && showPreStackFlash && (
           <div

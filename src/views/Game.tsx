@@ -797,7 +797,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     libraryPeekModal,
     setLibraryPeekModal,
     zoneTargetSelector,
-    setZoneTargetSelector,
+    dismissZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -1687,9 +1687,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         zoneTargetSelector={zoneTargetSelector}
         onSelectZoneTarget={(cardId) => {
           casting.wrappedTargetCard(cardId);
-          setZoneTargetSelector(null);
+          dismissZoneTarget();
         }}
-        onCancelZoneTarget={() => setZoneTargetSelector(null)}
+        onCancelZoneTarget={dismissZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "scry") scryDecision(selectedIds);

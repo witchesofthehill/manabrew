@@ -263,9 +263,9 @@ export function DeckBuilder({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const importPresetToMyDecks = useDeckStore((s) => s.importPresetToMyDecks);
+  const currentDeckId = useDeckStore((s) => s.currentDeckId);
   const {
     currentDeck,
-    savedDecks,
     removeFromMain,
     removeFromSide,
     addToMain,
@@ -363,11 +363,10 @@ export function DeckBuilder({
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
   }, [lastSavedSnapshot, currentSnapshot, isReadOnly]);
 
-  // Reset snapshot when a deck is loaded
-  const deckIdentity = `${currentDeck.name}:${savedDecks.length}`;
-  const [prevDeckIdentity, setPrevDeckIdentity] = useState(deckIdentity);
-  if (prevDeckIdentity !== deckIdentity) {
-    setPrevDeckIdentity(deckIdentity);
+  // Reset snapshot when a different deck is loaded (or cleared).
+  const [prevDeckId, setPrevDeckId] = useState(currentDeckId);
+  if (prevDeckId !== currentDeckId) {
+    setPrevDeckId(currentDeckId);
     const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);

@@ -156,7 +156,7 @@ fn run_game_inner(
 
 #[cfg(feature = "java-forge")]
 fn auto_java_action(prompt: &JavaRawPrompt) -> JavaAction {
-    if let JavaRawPromptBody::Priority { actions } = &prompt.body {
+    if let JavaRawPromptBody::Priority { actions, .. } = &prompt.body {
         if let Some(index) = actions.iter().find_map(|action| action.index) {
             return JavaAction::ChooseAction { index };
         }

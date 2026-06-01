@@ -129,27 +129,54 @@ public final class ManaBrewInteractiveSession {
         return "";
     }
 
-    SpellAbility awaitPriorityAction(final int playerId, final List<SpellAbility> actionsForPrompt) {
+    enum PriorityActionKind { ACTION, PASS, UNDO }
+
+    static final class PriorityChoice {
+        private final PriorityActionKind kind;
+        private final SpellAbility action;
+
+        private PriorityChoice(final PriorityActionKind kind, final SpellAbility action) {
+            this.kind = kind;
+            this.action = action;
+        }
+
+        PriorityActionKind kind() {
+            return kind;
+        }
+
+        SpellAbility action() {
+            return action;
+        }
+    }
+
+    PriorityChoice awaitPriorityAction(
+            final int playerId,
+            final List<SpellAbility> actionsForPrompt,
+            final List<Card> untappableCards
+    ) {
         requireAttached();
-        publishPriorityPrompt(playerId, actionsForPrompt);
+        publishPriorityPrompt(playerId, actionsForPrompt, untappableCards);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
                 action = actions.take();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
-                return null;
+                return new PriorityChoice(PriorityActionKind.PASS, null);
             }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(kind) || "pass_priority".equals(kind)) {
-                return null;
+                return new PriorityChoice(PriorityActionKind.PASS, null);
+            }
+            if ("untap_land".equals(kind)) {
+                return new PriorityChoice(PriorityActionKind.UNDO, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("action index out of range: " + index);
                 }
-                return actionsForPrompt.get(index);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index));
             }
             if ("tap_land".equals(kind)) {
                 if (!action.has("manaAbilityIndex") || action.get("manaAbilityIndex").isJsonNull()) {
@@ -159,11 +186,11 @@ public final class ManaBrewInteractiveSession {
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("tap_land index out of range: " + index);
                 }
-                return actionsForPrompt.get(index);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index));
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
-        return null;
+        return new PriorityChoice(PriorityActionKind.PASS, null);
     }
 
     enum ManaPaymentKind { TAP, UNTAP, PAY, CANCEL }
@@ -994,7 +1021,11 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
-    private void publishPriorityPrompt(final int playerId, final List<SpellAbility> actionsForPrompt) {
+    private void publishPriorityPrompt(
+            final int playerId,
+            final List<SpellAbility> actionsForPrompt,
+            final List<Card> untappableCards
+    ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "priority");
         prompt.addProperty("sessionId", sessionId);
@@ -1023,6 +1054,13 @@ public final class ManaBrewInteractiveSession {
             options.add(option);
         }
         prompt.add("actions", options);
+
+        final com.google.gson.JsonArray untappable = new com.google.gson.JsonArray();
+        for (final Card card : untappableCards) {
+            untappable.add(SnapshotExtractor.javaCardId(card));
+        }
+        prompt.add("untappableLandIds", untappable);
+
         latestPromptJson = prompt.toString();
     }
 

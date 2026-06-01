@@ -38,7 +38,10 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
 
     let mut source_card_id = None;
     let inner = match body {
-        JavaRawPromptBody::Priority { actions } => build_choose_action(&game_view, &actions),
+        JavaRawPromptBody::Priority {
+            actions,
+            untappable_land_ids,
+        } => build_choose_action(&game_view, &actions, untappable_land_ids),
         JavaRawPromptBody::ChooseDiscard { cards, min, max } => AgentPromptInner::ChooseDiscard {
             game_view,
             hand_card_ids: card_ids(&cards),
@@ -560,7 +563,11 @@ struct NormalizedAction {
     kind: Option<&'static str>,
 }
 
-fn build_choose_action(game_view: &GameViewDto, raw_actions: &[JavaRawAction]) -> AgentPromptInner {
+fn build_choose_action(
+    game_view: &GameViewDto,
+    raw_actions: &[JavaRawAction],
+    untappable_land_ids: Vec<String>,
+) -> AgentPromptInner {
     let actions = to_actions(raw_actions);
 
     let mut playable_options = Vec::new();
@@ -631,7 +638,7 @@ fn build_choose_action(game_view: &GameViewDto, raw_actions: &[JavaRawAction]) -
             .collect(),
         playable_options,
         tappable_land_ids,
-        untappable_land_ids: Vec::new(),
+        untappable_land_ids,
         activatable_ability_ids,
         mana_ability_options,
         available_player_actions: Vec::new(),

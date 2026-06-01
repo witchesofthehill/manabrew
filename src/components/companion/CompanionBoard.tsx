@@ -229,6 +229,10 @@ function FreeTile({
     [onMove, position.rotation, position.x, position.y],
   );
 
+  const isPerpendicular = Math.abs(position.rotation) === 90;
+  const cardWidth = isPerpendicular ? tileHeight : tileWidth;
+  const cardHeight = isPerpendicular ? tileWidth : tileHeight;
+
   return (
     <div
       className="absolute"
@@ -242,32 +246,43 @@ function FreeTile({
           commanderRules={commanderRules}
           isActive={isActive}
         />
-        <div className="absolute right-1 top-1 z-40 flex gap-1 opacity-70 transition-opacity hover:opacity-100">
-          <div
-            role="button"
-            aria-label="Rotate tile"
-            title="Tap to rotate 90° · drag to free-rotate"
-            className={cn(
-              "grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white",
-              "active:cursor-grabbing",
-            )}
-            onPointerDown={onRotatePointerDown}
-            onPointerMove={onRotatePointerMove}
-            onPointerUp={onRotatePointerUp}
-            onPointerCancel={onRotatePointerUp}
-          >
-            <RotateCw className="size-4" />
-          </div>
-          <div
-            role="button"
-            aria-label="Drag tile"
-            className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
-            onPointerDown={onMovePointerDown}
-            onPointerMove={onMovePointerMove}
-            onPointerUp={onMovePointerUp}
-            onPointerCancel={onMovePointerUp}
-          >
-            <GripVertical className="size-4" />
+        <div
+          className="pointer-events-none absolute z-40"
+          style={{
+            top: "50%",
+            left: "50%",
+            width: cardWidth,
+            height: cardHeight,
+            transform: `translate(-50%, -50%) rotate(${position.rotation}deg)`,
+          }}
+        >
+          <div className="pointer-events-auto absolute right-1 top-1 flex gap-1 opacity-70 transition-opacity hover:opacity-100">
+            <div
+              role="button"
+              aria-label="Rotate tile"
+              title="Tap to rotate 90° · drag to free-rotate"
+              className={cn(
+                "grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white",
+                "active:cursor-grabbing",
+              )}
+              onPointerDown={onRotatePointerDown}
+              onPointerMove={onRotatePointerMove}
+              onPointerUp={onRotatePointerUp}
+              onPointerCancel={onRotatePointerUp}
+            >
+              <RotateCw className="size-4" />
+            </div>
+            <div
+              role="button"
+              aria-label="Drag tile"
+              className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
+              onPointerDown={onMovePointerDown}
+              onPointerMove={onMovePointerMove}
+              onPointerUp={onMovePointerUp}
+              onPointerCancel={onMovePointerUp}
+            >
+              <GripVertical className="size-4" />
+            </div>
           </div>
         </div>
       </div>

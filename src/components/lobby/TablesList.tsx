@@ -78,7 +78,8 @@ export function TablesList({
   // bots, start) even when the host is a non-playing engine node. In a normal
   // self-created room the host is the first player, so the two coincide.
   const isController = currentRoom?.players[0]?.username === username;
-  const isOpenFormat = currentRoom?.format === "Any";
+  const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
+  const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
   const allReady = currentRoom
     ? currentRoom.players.length >= minReady && currentRoom.players.every((p) => p.ready)

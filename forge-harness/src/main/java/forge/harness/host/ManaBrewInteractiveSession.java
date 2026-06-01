@@ -134,10 +134,12 @@ public final class ManaBrewInteractiveSession {
     static final class PriorityChoice {
         private final PriorityActionKind kind;
         private final SpellAbility action;
+        private final String untilPhase;
 
-        private PriorityChoice(final PriorityActionKind kind, final SpellAbility action) {
+        private PriorityChoice(final PriorityActionKind kind, final SpellAbility action, final String untilPhase) {
             this.kind = kind;
             this.action = action;
+            this.untilPhase = untilPhase;
         }
 
         PriorityActionKind kind() {
@@ -146,6 +148,10 @@ public final class ManaBrewInteractiveSession {
 
         SpellAbility action() {
             return action;
+        }
+
+        String untilPhase() {
+            return untilPhase;
         }
     }
 
@@ -162,21 +168,24 @@ public final class ManaBrewInteractiveSession {
                 action = actions.take();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
-                return new PriorityChoice(PriorityActionKind.PASS, null);
+                return new PriorityChoice(PriorityActionKind.PASS, null, null);
             }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(kind) || "pass_priority".equals(kind)) {
-                return new PriorityChoice(PriorityActionKind.PASS, null);
+                final String until = action.has("until") && !action.get("until").isJsonNull()
+                        ? action.get("until").getAsString()
+                        : null;
+                return new PriorityChoice(PriorityActionKind.PASS, null, until);
             }
             if ("untap_land".equals(kind)) {
-                return new PriorityChoice(PriorityActionKind.UNDO, null);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("action index out of range: " + index);
                 }
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index));
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null);
             }
             if ("tap_land".equals(kind)) {
                 if (!action.has("manaAbilityIndex") || action.get("manaAbilityIndex").isJsonNull()) {
@@ -186,11 +195,11 @@ public final class ManaBrewInteractiveSession {
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("tap_land index out of range: " + index);
                 }
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index));
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null);
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
-        return new PriorityChoice(PriorityActionKind.PASS, null);
+        return new PriorityChoice(PriorityActionKind.PASS, null, null);
     }
 
     enum ManaPaymentKind { TAP, UNTAP, PAY, CANCEL }

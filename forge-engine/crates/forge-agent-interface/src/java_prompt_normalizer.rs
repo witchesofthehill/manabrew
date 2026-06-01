@@ -468,7 +468,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                     id: card_id.clone(),
                 },
             },
-            TargetAnyChoice::None => JavaAction::Pass,
+            TargetAnyChoice::None => JavaAction::Pass { until_phase: None },
         },
         PlayerAction::TargetSpell { spell_id } => JavaAction::TargetChoice {
             target: JavaTarget {
@@ -512,7 +512,10 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
         PlayerAction::CancelManaCost => JavaAction::CancelMana,
-        PlayerAction::Pass { .. } | PlayerAction::Concede => JavaAction::Pass,
+        PlayerAction::Pass { until_phase } => JavaAction::Pass {
+            until_phase: until_phase.clone(),
+        },
+        PlayerAction::Concede => JavaAction::Pass { until_phase: None },
         other => {
             return Err(JavaActionError {
                 action_type: player_action_label(other),

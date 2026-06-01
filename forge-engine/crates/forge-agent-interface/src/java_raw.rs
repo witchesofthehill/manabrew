@@ -550,7 +550,10 @@ pub enum JavaRawStackEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum JavaAction {
-    Pass,
+    Pass {
+        #[serde(rename = "until", skip_serializing_if = "Option::is_none", default)]
+        until_phase: Option<String>,
+    },
     ChooseAction {
         index: usize,
     },

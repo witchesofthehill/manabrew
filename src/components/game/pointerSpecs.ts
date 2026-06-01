@@ -56,11 +56,8 @@ function getActiveStackObject(
   activeStackObjectId?: string | null,
 ): StackObject | null {
   if (!stack || stack.length === 0) return null;
-  if (activeStackObjectId) {
-    const hit = stack.find((obj) => obj.id === activeStackObjectId);
-    if (hit) return hit;
-  }
-  return stack[stack.length - 1] ?? null;
+  if (!activeStackObjectId) return null;
+  return stack.find((obj) => obj.id === activeStackObjectId) ?? null;
 }
 
 export function buildPointerSpecs(opts: BuildPointerSpecsOptions): PointerSpec[] {

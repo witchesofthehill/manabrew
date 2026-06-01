@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Card } from "@/components/game/Card";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
+import { useTheme } from "@/hooks/useTheme";
 import type { GameCard, StackObject } from "@/types/manabrew";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 
@@ -14,6 +16,12 @@ interface StackDisplayProps {
   showPreStackFlash?: boolean;
   rightPanelCollapsed?: boolean;
   playerColorMap?: Map<string, string>;
+  /** Stack entry IDs the player may target (counter). Empty disables in-pile
+   *  click-to-counter; the pile reverts to its passive (read-only) state. */
+  validSpellIds?: string[];
+  /** Called when the player clicks a glowing stack entry during a counter
+   *  prompt. When omitted, valid entries fall back to `onOpenStack`. */
+  onTargetSpell?: (spellId: string) => void;
 }
 
 // Stack UI tuning (single source of truth for size/placement)
@@ -26,8 +34,8 @@ const STACK_RIGHT_WHEN_PANEL_COLLAPSED = 10;
 const STACK_UI = {
   direction: "left" as "left" | "right",
   cardWidth: 220,
-  offsetX: 15,
-  offsetY: 2,
+  offsetX: 36,
+  offsetY: 4,
   centerOffsetY: -60,
   hoverPushX: 60,
 } as const;
@@ -41,9 +49,14 @@ export function StackDisplay({
   showPreStackFlash = true,
   rightPanelCollapsed = true,
   playerColorMap,
+  validSpellIds,
+  onTargetSpell,
 }: StackDisplayProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
+  const themeColors = useTheme().gameTheme;
+  const targetingActive = (validSpellIds?.length ?? 0) > 0;
+  const validSpellIdSet = new Set(validSpellIds ?? []);
   // Track previous render's stack ids and per-id layout to drive enter animations
   // and skip transitions when positions haven't changed.
   const stackIdsKey = stack.map((obj) => obj.id).join(",");
@@ -87,6 +100,11 @@ export function StackDisplay({
     setPrevStackIds(new Set(stack.map((obj) => obj.id)));
   }
 
+  // Vertical positions: top-of-stack (highest idx) sits at top: 0 so it
+  // visually rises above older entries, matching MTG convention ("top of
+  // the stack" = next to resolve = highest on screen).
+  const topForIndex = (idx: number) => (stack.length - 1 - idx) * STACK_UI.offsetY;
+
   // Snapshot previous layout (left/top per id) for transition decisions.
   const [prevLayout, setPrevLayout] = useState<Record<string, { left: number; top: number }>>({});
   const layoutKey = stack.map((obj, idx) => `${obj.id}:${lefts[idx] + xShift}:${idx}`).join("|");
@@ -97,7 +115,7 @@ export function StackDisplay({
     stack.forEach((obj, idx) => {
       nextLayout[obj.id] = {
         left: lefts[idx] + xShift,
-        top: idx * STACK_UI.offsetY,
+        top: topForIndex(idx),
       };
     });
     setPrevLayout(nextLayout);
@@ -133,7 +151,7 @@ export function StackDisplay({
           const isTopOfStack = idx === stack.length - 1;
           const isFlashedStackCard = flashStackIndex === idx;
           const targetLeft = lefts[idx] + xShift;
-          const targetTop = idx * STACK_UI.offsetY;
+          const targetTop = topForIndex(idx);
           const prev = prevLayout[obj.id];
           const hasPositionChange = !prev || prev.left !== targetLeft || prev.top !== targetTop;
           const zIndex =
@@ -141,6 +159,19 @@ export function StackDisplay({
               ? idx + 1
               : 200 - Math.abs(idx - hoveredIndex) * 10 + (isHovered ? 5 : 0);
           const seatColor = playerColorMap?.get(obj.controllerId);
+          const isValidTarget = targetingActive && validSpellIdSet.has(obj.id);
+          const isDimmed = targetingActive && !isValidTarget;
+          const cardStyle: CSSProperties = {
+            ...(seatColor
+              ? {
+                  boxShadow: `0 0 0 2px ${withAlpha(seatColor, 0.7)}, 0 0 14px ${withAlpha(seatColor, 0.45)}`,
+                  borderRadius: "inherit",
+                }
+              : {}),
+            ...(isValidTarget
+              ? ({ "--tw-ring-color": themeColors.cardRing } as CSSProperties)
+              : {}),
+          };
           return (
             <div
               key={obj.id}
@@ -153,6 +184,7 @@ export function StackDisplay({
                   ? "transition-[left,top,transform] duration-560 ease-[cubic-bezier(0.23,0.63,0.32,1)]"
                   : "transition-transform duration-560 ease-[cubic-bezier(0.23,0.63,0.32,1)]",
                 isHovered && "-translate-y-2 scale-105",
+                isDimmed && "opacity-60",
               )}
               style={{
                 left: `${targetLeft}px`,
@@ -165,7 +197,10 @@ export function StackDisplay({
                 setHoveredId(obj.id);
                 setHoveredStackObjectId(obj.id);
               }}
-              onClick={onOpenStack}
+              onClick={() => {
+                if (isValidTarget && onTargetSpell) onTargetSpell(obj.id);
+                else onOpenStack();
+              }}
             >
               <Card
                 card={card}
@@ -175,19 +210,36 @@ export function StackDisplay({
                   isFlashedStackCard && "animate-card-stack-flash-in",
                   enteringIds.has(obj.id) && !isFlashedStackCard && "animate-card-stack-enter",
                   isTopOfStack && !obj.isCasting && "playable-card",
+                  isValidTarget && "ring-4",
                 )}
-                style={
-                  seatColor
-                    ? {
-                        boxShadow: `0 0 0 2px ${withAlpha(seatColor, 0.7)}, 0 0 14px ${withAlpha(seatColor, 0.45)}`,
-                        borderRadius: "inherit",
-                      }
-                    : undefined
-                }
+                style={Object.keys(cardStyle).length > 0 ? cardStyle : undefined}
               />
             </div>
           );
         })}
+
+        {stack.length > 0 &&
+          (() => {
+            const topIdx = stack.length - 1;
+            const badgeLeft = lefts[topIdx] + xShift;
+            return (
+              <div
+                className="pointer-events-none absolute"
+                style={{
+                  left: `${badgeLeft}px`,
+                  top: `${topForIndex(topIdx) - 22}px`,
+                  width: `${STACK_UI.cardWidth}px`,
+                  zIndex: 250,
+                }}
+              >
+                <div className="flex justify-center">
+                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shadow">
+                    TOP · resolves next
+                  </Badge>
+                </div>
+              </div>
+            );
+          })()}
 
         {flashCard && flashStackIndex < 0 && showPreStackFlash && (
           <div

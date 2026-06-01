@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { AgentPrompt } from "@/stores/useGameStore";
 import type { LibraryPeekMode } from "@/components/game/modals";
@@ -44,6 +44,8 @@ const ACTIVE_COMBAT_PRIORITY_STEPS = new Set([
   "end_combat",
 ]);
 
+const MANDATORY_COMBAT_STOPS = new Set(["declare_blockers"]);
+
 function hasActiveCombatAfterAttackers(prompt: AgentPrompt): boolean {
   return (
     ACTIVE_COMBAT_PRIORITY_STEPS.has(prompt.gameView.step) &&
@@ -61,6 +63,100 @@ function hasNonPassPriorityAction(prompt: AgentPrompt): boolean {
   );
 }
 
+type AutoPassPlan =
+  | { action: "none" }
+  | { action: "clearPassUntil" }
+  | { action: "schedulePass"; untilPhase: string | null };
+
+function computeAutoPassPlan(
+  currentPrompt: AgentPrompt | null,
+  isWaitingForResponse: boolean,
+  passUntilTurn: number | null,
+  passUntilPhase: string | null,
+  turn: number,
+  stackLength: number,
+  myPlayerId: string,
+): AutoPassPlan {
+  if (!currentPrompt || isWaitingForResponse) return { action: "none" };
+
+  if (
+    currentPrompt.type === PromptType.ChooseAction &&
+    stackLength === 0 &&
+    hasActiveCombatAfterAttackers(currentPrompt) &&
+    hasNonPassPriorityAction(currentPrompt)
+  ) {
+    return passUntilTurn !== null ? { action: "clearPassUntil" } : { action: "none" };
+  }
+
+  if (currentPrompt.type === PromptType.ChooseAction && stackLength === 0) {
+    const gv = currentPrompt.gameView;
+    const isMyTurn = gv.activePlayerId === myPlayerId;
+    if (!isMyTurn && MANDATORY_COMBAT_STOPS.has(gv.step)) {
+      return passUntilTurn !== null ? { action: "clearPassUntil" } : { action: "none" };
+    }
+  }
+
+  if (passUntilTurn !== null) {
+    if (turn > passUntilTurn) return { action: "clearPassUntil" };
+
+    if (currentPrompt.type === PromptType.ChooseAction && stackLength > 0) {
+      return { action: "clearPassUntil" };
+    }
+
+    if (passUntilPhase && currentPrompt.gameView.step === passUntilPhase && stackLength === 0) {
+      return { action: "clearPassUntil" };
+    }
+
+    if (currentPrompt.type === PromptType.ChooseAction && stackLength === 0) {
+      const gv = currentPrompt.gameView;
+      const isMyTurn = gv.activePlayerId === myPlayerId;
+      const store = usePhaseStopStore.getState();
+      const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
+      if (stops.has(gv.step)) return { action: "clearPassUntil" };
+    }
+
+    if (
+      currentPrompt.type === PromptType.ChooseAction ||
+      currentPrompt.type === PromptType.ChooseAttackers
+    ) {
+      return { action: "schedulePass", untilPhase: passUntilPhase };
+    }
+
+    return { action: "clearPassUntil" };
+  }
+
+  if (currentPrompt.type === PromptType.ChooseAction && stackLength === 0) {
+    const gv = currentPrompt.gameView;
+    const isMyTurn = gv.activePlayerId === myPlayerId;
+    const store = usePhaseStopStore.getState();
+    const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
+    if (!stops.has(gv.step)) {
+      const nextStop = getNextStopPhase(gv.step, stops);
+      return { action: "schedulePass", untilPhase: nextStop };
+    }
+  }
+
+  return { action: "none" };
+}
+
+function computeZoneTarget(currentPrompt: AgentPrompt | null): ZoneTargetState | null {
+  if (currentPrompt?.type !== PromptType.ChooseTargetCardFromZone) return null;
+  const zone = currentPrompt.zone;
+  const validCardIds = currentPrompt.validCardIds || [];
+  const zoneCards = currentPrompt.zoneCards || [];
+  if (!zone || zone === "Battlefield" || zoneCards.length === 0) return null;
+  const zoneNames: Record<string, string> = {
+    Graveyard: "Graveyard",
+    Exile: "Exile",
+    Hand: "Hand",
+  };
+  return {
+    title: `Choose from ${zoneNames[zone] || zone}`,
+    cards: zoneCards,
+    validCardIds,
+  };
+}
+
 export function usePromptEffects({
   currentPrompt,
   isWaitingForResponse,
@@ -69,18 +165,31 @@ export function usePromptEffects({
   turn,
   stackLength,
 }: UsePromptEffectsOptions) {
-  const promptType = currentPrompt?.type;
-  const [isAutoPassing, setIsAutoPassing] = useState(false);
-
-  // Phase-stop auto-pass state lives in the store so non-pass actions can clear it
   const passUntilPhase = usePhaseStopStore((s) => s.passUntilPhase);
   const passUntilTurn = usePhaseStopStore((s) => s.passUntilTurn);
 
-  /**
-   * Unified pass action. Context-aware:
-   * - Clean priority (no stack): auto-pass until next enabled stop phase
-   * - In response (stack > 0): just pass priority once
-   */
+  const autoPassPlan = useMemo(
+    () =>
+      computeAutoPassPlan(
+        currentPrompt,
+        isWaitingForResponse,
+        passUntilTurn,
+        passUntilPhase,
+        turn,
+        stackLength,
+        myPlayerId,
+      ),
+    [
+      currentPrompt,
+      isWaitingForResponse,
+      passUntilTurn,
+      passUntilPhase,
+      turn,
+      stackLength,
+      myPlayerId,
+    ],
+  );
+
   const unifiedPass = useCallback(() => {
     if (!currentPrompt || isWaitingForResponse) return;
 
@@ -88,172 +197,55 @@ export function usePromptEffects({
     const hasStack = (gv.stack?.length ?? 0) > 0;
 
     if (hasStack) {
-      // Responding to something — atomic single pass
       passPriority(null);
       return;
     }
 
-    // Clean priority — determine which stop set applies
     const isMyTurn = gv.activePlayerId === myPlayerId;
     const store = usePhaseStopStore.getState();
     const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
 
     const nextStop = getNextStopPhase(gv.step, stops);
 
-    // Set frontend auto-pass state (fallback for any prompts the engine
-    // still sends despite the pass-until declaration)
     usePhaseStopStore.getState().setPassUntil(nextStop, turn);
 
-    // Send pass with until-phase to engine so it can fast-forward
     passPriority(nextStop);
   }, [currentPrompt, isWaitingForResponse, passPriority, myPlayerId, turn]);
 
-  // F6: just triggers the same unified pass
   function activatePassUntilEot() {
     unifiedPass();
   }
 
-  // Library peek modal state
   const [libraryPeekModal, setLibraryPeekModal] = useState<LibraryPeekState | null>(null);
 
-  // Zone target selector state
-  const [zoneTargetSelector, setZoneTargetSelector] = useState<ZoneTargetState | null>(null);
+  const zoneTargetFromPrompt = useMemo(() => computeZoneTarget(currentPrompt), [currentPrompt]);
+  const [zoneTargetDismissedPrompt, setZoneTargetDismissedPrompt] = useState<AgentPrompt | null>(
+    null,
+  );
+  const zoneTargetSelector =
+    zoneTargetDismissedPrompt === currentPrompt ? null : zoneTargetFromPrompt;
+  const setZoneTargetSelector = useCallback(
+    (_value: ZoneTargetState | null) => {
+      setZoneTargetDismissedPrompt(currentPrompt);
+    },
+    [currentPrompt],
+  );
 
-  // Spell stack modal
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
-  // Auto-pass logic
   useEffect(() => {
-    setIsAutoPassing(false);
-    if (!currentPrompt || isWaitingForResponse) return;
-
-    if (
-      currentPrompt.type === PromptType.ChooseAction &&
-      stackLength === 0 &&
-      hasActiveCombatAfterAttackers(currentPrompt) &&
-      hasNonPassPriorityAction(currentPrompt)
-    ) {
-      if (passUntilTurn !== null) {
-        usePhaseStopStore.getState().clearPassUntil();
-      }
-      return;
-    }
-
-    const MANDATORY_COMBAT_STOPS = new Set(["declare_blockers"]);
-
-    if (currentPrompt.type === PromptType.ChooseAction && stackLength === 0) {
-      const gv = currentPrompt.gameView;
-      const isMyTurn = gv.activePlayerId === myPlayerId;
-      if (!isMyTurn && MANDATORY_COMBAT_STOPS.has(gv.step)) {
-        // Cancel any active pass-until and stop here
-        if (passUntilTurn !== null) {
-          usePhaseStopStore.getState().clearPassUntil();
-        }
-        return; // don't auto-pass — let the player act
-      }
-    }
-
-    // ── Phase-stop auto-pass ──
-    if (passUntilTurn !== null) {
-      // Turn advanced — cancel
-      if (turn > passUntilTurn) {
-        usePhaseStopStore.getState().clearPassUntil();
-        return;
-      }
-
-      // Stack appeared — cancel (player is responding to something)
-      if (currentPrompt.type === PromptType.ChooseAction && stackLength > 0) {
-        usePhaseStopStore.getState().clearPassUntil();
-        return;
-      }
-
-      // Reached target phase — stop
-      if (passUntilPhase && currentPrompt.gameView.step === passUntilPhase && stackLength === 0) {
-        usePhaseStopStore.getState().clearPassUntil();
-        return;
-      }
-
-      // Current phase is a stop — cancel auto-pass so the player gets
-      // control (e.g. back on M1 after a spell resolved)
-      if (currentPrompt.type === PromptType.ChooseAction && stackLength === 0) {
-        const gv = currentPrompt.gameView;
-        const isMyTurn = gv.activePlayerId === myPlayerId;
-        const store = usePhaseStopStore.getState();
-        const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
-        if (stops.has(gv.step)) {
-          usePhaseStopStore.getState().clearPassUntil();
-          return;
-        }
-      }
-
-      // Still auto-passing — relay until-phase to engine
-      if (
-        currentPrompt.type === PromptType.ChooseAction ||
-        currentPrompt.type === PromptType.ChooseAttackers
-      ) {
-        setIsAutoPassing(true);
-        const timer = setTimeout(() => passPriority(passUntilPhase), getAutoPassDelayMs());
-        return () => clearTimeout(timer);
-      }
-
-      // Unexpected prompt type — cancel
+    if (autoPassPlan.action === "clearPassUntil") {
       usePhaseStopStore.getState().clearPassUntil();
       return;
     }
-
-    // ── Phase-stop skip: if current phase isn't a stop, auto-pass ──
-
-    if (currentPrompt.type === PromptType.ChooseAction && stackLength === 0) {
-      const gv = currentPrompt.gameView;
-      const isMyTurn = gv.activePlayerId === myPlayerId;
-
-      const store = usePhaseStopStore.getState();
-      const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
-
-      if (!stops.has(gv.step)) {
-        const nextStop = getNextStopPhase(gv.step, stops);
-        setIsAutoPassing(true);
-        const timer = setTimeout(() => passPriority(nextStop), getAutoPassDelayMs());
-        return () => clearTimeout(timer);
-      }
+    if (autoPassPlan.action === "schedulePass") {
+      const untilPhase = autoPassPlan.untilPhase;
+      const timer = setTimeout(() => passPriority(untilPhase), getAutoPassDelayMs());
+      return () => clearTimeout(timer);
     }
-  }, [
-    currentPrompt,
-    isWaitingForResponse,
-    passPriority,
-    passUntilTurn,
-    passUntilPhase,
-    turn,
-    stackLength,
-    myPlayerId,
-  ]);
+  }, [autoPassPlan, passPriority]);
 
-  useEffect(() => {
-    if (promptType === PromptType.ChooseTargetCardFromZone && currentPrompt) {
-      const zone = currentPrompt.zone;
-      const validCardIds = currentPrompt.validCardIds || [];
-      const zoneCards = currentPrompt.zoneCards || [];
-
-      if (zone && zone !== "Battlefield" && zoneCards.length > 0) {
-        const zoneNames: Record<string, string> = {
-          Graveyard: "Graveyard",
-          Exile: "Exile",
-          Hand: "Hand",
-        };
-        const title = `Choose from ${zoneNames[zone] || zone}`;
-        setZoneTargetSelector({ title, cards: zoneCards, validCardIds });
-      } else {
-        setZoneTargetSelector(null);
-      }
-    } else {
-      setZoneTargetSelector(null);
-    }
-  }, [promptType, currentPrompt]);
-
-  // Auto-open spell-stack modal for counter-targeting prompts
-  useEffect(() => {
-    setSpellStackModalOpen(promptType === PromptType.ChooseTargetSpell);
-  }, [promptType]);
+  const isAutoPassing = autoPassPlan.action === "schedulePass";
 
   return {
     isAutoPassing,

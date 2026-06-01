@@ -182,6 +182,7 @@ function QuickCardSearch({
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-80 overflow-y-auto min-w-[280px]">
           {results.map((sc) => {
             const count = getCount(sc.name);
+            const thumb = sc.image_uris?.small ?? sc.card_faces?.[0]?.image_uris?.small;
             return (
               <div
                 key={sc.id}
@@ -189,9 +190,9 @@ function QuickCardSearch({
                 onClick={() => onAdd(sc)}
                 title={`Add ${sc.name}`}
               >
-                {sc.image_uris?.small && (
+                {thumb && (
                   <ScryfallImg
-                    src={sc.image_uris.small}
+                    src={thumb}
                     alt=""
                     className="w-8 h-11 rounded object-cover object-top shrink-0"
                   />

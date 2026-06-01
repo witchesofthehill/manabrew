@@ -9,7 +9,7 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 | File                        | Purpose                                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------ |
 | `CompanionBar.tsx`          | Top bar: new game, player count, starting life, commander toggle, layout, dice, undo, reset, end |
-| `CompanionBoard.tsx`        | Grid-template layout dispatcher + free-position drag tile                                        |
+| `CompanionBoard.tsx`        | Grid-template layout dispatcher + free-position drag/rotate tile                                 |
 | `PlayerTile.tsx`            | One player tile: tap zones, life total, status chips, commander menu, counters rail              |
 | `CommanderArt.tsx`          | Banner / avatar render for one or two commander refs                                             |
 | `CommanderDamageStrip.tsx`  | Side rail of opponent avatars; popover stepper per source × commander slot                       |
@@ -39,6 +39,7 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 - New counter preset → add to `COMPANION_COUNTER_PRESETS` in `useCompanionStore.constants.ts` and (if its icon is new) add a `case` to `CompanionIcon` in `icons.tsx`.
 - New named layout → add the id to `CompanionLayout` (`useCompanionStore.types.ts`), add an entry to `LAYOUT_SPECS` in `layouts/slots.ts`, then update `COMPANION_LAYOUT_LABELS`, `COMPANION_LAYOUT_OPTIONS`, and `COMPANION_DEFAULT_LAYOUT_BY_COUNT`. Variable-player layouts (`landscape-row`, `vertical-stack`) build their template at runtime inside `getCompanionSlots`.
 - Layouts that rotate any slot ±90° rely on `PlayerTile`'s container-query dim-swap (`100cqh`/`100cqw`) to keep the rotated content within the grid cell. Don't reintroduce `transform: rotate()` on a `size-full` div without also swapping width/height.
+- Free layout offers two pointer handles per tile (top-right): the rotate handle accepts a tap (snap to next 90°) or drag (continuous rotation tracking the pointer angle from tile centre, snapped to 15°); the grip handle is move-only. Free-rotation angles outside ±90° intentionally let the rotated tile spill over its bounding box — the board container has `overflow-hidden` so the spill doesn't break layout.
 - New accent → add to `COMPANION_ACCENT_KEYS` and `COMPANION_ACCENT_COLORS`; update the type union in `useCompanionStore.types.ts`.
 
 ## Non-goals

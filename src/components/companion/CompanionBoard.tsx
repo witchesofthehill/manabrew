@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
+import { GripVertical, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionStore.types";
@@ -77,6 +77,7 @@ function FreeBoard({ session }: CompanionBoardProps) {
             isActive={session.activePlayerId === player.id}
             position={pos}
             bounds={bounds}
+            containerRef={containerRef}
             onMove={(next) => setFreePosition(player.id, next)}
           />
         );
@@ -113,8 +114,12 @@ interface FreeTileProps {
   isActive: boolean;
   position: { x: number; y: number; rotation: number };
   bounds: { w: number; h: number } | null;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   onMove: (pos: { x: number; y: number; rotation: number }) => void;
 }
+
+const ROTATION_SNAP_DEG = 15;
+const ROTATION_DRAG_THRESHOLD_DEG = 4;
 
 function FreeTile({
   player,
@@ -123,6 +128,7 @@ function FreeTile({
   isActive,
   position,
   bounds,
+  containerRef,
   onMove,
 }: FreeTileProps) {
   const dragStart = useRef<{
@@ -131,10 +137,17 @@ function FreeTile({
     origX: number;
     origY: number;
   } | null>(null);
+  const rotateStart = useRef<{
+    centerX: number;
+    centerY: number;
+    pointerAngle: number;
+    origRotation: number;
+    moved: boolean;
+  } | null>(null);
   const tileWidth = bounds ? Math.min(360, bounds.w * 0.45) : 320;
   const tileHeight = bounds ? Math.min(220, bounds.h * 0.45) : 200;
 
-  const onPointerDown = useCallback(
+  const onMovePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.currentTarget.setPointerCapture(event.pointerId);
       dragStart.current = {
@@ -147,7 +160,7 @@ function FreeTile({
     [position],
   );
 
-  const onPointerMove = useCallback(
+  const onMovePointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!dragStart.current || !bounds) return;
       const dx = event.clientX - dragStart.current.pointerX;
@@ -159,10 +172,62 @@ function FreeTile({
     [bounds, onMove, position.rotation, tileHeight, tileWidth],
   );
 
-  const onPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+  const onMovePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.releasePointerCapture(event.pointerId);
     dragStart.current = null;
   }, []);
+
+  const onRotatePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      const container = containerRef.current;
+      if (!container) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + position.x + tileWidth / 2;
+      const centerY = rect.top + position.y + tileHeight / 2;
+      const pointerAngle = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+      rotateStart.current = {
+        centerX,
+        centerY,
+        pointerAngle,
+        origRotation: position.rotation,
+        moved: false,
+      };
+    },
+    [containerRef, position, tileHeight, tileWidth],
+  );
+
+  const onRotatePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const start = rotateStart.current;
+      if (!start) return;
+      event.stopPropagation();
+      const currentAngle = Math.atan2(event.clientY - start.centerY, event.clientX - start.centerX);
+      const deltaDeg = ((currentAngle - start.pointerAngle) * 180) / Math.PI;
+      if (!start.moved && Math.abs(deltaDeg) < ROTATION_DRAG_THRESHOLD_DEG) return;
+      start.moved = true;
+      const raw = start.origRotation + deltaDeg;
+      const snapped = Math.round(raw / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG;
+      const normalised = normaliseDegrees(snapped);
+      onMove({ x: position.x, y: position.y, rotation: normalised });
+    },
+    [onMove, position.x, position.y],
+  );
+
+  const onRotatePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      const start = rotateStart.current;
+      rotateStart.current = null;
+      if (start && !start.moved) {
+        const next = nextQuarterTurn(position.rotation);
+        onMove({ x: position.x, y: position.y, rotation: next });
+      }
+    },
+    [onMove, position.rotation, position.x, position.y],
+  );
 
   return (
     <div
@@ -177,19 +242,33 @@ function FreeTile({
           commanderRules={commanderRules}
           isActive={isActive}
         />
-        <div
-          role="button"
-          aria-label="Drag tile"
-          className={cn(
-            "absolute right-1 top-1 z-40 grid size-7 cursor-grab place-items-center rounded-md bg-black/60 text-white opacity-0 transition-opacity",
-            "hover:opacity-100 [.group:hover_&]:opacity-100",
-          )}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
-          <GripVertical className="size-4" />
+        <div className="absolute right-1 top-1 z-40 flex gap-1 opacity-70 transition-opacity hover:opacity-100">
+          <div
+            role="button"
+            aria-label="Rotate tile"
+            title="Tap to rotate 90° · drag to free-rotate"
+            className={cn(
+              "grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white",
+              "active:cursor-grabbing",
+            )}
+            onPointerDown={onRotatePointerDown}
+            onPointerMove={onRotatePointerMove}
+            onPointerUp={onRotatePointerUp}
+            onPointerCancel={onRotatePointerUp}
+          >
+            <RotateCw className="size-4" />
+          </div>
+          <div
+            role="button"
+            aria-label="Drag tile"
+            className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
+            onPointerDown={onMovePointerDown}
+            onPointerMove={onMovePointerMove}
+            onPointerUp={onMovePointerUp}
+            onPointerCancel={onMovePointerUp}
+          >
+            <GripVertical className="size-4" />
+          </div>
         </div>
       </div>
     </div>
@@ -199,4 +278,19 @@ function FreeTile({
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+function normaliseDegrees(deg: number): number {
+  let value = deg % 360;
+  if (value > 180) value -= 360;
+  if (value <= -180) value += 360;
+  return value;
+}
+
+function nextQuarterTurn(current: number): number {
+  const normalised = normaliseDegrees(Math.round(current / 90) * 90);
+  if (normalised === 0) return 90;
+  if (normalised === 90) return 180;
+  if (normalised === 180) return -90;
+  return 0;
 }

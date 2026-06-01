@@ -23,8 +23,8 @@ interface CommanderDamageStripProps {
 export function CommanderDamageStrip({ target, opponents, className }: CommanderDamageStripProps) {
   if (opponents.length === 0) return null;
   return (
-    <div className={cn("flex flex-col items-center gap-1.5", className)}>
-      <Sword className="size-3.5 text-white/60" aria-hidden />
+    <div className={cn("flex flex-col items-center gap-1 @md:gap-1.5", className)}>
+      <Sword className="size-3 text-white/60 @md:size-3.5" aria-hidden />
       {opponents.map((source) => (
         <CommanderDamageButton key={source.id} target={target} source={source} />
       ))}
@@ -50,7 +50,7 @@ function CommanderDamageButton({
         <button
           type="button"
           className={cn(
-            "group relative size-9 overflow-hidden rounded-full ring-2 transition",
+            "group relative size-7 overflow-hidden rounded-full ring-2 transition @md:size-9",
             lethal ? "ring-destructive" : "ring-white/30 hover:ring-white/60",
           )}
           style={{ backgroundColor: accentColor }}

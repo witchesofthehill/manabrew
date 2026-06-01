@@ -66,7 +66,7 @@ export function PlayerTile({
     <div className={cn("relative size-full", className)} style={{ containerType: "size" }}>
       <div
         className={cn(
-          "absolute overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/5 transition",
+          "@container absolute overflow-hidden rounded-lg shadow-xl ring-1 ring-white/5 transition @md:rounded-2xl",
           player.isDead && "opacity-60 grayscale",
           isActive && "ring-2 ring-white",
         )}
@@ -94,21 +94,21 @@ export function PlayerTile({
           {...incBindings}
         />
 
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-3 text-white">
-          <div className="pointer-events-auto flex items-start gap-2">
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-1.5 text-white @xs:p-2 @md:p-3">
+          <div className="pointer-events-auto flex items-start gap-1.5 @md:gap-2">
             <button
               type="button"
-              className="grid size-10 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20"
+              className="grid size-7 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-8 @md:size-10"
               onClick={() => setPickerOpen(true)}
               aria-label="Choose commander"
             >
               {player.commanders[0]?.imageUrl ? (
                 <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
               ) : (
-                <Swords className="size-4 text-white/70" />
+                <Swords className="size-3.5 text-white/70 @md:size-4" />
               )}
             </button>
-            <div className="flex flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
               {renaming ? (
                 <Input
                   autoFocus
@@ -127,18 +127,18 @@ export function PlayerTile({
               ) : (
                 <button
                   type="button"
-                  className="self-start truncate text-left text-sm font-semibold tracking-wide drop-shadow"
+                  className="hidden self-start truncate text-left text-xs font-semibold tracking-wide drop-shadow @xs:block @md:text-sm"
                   onClick={() => setRenaming(true)}
                   title="Rename"
                 >
                   {player.name}
                 </button>
               )}
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <div className="mt-1 flex flex-wrap items-center gap-1 @md:gap-1.5">
                 <StatusChips player={player} />
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-0.5 @md:gap-1">
               <AddCounterMenu player={player} />
               <PlayerMenu player={player} onPickCommander={() => setPickerOpen(true)} />
             </div>
@@ -149,7 +149,7 @@ export function PlayerTile({
               <div
                 key={pendingAmount}
                 className={cn(
-                  "absolute -top-2 grid place-items-center rounded-full px-2 py-0.5 text-base font-bold shadow",
+                  "absolute -top-2 grid place-items-center rounded-full px-1.5 py-0.5 text-xs font-bold shadow @sm:px-2 @sm:text-base",
                   pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
                 )}
               >
@@ -161,7 +161,7 @@ export function PlayerTile({
                 autoFocus
                 type="number"
                 defaultValue={player.life}
-                className="pointer-events-auto w-28 rounded-md border border-white/30 bg-black/50 text-center text-5xl font-extrabold text-white outline-none"
+                className="pointer-events-auto w-20 rounded-md border border-white/30 bg-black/50 text-center text-3xl font-extrabold text-white outline-none @xs:w-24 @xs:text-4xl @sm:w-28 @sm:text-5xl"
                 onBlur={(e) => {
                   const value = Number.parseInt(e.target.value, 10);
                   if (!Number.isNaN(value)) setLife(player.id, value);
@@ -175,7 +175,7 @@ export function PlayerTile({
             ) : (
               <button
                 type="button"
-                className="pointer-events-auto select-none text-7xl font-black tabular-nums leading-none drop-shadow-md"
+                className="pointer-events-auto select-none text-[clamp(2rem,22cqi,5.5rem)] font-black leading-none tabular-nums drop-shadow-md"
                 onClick={() => setLifeEditing(true)}
                 aria-label="Edit life total"
               >
@@ -190,7 +190,7 @@ export function PlayerTile({
         </div>
 
         {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
-          <div className="pointer-events-auto absolute right-2 top-1/2 z-30 -translate-y-1/2">
+          <div className="pointer-events-auto absolute right-1 top-1/2 z-30 -translate-y-1/2 @md:right-2">
             <CommanderDamageStrip target={player} opponents={opponents} />
           </div>
         )}
@@ -214,18 +214,21 @@ function StatusChips({ player }: { player: CompanionPlayer }) {
   return (
     <>
       {player.isMonarch && (
-        <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-1.5 py-0.5 text-[10px] font-semibold text-amber-950">
-          <Crown className="size-3" /> Monarch
+        <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-1 py-0.5 text-[9px] font-semibold text-amber-950 @sm:px-1.5 @sm:text-[10px]">
+          <Crown className="size-2.5 @sm:size-3" />{" "}
+          <span className="hidden @xs:inline">Monarch</span>
         </span>
       )}
       {player.hasInitiative && (
-        <span className="flex items-center gap-1 rounded-full bg-violet-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-          <Flag className="size-3" /> Initiative
+        <span className="flex items-center gap-1 rounded-full bg-violet-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
+          <Flag className="size-2.5 @sm:size-3" />{" "}
+          <span className="hidden @xs:inline">Initiative</span>
         </span>
       )}
       {player.hasCityBlessing && (
-        <span className="flex items-center gap-1 rounded-full bg-sky-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-          <Sparkles className="size-3" /> Ascend
+        <span className="flex items-center gap-1 rounded-full bg-sky-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
+          <Sparkles className="size-2.5 @sm:size-3" />{" "}
+          <span className="hidden @xs:inline">Ascend</span>
         </span>
       )}
     </>
@@ -252,10 +255,10 @@ function PlayerMenu({
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white"
+          className="size-6 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-7"
           aria-label="Player menu"
         >
-          <MoreVertical className="size-4" />
+          <MoreVertical className="size-3.5 @md:size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">

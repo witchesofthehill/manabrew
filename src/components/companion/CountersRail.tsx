@@ -38,25 +38,25 @@ function CounterChip({ playerId, counter }: { playerId: string; counter: Compani
   return (
     <div
       className={cn(
-        "group flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-white shadow ring-1 ring-white/10 backdrop-blur",
+        "group flex items-center gap-0.5 rounded-full bg-black/45 px-1 py-0.5 text-white shadow ring-1 ring-white/10 backdrop-blur @sm:gap-1 @sm:px-2 @sm:py-1",
       )}
     >
       <button
         type="button"
-        className="grid size-6 place-items-center rounded-full hover:bg-white/15"
+        className="grid size-5 place-items-center rounded-full hover:bg-white/15 @sm:size-6"
         aria-label={`Decrease ${counter.label}`}
         {...decBindings}
       >
         −
       </button>
-      <div className="flex items-center gap-1 px-1 text-xs font-medium">
-        <CompanionIcon iconKey={counter.iconKey} className="size-3.5" />
+      <div className="flex items-center gap-1 px-0.5 text-[10px] font-medium @sm:px-1 @sm:text-xs">
+        <CompanionIcon iconKey={counter.iconKey} className="size-3 @sm:size-3.5" />
         <span className="tabular-nums">{counter.value}</span>
-        <span className="opacity-75">{counter.label}</span>
+        <span className="hidden opacity-75 @md:inline">{counter.label}</span>
       </div>
       <button
         type="button"
-        className="grid size-6 place-items-center rounded-full hover:bg-white/15"
+        className="grid size-5 place-items-center rounded-full hover:bg-white/15 @sm:size-6"
         aria-label={`Increase ${counter.label}`}
         {...incBindings}
       >

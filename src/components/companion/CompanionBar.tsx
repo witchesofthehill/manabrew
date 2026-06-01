@@ -42,19 +42,25 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[session.players.length] ?? ["free"];
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-card/70 px-3 py-2 backdrop-blur">
-      <Button size="sm" onClick={onOpenNewSession}>
-        New game
+    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-card/70 px-2 py-1.5 backdrop-blur sm:gap-2 sm:px-3 sm:py-2">
+      <Button
+        size="sm"
+        onClick={onOpenNewSession}
+        className="h-8 px-2 text-xs sm:h-9 sm:px-4 sm:text-sm"
+      >
+        <span className="sm:hidden">New</span>
+        <span className="hidden sm:inline">New game</span>
       </Button>
 
-      <div className="flex items-center gap-1 rounded-md bg-muted/60 px-1.5 py-1">
-        <span className="text-xs text-muted-foreground">Players</span>
+      <div className="flex items-center gap-0.5 rounded-md bg-muted/60 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-1">
+        <span className="hidden text-xs text-muted-foreground sm:inline">Players</span>
         <Button
           size="icon"
           variant="ghost"
           className="size-6"
           onClick={() => setPlayerCount(session.players.length - 1)}
           disabled={session.players.length <= COMPANION_MIN_PLAYERS}
+          aria-label="Fewer players"
         >
           <Minus className="size-3.5" />
         </Button>
@@ -67,6 +73,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           className="size-6"
           onClick={() => setPlayerCount(session.players.length + 1)}
           disabled={session.players.length >= COMPANION_MAX_PLAYERS}
+          aria-label="More players"
         >
           <Plus className="size-3.5" />
         </Button>
@@ -74,8 +81,13 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline" className="gap-1">
-            Life: <span className="tabular-nums font-semibold">{session.startingLife}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+          >
+            <span className="hidden sm:inline">Life:</span>
+            <span className="tabular-nums font-semibold">{session.startingLife}</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -97,15 +109,21 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
         size="sm"
         variant={session.commanderRules ? "default" : "outline"}
         onClick={() => setCommanderRules(!session.commanderRules)}
-        className="gap-1"
+        className="h-8 gap-1 px-2 sm:h-9 sm:px-3"
+        aria-label="Toggle commander rules"
+        title="Commander rules"
       >
         <Sparkles className="size-3.5" />
-        Commander
+        <span className="hidden sm:inline">Commander</span>
       </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="outline">
+          <Button
+            size="sm"
+            variant="outline"
+            className="hidden h-8 px-2 text-xs sm:inline-flex sm:h-9 sm:px-3 sm:text-sm"
+          >
             {COMPANION_LAYOUT_LABELS[session.layout]}
           </Button>
         </DropdownMenuTrigger>
@@ -124,11 +142,17 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <div className="ml-auto flex flex-wrap items-center gap-2">
-        <TurnTimer />
-        <Button size="sm" variant="outline" onClick={() => setDiceOpen(true)} className="gap-1">
-          <Dices className="size-3.5" />
-          Roll
+      <div className="ml-auto flex flex-wrap items-center gap-1 sm:gap-2">
+        <TurnTimer className="hidden sm:flex" />
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={() => setDiceOpen(true)}
+          className="size-8 sm:size-9"
+          aria-label="Random first player"
+          title="Random first player"
+        >
+          <Dices className="size-3.5 sm:size-4" />
         </Button>
         <Button
           size="icon"
@@ -142,13 +166,26 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="size-8" aria-label="Reset menu">
+            <Button size="icon" variant="ghost" className="size-8" aria-label="More actions">
               <RotateCcw className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <div className="sm:hidden">
+              <DropdownMenuLabel>Layout</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {layoutChoices.map((option) => (
+                <DropdownMenuItem
+                  key={`layout-${option}`}
+                  onSelect={() => setLayout(option)}
+                  className={cn(option === session.layout && "bg-accent")}
+                >
+                  {COMPANION_LAYOUT_LABELS[option]}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </div>
             <DropdownMenuLabel>Reset</DropdownMenuLabel>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => resetCounters("life")}>
               <Redo2 className="mr-2 size-4" /> Life only
             </DropdownMenuItem>

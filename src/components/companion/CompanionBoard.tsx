@@ -21,7 +21,7 @@ function GridBoard({ session }: CompanionBoardProps) {
   const { slots, template } = getCompanionSlots(session.layout, session.players.length);
   return (
     <div
-      className="grid size-full gap-3 p-3"
+      className="grid size-full gap-1 p-1 sm:gap-2 sm:p-2 md:gap-3 md:p-3"
       style={{
         gridTemplate: template,
       }}

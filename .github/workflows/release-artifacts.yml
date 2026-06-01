@@ -229,11 +229,40 @@ jobs:
               }]
             }')
 
-          curl -fsS -X POST \
-            -H "Authorization: Bot $BOT_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+          post_discord() {
+            local attempt=0
+            local max_attempts=3
+            local delay=2
+            local body http
+            body=$(mktemp)
+            while :; do
+              attempt=$((attempt + 1))
+              http=$(curl -sS -X POST \
+                -H "Authorization: Bot $BOT_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD" \
+                -o "$body" \
+                -w "%{http_code}" \
+                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+
+              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+                echo "Discord notification posted (HTTP $http)."
+                rm -f "$body"
+                return 0
+              fi
+
+              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
+                rm -f "$body"
+                return 0
+              fi
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          post_discord
 
   # ── Windows .exe ───────────────────────────────────────────────────
   # windows-latest is x86_64. NSIS + WiX (.msi) ship preinstalled on the
@@ -298,37 +327,33 @@ jobs:
       # Build a per-artifact changelog so the Discord notification carries
       # the list of commits since the previous push. Trimmed so the whole
       # message stays well under Discord's 4096-char embed-description limit.
+      # Uses bash (Git for Windows ships it) to mirror the macOS step byte
+      # for byte and avoid pwsh's CRLF/Out-File quirks leaking into the env.
       - name: Build changelog
         id: changelog
-        shell: pwsh
+        shell: bash
         run: |
-          $before = '${{ github.event.before }}'
-          $after  = '${{ github.sha }}'
-          $zero   = '0000000000000000000000000000000000000000'
-          $hasBefore = $before -and $before -ne $zero
-          if ($hasBefore) {
-            git rev-parse --verify --quiet "$before^{commit}" 2>$null | Out-Null
-            if ($LASTEXITCODE -ne 0) { $hasBefore = $false }
-          }
-          if ($hasBefore) {
-            $range = "$before..$after"
-          } else {
-            $range = "$after~5..$after"
-          }
-          $raw = git log --pretty=format:"- %s (%h, %an)" $range 2>$null
-          if ($LASTEXITCODE -ne 0 -or -not $raw) {
-            $raw = git log --pretty=format:"- %s (%h, %an)" -n 5 $after 2>$null
-          }
-          $log = if ($raw) { ($raw -join "`n") } else { '' }
-          $max = 1500
-          if ($log.Length -gt $max) {
-            $log = $log.Substring(0, $max) + "`n… (truncated)"
-          }
-          "changelog<<CHANGELOG_EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          $log | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "CHANGELOG_EOF" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          $global:LASTEXITCODE = 0
-          exit 0
+          BEFORE='${{ github.event.before }}'
+          AFTER='${{ github.sha }}'
+          ZERO_SHA='0000000000000000000000000000000000000000'
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO_SHA" ] && git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
+            RANGE="${BEFORE}..${AFTER}"
+          else
+            RANGE="${AFTER}~5..${AFTER}"
+          fi
+          LOG=$(git log --pretty=format:'- %s (%h, %an)' "$RANGE" 2>/dev/null || echo '')
+          if [ -z "$LOG" ]; then
+            LOG=$(git log --pretty=format:'- %s (%h, %an)' -n 5 "$AFTER" 2>/dev/null || echo '')
+          fi
+          MAX=1500
+          if [ "${#LOG}" -gt "$MAX" ]; then
+            LOG="${LOG:0:$MAX}"$'\n'"… (truncated)"
+          fi
+          {
+            echo 'changelog<<CHANGELOG_EOF'
+            echo "$LOG"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post Discord embed (Windows artifact)
         if: ${{ success() }}
@@ -389,11 +414,40 @@ jobs:
               }]
             }')
 
-          curl -fsS -X POST \
-            -H "Authorization: Bot $BOT_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+          post_discord() {
+            local attempt=0
+            local max_attempts=3
+            local delay=2
+            local body http
+            body=$(mktemp)
+            while :; do
+              attempt=$((attempt + 1))
+              http=$(curl -sS -X POST \
+                -H "Authorization: Bot $BOT_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD" \
+                -o "$body" \
+                -w "%{http_code}" \
+                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+
+              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+                echo "Discord notification posted (HTTP $http)."
+                rm -f "$body"
+                return 0
+              fi
+
+              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
+                rm -f "$body"
+                return 0
+              fi
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          post_discord
 
   # ── Publish GitHub Release (tags only) ─────────────────────────────
   # Triggered only on `v*` tag pushes. Downloads the artifacts built
@@ -517,8 +571,37 @@ jobs:
               }]
             }')
 
-          curl -fsS -X POST \
-            -H "Authorization: Bot $BOT_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" \
-            "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+          post_discord() {
+            local attempt=0
+            local max_attempts=3
+            local delay=2
+            local body http
+            body=$(mktemp)
+            while :; do
+              attempt=$((attempt + 1))
+              http=$(curl -sS -X POST \
+                -H "Authorization: Bot $BOT_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD" \
+                -o "$body" \
+                -w "%{http_code}" \
+                "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
+
+              if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+                echo "Discord notification posted (HTTP $http)."
+                rm -f "$body"
+                return 0
+              fi
+
+              echo "::warning::Discord API returned HTTP $http on attempt $attempt: $(cat "$body" 2>/dev/null)"
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                echo "::warning::Giving up on Discord notification after $attempt attempts; artifact build itself succeeded."
+                rm -f "$body"
+                return 0
+              fi
+              sleep "$delay"
+              delay=$((delay * 2))
+            done
+          }
+
+          post_discord

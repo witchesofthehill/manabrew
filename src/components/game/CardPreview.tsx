@@ -227,19 +227,31 @@ export function CardPreview({
     collectorNumber: deckCard.cardNumber,
   });
   const faces = scryfallCard?.card_faces;
-  const hasFlippableFaces =
+  const facesHaveImages =
     !!faces &&
     faces.length >= 2 &&
     !!faces[0].image_uris?.[imageSize] &&
     !!faces[1].image_uris?.[imageSize];
-  const doubleFacedData = hasFlippableFaces
+  const derivedBackImageUrl =
+    !facesHaveImages && deckCard.isDoubleFaced && imageUrl?.includes("/front/")
+      ? imageUrl.replace("/front/", "/back/")
+      : null;
+  const doubleFacedData = facesHaveImages
     ? {
         frontImageUrl: faces![0].image_uris![imageSize],
         backImageUrl: faces![1].image_uris![imageSize],
         frontName: faces![0].name,
         backName: faces![1].name,
       }
-    : null;
+    : derivedBackImageUrl
+      ? {
+          frontImageUrl: imageUrl,
+          backImageUrl: derivedBackImageUrl,
+          frontName: card.name,
+          backName: card.name,
+        }
+      : null;
+  const hasFlippableFaces = !!doubleFacedData;
 
   useEffect(() => {
     if (!onFlip || !hasFlippableFaces) return;

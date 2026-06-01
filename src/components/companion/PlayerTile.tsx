@@ -1,0 +1,302 @@
+import { useState } from "react";
+import { Crown, Flag, MoreVertical, Sparkles, Swords, UserMinus, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { useCompanionStore } from "@/stores/useCompanionStore";
+import {
+  COMPANION_ACCENT_COLORS,
+  COMPANION_ACCENT_KEYS,
+} from "@/stores/useCompanionStore.constants";
+import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
+import { CommanderArt } from "./CommanderArt";
+import { CommanderDamageStrip } from "./CommanderDamageStrip";
+import { CommanderPickerDialog } from "./CommanderPickerDialog";
+import { CountersRail } from "./CountersRail";
+import { AddCounterMenu } from "./AddCounterMenu";
+import { usePressHold } from "./usePressHold";
+
+interface PlayerTileProps {
+  player: CompanionPlayer;
+  opponents: CompanionPlayer[];
+  rotation: number;
+  commanderRules: boolean;
+  isActive: boolean;
+  className?: string;
+}
+
+export function PlayerTile({
+  player,
+  opponents,
+  rotation,
+  commanderRules,
+  isActive,
+  className,
+}: PlayerTileProps) {
+  const adjustLife = useCompanionStore((s) => s.adjustLife);
+  const setLife = useCompanionStore((s) => s.setLife);
+  const renamePlayer = useCompanionStore((s) => s.renamePlayer);
+  const pendingAmount = useCompanionStore((s) => s.pendingDeltas[player.id]?.amount ?? 0);
+  const accent = COMPANION_ACCENT_COLORS[player.accentKey];
+
+  const [renaming, setRenaming] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [lifeEditing, setLifeEditing] = useState(false);
+
+  const decBindings = usePressHold({
+    onTap: () => adjustLife(player.id, -1),
+    onHoldTick: () => adjustLife(player.id, -1),
+  });
+  const incBindings = usePressHold({
+    onTap: () => adjustLife(player.id, 1),
+    onHoldTick: () => adjustLife(player.id, 1),
+  });
+
+  return (
+    <div
+      className={cn(
+        "relative size-full overflow-hidden rounded-2xl shadow-xl ring-1 ring-white/5 transition",
+        player.isDead && "opacity-60 grayscale",
+        isActive && "ring-2 ring-white",
+        className,
+      )}
+      style={{
+        backgroundColor: accent,
+        transform: `rotate(${rotation}deg)`,
+      }}
+    >
+      <CommanderArt refs={player.commanders} />
+
+      <button
+        type="button"
+        aria-label="Decrease life"
+        className="absolute inset-y-0 left-0 z-10 w-1/2"
+        {...decBindings}
+      />
+      <button
+        type="button"
+        aria-label="Increase life"
+        className="absolute inset-y-0 right-0 z-10 w-1/2"
+        {...incBindings}
+      />
+
+      <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-3 text-white">
+        <div className="pointer-events-auto flex items-start gap-2">
+          <button
+            type="button"
+            className="grid size-10 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20"
+            onClick={() => setPickerOpen(true)}
+            aria-label="Choose commander"
+          >
+            {player.commanders[0]?.imageUrl ? (
+              <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
+            ) : (
+              <Swords className="size-4 text-white/70" />
+            )}
+          </button>
+          <div className="flex flex-1 flex-col">
+            {renaming ? (
+              <Input
+                autoFocus
+                defaultValue={player.name}
+                className="h-7 bg-black/30 text-sm text-white placeholder:text-white/50"
+                onBlur={(e) => {
+                  const name = e.target.value.trim();
+                  if (name) renamePlayer(player.id, name);
+                  setRenaming(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  if (e.key === "Escape") setRenaming(false);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="self-start truncate text-left text-sm font-semibold tracking-wide drop-shadow"
+                onClick={() => setRenaming(true)}
+                title="Rename"
+              >
+                {player.name}
+              </button>
+            )}
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <StatusChips player={player} />
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <AddCounterMenu player={player} />
+            <PlayerMenu player={player} onPickCommander={() => setPickerOpen(true)} />
+          </div>
+        </div>
+
+        <div className="relative flex flex-1 items-center justify-center">
+          {pendingAmount !== 0 && (
+            <div
+              key={pendingAmount}
+              className={cn(
+                "absolute -top-2 grid place-items-center rounded-full px-2 py-0.5 text-base font-bold shadow",
+                pendingAmount > 0 ? "bg-emerald-500/90" : "bg-rose-600/90",
+              )}
+            >
+              {pendingAmount > 0 ? `+${pendingAmount}` : pendingAmount}
+            </div>
+          )}
+          {lifeEditing ? (
+            <input
+              autoFocus
+              type="number"
+              defaultValue={player.life}
+              className="pointer-events-auto w-28 rounded-md border border-white/30 bg-black/50 text-center text-5xl font-extrabold text-white outline-none"
+              onBlur={(e) => {
+                const value = Number.parseInt(e.target.value, 10);
+                if (!Number.isNaN(value)) setLife(player.id, value);
+                setLifeEditing(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                if (e.key === "Escape") setLifeEditing(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="pointer-events-auto select-none text-7xl font-black tabular-nums leading-none drop-shadow-md"
+              onClick={() => setLifeEditing(true)}
+              aria-label="Edit life total"
+            >
+              {player.life}
+            </button>
+          )}
+        </div>
+
+        <div className="pointer-events-auto flex items-end justify-between gap-2">
+          <CountersRail playerId={player.id} counters={player.counters} />
+        </div>
+      </div>
+
+      {opponents.length > 0 && (commanderRules || hasCommanderArt(opponents)) && (
+        <div className="pointer-events-auto absolute right-2 top-1/2 z-30 -translate-y-1/2">
+          <CommanderDamageStrip target={player} opponents={opponents} />
+        </div>
+      )}
+
+      <CommanderPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        playerId={player.id}
+        initial={player.commanders}
+      />
+    </div>
+  );
+}
+
+function hasCommanderArt(players: CompanionPlayer[]): boolean {
+  return players.some((p) => p.commanders[0]?.imageUrl);
+}
+
+function StatusChips({ player }: { player: CompanionPlayer }) {
+  return (
+    <>
+      {player.isMonarch && (
+        <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-1.5 py-0.5 text-[10px] font-semibold text-amber-950">
+          <Crown className="size-3" /> Monarch
+        </span>
+      )}
+      {player.hasInitiative && (
+        <span className="flex items-center gap-1 rounded-full bg-violet-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <Flag className="size-3" /> Initiative
+        </span>
+      )}
+      {player.hasCityBlessing && (
+        <span className="flex items-center gap-1 rounded-full bg-sky-500/90 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <Sparkles className="size-3" /> Ascend
+        </span>
+      )}
+    </>
+  );
+}
+
+function PlayerMenu({
+  player,
+  onPickCommander,
+}: {
+  player: CompanionPlayer;
+  onPickCommander: () => void;
+}) {
+  const toggleMonarch = useCompanionStore((s) => s.toggleMonarch);
+  const toggleInitiative = useCompanionStore((s) => s.toggleInitiative);
+  const toggleCityBlessing = useCompanionStore((s) => s.toggleCityBlessing);
+  const setPlayerAccent = useCompanionStore((s) => s.setPlayerAccent);
+  const markDead = useCompanionStore((s) => s.markDead);
+  const resetCounters = useCompanionStore((s) => s.resetCounters);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white"
+          aria-label="Player menu"
+        >
+          <MoreVertical className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onSelect={onPickCommander}>
+          <Swords className="mr-2 size-4" /> Choose commander…
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => toggleMonarch(player.id)}>
+          <Crown className="mr-2 size-4" /> {player.isMonarch ? "Remove monarch" : "Mark monarch"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => toggleInitiative(player.id)}>
+          <Flag className="mr-2 size-4" />{" "}
+          {player.hasInitiative ? "Remove initiative" : "Take initiative"}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => toggleCityBlessing(player.id)}>
+          <Sparkles className="mr-2 size-4" />{" "}
+          {player.hasCityBlessing ? "Lose city's blessing" : "Gain city's blessing"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs">Accent</DropdownMenuLabel>
+        <div className="grid grid-cols-8 gap-1 px-2 pb-2">
+          {COMPANION_ACCENT_KEYS.map((key) => (
+            <button
+              type="button"
+              key={key}
+              onClick={() => setPlayerAccent(player.id, key)}
+              className={cn(
+                "size-5 rounded-full border-2",
+                key === player.accentKey ? "border-foreground" : "border-transparent",
+              )}
+              style={{ backgroundColor: COMPANION_ACCENT_COLORS[key] }}
+              aria-label={`Accent ${key}`}
+            />
+          ))}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => resetCounters("all", player.id)}>
+          Reset this player
+        </DropdownMenuItem>
+        {player.isDead ? (
+          <DropdownMenuItem onSelect={() => markDead(player.id, false)}>
+            <UserPlus className="mr-2 size-4" /> Revive
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onSelect={() => markDead(player.id, true)}>
+            <UserMinus className="mr-2 size-4" /> Eliminate
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

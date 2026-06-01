@@ -4,6 +4,7 @@ import { FEATURES } from "@/lib/features";
 import { useGameStore } from "@/stores/useGameStore";
 import {
   Github,
+  HeartPulse,
   Home,
   Gamepad2,
   Hand,
@@ -85,6 +86,17 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 >
                   <Layers className="mr-2 h-4 w-4 shrink-0" />
                   My Decks
+                </Button>
+              )}
+            </NavLink>
+            <NavLink to="/companion" onClick={onNavigate}>
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-start whitespace-nowrap"
+                >
+                  <HeartPulse className="mr-2 h-4 w-4 shrink-0" />
+                  Life Tracker
                 </Button>
               )}
             </NavLink>

@@ -11,6 +11,7 @@ import Draft from "@/views/Draft";
 import MultiplayerDraft from "@/views/MultiplayerDraft";
 import MultiplayerSealed from "@/views/MultiplayerSealed";
 import Limited from "@/views/Limited";
+import Companion from "@/views/Companion";
 import Sealed from "@/views/Sealed";
 import Winston from "@/views/Winston";
 import Gauntlet from "@/views/Gauntlet";
@@ -114,6 +115,14 @@ export const router = createBrowserRouter([
         element: (
           <ErrorBoundary context="Limited">
             <Limited />
+          </ErrorBoundary>
+        ),
+      },
+      {
+        path: "companion",
+        element: (
+          <ErrorBoundary context="Companion">
+            <Companion />
           </ErrorBoundary>
         ),
       },

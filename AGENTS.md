@@ -40,6 +40,7 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `src/AGENTS.md`                                                  | Any change under `src/`                                                     |
 | `src/components/game/AGENTS.md`                                  | Any change under `src/components/game/` (game board, modals, panels, zones) |
+| `src/components/companion/AGENTS.md`                             | Any change under `src/components/companion/` (paper-play life tracker)      |
 | `src-tauri/AGENTS.md`                                            | Any change under `src-tauri/`                                               |
 | `forge-engine/AGENTS.md`                                         | Any Rust engine work — workspace map and engine module map                  |
 | `forge-engine/crates/forge-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                      |

@@ -61,6 +61,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final HarnessCostPlumbing costPlumbing;
     private final AutoPay autoPay;
     private final HarnessPlayPlumbing playPlumbing;
+    private String passUntilPhase;
 
     public ManaBrewInteractiveController(
             final Game game,
@@ -119,6 +120,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
+        final String until = passUntilPhase;
+        passUntilPhase = null;
+        if (until != null && PriorityFastForward.shouldSkip(game, until)) {
+            return null;
+        }
         while (true) {
             final List<SpellAbility> all = ChoiceSpace.sortNative(
                     new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
@@ -129,6 +135,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 game.getStack().undo();
                 continue;
             }
+            passUntilPhase = choice.untilPhase();
             final SpellAbility selected = choice.action();
             return selected == null ? null : Lists.newArrayList(selected);
         }

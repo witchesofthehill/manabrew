@@ -160,8 +160,20 @@ fn auto_java_action(prompt: &JavaRawPrompt) -> JavaAction {
         if let Some(index) = actions.iter().find_map(|action| action.index) {
             return JavaAction::ChooseAction { index };
         }
+        return JavaAction::Pass {
+            until_phase: bot_pass_until(prompt),
+        };
     }
-    JavaAction::Pass
+    JavaAction::Pass { until_phase: None }
+}
+
+#[cfg(feature = "java-forge")]
+fn bot_pass_until(prompt: &JavaRawPrompt) -> Option<String> {
+    if prompt.snapshot.active_player == Some(prompt.player) {
+        None
+    } else {
+        Some("cleanup".to_string())
+    }
 }
 
 #[cfg(feature = "java-forge")]

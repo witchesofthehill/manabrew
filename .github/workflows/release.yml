@@ -52,3 +52,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: gh workflow run release-artifacts.yml --ref "$TAG"
+
+  # After a release PR is merged, bump the pinned `release-as` in
+  # release-please-config.json to the next minor (e.g. 0.1.0 -> 0.2.0) so the
+  # next release-please PR targets that version.
+  bump-release-as:
+    name: Bump release-as to next minor
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Bump minor in release-please-config.json
+        run: |
+          set -euo pipefail
+          current=$(jq -r '.packages["."]["release-as"] // ""' release-please-config.json)
+          if [ -z "$current" ]; then
+            echo "release-as not set; nothing to bump"
+            exit 0
+          fi
+          IFS='.' read -r major minor patch <<< "$current"
+          if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
+            echo "release-as '$current' is not a plain X.Y.Z; refusing to bump"
+            exit 1
+          fi
+          new="${major}.$((minor + 1)).0"
+          echo "Bumping release-as: $current -> $new"
+          tmp=$(mktemp)
+          jq --arg v "$new" '.packages["."]["release-as"] = $v' release-please-config.json > "$tmp"
+          mv "$tmp" release-please-config.json
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          if git diff --quiet release-please-config.json; then
+            echo "release-please-config.json unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release-please-config.json
+          git commit -m "chore(release): bump release-as to next minor"
+          git push origin main

@@ -37,9 +37,9 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+        uses: taiki-e/install-action@v2
         with:
-          version: "v0.13.1"
+          tool: wasm-pack@0.13.1
 
       - run: yarn
       - run: yarn build:wasm
@@ -144,9 +144,9 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+        uses: taiki-e/install-action@v2
         with:
-          version: "v0.13.1"
+          tool: wasm-pack@0.13.1
 
       - run: yarn
 

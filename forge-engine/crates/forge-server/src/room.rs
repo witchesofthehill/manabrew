@@ -310,3 +310,34 @@ impl Room {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn room(host_plays: bool) -> Room {
+        Room::new(
+            "r".into(),
+            "room".into(),
+            "host".into(),
+            "host".into(),
+            4,
+            GameFormat::Commander,
+            EngineKind::Java,
+            host_plays,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn first_user_is_controller_in_hosted_room() {
+        let mut r = room(false);
+        assert!(r.is_host("host"));
+        assert!(!r.is_controller("host"));
+        r.add_player("human".into(), "human".into()).unwrap();
+        assert!(r.is_controller("human"));
+        r.add_player("bot".into(), "bot".into()).unwrap();
+        assert!(!r.is_controller("bot"));
+    }
+}

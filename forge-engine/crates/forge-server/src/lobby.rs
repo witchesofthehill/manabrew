@@ -279,7 +279,7 @@ pub fn set_format_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if !room.is_host(player_id) {
+        if !room.is_controller(player_id) {
             return Err(ServerError::NotHost);
         }
 

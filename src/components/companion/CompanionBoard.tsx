@@ -256,7 +256,7 @@ function FreeTile({
             transform: `translate(-50%, -50%) rotate(${position.rotation}deg)`,
           }}
         >
-          <div className="pointer-events-auto absolute right-1 top-1 flex gap-1 opacity-70 transition-opacity hover:opacity-100">
+          <div className="pointer-events-auto absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-1 opacity-70 transition-opacity hover:opacity-100">
             <div
               role="button"
               aria-label="Rotate tile"

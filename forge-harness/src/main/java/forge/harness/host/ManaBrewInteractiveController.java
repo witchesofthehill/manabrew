@@ -97,16 +97,20 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean mulliganKeepHand(final Player mulliganingPlayer, final int cardsToReturn) {
-        return session.awaitMulliganDecision(me(), cardsToReturn);
+        final boolean keep = session.awaitMulliganDecision(me(), cardsToReturn);
+        if (keep && cardsToReturn > 0) {
+            final CardCollection hand = new CardCollection(player.getCardsIn(ZoneType.Hand));
+            final CardCollection selected = session.awaitMulliganPutBack(me(), hand, cardsToReturn);
+            for (final Card card : selected) {
+                game.getAction().moveToLibrary(card, -1, null);
+            }
+        }
+        return keep;
     }
 
     @Override
     public CardCollection tuckCardsViaMulligan(final Player mulliganingPlayer, final int cardsToReturn) {
-        if (cardsToReturn <= 0) {
-            return new CardCollection();
-        }
-        final CardCollection hand = new CardCollection(mulliganingPlayer.getCardsIn(ZoneType.Hand));
-        return session.awaitMulliganPutBack(me(), hand, cardsToReturn);
+        return new CardCollection();
     }
 
     @Override

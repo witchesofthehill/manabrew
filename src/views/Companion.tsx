@@ -4,6 +4,7 @@ import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
 import { GameSummaryDialog } from "@/components/companion/GameSummaryDialog";
 import { PhaseStrip } from "@/components/companion/PhaseStrip";
+import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
 import { GameIcon } from "@/components/companion/GameIcon";
 import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
@@ -27,7 +28,10 @@ export default function Companion() {
             passes around the table.
           </p>
         </div>
-        <Button onClick={() => setNewOpen(true)}>Start a game</Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setNewOpen(true)}>Start a game</Button>
+          <StatsDialog />
+        </div>
         {archive.length > 0 && (
           <div className="mt-4 w-full max-w-sm space-y-1 text-left">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

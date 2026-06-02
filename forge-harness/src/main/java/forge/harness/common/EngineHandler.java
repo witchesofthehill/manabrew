@@ -21,19 +21,12 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * Unified entrypoint for the acceptance rules Forge's GUI/controller layer enforces
- * around a {@code PlayerController} callback. Every prompt is handled in two layers:
- * a choice set published up front so the UI only offers legal picks, and a
- * post-submit validation for whole-answer constraints a per-option set can't express.
- * Heavier mechanics live in {@link ActionSpace}, {@link ChoiceSpace} and
- * {@link CombatChoiceSpace}; this class brings them together behind one interface
- * shared by deterministic parity and self-hosted interactive controllers.
+ * Unified entrypoints to correctly interface with the forge engine, and check correctness
  */
 public final class EngineHandler {
     private EngineHandler() {
     }
 
-    // Mirrors forge.player.PlayerControllerHuman#announceRequirements.
     public static Integer announceRequirements(final Player player, final SpellAbility ability,
             final String announce, final Random rng) {
         final int[] bounds = announceBounds(player, ability, announce);
@@ -108,12 +101,6 @@ public final class EngineHandler {
         return selected;
     }
 
-    /**
-     * Choice set for the declare-blockers prompt: for each attacker, in input order,
-     * the subset of available blockers that may legally block it
-     * (forge.game.combat.CombatUtil#canBlock per pair). Whole-assignment constraints
-     * (menace counts, must-block, lure) are left to {@link #applyBlockerAssignments}.
-     */
     public static Map<Card, List<Card>> validBlockersByAttacker(
             final Combat combat,
             final List<Card> attackers,
@@ -131,12 +118,6 @@ public final class EngineHandler {
         return out;
     }
 
-    /**
-     * Mirrors forge.gamemodes.match.input.InputBlock#onOk: apply the proposed
-     * blocker assignments, then reject the whole declaration unless
-     * {@link CombatUtil#validateBlocks} accepts it. Returns Forge's error string
-     * (null when legal) and leaves only the legal blocks applied on rejection.
-     */
     public static String applyBlockerAssignments(
             final Combat combat,
             final Player defender,

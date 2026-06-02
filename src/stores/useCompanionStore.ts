@@ -21,6 +21,7 @@ import type {
   CompanionCounterKind,
   CompanionEvent,
   CompanionLayout,
+  CompanionPhase,
   CompanionPlayer,
   CompanionSession,
   ManaColor,
@@ -105,6 +106,8 @@ interface CompanionState {
   pauseTimer: () => void;
   resetTimer: () => void;
   setTimerMode: (mode: "shared" | "chess") => void;
+  setPhase: (phase: CompanionPhase) => void;
+  advancePhase: () => void;
   setActivePlayer: (playerId: string | null) => void;
   advanceTurn: () => void;
   pickRandomFirstPlayer: () => string | null;
@@ -159,6 +162,7 @@ function makeSession(input: {
     timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
     timerMode: "shared",
     chessClockStartedAt: null,
+    phase: "main1",
     activePlayerId: null,
     turn: 0,
     lastFirstPlayerId: null,
@@ -846,6 +850,27 @@ export const useCompanionStore = create<CompanionState>()(
               timerMode: mode,
               chessClockStartedAt: mode === "chess" ? Date.now() : null,
             })),
+          ),
+
+        setPhase: (phase) =>
+          set((state) => withSession(state, (session) => ({ ...session, phase }))),
+
+        advancePhase: () =>
+          set((state) =>
+            withSession(state, (session) => {
+              const order: CompanionPhase[] = [
+                "untap",
+                "upkeep",
+                "draw",
+                "main1",
+                "combat",
+                "main2",
+                "end",
+              ];
+              const i = order.indexOf(session.phase);
+              const next = order[(i + 1) % order.length]!;
+              return { ...session, phase: next };
+            }),
           ),
 
         setActivePlayer: (playerId) =>

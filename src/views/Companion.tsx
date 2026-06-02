@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
+import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { GameIcon } from "@/components/companion/GameIcon";
 import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
@@ -39,6 +40,7 @@ export default function Companion() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <CompanionBar session={session} onOpenNewSession={() => setNewOpen(true)} />
+      <PhaseStrip />
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
       </div>

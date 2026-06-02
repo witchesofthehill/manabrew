@@ -58,6 +58,8 @@ export type CompanionAccentKey =
   | "teal"
   | "slate";
 
+export type CompanionPhase = "untap" | "upkeep" | "draw" | "main1" | "combat" | "main2" | "end";
+
 export type CompanionLayout =
   | "1v1"
   | "two-side"
@@ -126,6 +128,7 @@ export interface CompanionSession {
   timer: { startedAt: number | null; pausedAt: number | null; accumulatedMs: number };
   timerMode: "shared" | "chess";
   chessClockStartedAt: number | null;
+  phase: CompanionPhase;
   activePlayerId: string | null;
   turn: number;
   lastFirstPlayerId: string | null;

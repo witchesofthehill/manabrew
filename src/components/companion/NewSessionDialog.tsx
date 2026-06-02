@@ -22,6 +22,7 @@ import {
   COMPANION_STARTING_LIFE_PRESETS,
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionLayout } from "@/stores/useCompanionStore.types";
+import { LayoutIcon } from "./LayoutIcon";
 
 interface NewSessionDialogProps {
   open: boolean;
@@ -143,11 +144,15 @@ function NewSessionForm({
 
         <div className="space-y-1">
           <Label>Layout</Label>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
             {layoutChoices.map((option) => (
-              <PillButton key={option} active={option === layout} onClick={() => setLayout(option)}>
-                {COMPANION_LAYOUT_LABELS[option]}
-              </PillButton>
+              <LayoutCard
+                key={option}
+                active={option === layout}
+                onClick={() => setLayout(option)}
+                layout={option}
+                label={COMPANION_LAYOUT_LABELS[option]}
+              />
             ))}
           </div>
         </div>
@@ -177,6 +182,37 @@ function NewSessionForm({
         </Button>
       </DialogFooter>
     </>
+  );
+}
+
+function LayoutCard({
+  active,
+  onClick,
+  layout,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  layout: CompanionLayout;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center gap-1.5 rounded-md border p-2 text-center text-[11px] font-medium transition",
+        active
+          ? "border-primary bg-primary/10 text-foreground"
+          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+      )}
+      aria-pressed={active}
+      aria-label={label}
+      title={label}
+    >
+      <LayoutIcon layout={layout} className="size-9" />
+      <span className="truncate leading-tight">{label}</span>
+    </button>
   );
 }
 

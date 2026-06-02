@@ -1,15 +1,6 @@
 import { useState } from "react";
-import {
-  Dices,
-  LayoutGrid,
-  Minus,
-  Plus,
-  Redo2,
-  RotateCcw,
-  Sparkles,
-  Undo2,
-  XOctagon,
-} from "lucide-react";
+import { Dices, Minus, Plus, Redo2, RotateCcw, Sparkles, Undo2, XOctagon } from "lucide-react";
+import { LayoutIcon } from "./LayoutIcon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -132,11 +123,11 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           <Button
             size="sm"
             variant="outline"
-            className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+            className="h-8 gap-1.5 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
             aria-label={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
             title={`Layout: ${COMPANION_LAYOUT_LABELS[session.layout]}`}
           >
-            <LayoutGrid className="size-3.5" />
+            <LayoutIcon layout={session.layout} className="size-4" />
             <span className="hidden sm:inline">{COMPANION_LAYOUT_LABELS[session.layout]}</span>
           </Button>
         </DropdownMenuTrigger>
@@ -147,8 +138,9 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
             <DropdownMenuItem
               key={option}
               onSelect={() => setLayout(option)}
-              className={cn(option === session.layout && "bg-accent")}
+              className={cn("gap-2", option === session.layout && "bg-accent")}
             >
+              <LayoutIcon layout={option} className="size-5" />
               {COMPANION_LAYOUT_LABELS[option]}
             </DropdownMenuItem>
           ))}

@@ -32,6 +32,13 @@ interface PlayerTileProps {
   commanderRules: boolean;
   isActive: boolean;
   className?: string;
+  /** Free-layout owner handles pointer events itself, so PlayerTile suppresses
+   *  its own tap zones and press-hold to avoid clashing with body-drag. */
+  externalLifeInput?: boolean;
+  /** Counter bumps from the external owner that drive the side-flash animation
+   *  when `externalLifeInput` is on. */
+  externalDecTick?: number;
+  externalIncTick?: number;
 }
 
 export function PlayerTile({
@@ -41,6 +48,9 @@ export function PlayerTile({
   commanderRules,
   isActive,
   className,
+  externalLifeInput = false,
+  externalDecTick = 0,
+  externalIncTick = 0,
 }: PlayerTileProps) {
   const adjustLife = useCompanionStore((s) => s.adjustLife);
   const setLife = useCompanionStore((s) => s.setLife);
@@ -96,32 +106,44 @@ export function PlayerTile({
       >
         <CommanderArt refs={player.commanders} />
 
-        <button
-          type="button"
-          aria-label="Decrease life"
-          className="absolute inset-y-0 left-0 z-10 w-1/2"
-          {...decBindings}
-        />
-        <button
-          type="button"
-          aria-label="Increase life"
-          className="absolute inset-y-0 right-0 z-10 w-1/2"
-          {...incBindings}
-        />
-        {decTick > 0 && (
-          <div
-            key={`dec-${decTick}`}
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-r from-rose-500/60 to-rose-500/0"
-            aria-hidden
-          />
+        {!externalLifeInput && (
+          <>
+            <button
+              type="button"
+              aria-label="Decrease life"
+              className="absolute inset-y-0 left-0 z-10 w-1/2"
+              {...decBindings}
+            />
+            <button
+              type="button"
+              aria-label="Increase life"
+              className="absolute inset-y-0 right-0 z-10 w-1/2"
+              {...incBindings}
+            />
+          </>
         )}
-        {incTick > 0 && (
-          <div
-            key={`inc-${incTick}`}
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-l from-emerald-400/60 to-emerald-400/0"
-            aria-hidden
-          />
-        )}
+        {(() => {
+          const dec = externalLifeInput ? externalDecTick : decTick;
+          const inc = externalLifeInput ? externalIncTick : incTick;
+          return (
+            <>
+              {dec > 0 && (
+                <div
+                  key={`dec-${dec}`}
+                  className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-r from-rose-500/60 to-rose-500/0"
+                  aria-hidden
+                />
+              )}
+              {inc > 0 && (
+                <div
+                  key={`inc-${inc}`}
+                  className="pointer-events-none absolute inset-y-0 right-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-l from-emerald-400/60 to-emerald-400/0"
+                  aria-hidden
+                />
+              )}
+            </>
+          );
+        })()}
 
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-1.5 text-white @xs:p-2 @md:p-3">
           <div className="pointer-events-auto flex items-start gap-1.5 @md:gap-2">

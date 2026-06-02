@@ -6,6 +6,11 @@ import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionSto
 import { PlayerTile } from "./PlayerTile";
 import { getCompanionSlots } from "./layouts/slots";
 
+const TAP_MAX_DURATION_MS = 220;
+const TAP_MAX_MOTION_PX = 4;
+const HOLD_DELAY_MS = 320;
+const HOLD_INTERVAL_MS = 110;
+
 interface CompanionBoardProps {
   session: CompanionSession;
 }
@@ -127,7 +132,6 @@ const SCALE_MIN = 0.55;
 const SCALE_MAX = 2;
 const SCALE_SNAP = 0.05;
 const SCALE_DRAG_THRESHOLD_PX = 6;
-const BODY_DRAG_THRESHOLD_PX = 4;
 const BASE_TILE_WIDTH = 360;
 const BASE_TILE_HEIGHT = 220;
 
@@ -161,16 +165,23 @@ function FreeTile({
     origScale: number;
     moved: boolean;
   } | null>(null);
-  const bodyDrag = useRef<{
+  const bodyPress = useRef<{
     pointerId: number;
     startX: number;
     startY: number;
+    pressTime: number;
     origX: number;
     origY: number;
-    dragging: boolean;
-    innerTarget: Element | null;
+    half: "left" | "right";
+    maxMotion: number;
     fromHandle: boolean;
+    holdTimer: ReturnType<typeof setTimeout> | null;
+    tickTimer: ReturnType<typeof setInterval> | null;
+    holding: boolean;
   } | null>(null);
+  const adjustLifeStore = useCompanionStore((s) => s.adjustLife);
+  const [decTick, setDecTick] = useState(0);
+  const [incTick, setIncTick] = useState(0);
 
   const baseWidth = bounds ? Math.min(BASE_TILE_WIDTH, bounds.w * 0.45) : BASE_TILE_WIDTH - 40;
   const baseHeight = bounds ? Math.min(BASE_TILE_HEIGHT, bounds.h * 0.45) : BASE_TILE_HEIGHT - 20;
@@ -319,49 +330,71 @@ function FreeTile({
     [onMove, position.rotation, position.x, position.y],
   );
 
-  const onBodyPointerDownCapture = useCallback(
+  const cleanupTimers = useCallback((state: NonNullable<typeof bodyPress.current>) => {
+    if (state.holdTimer) {
+      clearTimeout(state.holdTimer);
+      state.holdTimer = null;
+    }
+    if (state.tickTimer) {
+      clearInterval(state.tickTimer);
+      state.tickTimer = null;
+    }
+  }, []);
+
+  const onBodyPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
       const target = event.target instanceof Element ? event.target : null;
-      const fromHandle = Boolean(target?.closest("[data-companion-handle]"));
-      bodyDrag.current = {
+      if (target?.closest("[data-companion-handle]")) return;
+      if (
+        target?.closest("input, textarea, button, [role='menu'], [data-companion-no-body-drag]")
+      ) {
+        return;
+      }
+      event.currentTarget.setPointerCapture(event.pointerId);
+      const rect = event.currentTarget.getBoundingClientRect();
+      const half: "left" | "right" = event.clientX - rect.left < rect.width / 2 ? "left" : "right";
+      const state = {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        pressTime: Date.now(),
         origX: position.x,
         origY: position.y,
-        dragging: false,
-        innerTarget: target,
-        fromHandle,
+        half,
+        maxMotion: 0,
+        fromHandle: false,
+        holdTimer: null as ReturnType<typeof setTimeout> | null,
+        tickTimer: null as ReturnType<typeof setInterval> | null,
+        holding: false,
       };
+      bodyPress.current = state;
+      state.holdTimer = setTimeout(() => {
+        if (bodyPress.current !== state || state.maxMotion >= TAP_MAX_MOTION_PX) return;
+        state.holding = true;
+        adjustLifeStore(player.id, half === "left" ? -1 : 1);
+        if (half === "left") setDecTick((t) => t + 1);
+        else setIncTick((t) => t + 1);
+        state.tickTimer = setInterval(() => {
+          if (bodyPress.current !== state || state.maxMotion >= TAP_MAX_MOTION_PX) return;
+          adjustLifeStore(player.id, half === "left" ? -1 : 1);
+          if (half === "left") setDecTick((t) => t + 1);
+          else setIncTick((t) => t + 1);
+        }, HOLD_INTERVAL_MS);
+      }, HOLD_DELAY_MS);
     },
-    [position.x, position.y],
+    [adjustLifeStore, player.id, position.x, position.y],
   );
 
-  const onBodyPointerMoveCapture = useCallback(
+  const onBodyPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const state = bodyDrag.current;
-      if (!state || state.fromHandle || event.pointerId !== state.pointerId) return;
+      const state = bodyPress.current;
+      if (!state || event.pointerId !== state.pointerId) return;
       const dx = event.clientX - state.startX;
       const dy = event.clientY - state.startY;
-
-      if (!state.dragging) {
-        if (Math.hypot(dx, dy) < BODY_DRAG_THRESHOLD_PX) return;
-        state.dragging = true;
-        if (state.innerTarget) {
-          try {
-            state.innerTarget.releasePointerCapture(event.pointerId);
-          } catch {
-            /* ignore — element may not hold the capture */
-          }
-          state.innerTarget.dispatchEvent(
-            new PointerEvent("pointercancel", { pointerId: event.pointerId, bubbles: true }),
-          );
-        }
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-
-      event.stopPropagation();
+      const dist = Math.hypot(dx, dy);
+      if (dist > state.maxMotion) state.maxMotion = dist;
+      if (state.holding) return;
       if (!bounds) return;
       const x = clamp(state.origX + dx, 0, bounds.w - tileWidth);
       const y = clamp(state.origY + dy, 0, bounds.h - tileHeight);
@@ -370,19 +403,43 @@ function FreeTile({
     [bounds, onMove, position.rotation, position.scale, tileHeight, tileWidth],
   );
 
-  const onBodyPointerUpCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const state = bodyDrag.current;
-    if (!state || event.pointerId !== state.pointerId) return;
-    bodyDrag.current = null;
-    if (state.dragging) {
-      event.stopPropagation();
+  const onBodyPointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const state = bodyPress.current;
+      if (!state || event.pointerId !== state.pointerId) return;
+      bodyPress.current = null;
+      cleanupTimers(state);
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
         /* already released */
       }
-    }
-  }, []);
+      const wasTap =
+        !state.holding &&
+        state.maxMotion < TAP_MAX_MOTION_PX &&
+        Date.now() - state.pressTime < TAP_MAX_DURATION_MS;
+      if (wasTap) {
+        if (state.maxMotion > 0) {
+          onMove({
+            x: state.origX,
+            y: state.origY,
+            rotation: position.rotation,
+            scale: position.scale,
+          });
+        }
+        adjustLifeStore(player.id, state.half === "left" ? -1 : 1);
+        if (state.half === "left") setDecTick((t) => t + 1);
+        else setIncTick((t) => t + 1);
+      }
+    },
+    [adjustLifeStore, cleanupTimers, onMove, player.id, position.rotation, position.scale],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (bodyPress.current) cleanupTimers(bodyPress.current);
+    };
+  }, [cleanupTimers]);
 
   const isPerpendicular = Math.abs(position.rotation) === 90;
   const cardWidth = isPerpendicular ? tileHeight : tileWidth;
@@ -390,12 +447,12 @@ function FreeTile({
 
   return (
     <div
-      className="absolute touch-none"
+      className="absolute touch-none select-none"
       style={{ left: position.x, top: position.y, width: tileWidth, height: tileHeight }}
-      onPointerDownCapture={onBodyPointerDownCapture}
-      onPointerMoveCapture={onBodyPointerMoveCapture}
-      onPointerUpCapture={onBodyPointerUpCapture}
-      onPointerCancelCapture={onBodyPointerUpCapture}
+      onPointerDown={onBodyPointerDown}
+      onPointerMove={onBodyPointerMove}
+      onPointerUp={onBodyPointerUp}
+      onPointerCancel={onBodyPointerUp}
     >
       <div className="relative size-full">
         <PlayerTile
@@ -404,6 +461,9 @@ function FreeTile({
           rotation={position.rotation}
           commanderRules={commanderRules}
           isActive={isActive}
+          externalLifeInput
+          externalDecTick={decTick}
+          externalIncTick={incTick}
         />
         <div
           className="pointer-events-none absolute z-40"

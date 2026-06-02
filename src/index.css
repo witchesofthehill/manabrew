@@ -334,6 +334,22 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  /* Kill the companion tap flash and stack flashes for users with vestibular
+     sensitivity. Keep functional opacity transitions but skip the keyframed
+     decorative ones. */
+  .animate-companion-tap-flash,
+  .animate-card-flash,
+  .animate-card-flash-backdrop,
+  .animate-card-stack-enter,
+  .animate-card-stack-flash-in,
+  .animate-player-turn-flash,
+  .animate-player-targetable-pulse,
+  .animate-dice-roll {
+    animation: none !important;
+  }
+}
+
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

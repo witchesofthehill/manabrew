@@ -50,14 +50,28 @@ export function PlayerTile({
   const [renaming, setRenaming] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [lifeEditing, setLifeEditing] = useState(false);
+  const [decTick, setDecTick] = useState(0);
+  const [incTick, setIncTick] = useState(0);
 
   const decBindings = usePressHold({
-    onTap: () => adjustLife(player.id, -1),
-    onHoldTick: () => adjustLife(player.id, -1),
+    onTap: () => {
+      adjustLife(player.id, -1);
+      setDecTick((t) => t + 1);
+    },
+    onHoldTick: () => {
+      adjustLife(player.id, -1);
+      setDecTick((t) => t + 1);
+    },
   });
   const incBindings = usePressHold({
-    onTap: () => adjustLife(player.id, 1),
-    onHoldTick: () => adjustLife(player.id, 1),
+    onTap: () => {
+      adjustLife(player.id, 1);
+      setIncTick((t) => t + 1);
+    },
+    onHoldTick: () => {
+      adjustLife(player.id, 1);
+      setIncTick((t) => t + 1);
+    },
   });
 
   const isPerpendicular = Math.abs(rotation) === 90;
@@ -93,6 +107,20 @@ export function PlayerTile({
           className="absolute inset-y-0 right-0 z-10 w-1/2"
           {...incBindings}
         />
+        {decTick > 0 && (
+          <div
+            key={`dec-${decTick}`}
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-r from-rose-500/60 to-rose-500/0"
+            aria-hidden
+          />
+        )}
+        {incTick > 0 && (
+          <div
+            key={`inc-${incTick}`}
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-l from-emerald-400/60 to-emerald-400/0"
+            aria-hidden
+          />
+        )}
 
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-1.5 text-white @xs:p-2 @md:p-3">
           <div className="pointer-events-auto flex items-start gap-1.5 @md:gap-2">

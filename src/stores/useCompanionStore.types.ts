@@ -36,8 +36,8 @@ export interface CompanionPlayer {
   isMonarch?: boolean;
   hasInitiative?: boolean;
   hasCityBlessing?: boolean;
-  /** Free-layout position + rotation (only consulted when layout === "free"). */
-  freeLayout?: { x: number; y: number; rotation: number };
+  /** Free-layout position, rotation and scale (only consulted when layout === "free"). */
+  freeLayout?: { x: number; y: number; rotation: number; scale?: number };
 }
 
 export type CompanionAccentKey =

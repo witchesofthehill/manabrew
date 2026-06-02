@@ -64,7 +64,10 @@ interface CompanionState {
     slot: CompanionCommanderSlot,
     ref: CompanionCommanderRef | null,
   ) => void;
-  setFreePosition: (playerId: string, pos: { x: number; y: number; rotation: number }) => void;
+  setFreePosition: (
+    playerId: string,
+    pos: { x: number; y: number; rotation: number; scale?: number },
+  ) => void;
 
   adjustLife: (playerId: string, delta: number) => void;
   setLife: (playerId: string, value: number) => void;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, RotateCw } from "lucide-react";
+import { GripVertical, Maximize2, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer, CompanionSession } from "@/stores/useCompanionStore.types";
@@ -91,9 +91,11 @@ function ensureFreePos(
   index: number,
   total: number,
   bounds: { w: number; h: number } | null,
-): { x: number; y: number; rotation: number } {
-  if (player.freeLayout) return player.freeLayout;
-  if (!bounds) return { x: 0, y: 0, rotation: 0 };
+): { x: number; y: number; rotation: number; scale: number } {
+  if (player.freeLayout) {
+    return { ...player.freeLayout, scale: player.freeLayout.scale ?? 1 };
+  }
+  if (!bounds) return { x: 0, y: 0, rotation: 0, scale: 1 };
   const cols = Math.ceil(Math.sqrt(total));
   const rows = Math.ceil(total / cols);
   const cellW = bounds.w / cols;
@@ -104,6 +106,7 @@ function ensureFreePos(
     x: col * cellW + 10,
     y: row * cellH + 10,
     rotation: row === 0 && rows > 1 ? 180 : 0,
+    scale: 1,
   };
 }
 
@@ -112,14 +115,20 @@ interface FreeTileProps {
   opponents: CompanionPlayer[];
   commanderRules: boolean;
   isActive: boolean;
-  position: { x: number; y: number; rotation: number };
+  position: { x: number; y: number; rotation: number; scale: number };
   bounds: { w: number; h: number } | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  onMove: (pos: { x: number; y: number; rotation: number }) => void;
+  onMove: (pos: { x: number; y: number; rotation: number; scale: number }) => void;
 }
 
 const ROTATION_SNAP_DEG = 15;
 const ROTATION_DRAG_THRESHOLD_DEG = 4;
+const SCALE_MIN = 0.55;
+const SCALE_MAX = 2;
+const SCALE_SNAP = 0.05;
+const SCALE_DRAG_THRESHOLD_PX = 6;
+const BASE_TILE_WIDTH = 360;
+const BASE_TILE_HEIGHT = 220;
 
 function FreeTile({
   player,
@@ -144,8 +153,18 @@ function FreeTile({
     origRotation: number;
     moved: boolean;
   } | null>(null);
-  const tileWidth = bounds ? Math.min(360, bounds.w * 0.45) : 320;
-  const tileHeight = bounds ? Math.min(220, bounds.h * 0.45) : 200;
+  const scaleStart = useRef<{
+    centerX: number;
+    centerY: number;
+    origDist: number;
+    origScale: number;
+    moved: boolean;
+  } | null>(null);
+
+  const baseWidth = bounds ? Math.min(BASE_TILE_WIDTH, bounds.w * 0.45) : BASE_TILE_WIDTH - 40;
+  const baseHeight = bounds ? Math.min(BASE_TILE_HEIGHT, bounds.h * 0.45) : BASE_TILE_HEIGHT - 20;
+  const tileWidth = baseWidth * position.scale;
+  const tileHeight = baseHeight * position.scale;
 
   const onMovePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -167,9 +186,9 @@ function FreeTile({
       const dy = event.clientY - dragStart.current.pointerY;
       const x = clamp(dragStart.current.origX + dx, 0, bounds.w - tileWidth);
       const y = clamp(dragStart.current.origY + dy, 0, bounds.h - tileHeight);
-      onMove({ x, y, rotation: position.rotation });
+      onMove({ x, y, rotation: position.rotation, scale: position.scale });
     },
-    [bounds, onMove, position.rotation, tileHeight, tileWidth],
+    [bounds, onMove, position.rotation, position.scale, tileHeight, tileWidth],
   );
 
   const onMovePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
@@ -210,9 +229,9 @@ function FreeTile({
       const raw = start.origRotation + deltaDeg;
       const snapped = Math.round(raw / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG;
       const normalised = normaliseDegrees(snapped);
-      onMove({ x: position.x, y: position.y, rotation: normalised });
+      onMove({ x: position.x, y: position.y, rotation: normalised, scale: position.scale });
     },
-    [onMove, position.x, position.y],
+    [onMove, position.scale, position.x, position.y],
   );
 
   const onRotatePointerUp = useCallback(
@@ -223,7 +242,67 @@ function FreeTile({
       rotateStart.current = null;
       if (start && !start.moved) {
         const next = nextQuarterTurn(position.rotation);
-        onMove({ x: position.x, y: position.y, rotation: next });
+        onMove({ x: position.x, y: position.y, rotation: next, scale: position.scale });
+      }
+    },
+    [onMove, position.rotation, position.scale, position.x, position.y],
+  );
+
+  const onScalePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      const container = containerRef.current;
+      if (!container) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      const rect = container.getBoundingClientRect();
+      const centerX = rect.left + position.x + tileWidth / 2;
+      const centerY = rect.top + position.y + tileHeight / 2;
+      const dx = event.clientX - centerX;
+      const dy = event.clientY - centerY;
+      const origDist = Math.max(8, Math.hypot(dx, dy));
+      scaleStart.current = {
+        centerX,
+        centerY,
+        origDist,
+        origScale: position.scale,
+        moved: false,
+      };
+    },
+    [containerRef, position.scale, position.x, position.y, tileHeight, tileWidth],
+  );
+
+  const onScalePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const start = scaleStart.current;
+      if (!start) return;
+      event.stopPropagation();
+      const dx = event.clientX - start.centerX;
+      const dy = event.clientY - start.centerY;
+      const dist = Math.hypot(dx, dy);
+      if (!start.moved && Math.abs(dist - start.origDist) < SCALE_DRAG_THRESHOLD_PX) return;
+      start.moved = true;
+      const ratio = dist / start.origDist;
+      const raw = start.origScale * ratio;
+      const snapped = Math.round(raw / SCALE_SNAP) * SCALE_SNAP;
+      const clamped = clamp(snapped, SCALE_MIN, SCALE_MAX);
+      onMove({
+        x: position.x,
+        y: position.y,
+        rotation: position.rotation,
+        scale: clamped,
+      });
+    },
+    [onMove, position.rotation, position.x, position.y],
+  );
+
+  const onScalePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      event.stopPropagation();
+      event.currentTarget.releasePointerCapture(event.pointerId);
+      const start = scaleStart.current;
+      scaleStart.current = null;
+      if (start && !start.moved) {
+        onMove({ x: position.x, y: position.y, rotation: position.rotation, scale: 1 });
       }
     },
     [onMove, position.rotation, position.x, position.y],
@@ -271,6 +350,18 @@ function FreeTile({
               onPointerCancel={onRotatePointerUp}
             >
               <RotateCw className="size-4" />
+            </div>
+            <div
+              role="button"
+              aria-label="Scale tile"
+              title="Drag to resize · tap to reset"
+              className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
+              onPointerDown={onScalePointerDown}
+              onPointerMove={onScalePointerMove}
+              onPointerUp={onScalePointerUp}
+              onPointerCancel={onScalePointerUp}
+            >
+              <Maximize2 className="size-4" />
             </div>
             <div
               role="button"

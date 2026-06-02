@@ -513,13 +513,15 @@ export const useCompanionStore = create<CompanionState>()(
               const prevLife = target.life;
               const lifeDelta = -(next - prev);
               const nextLife = prevLife + lifeDelta;
+              const prevDead = target.isDead;
               const becomesDead =
                 next >= COMPANION_LETHAL_COMMANDER_DAMAGE && session.commanderRules;
+              const nextDead = prevDead || becomesDead;
               const updated = replacePlayer(session, targetId, (p) => ({
                 ...p,
                 commanderDamage: { ...p.commanderDamage, [sourceId]: nextPair },
                 life: nextLife,
-                isDead: p.isDead || becomesDead,
+                isDead: nextDead,
               }));
               return pushEvent(updated, {
                 type: "cmdDmg",
@@ -530,6 +532,8 @@ export const useCompanionStore = create<CompanionState>()(
                 next,
                 prevLife,
                 nextLife,
+                prevDead,
+                nextDead,
                 at: Date.now(),
               });
             }),
@@ -689,6 +693,7 @@ export const useCompanionStore = create<CompanionState>()(
                 ...p,
                 commanderDamage: { ...p.commanderDamage, [last.sourceId]: revertedPair },
                 life: last.prevLife,
+                isDead: last.prevDead,
               }));
               return { ...target, history };
             }),

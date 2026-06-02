@@ -83,6 +83,8 @@ export type CompanionEvent =
       next: number;
       prevLife: number;
       nextLife: number;
+      prevDead: boolean;
+      nextDead: boolean;
       at: number;
     }
   | { type: "counterAdd"; playerId: string; counter: CompanionCounter; at: number }

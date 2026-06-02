@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Flag, MoreVertical, UserMinus, UserPlus } from "lucide-react";
+import { Flag, MoreVertical, NotebookPen, UserMinus, UserPlus } from "lucide-react";
+import { PlayerNotesDialog } from "./PlayerNotesDialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,6 +38,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const markDead = useCompanionStore((s) => s.markDead);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const [pendingConcede, setPendingConcede] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const concedeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -125,6 +127,10 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           ))}
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => setNotesOpen(true)}>
+          <NotebookPen className="mr-2 size-4" /> Notes
+          {player.notes ? "…" : ""}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => resetCounters("all", player.id)}>
           Reset this player
         </DropdownMenuItem>
@@ -146,6 +152,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
           </>
         )}
       </DropdownMenuContent>
+      <PlayerNotesDialog open={notesOpen} onOpenChange={setNotesOpen} player={player} />
     </DropdownMenu>
   );
 }

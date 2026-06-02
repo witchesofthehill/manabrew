@@ -65,6 +65,7 @@ interface CompanionState {
   setPlayerCount: (count: number) => void;
 
   renamePlayer: (playerId: string, name: string) => void;
+  setPlayerNotes: (playerId: string, notes: string) => void;
   setPlayerAccent: (playerId: string, accent: CompanionAccentKey) => void;
   setCommander: (
     playerId: string,
@@ -459,6 +460,13 @@ export const useCompanionStore = create<CompanionState>()(
           set((state) =>
             withSession(state, (session) =>
               replacePlayer(session, playerId, (p) => ({ ...p, name })),
+            ),
+          ),
+
+        setPlayerNotes: (playerId, notes) =>
+          set((state) =>
+            withSession(state, (session) =>
+              replacePlayer(session, playerId, (p) => ({ ...p, notes })),
             ),
           ),
 

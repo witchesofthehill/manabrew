@@ -44,6 +44,8 @@ export interface CompanionPlayer {
   manaPool?: Partial<Record<ManaColor, number>>;
   /** Total chess-clock time accumulated while this player was active. */
   timeMs?: number;
+  /** Free-form note shown in the player menu. */
+  notes?: string;
   /** Free-layout position, rotation and scale (only consulted when layout === "free"). */
   freeLayout?: { x: number; y: number; rotation: number; scale?: number };
 }

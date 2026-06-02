@@ -33,6 +33,7 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
 import { DiceRoller } from "./DiceRoller";
+import { GameLog } from "./GameLog";
 import { TurnTimer } from "./TurnTimer";
 
 interface CompanionBarProps {
@@ -198,6 +199,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           <DayNightIcon className="size-4" />
         </Button>
         <TurnTimer />
+        <GameLog session={session} />
         <Button
           size="icon"
           variant="outline"

@@ -129,6 +129,9 @@ export interface CompanionSession {
   timerMode: "shared" | "chess";
   chessClockStartedAt: number | null;
   phase: CompanionPhase;
+  /** When true, the partner commander slot represents an Oathbreaker
+   *  "signature spell" rather than a second commander. UI-only flag. */
+  oathbreaker?: boolean;
   activePlayerId: string | null;
   turn: number;
   lastFirstPlayerId: string | null;

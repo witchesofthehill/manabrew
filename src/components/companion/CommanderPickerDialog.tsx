@@ -64,6 +64,8 @@ function CommanderPickerForm({
   onClose: () => void;
 }) {
   const setCommander = useCompanionStore((s) => s.setCommander);
+  const oathbreaker = useCompanionStore((s) => s.session?.oathbreaker ?? false);
+  const partnerLabel = oathbreaker ? "Signature spell" : "Partner / Background";
   const [partnerEnabled, setPartnerEnabled] = useState(Boolean(initial[1]));
   const [slots, setSlots] = useState<[SlotState, SlotState]>([
     { query: initial[0]?.name ?? "", pick: initial[0] },
@@ -107,11 +109,11 @@ function CommanderPickerForm({
             onChange={(e) => setPartnerEnabled(e.target.checked)}
             className="size-4 accent-primary"
           />
-          Partner / Background
+          {partnerLabel} slot
         </label>
         {partnerEnabled && (
           <CommanderSlot
-            slotLabel="Partner"
+            slotLabel={partnerLabel}
             query={slots[1].query}
             pick={slots[1].pick}
             onQueryChange={(query) => updateSlot(1, { query })}

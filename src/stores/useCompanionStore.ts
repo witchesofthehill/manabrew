@@ -51,6 +51,7 @@ interface CompanionState {
     commanderRules: boolean;
     layout?: CompanionLayout;
     carryRoster?: boolean;
+    oathbreaker?: boolean;
   }) => void;
   endSession: (winnerId?: string | null) => void;
   resetCounters: (
@@ -334,10 +335,18 @@ export const useCompanionStore = create<CompanionState>()(
         pendingDeltas: {},
         dismissSummary: () => set({ summarySession: null }),
 
-        newSession: ({ playerCount, startingLife, commanderRules, layout, carryRoster }) => {
+        newSession: ({
+          playerCount,
+          startingLife,
+          commanderRules,
+          layout,
+          carryRoster,
+          oathbreaker,
+        }) => {
           clearAllPendingTimers();
           const current = get().session;
           const next = makeSession({ playerCount, startingLife, commanderRules, layout });
+          if (oathbreaker) next.oathbreaker = true;
           if (carryRoster && current) {
             next.players = next.players.map((player, index) => {
               const carry = current.players[index];

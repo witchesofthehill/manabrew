@@ -34,6 +34,7 @@ interface NewSessionDialogProps {
     commanderRules: boolean;
     layout: CompanionLayout;
     carryRoster: boolean;
+    oathbreaker?: boolean;
   }) => void;
 }
 
@@ -77,6 +78,7 @@ function NewSessionForm({
     COMPANION_DEFAULT_LAYOUT_BY_COUNT[COMPANION_DEFAULT_PLAYER_COUNT] ?? "1v1",
   );
   const [carryRoster, setCarryRoster] = useState(hasExistingSession);
+  const [oathbreaker, setOathbreaker] = useState(false);
 
   const updatePlayerCount = (n: number) => {
     setPlayerCount(n);
@@ -181,6 +183,16 @@ function NewSessionForm({
           Commander rules (40 life, 21 cmd damage lethal)
         </label>
 
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={oathbreaker}
+            onChange={(e) => setOathbreaker(e.target.checked)}
+            className="size-4 accent-primary"
+          />
+          Oathbreaker (partner slot becomes Signature Spell)
+        </label>
+
         <div className="space-y-1">
           <Label>Layout</Label>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
@@ -214,7 +226,14 @@ function NewSessionForm({
         </Button>
         <Button
           onClick={() =>
-            onCreate({ playerCount, startingLife, commanderRules, layout, carryRoster })
+            onCreate({
+              playerCount,
+              startingLife,
+              commanderRules,
+              layout,
+              carryRoster,
+              oathbreaker,
+            })
           }
         >
           Start game

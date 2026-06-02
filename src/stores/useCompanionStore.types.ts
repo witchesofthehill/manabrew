@@ -134,6 +134,8 @@ export interface CompanionSession {
   /** When true, the partner commander slot represents an Oathbreaker
    *  "signature spell" rather than a second commander. UI-only flag. */
   oathbreaker?: boolean;
+  /** Optional user-supplied label for the game (e.g. "Friday EDH at Marco's"). */
+  tag?: string;
   activePlayerId: string | null;
   turn: number;
   lastFirstPlayerId: string | null;

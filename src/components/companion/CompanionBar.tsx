@@ -60,6 +60,8 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
 
   const [diceOpen, setDiceOpen] = useState(false);
+  const setSessionTag = useCompanionStore((s) => s.setSessionTag);
+  const [editingTag, setEditingTag] = useState(false);
 
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[session.players.length] ?? ["free"];
 
@@ -167,6 +169,32 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {editingTag ? (
+        <input
+          autoFocus
+          defaultValue={session.tag ?? ""}
+          placeholder="Game title…"
+          className="h-8 w-40 rounded-md border border-input bg-background px-2 text-xs"
+          onBlur={(e) => {
+            setSessionTag(e.target.value.trim());
+            setEditingTag(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            if (e.key === "Escape") setEditingTag(false);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditingTag(true)}
+          className="hidden truncate text-xs text-muted-foreground hover:text-foreground sm:inline"
+          title="Edit game title"
+        >
+          {session.tag || "Untitled game"}
+        </button>
+      )}
 
       <div className="ml-auto flex flex-wrap items-center gap-1 sm:gap-2">
         <Button

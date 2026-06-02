@@ -182,6 +182,14 @@ function replacePlayer(
 
 const pendingDeltaTimers: Record<string, PendingDelta> = {};
 
+function clearAllPendingTimers(): void {
+  for (const id of Object.keys(pendingDeltaTimers)) {
+    const pending = pendingDeltaTimers[id];
+    if (pending?.timer) clearTimeout(pending.timer);
+    delete pendingDeltaTimers[id];
+  }
+}
+
 function flushPendingDelta(playerId: string): void {
   const pending = pendingDeltaTimers[playerId];
   if (!pending || pending.amount === 0) return;
@@ -212,6 +220,7 @@ export const useCompanionStore = create<CompanionState>()(
         pendingDeltas: {},
 
         newSession: ({ playerCount, startingLife, commanderRules, layout, carryRoster }) => {
+          clearAllPendingTimers();
           const current = get().session;
           const next = makeSession({ playerCount, startingLife, commanderRules, layout });
           if (carryRoster && current) {
@@ -226,15 +235,17 @@ export const useCompanionStore = create<CompanionState>()(
               };
             });
           }
-          set({ session: next });
+          set({ session: next, pendingDeltas: {} });
         },
 
         endSession: (winnerId) => {
+          clearAllPendingTimers();
           const session = get().session;
           if (!session) return;
           void winnerId;
           set((state) => ({
             session: null,
+            pendingDeltas: {},
             archive: [session, ...state.archive].slice(0, 10),
           }));
         },
@@ -290,15 +301,25 @@ export const useCompanionStore = create<CompanionState>()(
               );
               if (count === session.players.length) return session;
               if (count < session.players.length) {
+                const kept = session.players.slice(0, count);
+                const stillAlive = kept.some((p) => p.id === session.activePlayerId);
                 return {
                   ...session,
-                  players: session.players.slice(0, count),
+                  players: kept,
+                  activePlayerId: stillAlive ? session.activePlayerId : null,
                   layout: COMPANION_DEFAULT_LAYOUT_BY_COUNT[count] ?? session.layout,
                 };
               }
               const added: CompanionPlayer[] = [];
               for (let i = session.players.length; i < count; i++) {
-                added.push(makePlayer(i, session.startingLife));
+                const newcomer = makePlayer(i, session.startingLife);
+                newcomer.freeLayout = {
+                  x: 40 + (i % 3) * 40,
+                  y: 40 + Math.floor(i / 3) * 40,
+                  rotation: 0,
+                  scale: 1,
+                };
+                added.push(newcomer);
               }
               return {
                 ...session,
@@ -325,13 +346,25 @@ export const useCompanionStore = create<CompanionState>()(
 
         setCommander: (playerId, slot, ref) =>
           set((state) =>
-            withSession(state, (session) =>
-              replacePlayer(session, playerId, (p) => {
+            withSession(state, (session) => {
+              const player = session.players.find((p) => p.id === playerId);
+              if (!player) return session;
+              const prev = player.commanders[slot] ?? null;
+              if (prev === ref) return session;
+              const updated = replacePlayer(session, playerId, (p) => {
                 const next = [...p.commanders] as CompanionPlayer["commanders"];
                 next[slot] = ref;
                 return { ...p, commanders: next };
-              }),
-            ),
+              });
+              return pushEvent(updated, {
+                type: "commander",
+                playerId,
+                slot,
+                prev,
+                next: ref,
+                at: Date.now(),
+              });
+            }),
           ),
 
         setFreePosition: (playerId, pos) =>
@@ -390,31 +423,52 @@ export const useCompanionStore = create<CompanionState>()(
 
         addCounter: (playerId, input) =>
           set((state) =>
-            withSession(state, (session) =>
-              replacePlayer(session, playerId, (p) => {
-                if (p.counters.some((c) => c.kind === input.kind && input.kind !== "custom")) {
-                  return p;
-                }
-                const counter: CompanionCounter = {
-                  id: uid(),
-                  kind: input.kind,
-                  label: input.label,
-                  value: input.value ?? 0,
-                  iconKey: input.iconKey,
-                };
-                return { ...p, counters: [...p.counters, counter] };
-              }),
-            ),
+            withSession(state, (session) => {
+              const player = session.players.find((p) => p.id === playerId);
+              if (!player) return session;
+              if (player.counters.some((c) => c.kind === input.kind && input.kind !== "custom")) {
+                return session;
+              }
+              const counter: CompanionCounter = {
+                id: uid(),
+                kind: input.kind,
+                label: input.label,
+                value: input.value ?? 0,
+                iconKey: input.iconKey,
+              };
+              const updated = replacePlayer(session, playerId, (p) => ({
+                ...p,
+                counters: [...p.counters, counter],
+              }));
+              return pushEvent(updated, {
+                type: "counterAdd",
+                playerId,
+                counter,
+                at: Date.now(),
+              });
+            }),
           ),
 
         removeCounter: (playerId, counterId) =>
           set((state) =>
-            withSession(state, (session) =>
-              replacePlayer(session, playerId, (p) => ({
+            withSession(state, (session) => {
+              const player = session.players.find((p) => p.id === playerId);
+              if (!player) return session;
+              const index = player.counters.findIndex((c) => c.id === counterId);
+              if (index < 0) return session;
+              const counter = player.counters[index]!;
+              const updated = replacePlayer(session, playerId, (p) => ({
                 ...p,
                 counters: p.counters.filter((c) => c.id !== counterId),
-              })),
-            ),
+              }));
+              return pushEvent(updated, {
+                type: "counterRemove",
+                playerId,
+                counter,
+                index,
+                at: Date.now(),
+              });
+            }),
           ),
 
         adjustCounter: (playerId, counterId, delta) => {
@@ -525,11 +579,30 @@ export const useCompanionStore = create<CompanionState>()(
 
         markDead: (playerId, dead) =>
           set((state) =>
-            withSession(state, (session) =>
-              replacePlayer(session, playerId, (p) => ({ ...p, isDead: dead })),
-            ),
+            withSession(state, (session) => {
+              const player = session.players.find((p) => p.id === playerId);
+              if (!player || player.isDead === dead) return session;
+              const updated = replacePlayer(session, playerId, (p) => ({ ...p, isDead: dead }));
+              return pushEvent(updated, {
+                type: "dead",
+                playerId,
+                prev: player.isDead,
+                next: dead,
+                at: Date.now(),
+              });
+            }),
           ),
 
+        /**
+         * Undo reverses one gameplay step. The history stack tracks: life
+         * (`adjustLife`/`setLife`), counter values, counter add/remove,
+         * commander damage (which also restores the linked life delta),
+         * commander slot changes, and `markDead`. Configuration actions
+         * (layout, player count, starting life, commander rules toggle,
+         * monarch / initiative / blessing toggles, rename, accent, free
+         * position) intentionally do NOT push history — they're treated as
+         * setup, not gameplay.
+         */
         undo: () => {
           /** Snapshot the in-flight life batches so we can revert player.life
            *  to the value before the current batch started. `adjustLife`
@@ -570,6 +643,42 @@ export const useCompanionStore = create<CompanionState>()(
                       c.id === last.counterId ? { ...c, value: last.prev } : c,
                     ),
                   })),
+                  history,
+                };
+              }
+              if (last.type === "counterAdd") {
+                return {
+                  ...replacePlayer(session, last.playerId, (p) => ({
+                    ...p,
+                    counters: p.counters.filter((c) => c.id !== last.counter.id),
+                  })),
+                  history,
+                };
+              }
+              if (last.type === "counterRemove") {
+                return {
+                  ...replacePlayer(session, last.playerId, (p) => {
+                    const next = [...p.counters];
+                    const index = Math.min(Math.max(0, last.index), next.length);
+                    next.splice(index, 0, last.counter);
+                    return { ...p, counters: next };
+                  }),
+                  history,
+                };
+              }
+              if (last.type === "commander") {
+                return {
+                  ...replacePlayer(session, last.playerId, (p) => {
+                    const commanders = [...p.commanders] as CompanionPlayer["commanders"];
+                    commanders[last.slot] = last.prev;
+                    return { ...p, commanders };
+                  }),
+                  history,
+                };
+              }
+              if (last.type === "dead") {
+                return {
+                  ...replacePlayer(session, last.playerId, (p) => ({ ...p, isDead: last.prev })),
                   history,
                 };
               }

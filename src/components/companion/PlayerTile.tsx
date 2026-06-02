@@ -1,28 +1,18 @@
 import { useState } from "react";
-import { MoreVertical, UserMinus, UserPlus } from "lucide-react";
-import { GameIcon } from "./GameIcon";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
-import {
-  COMPANION_ACCENT_COLORS,
-  COMPANION_ACCENT_KEYS,
-} from "@/stores/useCompanionStore.constants";
+import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
+import { AddCounterMenu } from "./AddCounterMenu";
 import { CommanderArt } from "./CommanderArt";
 import { CommanderDamageStrip } from "./CommanderDamageStrip";
 import { CommanderPickerDialog } from "./CommanderPickerDialog";
 import { CountersRail } from "./CountersRail";
-import { AddCounterMenu } from "./AddCounterMenu";
+import { GameIcon } from "./GameIcon";
+import { PlayerMenu } from "./PlayerMenu";
+import { StatusChips } from "./StatusChips";
+import { TapFlash } from "./TapFlash";
 import { usePressHold } from "./usePressHold";
 
 interface PlayerTileProps {
@@ -86,6 +76,8 @@ export function PlayerTile({
   });
 
   const isPerpendicular = Math.abs(rotation) === 90;
+  const flashDec = externalLifeInput ? externalDecTick : decTick;
+  const flashInc = externalLifeInput ? externalIncTick : incTick;
 
   return (
     <div className={cn("relative size-full", className)} style={{ containerType: "size" }}>
@@ -122,28 +114,7 @@ export function PlayerTile({
             />
           </>
         )}
-        {(() => {
-          const dec = externalLifeInput ? externalDecTick : decTick;
-          const inc = externalLifeInput ? externalIncTick : incTick;
-          return (
-            <>
-              {dec > 0 && (
-                <div
-                  key={`dec-${dec}`}
-                  className="pointer-events-none absolute inset-y-0 left-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-r from-rose-500/60 to-rose-500/0"
-                  aria-hidden
-                />
-              )}
-              {inc > 0 && (
-                <div
-                  key={`inc-${inc}`}
-                  className="pointer-events-none absolute inset-y-0 right-0 z-10 w-1/2 animate-companion-tap-flash bg-gradient-to-l from-emerald-400/60 to-emerald-400/0"
-                  aria-hidden
-                />
-              )}
-            </>
-          );
-        })()}
+        <TapFlash decTick={flashDec} incTick={flashInc} />
 
         <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-1.5 text-white @xs:p-2 @md:p-3">
           <div className="pointer-events-auto flex items-start gap-1.5 @md:gap-2">
@@ -259,106 +230,4 @@ export function PlayerTile({
 
 function hasCommanderArt(players: CompanionPlayer[]): boolean {
   return players.some((p) => p.commanders[0]?.imageUrl);
-}
-
-function StatusChips({ player }: { player: CompanionPlayer }) {
-  return (
-    <>
-      {player.isMonarch && (
-        <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-1 py-0.5 text-[9px] font-semibold text-amber-950 @sm:px-1.5 @sm:text-[10px]">
-          <GameIcon icon="crown" className="size-2.5 @sm:size-3" />{" "}
-          <span className="hidden @xs:inline">Monarch</span>
-        </span>
-      )}
-      {player.hasInitiative && (
-        <span className="flex items-center gap-1 rounded-full bg-violet-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
-          <GameIcon icon="checkered-flag" className="size-2.5 @sm:size-3" />{" "}
-          <span className="hidden @xs:inline">Initiative</span>
-        </span>
-      )}
-      {player.hasCityBlessing && (
-        <span className="flex items-center gap-1 rounded-full bg-sky-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
-          <GameIcon icon="fairy-wand" className="size-2.5 @sm:size-3" />{" "}
-          <span className="hidden @xs:inline">Ascend</span>
-        </span>
-      )}
-    </>
-  );
-}
-
-function PlayerMenu({
-  player,
-  onPickCommander,
-}: {
-  player: CompanionPlayer;
-  onPickCommander: () => void;
-}) {
-  const toggleMonarch = useCompanionStore((s) => s.toggleMonarch);
-  const toggleInitiative = useCompanionStore((s) => s.toggleInitiative);
-  const toggleCityBlessing = useCompanionStore((s) => s.toggleCityBlessing);
-  const setPlayerAccent = useCompanionStore((s) => s.setPlayerAccent);
-  const markDead = useCompanionStore((s) => s.markDead);
-  const resetCounters = useCompanionStore((s) => s.resetCounters);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-6 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-7"
-          aria-label="Player menu"
-        >
-          <MoreVertical className="size-3.5 @md:size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuItem onSelect={onPickCommander}>
-          <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => toggleMonarch(player.id)}>
-          <GameIcon icon="crown" className="mr-2 size-4" />{" "}
-          {player.isMonarch ? "Remove monarch" : "Mark monarch"}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => toggleInitiative(player.id)}>
-          <GameIcon icon="checkered-flag" className="mr-2 size-4" />{" "}
-          {player.hasInitiative ? "Remove initiative" : "Take initiative"}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => toggleCityBlessing(player.id)}>
-          <GameIcon icon="fairy-wand" className="mr-2 size-4" />{" "}
-          {player.hasCityBlessing ? "Lose city's blessing" : "Gain city's blessing"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs">Accent</DropdownMenuLabel>
-        <div className="grid grid-cols-8 gap-1 px-2 pb-2">
-          {COMPANION_ACCENT_KEYS.map((key) => (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setPlayerAccent(player.id, key)}
-              className={cn(
-                "size-5 rounded-full border-2",
-                key === player.accentKey ? "border-foreground" : "border-transparent",
-              )}
-              style={{ backgroundColor: COMPANION_ACCENT_COLORS[key] }}
-              aria-label={`Accent ${key}`}
-            />
-          ))}
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => resetCounters("all", player.id)}>
-          Reset this player
-        </DropdownMenuItem>
-        {player.isDead ? (
-          <DropdownMenuItem onSelect={() => markDead(player.id, false)}>
-            <UserPlus className="mr-2 size-4" /> Revive
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem onSelect={() => markDead(player.id, true)}>
-            <UserMinus className="mr-2 size-4" /> Eliminate
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }

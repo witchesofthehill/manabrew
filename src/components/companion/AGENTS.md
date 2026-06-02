@@ -9,8 +9,12 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 | File                        | Purpose                                                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------ |
 | `CompanionBar.tsx`          | Top bar: new game, player count, starting life, commander toggle, layout, dice, undo, reset, end |
-| `CompanionBoard.tsx`        | Grid-template layout dispatcher + free-position drag/rotate tile                                 |
+| `CompanionBoard.tsx`        | Grid-template layout dispatcher + free-board container                                           |
+| `FreeTile.tsx`              | Free-layout tile owner: rotate / scale / move handles, body press-state-machine, keyboard ±life  |
 | `PlayerTile.tsx`            | One player tile: tap zones, life total, status chips, commander menu, counters rail              |
+| `StatusChips.tsx`           | Monarch / Initiative / Ascend pill chips                                                         |
+| `PlayerMenu.tsx`            | Top-right ⋮ menu (commander picker, status toggles, accent picker, reset, eliminate/revive)      |
+| `TapFlash.tsx`              | Side-flash overlay rendered when life ticks (red left, green right)                              |
 | `CommanderArt.tsx`          | Banner / avatar render for one or two commander refs                                             |
 | `CommanderDamageStrip.tsx`  | Side rail of opponent avatars; popover stepper per source × commander slot                       |
 | `CommanderPickerDialog.tsx` | Scryfall-name-search picker with partner toggle                                                  |

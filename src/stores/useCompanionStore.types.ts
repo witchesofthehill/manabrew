@@ -84,7 +84,24 @@ export type CompanionEvent =
       prevLife: number;
       nextLife: number;
       at: number;
-    };
+    }
+  | { type: "counterAdd"; playerId: string; counter: CompanionCounter; at: number }
+  | {
+      type: "counterRemove";
+      playerId: string;
+      counter: CompanionCounter;
+      index: number;
+      at: number;
+    }
+  | {
+      type: "commander";
+      playerId: string;
+      slot: CompanionCommanderSlot;
+      prev: CompanionCommanderRef | null;
+      next: CompanionCommanderRef | null;
+      at: number;
+    }
+  | { type: "dead"; playerId: string; prev: boolean; next: boolean; at: number };
 
 export interface CompanionSession {
   id: string;

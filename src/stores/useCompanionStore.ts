@@ -852,7 +852,14 @@ export const useCompanionStore = create<CompanionState>()(
               const nextPlayer = living[nextIndex]!;
               const nextTurn =
                 currentIndex < 0 ? 1 : nextIndex === 0 ? session.turn + 1 : session.turn;
-              return { ...session, activePlayerId: nextPlayer.id, turn: nextTurn };
+              // Storm count resets at the end of the turn (oracle rule 702.40).
+              const players = session.players.map((p) => ({
+                ...p,
+                counters: p.counters.map((c) =>
+                  c.kind === "storm" && c.value !== 0 ? { ...c, value: 0 } : c,
+                ),
+              }));
+              return { ...session, players, activePlayerId: nextPlayer.id, turn: nextTurn };
             }),
           ),
 

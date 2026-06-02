@@ -92,9 +92,48 @@ function NewSessionForm({
 
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[playerCount] ?? ["free"];
 
+  const applyPreset = (preset: "standard" | "commander" | "brawl") => {
+    if (preset === "standard") {
+      setStartingLife(20);
+      setCommanderRules(false);
+    } else if (preset === "commander") {
+      setStartingLife(40);
+      setCommanderRules(true);
+    } else {
+      setStartingLife(30);
+      setCommanderRules(true);
+    }
+  };
+  const presetMatch =
+    !commanderRules && startingLife === 20
+      ? "standard"
+      : commanderRules && startingLife === 40
+        ? "commander"
+        : commanderRules && startingLife === 30
+          ? "brawl"
+          : null;
+
   return (
     <>
       <div className="space-y-4">
+        <div className="space-y-1">
+          <Label>Format preset</Label>
+          <div className="flex flex-wrap gap-1.5">
+            <PillButton active={presetMatch === "standard"} onClick={() => applyPreset("standard")}>
+              Standard (20)
+            </PillButton>
+            <PillButton
+              active={presetMatch === "commander"}
+              onClick={() => applyPreset("commander")}
+            >
+              Commander (40)
+            </PillButton>
+            <PillButton active={presetMatch === "brawl"} onClick={() => applyPreset("brawl")}>
+              Brawl (30)
+            </PillButton>
+          </div>
+        </div>
+
         <div className="space-y-1">
           <Label>Players</Label>
           <div className="flex flex-wrap gap-1.5">

@@ -42,6 +42,8 @@ export interface CompanionPlayer {
   ringLevel?: number;
   speed?: number;
   manaPool?: Partial<Record<ManaColor, number>>;
+  /** Total chess-clock time accumulated while this player was active. */
+  timeMs?: number;
   /** Free-layout position, rotation and scale (only consulted when layout === "free"). */
   freeLayout?: { x: number; y: number; rotation: number; scale?: number };
 }
@@ -122,6 +124,8 @@ export interface CompanionSession {
   redoStack: CompanionEvent[];
   dayNight: "day" | "night" | null;
   timer: { startedAt: number | null; pausedAt: number | null; accumulatedMs: number };
+  timerMode: "shared" | "chess";
+  chessClockStartedAt: number | null;
   activePlayerId: string | null;
   turn: number;
   lastFirstPlayerId: string | null;

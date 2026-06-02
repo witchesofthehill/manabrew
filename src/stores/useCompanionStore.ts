@@ -104,6 +104,7 @@ interface CompanionState {
   startTimer: () => void;
   pauseTimer: () => void;
   resetTimer: () => void;
+  setTimerMode: (mode: "shared" | "chess") => void;
   setActivePlayer: (playerId: string | null) => void;
   advanceTurn: () => void;
   pickRandomFirstPlayer: () => string | null;
@@ -156,6 +157,8 @@ function makeSession(input: {
     redoStack: [],
     dayNight: null,
     timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
+    timerMode: "shared",
+    chessClockStartedAt: null,
     activePlayerId: null,
     turn: 0,
     lastFirstPlayerId: null,
@@ -831,6 +834,17 @@ export const useCompanionStore = create<CompanionState>()(
             withSession(state, (session) => ({
               ...session,
               timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
+              chessClockStartedAt: session.timerMode === "chess" ? Date.now() : null,
+              players: session.players.map((p) => ({ ...p, timeMs: 0 })),
+            })),
+          ),
+
+        setTimerMode: (mode) =>
+          set((state) =>
+            withSession(state, (session) => ({
+              ...session,
+              timerMode: mode,
+              chessClockStartedAt: mode === "chess" ? Date.now() : null,
             })),
           ),
 
@@ -853,13 +867,31 @@ export const useCompanionStore = create<CompanionState>()(
               const nextTurn =
                 currentIndex < 0 ? 1 : nextIndex === 0 ? session.turn + 1 : session.turn;
               // Storm count resets at the end of the turn (oracle rule 702.40).
-              const players = session.players.map((p) => ({
+              let players = session.players.map((p) => ({
                 ...p,
                 counters: p.counters.map((c) =>
                   c.kind === "storm" && c.value !== 0 ? { ...c, value: 0 } : c,
                 ),
               }));
-              return { ...session, players, activePlayerId: nextPlayer.id, turn: nextTurn };
+              let chessClockStartedAt = session.chessClockStartedAt;
+              if (session.timerMode === "chess") {
+                const now = Date.now();
+                if (chessClockStartedAt != null && session.activePlayerId) {
+                  const elapsed = now - chessClockStartedAt;
+                  const prevId = session.activePlayerId;
+                  players = players.map((p) =>
+                    p.id === prevId ? { ...p, timeMs: (p.timeMs ?? 0) + elapsed } : p,
+                  );
+                }
+                chessClockStartedAt = now;
+              }
+              return {
+                ...session,
+                players,
+                activePlayerId: nextPlayer.id,
+                turn: nextTurn,
+                chessClockStartedAt,
+              };
             }),
           ),
 

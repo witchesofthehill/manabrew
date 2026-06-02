@@ -1,27 +1,49 @@
 import { useEffect, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
-import { GameIcon } from "./GameIcon";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
+import { GameIcon } from "./GameIcon";
 
 export function TurnTimer({ className }: { className?: string }) {
-  const timer = useCompanionStore((s) => s.session?.timer);
+  const session = useCompanionStore((s) => s.session);
   const startTimer = useCompanionStore((s) => s.startTimer);
   const pauseTimer = useCompanionStore((s) => s.pauseTimer);
   const resetTimer = useCompanionStore((s) => s.resetTimer);
+  const setTimerMode = useCompanionStore((s) => s.setTimerMode);
   const [now, setNow] = useState(0);
 
+  const timer = session?.timer;
+  const running = Boolean(timer?.startedAt);
+  const chessActive =
+    session?.timerMode === "chess" && session.chessClockStartedAt != null && session.activePlayerId;
+
   useEffect(() => {
-    if (!timer?.startedAt) return;
+    if (!running && !chessActive) return;
     const interval = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(interval);
-  }, [timer?.startedAt]);
+  }, [running, chessActive]);
 
-  if (!timer) return null;
+  if (!session) return null;
 
-  const running = Boolean(timer.startedAt);
-  const elapsedMs = timer.accumulatedMs + (timer.startedAt ? now - timer.startedAt : 0);
+  const sharedElapsed =
+    (timer?.accumulatedMs ?? 0) + (timer?.startedAt ? now - timer.startedAt : 0);
+  const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
+  const chessElapsed =
+    (activePlayer?.timeMs ?? 0) +
+    (session.timerMode === "chess" && session.chessClockStartedAt != null && activePlayer
+      ? now - session.chessClockStartedAt
+      : 0);
+
+  const shownMs = session.timerMode === "chess" && activePlayer ? chessElapsed : sharedElapsed;
 
   return (
     <div
@@ -30,9 +52,37 @@ export function TurnTimer({ className }: { className?: string }) {
         className,
       )}
     >
-      <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-6"
+            aria-label={`Timer mode: ${session.timerMode === "chess" ? "chess clock" : "shared"}`}
+            title={session.timerMode === "chess" ? "Chess clock" : "Shared clock"}
+          >
+            <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Timer mode</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => setTimerMode("shared")}
+            className={cn(session.timerMode === "shared" && "bg-accent")}
+          >
+            Shared game clock
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => setTimerMode("chess")}
+            className={cn(session.timerMode === "chess" && "bg-accent")}
+          >
+            Per-player chess clock
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <span className="min-w-[44px] text-center tabular-nums text-xs font-medium sm:min-w-[60px] sm:text-sm">
-        {formatElapsed(elapsedMs)}
+        {formatElapsed(shownMs)}
       </span>
       <Button
         size="icon"

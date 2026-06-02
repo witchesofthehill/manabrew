@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Plus, Redo2, RotateCcw, Undo2, XOctagon } from "lucide-react";
+import { ChevronRight, Minus, Plus, Redo2, RotateCcw, Undo2, XOctagon } from "lucide-react";
 import { GameIcon } from "./GameIcon";
 import { LayoutIcon } from "./LayoutIcon";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
   const undo = useCompanionStore((s) => s.undo);
   const redo = useCompanionStore((s) => s.redo);
   const canRedo = useCompanionStore((s) => (s.session?.redoStack.length ?? 0) > 0);
+  const advanceTurn = useCompanionStore((s) => s.advanceTurn);
+  const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const endSession = useCompanionStore((s) => s.endSession);
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
@@ -151,6 +153,20 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
       </DropdownMenu>
 
       <div className="ml-auto flex flex-wrap items-center gap-1 sm:gap-2">
+        <Button
+          size="sm"
+          variant={activePlayer ? "default" : "outline"}
+          onClick={advanceTurn}
+          className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+          aria-label="Next turn"
+          title={activePlayer ? `Turn ${session.turn} · ${activePlayer.name}` : "Start turn"}
+        >
+          <ChevronRight className="size-3.5" />
+          <span className="hidden tabular-nums sm:inline">
+            {activePlayer ? `T${session.turn} · ${activePlayer.name}` : "Start"}
+          </span>
+          <span className="tabular-nums sm:hidden">T{session.turn}</span>
+        </Button>
         <TurnTimer />
         <Button
           size="icon"

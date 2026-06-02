@@ -33,6 +33,13 @@ export function StatusChips({ player }: StatusChipsProps) {
           <span className="tabular-nums">{player.ringLevel}/4</span>
         </span>
       )}
+      {(player.speed ?? 0) > 0 && (
+        <span className="flex items-center gap-1 rounded-full bg-orange-600/90 px-1 py-0.5 text-[9px] font-semibold text-orange-50 @sm:px-1.5 @sm:text-[10px]">
+          <GameIcon icon="lightning-trio" className="size-2.5 @sm:size-3" />{" "}
+          <span className="hidden @xs:inline">Speed</span>
+          <span className="tabular-nums">{player.speed}/4</span>
+        </span>
+      )}
     </>
   );
 }

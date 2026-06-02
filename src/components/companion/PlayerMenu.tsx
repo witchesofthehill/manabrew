@@ -27,6 +27,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const toggleInitiative = useCompanionStore((s) => s.toggleInitiative);
   const toggleCityBlessing = useCompanionStore((s) => s.toggleCityBlessing);
   const cycleRing = useCompanionStore((s) => s.cycleRing);
+  const cycleSpeed = useCompanionStore((s) => s.cycleSpeed);
   const setPlayerAccent = useCompanionStore((s) => s.setPlayerAccent);
   const markDead = useCompanionStore((s) => s.markDead);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
@@ -62,6 +63,9 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         <DropdownMenuItem onSelect={() => cycleRing(player.id)}>
           <GameIcon icon="magic-portal" className="mr-2 size-4" /> The Ring tempts you (
           {player.ringLevel ?? 0}/4)
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => cycleSpeed(player.id)}>
+          <GameIcon icon="lightning-trio" className="mr-2 size-4" /> Speed ({player.speed ?? 0}/4)
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs">Accent</DropdownMenuLabel>

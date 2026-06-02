@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
 import { PhaseStrip } from "@/components/companion/PhaseStrip";
+import { WinBanner } from "@/components/companion/WinBanner";
 import { GameIcon } from "@/components/companion/GameIcon";
 import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
@@ -43,6 +44,7 @@ export default function Companion() {
       <PhaseStrip />
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
+        <WinBanner session={session} />
       </div>
       <NewSessionDialog
         open={newOpen}

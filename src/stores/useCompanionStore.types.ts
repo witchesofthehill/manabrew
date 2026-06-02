@@ -36,6 +36,8 @@ export interface CompanionPlayer {
   isMonarch?: boolean;
   hasInitiative?: boolean;
   hasCityBlessing?: boolean;
+  ringLevel?: number;
+  speed?: number;
   /** Free-layout position, rotation and scale (only consulted when layout === "free"). */
   freeLayout?: { x: number; y: number; rotation: number; scale?: number };
 }

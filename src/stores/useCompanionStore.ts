@@ -89,6 +89,8 @@ interface CompanionState {
   toggleMonarch: (playerId: string) => void;
   toggleInitiative: (playerId: string) => void;
   toggleCityBlessing: (playerId: string) => void;
+  cycleRing: (playerId: string) => void;
+  cycleSpeed: (playerId: string) => void;
 
   markDead: (playerId: string, dead: boolean) => void;
 
@@ -673,6 +675,26 @@ export const useCompanionStore = create<CompanionState>()(
               replacePlayer(session, playerId, (p) => ({
                 ...p,
                 hasCityBlessing: !p.hasCityBlessing,
+              })),
+            ),
+          ),
+
+        cycleRing: (playerId) =>
+          set((state) =>
+            withSession(state, (session) =>
+              replacePlayer(session, playerId, (p) => ({
+                ...p,
+                ringLevel: ((p.ringLevel ?? 0) + 1) % 5,
+              })),
+            ),
+          ),
+
+        cycleSpeed: (playerId) =>
+          set((state) =>
+            withSession(state, (session) =>
+              replacePlayer(session, playerId, (p) => ({
+                ...p,
+                speed: ((p.speed ?? 0) + 1) % 5,
               })),
             ),
           ),

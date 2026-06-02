@@ -23,6 +23,7 @@ import type {
   CompanionLayout,
   CompanionPlayer,
   CompanionSession,
+  ManaColor,
 } from "./useCompanionStore.types";
 
 interface PendingDelta {
@@ -92,6 +93,8 @@ interface CompanionState {
   cycleRing: (playerId: string) => void;
   cycleSpeed: (playerId: string) => void;
   cycleDayNight: () => void;
+  adjustMana: (playerId: string, color: ManaColor, delta: number) => void;
+  clearMana: (playerId: string) => void;
 
   markDead: (playerId: string, dead: boolean) => void;
 
@@ -708,6 +711,24 @@ export const useCompanionStore = create<CompanionState>()(
                 session.dayNight === null ? "day" : session.dayNight === "day" ? "night" : null;
               return { ...session, dayNight: next };
             }),
+          ),
+
+        adjustMana: (playerId, color, delta) =>
+          set((state) =>
+            withSession(state, (session) =>
+              replacePlayer(session, playerId, (p) => {
+                const current = p.manaPool?.[color] ?? 0;
+                const value = Math.max(0, current + delta);
+                return { ...p, manaPool: { ...p.manaPool, [color]: value } };
+              }),
+            ),
+          ),
+
+        clearMana: (playerId) =>
+          set((state) =>
+            withSession(state, (session) =>
+              replacePlayer(session, playerId, (p) => ({ ...p, manaPool: {} })),
+            ),
           ),
 
         markDead: (playerId, dead) =>

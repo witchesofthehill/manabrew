@@ -9,6 +9,7 @@ import { CommanderArt } from "./CommanderArt";
 import { CommanderDamageStrip } from "./CommanderDamageStrip";
 import { CommanderPickerDialog } from "./CommanderPickerDialog";
 import { CountersRail } from "./CountersRail";
+import { ManaPoolRail } from "./ManaPoolRail";
 import { GameIcon } from "./GameIcon";
 import { PlayerMenu } from "./PlayerMenu";
 import { StatusChips } from "./StatusChips";
@@ -206,8 +207,9 @@ export function PlayerTile({
             )}
           </div>
 
-          <div className="pointer-events-auto flex items-end justify-between gap-2">
+          <div className="pointer-events-auto flex flex-wrap items-end justify-between gap-1.5">
             <CountersRail playerId={player.id} counters={player.counters} />
+            <ManaPoolRail playerId={player.id} pool={player.manaPool} />
           </div>
         </div>
 

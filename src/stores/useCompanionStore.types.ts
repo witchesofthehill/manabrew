@@ -1,3 +1,6 @@
+export type ManaColor = "W" | "U" | "B" | "R" | "G" | "C";
+export const MANA_COLORS: readonly ManaColor[] = ["W", "U", "B", "R", "G", "C"];
+
 export type CompanionCounterKind =
   | "poison"
   | "energy"
@@ -38,6 +41,7 @@ export interface CompanionPlayer {
   hasCityBlessing?: boolean;
   ringLevel?: number;
   speed?: number;
+  manaPool?: Partial<Record<ManaColor, number>>;
   /** Free-layout position, rotation and scale (only consulted when layout === "free"). */
   freeLayout?: { x: number; y: number; rotation: number; scale?: number };
 }

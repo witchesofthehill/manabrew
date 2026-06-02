@@ -9,12 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { manaSymbolUrl } from "@/api/scryfall";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import {
   COMPANION_ACCENT_COLORS,
   COMPANION_ACCENT_KEYS,
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
+import { MANA_COLORS } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
 
 interface PlayerMenuProps {
@@ -28,6 +30,8 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const toggleCityBlessing = useCompanionStore((s) => s.toggleCityBlessing);
   const cycleRing = useCompanionStore((s) => s.cycleRing);
   const cycleSpeed = useCompanionStore((s) => s.cycleSpeed);
+  const adjustMana = useCompanionStore((s) => s.adjustMana);
+  const clearMana = useCompanionStore((s) => s.clearMana);
   const setPlayerAccent = useCompanionStore((s) => s.setPlayerAccent);
   const markDead = useCompanionStore((s) => s.markDead);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
@@ -67,6 +71,22 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         <DropdownMenuItem onSelect={() => cycleSpeed(player.id)}>
           <GameIcon icon="lightning-trio" className="mr-2 size-4" /> Speed ({player.speed ?? 0}/4)
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-xs">Floating mana</DropdownMenuLabel>
+        <div className="grid grid-cols-6 gap-1 px-2 pb-2">
+          {MANA_COLORS.map((color) => (
+            <button
+              type="button"
+              key={color}
+              onClick={() => adjustMana(player.id, color, 1)}
+              className="grid size-7 place-items-center rounded-md hover:bg-accent"
+              aria-label={`Add ${color} mana`}
+            >
+              <img src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />
+            </button>
+          ))}
+        </div>
+        <DropdownMenuItem onSelect={() => clearMana(player.id)}>Empty mana pool</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs">Accent</DropdownMenuLabel>
         <div className="grid grid-cols-8 gap-1 px-2 pb-2">

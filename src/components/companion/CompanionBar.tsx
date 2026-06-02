@@ -33,6 +33,7 @@ import {
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
 import { DiceRoller } from "./DiceRoller";
+import { DiceTray } from "./DiceTray";
 import { GameLog } from "./GameLog";
 import { TurnTimer } from "./TurnTimer";
 
@@ -200,6 +201,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
         </Button>
         <TurnTimer />
         <GameLog session={session} />
+        <DiceTray />
         <Button
           size="icon"
           variant="outline"

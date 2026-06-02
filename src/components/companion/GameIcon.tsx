@@ -56,11 +56,28 @@ const ICONS = {
 
 export type GameIconKey = keyof typeof ICONS;
 
+/**
+ * Game-Icons SVGs as shipped by `unplugin-icons` have `width="1.2em"`,
+ * `height="1.2em"`, `fill="currentColor"` and no xmlns. The em-based
+ * dimensions resolve to nothing in a detached data-URL context, the
+ * missing xmlns blocks some browsers from decoding the SVG at all, and
+ * `currentColor` only ever paints the mask layer (no DOM context), so
+ * the source can't tint the painted icon. Normalise the raw string
+ * before encoding so `mask-image: url(...)` renders the glyph as an
+ * opaque black silhouette that the host element then colours via
+ * `background-color: currentColor`.
+ */
+function svgToMaskUrl(svg: string): string {
+  let patched = svg.replace(/\s(width|height)="[^"]*"/gi, "");
+  patched = patched.replace(/fill="currentColor"/gi, 'fill="#000"');
+  if (!/<svg[^>]*\bxmlns=/.test(patched)) {
+    patched = patched.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+  return `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(patched)}")`;
+}
+
 const ICON_URLS: Record<GameIconKey, string> = Object.fromEntries(
-  Object.entries(ICONS).map(([key, svg]) => [
-    key,
-    `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`,
-  ]),
+  Object.entries(ICONS).map(([key, svg]) => [key, svgToMaskUrl(svg)]),
 ) as Record<GameIconKey, string>;
 
 interface GameIconProps {

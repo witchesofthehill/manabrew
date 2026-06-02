@@ -1,6 +1,7 @@
 package forge.harness.host;
 
 import forge.harness.common.ActionSpace;
+import forge.harness.common.CombatChoiceSpace;
 import forge.harness.common.ParityCardMap;
 import forge.harness.common.ParityOrder;
 import forge.harness.common.SnapshotExtractor;
@@ -117,6 +118,10 @@ public final class ManaBrewInteractiveSession {
 
     public boolean isGameOver() {
         return game != null && game.isGameOver();
+    }
+
+    boolean isClosed() {
+        return closed;
     }
 
     public String submitAction(final String actionJson) {
@@ -598,10 +603,11 @@ public final class ManaBrewInteractiveSession {
     List<Pair<Card, Card>> awaitBlockers(
             final int playerId,
             final List<Card> attackers,
-            final List<Card> availableBlockers
+            final List<Card> availableBlockers,
+            final Map<Card, List<Card>> validBlockersByAttacker
     ) {
         requireAttached();
-        publishBlockersPrompt(playerId, attackers, availableBlockers);
+        publishBlockersPrompt(playerId, attackers, availableBlockers, validBlockersByAttacker);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -765,6 +771,9 @@ public final class ManaBrewInteractiveSession {
             final String description
     ) {
         requireAttached();
+        if (min >= max) {
+            return min;
+        }
         publishNumberPrompt(playerId, min, max, sourceName, description);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -778,7 +787,8 @@ public final class ManaBrewInteractiveSession {
             if (!"number_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
-            return action.has("number") ? action.get("number").getAsInt() : min;
+            final int number = action.has("number") ? action.get("number").getAsInt() : min;
+            return Math.max(min, Math.min(max, number));
         }
         return min;
     }
@@ -1042,6 +1052,97 @@ public final class ManaBrewInteractiveSession {
             throw new IllegalArgumentException("unknown target choice: " + kind + " " + id);
         }
         return null;
+    }
+
+    Map<GameEntity, Integer> awaitDividedAllocation(
+            final int playerId,
+            final SpellAbility ability,
+            final List<GameEntity> targets,
+            final int amount
+    ) {
+        requireAttached();
+        publishDividedAllocationPrompt(playerId, ability, targets, amount);
+        while (!closed && !game.isGameOver()) {
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                return defaultDivision(targets, amount);
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                return defaultDivision(targets, amount);
+            }
+            if (!"divide_amount".equals(actionKind)) {
+                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+            }
+            final JsonObject map = action.has("allocation") && action.get("allocation").isJsonObject()
+                    ? action.getAsJsonObject("allocation")
+                    : null;
+            final Map<GameEntity, Integer> result = new LinkedHashMap<>();
+            int total = 0;
+            for (final GameEntity target : targets) {
+                final String key = dividedTargetId(target);
+                final int value = map != null && map.has(key) ? map.get(key).getAsInt() : 0;
+                result.put(target, value);
+                total += value;
+            }
+            if (total != amount) {
+                throw new IllegalArgumentException("divided allocation must total " + amount + ", got " + total);
+            }
+            return result;
+        }
+        return defaultDivision(targets, amount);
+    }
+
+    private Map<GameEntity, Integer> defaultDivision(final List<GameEntity> targets, final int amount) {
+        final Map<GameEntity, Integer> result = new LinkedHashMap<>();
+        int remaining = amount;
+        for (final GameEntity target : targets) {
+            final int give = remaining > 0 ? 1 : 0;
+            result.put(target, give);
+            remaining -= give;
+        }
+        if (!targets.isEmpty()) {
+            result.merge(targets.get(0), remaining, Integer::sum);
+        }
+        return result;
+    }
+
+    private void publishDividedAllocationPrompt(
+            final int playerId,
+            final SpellAbility ability,
+            final List<GameEntity> targets,
+            final int amount
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "divide_amount");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("amount", amount);
+        final Card source = ability == null ? null : ability.getHostCard();
+        if (source != null) {
+            prompt.addProperty("sourceCardId", SnapshotExtractor.javaCardId(source));
+            prompt.addProperty("sourceCardName", source.getName());
+        }
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        com.google.gson.JsonArray options = new com.google.gson.JsonArray();
+        for (final GameEntity target : targets) {
+            JsonObject option = new JsonObject();
+            option.addProperty("id", dividedTargetId(target));
+            option.addProperty("label", target.getName());
+            options.add(option);
+        }
+        prompt.add("targets", options);
+        latestPromptJson = prompt.toString();
+    }
+
+    private String dividedTargetId(final GameEntity target) {
+        if (target instanceof Player) {
+            return "player-" + SnapshotExtractor.playerIndex(game, (Player) target);
+        }
+        if (target instanceof Card) {
+            return SnapshotExtractor.javaCardId((Card) target);
+        }
+        return target.getName();
     }
 
     private CardCollection awaitCardsFromPublishedPrompt(
@@ -1458,10 +1559,16 @@ public final class ManaBrewInteractiveSession {
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray attackers = new com.google.gson.JsonArray();
         for (int i = 0; i < availableAttackers.size(); i++) {
+            final Card a = availableAttackers.get(i);
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(availableAttackers.get(i)));
-            option.addProperty("label", availableAttackers.get(i).getName());
+            option.addProperty("id", SnapshotExtractor.javaCardId(a));
+            option.addProperty("label", a.getName());
+            com.google.gson.JsonArray validDefenderIds = new com.google.gson.JsonArray();
+            for (final GameEntity d : CombatChoiceSpace.legalDefendersForAttacker(a, combat)) {
+                validDefenderIds.add(defenderId(d));
+            }
+            option.add("validDefenderIds", validDefenderIds);
             attackers.add(option);
         }
         prompt.add("attackers", attackers);
@@ -1480,7 +1587,8 @@ public final class ManaBrewInteractiveSession {
     private void publishBlockersPrompt(
             final int playerId,
             final List<Card> attackers,
-            final List<Card> availableBlockers
+            final List<Card> availableBlockers,
+            final Map<Card, List<Card>> validBlockersByAttacker
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "choose_blockers");
@@ -1489,10 +1597,16 @@ public final class ManaBrewInteractiveSession {
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray attackerOptions = new com.google.gson.JsonArray();
         for (int i = 0; i < attackers.size(); i++) {
+            final Card attacker = attackers.get(i);
             JsonObject option = new JsonObject();
             option.addProperty("index", i);
-            option.addProperty("id", SnapshotExtractor.javaCardId(attackers.get(i)));
-            option.addProperty("label", attackers.get(i).getName());
+            option.addProperty("id", SnapshotExtractor.javaCardId(attacker));
+            option.addProperty("label", attacker.getName());
+            com.google.gson.JsonArray validBlockerIds = new com.google.gson.JsonArray();
+            for (final Card blocker : validBlockersByAttacker.getOrDefault(attacker, java.util.Collections.emptyList())) {
+                validBlockerIds.add(SnapshotExtractor.javaCardId(blocker));
+            }
+            option.add("validBlockerIds", validBlockerIds);
             attackerOptions.add(option);
         }
         prompt.add("attackers", attackerOptions);

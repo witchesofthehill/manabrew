@@ -4,6 +4,7 @@ import forge.harness.common.ActionSpace;
 import forge.harness.common.AutoPay;
 import forge.harness.common.ChoiceSpace;
 import forge.harness.common.CountingRandom;
+import forge.harness.common.EngineHandler;
 import forge.harness.common.DecisionLog;
 import forge.harness.common.HarnessCostPlumbing;
 import forge.harness.common.HarnessPlayHooks;
@@ -991,7 +992,7 @@ public class DeterministicController extends PlayerController implements Harness
 
     @Override
     public Integer announceRequirements(SpellAbility ability, String announce) {
-        final Integer result = GuiRepro.announceRequirements(player, ability, announce, rng);
+        final Integer result = EngineHandler.announceRequirements(player, ability, announce, rng);
         onCallback("announce_requirements", String.valueOf(result), announce != null ? announce : "?");
         return result;
     }

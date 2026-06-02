@@ -67,6 +67,7 @@ interface CompanionState {
   renamePlayer: (playerId: string, name: string) => void;
   setPlayerNotes: (playerId: string, notes: string) => void;
   setSessionTag: (tag: string) => void;
+  restoreFromArchive: (sessionId: string) => void;
   setPlayerAccent: (playerId: string, accent: CompanionAccentKey) => void;
   setCommander: (
     playerId: string,
@@ -473,6 +474,19 @@ export const useCompanionStore = create<CompanionState>()(
 
         setSessionTag: (tag) =>
           set((state) => withSession(state, (session) => ({ ...session, tag }))),
+
+        restoreFromArchive: (sessionId) => {
+          const state = get();
+          const target = state.archive.find((s) => s.id === sessionId);
+          if (!target) return;
+          clearAllPendingTimers();
+          set({
+            session: target,
+            archive: state.archive.filter((s) => s.id !== sessionId),
+            summarySession: null,
+            pendingDeltas: {},
+          });
+        },
 
         setPlayerAccent: (playerId, accent) =>
           set((state) =>

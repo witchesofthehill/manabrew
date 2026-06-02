@@ -127,6 +127,7 @@ const SCALE_MIN = 0.55;
 const SCALE_MAX = 2;
 const SCALE_SNAP = 0.05;
 const SCALE_DRAG_THRESHOLD_PX = 6;
+const BODY_DRAG_THRESHOLD_PX = 8;
 const BASE_TILE_WIDTH = 360;
 const BASE_TILE_HEIGHT = 220;
 
@@ -159,6 +160,16 @@ function FreeTile({
     origDist: number;
     origScale: number;
     moved: boolean;
+  } | null>(null);
+  const bodyDrag = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    dragging: boolean;
+    innerTarget: Element | null;
+    fromHandle: boolean;
   } | null>(null);
 
   const baseWidth = bounds ? Math.min(BASE_TILE_WIDTH, bounds.w * 0.45) : BASE_TILE_WIDTH - 40;
@@ -308,14 +319,83 @@ function FreeTile({
     [onMove, position.rotation, position.x, position.y],
   );
 
+  const onBodyPointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const fromHandle = Boolean(target?.closest("[data-companion-handle]"));
+      bodyDrag.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        origX: position.x,
+        origY: position.y,
+        dragging: false,
+        innerTarget: target,
+        fromHandle,
+      };
+    },
+    [position.x, position.y],
+  );
+
+  const onBodyPointerMoveCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const state = bodyDrag.current;
+      if (!state || state.fromHandle || event.pointerId !== state.pointerId) return;
+      const dx = event.clientX - state.startX;
+      const dy = event.clientY - state.startY;
+
+      if (!state.dragging) {
+        if (Math.hypot(dx, dy) < BODY_DRAG_THRESHOLD_PX) return;
+        state.dragging = true;
+        if (state.innerTarget) {
+          try {
+            state.innerTarget.releasePointerCapture(event.pointerId);
+          } catch {
+            /* ignore — element may not hold the capture */
+          }
+          state.innerTarget.dispatchEvent(
+            new PointerEvent("pointercancel", { pointerId: event.pointerId, bubbles: true }),
+          );
+        }
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+
+      event.stopPropagation();
+      if (!bounds) return;
+      const x = clamp(state.origX + dx, 0, bounds.w - tileWidth);
+      const y = clamp(state.origY + dy, 0, bounds.h - tileHeight);
+      onMove({ x, y, rotation: position.rotation, scale: position.scale });
+    },
+    [bounds, onMove, position.rotation, position.scale, tileHeight, tileWidth],
+  );
+
+  const onBodyPointerUpCapture = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const state = bodyDrag.current;
+    if (!state || event.pointerId !== state.pointerId) return;
+    bodyDrag.current = null;
+    if (state.dragging) {
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        /* already released */
+      }
+    }
+  }, []);
+
   const isPerpendicular = Math.abs(position.rotation) === 90;
   const cardWidth = isPerpendicular ? tileHeight : tileWidth;
   const cardHeight = isPerpendicular ? tileWidth : tileHeight;
 
   return (
     <div
-      className="absolute"
+      className="absolute touch-none"
       style={{ left: position.x, top: position.y, width: tileWidth, height: tileHeight }}
+      onPointerDownCapture={onBodyPointerDownCapture}
+      onPointerMoveCapture={onBodyPointerMoveCapture}
+      onPointerUpCapture={onBodyPointerUpCapture}
+      onPointerCancelCapture={onBodyPointerUpCapture}
     >
       <div className="relative size-full">
         <PlayerTile
@@ -340,6 +420,7 @@ function FreeTile({
               role="button"
               aria-label="Rotate tile"
               title="Tap to rotate 90° · drag to free-rotate"
+              data-companion-handle
               className={cn(
                 "grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white",
                 "active:cursor-grabbing",
@@ -355,6 +436,7 @@ function FreeTile({
               role="button"
               aria-label="Scale tile"
               title="Drag to resize · tap to reset"
+              data-companion-handle
               className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
               onPointerDown={onScalePointerDown}
               onPointerMove={onScalePointerMove}
@@ -366,6 +448,7 @@ function FreeTile({
             <div
               role="button"
               aria-label="Drag tile"
+              data-companion-handle
               className="grid size-7 cursor-grab touch-none place-items-center rounded-md bg-black/60 text-white active:cursor-grabbing"
               onPointerDown={onMovePointerDown}
               onPointerMove={onMovePointerMove}

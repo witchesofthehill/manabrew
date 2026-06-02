@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Crown, Flag, MoreVertical, Sparkles, Swords, UserMinus, UserPlus } from "lucide-react";
+import { MoreVertical, UserMinus, UserPlus } from "lucide-react";
+import { GameIcon } from "./GameIcon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -133,7 +134,7 @@ export function PlayerTile({
               {player.commanders[0]?.imageUrl ? (
                 <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
               ) : (
-                <Swords className="size-3.5 text-white/70 @md:size-4" />
+                <GameIcon icon="crossed-swords" className="size-3.5 text-white/70 @md:size-4" />
               )}
             </button>
             <div className="flex min-w-0 flex-1 flex-col">
@@ -243,19 +244,19 @@ function StatusChips({ player }: { player: CompanionPlayer }) {
     <>
       {player.isMonarch && (
         <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-1 py-0.5 text-[9px] font-semibold text-amber-950 @sm:px-1.5 @sm:text-[10px]">
-          <Crown className="size-2.5 @sm:size-3" />{" "}
+          <GameIcon icon="crown" className="size-2.5 @sm:size-3" />{" "}
           <span className="hidden @xs:inline">Monarch</span>
         </span>
       )}
       {player.hasInitiative && (
         <span className="flex items-center gap-1 rounded-full bg-violet-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
-          <Flag className="size-2.5 @sm:size-3" />{" "}
+          <GameIcon icon="checkered-flag" className="size-2.5 @sm:size-3" />{" "}
           <span className="hidden @xs:inline">Initiative</span>
         </span>
       )}
       {player.hasCityBlessing && (
         <span className="flex items-center gap-1 rounded-full bg-sky-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
-          <Sparkles className="size-2.5 @sm:size-3" />{" "}
+          <GameIcon icon="fairy-wand" className="size-2.5 @sm:size-3" />{" "}
           <span className="hidden @xs:inline">Ascend</span>
         </span>
       )}
@@ -291,17 +292,18 @@ function PlayerMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem onSelect={onPickCommander}>
-          <Swords className="mr-2 size-4" /> Choose commander…
+          <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleMonarch(player.id)}>
-          <Crown className="mr-2 size-4" /> {player.isMonarch ? "Remove monarch" : "Mark monarch"}
+          <GameIcon icon="crown" className="mr-2 size-4" />{" "}
+          {player.isMonarch ? "Remove monarch" : "Mark monarch"}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleInitiative(player.id)}>
-          <Flag className="mr-2 size-4" />{" "}
+          <GameIcon icon="checkered-flag" className="mr-2 size-4" />{" "}
           {player.hasInitiative ? "Remove initiative" : "Take initiative"}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleCityBlessing(player.id)}>
-          <Sparkles className="mr-2 size-4" />{" "}
+          <GameIcon icon="fairy-wand" className="mr-2 size-4" />{" "}
           {player.hasCityBlessing ? "Lose city's blessing" : "Gain city's blessing"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />

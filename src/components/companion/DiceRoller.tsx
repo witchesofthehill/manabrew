@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dices } from "lucide-react";
+import { GameIcon } from "./GameIcon";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
@@ -19,7 +19,7 @@ export function DiceRoller({ open, onOpenChange, players, pickWinner }: DiceRoll
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Dices className="size-5" /> Randomising first player…
+            <GameIcon icon="d20" className="size-5" /> Randomising first player…
           </DialogTitle>
         </DialogHeader>
         {open && <DiceAnimation players={players} pickWinner={pickWinner} />}

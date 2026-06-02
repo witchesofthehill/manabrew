@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { HeartPulse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
+import { GameIcon } from "@/components/companion/GameIcon";
 import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 
@@ -14,7 +14,7 @@ export default function Companion() {
   if (!session) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <HeartPulse className="size-12 text-muted-foreground" aria-hidden />
+        <GameIcon icon="healing" className="size-14 text-muted-foreground" />
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Life tracker</h1>
           <p className="max-w-sm text-sm text-muted-foreground">

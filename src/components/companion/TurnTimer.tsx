@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Pause, Play, RotateCcw, Timer } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
+import { GameIcon } from "./GameIcon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
@@ -29,7 +30,7 @@ export function TurnTimer({ className }: { className?: string }) {
         className,
       )}
     >
-      <Timer className="size-3.5 text-muted-foreground" />
+      <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
       <span className="min-w-[44px] text-center tabular-nums text-xs font-medium sm:min-w-[60px] sm:text-sm">
         {formatElapsed(elapsedMs)}
       </span>

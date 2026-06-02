@@ -1,4 +1,4 @@
-import { Sword } from "lucide-react";
+import { GameIcon } from "./GameIcon";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +24,7 @@ export function CommanderDamageStrip({ target, opponents, className }: Commander
   if (opponents.length === 0) return null;
   return (
     <div className={cn("flex flex-col items-center gap-1 @md:gap-1.5", className)}>
-      <Sword className="size-3 text-white/60 @md:size-3.5" aria-hidden />
+      <GameIcon icon="crossed-swords" className="size-3 text-white/60 @md:size-3.5" />
       {opponents.map((source) => (
         <CommanderDamageButton key={source.id} target={target} source={source} />
       ))}

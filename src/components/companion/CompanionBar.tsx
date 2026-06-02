@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Dices, Minus, Plus, Redo2, RotateCcw, Sparkles, Undo2, XOctagon } from "lucide-react";
+import { Minus, Plus, Redo2, RotateCcw, Undo2, XOctagon } from "lucide-react";
+import { GameIcon } from "./GameIcon";
 import { LayoutIcon } from "./LayoutIcon";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,7 +115,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
         aria-label="Toggle commander rules"
         title="Commander rules"
       >
-        <Sparkles className="size-3.5" />
+        <GameIcon icon="crown" className="size-3.5" />
         <span className="hidden sm:inline">Commander</span>
       </Button>
 
@@ -157,7 +158,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           aria-label="Random first player"
           title="Random first player"
         >
-          <Dices className="size-3.5 sm:size-4" />
+          <GameIcon icon="d20" className="size-4 sm:size-5" />
         </Button>
         <Button
           size="icon"

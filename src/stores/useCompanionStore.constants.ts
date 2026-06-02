@@ -54,36 +54,36 @@ export interface CounterPreset {
 }
 
 export const COMPANION_COUNTER_PRESETS: CounterPreset[] = [
-  { kind: "poison", label: "Poison", iconKey: "Skull", defaultValue: 0 },
-  { kind: "energy", label: "Energy", iconKey: "Zap", defaultValue: 0 },
-  { kind: "experience", label: "Experience", iconKey: "Sparkles", defaultValue: 0 },
-  { kind: "rad", label: "Radiation", iconKey: "Radiation", defaultValue: 0 },
-  { kind: "tickets", label: "Tickets", iconKey: "Ticket", defaultValue: 0 },
-  { kind: "storm", label: "Storm", iconKey: "CloudLightning", defaultValue: 0 },
+  { kind: "poison", label: "Poison", iconKey: "skull-crack", defaultValue: 0 },
+  { kind: "energy", label: "Energy", iconKey: "lightning-trio", defaultValue: 0 },
+  { kind: "experience", label: "Experience", iconKey: "star-medal", defaultValue: 0 },
+  { kind: "rad", label: "Radiation", iconKey: "radioactive", defaultValue: 0 },
+  { kind: "tickets", label: "Tickets", iconKey: "trophy-cup", defaultValue: 0 },
+  { kind: "storm", label: "Storm", iconKey: "tornado", defaultValue: 0 },
 ];
 
-/** Lucide icon name → human label for custom-counter icon picker. */
+/** Game-icons keys offered in the custom-counter icon picker. */
 export const COMPANION_CUSTOM_ICONS = [
-  "Star",
-  "Heart",
-  "Flame",
-  "Snowflake",
-  "Droplets",
-  "Sun",
-  "Moon",
-  "Crown",
-  "Sword",
-  "Shield",
-  "Hourglass",
-  "Bug",
-  "Skull",
-  "Sparkles",
-  "Zap",
-  "Trophy",
-  "Anchor",
-  "Compass",
-  "Feather",
-  "Gem",
+  "star-medal",
+  "bleeding-heart",
+  "flame",
+  "sands-of-time",
+  "potion-ball",
+  "sun-priest",
+  "magic-portal",
+  "crown",
+  "sword",
+  "crossed-swords",
+  "spell-book",
+  "fairy-wand",
+  "skull-crack",
+  "sparkles",
+  "lightning-trio",
+  "trophy-cup",
+  "dragon-head",
+  "vortex",
+  "healing",
+  "stormy-sea",
 ] as const;
 
 export const COMPANION_DEFAULT_LAYOUT_BY_COUNT: Record<number, CompanionLayout> = {

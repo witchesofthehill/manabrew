@@ -531,14 +531,29 @@ export const useCompanionStore = create<CompanionState>()(
           ),
 
         undo: () => {
+          /** Snapshot the in-flight life batches so we can revert player.life
+           *  to the value before the current batch started. `adjustLife`
+           *  mutates `life` immediately but only writes the history entry
+           *  when the batch flushes, so without this an undo right after a
+           *  tap would discard the timer but leave the visible damage. */
+          const pendingPrev: Record<string, number> = {};
           for (const id of Object.keys(pendingDeltaTimers)) {
             const t = pendingDeltaTimers[id];
-            if (t?.timer) clearTimeout(t.timer);
+            if (!t) continue;
+            pendingPrev[id] = t.prev;
+            if (t.timer) clearTimeout(t.timer);
             delete pendingDeltaTimers[id];
           }
+          const hadPending = Object.keys(pendingPrev).length > 0;
           set((state) =>
             withSession(state, (session) => {
-              if (session.history.length === 0) return { ...session, pendingDeltas: {} };
+              if (hadPending) {
+                const players = session.players.map((p) =>
+                  p.id in pendingPrev ? { ...p, life: pendingPrev[p.id]! } : p,
+                );
+                return { ...session, players };
+              }
+              if (session.history.length === 0) return session;
               const last = session.history[session.history.length - 1]!;
               const history = session.history.slice(0, -1);
               if (last.type === "life") {

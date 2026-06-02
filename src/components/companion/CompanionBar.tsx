@@ -35,6 +35,8 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
   const setCommanderRules = useCompanionStore((s) => s.setCommanderRules);
   const undo = useCompanionStore((s) => s.undo);
+  const redo = useCompanionStore((s) => s.redo);
+  const canRedo = useCompanionStore((s) => (s.session?.redoStack.length ?? 0) > 0);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const endSession = useCompanionStore((s) => s.endSession);
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
@@ -169,6 +171,17 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           title="Undo last action"
         >
           <Undo2 className="size-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="size-8"
+          onClick={redo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo"
+        >
+          <Redo2 className="size-4" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

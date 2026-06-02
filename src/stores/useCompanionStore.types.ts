@@ -113,6 +113,7 @@ export interface CompanionSession {
   layout: CompanionLayout;
   players: CompanionPlayer[];
   history: CompanionEvent[];
+  redoStack: CompanionEvent[];
   timer: { startedAt: number | null; pausedAt: number | null; accumulatedMs: number };
   activePlayerId: string | null;
   turn: number;

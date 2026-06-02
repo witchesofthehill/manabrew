@@ -93,6 +93,7 @@ interface CompanionState {
   markDead: (playerId: string, dead: boolean) => void;
 
   undo: () => void;
+  redo: () => void;
 
   startTimer: () => void;
   pauseTimer: () => void;
@@ -146,6 +147,7 @@ function makeSession(input: {
     layout: input.layout ?? COMPANION_DEFAULT_LAYOUT_BY_COUNT[count] ?? "free",
     players,
     history: [],
+    redoStack: [],
     timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
     activePlayerId: null,
     turn: 0,
@@ -166,7 +168,100 @@ function pushEvent(session: CompanionSession, event: CompanionEvent): CompanionS
   if (history.length > COMPANION_HISTORY_LIMIT) {
     history.splice(0, history.length - COMPANION_HISTORY_LIMIT);
   }
-  return { ...session, history };
+  return { ...session, history, redoStack: [] };
+}
+
+function revertEvent(session: CompanionSession, event: CompanionEvent): CompanionSession {
+  switch (event.type) {
+    case "life":
+      return replacePlayer(session, event.playerId, (p) => ({ ...p, life: event.prev }));
+    case "counter":
+      return replacePlayer(session, event.playerId, (p) => ({
+        ...p,
+        counters: p.counters.map((c) =>
+          c.id === event.counterId ? { ...c, value: event.prev } : c,
+        ),
+      }));
+    case "counterAdd":
+      return replacePlayer(session, event.playerId, (p) => ({
+        ...p,
+        counters: p.counters.filter((c) => c.id !== event.counter.id),
+      }));
+    case "counterRemove":
+      return replacePlayer(session, event.playerId, (p) => {
+        const next = [...p.counters];
+        const index = Math.min(Math.max(0, event.index), next.length);
+        next.splice(index, 0, event.counter);
+        return { ...p, counters: next };
+      });
+    case "commander":
+      return replacePlayer(session, event.playerId, (p) => {
+        const commanders = [...p.commanders] as CompanionPlayer["commanders"];
+        commanders[event.slot] = event.prev;
+        return { ...p, commanders };
+      });
+    case "dead":
+      return replacePlayer(session, event.playerId, (p) => ({ ...p, isDead: event.prev }));
+    case "cmdDmg": {
+      const target = session.players.find((p) => p.id === event.targetId);
+      const revertedPair: [number, number] = [
+        ...(target?.commanderDamage[event.sourceId] ?? [0, 0]),
+      ] as [number, number];
+      revertedPair[event.slot] = event.prev;
+      return replacePlayer(session, event.targetId, (p) => ({
+        ...p,
+        commanderDamage: { ...p.commanderDamage, [event.sourceId]: revertedPair },
+        life: event.prevLife,
+        isDead: event.prevDead,
+      }));
+    }
+  }
+}
+
+function replayEvent(session: CompanionSession, event: CompanionEvent): CompanionSession {
+  switch (event.type) {
+    case "life":
+      return replacePlayer(session, event.playerId, (p) => ({ ...p, life: event.next }));
+    case "counter":
+      return replacePlayer(session, event.playerId, (p) => ({
+        ...p,
+        counters: p.counters.map((c) =>
+          c.id === event.counterId ? { ...c, value: event.next } : c,
+        ),
+      }));
+    case "counterAdd":
+      return replacePlayer(session, event.playerId, (p) =>
+        p.counters.some((c) => c.id === event.counter.id)
+          ? p
+          : { ...p, counters: [...p.counters, event.counter] },
+      );
+    case "counterRemove":
+      return replacePlayer(session, event.playerId, (p) => ({
+        ...p,
+        counters: p.counters.filter((c) => c.id !== event.counter.id),
+      }));
+    case "commander":
+      return replacePlayer(session, event.playerId, (p) => {
+        const commanders = [...p.commanders] as CompanionPlayer["commanders"];
+        commanders[event.slot] = event.next;
+        return { ...p, commanders };
+      });
+    case "dead":
+      return replacePlayer(session, event.playerId, (p) => ({ ...p, isDead: event.next }));
+    case "cmdDmg": {
+      const target = session.players.find((p) => p.id === event.targetId);
+      const replayedPair: [number, number] = [
+        ...(target?.commanderDamage[event.sourceId] ?? [0, 0]),
+      ] as [number, number];
+      replayedPair[event.slot] = event.next;
+      return replacePlayer(session, event.targetId, (p) => ({
+        ...p,
+        commanderDamage: { ...p.commanderDamage, [event.sourceId]: replayedPair },
+        life: event.nextLife,
+        isDead: event.nextDead,
+      }));
+    }
+  }
 }
 
 function replacePlayer(
@@ -609,11 +704,6 @@ export const useCompanionStore = create<CompanionState>()(
          * setup, not gameplay.
          */
         undo: () => {
-          /** Snapshot the in-flight life batches so we can revert player.life
-           *  to the value before the current batch started. `adjustLife`
-           *  mutates `life` immediately but only writes the history entry
-           *  when the batch flushes, so without this an undo right after a
-           *  tap would discard the timer but leave the visible damage. */
           const pendingPrev = Object.fromEntries(
             Object.entries(pendingDeltaTimers).map(([id, t]) => [id, t.prev]),
           );
@@ -629,76 +719,30 @@ export const useCompanionStore = create<CompanionState>()(
               }
               if (session.history.length === 0) return session;
               const last = session.history[session.history.length - 1]!;
-              const history = session.history.slice(0, -1);
-              if (last.type === "life") {
-                return {
-                  ...replacePlayer(session, last.playerId, (p) => ({ ...p, life: last.prev })),
-                  history,
-                };
-              }
-              if (last.type === "counter") {
-                return {
-                  ...replacePlayer(session, last.playerId, (p) => ({
-                    ...p,
-                    counters: p.counters.map((c) =>
-                      c.id === last.counterId ? { ...c, value: last.prev } : c,
-                    ),
-                  })),
-                  history,
-                };
-              }
-              if (last.type === "counterAdd") {
-                return {
-                  ...replacePlayer(session, last.playerId, (p) => ({
-                    ...p,
-                    counters: p.counters.filter((c) => c.id !== last.counter.id),
-                  })),
-                  history,
-                };
-              }
-              if (last.type === "counterRemove") {
-                return {
-                  ...replacePlayer(session, last.playerId, (p) => {
-                    const next = [...p.counters];
-                    const index = Math.min(Math.max(0, last.index), next.length);
-                    next.splice(index, 0, last.counter);
-                    return { ...p, counters: next };
-                  }),
-                  history,
-                };
-              }
-              if (last.type === "commander") {
-                return {
-                  ...replacePlayer(session, last.playerId, (p) => {
-                    const commanders = [...p.commanders] as CompanionPlayer["commanders"];
-                    commanders[last.slot] = last.prev;
-                    return { ...p, commanders };
-                  }),
-                  history,
-                };
-              }
-              if (last.type === "dead") {
-                return {
-                  ...replacePlayer(session, last.playerId, (p) => ({ ...p, isDead: last.prev })),
-                  history,
-                };
-              }
-              const revertedPair: [number, number] = [
-                ...(session.players.find((p) => p.id === last.targetId)?.commanderDamage[
-                  last.sourceId
-                ] ?? [0, 0]),
-              ] as [number, number];
-              revertedPair[last.slot] = last.prev;
-              const target = replacePlayer(session, last.targetId, (p) => ({
-                ...p,
-                commanderDamage: { ...p.commanderDamage, [last.sourceId]: revertedPair },
-                life: last.prevLife,
-                isDead: last.prevDead,
-              }));
-              return { ...target, history };
+              const reverted = revertEvent(session, last);
+              return {
+                ...reverted,
+                history: session.history.slice(0, -1),
+                redoStack: [...session.redoStack, last],
+              };
             }),
           );
           set({ pendingDeltas: {} });
+        },
+
+        redo: () => {
+          set((state) =>
+            withSession(state, (session) => {
+              if (session.redoStack.length === 0) return session;
+              const next = session.redoStack[session.redoStack.length - 1]!;
+              const replayed = replayEvent(session, next);
+              return {
+                ...replayed,
+                history: [...session.history, next],
+                redoStack: session.redoStack.slice(0, -1),
+              };
+            }),
+          );
         },
 
         startTimer: () =>
@@ -777,6 +821,14 @@ export const useCompanionStore = create<CompanionState>()(
       {
         name: STORAGE_KEYS.COMPANION,
         partialize: (state) => ({ session: state.session, archive: state.archive }),
+        merge: (persistedState, currentState) => {
+          if (!persistedState || typeof persistedState !== "object") return currentState;
+          const incoming = persistedState as Partial<CompanionState>;
+          const session = incoming.session
+            ? { ...incoming.session, redoStack: incoming.session.redoStack ?? [] }
+            : null;
+          return { ...currentState, ...incoming, session };
+        },
       },
     ),
     { name: "companion", enabled: import.meta.env.DEV },

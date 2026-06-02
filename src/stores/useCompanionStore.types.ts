@@ -116,6 +116,7 @@ export interface CompanionSession {
   players: CompanionPlayer[];
   history: CompanionEvent[];
   redoStack: CompanionEvent[];
+  dayNight: "day" | "night" | null;
   timer: { startedAt: number | null; pausedAt: number | null; accumulatedMs: number };
   activePlayerId: string | null;
   turn: number;

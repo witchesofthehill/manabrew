@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { ChevronRight, Minus, Plus, Redo2, RotateCcw, Undo2, XOctagon } from "lucide-react";
+import {
+  ChevronRight,
+  Minus,
+  Moon,
+  Plus,
+  Redo2,
+  RotateCcw,
+  Sun,
+  SunMoon,
+  Undo2,
+  XOctagon,
+} from "lucide-react";
 import { GameIcon } from "./GameIcon";
 import { LayoutIcon } from "./LayoutIcon";
 import { Button } from "@/components/ui/button";
@@ -38,7 +49,10 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
   const redo = useCompanionStore((s) => s.redo);
   const canRedo = useCompanionStore((s) => (s.session?.redoStack.length ?? 0) > 0);
   const advanceTurn = useCompanionStore((s) => s.advanceTurn);
+  const cycleDayNight = useCompanionStore((s) => s.cycleDayNight);
   const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
+  const DayNightIcon =
+    session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const endSession = useCompanionStore((s) => s.endSession);
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
@@ -166,6 +180,22 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
             {activePlayer ? `T${session.turn} · ${activePlayer.name}` : "Start"}
           </span>
           <span className="tabular-nums sm:hidden">T{session.turn}</span>
+        </Button>
+        <Button
+          size="icon"
+          variant={session.dayNight ? "default" : "ghost"}
+          className="size-8"
+          onClick={cycleDayNight}
+          aria-label="Cycle day / night"
+          title={
+            session.dayNight === null
+              ? "Day/Night: off"
+              : session.dayNight === "day"
+                ? "It is day"
+                : "It is night"
+          }
+        >
+          <DayNightIcon className="size-4" />
         </Button>
         <TurnTimer />
         <Button

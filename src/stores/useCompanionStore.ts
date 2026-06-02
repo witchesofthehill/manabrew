@@ -91,6 +91,7 @@ interface CompanionState {
   toggleCityBlessing: (playerId: string) => void;
   cycleRing: (playerId: string) => void;
   cycleSpeed: (playerId: string) => void;
+  cycleDayNight: () => void;
 
   markDead: (playerId: string, dead: boolean) => void;
 
@@ -150,6 +151,7 @@ function makeSession(input: {
     players,
     history: [],
     redoStack: [],
+    dayNight: null,
     timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
     activePlayerId: null,
     turn: 0,
@@ -697,6 +699,15 @@ export const useCompanionStore = create<CompanionState>()(
                 speed: ((p.speed ?? 0) + 1) % 5,
               })),
             ),
+          ),
+
+        cycleDayNight: () =>
+          set((state) =>
+            withSession(state, (session) => {
+              const next =
+                session.dayNight === null ? "day" : session.dayNight === "day" ? "night" : null;
+              return { ...session, dayNight: next };
+            }),
           ),
 
         markDead: (playerId, dead) =>

@@ -310,8 +310,9 @@ export const useCompanionStore = create<CompanionState>()(
                   layout: COMPANION_DEFAULT_LAYOUT_BY_COUNT[count] ?? session.layout,
                 };
               }
-              const added: CompanionPlayer[] = [];
-              for (let i = session.players.length; i < count; i++) {
+              const baseIndex = session.players.length;
+              const added = Array.from({ length: count - baseIndex }, (_, offset) => {
+                const i = baseIndex + offset;
                 const newcomer = makePlayer(i, session.startingLife);
                 newcomer.freeLayout = {
                   x: 40 + (i % 3) * 40,
@@ -319,8 +320,8 @@ export const useCompanionStore = create<CompanionState>()(
                   rotation: 0,
                   scale: 1,
                 };
-                added.push(newcomer);
-              }
+                return newcomer;
+              });
               return {
                 ...session,
                 players: [...session.players, ...added],
@@ -609,14 +610,10 @@ export const useCompanionStore = create<CompanionState>()(
            *  mutates `life` immediately but only writes the history entry
            *  when the batch flushes, so without this an undo right after a
            *  tap would discard the timer but leave the visible damage. */
-          const pendingPrev: Record<string, number> = {};
-          for (const id of Object.keys(pendingDeltaTimers)) {
-            const t = pendingDeltaTimers[id];
-            if (!t) continue;
-            pendingPrev[id] = t.prev;
-            if (t.timer) clearTimeout(t.timer);
-            delete pendingDeltaTimers[id];
-          }
+          const pendingPrev = Object.fromEntries(
+            Object.entries(pendingDeltaTimers).map(([id, t]) => [id, t.prev]),
+          );
+          clearAllPendingTimers();
           const hadPending = Object.keys(pendingPrev).length > 0;
           set((state) =>
             withSession(state, (session) => {

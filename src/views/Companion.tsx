@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
+import { GameSummaryDialog } from "@/components/companion/GameSummaryDialog";
 import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { WinBanner } from "@/components/companion/WinBanner";
 import { GameIcon } from "@/components/companion/GameIcon";
@@ -34,6 +35,7 @@ export default function Companion() {
             setNewOpen(false);
           }}
         />
+        <GameSummaryDialog />
       </div>
     );
   }
@@ -55,6 +57,7 @@ export default function Companion() {
           setNewOpen(false);
         }}
       />
+      <GameSummaryDialog />
     </div>
   );
 }

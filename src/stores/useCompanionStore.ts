@@ -38,6 +38,10 @@ interface PendingDelta {
 interface CompanionState {
   session: CompanionSession | null;
   archive: CompanionSession[];
+  /** Last archived session shown to the user as a post-game summary modal.
+   *  Cleared when the user dismisses the summary. */
+  summarySession: { session: CompanionSession; winnerId: string | null } | null;
+  dismissSummary: () => void;
   /** Transient per-player pending life deltas (not persisted). */
   pendingDeltas: Record<string, { amount: number; expiresAt: number }>;
 
@@ -326,7 +330,9 @@ export const useCompanionStore = create<CompanionState>()(
       (set, get) => ({
         session: null,
         archive: [],
+        summarySession: null,
         pendingDeltas: {},
+        dismissSummary: () => set({ summarySession: null }),
 
         newSession: ({ playerCount, startingLife, commanderRules, layout, carryRoster }) => {
           clearAllPendingTimers();
@@ -351,11 +357,11 @@ export const useCompanionStore = create<CompanionState>()(
           clearAllPendingTimers();
           const session = get().session;
           if (!session) return;
-          void winnerId;
           set((state) => ({
             session: null,
             pendingDeltas: {},
             archive: [session, ...state.archive].slice(0, 10),
+            summarySession: { session, winnerId: winnerId ?? null },
           }));
         },
 

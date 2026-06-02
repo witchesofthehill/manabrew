@@ -1,4 +1,5 @@
-import { MoreVertical, UserMinus, UserPlus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Flag, MoreVertical, UserMinus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,6 +36,25 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const setPlayerAccent = useCompanionStore((s) => s.setPlayerAccent);
   const markDead = useCompanionStore((s) => s.markDead);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
+  const [pendingConcede, setPendingConcede] = useState(false);
+  const concedeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (concedeTimerRef.current) clearTimeout(concedeTimerRef.current);
+    },
+    [],
+  );
+  const handleConcede = (event: Event) => {
+    if (!pendingConcede) {
+      event.preventDefault();
+      setPendingConcede(true);
+      concedeTimerRef.current = setTimeout(() => setPendingConcede(false), 3000);
+      return;
+    }
+    if (concedeTimerRef.current) clearTimeout(concedeTimerRef.current);
+    setPendingConcede(false);
+    markDead(player.id, true);
+  };
 
   return (
     <DropdownMenu>
@@ -113,9 +133,17 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
             <UserPlus className="mr-2 size-4" /> Revive
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem onSelect={() => markDead(player.id, true)}>
-            <UserMinus className="mr-2 size-4" /> Eliminate
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem
+              onSelect={handleConcede}
+              className={pendingConcede ? "text-destructive" : undefined}
+            >
+              <Flag className="mr-2 size-4" /> {pendingConcede ? "Tap again to concede" : "Concede"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => markDead(player.id, true)}>
+              <UserMinus className="mr-2 size-4" /> Eliminate
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

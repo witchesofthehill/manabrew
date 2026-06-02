@@ -29,16 +29,21 @@ export const COMPANION_ACCENT_KEYS: readonly CompanionAccentKey[] = [
   "slate",
 ];
 
-/** OKLCH tile accents — tuned for legible white text overlay. */
+/**
+ * Tile accent colors come from the active theme's `formatBadge` palette
+ * (resolved into `--format-badge-*` CSS variables by `useTheme`). Each
+ * accent key picks one slot of that palette so switching theme preset
+ * recolors every tile in lock-step.
+ */
 export const COMPANION_ACCENT_COLORS: Record<CompanionAccentKey, string> = {
-  crimson: "oklch(0.55 0.18 25)",
-  azure: "oklch(0.55 0.16 240)",
-  emerald: "oklch(0.55 0.15 155)",
-  amber: "oklch(0.62 0.15 75)",
-  violet: "oklch(0.52 0.18 295)",
-  rose: "oklch(0.6 0.18 0)",
-  teal: "oklch(0.55 0.13 195)",
-  slate: "oklch(0.45 0.04 250)",
+  crimson: "var(--format-badge-rose)",
+  azure: "var(--format-badge-blue)",
+  emerald: "var(--format-badge-emerald)",
+  amber: "var(--format-badge-amber)",
+  violet: "var(--format-badge-purple)",
+  rose: "var(--format-badge-orange)",
+  teal: "var(--format-badge-teal)",
+  slate: "var(--format-badge-slate)",
 };
 
 export interface CounterPreset {

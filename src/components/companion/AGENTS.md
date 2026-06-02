@@ -28,7 +28,7 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 
 - **Pure UI.** No imports from `@/types/manabrew`, `@/stores/useGameStore`, `@/api/scryfall` except the `searchCards` helper used by the commander picker. The companion never reads engine state.
 - **Persisted state lives in `useCompanionStore`.** Component-local state is for UI only (open dialogs, in-flight rename).
-- **Theme colors only.** Tile accents come from `COMPANION_ACCENT_COLORS` (OKLCH). No semantic-palette tailwind classes like `bg-red-500` inside this folder; status chips that need a fixed semantic color use Tailwind v4's palette like `bg-amber-400` etc. since they map to bg/accent themes that already exist in the design system. Keep additions sparing.
+- **Theme colors only.** Tile accents map to the active theme via `COMPANION_ACCENT_COLORS`, which references `--format-badge-*` CSS variables emitted by `useTheme` from `gameTheme.formatBadge`. Switching theme preset recolors every tile; never hard-code hex/oklch tile colors here. Status chips for Monarch/Initiative/Ascend keep fixed semantic Tailwind palette classes (`bg-amber-400`, `bg-violet-500`, `bg-sky-500`) because those colors are part of the MTG iconography. Keep additions sparing.
 - **Gestures.** Every ± control goes through `usePressHold` so tap-vs-hold behaviour is uniform. Tap = ±1, hold = ±1 every 110ms after a 320ms delay.
 - **Pending life delta.** `useCompanionStore.adjustLife` batches consecutive presses inside a ~1.4s window into one history entry. Tile shows the running total via `state.pendingDeltas[playerId]`.
 - **Undo.** Reads `session.history` (capped at 80 entries). Active pending deltas are flushed/discarded before undo to keep the timeline consistent.

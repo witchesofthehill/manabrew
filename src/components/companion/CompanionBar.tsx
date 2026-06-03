@@ -1,16 +1,5 @@
 import { useState } from "react";
-import {
-  ChevronRight,
-  EyeOff,
-  Moon,
-  Redo2,
-  RotateCcw,
-  Shuffle,
-  Sun,
-  SunMoon,
-  Undo2,
-  XOctagon,
-} from "lucide-react";
+import { ChevronRight, EyeOff, Moon, Redo2, Shuffle, Sun, SunMoon, Undo2 } from "lucide-react";
 import { GameIcon } from "./GameIcon";
 import { LayoutIcon } from "./LayoutIcon";
 import { Button } from "@/components/ui/button";
@@ -64,13 +53,11 @@ export function CompanionBar({
   const canRedo = useCompanionStore((s) => (s.session?.redoStack.length ?? 0) > 0);
   const advanceTurn = useCompanionStore((s) => s.advanceTurn);
   const cycleDayNight = useCompanionStore((s) => s.cycleDayNight);
-  const resetCounters = useCompanionStore((s) => s.resetCounters);
-  const resetGame = useCompanionStore((s) => s.resetGame);
-  const endSession = useCompanionStore((s) => s.endSession);
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
 
   const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
   const [roll, setRoll] = useState<Roll | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
   const DayNightIcon =
     session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
 
@@ -87,7 +74,7 @@ export function CompanionBar({
         <span className="hidden sm:inline">New game</span>
       </Button>
 
-      <SetupMenu session={session} />
+      <SetupMenu session={session} onOpenLog={() => setLogOpen(true)} />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -188,8 +175,6 @@ export function CompanionBar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <GameLog session={session} />
-
         <Button
           size="icon"
           variant="ghost"
@@ -212,40 +197,6 @@ export function CompanionBar({
           <Redo2 className="size-4" />
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-8"
-              aria-label="Reset and end game"
-              title="Reset / end game"
-            >
-              <RotateCcw className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Reset</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => resetCounters("life")}>Life only</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => resetCounters("counters")}>
-              Counters only
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => resetCounters("commander-damage")}>
-              Commander damage
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => resetGame()}>
-              Reset everything (turn, timer, history)
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => endSession()}
-              className="text-destructive focus:text-destructive"
-            >
-              <XOctagon className="mr-2 size-4" /> End game
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         {onHidePeek && (
           <Button
             size="icon"
@@ -260,6 +211,8 @@ export function CompanionBar({
         )}
         <FocusModeButton focus={focus} onToggle={onToggleFocus} />
       </div>
+
+      <GameLog session={session} open={logOpen} onOpenChange={setLogOpen} />
 
       {roll?.kind === "die" && (
         <DiceRoller

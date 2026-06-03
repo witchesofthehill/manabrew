@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Plus, Settings } from "lucide-react";
+import { ListOrdered, Minus, Plus, RotateCcw, Settings, XOctagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +22,7 @@ import { GameIcon } from "./GameIcon";
 
 interface SetupMenuProps {
   session: CompanionSession;
+  onOpenLog: () => void;
 }
 
 /**
@@ -30,12 +31,15 @@ interface SetupMenuProps {
  * day/night cycle, timer mode, session tag. Keeps the inline bar
  * focused on actions you actually take every turn.
  */
-export function SetupMenu({ session }: SetupMenuProps) {
+export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
   const setCommanderRules = useCompanionStore((s) => s.setCommanderRules);
   const setTimerMode = useCompanionStore((s) => s.setTimerMode);
   const setSessionTag = useCompanionStore((s) => s.setSessionTag);
+  const resetCounters = useCompanionStore((s) => s.resetCounters);
+  const resetGame = useCompanionStore((s) => s.resetGame);
+  const endSession = useCompanionStore((s) => s.endSession);
   const [tagDraft, setTagDraft] = useState(session.tag ?? "");
 
   return (
@@ -140,6 +144,34 @@ export function SetupMenu({ session }: SetupMenuProps) {
             className="h-8 text-xs"
           />
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onOpenLog}>
+          <ListOrdered className="mr-2 size-4" /> Game log
+          <span className="ml-auto tabular-nums text-xs text-muted-foreground">
+            {session.history.length}
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Reset</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => resetCounters("life")}>
+          <RotateCcw className="mr-2 size-4" /> Life only
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => resetCounters("counters")}>
+          <RotateCcw className="mr-2 size-4" /> Counters only
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => resetCounters("commander-damage")}>
+          <RotateCcw className="mr-2 size-4" /> Commander damage
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => resetGame()}>
+          <RotateCcw className="mr-2 size-4" /> Reset everything
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => endSession()}
+          className="text-destructive focus:text-destructive"
+        >
+          <XOctagon className="mr-2 size-4" /> End game
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

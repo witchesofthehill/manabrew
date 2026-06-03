@@ -1,5 +1,5 @@
 import { Undo2 } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
@@ -7,9 +7,11 @@ import type { CompanionEvent, CompanionSession } from "@/stores/useCompanionStor
 
 interface GameLogProps {
   session: CompanionSession;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function GameLog({ session }: GameLogProps) {
+export function GameLog({ session, open, onOpenChange }: GameLogProps) {
   const undo = useCompanionStore((s) => s.undo);
   const history = session.history;
 
@@ -22,21 +24,7 @@ export function GameLog({ session }: GameLogProps) {
   };
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
-          title="Game log"
-          aria-label="Game log"
-        >
-          Log
-          <span className="hidden tabular-nums text-muted-foreground sm:inline">
-            ({history.length})
-          </span>
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-80 overflow-y-auto p-0">
         <SheetHeader className="px-4 py-3">
           <SheetTitle>Game log</SheetTitle>

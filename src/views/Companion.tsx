@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
+import { FocusExitButton } from "@/components/companion/FocusExitButton";
+import { GameIcon } from "@/components/companion/GameIcon";
 import { GameSummaryDialog } from "@/components/companion/GameSummaryDialog";
+import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
-import { GameIcon } from "@/components/companion/GameIcon";
-import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 
 export default function Companion() {
@@ -16,6 +18,27 @@ export default function Companion() {
   const archive = useCompanionStore((s) => s.archive);
   const restoreFromArchive = useCompanionStore((s) => s.restoreFromArchive);
   const [newOpen, setNewOpen] = useState(false);
+  const [focus, setFocus] = useState(false);
+  const [chromeInFocus, setChromeInFocus] = useState(false);
+
+  // Wrap the focus setter so leaving focus mode also clears the peek flag,
+  // without needing an effect that calls setState (which the React-hooks
+  // lint rules don't allow).
+  const setFocusMode = (next: boolean) => {
+    setFocus(next);
+    if (!next) setChromeInFocus(false);
+  };
+
+  // Keep focus state in sync with the browser's fullscreen state so Esc /
+  // the system gesture drops us back into the chrome'd view automatically.
+  useEffect(() => {
+    if (!focus) return;
+    const onChange = () => {
+      if (!document.fullscreenElement) setFocusMode(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, [focus]);
 
   if (!session) {
     return (
@@ -72,13 +95,42 @@ export default function Companion() {
     );
   }
 
+  const showChrome = !focus || chromeInFocus;
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <CompanionBar session={session} onOpenNewSession={() => setNewOpen(true)} />
-      <PhaseStrip />
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col",
+        focus &&
+          "fixed inset-0 z-50 h-screen w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]",
+      )}
+    >
+      {showChrome && (
+        <div
+          className={cn(
+            focus && "absolute inset-x-0 top-[env(safe-area-inset-top)] z-40 shadow-xl",
+          )}
+        >
+          <CompanionBar
+            session={session}
+            onOpenNewSession={() => setNewOpen(true)}
+            focus={focus}
+            onToggleFocus={setFocusMode}
+            onHidePeek={focus && chromeInFocus ? () => setChromeInFocus(false) : undefined}
+          />
+          <PhaseStrip />
+        </div>
+      )}
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
         <WinBanner session={session} />
+        {focus && !chromeInFocus && (
+          <FocusExitButton
+            onExit={() => setFocusMode(false)}
+            chromeVisible={chromeInFocus}
+            onToggleChrome={setChromeInFocus}
+          />
+        )}
       </div>
       <NewSessionDialog
         open={newOpen}

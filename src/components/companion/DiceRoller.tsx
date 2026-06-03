@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { GameIcon } from "./GameIcon";
+import { DieShape } from "./DieShape";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
@@ -144,16 +145,7 @@ function NumericRoll({ sides }: { sides: number }) {
 
   return (
     <div className="flex flex-col items-center gap-3 py-2">
-      <div
-        className={cn(
-          "grid size-32 place-items-center rounded-2xl border-2 text-6xl font-black tabular-nums shadow-inner transition",
-          settled
-            ? "border-primary bg-primary/10 text-foreground"
-            : "border-border text-muted-foreground",
-        )}
-      >
-        {value}
-      </div>
+      <DieShape sides={sides} value={value} settled={settled} rolling={!settled} />
       <p className="text-sm text-muted-foreground">
         {settled ? (
           <>
@@ -187,15 +179,17 @@ function CoinFlip() {
 
   return (
     <div className="flex flex-col items-center gap-3 py-2">
-      <div
-        className={cn(
-          "grid size-32 place-items-center rounded-full border-2 text-2xl font-black uppercase tracking-wider shadow-inner transition",
-          settled
-            ? "border-primary bg-primary/10 text-foreground"
-            : "border-border text-muted-foreground",
-        )}
-      >
-        {value === "Heads" ? "H" : "T"}
+      <div className={cn(!settled && "animate-companion-die-tumble")}>
+        <div
+          className={cn(
+            "grid size-32 place-items-center rounded-full border-2 text-2xl font-black uppercase tracking-wider shadow-lg transition-colors",
+            settled
+              ? "border-primary bg-primary/10 text-foreground"
+              : "border-border text-muted-foreground",
+          )}
+        >
+          {value === "Heads" ? "H" : "T"}
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {settled ? (

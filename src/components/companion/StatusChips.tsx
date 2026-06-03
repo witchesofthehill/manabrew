@@ -1,3 +1,4 @@
+import { useCompanionStore } from "@/stores/useCompanionStore";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 import { GameIcon } from "./GameIcon";
 
@@ -6,8 +7,17 @@ interface StatusChipsProps {
 }
 
 export function StatusChips({ player }: StatusChipsProps) {
+  const isFirstPlayer = useCompanionStore((s) => s.session?.lastFirstPlayerId === player.id);
   return (
     <>
+      {isFirstPlayer && (
+        <span className="flex items-center gap-1 rounded-full bg-emerald-500/90 px-1 py-0.5 text-[9px] font-semibold text-white @sm:px-1.5 @sm:text-[10px]">
+          <span className="grid size-3 place-items-center rounded-full bg-white/25 text-[8px] font-bold tabular-nums @sm:size-3.5 @sm:text-[9px]">
+            1
+          </span>
+          <span className="hidden @xs:inline">Goes first</span>
+        </span>
+      )}
       {player.isMonarch && (
         <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-1 py-0.5 text-[9px] font-semibold text-amber-950 @sm:px-1.5 @sm:text-[10px]">
           <GameIcon icon="crown" className="size-2.5 @sm:size-3" />{" "}

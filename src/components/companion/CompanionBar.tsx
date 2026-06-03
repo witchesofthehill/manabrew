@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import {
+  COMPANION_ACCENT_COLORS,
   COMPANION_LAYOUT_LABELS,
   COMPANION_LAYOUT_OPTIONS,
   COMPANION_MAX_PLAYERS,
@@ -201,7 +202,12 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           size="sm"
           variant={activePlayer ? "default" : "outline"}
           onClick={advanceTurn}
-          className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm"
+          className="h-8 gap-1 px-2 text-xs text-white shadow-sm sm:h-9 sm:px-3 sm:text-sm"
+          style={
+            activePlayer
+              ? { backgroundColor: COMPANION_ACCENT_COLORS[activePlayer.accentKey] }
+              : undefined
+          }
           aria-label="Next turn"
           title={activePlayer ? `Turn ${session.turn} · ${activePlayer.name}` : "Start turn"}
         >

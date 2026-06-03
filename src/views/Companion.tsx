@@ -127,8 +127,7 @@ export default function Companion() {
         {focus && !chromeInFocus && (
           <FocusExitButton
             onExit={() => setFocusMode(false)}
-            chromeVisible={chromeInFocus}
-            onToggleChrome={setChromeInFocus}
+            onShowChrome={() => setChromeInFocus(true)}
           />
         )}
       </div>

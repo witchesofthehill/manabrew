@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, EyeOff, Moon, Redo2, Shuffle, Sun, SunMoon, Undo2 } from "lucide-react";
-import { GameIcon } from "./GameIcon";
+import { ChevronRight, EyeOff, Moon, Redo2, Sun, SunMoon, Undo2 } from "lucide-react";
 import { LayoutIcon } from "./LayoutIcon";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,13 +18,11 @@ import {
   COMPANION_LAYOUT_OPTIONS,
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
-import { DiceRoller } from "./DiceRoller";
+import { DiceMenu } from "./DiceMenu";
 import { FocusModeButton } from "./FocusModeButton";
 import { GameLog } from "./GameLog";
 import { SetupMenu } from "./SetupMenu";
 import { TurnTimer } from "./TurnTimer";
-
-const DICE = [4, 6, 8, 10, 12, 20, 100] as const;
 
 interface CompanionBarProps {
   session: CompanionSession;
@@ -37,8 +34,6 @@ interface CompanionBarProps {
    *  the chrome back down without exiting focus mode. */
   onHidePeek?: () => void;
 }
-
-type Roll = { kind: "die"; sides: number } | { kind: "coin" } | { kind: "first" };
 
 export function CompanionBar({
   session,
@@ -53,10 +48,8 @@ export function CompanionBar({
   const canRedo = useCompanionStore((s) => (s.session?.redoStack.length ?? 0) > 0);
   const advanceTurn = useCompanionStore((s) => s.advanceTurn);
   const cycleDayNight = useCompanionStore((s) => s.cycleDayNight);
-  const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
 
   const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
-  const [roll, setRoll] = useState<Roll | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const DayNightIcon =
     session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
@@ -147,35 +140,7 @@ export function CompanionBar({
 
         <TurnTimer />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="outline"
-              className="size-8 sm:size-9"
-              aria-label="Dice and randomizers"
-              title="Dice, coin, random first player"
-            >
-              <GameIcon icon="d20" className="size-4 sm:size-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuLabel>Roll</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {DICE.map((sides) => (
-              <DropdownMenuItem key={sides} onSelect={() => setRoll({ kind: "die", sides })}>
-                d{sides}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => setRoll({ kind: "coin" })}>
-              Coin flip
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setRoll({ kind: "first" })}>
-              <Shuffle className="mr-2 size-4" /> Random first player
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <DiceMenu players={session.players} />
 
         <Button
           size="icon"
@@ -215,26 +180,6 @@ export function CompanionBar({
       </div>
 
       <GameLog session={session} open={logOpen} onOpenChange={setLogOpen} />
-
-      {roll?.kind === "die" && (
-        <DiceRoller
-          mode="die"
-          sides={roll.sides}
-          open
-          onOpenChange={(open) => !open && setRoll(null)}
-        />
-      )}
-      {roll?.kind === "coin" && (
-        <DiceRoller mode="coin" open onOpenChange={(open) => !open && setRoll(null)} />
-      )}
-      {roll?.kind === "first" && (
-        <DiceRoller
-          open
-          onOpenChange={(open) => !open && setRoll(null)}
-          players={session.players}
-          pickWinner={pickRandom}
-        />
-      )}
     </div>
   );
 }

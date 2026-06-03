@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ListOrdered, Minus, Plus, RotateCcw, Settings, XOctagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +39,6 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const resetCounters = useCompanionStore((s) => s.resetCounters);
   const resetGame = useCompanionStore((s) => s.resetGame);
   const endSession = useCompanionStore((s) => s.endSession);
-  const [tagDraft, setTagDraft] = useState(session.tag ?? "");
 
   return (
     <DropdownMenu>
@@ -134,9 +132,9 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
         <DropdownMenuLabel>Game title</DropdownMenuLabel>
         <div className="px-2 pb-2">
           <Input
-            value={tagDraft}
-            onChange={(e) => setTagDraft(e.target.value)}
-            onBlur={() => setSessionTag(tagDraft.trim())}
+            key={session.id}
+            defaultValue={session.tag ?? ""}
+            onBlur={(e) => setSessionTag(e.target.value.trim())}
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}

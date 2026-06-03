@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -12,18 +11,11 @@ interface FocusModeButtonProps {
  * focus mode that hands the whole viewport to the player tiles — meant for
  * the "phone in the centre of the table" use case. Also drives the browser
  * Fullscreen API so the address bar / status bar disappear too on mobile.
+ * Esc / system-gesture sync lives in `Companion.tsx`, not here — that
+ * keeps the listener registered exactly once, owned by the focus-state
+ * holder.
  */
 export function FocusModeButton({ focus, onToggle }: FocusModeButtonProps) {
-  // Sync focus state if the user exits browser fullscreen via Esc or the
-  // system gesture so the in-app UI doesn't lie about its mode.
-  useEffect(() => {
-    const onChange = () => {
-      if (!document.fullscreenElement && focus) onToggle(false);
-    };
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, [focus, onToggle]);
-
   const toggle = () => {
     const next = !focus;
     onToggle(next);

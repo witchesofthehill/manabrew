@@ -191,6 +191,13 @@ function withSession(
   return { session: mutate(state.session) };
 }
 
+function sameCommander(a: CompanionCommanderRef | null, b: CompanionCommanderRef | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.scryfallId && b.scryfallId) return a.scryfallId === b.scryfallId;
+  return a.name === b.name;
+}
+
 function pushEvent(session: CompanionSession, event: CompanionEvent): CompanionSession {
   const history = [...session.history, event];
   if (history.length > COMPANION_HISTORY_LIMIT) {
@@ -410,7 +417,10 @@ export const useCompanionStore = create<CompanionState>()(
               phase: "main1",
               dayNight: null,
               timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
-              chessClockStartedAt: session.timerMode === "chess" ? Date.now() : null,
+              // Don't pre-arm the chess clock here — there's no active
+              // player yet. setFirstPlayer / advanceTurn will start it
+              // when a player actually takes their turn.
+              chessClockStartedAt: null,
             })),
           );
           set({ pendingDeltas: {} });
@@ -540,7 +550,7 @@ export const useCompanionStore = create<CompanionState>()(
               const player = session.players.find((p) => p.id === playerId);
               if (!player) return session;
               const prev = player.commanders[slot] ?? null;
-              if (prev === ref) return session;
+              if (sameCommander(prev, ref)) return session;
               const updated = replacePlayer(session, playerId, (p) => {
                 const next = [...p.commanders] as CompanionPlayer["commanders"];
                 next[slot] = ref;

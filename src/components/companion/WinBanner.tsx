@@ -13,7 +13,10 @@ export function WinBanner({ session }: WinBannerProps) {
   const living = session.players.filter((p) => !p.isDead);
   const winner = session.players.length > 1 && living.length === 1 ? living[0]! : null;
   if (!winner) return null;
-  return <WinBannerInner key={winner.id} winner={winner} />;
+  // Keying by id + history length lets the banner re-show if the user
+  // revives the winner (history grows) and then eliminates them again,
+  // even when the same player wins both times in a single session.
+  return <WinBannerInner key={`${winner.id}-${session.history.length}`} winner={winner} />;
 }
 
 function WinBannerInner({ winner }: { winner: CompanionPlayer }) {

@@ -14,6 +14,9 @@ export function GameLog({ session }: GameLogProps) {
   const history = session.history;
 
   const undoTo = (eventIndex: number) => {
+    // Synchronously fire undo for each step we want to rewind. History is
+    // capped at COMPANION_HISTORY_LIMIT (80), so the worst-case loop is
+    // bounded and every iteration is one atomic Zustand transition.
     const stepsBack = history.length - 1 - eventIndex;
     for (let i = 0; i < stepsBack; i++) undo();
   };

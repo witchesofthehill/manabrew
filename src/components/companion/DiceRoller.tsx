@@ -5,30 +5,64 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
 
-interface DiceRollerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  players: CompanionPlayer[];
-  /** Returns the winning player id (committed to the store). */
-  pickWinner: () => string | null;
-}
+const ANIMATION_TICKS = 14;
+const ANIMATION_INTERVAL_MS = 90;
 
-export function DiceRoller({ open, onOpenChange, players, pickWinner }: DiceRollerProps) {
+type DiceRollerProps =
+  | {
+      mode?: "first-player";
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      players: CompanionPlayer[];
+      /** Returns the winning player id (committed to the store). */
+      pickWinner: () => string | null;
+    }
+  | {
+      mode: "die";
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      /** Number of faces, e.g. 6 / 20 / 100. */
+      sides: number;
+    }
+  | {
+      mode: "coin";
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+    };
+
+export function DiceRoller(props: DiceRollerProps) {
+  const title = describeTitle(props);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <GameIcon icon="d20" className="size-5" /> Randomising first player…
+            <GameIcon icon="d20" className="size-5" /> {title}
           </DialogTitle>
         </DialogHeader>
-        {open && <DiceAnimation players={players} pickWinner={pickWinner} />}
+        {props.open && <RollBody {...props} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DiceAnimation({
+function describeTitle(props: DiceRollerProps): string {
+  if (!("mode" in props) || props.mode === "first-player") return "Randomising first player…";
+  if (props.mode === "die") return `Rolling a d${props.sides}…`;
+  return "Flipping a coin…";
+}
+
+function RollBody(props: DiceRollerProps) {
+  if (!("mode" in props) || props.mode === "first-player") {
+    return <FirstPlayerAnimation players={props.players} pickWinner={props.pickWinner} />;
+  }
+  if (props.mode === "die") {
+    return <NumericRoll sides={props.sides} />;
+  }
+  return <CoinFlip />;
+}
+
+function FirstPlayerAnimation({
   players,
   pickWinner,
 }: {
@@ -42,12 +76,11 @@ function DiceAnimation({
     if (players.length === 0) return;
 
     let ticks = 0;
-    const maxTicks = 14;
     const interval = setInterval(() => {
       ticks += 1;
       const idx = Math.floor(Math.random() * players.length);
       setHighlight(players[idx]!.id);
-      if (ticks >= maxTicks) {
+      if (ticks >= ANIMATION_TICKS) {
         clearInterval(interval);
         const winnerId = pickWinner();
         if (winnerId) {
@@ -55,7 +88,7 @@ function DiceAnimation({
           setSettled(true);
         }
       }
-    }, 90);
+    }, ANIMATION_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [players, pickWinner]);
@@ -89,5 +122,90 @@ function DiceAnimation({
         </p>
       )}
     </>
+  );
+}
+
+function NumericRoll({ sides }: { sides: number }) {
+  const [value, setValue] = useState(1);
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    let ticks = 0;
+    const interval = setInterval(() => {
+      ticks += 1;
+      setValue(1 + Math.floor(Math.random() * sides));
+      if (ticks >= ANIMATION_TICKS) {
+        clearInterval(interval);
+        setSettled(true);
+      }
+    }, ANIMATION_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [sides]);
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-2">
+      <div
+        className={cn(
+          "grid size-32 place-items-center rounded-2xl border-2 text-6xl font-black tabular-nums shadow-inner transition",
+          settled
+            ? "border-primary bg-primary/10 text-foreground"
+            : "border-border text-muted-foreground",
+        )}
+      >
+        {value}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {settled ? (
+          <>
+            <span className="font-semibold text-foreground">d{sides}</span> →{" "}
+            <span className="font-semibold text-foreground">{value}</span>
+          </>
+        ) : (
+          `d${sides}`
+        )}
+      </p>
+    </div>
+  );
+}
+
+function CoinFlip() {
+  const [value, setValue] = useState<"Heads" | "Tails">("Heads");
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    let ticks = 0;
+    const interval = setInterval(() => {
+      ticks += 1;
+      setValue(Math.random() < 0.5 ? "Heads" : "Tails");
+      if (ticks >= ANIMATION_TICKS) {
+        clearInterval(interval);
+        setSettled(true);
+      }
+    }, ANIMATION_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-2">
+      <div
+        className={cn(
+          "grid size-32 place-items-center rounded-full border-2 text-2xl font-black uppercase tracking-wider shadow-inner transition",
+          settled
+            ? "border-primary bg-primary/10 text-foreground"
+            : "border-border text-muted-foreground",
+        )}
+      >
+        {value === "Heads" ? "H" : "T"}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {settled ? (
+          <>
+            Coin → <span className="font-semibold text-foreground">{value}</span>
+          </>
+        ) : (
+          "Coin"
+        )}
+      </p>
+    </div>
   );
 }

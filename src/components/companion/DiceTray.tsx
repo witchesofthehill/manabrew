@@ -8,58 +8,52 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DiceRoller } from "./DiceRoller";
 import { GameIcon } from "./GameIcon";
 
 const DICE = [4, 6, 8, 10, 12, 20, 100] as const;
 
+type Roll = { kind: "die"; sides: number } | { kind: "coin" };
+
 export function DiceTray() {
-  const [last, setLast] = useState<{ label: string; value: number | string } | null>(null);
+  const [roll, setRoll] = useState<Roll | null>(null);
   return (
-    <DropdownMenu
-      onOpenChange={(open) => {
-        if (open) setLast(null);
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8 sm:size-9"
-          aria-label="Dice tray"
-          title="Dice & coin"
-        >
-          <GameIcon icon="d20" className="size-4 sm:size-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuLabel>Roll</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {DICE.map((sides) => (
-          <DropdownMenuItem
-            key={sides}
-            onSelect={(e) => {
-              e.preventDefault();
-              const value = 1 + Math.floor(Math.random() * sides);
-              setLast({ label: `d${sides}`, value });
-            }}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-8 sm:size-9"
+            aria-label="Dice tray"
+            title="Dice & coin"
           >
-            d{sides}
-            {last?.label === `d${sides}` && (
-              <span className="ml-auto font-semibold tabular-nums">{last.value}</span>
-            )}
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault();
-            setLast({ label: "coin", value: Math.random() < 0.5 ? "Heads" : "Tails" });
-          }}
-        >
-          Coin flip
-          {last?.label === "coin" && <span className="ml-auto font-semibold">{last.value}</span>}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+            <GameIcon icon="d20" className="size-4 sm:size-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-32">
+          <DropdownMenuLabel>Roll</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {DICE.map((sides) => (
+            <DropdownMenuItem key={sides} onSelect={() => setRoll({ kind: "die", sides })}>
+              d{sides}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => setRoll({ kind: "coin" })}>Coin flip</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {roll?.kind === "die" && (
+        <DiceRoller
+          mode="die"
+          sides={roll.sides}
+          open
+          onOpenChange={(open) => !open && setRoll(null)}
+        />
+      )}
+      {roll?.kind === "coin" && (
+        <DiceRoller mode="coin" open onOpenChange={(open) => !open && setRoll(null)} />
+      )}
+    </>
   );
 }

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
+import { FocusExitButton } from "@/components/companion/FocusExitButton";
 import { GameIcon } from "@/components/companion/GameIcon";
 import { GameSummaryDialog } from "@/components/companion/GameSummaryDialog";
 import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
@@ -108,25 +108,7 @@ export default function Companion() {
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
         <WinBanner session={session} />
-        {focus && (
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={() => {
-              setFocus(false);
-              if (document.fullscreenElement && document.exitFullscreen) {
-                document.exitFullscreen().catch(() => {
-                  /* already exited */
-                });
-              }
-            }}
-            className="pointer-events-auto absolute bottom-2 right-2 z-50 size-9 rounded-full bg-card/80 opacity-50 shadow-lg backdrop-blur hover:opacity-100"
-            aria-label="Exit focus mode"
-            title="Exit focus mode (Esc)"
-          >
-            <Minimize2 className="size-4" />
-          </Button>
-        )}
+        {focus && <FocusExitButton onExit={() => setFocus(false)} />}
       </div>
       <NewSessionDialog
         open={newOpen}

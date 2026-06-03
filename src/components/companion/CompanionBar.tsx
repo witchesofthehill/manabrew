@@ -3,8 +3,8 @@ import {
   ChevronRight,
   EyeOff,
   Moon,
-  MoreHorizontal,
   Redo2,
+  RotateCcw,
   Shuffle,
   Sun,
   SunMoon,
@@ -214,8 +214,14 @@ export function CompanionBar({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="size-8" aria-label="More actions">
-              <MoreHorizontal className="size-4" />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label="Reset and end game"
+              title="Reset / end game"
+            >
+              <RotateCcw className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

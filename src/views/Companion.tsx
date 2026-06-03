@@ -116,6 +116,7 @@ export default function Companion() {
             onOpenNewSession={() => setNewOpen(true)}
             focus={focus}
             onToggleFocus={setFocusMode}
+            onHidePeek={focus && chromeInFocus ? () => setChromeInFocus(false) : undefined}
           />
           <PhaseStrip />
         </div>

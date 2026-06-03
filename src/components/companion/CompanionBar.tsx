@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ChevronRight,
+  EyeOff,
   Moon,
   MoreHorizontal,
   Redo2,
@@ -42,6 +43,10 @@ interface CompanionBarProps {
   onOpenNewSession: () => void;
   focus: boolean;
   onToggleFocus: (next: boolean) => void;
+  /** When set, the bar is being rendered as the focus-mode peek overlay
+   *  — show a hide-peek control alongside Focus so the user can collapse
+   *  the chrome back down without exiting focus mode. */
+  onHidePeek?: () => void;
 }
 
 type Roll = { kind: "die"; sides: number } | { kind: "coin" } | { kind: "first" };
@@ -51,6 +56,7 @@ export function CompanionBar({
   onOpenNewSession,
   focus,
   onToggleFocus,
+  onHidePeek,
 }: CompanionBarProps) {
   const setLayout = useCompanionStore((s) => s.setLayout);
   const undo = useCompanionStore((s) => s.undo);
@@ -234,6 +240,18 @@ export function CompanionBar({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {onHidePeek && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-8"
+            onClick={onHidePeek}
+            aria-label="Hide controls"
+            title="Hide bar and phase strip"
+          >
+            <EyeOff className="size-4" />
+          </Button>
+        )}
         <FocusModeButton focus={focus} onToggle={onToggleFocus} />
       </div>
 

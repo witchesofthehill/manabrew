@@ -5,6 +5,9 @@ interface DieShapeProps {
   value: number;
   settled: boolean;
   rolling: boolean;
+  /** CSS colour used for the silhouette and the settled fill. Falls back to
+   *  the theme `--primary` when omitted. */
+  accentColor?: string;
   className?: string;
 }
 
@@ -40,13 +43,21 @@ function polygonPath(vertexCount: number, rotationDeg: number): string {
   return points.join(" ");
 }
 
-export function DieShape({ sides, value, settled, rolling, className }: DieShapeProps) {
+export function DieShape({
+  sides,
+  value,
+  settled,
+  rolling,
+  accentColor,
+  className,
+}: DieShapeProps) {
   const vertexCount = VERTICES_FOR[sides] ?? 6;
   // Point-up orientation for odd-vertex shapes (triangle, pentagon);
   // flat-top for even-vertex shapes (square, hexagon, octagon).
   const rotation = vertexCount % 2 === 1 ? -90 : -90 + 180 / vertexCount;
   const points = polygonPath(vertexCount, rotation);
   const label = sides === 100 ? `${value}%` : `${value}`;
+  const stroke = accentColor ?? "var(--primary)";
   return (
     <div
       className={cn(
@@ -58,10 +69,11 @@ export function DieShape({ sides, value, settled, rolling, className }: DieShape
       <svg viewBox={`0 0 ${VIEW_BOX} ${VIEW_BOX}`} className="size-32 drop-shadow-lg" aria-hidden>
         <polygon
           points={points}
-          className={cn(
-            "stroke-2 transition-colors",
-            settled ? "fill-primary/15 stroke-primary" : "fill-muted/40 stroke-border",
-          )}
+          className="transition-colors"
+          stroke={settled ? stroke : "var(--border)"}
+          strokeWidth={2.5}
+          fill={settled ? stroke : "var(--muted)"}
+          fillOpacity={settled ? 0.18 : 0.4}
         />
         <text
           x={CENTER}
@@ -69,9 +81,10 @@ export function DieShape({ sides, value, settled, rolling, className }: DieShape
           textAnchor="middle"
           dominantBaseline="central"
           className={cn(
-            "fill-current font-black tabular-nums",
+            "font-black tabular-nums",
             settled ? "text-foreground" : "text-muted-foreground",
           )}
+          fill="currentColor"
           style={{ fontSize: sides === 100 ? 26 : 36 }}
         >
           {label}

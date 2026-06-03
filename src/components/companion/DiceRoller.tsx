@@ -3,8 +3,21 @@ import { GameIcon } from "./GameIcon";
 import { DieShape } from "./DieShape";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useCompanionStore } from "@/stores/useCompanionStore";
 import { COMPANION_ACCENT_COLORS } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
+
+/** Resolves the active player's accent colour, falling back to the first
+ *  player if none is active and finally `null` (which means use --primary). */
+function useActiveAccent(): string | null {
+  return useCompanionStore((s) => {
+    const session = s.session;
+    if (!session) return null;
+    const active =
+      session.players.find((p) => p.id === session.activePlayerId) ?? session.players[0];
+    return active ? COMPANION_ACCENT_COLORS[active.accentKey] : null;
+  });
+}
 
 const ANIMATION_TICKS = 14;
 const ANIMATION_INTERVAL_MS = 90;
@@ -129,6 +142,7 @@ function FirstPlayerAnimation({
 function NumericRoll({ sides }: { sides: number }) {
   const [value, setValue] = useState(1);
   const [settled, setSettled] = useState(false);
+  const accent = useActiveAccent();
 
   useEffect(() => {
     let ticks = 0;
@@ -145,7 +159,13 @@ function NumericRoll({ sides }: { sides: number }) {
 
   return (
     <div className="flex flex-col items-center gap-3 py-2">
-      <DieShape sides={sides} value={value} settled={settled} rolling={!settled} />
+      <DieShape
+        sides={sides}
+        value={value}
+        settled={settled}
+        rolling={!settled}
+        accentColor={accent ?? undefined}
+      />
       <p className="text-sm text-muted-foreground">
         {settled ? (
           <>
@@ -163,6 +183,7 @@ function NumericRoll({ sides }: { sides: number }) {
 function CoinFlip() {
   const [value, setValue] = useState<"Heads" | "Tails">("Heads");
   const [settled, setSettled] = useState(false);
+  const accent = useActiveAccent();
 
   useEffect(() => {
     let ticks = 0;
@@ -177,18 +198,34 @@ function CoinFlip() {
     return () => clearInterval(interval);
   }, []);
 
+  const borderColor = settled ? (accent ?? "var(--primary)") : "var(--border)";
+  const fillColor = settled ? (accent ?? "var(--primary)") : "transparent";
+
   return (
     <div className="flex flex-col items-center gap-3 py-2">
       <div className={cn(!settled && "animate-companion-die-tumble")}>
         <div
-          className={cn(
-            "grid size-32 place-items-center rounded-full border-2 text-2xl font-black uppercase tracking-wider shadow-lg transition-colors",
-            settled
-              ? "border-primary bg-primary/10 text-foreground"
-              : "border-border text-muted-foreground",
-          )}
+          className="grid size-32 place-items-center rounded-full text-2xl font-black uppercase tracking-wider shadow-lg transition-colors"
+          style={{
+            borderWidth: 2.5,
+            borderStyle: "solid",
+            borderColor,
+            backgroundColor: fillColor,
+            backgroundClip: "border-box",
+            color: settled ? "var(--foreground)" : "var(--muted-foreground)",
+            backgroundImage: settled
+              ? `linear-gradient(${accent ?? "var(--primary)"} 0%, ${accent ?? "var(--primary)"} 100%)`
+              : undefined,
+          }}
         >
-          {value === "Heads" ? "H" : "T"}
+          <span
+            className={cn(
+              "rounded-full px-3 py-1",
+              settled ? "bg-card/70 text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {value === "Heads" ? "H" : "T"}
+          </span>
         </div>
       </div>
       <p className="text-sm text-muted-foreground">

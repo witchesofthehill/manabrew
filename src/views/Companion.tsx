@@ -19,13 +19,22 @@ export default function Companion() {
   const restoreFromArchive = useCompanionStore((s) => s.restoreFromArchive);
   const [newOpen, setNewOpen] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [chromeInFocus, setChromeInFocus] = useState(false);
+
+  // Wrap the focus setter so leaving focus mode also clears the peek flag,
+  // without needing an effect that calls setState (which the React-hooks
+  // lint rules don't allow).
+  const setFocusMode = (next: boolean) => {
+    setFocus(next);
+    if (!next) setChromeInFocus(false);
+  };
 
   // Keep focus state in sync with the browser's fullscreen state so Esc /
   // the system gesture drops us back into the chrome'd view automatically.
   useEffect(() => {
     if (!focus) return;
     const onChange = () => {
-      if (!document.fullscreenElement) setFocus(false);
+      if (!document.fullscreenElement) setFocusMode(false);
     };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
@@ -86,6 +95,8 @@ export default function Companion() {
     );
   }
 
+  const showChrome = !focus || chromeInFocus;
+
   return (
     <div
       className={cn(
@@ -94,21 +105,31 @@ export default function Companion() {
           "fixed inset-0 z-50 h-screen w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]",
       )}
     >
-      {!focus && (
-        <>
+      {showChrome && (
+        <div
+          className={cn(
+            focus && "absolute inset-x-0 top-[env(safe-area-inset-top)] z-40 shadow-xl",
+          )}
+        >
           <CompanionBar
             session={session}
             onOpenNewSession={() => setNewOpen(true)}
             focus={focus}
-            onToggleFocus={setFocus}
+            onToggleFocus={setFocusMode}
           />
           <PhaseStrip />
-        </>
+        </div>
       )}
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
         <WinBanner session={session} />
-        {focus && <FocusExitButton onExit={() => setFocus(false)} />}
+        {focus && (
+          <FocusExitButton
+            onExit={() => setFocusMode(false)}
+            chromeVisible={chromeInFocus}
+            onToggleChrome={setChromeInFocus}
+          />
+        )}
       </div>
       <NewSessionDialog
         open={newOpen}

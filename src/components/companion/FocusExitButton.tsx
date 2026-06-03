@@ -1,23 +1,24 @@
 import { useEffect, useState } from "react";
-import { Minimize2 } from "lucide-react";
+import { Eye, EyeOff, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface FocusExitButtonProps {
   onExit: () => void;
+  chromeVisible: boolean;
+  onToggleChrome: (next: boolean) => void;
 }
 
 const AUTO_DIM_AFTER_MS = 4000;
 
 /**
- * Floating "exit focus mode" affordance for touch screens. Sits in a
- * fixed corner (with safe-area-inset padding for notches) at full opacity
- * for the first few seconds after entering focus, then dims to a small
- * always-visible chip. Tapping anywhere on the floating chip brings it
- * back to full opacity for another window, so the user can find it on
- * a phone-on-table setup without leaning over to look closely.
+ * Floating focus-mode control cluster for touch devices. Pinned to the
+ * top-right inside the safe-area-inset; full opacity for the first few
+ * seconds, then dims to a small always-tappable chip. Houses two
+ * actions: peek the bar + phase strip back in (without leaving focus
+ * mode) and exit focus entirely.
  */
-export function FocusExitButton({ onExit }: FocusExitButtonProps) {
+export function FocusExitButton({ onExit, chromeVisible, onToggleChrome }: FocusExitButtonProps) {
   const [bright, setBright] = useState(true);
 
   useEffect(() => {
@@ -34,9 +35,7 @@ export function FocusExitButton({ onExit }: FocusExitButtonProps) {
     }
   };
 
-  const wake = () => {
-    setBright(true);
-  };
+  const wake = () => setBright(true);
 
   return (
     <div
@@ -44,10 +43,20 @@ export function FocusExitButton({ onExit }: FocusExitButtonProps) {
       onPointerDown={wake}
       onTouchStart={wake}
       className={cn(
-        "pointer-events-auto fixed right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+12px)] z-[60] flex items-center gap-2 rounded-full border border-border bg-card/90 px-2 py-1 shadow-xl backdrop-blur transition-opacity",
+        "pointer-events-auto fixed right-[calc(env(safe-area-inset-right)+12px)] top-[calc(env(safe-area-inset-top)+12px)] z-[60] flex items-center gap-1 rounded-full border border-border bg-card/90 px-1 py-1 shadow-xl backdrop-blur transition-opacity",
         bright ? "opacity-100" : "opacity-40",
       )}
     >
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => onToggleChrome(!chromeVisible)}
+        className="h-9 gap-1 rounded-full px-3 text-xs font-semibold"
+        aria-label={chromeVisible ? "Hide controls" : "Show controls"}
+        title={chromeVisible ? "Hide bar and phase strip" : "Peek bar and phase strip"}
+      >
+        {chromeVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </Button>
       <Button
         size="sm"
         variant="ghost"

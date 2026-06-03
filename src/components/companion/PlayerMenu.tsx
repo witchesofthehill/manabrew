@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Flag, MoreVertical, NotebookPen, UserMinus, UserPlus } from "lucide-react";
+import { Flag, MoreVertical, NotebookPen, PlayCircle, UserMinus, UserPlus } from "lucide-react";
 import { PlayerNotesDialog } from "./PlayerNotesDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +34,8 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
   const cycleSpeed = useCompanionStore((s) => s.cycleSpeed);
   const adjustMana = useCompanionStore((s) => s.adjustMana);
   const clearMana = useCompanionStore((s) => s.clearMana);
+  const setFirstPlayer = useCompanionStore((s) => s.setFirstPlayer);
+  const isFirstPlayer = useCompanionStore((s) => s.session?.lastFirstPlayerId === player.id);
   const setPlayerAccent = useCompanionStore((s) => s.setPlayerAccent);
   const markDead = useCompanionStore((s) => s.markDead);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
@@ -73,6 +75,10 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
       <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuItem onSelect={onPickCommander}>
           <GameIcon icon="crossed-swords" className="mr-2 size-4" /> Choose commander…
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setFirstPlayer(player.id)} disabled={isFirstPlayer}>
+          <PlayCircle className="mr-2 size-4" />{" "}
+          {isFirstPlayer ? "Goes first" : "Set as first player"}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleMonarch(player.id)}>
           <GameIcon icon="crown" className="mr-2 size-4" />{" "}

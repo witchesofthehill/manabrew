@@ -119,6 +119,7 @@ interface CompanionState {
   setActivePlayer: (playerId: string | null) => void;
   advanceTurn: () => void;
   pickRandomFirstPlayer: () => string | null;
+  setFirstPlayer: (playerId: string) => void;
 }
 
 function uid(): string {
@@ -976,6 +977,20 @@ export const useCompanionStore = create<CompanionState>()(
           );
           return winner.id;
         },
+
+        setFirstPlayer: (playerId) =>
+          set((state) =>
+            withSession(state, (session) => {
+              if (!session.players.some((p) => p.id === playerId)) return session;
+              return {
+                ...session,
+                activePlayerId: playerId,
+                turn: 1,
+                lastFirstPlayerId: playerId,
+                chessClockStartedAt: session.timerMode === "chess" ? Date.now() : null,
+              };
+            }),
+          ),
       }),
       {
         name: STORAGE_KEYS.COMPANION,

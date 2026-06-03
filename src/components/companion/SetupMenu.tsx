@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Moon, Plus, Settings, Sun, SunMoon } from "lucide-react";
+import { Minus, Plus, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,13 +34,9 @@ export function SetupMenu({ session }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
   const setCommanderRules = useCompanionStore((s) => s.setCommanderRules);
-  const cycleDayNight = useCompanionStore((s) => s.cycleDayNight);
   const setTimerMode = useCompanionStore((s) => s.setTimerMode);
   const setSessionTag = useCompanionStore((s) => s.setSessionTag);
   const [tagDraft, setTagDraft] = useState(session.tag ?? "");
-
-  const DayNightIcon =
-    session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
 
   return (
     <DropdownMenu>
@@ -109,17 +105,6 @@ export function SetupMenu({ session }: SetupMenuProps) {
         >
           <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
           {session.commanderRules && <span className="ml-auto text-xs">on</span>}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault();
-            cycleDayNight();
-          }}
-        >
-          <DayNightIcon className="mr-2 size-4" /> Day / Night
-          <span className="ml-auto text-xs text-muted-foreground">
-            {session.dayNight === null ? "off" : session.dayNight}
-          </span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Timer mode</DropdownMenuLabel>

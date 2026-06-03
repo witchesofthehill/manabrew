@@ -1,0 +1,161 @@
+import { useState } from "react";
+import { Minus, Moon, Plus, Settings, Sun, SunMoon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { useCompanionStore } from "@/stores/useCompanionStore";
+import {
+  COMPANION_MAX_PLAYERS,
+  COMPANION_MIN_PLAYERS,
+  COMPANION_STARTING_LIFE_PRESETS,
+} from "@/stores/useCompanionStore.constants";
+import type { CompanionSession } from "@/stores/useCompanionStore.types";
+import { GameIcon } from "./GameIcon";
+
+interface SetupMenuProps {
+  session: CompanionSession;
+}
+
+/**
+ * Collapses every "rarely touched once the game starts" control into one
+ * dropdown: player count, starting life, commander rules, oathbreaker,
+ * day/night cycle, timer mode, session tag. Keeps the inline bar
+ * focused on actions you actually take every turn.
+ */
+export function SetupMenu({ session }: SetupMenuProps) {
+  const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
+  const setStartingLife = useCompanionStore((s) => s.setStartingLife);
+  const setCommanderRules = useCompanionStore((s) => s.setCommanderRules);
+  const cycleDayNight = useCompanionStore((s) => s.cycleDayNight);
+  const setTimerMode = useCompanionStore((s) => s.setTimerMode);
+  const setSessionTag = useCompanionStore((s) => s.setSessionTag);
+  const [tagDraft, setTagDraft] = useState(session.tag ?? "");
+
+  const DayNightIcon =
+    session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="icon"
+          variant="outline"
+          className="size-8 sm:size-9"
+          aria-label="Game setup"
+          title="Game setup"
+        >
+          <Settings className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        <DropdownMenuLabel>Players</DropdownMenuLabel>
+        <div className="flex items-center justify-between gap-2 px-2 pb-2">
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-7"
+            onClick={() => setPlayerCount(session.players.length - 1)}
+            disabled={session.players.length <= COMPANION_MIN_PLAYERS}
+            aria-label="Fewer players"
+          >
+            <Minus className="size-3.5" />
+          </Button>
+          <span className="text-sm font-semibold tabular-nums">{session.players.length}</span>
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-7"
+            onClick={() => setPlayerCount(session.players.length + 1)}
+            disabled={session.players.length >= COMPANION_MAX_PLAYERS}
+            aria-label="More players"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Starting life</DropdownMenuLabel>
+        <div className="flex flex-wrap gap-1 px-2 pb-2">
+          {COMPANION_STARTING_LIFE_PRESETS.map((value) => (
+            <button
+              type="button"
+              key={value}
+              onClick={() => setStartingLife(value)}
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-xs font-medium transition",
+                value === session.startingLife
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background hover:bg-accent",
+              )}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setCommanderRules(!session.commanderRules);
+          }}
+          className={cn(session.commanderRules && "bg-accent")}
+        >
+          <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
+          {session.commanderRules && <span className="ml-auto text-xs">on</span>}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            cycleDayNight();
+          }}
+        >
+          <DayNightIcon className="mr-2 size-4" /> Day / Night
+          <span className="ml-auto text-xs text-muted-foreground">
+            {session.dayNight === null ? "off" : session.dayNight}
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Timer mode</DropdownMenuLabel>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setTimerMode("shared");
+          }}
+          className={cn(session.timerMode === "shared" && "bg-accent")}
+        >
+          Shared game clock
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setTimerMode("chess");
+          }}
+          className={cn(session.timerMode === "chess" && "bg-accent")}
+        >
+          Per-player chess clock
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Game title</DropdownMenuLabel>
+        <div className="px-2 pb-2">
+          <Input
+            value={tagDraft}
+            onChange={(e) => setTagDraft(e.target.value)}
+            onBlur={() => setSessionTag(tagDraft.trim())}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            placeholder="Untitled game"
+            className="h-8 text-xs"
+          />
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

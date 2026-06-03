@@ -123,7 +123,7 @@ export default function Companion() {
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
         <WinBanner session={session} />
-        {focus && (
+        {focus && !chromeInFocus && (
           <FocusExitButton
             onExit={() => setFocusMode(false)}
             chromeVisible={chromeInFocus}

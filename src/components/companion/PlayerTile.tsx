@@ -85,10 +85,11 @@ export function PlayerTile({
   // When commander art covers the tile, the accent-coloured background is
   // hidden — colour the active-turn ring with the accent instead of white
   // so it still identifies whose turn it is.
+  // Active-turn outline + the baseline 1px hairline that the tile
+  // normally gets via Tailwind's ring-1 ring-white/5. Inline box-shadow
+  // overrides Tailwind's ring shadow, so we have to compose both here.
   const activeRing = isActive
-    ? hasCommanderImage
-      ? `0 0 0 3px ${accent}`
-      : "0 0 0 2px white"
+    ? `0 0 0 ${hasCommanderImage ? 3 : 2}px ${hasCommanderImage ? accent : "white"}, 0 0 0 1px rgba(255,255,255,0.05)`
     : undefined;
 
   return (

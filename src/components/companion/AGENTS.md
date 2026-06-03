@@ -21,9 +21,18 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 | `CountersRail.tsx`          | Chips with ±/remove for non-life counters                                                        |
 | `AddCounterMenu.tsx`        | Preset + custom counter dropdown                                                                 |
 | `CustomCounterDialog.tsx`   | Label / starting value / icon picker for custom counters                                         |
-| `NewSessionDialog.tsx`      | New-game form (players, starting life, commander, layout, carry roster)                          |
-| `DiceRoller.tsx`            | Animated first-player randomizer; calls store `pickRandomFirstPlayer`                            |
-| `TurnTimer.tsx`             | Single elapsed clock backed by `session.timer`                                                   |
+| `NewSessionDialog.tsx`      | New-game form (format presets, players, starting life, commander, oathbreaker, layout, roster)   |
+| `DiceRoller.tsx`            | Animated roll modal: first-player picker, d4–d100 die roll, coin flip                            |
+| `DiceTray.tsx`              | Bar dropdown of d4 / d6 / d8 / d10 / d12 / d20 / d100 / coin → opens `DiceRoller` in die mode    |
+| `DieShape.tsx`              | SVG polygon silhouette per die type (triangle / square / pentagon / hexagon / octagon / circle)  |
+| `TurnTimer.tsx`             | Elapsed clock backed by `session.timer`; mode dropdown switches shared / chess clock             |
+| `PhaseStrip.tsx`            | Below-bar segmented phase indicator (untap … end); pill tints with the active player's accent    |
+| `GameLog.tsx`               | Right-side `Sheet` listing every history event with timestamps and a per-row rewind button       |
+| `GameSummaryDialog.tsx`     | Post-`endSession` modal: final scores, length, turns, copy-to-clipboard recap                    |
+| `WinBanner.tsx`             | Overlay shown when `living.length === 1`; archive / keep-playing; keyed by id+history.length     |
+| `StatsDialog.tsx`           | Aggregate stats derived from `archive[]`: total games, avg length, avg turns, wins by name       |
+| `ManaPoolRail.tsx`          | Floating-mana pips (WUBRGC) rendered in the tile footer; tap +1, hold -1                         |
+| `PlayerNotesDialog.tsx`     | Multi-line free-form note for a player, persisted via `setPlayerNotes`                           |
 | `usePressHold.ts`           | Tap vs. hold gesture binding used by every stepper                                               |
 | `icons.tsx`                 | Counter-icon name → lucide JSX switch                                                            |
 | `layouts/slots.ts`          | Layout id → grid template + per-slot rotation                                                    |
@@ -35,7 +44,8 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 - **Theme colors only.** Tile accents map to the active theme via `COMPANION_ACCENT_COLORS`, which references `--format-badge-*` CSS variables emitted by `useTheme` from `gameTheme.formatBadge`. Switching theme preset recolors every tile; never hard-code hex/oklch tile colors here. Status chips for Monarch/Initiative/Ascend keep fixed semantic Tailwind palette classes (`bg-amber-400`, `bg-violet-500`, `bg-sky-500`) because those colors are part of the MTG iconography. Keep additions sparing.
 - **Gestures.** Every ± control goes through `usePressHold` so tap-vs-hold behaviour is uniform. Tap = ±1, hold = ±1 every 110ms after a 320ms delay.
 - **Pending life delta.** `useCompanionStore.adjustLife` batches consecutive presses inside a ~1.4s window into one history entry. Tile shows the running total via `state.pendingDeltas[playerId]`.
-- **Undo.** Reads `session.history` (capped at 80 entries). Active pending deltas are flushed/discarded before undo to keep the timeline consistent.
+- **Undo / redo.** Both are routed through `revertEvent` / `replayEvent` reducers so every event variant goes through one switch. The redo stack lives on `session.redoStack` and is cleared by any new history push (`pushEvent`). Setup actions (layout, player count, starting life, commander rules, monarch / initiative / blessing / ring / speed toggles, rename, accent, free position, day/night, phase, timer mode, session tag) intentionally do NOT push history. Active pending life deltas are snapshotted and reverted before consulting the history stack so an undo right after a tap still rolls back the visible damage.
+- **Active-player accent.** Read `COMPANION_ACCENT_COLORS[active.accentKey]` everywhere that needs to mirror whose turn it is — currently `PlayerTile` ring, `CompanionBar` T# pill, `PhaseStrip` active pill, `DiceRoller` numeric and coin variants, and the "Goes first" chip on `lastFirstPlayerId`. All four pull from the same selector so a single accent change recolours them in lock-step.
 - **Commander damage and life stay in sync.** `adjustCommanderDamage` subtracts the delta from the target's life in the same store update.
 
 ## When to extend

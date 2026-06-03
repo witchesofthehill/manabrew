@@ -392,38 +392,45 @@ export const useCompanionStore = create<CompanionState>()(
 
         resetGame: () => {
           clearAllPendingTimers();
-          set((state) =>
-            withSession(state, (session) => ({
-              ...session,
-              players: session.players.map((p) => ({
-                ...p,
-                life: session.startingLife,
-                counters: p.counters.map((c) => ({ ...c, value: 0 })),
-                commanderDamage: {},
-                isDead: false,
-                isMonarch: false,
-                hasInitiative: false,
-                hasCityBlessing: false,
-                ringLevel: 0,
-                speed: 0,
-                manaPool: {},
-                timeMs: 0,
-              })),
-              history: [],
-              redoStack: [],
-              turn: 0,
-              activePlayerId: null,
-              lastFirstPlayerId: null,
-              phase: "main1",
-              dayNight: null,
-              timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
-              // Don't pre-arm the chess clock here — there's no active
-              // player yet. setFirstPlayer / advanceTurn will start it
-              // when a player actually takes their turn.
-              chessClockStartedAt: null,
-            })),
-          );
-          set({ pendingDeltas: {} });
+          // Single setState so there's no intermediate frame where the
+          // session is reset but pendingDeltas still references the old
+          // life batches.
+          set((state) => {
+            if (!state.session) return state;
+            const session = state.session;
+            return {
+              session: {
+                ...session,
+                players: session.players.map((p) => ({
+                  ...p,
+                  life: session.startingLife,
+                  counters: p.counters.map((c) => ({ ...c, value: 0 })),
+                  commanderDamage: {},
+                  isDead: false,
+                  isMonarch: false,
+                  hasInitiative: false,
+                  hasCityBlessing: false,
+                  ringLevel: 0,
+                  speed: 0,
+                  manaPool: {},
+                  timeMs: 0,
+                })),
+                history: [],
+                redoStack: [],
+                turn: 0,
+                activePlayerId: null,
+                lastFirstPlayerId: null,
+                phase: "main1",
+                dayNight: null,
+                timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
+                // Don't pre-arm the chess clock — there's no active player
+                // yet. setFirstPlayer / advanceTurn will start it when one
+                // actually takes their turn.
+                chessClockStartedAt: null,
+              },
+              pendingDeltas: {},
+            };
+          });
         },
 
         resetCounters: (scope, playerId) => {

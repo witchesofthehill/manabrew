@@ -64,14 +64,16 @@ export function CompanionBar({
   const layoutChoices = COMPANION_LAYOUT_OPTIONS[session.players.length] ?? ["free"];
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b border-border bg-card/70 px-2 py-1.5 backdrop-blur sm:gap-2 sm:px-3 sm:py-2">
+    <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-card/70 px-1.5 py-1 backdrop-blur sm:gap-2 sm:px-3 sm:py-2">
       <Button
         size="sm"
         onClick={onOpenNewSession}
         className="h-8 px-2 text-xs sm:h-9 sm:px-4 sm:text-sm"
+        aria-label="New game"
+        title="New game"
       >
-        <span className="sm:hidden">New</span>
         <span className="hidden sm:inline">New game</span>
+        <span className="sm:hidden">+</span>
       </Button>
 
       <SetupMenu session={session} onOpenLog={() => setLogOpen(true)} />
@@ -105,25 +107,25 @@ export function CompanionBar({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <div className="ml-auto flex flex-wrap items-center gap-1 sm:gap-2">
+      <div className="ml-auto flex flex-wrap items-center gap-0.5 sm:gap-2">
         <Button
           size="sm"
           variant={activePlayer ? "default" : "outline"}
           onClick={advanceTurn}
-          className="h-8 gap-1 px-2 text-xs text-white shadow-sm sm:h-9 sm:px-3 sm:text-sm"
+          className="h-8 gap-1 px-1.5 text-xs text-white shadow-sm sm:h-9 sm:px-3 sm:text-sm"
           style={
             activePlayer
               ? { backgroundColor: COMPANION_ACCENT_COLORS[activePlayer.accentKey] }
               : undefined
           }
-          aria-label="Next turn"
+          aria-label={activePlayer ? `Turn ${session.turn} · ${activePlayer.name}` : "Start turn"}
           title={activePlayer ? `Turn ${session.turn} · ${activePlayer.name}` : "Start turn"}
         >
           <ChevronRight className="size-3.5" />
           <span className="hidden tabular-nums sm:inline">
             {activePlayer ? `T${session.turn} · ${activePlayer.name}` : "Start"}
           </span>
-          <span className="tabular-nums sm:hidden">T{session.turn}</span>
+          <span className="tabular-nums sm:hidden">T{session.turn || 1}</span>
         </Button>
 
         <Button

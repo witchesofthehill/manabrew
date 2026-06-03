@@ -57,10 +57,29 @@ export function TurnTimer({ className }: { className?: string }) {
 
   const shownMs = session.timerMode === "chess" && activePlayer ? chessElapsed : sharedElapsed;
 
+  const isIdle = !running && shownMs === 0;
+  // When the timer hasn't started yet, collapse to a single Play button.
+  // Once it's running (or has accumulated time on pause), expand to show
+  // the readout + the pause / reset controls. Saves ~120px on phones.
+  if (isIdle) {
+    return (
+      <Button
+        size="icon"
+        variant="ghost"
+        className={cn("size-8 rounded-md bg-muted/60", className)}
+        onClick={() => startTimer()}
+        aria-label="Start timer"
+        title="Start timer"
+      >
+        <GameIcon icon="sands-of-time" className="size-3.5 text-muted-foreground" />
+      </Button>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "flex items-center gap-0.5 rounded-md bg-muted/60 px-1.5 py-0.5 sm:gap-1 sm:px-2 sm:py-1",
+        "flex items-center gap-0.5 rounded-md bg-muted/60 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-1",
         className,
       )}
     >
@@ -93,7 +112,7 @@ export function TurnTimer({ className }: { className?: string }) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <span className="min-w-[44px] text-center tabular-nums text-xs font-medium sm:min-w-[60px] sm:text-sm">
+      <span className="min-w-[42px] text-center tabular-nums text-xs font-medium sm:min-w-[52px]">
         {formatElapsed(shownMs)}
       </span>
       <Button
@@ -101,7 +120,7 @@ export function TurnTimer({ className }: { className?: string }) {
         variant="ghost"
         className="size-6"
         onClick={() => (running ? pauseTimer() : startTimer())}
-        aria-label={running ? "Pause timer" : "Start timer"}
+        aria-label={running ? "Pause timer" : "Resume timer"}
       >
         {running ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
       </Button>

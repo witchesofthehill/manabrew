@@ -6,6 +6,7 @@ import {
   Plus,
   Redo2,
   RotateCcw,
+  Shuffle,
   Sun,
   SunMoon,
   Undo2,
@@ -245,7 +246,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
           aria-label="Random first player"
           title="Random first player"
         >
-          <GameIcon icon="d20" className="size-4 sm:size-5" />
+          <Shuffle className="size-4 sm:size-5" />
         </Button>
         <Button
           size="icon"

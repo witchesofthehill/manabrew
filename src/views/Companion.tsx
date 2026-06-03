@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CompanionBar } from "@/components/companion/CompanionBar";
 import { CompanionBoard } from "@/components/companion/CompanionBoard";
+import { GameIcon } from "@/components/companion/GameIcon";
 import { GameSummaryDialog } from "@/components/companion/GameSummaryDialog";
+import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { PhaseStrip } from "@/components/companion/PhaseStrip";
 import { StatsDialog } from "@/components/companion/StatsDialog";
 import { WinBanner } from "@/components/companion/WinBanner";
-import { GameIcon } from "@/components/companion/GameIcon";
-import { NewSessionDialog } from "@/components/companion/NewSessionDialog";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 
 export default function Companion() {
@@ -16,6 +18,18 @@ export default function Companion() {
   const archive = useCompanionStore((s) => s.archive);
   const restoreFromArchive = useCompanionStore((s) => s.restoreFromArchive);
   const [newOpen, setNewOpen] = useState(false);
+  const [focus, setFocus] = useState(false);
+
+  // Keep focus state in sync with the browser's fullscreen state so Esc /
+  // the system gesture drops us back into the chrome'd view automatically.
+  useEffect(() => {
+    if (!focus) return;
+    const onChange = () => {
+      if (!document.fullscreenElement) setFocus(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, [focus]);
 
   if (!session) {
     return (
@@ -73,12 +87,46 @@ export default function Companion() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <CompanionBar session={session} onOpenNewSession={() => setNewOpen(true)} />
-      <PhaseStrip />
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col",
+        focus &&
+          "fixed inset-0 z-50 h-screen w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]",
+      )}
+    >
+      {!focus && (
+        <>
+          <CompanionBar
+            session={session}
+            onOpenNewSession={() => setNewOpen(true)}
+            focus={focus}
+            onToggleFocus={setFocus}
+          />
+          <PhaseStrip />
+        </>
+      )}
       <div className="relative flex-1 min-h-0">
         <CompanionBoard session={session} />
         <WinBanner session={session} />
+        {focus && (
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => {
+              setFocus(false);
+              if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {
+                  /* already exited */
+                });
+              }
+            }}
+            className="pointer-events-auto absolute bottom-2 right-2 z-50 size-9 rounded-full bg-card/80 opacity-50 shadow-lg backdrop-blur hover:opacity-100"
+            aria-label="Exit focus mode"
+            title="Exit focus mode (Esc)"
+          >
+            <Minimize2 className="size-4" />
+          </Button>
+        )}
       </div>
       <NewSessionDialog
         open={newOpen}

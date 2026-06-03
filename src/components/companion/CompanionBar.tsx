@@ -36,15 +36,23 @@ import {
 import type { CompanionSession } from "@/stores/useCompanionStore.types";
 import { DiceRoller } from "./DiceRoller";
 import { DiceTray } from "./DiceTray";
+import { FocusModeButton } from "./FocusModeButton";
 import { GameLog } from "./GameLog";
 import { TurnTimer } from "./TurnTimer";
 
 interface CompanionBarProps {
   session: CompanionSession;
   onOpenNewSession: () => void;
+  focus: boolean;
+  onToggleFocus: (next: boolean) => void;
 }
 
-export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
+export function CompanionBar({
+  session,
+  onOpenNewSession,
+  focus,
+  onToggleFocus,
+}: CompanionBarProps) {
   const setLayout = useCompanionStore((s) => s.setLayout);
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
@@ -292,6 +300,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <FocusModeButton focus={focus} onToggle={onToggleFocus} />
         <Button
           size="icon"
           variant="ghost"

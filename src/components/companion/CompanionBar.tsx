@@ -57,6 +57,7 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
   const DayNightIcon =
     session.dayNight === "night" ? Moon : session.dayNight === "day" ? Sun : SunMoon;
   const resetCounters = useCompanionStore((s) => s.resetCounters);
+  const resetGame = useCompanionStore((s) => s.resetGame);
   const endSession = useCompanionStore((s) => s.endSession);
   const pickRandom = useCompanionStore((s) => s.pickRandomFirstPlayer);
 
@@ -285,8 +286,8 @@ export function CompanionBar({ session, onOpenNewSession }: CompanionBarProps) {
               <Redo2 className="mr-2 size-4" /> Commander damage
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => resetCounters("all")}>
-              Reset everything
+            <DropdownMenuItem onSelect={() => resetGame()}>
+              Reset everything (turn, timer, history)
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

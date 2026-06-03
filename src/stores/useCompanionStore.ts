@@ -58,6 +58,11 @@ interface CompanionState {
     scope: "life" | "counters" | "commander-damage" | "all",
     playerId?: string,
   ) => void;
+  /** Wipe every gameplay-state field on the current session — life,
+   *  counters, mana, status chips, commander damage, turn / phase /
+   *  active player, timer, history, redo. Keeps the configuration
+   *  (player roster, layout, format, accents, commander picks). */
+  resetGame: () => void;
 
   setLayout: (layout: CompanionLayout) => void;
   setStartingLife: (life: number) => void;
@@ -376,6 +381,39 @@ export const useCompanionStore = create<CompanionState>()(
             archive: [session, ...state.archive].slice(0, 10),
             summarySession: { session, winnerId: winnerId ?? null },
           }));
+        },
+
+        resetGame: () => {
+          clearAllPendingTimers();
+          set((state) =>
+            withSession(state, (session) => ({
+              ...session,
+              players: session.players.map((p) => ({
+                ...p,
+                life: session.startingLife,
+                counters: p.counters.map((c) => ({ ...c, value: 0 })),
+                commanderDamage: {},
+                isDead: false,
+                isMonarch: false,
+                hasInitiative: false,
+                hasCityBlessing: false,
+                ringLevel: 0,
+                speed: 0,
+                manaPool: {},
+                timeMs: 0,
+              })),
+              history: [],
+              redoStack: [],
+              turn: 0,
+              activePlayerId: null,
+              lastFirstPlayerId: null,
+              phase: "main1",
+              dayNight: null,
+              timer: { startedAt: null, pausedAt: null, accumulatedMs: 0 },
+              chessClockStartedAt: session.timerMode === "chess" ? Date.now() : null,
+            })),
+          );
+          set({ pendingDeltas: {} });
         },
 
         resetCounters: (scope, playerId) => {

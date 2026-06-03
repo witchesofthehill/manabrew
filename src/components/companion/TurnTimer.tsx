@@ -28,19 +28,31 @@ export function TurnTimer({ className }: { className?: string }) {
 
   useEffect(() => {
     if (!running && !chessActive) return;
-    const interval = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(interval);
+    const tick = () => setNow(Date.now());
+    // Sample the clock once on the next microtask so the readout
+    // doesn't render the stale `0` against a fresh startedAt before
+    // the interval has fired for the first time.
+    const initial = setTimeout(tick, 0);
+    const interval = setInterval(tick, 500);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
   }, [running, chessActive]);
 
   if (!session) return null;
 
+  // `now === 0` means the interval hasn't sampled the clock yet (initial
+  // render or just-paused). Treat the live delta as zero so the readout
+  // doesn't show -45 million minutes during the first frame after Play.
+  const liveDelta = (startedAt: number) => (now > 0 ? Math.max(0, now - startedAt) : 0);
   const sharedElapsed =
-    (timer?.accumulatedMs ?? 0) + (timer?.startedAt ? now - timer.startedAt : 0);
+    (timer?.accumulatedMs ?? 0) + (timer?.startedAt ? liveDelta(timer.startedAt) : 0);
   const activePlayer = session.players.find((p) => p.id === session.activePlayerId) ?? null;
   const chessElapsed =
     (activePlayer?.timeMs ?? 0) +
     (session.timerMode === "chess" && session.chessClockStartedAt != null && activePlayer
-      ? now - session.chessClockStartedAt
+      ? liveDelta(session.chessClockStartedAt)
       : 0);
 
   const shownMs = session.timerMode === "chess" && activePlayer ? chessElapsed : sharedElapsed;

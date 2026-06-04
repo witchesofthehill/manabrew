@@ -44,7 +44,7 @@ use crate::parsing::{
     ControllerSelector, NumericSelectorProperty, ParsedParams, RelationPredicate, Selector,
     SelectorCompareOperator, SelectorNumericOperand, SelectorPredicate, TargetRef,
 };
-use crate::spellability::SpellAbility;
+use crate::spellability::{AlternativeCost, SpellAbility};
 
 fn requirement_controller(game: &GameState, source: &Card) -> PlayerId {
     let mut controller = source.controller;
@@ -357,6 +357,12 @@ fn has_all_spent_colors(colors_spent_to_cast: u16, colors: u16) -> bool {
 /// // Matches creatures you control that are tokens:
 /// matches_valid_card("Creature.YouCtrl.token", card, source)
 /// ```
+fn card_cast_with(card: &Card, alt: AlternativeCost) -> bool {
+    card.cast_sa
+        .as_ref()
+        .is_some_and(|sa| sa.alt_cost == Some(alt))
+}
+
 pub fn matches_valid_card(valid: &str, card: &Card, source: &Card) -> bool {
     matches_valid_card_selector(&cached_compiled_selector(valid), card, source)
 }
@@ -717,6 +723,7 @@ fn matches_card_identity(
 
 fn matches_card_state(state: CardStateSelector, card: &Card, context: MatchContext<'_>) -> bool {
     match state {
+        CardStateSelector::CastWithAltCost(alt) => card_cast_with(card, alt),
         CardStateSelector::FaceDown => card.face_down,
         CardStateSelector::Paired => card.paired_with.is_some(),
         CardStateSelector::PairedWithSource => card.paired_with == Some(context.source_card.id),
@@ -2061,6 +2068,51 @@ fn matches_type_and_qualifier_parts(
                 }
                 "kicked" => {
                     if !card.kicked {
+                        return false;
+                    }
+                }
+                "escaped" => {
+                    if !card_cast_with(card, AlternativeCost::Escape) {
+                        return false;
+                    }
+                }
+                "evoked" => {
+                    if !card_cast_with(card, AlternativeCost::Evoke) {
+                        return false;
+                    }
+                }
+                "dashed" => {
+                    if !card_cast_with(card, AlternativeCost::Dash) {
+                        return false;
+                    }
+                }
+                "blitz" => {
+                    if !card_cast_with(card, AlternativeCost::Blitz) {
+                        return false;
+                    }
+                }
+                "prowled" => {
+                    if !card_cast_with(card, AlternativeCost::Prowl) {
+                        return false;
+                    }
+                }
+                "spectacle" => {
+                    if !card_cast_with(card, AlternativeCost::Spectacle) {
+                        return false;
+                    }
+                }
+                "surged" => {
+                    if !card_cast_with(card, AlternativeCost::Surge) {
+                        return false;
+                    }
+                }
+                "impending" => {
+                    if !card_cast_with(card, AlternativeCost::Impending) {
+                        return false;
+                    }
+                }
+                "sneak" => {
+                    if !card_cast_with(card, AlternativeCost::Sneak) {
                         return false;
                     }
                 }

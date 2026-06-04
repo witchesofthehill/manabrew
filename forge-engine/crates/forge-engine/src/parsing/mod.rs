@@ -433,6 +433,9 @@ pub enum CardStateSelector {
     SingleTarget,
     PromisedGift,
     RingBearer,
+    /// Cast for an alternative cost (`escaped`, `evoked`, `dashed`, …). Mirrors
+    /// Java `CardProperty`'s `card.getCastSA().isEscape()` family.
+    CastWithAltCost(crate::spellability::AlternativeCost),
 }
 
 // Numeric selector comparisons (`cmcGE3`, `powerLEX`, `counters_EQ1_P1P1`).
@@ -1058,6 +1061,33 @@ fn lower_selector_part(value: &str, is_first_part: bool) -> SelectorPredicate {
         "basic" => SelectorPredicate::CardSupertype(CardSupertypeSelector::Basic),
         "snow" => SelectorPredicate::CardSupertype(CardSupertypeSelector::Snow),
         "kicked" => SelectorPredicate::Kicked,
+        "escaped" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Escape,
+        )),
+        "evoked" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Evoke,
+        )),
+        "dashed" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Dash,
+        )),
+        "blitz" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Blitz,
+        )),
+        "prowled" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Prowl,
+        )),
+        "spectacle" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Spectacle,
+        )),
+        "surged" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Surge,
+        )),
+        "impending" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Impending,
+        )),
+        "sneak" => SelectorPredicate::CardState(CardStateSelector::CastWithAltCost(
+            crate::spellability::AlternativeCost::Sneak,
+        )),
         "token" => SelectorPredicate::Token(true),
         "nontoken" => SelectorPredicate::Token(false),
         "creature" => SelectorPredicate::CardType(CardSelectorType::Creature),

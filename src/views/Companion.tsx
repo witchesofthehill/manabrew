@@ -101,8 +101,9 @@ export default function Companion() {
     <div
       className={cn(
         "flex h-full min-h-0 flex-col",
-        focus &&
-          "fixed inset-0 z-50 h-screen w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]",
+        focus
+          ? "fixed inset-0 z-50 h-[100dvh] w-screen bg-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]"
+          : "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]",
       )}
     >
       {showChrome && (

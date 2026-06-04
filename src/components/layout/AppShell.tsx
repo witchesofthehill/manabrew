@@ -32,6 +32,8 @@ export function AppShell() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isTabletopRoute = location.pathname.startsWith("/tabletop");
   const isGameRoute = location.pathname.startsWith("/game") || isGameActive;
+  const isCompanionRoute = location.pathname.startsWith("/companion");
+  const isImmersiveRoute = isGameRoute || isCompanionRoute;
   const hideNavChrome = isGameRoute && !isTabletopRoute;
 
   // Register Tauri event listeners at app level so they're always active.
@@ -90,12 +92,12 @@ export function AppShell() {
   }, [shouldCollapseSidebar]);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col">
+    <div className="h-[100dvh] overflow-hidden flex flex-col">
       {!isDesktop && (
         <>
           <header
             className={cn(
-              "flex items-center gap-2 px-3 py-2 border-b bg-background",
+              "flex items-center gap-2 border-b bg-background px-3 py-2 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.5rem)]",
               hideNavChrome && "hidden",
             )}
           >
@@ -118,7 +120,7 @@ export function AppShell() {
             </SheetContent>
           </Sheet>
 
-          <main className={cn("flex-1 overflow-auto", isGameRoute && "!p-0 !overflow-hidden")}>
+          <main className={cn("flex-1 overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}>
             <Outlet />
           </main>
         </>
@@ -164,7 +166,9 @@ export function AppShell() {
                   )}
                 </Button>
               </div>
-              <main className={cn("h-full overflow-auto", isGameRoute && "!p-0 !overflow-hidden")}>
+              <main
+                className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}
+              >
                 <Outlet />
               </main>
             </ResizablePanel>

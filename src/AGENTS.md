@@ -36,6 +36,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 - **Always `import type` for type-only imports.**
 - **Path aliases (`@/`) only.** Never `../../` that escapes the current directory.
 - **State lives close to where it's used.** Hoist to a Zustand store only when state needs to persist across unmounts or be read from non-React code.
+- **The page never scrolls.** `body` is `overflow:hidden; overscroll-behavior:none` and `html/body/#root` are `height:100%` (`index.css` base layer); `AppShell` is `h-[100dvh]` and owns scrolling via its inner `<main overflow-auto>`. Views must fit the viewport and scroll their own content — don't rely on body scroll. Immersive routes (`isImmersiveRoute` in `AppShell`: game + companion) get `!p-0 !overflow-hidden`. Use `100dvh`, not `100vh`/`h-screen`, for full-height on mobile, and `env(safe-area-inset-*)` for notch/home-indicator padding (the viewport meta sets `viewport-fit=cover`).
 - **One exported component per file.** Files past ~200 lines split.
 - **No new abstractions for one-off patterns.** Three similar lines beat a helper.
 - **Tests** run via `yarn test` (vitest); co-locate `*.test.ts` next to the code. The prompt-handling test (`stores/gameStore.constants.test.ts`) runs the rust `emit_prompt_fixtures` bin on demand and replays every `AgentPromptInner` variant through `applyPrompt` — no committed fixture, so it can't drift from the engine types.

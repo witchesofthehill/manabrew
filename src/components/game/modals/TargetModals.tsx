@@ -26,7 +26,6 @@ interface TargetModalsProps {
   onCloseZone: () => void;
   zoneTargetSelector: { title: string; cards: GameCard[]; validCardIds: string[] } | null;
   onSelectZoneTarget: (cardId: string) => void;
-  onCancelZoneTarget: () => void;
   libraryPeekModal: {
     mode: LibraryPeekMode;
     cards: GameCard[];
@@ -56,7 +55,6 @@ export function TargetModals({
   onCloseZone,
   zoneTargetSelector,
   onSelectZoneTarget,
-  onCancelZoneTarget,
   libraryPeekModal,
   onLibraryPeekConfirm,
   spellStackModalOpen,
@@ -88,15 +86,19 @@ export function TargetModals({
         />
       )}
 
-      {zoneTargetSelector && (
-        <ZoneTargetSelector
-          title={zoneTargetSelector.title}
-          cards={zoneTargetSelector.cards}
-          validCardIds={zoneTargetSelector.validCardIds}
-          onSelect={onSelectZoneTarget}
-          onCancel={onCancelZoneTarget}
-        />
-      )}
+      <PromptModalController
+        isActive={promptType === PT.ChooseTargetCardFromZone && zoneTargetSelector != null}
+        promptStateKey={currentPrompt}
+      >
+        {zoneTargetSelector && (
+          <ZoneTargetSelector
+            title={zoneTargetSelector.title}
+            cards={zoneTargetSelector.cards}
+            validCardIds={zoneTargetSelector.validCardIds}
+            onSelect={onSelectZoneTarget}
+          />
+        )}
+      </PromptModalController>
 
       {libraryPeekModal && (
         <LibraryPeekModal

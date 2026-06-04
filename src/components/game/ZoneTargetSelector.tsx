@@ -11,7 +11,6 @@ interface ZoneTargetSelectorProps {
   cards: GameCard[];
   validCardIds: string[];
   onSelect: (cardId: string) => void;
-  onCancel: () => void;
 }
 
 export function ZoneTargetSelector({
@@ -19,15 +18,14 @@ export function ZoneTargetSelector({
   cards,
   validCardIds,
   onSelect,
-  onCancel,
 }: ZoneTargetSelectorProps) {
   const preview = useCardPreview();
 
   const validCards = cards.filter((card) => validCardIds.includes(card.id));
 
   return (
-    <Modal onClose={onCancel} maxWidth="max-w-4xl" maxHeight="max-h-[85vh]">
-      <Modal.Header onClose={onCancel}>
+    <Modal maxWidth="max-w-4xl" maxHeight="max-h-[85vh]">
+      <Modal.Header>
         <h2 className="font-semibold text-base">{title}</h2>
       </Modal.Header>
 

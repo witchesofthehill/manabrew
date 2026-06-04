@@ -797,8 +797,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     libraryPeekModal,
     setLibraryPeekModal,
     zoneTargetSelector,
-    dismissZoneTarget,
-    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -1520,7 +1518,6 @@ export default function Game({ exitTo }: GameProps = {}) {
               onClickCard(cardId);
             })
           }
-          onReopenZoneTarget={reopenZoneTarget}
           onCastSpell={handleCastSpell}
           onTapLand={
             promptType === PromptType.ChooseAction ||
@@ -1687,11 +1684,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         viewingZone={viewingZone}
         onCloseZone={closeZone}
         zoneTargetSelector={zoneTargetSelector}
-        onSelectZoneTarget={(cardId) => {
-          casting.wrappedTargetCard(cardId);
-          dismissZoneTarget();
-        }}
-        onCancelZoneTarget={dismissZoneTarget}
+        onSelectZoneTarget={(cardId) => casting.wrappedTargetCard(cardId)}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "scry") scryDecision(selectedIds);

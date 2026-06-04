@@ -1,10 +1,11 @@
 import { Card } from "@/components/game/Card";
+import { Button } from "@/components/ui/button";
 import type { GameCard } from "@/types/manabrew";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Modal } from "@/components/game/modals/Modal";
 import { cn } from "@/lib/utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
-import { MODAL_CARD_SIZE } from "./game.styles";
+import { MODAL_CARD_SIZE, MODAL_FOOTER_BETWEEN } from "./game.styles";
 
 interface ZoneTargetSelectorProps {
   title: string;
@@ -12,6 +13,7 @@ interface ZoneTargetSelectorProps {
   validCardIds: string[];
   onSelect: (cardId: string) => void;
   onCancel: () => void;
+  onDone: () => void;
 }
 
 export function ZoneTargetSelector({
@@ -20,6 +22,7 @@ export function ZoneTargetSelector({
   validCardIds,
   onSelect,
   onCancel,
+  onDone,
 }: ZoneTargetSelectorProps) {
   const preview = useCardPreview();
 
@@ -61,6 +64,17 @@ export function ZoneTargetSelector({
           </div>
         )}
       </Modal.Body>
+
+      <Modal.Footer>
+        <div className={MODAL_FOOTER_BETWEEN}>
+          <span className="text-xs text-muted-foreground text-left leading-tight max-w-[240px]">
+            Click a card to target it, or finish when you&apos;re done.
+          </span>
+          <Button size="sm" onClick={onDone} className="min-w-[100px] shrink-0">
+            Done
+          </Button>
+        </div>
+      </Modal.Footer>
 
       <HoverCardPreview preview={preview} />
     </Modal>

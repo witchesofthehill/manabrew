@@ -21,6 +21,7 @@ interface GameModalsProps {
   zoneTargetSelector: { title: string; cards: GameCard[]; validCardIds: string[] } | null;
   onSelectZoneTarget: (cardId: string) => void;
   onCancelZoneTarget: () => void;
+  onDoneZoneTarget: () => void;
   libraryPeekModal: {
     mode: LibraryPeekMode;
     cards: GameCard[];
@@ -89,6 +90,7 @@ export function GameModals({
   zoneTargetSelector,
   onSelectZoneTarget,
   onCancelZoneTarget,
+  onDoneZoneTarget,
   libraryPeekModal,
   onLibraryPeekConfirm,
   spellStackModalOpen,
@@ -198,6 +200,7 @@ export function GameModals({
         zoneTargetSelector={zoneTargetSelector}
         onSelectZoneTarget={onSelectZoneTarget}
         onCancelZoneTarget={onCancelZoneTarget}
+        onDoneZoneTarget={onDoneZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={onLibraryPeekConfirm}
         spellStackModalOpen={spellStackModalOpen}

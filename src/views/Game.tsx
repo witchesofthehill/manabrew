@@ -1692,6 +1692,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           dismissZoneTarget();
         }}
         onCancelZoneTarget={dismissZoneTarget}
+        onDoneZoneTarget={() => passPriority(null)}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "scry") scryDecision(selectedIds);

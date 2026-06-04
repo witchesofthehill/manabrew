@@ -224,6 +224,7 @@ pub enum JavaRawPromptBody {
         destination: Option<String>,
         #[serde(rename = "counterType")]
         counter_type: Option<String>,
+        zone: Option<String>,
     },
     ChooseTargetAny {
         #[serde(default)]

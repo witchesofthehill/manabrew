@@ -314,14 +314,24 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
+            zone,
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
-            AgentPromptInner::ChooseTargetCard {
-                game_view,
-                valid_card_ids: target_ids(&cards),
-                hostile: intent.is_hostile(),
-                intent,
+            match zone {
+                Some(zone) if zone != "Battlefield" => AgentPromptInner::ChooseTargetCardFromZone {
+                    game_view,
+                    valid_card_ids: target_ids(&cards),
+                    zone,
+                    zone_cards: prompt_cards(&cards, &card_index),
+                    intent,
+                },
+                _ => AgentPromptInner::ChooseTargetCard {
+                    game_view,
+                    valid_card_ids: target_ids(&cards),
+                    hostile: intent.is_hostile(),
+                    intent,
+                },
             }
         }
         JavaRawPromptBody::ChooseTargetAny {

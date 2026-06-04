@@ -228,6 +228,12 @@ struct Cli {
     #[arg(long)]
     full_log: bool,
 
+    /// Walk both engines' callback streams and report the first point where the
+    /// agent RNG call count diverges (the true desync origin, often earlier than
+    /// the first snapshot-level divergence).
+    #[arg(long)]
+    rng_diff: bool,
+
     /// Write Rust-side parity callbacks/snapshots to this file while the game is running.
     #[arg(long)]
     live_log: Option<PathBuf>,
@@ -719,6 +725,9 @@ fn run_multi_game_mode(cli: &Cli) {
             }
             if cli.full_log {
                 out.push_str(&format_full_log_for_results(&report_data.results));
+            }
+            if cli.rng_diff {
+                out.push_str(&format_rng_diff_for_results(&report_data.results));
             }
             out
         }
@@ -1470,6 +1479,160 @@ fn format_investigation_for_results(results: &[MatchupResult]) -> String {
             snapshot_offset,
             &mut out,
         );
+    }
+    out
+}
+
+/// A single agent callback flattened for cross-engine RNG comparison.
+struct RngCallback {
+    turn: u32,
+    phase: String,
+    player: u32,
+    name: String,
+    outcome: String,
+    /// Agent RNG call count after this callback resolved (max over its choice
+    /// log entries; `None` when the callback consumed no RNG).
+    rng_after: Option<u64>,
+}
+
+fn flatten_rng_callbacks(log: &[ParityLogEntry]) -> Vec<RngCallback> {
+    log.iter()
+        .filter_map(ParityLogEntry::as_callback)
+        .map(|cb| RngCallback {
+            turn: cb.turn,
+            phase: cb.phase.clone(),
+            player: cb.player,
+            name: cb.name.clone(),
+            outcome: cb.outcome.clone(),
+            rng_after: cb.args.iter().filter_map(|a| a.rng_call_count).max(),
+        })
+        .collect()
+}
+
+/// Walk both engines' callback streams in lockstep and report the first place
+/// the agent RNG call count diverges — i.e. the first decision where one engine
+/// consumed a different amount of randomness than the other. This is usually
+/// the true root of a divergence, since snapshots only compare turn boundaries.
+fn format_rng_diff_for_results(results: &[MatchupResult]) -> String {
+    let mut out = String::new();
+    for result in results {
+        if result.status != MatchupStatus::Fail {
+            continue;
+        }
+        out.push_str(&format!(
+            "\n=== RNG diff: {} vs {} seed={} ===\n",
+            result.deck1, result.deck2, result.seed,
+        ));
+
+        // Keep only callbacks that actually *advanced* the shared RNG (rng_after
+        // strictly greater than the running max). This drops cosmetic / zero-RNG
+        // callbacks one engine logs and the other doesn't (e.g. Java's
+        // choose_single_replacement_effect that picks from a 1-element list and
+        // consumes nothing), which would otherwise misalign the streams.
+        let advancing = |log: &[ParityLogEntry]| -> Vec<RngCallback> {
+            let mut max = 0u64;
+            let mut out = Vec::new();
+            for c in flatten_rng_callbacks(log) {
+                if let Some(v) = c.rng_after {
+                    if v > max {
+                        max = v;
+                        out.push(c);
+                    }
+                }
+            }
+            out
+        };
+        let rust = advancing(&result.rust_log);
+        let java = advancing(&result.java_log);
+
+        let fmt = |c: &RngCallback| -> String {
+            format!(
+                "{{{}}} T{}::{}::P{} {} -> {}",
+                c.rng_after.unwrap_or(0),
+                c.turn,
+                c.phase,
+                c.player,
+                c.name,
+                c.outcome,
+            )
+        };
+
+        // Skip leading entries so both sequences start at a common RNG count.
+        let start_val = rust
+            .first()
+            .map(|c| c.rng_after.unwrap_or(0))
+            .unwrap_or(0)
+            .max(java.first().map(|c| c.rng_after.unwrap_or(0)).unwrap_or(0));
+        let mut ri = rust
+            .iter()
+            .position(|c| c.rng_after.unwrap_or(0) >= start_val)
+            .unwrap_or(0);
+        let mut ji = java
+            .iter()
+            .position(|c| c.rng_after.unwrap_or(0) >= start_val)
+            .unwrap_or(0);
+
+        let mut diverged = false;
+        while ri < rust.len() && ji < java.len() {
+            let rv = rust[ri].rng_after.unwrap_or(0);
+            let jv = java[ji].rng_after.unwrap_or(0);
+            // Extract the `@<parity_id>` tokens from a callback outcome so the
+            // *chosen cards* can be compared regardless of cosmetic formatting
+            // (e.g. choose_attackers "[(X, Player)]" vs "[X]").
+            let ids = |s: &str| -> Vec<String> {
+                let mut v: Vec<String> = s
+                    .match_indices('@')
+                    .map(|(i, _)| {
+                        s[i + 1..]
+                            .chars()
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect::<String>()
+                    })
+                    .filter(|t| !t.is_empty())
+                    .collect();
+                v.sort();
+                v
+            };
+            // Synced count: also verify the same cards were chosen. A matching
+            // count with a different choice is the true decision divergence
+            // (it desyncs the RNG only on the *next* draw).
+            if rv == jv {
+                if ids(&rust[ri].outcome) != ids(&java[ji].outcome) {
+                    out.push_str("First decision divergence (same RNG count, different choice):\n");
+                }
+                ri += 1;
+                ji += 1;
+                if ids(&rust[ri - 1].outcome) != ids(&java[ji - 1].outcome) {
+                    out.push_str(&format!("  RUST: {}\n", fmt(&rust[ri - 1])));
+                    out.push_str(&format!("  JAVA: {}\n", fmt(&java[ji - 1])));
+                    diverged = true;
+                    break;
+                }
+                continue;
+            }
+            out.push_str("First RNG count mismatch (window — check whether it resyncs):\n");
+            let ctx = ri.min(ji).min(3);
+            for k in (1..=ctx).rev() {
+                out.push_str(&format!("  [common -{k}] {}\n", fmt(&rust[ri - k])));
+            }
+            out.push_str("  --- RUST from here ---\n");
+            for r in rust.iter().skip(ri).take(8) {
+                out.push_str(&format!("    {}\n", fmt(r)));
+            }
+            out.push_str("  --- JAVA from here ---\n");
+            for j in java.iter().skip(ji).take(8) {
+                out.push_str(&format!("    {}\n", fmt(j)));
+            }
+            diverged = true;
+            break;
+        }
+        if !diverged {
+            out.push_str(&format!(
+                "No RNG divergence across {} shared RNG-consuming callbacks. \
+                 Divergence is non-agent (deterministic engine computation).\n",
+                ri.min(ji),
+            ));
+        }
     }
     out
 }

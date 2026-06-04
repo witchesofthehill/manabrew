@@ -1705,6 +1705,10 @@ public final class ManaBrewInteractiveSession {
                 prompt.addProperty("counterType", ability.getParam("CounterType"));
             }
         }
+        final String zone = targetPromptZone(candidates);
+        if (zone != null) {
+            prompt.addProperty("zone", zone);
+        }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
 
         com.google.gson.JsonArray players = new com.google.gson.JsonArray();
@@ -1749,6 +1753,40 @@ public final class ManaBrewInteractiveSession {
             return "choose_target_card";
         }
         return "choose_target_any";
+    }
+
+    private String targetPromptZone(final List<Pair<GameEntity, forge.game.GameObject>> candidates) {
+        ZoneType shared = null;
+        boolean hasCard = false;
+        for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
+            if (!"card".equals(targetKind(candidate))) {
+                continue;
+            }
+            final Card card = targetCard(candidate);
+            if (card == null || card.getZone() == null) {
+                return null;
+            }
+            final ZoneType zone = card.getZone().getZoneType();
+            if (zone == ZoneType.Battlefield) {
+                return null;
+            }
+            if (shared != null && shared != zone) {
+                return null;
+            }
+            shared = zone;
+            hasCard = true;
+        }
+        return hasCard && shared != null ? shared.name() : null;
+    }
+
+    private Card targetCard(final Pair<GameEntity, forge.game.GameObject> candidate) {
+        if (candidate.getRight() instanceof Card) {
+            return (Card) candidate.getRight();
+        }
+        if (candidate.getLeft() instanceof Card) {
+            return (Card) candidate.getLeft();
+        }
+        return null;
     }
 
     private String targetKind(final Pair<GameEntity, forge.game.GameObject> candidate) {

@@ -132,6 +132,8 @@ pub struct PlayerSnapshot {
     pub index: u32,
     pub life: i32,
     pub poison: i32,
+    #[serde(default)]
+    pub energy: i32,
     pub lands_played: i32,
     pub has_lost: bool,
     pub has_won: bool,

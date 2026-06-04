@@ -133,6 +133,7 @@ fn compare_players(
     cmp_field!(name);
     cmp_field!(life);
     cmp_field!(poison);
+    cmp_field!(energy);
     cmp_field!(lands_played);
     cmp_field!(has_lost);
     cmp_field!(has_won);

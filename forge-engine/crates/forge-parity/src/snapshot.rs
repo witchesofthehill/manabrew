@@ -162,6 +162,7 @@ fn snapshot_player(game: &GameState, pid: PlayerId) -> PlayerSnapshot {
         index: pid.0,
         life: player.life,
         poison: player.poison_counters,
+        energy: player.energy_counters,
         lands_played: player.lands_played_this_turn,
         has_lost: player.has_lost,
         has_won: player.has_won,

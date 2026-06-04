@@ -88,6 +88,7 @@ public final class SnapshotExtractor {
         ps.put("index", playerIndex(game, p));
         ps.put("life", p.getLife());
         ps.put("poison", p.getPoisonCounters());
+        ps.put("energy", p.getCounters(CounterEnumType.ENERGY));
         ps.put("lands_played", p.getLandsPlayedThisTurn());
         ps.put("has_lost", p.hasLost());
         ps.put("has_won", isOutcomeWinner(game, p));

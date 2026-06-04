@@ -101,6 +101,7 @@ interface GameBoardProps {
     cards: GameCard[],
     onClickCard: (cardId: string) => void,
   ) => void;
+  onReopenZoneTarget: () => void;
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
@@ -171,6 +172,7 @@ export function GameBoard({
   onTargetPlayer,
   onOpenZone,
   onOpenZoneAndCast,
+  onReopenZoneTarget,
   onCastSpell,
   onTapLand,
   onTapLands,
@@ -557,6 +559,13 @@ export function GameBoard({
                     }
                   }}
                   onOpenGraveyard={() => {
+                    if (
+                      promptType === PT.ChooseTargetCardFromZone &&
+                      currentPrompt?.zone === "Graveyard"
+                    ) {
+                      onReopenZoneTarget();
+                      return;
+                    }
                     const hasPlayable = graveyard.some((c) => c.isPlayable);
                     if (hasPlayable && promptType === PT.ChooseAction) {
                       onOpenZoneAndCast("Your Graveyard", graveyard, (_cardId) => {});
@@ -565,6 +574,13 @@ export function GameBoard({
                     }
                   }}
                   onOpenExile={() => {
+                    if (
+                      promptType === PT.ChooseTargetCardFromZone &&
+                      currentPrompt?.zone === "Exile"
+                    ) {
+                      onReopenZoneTarget();
+                      return;
+                    }
                     const hasPlayable = exile.some((c) => c.isPlayable);
                     if (hasPlayable && promptType === PT.ChooseAction) {
                       onOpenZoneAndCast("Your Exile", exile, (_cardId) => {});

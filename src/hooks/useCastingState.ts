@@ -61,8 +61,10 @@ export function useCastingState({
     };
   }, [castingCardId]);
 
-  // Whether we're in the targeting phase (arrow follows cursor)
-  const isTargeting = promptType?.startsWith("chooseTarget") ?? false;
+  // Whether we're in the targeting phase (arrow follows cursor). Zone targets
+  // are chosen from a modal, not the board, so they never enter arrow mode.
+  const isTargeting =
+    (promptType?.startsWith("chooseTarget") ?? false) && promptType !== "chooseTargetCardFromZone";
 
   // Arrow hostility: use locked value if target chosen, else prompt value
   const arrowHostile = targetId ? targetHostile : promptHostile;

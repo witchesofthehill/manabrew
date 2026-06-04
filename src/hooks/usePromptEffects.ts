@@ -255,6 +255,9 @@ export function usePromptEffects({
   const dismissZoneTarget = useCallback(() => {
     setZoneTargetDismissedPrompt(currentPrompt);
   }, [currentPrompt]);
+  const reopenZoneTarget = useCallback(() => {
+    setZoneTargetDismissedPrompt(null);
+  }, []);
 
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
@@ -281,6 +284,7 @@ export function usePromptEffects({
     setLibraryPeekModal,
     zoneTargetSelector,
     dismissZoneTarget,
+    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   };

@@ -48,8 +48,7 @@ struct PresetDeckCard {
 
 impl Config {
     pub fn from_env() -> Self {
-        let username = env_first("SELF_HOSTED_NODE_USERNAME", "FORGE_ROOM_NODE_USERNAME")
-            .unwrap_or_else(|| default_username("self-hosted-node"));
+        let username = format!("self-hosted-node-{}", uuid::Uuid::new_v4());
         let bot_username = env_first("SELF_HOSTED_NODE_BOT_USERNAME", "FORGE_ROOM_BOT_USERNAME")
             .unwrap_or_else(|| format!("{username}-bot"));
         let host_deck_id = env_first("SELF_HOSTED_NODE_DECK", "FORGE_ROOM_NODE_DECK")
@@ -87,7 +86,11 @@ impl Config {
                 .filter(|games| *games >= 1)
                 .unwrap_or(1),
             format,
-            auto_start: env_bool("SELF_HOSTED_NODE_AUTO_START", "FORGE_ROOM_AUTO_START", true),
+            auto_start: env_bool(
+                "SELF_HOSTED_NODE_AUTO_START",
+                "FORGE_ROOM_AUTO_START",
+                false,
+            ),
             engine_enabled: env_bool(
                 "SELF_HOSTED_NODE_ENGINE_ENABLED",
                 "FORGE_ROOM_ENGINE_ENABLED",
@@ -273,13 +276,6 @@ fn infer_commander_name(deck_id: &str) -> Option<&'static str> {
         "real_teval_commander" => None,
         _ => None,
     }
-}
-
-fn default_username(prefix: &str) -> String {
-    let host = env::var("HOSTNAME")
-        .or_else(|_| env::var("COMPUTERNAME"))
-        .unwrap_or_else(|_| "local".to_string());
-    format!("{prefix}-{host}")
 }
 
 fn env_first(primary: &str, fallback: &str) -> Option<String> {

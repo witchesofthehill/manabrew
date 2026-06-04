@@ -296,10 +296,15 @@ export default function DeckEditor() {
 
   function confirmRename() {
     if (!renamingId || !renameInput.trim()) return;
+    const newName = renameInput.trim();
     useDeckStore.setState((state) => ({
       savedDecks: state.savedDecks.map((s) =>
-        s.id === renamingId ? { ...s, deck: { ...s.deck, name: renameInput.trim() } } : s,
+        s.id === renamingId ? { ...s, deck: { ...s.deck, name: newName } } : s,
       ),
+      currentDeck:
+        state.currentDeckId === renamingId
+          ? { ...state.currentDeck, name: newName }
+          : state.currentDeck,
     }));
     setRenamingId(null);
     toast.success("Deck renamed");

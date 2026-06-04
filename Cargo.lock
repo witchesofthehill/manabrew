@@ -3790,7 +3790,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "forge-agent-interface",
  "forge-bot",
@@ -5959,7 +5959,6 @@ dependencies = [
  "forge-game-runtime",
  "forge-server",
  "futures-util",
- "j4rs",
  "memmap2",
  "rand 0.8.6",
  "serde",

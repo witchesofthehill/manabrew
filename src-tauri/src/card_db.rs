@@ -78,7 +78,14 @@ pub fn get_card_name_index() -> &'static std::collections::HashSet<String> {
 }
 
 pub fn card_name_known(name: &str) -> bool {
-    get_card_name_index().contains(&name.to_lowercase())
+    let index = get_card_name_index();
+    if index.contains(&name.to_lowercase()) {
+        return true;
+    }
+    if let Some((front, _)) = name.split_once(" // ") {
+        return index.contains(&front.to_lowercase());
+    }
+    false
 }
 
 /// mmap the archive, parse it through `CardDatabase::load_from_archive`,

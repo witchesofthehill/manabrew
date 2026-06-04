@@ -92,6 +92,7 @@ import {
   setLastSavedSnapshotRef,
 } from "./deckBuilder.unsavedChanges";
 import { useScryfallStore } from "@/stores/useScryfallStore";
+import { useUnsupportedCards } from "@/hooks/useUnsupportedCards";
 
 // ─── Quick Search ─────────────────────────────────────────────────────────────
 
@@ -181,6 +182,7 @@ function QuickCardSearch({
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-80 overflow-y-auto min-w-[280px]">
           {results.map((sc) => {
             const count = getCount(sc.name);
+            const thumb = sc.image_uris?.small ?? sc.card_faces?.[0]?.image_uris?.small;
             return (
               <div
                 key={sc.id}
@@ -188,9 +190,9 @@ function QuickCardSearch({
                 onClick={() => onAdd(sc)}
                 title={`Add ${sc.name}`}
               >
-                {sc.image_uris?.small && (
+                {thumb && (
                   <ScryfallImg
-                    src={sc.image_uris.small}
+                    src={thumb}
                     alt=""
                     className="w-8 h-11 rounded object-cover object-top shrink-0"
                   />
@@ -261,9 +263,9 @@ export function DeckBuilder({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const importPresetToMyDecks = useDeckStore((s) => s.importPresetToMyDecks);
+  const currentDeckId = useDeckStore((s) => s.currentDeckId);
   const {
     currentDeck,
-    savedDecks,
     removeFromMain,
     removeFromSide,
     addToMain,
@@ -309,7 +311,6 @@ export function DeckBuilder({
     setLastSavedSnapshotRef(snap);
     return snap;
   });
-  const [pendingSwitchAction, setPendingSwitchAction] = useState<(() => void) | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [pendingDeleteDeck, setPendingDeleteDeck] = useState<{ id: string; name: string } | null>(
     null,
@@ -361,11 +362,10 @@ export function DeckBuilder({
     setUnsavedState(lastSavedSnapshot, isReadOnly ? lastSavedSnapshot : currentSnapshot);
   }, [lastSavedSnapshot, currentSnapshot, isReadOnly]);
 
-  // Reset snapshot when a deck is loaded
-  const deckIdentity = `${currentDeck.name}:${savedDecks.length}`;
-  const [prevDeckIdentity, setPrevDeckIdentity] = useState(deckIdentity);
-  if (prevDeckIdentity !== deckIdentity) {
-    setPrevDeckIdentity(deckIdentity);
+  // Reset snapshot when a different deck is loaded (or cleared).
+  const [prevDeckId, setPrevDeckId] = useState(currentDeckId);
+  if (prevDeckId !== currentDeckId) {
+    setPrevDeckId(currentDeckId);
     const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
@@ -484,17 +484,22 @@ export function DeckBuilder({
   })();
 
   // Filter
+  const unsupportedNames = useUnsupportedCards(currentDeck);
+  const hasUnsupportedCards = unsupportedNames.size > 0;
+
   // Compute deck legality for conditional save button
   const deckFormat = getFormat(currentDeck.format ?? "standard");
-  const isDeckLegal = deckFormat
-    ? validateDeckSections(
-        {
-          deck: currentDeck,
-          commanderName: currentDeck.commanders?.[0]?.name,
-        },
-        deckFormat,
-      ).legal
-    : false;
+  const isDeckLegal =
+    !hasUnsupportedCards &&
+    (deckFormat
+      ? validateDeckSections(
+          {
+            deck: currentDeck,
+            commanderName: currentDeck.commanders?.[0]?.name,
+          },
+          deckFormat,
+        ).legal
+      : false);
 
   const filterLc = deckFilter.toLowerCase();
   const filteredMain = useMemo(
@@ -788,6 +793,10 @@ export function DeckBuilder({
   }
 
   function handleSave() {
+    if (hasUnsupportedCards) {
+      handleSaveDraft();
+      return;
+    }
     saveCurrentDeck();
     const snapshot = buildDeckSnapshot(currentDeck);
     setLastSavedSnapshot(snapshot);
@@ -799,7 +808,13 @@ export function DeckBuilder({
     const snapshot = buildDeckSnapshot({ ...currentDeck, draft: true });
     setLastSavedSnapshot(snapshot);
     setUnsavedState(snapshot, snapshot);
-    toast.success(`Draft "${currentDeck.name}" saved`);
+    if (hasUnsupportedCards) {
+      toast.warning(
+        `Saved "${currentDeck.name}" as draft — ${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine`,
+      );
+    } else {
+      toast.success(`Draft "${currentDeck.name}" saved`);
+    }
   }
 
   /**
@@ -816,15 +831,6 @@ export function DeckBuilder({
       rangeSelect(cardName, orderedNames);
     } else {
       toggleCard(cardName);
-    }
-  }
-
-  /** If unsaved changes exist, queue the action behind a confirm dialog. Otherwise run it immediately. */
-  function guardUnsaved(action: () => void) {
-    if (hasUnsavedChanges) {
-      setPendingSwitchAction(() => action);
-    } else {
-      action();
     }
   }
 
@@ -877,11 +883,11 @@ export function DeckBuilder({
               tabIndex={0}
               className="h-7 w-7 shrink-0 rounded-md inline-flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title="Back to My Decks"
-              onClick={() => guardUnsaved(onBack)}
+              onClick={onBack}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  guardUnsaved(onBack);
+                  onBack();
                 }
               }}
             >
@@ -992,7 +998,11 @@ export function DeckBuilder({
               size="sm"
               variant="outline"
               className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
-              title="Deck has errors — save as draft (not playable)"
+              title={
+                hasUnsupportedCards
+                  ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — draft only, can't be played`
+                  : "Deck has errors — save as draft (not playable)"
+              }
               onClick={handleSaveDraft}
             >
               <FileBox className="h-3.5 w-3.5" />
@@ -1343,7 +1353,7 @@ export function DeckBuilder({
           </div>
         )}
 
-        <DeckValidationPanel />
+        <DeckValidationPanel unsupportedNames={unsupportedNames} />
         <TokenSection
           tokens={mergedTokens}
           cardSize={cardSize}
@@ -1437,44 +1447,6 @@ export function DeckBuilder({
                   }}
                 >
                   Delete
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Unsaved changes confirm dialog (for deck switching) */}
-        {pendingSwitchAction && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
-            <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
-              <h3 className="text-lg font-semibold">Unsaved Changes</h3>
-              <p className="text-sm text-muted-foreground">
-                You have unsaved changes. Do you want to discard them?
-              </p>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPendingSwitchAction(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    handleSave();
-                    pendingSwitchAction();
-                    setPendingSwitchAction(null);
-                  }}
-                >
-                  Save & Switch
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    pendingSwitchAction();
-                    setPendingSwitchAction(null);
-                  }}
-                >
-                  Discard
                 </Button>
               </div>
             </div>

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde_json::Value;
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use crate::multiplayer_controller::{
@@ -16,9 +16,6 @@ use crate::preset_decks::CardIdentity;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::java_prompt_normalizer::{
-    normalize_java_prompt, translate_java_player_action,
-};
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
@@ -33,7 +30,6 @@ pub struct GameSession {
     #[allow(dead_code)]
     pub game_id: String,
     pub response_tx: Option<mpsc::Sender<PlayerAction>>,
-    pub java_response_tx: Option<mpsc::Sender<Value>>,
     /// Per-remote-player response channels (player_index -> sender).
     pub remote_response_txs: HashMap<usize, mpsc::Sender<PlayerAction>>,
     #[allow(dead_code)]
@@ -79,7 +75,6 @@ impl GameManager {
         if let Some(old) = session_guard.take() {
             old.abort_signal.store(true, Ordering::Relaxed);
             drop(old.response_tx);
-            drop(old.java_response_tx);
             drop(old.remote_response_txs);
         }
         self.clear_latest_prompt();
@@ -95,13 +90,10 @@ impl GameManager {
 
         let (prompt_tx, prompt_rx) = mpsc::channel::<AgentPrompt>();
         let (response_tx, response_rx) = mpsc::channel::<PlayerAction>();
-        let (java_prompt_tx, java_prompt_rx) = mpsc::channel::<Value>();
-        let (java_response_tx, java_response_rx) = mpsc::channel::<Value>();
         let (notify_tx, notify_rx) = mpsc::channel::<GameLogEntryDto>();
         let (snapshot_tx, snapshot_rx) = mpsc::channel::<GameSnapshotEventDto>();
 
         let response_tx_clone = response_tx.clone();
-        let java_response_tx_clone = java_response_tx.clone();
         let abort_signal = Arc::new(AtomicBool::new(false));
         let abort_signal_for_thread = abort_signal.clone();
 
@@ -110,11 +102,6 @@ impl GameManager {
             self.latest_prompt.clone(),
             self.latest_prompt_payload.clone(),
             prompt_rx,
-        );
-        spawn_java_prompt_forwarder(
-            app.clone(),
-            self.latest_prompt_payload.clone(),
-            java_prompt_rx,
         );
         spawn_notify_forwarder(app.clone(), notify_rx, None);
         spawn_snapshot_forwarder(app.clone(), snapshot_rx, None);
@@ -149,8 +136,8 @@ impl GameManager {
                             starting_life,
                             commander_name,
                             opponent_deck_list,
-                            java_prompt_tx,
-                            java_response_rx,
+                            prompt_tx,
+                            response_rx,
                         ),
                     }));
                 match result {
@@ -171,9 +158,7 @@ impl GameManager {
 
         *session_guard = Some(GameSession {
             game_id: game_id.clone(),
-            response_tx: matches!(backend, EngineBackendKind::Rust).then_some(response_tx_clone),
-            java_response_tx: matches!(backend, EngineBackendKind::JavaForge)
-                .then_some(java_response_tx_clone),
+            response_tx: Some(response_tx_clone),
             remote_response_txs: HashMap::new(),
             thread_handle: Some(handle),
             is_multiplayer: false,
@@ -191,10 +176,6 @@ impl GameManager {
                 tx.send(action)
                     .map_err(|e| format!("Game thread not responding: {}", e))?;
                 Ok(())
-            } else if let Some(tx) = session.java_response_tx.as_ref() {
-                tx.send(translate_java_player_action(&action))
-                    .map_err(|e| format!("Java game thread not responding: {}", e))?;
-                Ok(())
             } else {
                 Err("No active game response channel".into())
             }
@@ -208,7 +189,6 @@ impl GameManager {
         if let Some(session) = session_guard.take() {
             session.abort_signal.store(true, Ordering::Relaxed);
             drop(session.response_tx);
-            drop(session.java_response_tx);
             drop(session.remote_response_txs);
         }
         self.clear_latest_prompt();
@@ -247,7 +227,6 @@ impl GameManager {
         if let Some(old) = session_guard.take() {
             old.abort_signal.store(true, Ordering::Relaxed);
             drop(old.response_tx);
-            drop(old.java_response_tx);
             drop(old.remote_response_txs);
         }
         self.clear_latest_prompt();
@@ -360,7 +339,6 @@ impl GameManager {
         *session_guard = Some(GameSession {
             game_id: game_id.clone(),
             response_tx: Some(engine_response_tx_clone),
-            java_response_tx: None,
             remote_response_txs,
             thread_handle: Some(handle),
             is_multiplayer: true,
@@ -428,22 +406,4 @@ fn uuid_simple() -> String {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     format!("{:08x}{:08x}", rng.gen::<u32>(), rng.gen::<u32>())
-}
-
-fn spawn_java_prompt_forwarder(
-    app: AppHandle,
-    latest_prompt_payload: Arc<Mutex<Option<Value>>>,
-    rx: mpsc::Receiver<Value>,
-) {
-    thread::spawn(move || {
-        eprintln!("[java_prompt_fwd] Java prompt forwarder started");
-        while let Ok(prompt) = rx.recv() {
-            let prompt = normalize_java_prompt(prompt);
-            if let Ok(mut lp) = latest_prompt_payload.lock() {
-                *lp = Some(prompt.clone());
-            }
-            let _ = app.emit("game:prompt", &prompt);
-        }
-        eprintln!("[java_prompt_fwd] Java prompt forwarder ended");
-    });
 }

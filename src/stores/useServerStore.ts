@@ -71,6 +71,7 @@ interface ServerState {
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
+  setFormat(format: GameFormat): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
 
@@ -197,6 +198,12 @@ export const useServerStore = create<ServerState>()(
           deck,
           commanderName: commanderName ?? null,
         });
+      },
+
+      async setFormat(format) {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.setFormat({ format });
       },
 
       async startGame(format) {
@@ -337,7 +344,7 @@ export const useServerStore = create<ServerState>()(
               return;
             }
             const message = USER_FACING_ERROR_MESSAGES[payload.code as ServerErrorCode];
-            if (message) toast.error(message);
+            toast.error(message ?? payload.message ?? `Server error: ${payload.code}`);
           }),
         );
 

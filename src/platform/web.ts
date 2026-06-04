@@ -22,6 +22,7 @@ import type {
   SetReadyParams,
   SetDeckSelectionParams,
   StartServerGameParams,
+  SetFormatParams,
   SpawnAiBotParams,
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
@@ -793,6 +794,10 @@ class WebServerApi implements IServerApi {
       deck: params.deck,
       commander_name: params.commanderName,
     });
+  }
+
+  async setFormat(params: SetFormatParams): Promise<void> {
+    this.send({ type: "SetFormat", format: params.format });
   }
 
   async startGame(params?: StartServerGameParams): Promise<void> {

@@ -241,6 +241,16 @@ impl Room {
         self.host_player_id == player_id
     }
 
+    /// The room controller is the first player to take a seat. The controller
+    /// drives the lobby (format, bots, start) regardless of who holds the
+    /// engine (`host`). In a normal self-created room the host is also the
+    /// first player, so the two coincide.
+    pub fn is_controller(&self, player_id: &str) -> bool {
+        self.players
+            .first()
+            .is_some_and(|p| p.player_id == player_id)
+    }
+
     pub fn host_username(&self) -> String {
         self.host_username.clone()
     }
@@ -298,5 +308,36 @@ impl Room {
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn room(host_plays: bool) -> Room {
+        Room::new(
+            "r".into(),
+            "room".into(),
+            "host".into(),
+            "host".into(),
+            4,
+            GameFormat::Commander,
+            EngineKind::Java,
+            host_plays,
+            None,
+            None,
+        )
+    }
+
+    #[test]
+    fn first_user_is_controller_in_hosted_room() {
+        let mut r = room(false);
+        assert!(r.is_host("host"));
+        assert!(!r.is_controller("host"));
+        r.add_player("human".into(), "human".into()).unwrap();
+        assert!(r.is_controller("human"));
+        r.add_player("bot".into(), "bot".into()).unwrap();
+        assert!(!r.is_controller("bot"));
     }
 }

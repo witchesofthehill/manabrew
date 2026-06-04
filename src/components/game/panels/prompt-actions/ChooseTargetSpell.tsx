@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Layers } from "lucide-react";
 import { PromptActionButton } from "@/components/game/panels/PromptActionButton";
 import type { ChooseTargetSpellProps } from "./types";
 
@@ -10,8 +10,9 @@ export function ChooseTargetSpell({
   return (
     <PromptActionButton
       layout={buttonLayout}
-      label="Choose Counter Target"
-      icon={<Check className="h-3.5 w-3.5" />}
+      label="View Stack"
+      title="Click a glowing spell on the stack to counter it"
+      icon={<Layers className="h-3.5 w-3.5" />}
       onClick={onOpenStack}
       disabled={isWaitingForResponse}
     />

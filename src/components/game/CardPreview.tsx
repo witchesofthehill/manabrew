@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCw } from "lucide-react";
 import type { DeckCard, GameCard } from "@/types/manabrew";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { GameIcon } from "@/components/game/GameIcon";
@@ -18,6 +18,7 @@ import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
+import { useCard } from "@/stores/useScryfallStore";
 
 interface CardPreviewProps {
   card: GameCard;
@@ -32,6 +33,8 @@ interface CardPreviewProps {
   onSelectAction?: (action: HandActionOption) => void;
   /** Called to dismiss the preview. */
   onDismiss?: () => void;
+  /** Toggle the back face of a double-faced card. */
+  onFlip?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   isSticky?: boolean;
@@ -200,6 +203,7 @@ export function CardPreview({
   actions,
   onSelectAction,
   onDismiss,
+  onFlip,
   onMouseEnter,
   onMouseLeave,
   isSticky = false,
@@ -217,12 +221,51 @@ export function CardPreview({
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
   const isLoading = false;
   const imageUrl = deckCard.uris[imageSize];
-  const doubleFacedData = {
-    frontImageUrl: deckCard.uris[imageSize],
-    backImageUrl: null,
-    frontName: deckCard.name,
-    backName: undefined,
-  };
+  const scryfallEntry = useCard({
+    name: card.name,
+    setCode: deckCard.setCode,
+    collectorNumber: deckCard.cardNumber,
+  });
+  const faces = scryfallEntry?.info?.card_faces;
+  const facesHaveImages =
+    !!faces &&
+    faces.length >= 2 &&
+    !!faces[0].image_uris?.[imageSize] &&
+    !!faces[1].image_uris?.[imageSize];
+  const derivedBackImageUrl =
+    !facesHaveImages && deckCard.isDoubleFaced && imageUrl?.includes("/front/")
+      ? imageUrl.replace("/front/", "/back/")
+      : null;
+  const doubleFacedData = facesHaveImages
+    ? {
+        frontImageUrl: faces![0].image_uris![imageSize],
+        backImageUrl: faces![1].image_uris![imageSize],
+        frontName: faces![0].name,
+        backName: faces![1].name,
+      }
+    : derivedBackImageUrl
+      ? {
+          frontImageUrl: imageUrl,
+          backImageUrl: derivedBackImageUrl,
+          frontName: card.name,
+          backName: card.name,
+        }
+      : null;
+  const hasFlippableFaces = !!doubleFacedData;
+
+  useEffect(() => {
+    if (!onFlip || !hasFlippableFaces) return;
+    function handleFlipKey(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
+        e.preventDefault();
+        onFlip!();
+      }
+    }
+    window.addEventListener("keydown", handleFlipKey);
+    return () => window.removeEventListener("keydown", handleFlipKey);
+  }, [onFlip, hasFlippableFaces]);
 
   // Dismiss on Escape, outside click, or number key shortcut
   useEffect(() => {
@@ -299,14 +342,9 @@ export function CardPreview({
     top = Math.min(Math.max(anchorY - cardHeight / 2, 8), window.innerHeight - cardHeight - 8);
   }
 
-  const hasDoubleFace = !!doubleFacedData?.backImageUrl;
+  const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
-  const currentCardName =
-    hasDoubleFace && showBackFace
-      ? doubleFacedData.backName
-      : hasDoubleFace && !showBackFace
-        ? doubleFacedData.frontName
-        : card.name;
+  const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
 
   return createPortal(
     <>
@@ -372,6 +410,20 @@ export function CardPreview({
                   />
                 )}
                 <CardDetailOverlay card={card} />
+                {hasDoubleFace && onFlip && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFlip();
+                    }}
+                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
+                  >
+                    <RotateCw className="h-3 w-3" />
+                    {showBackFace ? "Front" : "Back"}
+                  </button>
+                )}
               </>
             ) : (
               <div className="w-full h-full p-4 flex flex-col gap-2 bg-card">

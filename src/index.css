@@ -137,6 +137,8 @@
   --animate-dice-roll: dice-roll 2s cubic-bezier(0.18, 0.72, 0.25, 1) both;
   --animate-onboard-fade-in: onboard-fade-in 200ms ease-out both;
   --animate-onboard-fade-up: onboard-fade-up 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-companion-tap-flash: companion-tap-flash 360ms ease-out forwards;
+  --animate-companion-die-tumble: companion-die-tumble 480ms cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
 
   @keyframes accordion-down {
     from {
@@ -318,6 +320,47 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @keyframes companion-tap-flash {
+    0% {
+      opacity: 0.45;
+    }
+    60% {
+      opacity: 0.25;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes companion-die-tumble {
+    0% {
+      transform: rotate(-12deg) translateY(0);
+    }
+    50% {
+      transform: rotate(180deg) translateY(-6px);
+    }
+    100% {
+      transform: rotate(372deg) translateY(0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Kill the companion tap flash and stack flashes for users with vestibular
+     sensitivity. Keep functional opacity transitions but skip the keyframed
+     decorative ones. */
+  .animate-companion-tap-flash,
+  .animate-companion-die-tumble,
+  .animate-card-flash,
+  .animate-card-flash-backdrop,
+  .animate-card-stack-enter,
+  .animate-card-stack-flash-in,
+  .animate-player-turn-flash,
+  .animate-player-targetable-pulse,
+  .animate-dice-roll {
+    animation: none !important;
   }
 }
 

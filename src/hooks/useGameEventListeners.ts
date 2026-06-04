@@ -106,7 +106,10 @@ export function useGameEventListeners() {
             } else {
               // Keep shared turn/priority in sync even when the prompt is for another player.
               // Do not apply full foreign-perspective view (would leak/flip local actionability).
-              const current = useGameStore.getState().gameView;
+              const state = useGameStore.getState();
+              const current = state.gameView;
+              const keepLocalPrompt =
+                state.currentPrompt != null && !state.currentPrompt.decidingPlayerId;
               if (current && prompt?.gameView) {
                 useGameStore.setState({
                   gameView: {
@@ -119,8 +122,8 @@ export function useGameEventListeners() {
                     winnerId: prompt.gameView.winnerId,
                   },
                   // Never keep a stale actionable prompt when priority is not ours.
-                  currentPrompt: null,
-                  isWaitingForResponse: false,
+                  currentPrompt: keepLocalPrompt ? state.currentPrompt : null,
+                  isWaitingForResponse: keepLocalPrompt ? state.isWaitingForResponse : false,
                   debugInfo: `Remote sync: ${prompt.type}`,
                 });
               }

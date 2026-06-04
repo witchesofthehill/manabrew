@@ -40,6 +40,7 @@ export function HoverCardPreview({
       actions={actions}
       onSelectAction={onSelectAction}
       onDismiss={preview.dismiss}
+      onFlip={preview.flipCard}
       onMouseEnter={preview.onMouseEnterPreview}
       onMouseLeave={preview.onMouseLeavePreview}
       slot={slot}

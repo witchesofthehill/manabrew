@@ -260,6 +260,39 @@ pub struct StartedGame {
     pub room_info: RoomInfo,
 }
 
+pub fn set_format_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    format: GameFormat,
+) -> Result<String, ServerError> {
+    let room_id = {
+        state
+            .players
+            .get(player_id)
+            .and_then(|p| p.room_id.clone())
+            .ok_or(ServerError::NotInRoom)?
+    };
+
+    {
+        let mut room = state
+            .rooms
+            .get_mut(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+
+        if !room.is_controller(player_id) {
+            return Err(ServerError::NotHost);
+        }
+
+        if room.status != RoomStatus::Lobby {
+            return Err(ServerError::GameAlreadyStarted);
+        }
+
+        room.format = format;
+    }
+
+    Ok(room_id)
+}
+
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
@@ -279,7 +312,7 @@ pub fn start_game_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if !room.is_host(player_id) {
+        if !room.is_controller(player_id) {
             return Err(ServerError::NotHost);
         }
 
@@ -370,9 +403,6 @@ pub fn end_game_sync(
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
         room.players.clear();
-        if room.hosted {
-            room.format = GameFormat::Any;
-        }
         (room.to_room_info(), cleared)
     };
 

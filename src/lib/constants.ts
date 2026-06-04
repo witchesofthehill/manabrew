@@ -15,6 +15,7 @@ export const STORAGE_KEYS = {
   DECK: "manabrew-deck-storage",
   PREFERRED_PRINTS: "manabrew-preferred-prints",
   PREFERENCES: "manabrew-preferences",
+  COMPANION: "manabrew-companion",
 } as const;
 
 // ─── Deck Defaults ───────────────────────────────────────────────────────────

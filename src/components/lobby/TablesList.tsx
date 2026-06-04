@@ -2,10 +2,29 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Hand, Users, Swords, Shield, LogOut, Bot, X } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Hand, Users, Swords, Shield, LogOut, Bot, X, ChevronDown } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
-import type { RoomInfo } from "@/types/server";
+import type { GameFormat, RoomInfo } from "@/types/server";
 import { cn } from "@/lib/utils";
+
+const HOST_SELECTABLE_FORMATS: GameFormat[] = [
+  "Any",
+  "Standard",
+  "Pioneer",
+  "Modern",
+  "Legacy",
+  "Vintage",
+  "Pauper",
+  "Commander",
+  "Brawl",
+  "Oathbreaker",
+];
 
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -18,6 +37,7 @@ interface TablesListProps {
   onJoinRoom: (roomId: string) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
+  onSetFormat?: (format: GameFormat) => void;
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
@@ -38,6 +58,7 @@ export function TablesList({
   onJoinRoom,
   onLeaveRoom,
   onSetReady,
+  onSetFormat,
   onOpenDeckDialog,
   onStartGame,
   onStartTabletop,
@@ -53,8 +74,12 @@ export function TablesList({
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
-  const isHost = currentRoom?.host === username;
-  const isOpenFormat = currentRoom?.format === "Any";
+  // The controller is the first seated player — they drive the lobby (format,
+  // bots, start) even when the host is a non-playing engine node. In a normal
+  // self-created room the host is the first player, so the two coincide.
+  const isController = currentRoom?.players[0]?.username === username;
+  const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
+  const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
   const allReady = currentRoom
     ? currentRoom.players.length >= minReady && currentRoom.players.every((p) => p.ready)
@@ -101,15 +126,45 @@ export function TablesList({
                     {currentRoom.sealed_config.set_code}
                   </Badge>
                 )}
-                <Badge variant="outline" className="text-[10px]">
-                  {isOpenFormat && currentRoom.draft_config
-                    ? currentRoom.draft_config.cube_id
-                      ? "Cube"
-                      : "Draft"
-                    : isOpenFormat && currentRoom.sealed_config
-                      ? "Sealed"
-                      : currentRoom.format}
-                </Badge>
+                {isController &&
+                currentRoom.status === "Lobby" &&
+                onSetFormat &&
+                !currentRoom.draft_config &&
+                !currentRoom.sealed_config ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted/60"
+                      >
+                        {currentRoom.format}
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {HOST_SELECTABLE_FORMATS.map((f) => (
+                        <DropdownMenuItem
+                          key={f}
+                          onSelect={() => onSetFormat(f)}
+                          disabled={f === currentRoom.format}
+                          className="text-xs"
+                        >
+                          {f}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Badge variant="outline" className="text-[10px]">
+                    {isOpenFormat && currentRoom.draft_config
+                      ? currentRoom.draft_config.cube_id
+                        ? "Cube"
+                        : "Draft"
+                      : isOpenFormat && currentRoom.sealed_config
+                        ? "Sealed"
+                        : currentRoom.format}
+                  </Badge>
+                )}
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
                   className="text-[10px]"
@@ -171,7 +226,7 @@ export function TablesList({
                           : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
-                    {canRemove && isHost ? (
+                    {canRemove && isController ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -198,7 +253,7 @@ export function TablesList({
               })}
               {/* Hidden on Open rooms — draft bots come from the room's
                   draft_config.fill_with_bots, not this deck-picker flow. */}
-              {isHost &&
+              {isController &&
                 !isOpenFormat &&
                 currentRoom.players.length < currentRoom.max_players &&
                 onAddBot && (
@@ -241,7 +296,7 @@ export function TablesList({
               >
                 <LogOut className="h-3 w-3" /> Leave
               </Button>
-              {isHost && (
+              {isController && (
                 <div className="ml-auto flex items-center gap-2">
                   {onStartTabletop && (
                     <Button
@@ -279,7 +334,12 @@ export function TablesList({
                     </Button>
                   )}
                   {!isOpenFormat && (
-                    <Button size="sm" className="gap-1" onClick={onStartGame} disabled={!allReady}>
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => onStartGame()}
+                      disabled={!allReady}
+                    >
                       <Swords className="h-3 w-3" /> Start Game
                     </Button>
                   )}

@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-java-forge = ["dep:j4rs"]
-java-espresso = ["java-forge"]
+java-forge = []
 
 [[bin]]
 name = "self-hosted-node"
@@ -29,4 +28,3 @@ rand = "0.8"
 uuid = { version = "1", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-j4rs = { version = "0.25.1", optional = true }

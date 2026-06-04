@@ -1,5 +1,19 @@
 package forge.harness;
 
+import forge.harness.host.ManaBrewEngineAdapter;
+
+import forge.harness.parity.DeterministicController;
+import forge.harness.parity.DeterministicLobbyPlayer;
+import forge.harness.common.ParityLog;
+import forge.harness.parity.PresetDecks;
+
+import forge.harness.common.CountingRandom;
+import forge.harness.common.DecisionLog;
+import forge.harness.common.HeadlessGuiBase;
+import forge.harness.common.ParityCardMap;
+import forge.harness.common.ForgeEngineReset;
+import forge.harness.common.SnapshotExtractor;
+
 import com.google.common.eventbus.Subscribe;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -53,6 +67,7 @@ public final class Main {
         boolean deep = false;
         String forgeHome = null;
         boolean serverMode = false;
+        boolean interactiveServerMode = false;
         String variant = "Constructed";
         String commandersArg = null;
         String verboseTurnsArg = null;
@@ -82,6 +97,9 @@ public final class Main {
                     break;
                 case "--server":
                     serverMode = true;
+                    break;
+                case "--interactive-server":
+                    interactiveServerMode = true;
                     break;
                 case "--variant":
                     if (i + 1 < args.length) variant = args[++i];
@@ -113,10 +131,10 @@ public final class Main {
         String assetsDir = resolveAssetsDir(forgeHome);
         System.err.println("[harness] Assets dir: " + assetsDir);
 
-        // In server mode, capture real stdout and redirect System.out BEFORE
+        // In any server mode, capture real stdout and redirect System.out BEFORE
         // FModel.initialize() to prevent Forge's stray println() calls from
         // leaking into the protocol stream during initialization.
-        if (serverMode) {
+        if (serverMode || interactiveServerMode) {
             protocolOut = System.out;
             System.setOut(new PrintStream(new OutputStream() {
                 @Override public void write(int b) { /* discard */ }
@@ -137,7 +155,9 @@ public final class Main {
 
         int[] verboseTurns = parseVerboseTurns(verboseTurnsArg);
 
-        if (serverMode) {
+        if (interactiveServerMode) {
+            runInteractiveServerMode(assetsDir);
+        } else if (serverMode) {
             runServerMode();
         } else {
             runOneShot(deck1Name, deck2Name, seed, maxTurns, preferActions, deep, variant, commanders, verboseTurns);
@@ -257,6 +277,116 @@ public final class Main {
     }
 
     /**
+     * Interactive server mode: per-game JSON-RPC over stdin/stdout dispatching
+     * to a long-lived {@link ManaBrewEngineAdapter}. One process owns one game
+     * at a time; pool callers send `reset` between games and `quit` to exit.
+     *
+     * Request shape:  {"command":"startGame","payload":"<json>"}  (sessionId
+     * goes in `sessionId`; payload is the inner JSON string).
+     * Response shape: {"ok":true,"result":"<json|bool|empty>"} or {"ok":false,"error":"..."}.
+     */
+    private static void runInteractiveServerMode(String assetsDir) {
+        System.err.println("[harness] Interactive server mode ready.");
+
+        final ManaBrewEngineAdapter adapter = new ManaBrewEngineAdapter();
+        try {
+            adapter.initialize(assetsDir);
+        } catch (Exception e) {
+            System.err.println("[harness] adapter.initialize failed: " + e.getMessage());
+            e.printStackTrace(System.err);
+            sendError(e.getMessage());
+            return;
+        }
+
+        BufferedReader stdin = new BufferedReader(new InputStreamReader(System.in));
+        String line;
+
+        try {
+            while ((line = stdin.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+
+                JsonObject request;
+                try {
+                    request = JsonParser.parseString(line).getAsJsonObject();
+                } catch (Exception e) {
+                    sendError("Invalid JSON: " + e.getMessage());
+                    continue;
+                }
+
+                String command = request.has("command") ? request.get("command").getAsString() : "";
+
+                try {
+                    switch (command) {
+                        case "quit":
+                            System.err.println("[harness] interactive server received quit");
+                            return;
+                        case "reset":
+                            ForgeEngineReset.resetAllIdCounters();
+                            forge.ImageKeys.clearCaches();
+                            System.gc();
+                            sendOk("");
+                            break;
+                        case "startGame":
+                            sendOk(adapter.startGameJson(requireString(request, "payload")));
+                            break;
+                        case "submitAction":
+                            sendOk(adapter.submitAction(
+                                requireString(request, "sessionId"),
+                                requireString(request, "payload")));
+                            break;
+                        case "getPrompt":
+                            sendOk(adapter.getPrompt(
+                                requireString(request, "sessionId"),
+                                request.get("playerIndex").getAsInt()));
+                            break;
+                        case "getSnapshot":
+                            sendOk(adapter.getSnapshot(requireString(request, "sessionId")));
+                            break;
+                        case "getGameOver":
+                            sendOk(adapter.getGameOver(requireString(request, "sessionId")));
+                            break;
+                        case "endGame":
+                            sendOk(adapter.endGameJson(requireString(request, "sessionId")));
+                            break;
+                        case "abortGame":
+                            sendOk(adapter.abortGameJson(requireString(request, "sessionId")));
+                            break;
+                        default:
+                            sendError("Unknown command: " + command);
+                    }
+                } catch (Exception e) {
+                    System.err.println("[harness] dispatch error for command=" + command
+                        + ": " + e.getMessage());
+                    e.printStackTrace(System.err);
+                    sendError(e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("[harness] interactive server stdin read error: " + e.getMessage());
+        }
+
+        System.err.println("[harness] interactive server exiting.");
+    }
+
+    private static String requireString(JsonObject request, String key) {
+        if (!request.has(key) || request.get(key).isJsonNull()) {
+            throw new IllegalArgumentException("missing required field: " + key);
+        }
+        return request.get(key).getAsString();
+    }
+
+    private static void sendOk(String result) {
+        protocolOut.println("{\"ok\":true,\"result\":\"" + escapeJson(result) + "\"}");
+        protocolOut.flush();
+    }
+
+    private static void sendError(String message) {
+        protocolOut.println("{\"ok\":false,\"error\":\"" + escapeJson(message) + "\"}");
+        protocolOut.flush();
+    }
+
+    /**
      * Run a single game with the given parameters.
      * Snapshots are written to {@link #protocolOut} (not System.out).
      */
@@ -336,7 +466,7 @@ public final class Main {
         // Reset global state for cross-game isolation in multi-game batches
         CountingRandom gameRng = new CountingRandom(seed, "game");
         forge.util.MyRandom.setRandom(gameRng);
-        ParityReset.resetAllIdCounters();
+        ForgeEngineReset.resetAllIdCounters();
 
         // Create a shared Random for agent decisions, seeded identically to
         // the Rust side's JavaRandom(seed). Both players share this instance

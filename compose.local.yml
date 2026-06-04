@@ -31,8 +31,8 @@ services:
       SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-standard}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
+      # Pool size of Java subprocesses; each room runs in its own JVM.
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-2}"
-      SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE: "${SELF_HOSTED_NODE_ESPRESSO_POOL_SIZE:-2}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:
       - forge-server

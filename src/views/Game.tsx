@@ -797,7 +797,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     libraryPeekModal,
     setLibraryPeekModal,
     zoneTargetSelector,
-    setZoneTargetSelector,
+    dismissZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -1639,6 +1639,22 @@ export default function Game({ exitTo }: GameProps = {}) {
         </div>
       )}
 
+      {promptType === PromptType.ChooseTargetSpell && !spellStackModalOpen && (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-sm font-semibold tracking-wide">
+              Click a glowing spell on the stack to counter it
+            </span>
+            <button
+              className="text-xs font-medium uppercase text-muted-foreground hover:text-foreground"
+              onClick={() => setSpellStackModalOpen(true)}
+            >
+              Expand
+            </button>
+          </div>
+        </div>
+      )}
+
       <StackDisplay
         stack={gameView.stack}
         resolveStackCard={resolveStackCard}
@@ -1652,6 +1668,13 @@ export default function Game({ exitTo }: GameProps = {}) {
         showPreStackFlash={shouldShowPreStackFlash}
         rightPanelCollapsed={isActionPanelCollapsed}
         playerColorMap={playerColorMap}
+        validSpellIds={
+          promptType === PromptType.ChooseTargetSpell ? (activePrompt?.validSpellIds ?? []) : []
+        }
+        onTargetSpell={(spellId) => {
+          targetSpell(spellId);
+          setSpellStackModalOpen(false);
+        }}
       />
 
       <GameModals
@@ -1664,9 +1687,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         zoneTargetSelector={zoneTargetSelector}
         onSelectZoneTarget={(cardId) => {
           casting.wrappedTargetCard(cardId);
-          setZoneTargetSelector(null);
+          dismissZoneTarget();
         }}
-        onCancelZoneTarget={() => setZoneTargetSelector(null)}
+        onCancelZoneTarget={dismissZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "scry") scryDecision(selectedIds);

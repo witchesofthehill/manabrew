@@ -3,7 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { getFormat, validateDeckSections } from "@/lib/formats";
 
-export function DeckValidationPanel() {
+export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: Set<string> }) {
   const [collapsed, setCollapsed] = useState(false);
   const { currentDeck } = useDeckStore();
 
@@ -18,9 +18,18 @@ export function DeckValidationPanel() {
     format,
   );
 
-  if (validation.legal) return null;
+  const unsupportedList = unsupportedNames ? [...unsupportedNames].sort() : [];
+  const hasUnsupported = unsupportedList.length > 0;
 
-  const count = validation.errors.length;
+  if (validation.legal && !hasUnsupported) return null;
+
+  const unsupportedErrors = hasUnsupported
+    ? [
+        `${unsupportedList.length} card${unsupportedList.length === 1 ? "" : "s"} not implemented by the engine — playable build blocked, save as draft only: ${unsupportedList.join(", ")}`,
+      ]
+    : [];
+  const errors = [...unsupportedErrors, ...validation.errors];
+  const count = errors.length;
 
   return (
     <div className="border-t border-destructive/30 bg-destructive/5 shrink-0">
@@ -49,7 +58,7 @@ export function DeckValidationPanel() {
       </div>
       {!collapsed && (
         <ul className="px-3 pb-2 space-y-0.5 ml-5">
-          {validation.errors.map((err, i) => (
+          {errors.map((err, i) => (
             <li key={i} className="text-xs text-destructive/80 flex items-start gap-1.5">
               <span className="shrink-0 mt-0.5">&#x2022;</span>
               <span>{err}</span>

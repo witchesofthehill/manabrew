@@ -70,6 +70,11 @@ pub fn get_preset_decks() -> Vec<PresetDeckInfo> {
 }
 
 #[tauri::command]
+pub fn is_card_supported(name: String) -> bool {
+    crate::card_db::card_name_known(&name)
+}
+
+#[tauri::command]
 pub async fn start_multiplayer_game(
     app: AppHandle,
     gm: State<'_, GameManager>,

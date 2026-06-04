@@ -798,6 +798,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     setLibraryPeekModal,
     zoneTargetSelector,
     dismissZoneTarget,
+    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -1519,6 +1520,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               onClickCard(cardId);
             })
           }
+          onReopenZoneTarget={reopenZoneTarget}
           onCastSpell={handleCastSpell}
           onTapLand={
             promptType === PromptType.ChooseAction ||

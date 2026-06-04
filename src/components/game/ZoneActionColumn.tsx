@@ -21,6 +21,9 @@ export interface ZoneActionColumnProps {
   onOpenExile?: () => void;
   hasPlayableInGraveyard?: boolean;
   hasPlayableInExile?: boolean;
+  hasTargetInGraveyard?: boolean;
+  hasTargetInExile?: boolean;
+  targetHostile?: boolean;
   /** Commander cards to render in a leading tile. When absent or empty, no command zone tile is shown. */
   commanders?: GameCard[];
   onOpenCommandZone?: () => void;
@@ -153,6 +156,9 @@ export function ZoneActionColumn({
   onOpenExile,
   hasPlayableInGraveyard,
   hasPlayableInExile,
+  hasTargetInGraveyard,
+  hasTargetInExile,
+  targetHostile,
   commanders,
   onOpenCommandZone,
   onCastCommander,
@@ -165,6 +171,7 @@ export function ZoneActionColumn({
 }: ZoneActionColumnProps) {
   const themeColors = useTheme().gameTheme;
   const fontSizes = useTheme().gameTheme.fontSizes;
+  const targetColor = targetHostile ? themeColors.arrow.hostileTarget : themeColors.cardRing;
   const graveyardTop =
     graveyard && graveyard.length > 0 ? graveyard[graveyard.length - 1] : undefined;
   const exileTop = exile && exile.length > 0 ? exile[exile.length - 1] : undefined;
@@ -179,8 +186,8 @@ export function ZoneActionColumn({
         topCard={graveyardTop}
         onClick={onOpenGraveyard}
         onHoverCard={onHoverCard}
-        highlighted={hasPlayableInGraveyard}
-        highlightColor={themeColors.activeAction.active}
+        highlighted={hasPlayableInGraveyard || hasTargetInGraveyard}
+        highlightColor={hasTargetInGraveyard ? targetColor : themeColors.activeAction.active}
         fontSizes={fontSizes}
       />
     ),
@@ -193,8 +200,8 @@ export function ZoneActionColumn({
         topCard={exileTop}
         onClick={onOpenExile}
         onHoverCard={onHoverCard}
-        highlighted={hasPlayableInExile}
-        highlightColor={themeColors.activeAction.active}
+        highlighted={hasPlayableInExile || hasTargetInExile}
+        highlightColor={hasTargetInExile ? targetColor : themeColors.activeAction.active}
         fontSizes={fontSizes}
       />
     ),

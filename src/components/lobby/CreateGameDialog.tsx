@@ -201,7 +201,7 @@ export function CreateGameDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(96vw,84rem)] max-w-6xl p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-[min(96vw,84rem)] max-w-6xl p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]">
         {/* ── Header ── */}
         <div className="px-6 py-4 border-b">
           <DialogTitle className="text-lg font-semibold">
@@ -215,7 +215,7 @@ export function CreateGameDialog({
         </div>
 
         {/* ── Body: left panel (settings) + right panel (deck picker) ── */}
-        <div className="flex overflow-hidden" style={{ maxHeight: "78vh" }}>
+        <div className="flex min-h-0 overflow-hidden">
           {/* Left panel — Format & options */}
           {!isLobbyMode && (
             <div className="w-48 border-r flex-shrink-0 p-4 space-y-5 overflow-y-auto bg-muted/20">

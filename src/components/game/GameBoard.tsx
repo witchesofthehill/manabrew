@@ -102,6 +102,7 @@ interface GameBoardProps {
     onClickCard: (cardId: string) => void,
   ) => void;
   onReopenZoneTarget: () => void;
+  onTargetFromZone: (cardId: string) => void;
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
@@ -173,6 +174,7 @@ export function GameBoard({
   onOpenZone,
   onOpenZoneAndCast,
   onReopenZoneTarget,
+  onTargetFromZone,
   onCastSpell,
   onTapLand,
   onTapLands,
@@ -224,6 +226,7 @@ export function GameBoard({
     return `max(${CLUSTER_MIN_WIDTH_PX}px, calc(50% - ${handHalf + pad}px))`;
   }, [handWidth]);
   const hostileTargeting = currentPrompt?.hostile ?? false;
+  const isTargetingPrompt = promptType === PT.ChooseTargetCard || promptType === PT.ChooseTargetAny;
   const pixiBattlefield = useMemo(
     (): BattlefieldState => ({
       cards: myPermanents,
@@ -550,6 +553,10 @@ export function GameBoard({
                   onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
                   onOpenCommandZone={() => {
                     if ((myCommandZone?.length ?? 0) > 0) {
+                      if (isTargetingPrompt && myCommandZone!.some((c) => c.isChoosable)) {
+                        onOpenZone("Your Command Zone", myCommandZone!, onTargetFromZone);
+                        return;
+                      }
                       const hasPlayable = myCommandZone!.some((c) => c.isPlayable);
                       if (hasPlayable && promptType === PT.ChooseAction) {
                         onOpenZoneAndCast("Your Command Zone", myCommandZone!, (_cardId) => {});
@@ -559,6 +566,10 @@ export function GameBoard({
                     }
                   }}
                   onOpenGraveyard={() => {
+                    if (isTargetingPrompt && graveyard.some((c) => c.isChoosable)) {
+                      onOpenZone("Your Graveyard", graveyard, onTargetFromZone);
+                      return;
+                    }
                     if (
                       promptType === PT.ChooseTargetCardFromZone &&
                       currentPrompt?.zone === "Graveyard"
@@ -574,6 +585,10 @@ export function GameBoard({
                     }
                   }}
                   onOpenExile={() => {
+                    if (isTargetingPrompt && exile.some((c) => c.isChoosable)) {
+                      onOpenZone("Your Exile", exile, onTargetFromZone);
+                      return;
+                    }
                     if (
                       promptType === PT.ChooseTargetCardFromZone &&
                       currentPrompt?.zone === "Exile"
@@ -594,6 +609,9 @@ export function GameBoard({
                   hasPlayableInExile={
                     promptType === PT.ChooseAction && exile.some((c) => c.isPlayable)
                   }
+                  hasTargetInGraveyard={isTargetingPrompt && graveyard.some((c) => c.isChoosable)}
+                  hasTargetInExile={isTargetingPrompt && exile.some((c) => c.isChoosable)}
+                  targetHostile={hostileTargeting}
                   zonePanelOrder={zonePanelOrder}
                 />
               </div>

@@ -488,6 +488,36 @@
   cursor: none !important;
 }
 
+/* Animated targeting glyph: a pulsing colored glow under a gently floating
+   intent icon — the "flare" of the cursor, ported from the Pixi pointer layer
+   (1400 ms pulse / sine float) into the DOM cursor. */
+@keyframes targeting-cursor-pulse {
+  0%,
+  100% {
+    transform: scale(0.78);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.28);
+    opacity: 0.7;
+  }
+}
+@keyframes targeting-cursor-float {
+  0%,
+  100% {
+    transform: translateY(0.5px);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+.targeting-cursor-pulse {
+  animation: targeting-cursor-pulse 1400ms ease-in-out infinite;
+}
+.targeting-cursor-float {
+  animation: targeting-cursor-float 1600ms ease-in-out infinite;
+}
+
 /* Playable card border highlight in hand */
 .playable-card {
   /* Both vars are always set by `Game.tsx` from the active theme — no

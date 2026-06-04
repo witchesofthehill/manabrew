@@ -46,6 +46,9 @@ interface PlayerPanelProps {
   onOpenExile?: () => void;
   hasPlayableInGraveyard?: boolean;
   hasPlayableInExile?: boolean;
+  hasTargetInGraveyard?: boolean;
+  hasTargetInExile?: boolean;
+  targetHostile?: boolean;
   zonePanelOrder?: ZonePanelItem[];
 }
 
@@ -76,6 +79,9 @@ export function PlayerPanel({
   onOpenExile,
   hasPlayableInGraveyard,
   hasPlayableInExile,
+  hasTargetInGraveyard,
+  hasTargetInExile,
+  targetHostile,
   zonePanelOrder,
 }: PlayerPanelProps) {
   const themeColors = useTheme().gameTheme;
@@ -273,6 +279,9 @@ export function PlayerPanel({
       onOpenExile={onOpenExile}
       hasPlayableInGraveyard={hasPlayableInGraveyard}
       hasPlayableInExile={hasPlayableInExile}
+      hasTargetInGraveyard={hasTargetInGraveyard}
+      hasTargetInExile={hasTargetInExile}
+      targetHostile={targetHostile}
       commanders={commanders}
       onOpenCommandZone={onOpenCommandZone}
       onCastCommander={onCastCommander}

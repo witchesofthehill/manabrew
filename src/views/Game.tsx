@@ -41,7 +41,8 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
-import { PromptType } from "@/types/promptType";
+import { PromptType, intentPrefersArrow } from "@/types/promptType";
+import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
@@ -1401,15 +1402,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   const shouldRenderStackFlashCard = activeFlash?.kind === "card";
   const shouldShowPreStackFlash = activeFlashCard?.types.includes("Land") ?? false;
 
-  const hideOsCursor = casting.showArrow && !!casting.castingCardId && !casting.targetId;
+  const targetingCursorActive =
+    casting.showArrow && !casting.targetId && !intentPrefersArrow(casting.arrowIntent);
 
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "relative flex flex-col h-full min-h-0 overflow-hidden select-none",
-        hideOsCursor && "targeting-cursor-hidden",
-      )}
+      className="relative flex flex-col h-full min-h-0 overflow-hidden select-none"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,
@@ -1438,7 +1437,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         arrowSpecs={arrowSpecs}
         pointerSpecs={pointerSpecs}
         castingArrow={
-          casting.showArrow && casting.castingCardId
+          casting.showArrow && casting.castingCardId && intentPrefersArrow(casting.arrowIntent)
             ? {
                 castingCardId: casting.castingCardId,
                 targetId: casting.targetId,
@@ -1461,9 +1460,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           myPermanents={myPermanents}
           opponentPermanentsByPlayer={opponentPermanentsByPlayer}
           myHand={gameView.myHand}
-          graveyard={gameView.graveyard}
-          exile={gameView.exile}
-          myCommandZone={gameView.myCommandZone}
+          graveyard={gameView.graveyard.map(markIfValidTarget)}
+          exile={gameView.exile.map(markIfValidTarget)}
+          myCommandZone={gameView.myCommandZone?.map(markIfValidTarget)}
           opponentZones={gameView.opponentZones}
           activePlayerId={gameView.activePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
@@ -1521,6 +1520,14 @@ export default function Game({ exitTo }: GameProps = {}) {
             })
           }
           onReopenZoneTarget={reopenZoneTarget}
+          onTargetFromZone={(cardId) => {
+            closeZoneViewer();
+            if (promptType === PromptType.ChooseTargetAny) {
+              casting.wrappedTargetAny({ kind: "card", cardId });
+            } else {
+              casting.wrappedTargetCard(cardId);
+            }
+          }}
           onCastSpell={handleCastSpell}
           onTapLand={
             promptType === PromptType.ChooseAction ||
@@ -1787,6 +1794,13 @@ export default function Game({ exitTo }: GameProps = {}) {
           onCancel={closePlayModePicker}
         />
       )}
+
+      {/* ── Targeting cursor (follows pointer, rides above modals) ─ */}
+      <TargetingCursor
+        active={targetingCursorActive}
+        intent={casting.arrowIntent}
+        hostile={casting.arrowHostile}
+      />
 
       {/* ── Ghost card while dragging from hand ───────────── */}
       {draggingHandCard &&

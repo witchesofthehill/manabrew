@@ -33,32 +33,33 @@ export function ZoneViewer({ title, cards, onClose, onClickCard }: ZoneViewerPro
           <Modal.EmptyState />
         ) : (
           <div className="flex flex-wrap gap-2 content-start">
-            {cards.map((card) => (
-              <div
-                key={card.id}
-                className="shrink-0 relative flex flex-col gap-1"
-                onMouseEnter={(e) => preview.handleMouseEnter(card, e)}
-                onMouseLeave={preview.handleMouseLeave}
-              >
-                <Card
-                  card={card}
-                  className={cn(HAND_CARD, card.isPlayable && onClickCard && "ring-2")}
-                  style={
-                    card.isPlayable && onClickCard
-                      ? ({ "--tw-ring-color": ringColor } as CSSProperties)
-                      : undefined
-                  }
-                  onClick={card.isPlayable && onClickCard ? () => onClickCard(card.id) : undefined}
-                />
-                {(card.effectiveManaCost || card.manaCost) && (
-                  <div className="min-h-5 flex items-center justify-center">
-                    <div className="inline-flex items-center rounded bg-muted/70 px-1.5 py-0.5">
-                      <ManaSymbols cost={card.effectiveManaCost ?? card.manaCost} size="sm" />
+            {cards.map((card) => {
+              const clickable = (card.isPlayable || card.isChoosable) && !!onClickCard;
+              return (
+                <div
+                  key={card.id}
+                  className="shrink-0 relative flex flex-col gap-1"
+                  onMouseEnter={(e) => preview.handleMouseEnter(card, e)}
+                  onMouseLeave={preview.handleMouseLeave}
+                >
+                  <Card
+                    card={card}
+                    className={cn(HAND_CARD, clickable && "ring-2")}
+                    style={
+                      clickable ? ({ "--tw-ring-color": ringColor } as CSSProperties) : undefined
+                    }
+                    onClick={clickable ? () => onClickCard!(card.id) : undefined}
+                  />
+                  {(card.effectiveManaCost || card.manaCost) && (
+                    <div className="min-h-5 flex items-center justify-center">
+                      <div className="inline-flex items-center rounded bg-muted/70 px-1.5 py-0.5">
+                        <ManaSymbols cost={card.effectiveManaCost ?? card.manaCost} size="sm" />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Modal.Body>

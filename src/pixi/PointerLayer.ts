@@ -24,77 +24,7 @@ import { TargetingIntent, intentIsHostile } from "@/types/promptType";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum, colorAlpha } from "./colorUtils";
-
-// ── Pointer icon manifest ──────────────────────────────────────────────────
-// Each intent imports a Game-Icons (https://game-icons.net/) glyph through
-// the `unplugin-icons` Vite plugin, using the `?raw` query to get a
-// build-time SVG asset URL that Pixi's Assets loader can turn into a
-// texture. Icons are tree-shaken — only the ones imported below ship.
-// Icons © Lorc, Delapouite & contributors, CC-BY 3.0.
-
-import damageUrl from "~icons/game-icons/lightning-trio";
-import destroyUrl from "~icons/game-icons/broken-shield";
-import sacrificeUrl from "~icons/game-icons/sacrificial-dagger";
-import exileUrl from "~icons/game-icons/vortex";
-import bounceUrl from "~icons/game-icons/return-arrow";
-import millUrl from "~icons/game-icons/book-pile";
-import discardUrl from "~icons/game-icons/card-discard";
-import counterUrl from "~icons/game-icons/cancel";
-import tapUrl from "~icons/game-icons/clockwise-rotation";
-import untapUrl from "~icons/game-icons/anticlockwise-rotation";
-import copyUrl from "~icons/game-icons/mirror-mirror";
-import buffUrl from "~icons/game-icons/muscle-up";
-import debuffUrl from "~icons/game-icons/broken-heart";
-import healUrl from "~icons/game-icons/healing";
-import loseLifeUrl from "~icons/game-icons/bleeding-heart";
-import revealUrl from "~icons/game-icons/eye-target";
-import drawUrl from "~icons/game-icons/card-draw";
-import gainControlUrl from "~icons/game-icons/handcuffs";
-import fightUrl from "~icons/game-icons/crossed-swords";
-// `attach` is rendered by ArrowLayer (rune variant) — keep no glyph here.
-import hostileUrl from "~icons/game-icons/crosshair";
-import friendlyUrl from "~icons/game-icons/shield-reflect";
-
-/** Raw SVG source for hostile intents (coloured with `pointer.hostile`).
- *  Keep in sync with `intentIsHostile` in `src/types/promptType.ts`. */
-const HOSTILE_ICON_SVGS: Partial<Record<TargetingIntent, string>> = {
-  damage: damageUrl,
-  destroy: destroyUrl,
-  sacrifice: sacrificeUrl,
-  exile: exileUrl,
-  bounce: bounceUrl,
-  mill: millUrl,
-  discard: discardUrl,
-  counter: counterUrl,
-  tap: tapUrl,
-  debuff: debuffUrl,
-  loseLife: loseLifeUrl,
-  gainControl: gainControlUrl,
-  fight: fightUrl,
-  hostile: hostileUrl,
-};
-
-/** Raw SVG source for friendly intents (coloured with `pointer.friendly`). */
-const FRIENDLY_ICON_SVGS: Partial<Record<TargetingIntent, string>> = {
-  untap: untapUrl,
-  copy: copyUrl,
-  buff: buffUrl,
-  heal: healUrl,
-  reveal: revealUrl,
-  draw: drawUrl,
-  friendly: friendlyUrl,
-};
-
-/** Combined lookup used by `loadAssets()`. `null` entries render as
- *  arrows in `ArrowLayer` — combat intents are intentionally omitted
- *  from both hostile/friendly buckets above. */
-const POINTER_ICON_SVGS: Record<TargetingIntent, string | null> = {
-  ...HOSTILE_ICON_SVGS,
-  ...FRIENDLY_ICON_SVGS,
-  attack: null,
-  block: null,
-  attach: null,
-} as Record<TargetingIntent, string | null>;
+import { INTENT_GLYPH_SVG as POINTER_ICON_SVGS } from "./pointerGlyphs";
 
 /** Rewrite a Game-Icons SVG so its paths render as opaque white pixels
  *  in a headless raster (Pixi's texture loader). The source ships with

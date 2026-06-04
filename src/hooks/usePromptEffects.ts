@@ -246,7 +246,18 @@ export function usePromptEffects({
 
   const [libraryPeekModal, setLibraryPeekModal] = useState<LibraryPeekState | null>(null);
 
-  const zoneTargetSelector = useMemo(() => computeZoneTarget(currentPrompt), [currentPrompt]);
+  const zoneTargetFromPrompt = useMemo(() => computeZoneTarget(currentPrompt), [currentPrompt]);
+  const [zoneTargetDismissedPrompt, setZoneTargetDismissedPrompt] = useState<AgentPrompt | null>(
+    null,
+  );
+  const zoneTargetSelector =
+    zoneTargetDismissedPrompt === currentPrompt ? null : zoneTargetFromPrompt;
+  const dismissZoneTarget = useCallback(() => {
+    setZoneTargetDismissedPrompt(currentPrompt);
+  }, [currentPrompt]);
+  const reopenZoneTarget = useCallback(() => {
+    setZoneTargetDismissedPrompt(null);
+  }, []);
 
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
@@ -272,6 +283,8 @@ export function usePromptEffects({
     libraryPeekModal,
     setLibraryPeekModal,
     zoneTargetSelector,
+    dismissZoneTarget,
+    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   };

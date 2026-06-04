@@ -116,7 +116,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Remove zone restriction — allow casting from exile/library/etc.
     spell_sa.ir.cast_from_play_effect = true;
 
-    // ── Step 5: Pay mana ────────────────────────────────────────────
+    spell_sa.setup_targets(ctx.game, ctx.agents, ctx.mana_pools);
+
+    // ── Step 6: Pay mana ────────────────────────────────────────────
     if !without_mana_cost {
         let mc = if let Some(ref cost_str) = play_cost {
             forge_foundation::ManaCost::parse(cost_str)
@@ -152,9 +154,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
         ctx.mana_pools[controller.index()].try_pay(&mc);
     }
-
-    // ── Step 6: Set up targets ──────────────────────────────────────
-    spell_sa.setup_targets(ctx.game, ctx.agents, ctx.mana_pools);
 
     // `ReplaceGraveyard$ <Zone>` — install a one-shot replacement that
     // reroutes the played card if it would be put into the graveyard

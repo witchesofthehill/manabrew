@@ -323,19 +323,16 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     private boolean selectTargets(final SpellAbility ability, final TargetRestrictions tr, final Predicate<GameObject> filter) {
-        while (!ability.isTargetNumberValid()) {
+        while (ability.canAddMoreTarget()) {
             final List<Pair<GameEntity, GameObject>> valid = targetCandidates(ability, tr, filter);
             if (valid.isEmpty()) {
-                return ability.isTargetNumberValid();
+                break;
             }
             final Pair<GameEntity, GameObject> chosen = session.awaitTargetChoice(me(), ability, valid);
             if (chosen == null) {
-                return ability.isMinTargetChosen();
-            }
-            ability.getTargets().add(chosen.getRight());
-            if (!ability.canAddMoreTarget()) {
                 break;
             }
+            ability.getTargets().add(chosen.getRight());
         }
         return ability.isTargetNumberValid();
     }

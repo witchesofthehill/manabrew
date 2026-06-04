@@ -347,7 +347,7 @@ public final class HarnessPlayPlumbing {
             if (optional && !hooks.confirmPlayEffectOptional()) {
                 return false;
             }
-            return playStack(tgtSA, payer, game);
+            return handlePlayingSpellAbility(payer, tgtSA, game);
         }
         return true;
     }

@@ -48,6 +48,9 @@ pub(super) fn choose_target_card<T: Responder>(
             valid_card_ids,
             hostile,
             intent,
+            min_targets: 1,
+            max_targets: 1,
+            chosen_targets: 0,
         },
         source,
     );
@@ -97,6 +100,9 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
             zone: format!("{:?}", zone),
             zone_cards,
             intent,
+            min_targets: 1,
+            max_targets: 1,
+            chosen_targets: 0,
         },
         source,
     );
@@ -181,6 +187,9 @@ pub(super) fn choose_sacrifice<T: Responder>(
             valid_card_ids,
             hostile: true,
             intent: TargetingIntent::Sacrifice,
+            min_targets: 1,
+            max_targets: 1,
+            chosen_targets: 0,
         },
         source,
     );

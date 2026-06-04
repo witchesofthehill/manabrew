@@ -225,6 +225,12 @@ pub enum JavaRawPromptBody {
         #[serde(rename = "counterType")]
         counter_type: Option<String>,
         zone: Option<String>,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     ChooseTargetAny {
         #[serde(default)]

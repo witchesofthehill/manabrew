@@ -147,6 +147,12 @@ pub enum AgentPromptInner {
         hostile: bool,
         #[serde(default = "default_intent")]
         intent: TargetingIntent,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     ChooseTargetAny {
         #[serde(rename = "gameView")]
@@ -170,6 +176,12 @@ pub enum AgentPromptInner {
         zone_cards: Vec<CardDto>,
         #[serde(default = "default_intent")]
         intent: TargetingIntent,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     GameOver {
         #[serde(rename = "gameView")]

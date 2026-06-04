@@ -1709,6 +1709,11 @@ public final class ManaBrewInteractiveSession {
         if (zone != null) {
             prompt.addProperty("zone", zone);
         }
+        if (ability != null) {
+            prompt.addProperty("minTargets", ability.getMinTargets());
+            prompt.addProperty("maxTargets", ability.getMaxTargets());
+            prompt.addProperty("chosenTargets", ability.getTargets().size());
+        }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
 
         com.google.gson.JsonArray players = new com.google.gson.JsonArray();

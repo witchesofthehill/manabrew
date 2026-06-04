@@ -35,6 +35,9 @@ export interface AgentPrompt {
   untappableLandIds?: string[];
   zone?: string;
   zoneCards?: GameCard[];
+  minTargets?: number;
+  maxTargets?: number;
+  chosenTargets?: number;
   /** IDs of library cards revealed for scry / surveil / dig */
   cardIds?: string[];
   /** Card DTOs for the revealed library cards */

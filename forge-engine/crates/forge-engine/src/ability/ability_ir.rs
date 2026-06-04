@@ -847,10 +847,19 @@ impl SpellAbilityIr {
             condition: params.get(keys::CONDITION).map(str::to_string),
             condition_check_svar: params.get(keys::CONDITION_CHECK_SVAR).map(str::to_string),
             condition_svar_compare: params.get("ConditionSVarCompare").map(str::to_string),
-            condition_present: params.get(keys::CONDITION_PRESENT).map(str::to_string),
+            // Java `SpellAbilityCondition`: `ConditionNotPresent$ X` is
+            // `ConditionPresent$ X` with the compare forced to `EQ0`.
+            condition_present: params
+                .get(keys::CONDITION_PRESENT)
+                .or_else(|| params.get("ConditionNotPresent"))
+                .map(str::to_string),
             condition_defined: params.get(keys::CONDITION_DEFINED).map(DefinedExpr::parse),
             condition_defined_text: params.get(keys::CONDITION_DEFINED).map(str::to_string),
-            condition_compare: params.get(keys::CONDITION_COMPARE).map(str::to_string),
+            condition_compare: if params.get("ConditionNotPresent").is_some() {
+                Some("EQ0".to_string())
+            } else {
+                params.get(keys::CONDITION_COMPARE).map(str::to_string)
+            },
             condition_zone_text: params.get(keys::CONDITION_ZONE).map(str::to_string),
             condition_zone: parsed_zone_type(params.get(keys::CONDITION_ZONE)),
             optional_present: params.has(keys::OPTIONAL),

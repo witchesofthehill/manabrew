@@ -81,31 +81,26 @@ pub fn resolve_dynamic_amount(
     }
     let source_card = game.card(source);
 
-    if let Some(paid_x) = source_card
+    // Mirror Java `AbilityUtils.calculateAmount`: resolve the host's `SVar:X`
+    // definition before falling back to the X mana paid. `XPaid` is set to "0"
+    // on every cast (even for non-X spells), so checking it first would shadow a
+    // card-defined `SVar:X` such as `Count$ChosenNumber` (e.g. Galvanic Discharge).
+    if let Some(x_expr) = source_card.get_s_var("X") {
+        if x_expr != "Count$xPaid" && x_expr != "Count$XPaid" {
+            if let Ok(n) = x_expr.parse::<i32>() {
+                return n;
+            }
+            if x_expr.starts_with("Count$") {
+                return crate::ability::effects::resolve_count_svar(x_expr, game, source, player);
+            }
+        }
+    }
+
+    source_card
         .svars
         .get("XPaid")
         .and_then(|s| s.parse::<i32>().ok())
-    {
-        return paid_x;
-    }
-
-    if let Some(x_expr) = source_card.get_s_var("X") {
-        if x_expr == "Count$xPaid" || x_expr == "Count$XPaid" {
-            return source_card
-                .svars
-                .get("XPaid")
-                .and_then(|s| s.parse::<i32>().ok())
-                .unwrap_or(0);
-        }
-        if let Ok(n) = x_expr.parse::<i32>() {
-            return n;
-        }
-        if x_expr.starts_with("Count$") {
-            return crate::ability::effects::resolve_count_svar(x_expr, game, source, player);
-        }
-    }
-
-    0
+        .unwrap_or(0)
 }
 
 /// The amount slot of a [`CostPart`]. Replaces the legacy `i32` (with

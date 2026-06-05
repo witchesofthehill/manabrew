@@ -28,12 +28,27 @@ const LAYOUT_SPECS: Record<
       { gridArea: "r", rotation: 0 },
     ],
   },
+  "two-across": {
+    template: `"l r" 1fr / 1fr 1fr`,
+    slots: [
+      { gridArea: "l", rotation: 90 },
+      { gridArea: "r", rotation: -90 },
+    ],
+  },
   "three-wedge": {
     template: `"top top" 1fr "bl br" 1fr / 1fr 1fr`,
     slots: [
       { gridArea: "bl", rotation: 0 },
       { gridArea: "br", rotation: 0 },
       { gridArea: "top", rotation: 180 },
+    ],
+  },
+  "three-sides": {
+    template: `"top top" 1fr "l r" 1.5fr / 1fr 1fr`,
+    slots: [
+      { gridArea: "top", rotation: 180 },
+      { gridArea: "l", rotation: 90 },
+      { gridArea: "r", rotation: -90 },
     ],
   },
   "pinwheel-3": {
@@ -65,11 +80,21 @@ const LAYOUT_SPECS: Record<
   "five-radial": {
     template: `"top top" 1fr "ml mr" 1fr "bl br" 1fr / 1fr 1fr`,
     slots: [
-      { gridArea: "bl", rotation: 0 },
-      { gridArea: "br", rotation: 0 },
+      { gridArea: "top", rotation: 180 },
       { gridArea: "ml", rotation: 90 },
       { gridArea: "mr", rotation: -90 },
-      { gridArea: "top", rotation: 180 },
+      { gridArea: "bl", rotation: 90 },
+      { gridArea: "br", rotation: -90 },
+    ],
+  },
+  "five-rows": {
+    template: `"t1 t1 t1 t2 t2 t2" 1fr "b1 b1 b2 b2 b3 b3" 1fr / 1fr 1fr 1fr 1fr 1fr 1fr`,
+    slots: [
+      { gridArea: "t1", rotation: 180 },
+      { gridArea: "t2", rotation: 180 },
+      { gridArea: "b1", rotation: 0 },
+      { gridArea: "b2", rotation: 0 },
+      { gridArea: "b3", rotation: 0 },
     ],
   },
   "six-grid": {
@@ -81,6 +106,17 @@ const LAYOUT_SPECS: Record<
       { gridArea: "tl", rotation: 180 },
       { gridArea: "tm", rotation: 180 },
       { gridArea: "tr", rotation: 180 },
+    ],
+  },
+  "six-sides": {
+    template: `"l1 r1" 1fr "l2 r2" 1fr "l3 r3" 1fr / 1fr 1fr`,
+    slots: [
+      { gridArea: "l1", rotation: 90 },
+      { gridArea: "r1", rotation: -90 },
+      { gridArea: "l2", rotation: 90 },
+      { gridArea: "r2", rotation: -90 },
+      { gridArea: "l3", rotation: 90 },
+      { gridArea: "r3", rotation: -90 },
     ],
   },
   "pinwheel-6": {

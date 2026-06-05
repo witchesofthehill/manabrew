@@ -89,28 +89,32 @@ export const COMPANION_CUSTOM_ICONS = [
 export const COMPANION_DEFAULT_LAYOUT_BY_COUNT: Record<number, CompanionLayout> = {
   2: "1v1",
   3: "three-wedge",
-  4: "four-sides",
+  4: "quad",
   5: "five-radial",
   6: "six-grid",
 };
 
 export const COMPANION_LAYOUT_OPTIONS: Record<number, CompanionLayout[]> = {
-  2: ["1v1", "two-side", "landscape-row", "vertical-stack", "free"],
-  3: ["three-wedge", "pinwheel-3", "landscape-row", "vertical-stack", "free"],
-  4: ["four-sides", "quad", "landscape-row", "vertical-stack", "free"],
-  5: ["five-radial", "landscape-row", "vertical-stack", "free"],
-  6: ["six-grid", "pinwheel-6", "landscape-row", "vertical-stack", "free"],
+  2: ["1v1", "two-side", "two-across", "landscape-row", "vertical-stack", "free"],
+  3: ["three-wedge", "three-sides", "pinwheel-3", "landscape-row", "vertical-stack", "free"],
+  4: ["quad", "four-sides", "landscape-row", "vertical-stack", "free"],
+  5: ["five-radial", "five-rows", "landscape-row", "vertical-stack", "free"],
+  6: ["six-grid", "six-sides", "pinwheel-6", "landscape-row", "vertical-stack", "free"],
 };
 
 export const COMPANION_LAYOUT_LABELS: Record<CompanionLayout, string> = {
   "1v1": "Head-to-head",
   "two-side": "Side-by-side",
+  "two-across": "Two across",
   "three-wedge": "Three wedge",
+  "three-sides": "Three sides",
   "pinwheel-3": "Three pinwheel",
   quad: "Quad (2×2)",
   "four-sides": "Four sides",
   "five-radial": "Five radial",
+  "five-rows": "Five rows",
   "six-grid": "Six grid",
+  "six-sides": "Six sides",
   "pinwheel-6": "Six pinwheel",
   "landscape-row": "Landscape row",
   "vertical-stack": "Vertical stack",

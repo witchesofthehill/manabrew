@@ -82,15 +82,19 @@ export function PlayerTile({
   const hasCommanderImage = Boolean(
     player.commanders[0]?.imageUrl || player.commanders[1]?.imageUrl,
   );
-  // When commander art covers the tile, the accent-coloured background is
-  // hidden — colour the active-turn ring with the accent instead of white
-  // so it still identifies whose turn it is.
-  // Active-turn outline + the baseline 1px hairline that the tile
-  // normally gets via Tailwind's ring-1 ring-white/5. Inline box-shadow
-  // overrides Tailwind's ring shadow, so we have to compose both here.
-  const activeRing = isActive
-    ? `0 0 0 ${hasCommanderImage ? 3 : 2}px ${hasCommanderImage ? accent : "white"}, 0 0 0 1px rgba(255,255,255,0.05)`
-    : undefined;
+  // Commander art hides the accent background, so the tile loses its owner
+  // colour. Always draw an accent ring on art tiles to keep players
+  // identifiable; the active tile additionally gets a white halo outside the
+  // accent so whose-turn-it-is still reads. No-art tiles keep their accent
+  // background (already identifiable) and only ring white when active.
+  // Inline box-shadow overrides Tailwind's ring-1 ring-white/5, so compose both.
+  const activeRing = hasCommanderImage
+    ? isActive
+      ? `0 0 0 3px ${accent}, 0 0 0 6px white`
+      : `0 0 0 3px ${accent}, 0 0 0 4px rgba(0,0,0,0.45)`
+    : isActive
+      ? `0 0 0 2px white, 0 0 0 1px rgba(255,255,255,0.05)`
+      : undefined;
 
   return (
     <div className={cn("relative size-full", className)} style={{ containerType: "size" }}>

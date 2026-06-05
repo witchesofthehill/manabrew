@@ -16,7 +16,8 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 | `PlayerMenu.tsx`            | Top-right ⋮ menu (commander picker, status toggles, accent picker, reset, eliminate/revive)      |
 | `TapFlash.tsx`              | Side-flash overlay rendered when life ticks (red left, green right)                              |
 | `CommanderArt.tsx`          | Banner / avatar render for one or two commander refs                                             |
-| `CommanderDamageStrip.tsx`  | Side rail of opponent avatars; popover stepper per source × commander slot                       |
+| `CommanderDamageStrip.tsx`  | Side rail of opponent avatars (accent-bordered for owner ID); tap opens `CommanderDamageDialog`  |
+| `CommanderDamageDialog.tsx` | Centred modal with big touch steppers per source × commander slot; mirrors the dice-roll modal   |
 | `CommanderPickerDialog.tsx` | Scryfall-name-search picker with partner toggle                                                  |
 | `CountersRail.tsx`          | Chips with ±/remove for non-life counters                                                        |
 | `AddCounterMenu.tsx`        | Preset + custom counter dropdown                                                                 |

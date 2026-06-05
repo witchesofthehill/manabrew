@@ -175,6 +175,7 @@ export function PlayerTile({
                 </button>
               )}
               <div className="mt-1 flex flex-wrap items-center gap-1 @md:gap-1.5">
+                <CommanderTaxRail player={player} commanderRules={commanderRules} />
                 <StatusChips player={player} />
               </div>
             </div>
@@ -226,10 +227,7 @@ export function PlayerTile({
 
           <div className="pointer-events-auto flex flex-wrap items-end justify-between gap-1.5">
             <CountersRail playerId={player.id} counters={player.counters} />
-            <div className="flex flex-wrap items-end justify-end gap-1.5">
-              <CommanderTaxRail player={player} commanderRules={commanderRules} />
-              <ManaPoolRail playerId={player.id} pool={player.manaPool} />
-            </div>
+            <ManaPoolRail playerId={player.id} pool={player.manaPool} />
           </div>
         </div>
 

@@ -100,6 +100,7 @@ interface CompanionState {
     slot: CompanionCommanderSlot,
     delta: number,
   ) => void;
+  adjustCommanderCast: (playerId: string, slot: CompanionCommanderSlot, delta: number) => void;
 
   toggleMonarch: (playerId: string) => void;
   toggleInitiative: (playerId: string) => void;
@@ -119,6 +120,7 @@ interface CompanionState {
   pauseTimer: () => void;
   resetTimer: () => void;
   setTimerMode: (mode: "shared" | "chess") => void;
+  setPhasesEnabled: (enabled: boolean) => void;
   setPhase: (phase: CompanionPhase) => void;
   advancePhase: () => void;
   setActivePlayer: (playerId: string | null) => void;
@@ -177,6 +179,7 @@ function makeSession(input: {
     timerMode: "shared",
     chessClockStartedAt: null,
     phase: "main1",
+    phasesEnabled: false,
     activePlayerId: null,
     turn: 0,
     lastFirstPlayerId: null,
@@ -828,6 +831,20 @@ export const useCompanionStore = create<CompanionState>()(
             ),
           ),
 
+        adjustCommanderCast: (playerId, slot, delta) =>
+          set((state) =>
+            withSession(state, (session) =>
+              replacePlayer(session, playerId, (p) => {
+                const casts: [number, number] = [...(p.commanderCasts ?? [0, 0])] as [
+                  number,
+                  number,
+                ];
+                casts[slot] = Math.max(0, casts[slot] + delta);
+                return { ...p, commanderCasts: casts };
+              }),
+            ),
+          ),
+
         clearMana: (playerId) =>
           set((state) =>
             withSession(state, (session) =>
@@ -948,6 +965,9 @@ export const useCompanionStore = create<CompanionState>()(
               chessClockStartedAt: mode === "chess" ? Date.now() : null,
             })),
           ),
+
+        setPhasesEnabled: (enabled) =>
+          set((state) => withSession(state, (session) => ({ ...session, phasesEnabled: enabled }))),
 
         setPhase: (phase) =>
           set((state) => withSession(state, (session) => ({ ...session, phase }))),

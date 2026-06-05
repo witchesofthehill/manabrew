@@ -6,37 +6,38 @@ Read first: `src/AGENTS.md`, `docs/agents/UI_THEME_RULES.md`.
 
 ## Folder map
 
-| File                        | Purpose                                                                                          |
-| --------------------------- | ------------------------------------------------------------------------------------------------ |
-| `CompanionBar.tsx`          | Top bar: new game, player count, starting life, commander toggle, layout, dice, undo, reset, end |
-| `CompanionBoard.tsx`        | Grid-template layout dispatcher + free-board container                                           |
-| `FreeTile.tsx`              | Free-layout tile owner: rotate / scale / move handles, body press-state-machine, keyboard ±life  |
-| `PlayerTile.tsx`            | One player tile: tap zones, life total, status chips, commander menu, counters rail              |
-| `StatusChips.tsx`           | Monarch / Initiative / Ascend pill chips                                                         |
-| `PlayerMenu.tsx`            | Top-right ⋮ menu (commander picker, status toggles, accent picker, reset, eliminate/revive)      |
-| `TapFlash.tsx`              | Side-flash overlay rendered when life ticks (red left, green right)                              |
-| `CommanderArt.tsx`          | Banner / avatar render for one or two commander refs                                             |
-| `CommanderDamageStrip.tsx`  | Side rail of opponent avatars (accent-bordered for owner ID); tap opens `CommanderDamageDialog`  |
-| `CommanderDamageDialog.tsx` | Centred modal with big touch steppers per source × commander slot; mirrors the dice-roll modal   |
-| `CommanderPickerDialog.tsx` | Scryfall-name-search picker with partner toggle                                                  |
-| `CountersRail.tsx`          | Chips with ±/remove for non-life counters                                                        |
-| `AddCounterMenu.tsx`        | Preset + custom counter dropdown                                                                 |
-| `CustomCounterDialog.tsx`   | Label / starting value / icon picker for custom counters                                         |
-| `NewSessionDialog.tsx`      | New-game form (format presets, players, starting life, commander, oathbreaker, layout, roster)   |
-| `DiceRoller.tsx`            | Animated roll modal: first-player picker, d4–d100 die roll, coin flip                            |
-| `DiceTray.tsx`              | Bar dropdown of d4 / d6 / d8 / d10 / d12 / d20 / d100 / coin → opens `DiceRoller` in die mode    |
-| `DieShape.tsx`              | SVG polygon silhouette per die type (triangle / square / pentagon / hexagon / octagon / circle)  |
-| `TurnTimer.tsx`             | Elapsed clock backed by `session.timer`; mode dropdown switches shared / chess clock             |
-| `PhaseStrip.tsx`            | Below-bar segmented phase indicator (untap … end); pill tints with the active player's accent    |
-| `GameLog.tsx`               | Right-side `Sheet` listing every history event with timestamps and a per-row rewind button       |
-| `GameSummaryDialog.tsx`     | Post-`endSession` modal: final scores, length, turns, copy-to-clipboard recap                    |
-| `WinBanner.tsx`             | Overlay shown when `living.length === 1`; archive / keep-playing; keyed by id+history.length     |
-| `StatsDialog.tsx`           | Aggregate stats derived from `archive[]`: total games, avg length, avg turns, wins by name       |
-| `ManaPoolRail.tsx`          | Floating-mana pips (WUBRGC) rendered in the tile footer; tap +1, hold -1                         |
-| `PlayerNotesDialog.tsx`     | Multi-line free-form note for a player, persisted via `setPlayerNotes`                           |
-| `usePressHold.ts`           | Tap vs. hold gesture binding used by every stepper                                               |
-| `icons.tsx`                 | Counter-icon name → lucide JSX switch                                                            |
-| `layouts/slots.ts`          | Layout id → grid template + per-slot rotation                                                    |
+| File                        | Purpose                                                                                               |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `CompanionBar.tsx`          | Top bar: new game, player count, starting life, commander toggle, layout, dice, undo, reset, end      |
+| `CompanionBoard.tsx`        | Grid-template layout dispatcher + free-board container                                                |
+| `FreeTile.tsx`              | Free-layout tile owner: rotate / scale / move handles, body press-state-machine, keyboard ±life       |
+| `PlayerTile.tsx`            | One player tile: tap zones, life total, status chips, commander menu, counters rail                   |
+| `StatusChips.tsx`           | Monarch / Initiative / Ascend pill chips                                                              |
+| `PlayerMenu.tsx`            | Top-right ⋮ menu (commander picker, status toggles, accent picker, reset, eliminate/revive)           |
+| `TapFlash.tsx`              | Side-flash overlay rendered when life ticks (red left, green right)                                   |
+| `CommanderArt.tsx`          | Banner / avatar render for one or two commander refs                                                  |
+| `CommanderDamageStrip.tsx`  | Side rail of opponent avatars (accent-bordered for owner ID); tap opens `CommanderDamageDialog`       |
+| `CommanderDamageDialog.tsx` | Centred modal with big touch steppers per source × commander slot; mirrors the dice-roll modal        |
+| `CommanderPickerDialog.tsx` | Scryfall-name-search picker with partner toggle                                                       |
+| `CountersRail.tsx`          | Chips with ±/remove for non-life counters                                                             |
+| `AddCounterMenu.tsx`        | Preset + custom counter dropdown                                                                      |
+| `CustomCounterDialog.tsx`   | Label / starting value / icon picker for custom counters                                              |
+| `NewSessionDialog.tsx`      | New-game form (format presets, players, starting life, commander, oathbreaker, layout, roster)        |
+| `DiceRoller.tsx`            | Animated roll modal: first-player picker, d4–d100 die roll, coin flip                                 |
+| `DiceTray.tsx`              | Bar dropdown of d4 / d6 / d8 / d10 / d12 / d20 / d100 / coin → opens `DiceRoller` in die mode         |
+| `DieShape.tsx`              | SVG polygon silhouette per die type (triangle / square / pentagon / hexagon / octagon / circle)       |
+| `TurnTimer.tsx`             | Elapsed clock backed by `session.timer`; mode dropdown switches shared / chess clock                  |
+| `PhaseStrip.tsx`            | Below-bar segmented phase indicator (untap … end); pill tints with the active player's accent         |
+| `GameLog.tsx`               | Right-side `Sheet` listing every history event with timestamps and a per-row rewind button            |
+| `GameSummaryDialog.tsx`     | Post-`endSession` modal: final scores, length, turns, copy-to-clipboard recap                         |
+| `WinBanner.tsx`             | Overlay shown when `living.length === 1`; archive / keep-playing; keyed by id+history.length          |
+| `StatsDialog.tsx`           | Aggregate stats derived from `archive[]`: total games, avg length, avg turns, wins by name            |
+| `ManaPoolRail.tsx`          | Floating-mana pips (WUBRGC) rendered in the tile footer; tap +1, hold -1                              |
+| `CommanderTaxRail.tsx`      | Per-commander tax pip in the tile footer (tax = 2× casts); tap +1 cast, hold -1; commander rules only |
+| `PlayerNotesDialog.tsx`     | Multi-line free-form note for a player, persisted via `setPlayerNotes`                                |
+| `usePressHold.ts`           | Tap vs. hold gesture binding used by every stepper                                                    |
+| `icons.tsx`                 | Counter-icon name → lucide JSX switch                                                                 |
+| `layouts/slots.ts`          | Layout id → grid template + per-slot rotation                                                         |
 
 ## Conventions
 

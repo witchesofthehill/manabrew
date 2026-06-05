@@ -34,6 +34,7 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
   const setPlayerCount = useCompanionStore((s) => s.setPlayerCount);
   const setStartingLife = useCompanionStore((s) => s.setStartingLife);
   const setCommanderRules = useCompanionStore((s) => s.setCommanderRules);
+  const setPhasesEnabled = useCompanionStore((s) => s.setPhasesEnabled);
   const setTimerMode = useCompanionStore((s) => s.setTimerMode);
   const setSessionTag = useCompanionStore((s) => s.setSessionTag);
   const resetCounters = useCompanionStore((s) => s.resetCounters);
@@ -107,6 +108,16 @@ export function SetupMenu({ session, onOpenLog }: SetupMenuProps) {
         >
           <GameIcon icon="crown" className="mr-2 size-4" /> Commander rules
           {session.commanderRules && <span className="ml-auto text-xs">on</span>}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={(e) => {
+            e.preventDefault();
+            setPhasesEnabled(!session.phasesEnabled);
+          }}
+          className={cn(session.phasesEnabled && "bg-accent")}
+        >
+          <ListOrdered className="mr-2 size-4" /> Phase tracking
+          {session.phasesEnabled && <span className="ml-auto text-xs">on</span>}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Timer mode</DropdownMenuLabel>

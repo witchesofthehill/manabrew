@@ -119,7 +119,7 @@ export default function Companion() {
             onToggleFocus={setFocusMode}
             onHidePeek={focus && chromeInFocus ? () => setChromeInFocus(false) : undefined}
           />
-          <PhaseStrip />
+          {session.phasesEnabled && <PhaseStrip />}
         </div>
       )}
       <div className="relative flex-1 min-h-0">

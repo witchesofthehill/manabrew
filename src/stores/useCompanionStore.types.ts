@@ -35,6 +35,8 @@ export interface CompanionPlayer {
   commanders: [CompanionCommanderRef | null, CompanionCommanderRef | null];
   /** Damage received per source player, per commander slot of the target. */
   commanderDamage: Record<string, [number, number]>;
+  /** Times each commander has been cast from the command zone; tax = 2× this. */
+  commanderCasts?: [number, number];
   isDead: boolean;
   isMonarch?: boolean;
   hasInitiative?: boolean;
@@ -135,6 +137,9 @@ export interface CompanionSession {
   timerMode: "shared" | "chess";
   chessClockStartedAt: number | null;
   phase: CompanionPhase;
+  /** When true, the below-bar phase strip is shown and turn passes advance
+   *  phases. Off by default — most casual life tracking ignores phases. */
+  phasesEnabled?: boolean;
   /** When true, the partner commander slot represents an Oathbreaker
    *  "signature spell" rather than a second commander. UI-only flag. */
   oathbreaker?: boolean;

@@ -8,6 +8,7 @@ import { AddCounterMenu } from "./AddCounterMenu";
 import { CommanderArt } from "./CommanderArt";
 import { CommanderDamageStrip } from "./CommanderDamageStrip";
 import { CommanderPickerDialog } from "./CommanderPickerDialog";
+import { CommanderTaxRail } from "./CommanderTaxRail";
 import { CountersRail } from "./CountersRail";
 import { ManaPoolRail } from "./ManaPoolRail";
 import { GameIcon } from "./GameIcon";
@@ -225,7 +226,10 @@ export function PlayerTile({
 
           <div className="pointer-events-auto flex flex-wrap items-end justify-between gap-1.5">
             <CountersRail playerId={player.id} counters={player.counters} />
-            <ManaPoolRail playerId={player.id} pool={player.manaPool} />
+            <div className="flex flex-wrap items-end justify-end gap-1.5">
+              <CommanderTaxRail player={player} commanderRules={commanderRules} />
+              <ManaPoolRail playerId={player.id} pool={player.manaPool} />
+            </div>
           </div>
         </div>
 

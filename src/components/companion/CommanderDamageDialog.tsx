@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { GameIcon } from "./GameIcon";
 import { CommanderArt } from "./CommanderArt";
@@ -9,7 +10,6 @@ import {
   COMPANION_LETHAL_COMMANDER_DAMAGE,
 } from "@/stores/useCompanionStore.constants";
 import type { CompanionPlayer } from "@/stores/useCompanionStore.types";
-import { usePressHold } from "./usePressHold";
 
 interface CommanderDamageDialogProps {
   target: CompanionPlayer;
@@ -59,6 +59,54 @@ export function CommanderDamageDialog({
   );
 }
 
+/** Tap-to-step plus press-and-hold to repeat, using `onClick` for the tap so it
+ *  works reliably inside a modal Dialog (pointer-capture gestures fight Radix's
+ *  focus/dismissable layer). A hold suppresses the trailing click. */
+function useHoldStep(step: () => void) {
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const held = useRef(false);
+
+  const clear = useCallback(() => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    if (tickTimer.current) {
+      clearInterval(tickTimer.current);
+      tickTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => clear, [clear]);
+
+  const onPointerDown = useCallback(() => {
+    held.current = false;
+    clear();
+    holdTimer.current = setTimeout(() => {
+      held.current = true;
+      step();
+      tickTimer.current = setInterval(step, 110);
+    }, 320);
+  }, [clear, step]);
+
+  const onClick = useCallback(() => {
+    if (held.current) {
+      held.current = false;
+      return;
+    }
+    step();
+  }, [step]);
+
+  return {
+    onPointerDown,
+    onPointerUp: clear,
+    onPointerLeave: clear,
+    onPointerCancel: clear,
+    onClick,
+  };
+}
+
 function DamageStepper({
   target,
   source,
@@ -76,14 +124,12 @@ function DamageStepper({
   const label = commander?.name ?? (slot === 0 ? "Commander" : "Partner");
   const lethal = damage >= COMPANION_LETHAL_COMMANDER_DAMAGE;
 
-  const dec = usePressHold({
-    onTap: () => adjust(target.id, source.id, slot, -1),
-    onHoldTick: () => adjust(target.id, source.id, slot, -1),
-  });
-  const inc = usePressHold({
-    onTap: () => adjust(target.id, source.id, slot, 1),
-    onHoldTick: () => adjust(target.id, source.id, slot, 1),
-  });
+  const dec = useHoldStep(
+    useCallback(() => adjust(target.id, source.id, slot, -1), [adjust, target.id, source.id, slot]),
+  );
+  const inc = useHoldStep(
+    useCallback(() => adjust(target.id, source.id, slot, 1), [adjust, target.id, source.id, slot]),
+  );
 
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">

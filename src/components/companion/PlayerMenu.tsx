@@ -66,10 +66,10 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-6 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-7"
+          className="size-7 rounded-full bg-black/40 text-white hover:bg-black/55 hover:text-white @md:size-8"
           aria-label="Player menu"
         >
-          <MoreVertical className="size-3.5 @md:size-4" />
+          <MoreVertical className="size-4 @md:size-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">

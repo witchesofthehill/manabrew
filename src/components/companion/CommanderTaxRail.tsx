@@ -37,12 +37,12 @@ function TaxPip({ playerId, slot, casts }: { playerId: string; slot: 0 | 1; cast
   return (
     <button
       type="button"
-      className="flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold hover:bg-white/15"
+      className="flex items-center gap-0.5 rounded-full px-1.5 py-1 text-xs font-semibold hover:bg-white/15"
       aria-label={`Commander tax: pay ${tax} generic (tap +1 cast, hold -1)`}
       title="Commander tax — tap +1 cast, hold -1"
       {...bindings}
     >
-      <GameIcon icon="crown" className="size-3 text-white/80" />
+      <GameIcon icon="crown" className="size-3.5 text-white/80" />
       <span className="tabular-nums">{tax}</span>
     </button>
   );

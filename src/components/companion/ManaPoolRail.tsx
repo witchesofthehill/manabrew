@@ -41,12 +41,12 @@ function ManaPip({
     <button
       type="button"
       className={cn(
-        "flex items-center gap-0.5 rounded-full px-1 py-0.5 text-[10px] font-semibold hover:bg-white/15",
+        "flex items-center gap-0.5 rounded-full px-1.5 py-1 text-xs font-semibold hover:bg-white/15",
       )}
       aria-label={`Mana ${color}: ${value} (tap +1, hold -1)`}
       {...bindings}
     >
-      <img src={manaSymbolUrl(color)} alt="" className="size-3" draggable={false} />
+      <img src={manaSymbolUrl(color)} alt="" className="size-3.5" draggable={false} />
       <span className="tabular-nums">{value}</span>
     </button>
   );

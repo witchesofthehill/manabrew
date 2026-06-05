@@ -44,7 +44,7 @@ function CommanderDamageButton({
     <>
       <button
         type="button"
-        className="group relative size-7 overflow-hidden rounded-full transition active:scale-95 @md:size-9"
+        className="group relative size-8 overflow-hidden rounded-full transition active:scale-95 @md:size-10"
         style={{
           backgroundColor: accentColor,
           boxShadow: `0 0 0 2.5px ${accentColor}, 0 0 0 4px rgba(0,0,0,0.5)`,

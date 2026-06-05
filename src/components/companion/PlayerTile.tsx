@@ -138,14 +138,14 @@ export function PlayerTile({
           <div className="pointer-events-auto flex items-start gap-1.5 @md:gap-2">
             <button
               type="button"
-              className="grid size-7 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-8 @md:size-10"
+              className="grid size-8 place-items-center overflow-hidden rounded-full bg-black/40 ring-1 ring-white/20 @xs:size-9 @md:size-11"
               onClick={() => setPickerOpen(true)}
               aria-label="Choose commander"
             >
               {player.commanders[0]?.imageUrl ? (
                 <CommanderArt refs={player.commanders} variant="avatar" className="size-full" />
               ) : (
-                <GameIcon icon="crossed-swords" className="size-3.5 text-white/70 @md:size-4" />
+                <GameIcon icon="crossed-swords" className="size-4 text-white/70 @md:size-5" />
               )}
             </button>
             <div className="flex min-w-0 flex-1 flex-col">

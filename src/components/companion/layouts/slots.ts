@@ -69,12 +69,12 @@ const LAYOUT_SPECS: Record<
     ],
   },
   "four-sides": {
-    template: `". top ." 1fr "left . right" 2fr ". bottom ." 1fr / 1fr 1.6fr 1fr`,
+    template: `"top top" 1fr "left right" 1.15fr "bottom bottom" 1fr / 1fr 1fr`,
     slots: [
       { gridArea: "bottom", rotation: 0 },
-      { gridArea: "right", rotation: -90 },
-      { gridArea: "top", rotation: 180 },
       { gridArea: "left", rotation: 90 },
+      { gridArea: "top", rotation: 180 },
+      { gridArea: "right", rotation: -90 },
     ],
   },
   "five-radial": {

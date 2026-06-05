@@ -79,10 +79,10 @@ const SHAPES: Record<CompanionLayout, React.ReactNode> = {
   ),
   "four-sides": (
     <>
-      <rect x="8.5" y="2.5" width="7" height="5" rx={RX} transform="rotate(180 12 5)" />
-      <rect x="2.5" y="8.5" width="5" height="7" rx={RX} transform="rotate(90 5 12)" />
-      <rect x="16.5" y="8.5" width="5" height="7" rx={RX} transform="rotate(-90 19 12)" />
-      <rect x="8.5" y="16.5" width="7" height="5" rx={RX} />
+      <rect x="2.5" y="2.5" width="19" height="5.5" rx={RX} transform="rotate(180 12 5.25)" />
+      <rect x="2.5" y="9.5" width="8.5" height="5" rx={RX} transform="rotate(90 6.75 12)" />
+      <rect x="13" y="9.5" width="8.5" height="5" rx={RX} transform="rotate(-90 17.25 12)" />
+      <rect x="2.5" y="16" width="19" height="5.5" rx={RX} />
     </>
   ),
   "five-radial": (

@@ -10,8 +10,9 @@ interface CommanderTaxRailProps {
 
 export function CommanderTaxRail({ player, commanderRules }: CommanderTaxRailProps) {
   if (!commanderRules) return null;
-  const slots = ([0, 1] as const).filter((slot) => player.commanders[slot]);
-  if (slots.length === 0) return null;
+  const slots = ([0, 1] as const).filter(
+    (slot) => slot === 0 || player.commanders[slot] || (player.commanderCasts?.[slot] ?? 0) > 0,
+  );
   return (
     <div className="flex items-center gap-1 rounded-full bg-black/45 px-1 py-0.5 text-white shadow ring-1 ring-white/10 backdrop-blur">
       {slots.map((slot) => (

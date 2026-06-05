@@ -225,8 +225,12 @@ export function PlayerTile({
             )}
           </div>
 
-          <div className="pointer-events-auto flex flex-wrap items-end justify-between gap-1.5">
-            <CountersRail playerId={player.id} counters={player.counters} />
+          <div className="pointer-events-auto flex items-end gap-1.5">
+            <CountersRail
+              playerId={player.id}
+              counters={player.counters}
+              className="min-w-0 flex-1"
+            />
             <ManaPoolRail playerId={player.id} pool={player.manaPool} />
           </div>
         </div>

@@ -9,12 +9,15 @@ const TAP_MAX_DURATION_MS = 220;
 const TAP_MAX_MOTION_PX = 4;
 const HOLD_DELAY_MS = 320;
 const HOLD_INTERVAL_MS = 110;
-const ROTATION_SNAP_DEG = 15;
 const ROTATION_DRAG_THRESHOLD_DEG = 4;
 const SCALE_MIN = 0.55;
 const SCALE_MAX = 2;
-const SCALE_SNAP = 0.05;
 const SCALE_DRAG_THRESHOLD_PX = 6;
+// Gentle "settle" detents applied when a two-finger gesture ends, so a tile
+// that's near-straight or near-1× clicks cleanly into place without snapping
+// (and fighting the user) mid-gesture.
+const ROTATION_SETTLE_DEG = 7;
+const SCALE_SETTLE = 0.06;
 const BASE_TILE_WIDTH = 360;
 const BASE_TILE_HEIGHT = 220;
 
@@ -80,11 +83,15 @@ export function FreeTile({
     holding: boolean;
   } | null>(null);
   const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const pinch = useRef<{
-    origDist: number;
-    origAngle: number;
-    origScale: number;
-    origRotation: number;
+  // Two-finger gesture: tracks the two pointers and the live position so each
+  // frame applies a similarity transform (pan + zoom + rotate around the
+  // finger centroid) relative to the previous frame, never the stale prop.
+  const twoFinger = useRef<{
+    idA: number;
+    idB: number;
+    prevA: { x: number; y: number };
+    prevB: { x: number; y: number };
+    pos: FreeTilePosition;
   } | null>(null);
   const adjustLifeStore = useCompanionStore((s) => s.adjustLife);
   const [decTick, setDecTick] = useState(0);
@@ -155,10 +162,8 @@ export function FreeTile({
       const deltaDeg = ((currentAngle - start.pointerAngle) * 180) / Math.PI;
       if (!start.moved && Math.abs(deltaDeg) < ROTATION_DRAG_THRESHOLD_DEG) return;
       start.moved = true;
-      const raw = start.origRotation + deltaDeg;
-      const snapped = Math.round(raw / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG;
-      const normalised = normaliseDegrees(snapped);
-      onMove({ x: position.x, y: position.y, rotation: normalised, scale: position.scale });
+      const rotation = normaliseDegrees(start.origRotation + deltaDeg);
+      onMove({ x: position.x, y: position.y, rotation, scale: position.scale });
     },
     [onMove, position.scale, position.x, position.y],
   );
@@ -210,10 +215,7 @@ export function FreeTile({
       const dist = Math.hypot(dx, dy);
       if (!start.moved && Math.abs(dist - start.origDist) < SCALE_DRAG_THRESHOLD_PX) return;
       start.moved = true;
-      const ratio = dist / start.origDist;
-      const raw = start.origScale * ratio;
-      const snapped = Math.round(raw / SCALE_SNAP) * SCALE_SNAP;
-      const clamped = clamp(snapped, SCALE_MIN, SCALE_MAX);
+      const clamped = clamp(start.origScale * (dist / start.origDist), SCALE_MIN, SCALE_MAX);
       onMove({ x: position.x, y: position.y, rotation: position.rotation, scale: clamped });
     },
     [onMove, position.rotation, position.x, position.y],
@@ -260,12 +262,20 @@ export function FreeTile({
           cleanupBodyTimers(bodyPress.current);
           bodyPress.current = null;
         }
-        const [a, b] = Array.from(activePointers.current.values());
-        pinch.current = {
-          origDist: Math.max(8, Math.hypot(b.x - a.x, b.y - a.y)),
-          origAngle: Math.atan2(b.y - a.y, b.x - a.x),
-          origScale: position.scale,
-          origRotation: position.rotation,
+        const ids = Array.from(activePointers.current.keys());
+        const idA = ids[0]!;
+        const idB = ids[1]!;
+        twoFinger.current = {
+          idA,
+          idB,
+          prevA: { ...activePointers.current.get(idA)! },
+          prevB: { ...activePointers.current.get(idB)! },
+          pos: {
+            x: position.x,
+            y: position.y,
+            rotation: position.rotation,
+            scale: position.scale,
+          },
         };
         return;
       }
@@ -315,18 +325,29 @@ export function FreeTile({
       if (activePointers.current.has(event.pointerId)) {
         activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
       }
-      if (pinch.current && activePointers.current.size >= 2) {
-        const [a, b] = Array.from(activePointers.current.values());
-        const dist = Math.hypot(b.x - a.x, b.y - a.y);
-        const angle = Math.atan2(b.y - a.y, b.x - a.x);
-        const rawScale = pinch.current.origScale * (dist / pinch.current.origDist);
-        const scale = clamp(Math.round(rawScale / SCALE_SNAP) * SCALE_SNAP, SCALE_MIN, SCALE_MAX);
-        const deltaDeg = ((angle - pinch.current.origAngle) * 180) / Math.PI;
-        const rawRotation = pinch.current.origRotation + deltaDeg;
-        const rotation = normaliseDegrees(
-          Math.round(rawRotation / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG,
+      const tf = twoFinger.current;
+      if (tf && activePointers.current.has(tf.idA) && activePointers.current.has(tf.idB)) {
+        const container = containerRef.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const curA = activePointers.current.get(tf.idA)!;
+        const curB = activePointers.current.get(tf.idB)!;
+        const next = twoFingerTransform(
+          tf.pos,
+          baseWidth,
+          baseHeight,
+          tf.prevA,
+          tf.prevB,
+          curA,
+          curB,
+          rect.left,
+          rect.top,
+          bounds,
         );
-        onMove({ x: position.x, y: position.y, rotation, scale });
+        tf.pos = next;
+        tf.prevA = { ...curA };
+        tf.prevB = { ...curB };
+        onMove(next);
         return;
       }
       const state = bodyPress.current;
@@ -342,12 +363,13 @@ export function FreeTile({
       onMove({ x, y, rotation: position.rotation, scale: position.scale });
     },
     [
+      baseWidth,
+      baseHeight,
       bounds,
+      containerRef,
       onMove,
       position.rotation,
       position.scale,
-      position.x,
-      position.y,
       tileHeight,
       tileWidth,
     ],
@@ -355,15 +377,24 @@ export function FreeTile({
 
   const onBodyPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const wasPinch = pinch.current != null;
+      const tf = twoFinger.current;
       activePointers.current.delete(event.pointerId);
-      if (activePointers.current.size < 2) pinch.current = null;
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
         /* already released */
       }
-      if (wasPinch) {
+      if (tf) {
+        if (activePointers.current.size < 2) {
+          twoFinger.current = null;
+          onMove(settlePosition(tf.pos, baseWidth, baseHeight));
+        } else if (event.pointerId === tf.idA || event.pointerId === tf.idB) {
+          const ids = Array.from(activePointers.current.keys());
+          tf.idA = ids[0]!;
+          tf.idB = ids[1]!;
+          tf.prevA = { ...activePointers.current.get(tf.idA)! };
+          tf.prevB = { ...activePointers.current.get(tf.idB)! };
+        }
         if (bodyPress.current) {
           cleanupBodyTimers(bodyPress.current);
           bodyPress.current = null;
@@ -392,7 +423,16 @@ export function FreeTile({
         else setIncTick((t) => t + 1);
       }
     },
-    [adjustLifeStore, cleanupBodyTimers, onMove, player.id, position.rotation, position.scale],
+    [
+      adjustLifeStore,
+      baseWidth,
+      baseHeight,
+      cleanupBodyTimers,
+      onMove,
+      player.id,
+      position.rotation,
+      position.scale,
+    ],
   );
 
   useEffect(() => {
@@ -508,6 +548,70 @@ export function FreeTile({
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+/**
+ * Maps the previous two-finger placement to the current one as a similarity
+ * transform (translate + rotate + uniform scale) and applies it to the tile
+ * centre, so the content stays under the fingers — native pan/zoom/rotate.
+ */
+function twoFingerTransform(
+  pos: FreeTilePosition,
+  baseW: number,
+  baseH: number,
+  prevA: { x: number; y: number },
+  prevB: { x: number; y: number },
+  curA: { x: number; y: number },
+  curB: { x: number; y: number },
+  originX: number,
+  originY: number,
+  bounds: { w: number; h: number } | null,
+): FreeTilePosition {
+  const c0x = (prevA.x + prevB.x) / 2 - originX;
+  const c0y = (prevA.y + prevB.y) / 2 - originY;
+  const c1x = (curA.x + curB.x) / 2 - originX;
+  const c1y = (curA.y + curB.y) / 2 - originY;
+  const prevDist = Math.hypot(prevB.x - prevA.x, prevB.y - prevA.y) || 1;
+  const curDist = Math.hypot(curB.x - curA.x, curB.y - curA.y);
+  const dTheta =
+    Math.atan2(curB.y - curA.y, curB.x - curA.x) - Math.atan2(prevB.y - prevA.y, prevB.x - prevA.x);
+  const newScale = clamp(pos.scale * (curDist / prevDist), SCALE_MIN, SCALE_MAX);
+  const effScale = newScale / pos.scale;
+  const rotation = normaliseDegrees(pos.rotation + (dTheta * 180) / Math.PI);
+
+  const cx = pos.x + (baseW * pos.scale) / 2;
+  const cy = pos.y + (baseH * pos.scale) / 2;
+  const relx = cx - c0x;
+  const rely = cy - c0y;
+  const cos = Math.cos(dTheta);
+  const sin = Math.sin(dTheta);
+  const ncx = c1x + (relx * cos - rely * sin) * effScale;
+  const ncy = c1y + (relx * sin + rely * cos) * effScale;
+
+  const newW = baseW * newScale;
+  const newH = baseH * newScale;
+  let x = ncx - newW / 2;
+  let y = ncy - newH / 2;
+  if (bounds) {
+    x = clamp(x, 0, Math.max(0, bounds.w - newW));
+    y = clamp(y, 0, Math.max(0, bounds.h - newH));
+  }
+  return { x, y, rotation, scale: newScale };
+}
+
+/** On gesture end, magnet a near-straight rotation to the nearest quarter turn
+ *  and a near-1× scale back to 1, recentring so the tile doesn't jump. */
+function settlePosition(pos: FreeTilePosition, baseW: number, baseH: number): FreeTilePosition {
+  const nearest = Math.round(pos.rotation / 90) * 90;
+  const rotation =
+    Math.abs(normaliseDegrees(pos.rotation - nearest)) <= ROTATION_SETTLE_DEG
+      ? normaliseDegrees(nearest)
+      : pos.rotation;
+  const scale = Math.abs(pos.scale - 1) <= SCALE_SETTLE ? 1 : pos.scale;
+  if (rotation === pos.rotation && scale === pos.scale) return pos;
+  const cx = pos.x + (baseW * pos.scale) / 2;
+  const cy = pos.y + (baseH * pos.scale) / 2;
+  return { rotation, scale, x: cx - (baseW * scale) / 2, y: cy - (baseH * scale) / 2 };
 }
 
 function normaliseDegrees(deg: number): number {

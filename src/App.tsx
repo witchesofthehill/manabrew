@@ -30,6 +30,9 @@ function ThemeApplicator({ children }: { children: React.ReactNode }) {
 function PlatformRuntimeChecks() {
   useEffect(() => {
     if (getPlatformType() !== "web") return;
+    // The companion runs without the engine, so its lack of isolation isn't an
+    // error worth surfacing — only warn when the engine actually matters.
+    if (window.location.pathname.startsWith("/companion")) return;
 
     const isolated = window.crossOriginIsolated;
     const hasSharedArrayBuffer = typeof window.SharedArrayBuffer !== "undefined";

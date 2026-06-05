@@ -109,6 +109,14 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     };
   }, [stage, phase, termsAccepted, RELEASE_DELAY_MS, EXIT_MS]);
 
+  // The companion is pure UI with no engine dependency, so never block it behind
+  // the worker boot — which can't initialise without cross-origin isolation
+  // (e.g. an iOS PWA served over plain http). Render it immediately when it's
+  // the entry route.
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/companion")) {
+    return <>{children}</>;
+  }
+
   if (stage === "error") {
     return (
       <div className="fixed inset-0 grid place-items-center bg-background p-8">

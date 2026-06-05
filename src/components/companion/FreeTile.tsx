@@ -79,6 +79,13 @@ export function FreeTile({
     tickTimer: ReturnType<typeof setInterval> | null;
     holding: boolean;
   } | null>(null);
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinch = useRef<{
+    origDist: number;
+    origAngle: number;
+    origScale: number;
+    origRotation: number;
+  } | null>(null);
   const adjustLifeStore = useCompanionStore((s) => s.adjustLife);
   const [decTick, setDecTick] = useState(0);
   const [incTick, setIncTick] = useState(0);
@@ -247,6 +254,21 @@ export function FreeTile({
         return;
       }
       event.currentTarget.setPointerCapture(event.pointerId);
+      activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (activePointers.current.size >= 2) {
+        if (bodyPress.current) {
+          cleanupBodyTimers(bodyPress.current);
+          bodyPress.current = null;
+        }
+        const [a, b] = Array.from(activePointers.current.values());
+        pinch.current = {
+          origDist: Math.max(8, Math.hypot(b.x - a.x, b.y - a.y)),
+          origAngle: Math.atan2(b.y - a.y, b.x - a.x),
+          origScale: position.scale,
+          origRotation: position.rotation,
+        };
+        return;
+      }
       const rect = event.currentTarget.getBoundingClientRect();
       const half: "left" | "right" = event.clientX - rect.left < rect.width / 2 ? "left" : "right";
       const state = {
@@ -277,11 +299,36 @@ export function FreeTile({
         }, HOLD_INTERVAL_MS);
       }, HOLD_DELAY_MS);
     },
-    [adjustLifeStore, player.id, position.x, position.y],
+    [
+      adjustLifeStore,
+      cleanupBodyTimers,
+      player.id,
+      position.x,
+      position.y,
+      position.scale,
+      position.rotation,
+    ],
   );
 
   const onBodyPointerMove = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (activePointers.current.has(event.pointerId)) {
+        activePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      }
+      if (pinch.current && activePointers.current.size >= 2) {
+        const [a, b] = Array.from(activePointers.current.values());
+        const dist = Math.hypot(b.x - a.x, b.y - a.y);
+        const angle = Math.atan2(b.y - a.y, b.x - a.x);
+        const rawScale = pinch.current.origScale * (dist / pinch.current.origDist);
+        const scale = clamp(Math.round(rawScale / SCALE_SNAP) * SCALE_SNAP, SCALE_MIN, SCALE_MAX);
+        const deltaDeg = ((angle - pinch.current.origAngle) * 180) / Math.PI;
+        const rawRotation = pinch.current.origRotation + deltaDeg;
+        const rotation = normaliseDegrees(
+          Math.round(rawRotation / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG,
+        );
+        onMove({ x: position.x, y: position.y, rotation, scale });
+        return;
+      }
       const state = bodyPress.current;
       if (!state || event.pointerId !== state.pointerId) return;
       const dx = event.clientX - state.startX;
@@ -294,20 +341,39 @@ export function FreeTile({
       const y = clamp(state.origY + dy, 0, bounds.h - tileHeight);
       onMove({ x, y, rotation: position.rotation, scale: position.scale });
     },
-    [bounds, onMove, position.rotation, position.scale, tileHeight, tileWidth],
+    [
+      bounds,
+      onMove,
+      position.rotation,
+      position.scale,
+      position.x,
+      position.y,
+      tileHeight,
+      tileWidth,
+    ],
   );
 
   const onBodyPointerUp = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const state = bodyPress.current;
-      if (!state || event.pointerId !== state.pointerId) return;
-      bodyPress.current = null;
-      cleanupBodyTimers(state);
+      const wasPinch = pinch.current != null;
+      activePointers.current.delete(event.pointerId);
+      if (activePointers.current.size < 2) pinch.current = null;
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
         /* already released */
       }
+      if (wasPinch) {
+        if (bodyPress.current) {
+          cleanupBodyTimers(bodyPress.current);
+          bodyPress.current = null;
+        }
+        return;
+      }
+      const state = bodyPress.current;
+      if (!state || event.pointerId !== state.pointerId) return;
+      bodyPress.current = null;
+      cleanupBodyTimers(state);
       const wasTap =
         !state.holding &&
         state.maxMotion < TAP_MAX_MOTION_PX &&

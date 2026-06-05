@@ -116,13 +116,13 @@ export function PlayerTile({
             <button
               type="button"
               aria-label="Decrease life"
-              className="absolute inset-y-0 left-0 z-10 w-1/2"
+              className="absolute inset-y-0 left-0 z-10 w-1/2 touch-none select-none"
               {...decBindings}
             />
             <button
               type="button"
               aria-label="Increase life"
-              className="absolute inset-y-0 right-0 z-10 w-1/2"
+              className="absolute inset-y-0 right-0 z-10 w-1/2 touch-none select-none"
               {...incBindings}
             />
           </>

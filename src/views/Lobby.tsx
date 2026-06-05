@@ -406,7 +406,13 @@ export default function Lobby() {
           fillWithBots: config.fill_with_bots,
         },
       });
-      if (!result.ok) toast.error(`Failed to start draft: ${result.error}`);
+      if (!result.ok) {
+        toast.error(`Failed to start draft: ${result.error}`);
+        await useServerStore
+          .getState()
+          .endGame()
+          .catch(() => {});
+      }
     } finally {
       setStartingLimited(false);
     }

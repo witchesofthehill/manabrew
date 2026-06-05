@@ -92,6 +92,12 @@ JAVA_CHANGED=false
 RUST_CHANGED=false
 WEB_CHANGED=false
 INFRA_CHANGED=false
+# The web cardset archive is built inside the manabrew image from forge's card
+# data (forge/forge-gui/res/{cardsfolder,tokenscripts,editions,blockdata}). A
+# forge submodule bump shows up only as a change to the `forge` gitlink, which
+# would otherwise be classified JAVA_CHANGED and skip the web rebuild — leaving
+# the deployed archive stale (missing newly-added sets).
+CARDDATA_CHANGED=false
 
 while IFS= read -r file; do
     case "$file" in
@@ -101,7 +107,11 @@ while IFS= read -r file; do
             RUST_CHANGED=true ;;
     esac
     case "$file" in
-        src/*|public/*|scripts/build-wasm.sh|scripts/bundle-cards.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html)
+        forge|forge/*)
+            CARDDATA_CHANGED=true ;;
+    esac
+    case "$file" in
+        src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html)
             WEB_CHANGED=true ;;
         forge-engine/crates/forge-wasm/*)
             WEB_CHANGED=true ;;
@@ -157,7 +167,7 @@ if $INFRA_CHANGED; then
     echo "Building manabrew (full)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache $BUILD_ARGS manabrew >> "$RAW_LOG" 2>&1
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
-elif $WEB_CHANGED || $RUST_CHANGED; then
+elif $WEB_CHANGED || $RUST_CHANGED || $CARDDATA_CHANGED; then
     echo "Building manabrew (cached)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain $BUILD_ARGS manabrew >> "$RAW_LOG" 2>&1
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"

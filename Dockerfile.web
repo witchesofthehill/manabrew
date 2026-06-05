@@ -40,10 +40,15 @@ COPY scripts/ ./scripts/
 COPY src/ ./src/
 COPY public/ ./public/
 COPY index.html tsconfig*.json vite.config.ts ./
-# Card + token scripts feed the rkyv cardset archive build; preset decks are
-# served as-is from `public/preset_decks/`.
+# These four dirs feed the rkyv cardset archive build — keep in sync with the
+# source list in `scripts/build-wasm.mjs`. Omitting `editions`/`blockdata` is
+# silent: the archive builder emits an empty editions vec for a missing dir, so
+# the web build still succeeds but ships with no set data and every limited
+# draft fails with "unknown set". Preset decks are served as-is.
 COPY forge/forge-gui/res/cardsfolder/ ./forge/forge-gui/res/cardsfolder/
 COPY forge/forge-gui/res/tokenscripts/ ./forge/forge-gui/res/tokenscripts/
+COPY forge/forge-gui/res/editions/ ./forge/forge-gui/res/editions/
+COPY forge/forge-gui/res/blockdata/ ./forge/forge-gui/res/blockdata/
 COPY public/preset_decks/ ./public/preset_decks/
 
 # Production build defaults — the prod compose passes these as build args

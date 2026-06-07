@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { StackObject } from "@/types/manabrew";
 import type { PromptActionType } from "./game.types";
-import { PromptType } from "@/types/promptType";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -13,7 +12,7 @@ interface StackSectionProps {
 }
 
 export function StackSection({ stack, promptType, onOpenStack }: StackSectionProps) {
-  const isCounterPrompt = promptType === PromptType.ChooseTargetSpell;
+  const isCounterPrompt = promptType === "chooseTargetSpell";
   const show = stack.length > 0 || isCounterPrompt;
 
   const themeColors = useTheme().gameTheme;

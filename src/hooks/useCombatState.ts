@@ -1,6 +1,10 @@
 import { useState } from "react";
 import type { GameCard } from "@/types/manabrew";
-import { PromptType } from "@/types/promptType";
+import type { Prompt } from "@/protocol";
+import type { PromptOutput } from "@/protocol";
+import { declareAttackersOutput } from "@/components/game/prompts/playerActions";
+
+type TargetAnyChoice = Extract<PromptOutput, { type: "targetAny" }>["target"];
 
 export interface CombatAssignment {
   blockerId: string;
@@ -10,15 +14,10 @@ export interface CombatAssignment {
 interface UseCombatStateOptions {
   promptType: string | undefined;
   targetCard: (cardId: string) => void;
-  targetAny: (target: { kind: string; playerId?: string; cardId?: string }) => void;
+  targetAny: (target: TargetAnyChoice) => void;
   targetPlayer: (playerId: string) => void;
-  /** Final commit for the multi-defender flow — invoked once the user
-   *  has clicked a player avatar or defender card. */
-  declareAttackers: (attackerIds: string[], defenderId?: string) => void;
-  currentPrompt: {
-    validPlayerIds?: string[];
-    possibleDefenderIds?: { id: string; label: string }[];
-  } | null;
+  respond: (output: PromptOutput) => void;
+  currentPrompt: Prompt | null;
 }
 
 export function useCombatState({
@@ -26,7 +25,7 @@ export function useCombatState({
   targetCard,
   targetAny,
   targetPlayer,
-  declareAttackers,
+  respond,
   currentPrompt,
 }: UseCombatStateOptions) {
   const [pendingAttackers, setPendingAttackers] = useState<string[]>([]);
@@ -44,7 +43,8 @@ export function useCombatState({
     setBlockAssignments([]);
   }
 
-  const possibleDefenders = currentPrompt?.possibleDefenderIds ?? [];
+  const possibleDefenders =
+    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.possibleDefenderIds : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
 
   // Awaiting-defender state is implicit now: as soon as the user has at
@@ -52,12 +52,10 @@ export function useCombatState({
   // (multiplayer / planeswalkers / sieges), the next click on a valid
   // defender commits the whole pending batch against it.
   const awaitingAttackTarget =
-    promptType === PromptType.ChooseAttackers &&
-    multipleAttackDefenders &&
-    pendingAttackers.length > 0;
+    promptType === "chooseAttackers" && multipleAttackDefenders && pendingAttackers.length > 0;
 
   // Default attackDefenderId to first valid defender during ChooseAttackers.
-  if (promptType === PromptType.ChooseAttackers) {
+  if (promptType === "chooseAttackers") {
     if (
       possibleDefenders.length > 0 &&
       (!attackDefenderId || !possibleDefenders.some((d) => d.id === attackDefenderId))
@@ -68,10 +66,14 @@ export function useCombatState({
   }
 
   const playerIsTargetable =
-    promptType === PromptType.ChooseAttackers
+    promptType === "chooseAttackers"
       ? (pid: string) => possibleDefenders.some((defender) => defender.id === pid)
-      : promptType === PromptType.ChooseTargetPlayer || promptType === PromptType.ChooseTargetAny
-        ? (pid: string) => currentPrompt?.validPlayerIds?.includes(pid) ?? false
+      : promptType === "chooseTargetPlayer" || promptType === "chooseTargetAny"
+        ? (pid: string) =>
+            currentPrompt?.input.type === "chooseTargetPlayer" ||
+            currentPrompt?.input.type === "chooseTargetAny"
+              ? currentPrompt.input.validPlayerIds.includes(pid)
+              : false
         : () => false;
 
   /** True when a battlefield card is a legal defender (planeswalker /
@@ -82,7 +84,7 @@ export function useCombatState({
 
   function commitAttackAgainst(defenderId: string) {
     if (pendingAttackers.length === 0) return;
-    declareAttackers(pendingAttackers, defenderId);
+    respond(declareAttackersOutput(currentPrompt, pendingAttackers, defenderId));
     setPendingAttackers([]);
   }
 
@@ -93,7 +95,7 @@ export function useCombatState({
   function selectAllAttackersForPick(attackerIds: string[]) {
     if (attackerIds.length === 0) return;
     if (possibleDefenders.length <= 1) {
-      declareAttackers(attackerIds, possibleDefenders[0]?.id);
+      respond(declareAttackersOutput(currentPrompt, attackerIds, possibleDefenders[0]?.id));
       return;
     }
     setPendingAttackers(attackerIds);
@@ -108,9 +110,9 @@ export function useCombatState({
       commitAttackAgainst(pid);
       return;
     }
-    if (promptType === PromptType.ChooseAttackers) {
+    if (promptType === "chooseAttackers") {
       setAttackDefenderId(pid);
-    } else if (promptType === PromptType.ChooseTargetAny) {
+    } else if (promptType === "chooseTargetAny") {
       targetAny({ kind: "player", playerId: pid });
     } else {
       targetPlayer(pid);
@@ -131,11 +133,11 @@ export function useCombatState({
 
     if (!card.isChoosable) return;
 
-    if (promptType === PromptType.ChooseAttackers) {
+    if (promptType === "chooseAttackers") {
       setPendingAttackers((prev) =>
         prev.includes(card.id) ? prev.filter((id) => id !== card.id) : [...prev, card.id],
       );
-    } else if (promptType === PromptType.ChooseBlockers) {
+    } else if (promptType === "chooseBlockers") {
       if (pendingAttacker) {
         setBlockAssignments((prev) => {
           // Toggle: clicking the same blocker on the same attacker again
@@ -159,12 +161,9 @@ export function useCombatState({
         // Keep `pendingAttacker` selected so the user can chain multiple
         // blockers onto the same attacker without re-clicking it.
       }
-    } else if (
-      promptType === PromptType.ChooseTargetCard ||
-      promptType === PromptType.ChooseTargetCardFromZone
-    ) {
+    } else if (promptType === "chooseTargetCard" || promptType === "chooseTargetCardFromZone") {
       targetCard(card.id);
-    } else if (promptType === PromptType.ChooseTargetAny) {
+    } else if (promptType === "chooseTargetAny") {
       targetAny({ kind: "card", cardId: card.id });
     }
   }

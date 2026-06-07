@@ -1,5 +1,5 @@
 export {
-  PROMPT_HANDLERS,
+  getPromptHandler,
   resolvePrompt,
   effectiveShow,
   type AutoResolution,

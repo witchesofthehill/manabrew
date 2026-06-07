@@ -14,6 +14,7 @@ import type {
   SealedConfig,
 } from "@/types/server";
 import type { Deck } from "@/types/manabrew";
+import type { Prompt, PromptOutput } from "@/protocol";
 
 // ============================================================================
 // Game API Types
@@ -36,7 +37,7 @@ export interface StartMultiplayerGameParams {
 }
 
 export interface RespondParams {
-  action: Record<string, unknown>;
+  action: PromptOutput;
   playerSlot: string | null;
 }
 
@@ -125,7 +126,7 @@ export interface IGameApi {
   getPresetDecks(): Promise<Deck[]>;
 
   /** Get current prompt (for debugging/polling) */
-  getPrompt(): Promise<unknown>;
+  getPrompt(): Promise<Prompt | null>;
 }
 
 /**

@@ -102,9 +102,7 @@ export function ChooseOptionalTriggerModal({
         </Modal.Header>
 
         <div className="px-4 py-4 flex gap-3">
-          {sourceCard && (
-            <CardImageThumbnail card={sourceCard} className={MODAL_CARD_IMAGE} />
-          )}
+          {sourceCard && <CardImageThumbnail card={sourceCard} className={MODAL_CARD_IMAGE} />}
           <p className="text-sm leading-relaxed self-center">
             {description || "A triggered ability would trigger. Do you want it to?"}
           </p>

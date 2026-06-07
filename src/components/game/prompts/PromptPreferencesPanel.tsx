@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { PromptType } from "@/types/promptType";
+import type { PromptType } from "@/protocol";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 
 interface OptionalCostRow {
@@ -11,52 +11,52 @@ interface OptionalCostRow {
 
 const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
   {
-    promptType: PromptType.ChooseKicker,
+    promptType: "chooseKicker",
     label: "Kicker",
     description: "Skip the kicker prompt — never pay the extra cost.",
   },
   {
-    promptType: PromptType.ChooseBuyback,
+    promptType: "chooseBuyback",
     label: "Buyback",
     description: "Skip the buyback prompt — never pay the buyback cost.",
   },
   {
-    promptType: PromptType.ChooseMultikicker,
+    promptType: "chooseMultikicker",
     label: "Multikicker",
     description: "Skip the multikicker prompt — default to 0 kicks.",
   },
   {
-    promptType: PromptType.ChooseReplicate,
+    promptType: "chooseReplicate",
     label: "Replicate",
     description: "Skip the replicate prompt — default to 0 copies.",
   },
   {
-    promptType: PromptType.ChooseDelve,
+    promptType: "chooseDelve",
     label: "Delve",
     description: "Skip the delve prompt — never exile cards from the graveyard.",
   },
   {
-    promptType: PromptType.ChooseConvoke,
+    promptType: "chooseConvoke",
     label: "Convoke",
     description: "Skip the convoke prompt — never tap creatures for mana.",
   },
   {
-    promptType: PromptType.ChooseImprovise,
+    promptType: "chooseImprovise",
     label: "Improvise",
     description: "Skip the improvise prompt — never tap artifacts for mana.",
   },
   {
-    promptType: PromptType.ChooseExertAttackers,
+    promptType: "chooseExertAttackers",
     label: "Exert",
     description: "Skip the exert prompt — never exert attackers.",
   },
   {
-    promptType: PromptType.ChooseEnlistAttackers,
+    promptType: "chooseEnlistAttackers",
     label: "Enlist",
     description: "Skip the enlist prompt — never enlist creatures.",
   },
   {
-    promptType: PromptType.HelpPayAssist,
+    promptType: "helpPayAssist",
     label: "Help pay (Assist)",
     description: "Skip the assist prompt — never offer to help pay.",
   },

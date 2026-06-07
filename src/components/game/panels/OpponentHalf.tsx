@@ -4,7 +4,6 @@ import { PlayerPanel } from "./PlayerPanel";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { OPPONENT_SEATS, type OpponentHalfProps } from "../game.types";
-import { PromptType } from "@/types/promptType";
 import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
 import type { BattlefieldState, GameCanvasCallbacks } from "@/pixi/types";
 
@@ -68,10 +67,9 @@ export function OpponentHalf({
     return () => observer.disconnect();
   }, []);
 
-  const canTarget =
-    promptType === PromptType.ChooseTargetCard || promptType === PromptType.ChooseTargetAny;
-  const canPickAttackDefender = promptType === PromptType.ChooseAttackers;
-  const canPickForBlockers = promptType === PromptType.ChooseBlockers;
+  const canTarget = promptType === "chooseTargetCard" || promptType === "chooseTargetAny";
+  const canPickAttackDefender = promptType === "chooseAttackers";
+  const canPickForBlockers = promptType === "chooseBlockers";
 
   const pixiBattlefield = useMemo<BattlefieldState>(
     () => ({

@@ -34,9 +34,9 @@ export function useAutoResolvePrompt(): void {
     if (result.kind !== "auto") return;
 
     if (import.meta.env?.DEV) {
-      console.debug(`[prompt-resolver] auto-respond ${currentPrompt.type}: ${result.reason}`);
+      console.debug(`[prompt-resolver] auto-respond ${currentPrompt.input.type}: ${result.reason}`);
     }
-    appendAutoResolutionLog(currentPrompt.type, result.reason);
+    appendAutoResolutionLog(currentPrompt.input.type, result.reason);
     void respond(result.respond);
   }, [currentPrompt, isWaitingForResponse, respond, showOverrides, triggerMemory, targetIntents]);
 }

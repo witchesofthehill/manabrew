@@ -1,7 +1,7 @@
 import type { GameCard, Player, ActivatableAbilityInfo } from "@/types/manabrew";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
-import type { PromptType } from "@/types/promptType";
+import type { PromptType } from "@/protocol";
 import type { PixiGameScene } from "@/pixi/PixiGameScene";
 
 export type PromptActionType = PromptType;

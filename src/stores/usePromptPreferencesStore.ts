@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { PromptType } from "@/types/promptType";
+import type { PromptType } from "@/protocol";
 
 export interface PromptPreferencesState {
   show: Partial<Record<PromptType, boolean>>;

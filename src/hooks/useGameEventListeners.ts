@@ -5,11 +5,11 @@ import { useGameStore } from "@/stores/useGameStore";
 import { normalizeGameLogPayload } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyPrompt } from "@/stores/gameStore.constants";
-import type { AgentPrompt } from "@/stores/gameStore.types";
+import type { Prompt } from "@/protocol";
 
-function normalizeEnginePrompt(prompt: unknown): AgentPrompt | null {
-  return typeof prompt === "object" && prompt !== null && "type" in prompt
-    ? (prompt as AgentPrompt)
+function normalizeEnginePrompt(prompt: unknown): Prompt | null {
+  return typeof prompt === "object" && prompt !== null && "input" in prompt
+    ? (prompt as Prompt)
     : null;
 }
 
@@ -29,7 +29,7 @@ export function useGameEventListeners() {
     const fetchInitialState = async () => {
       try {
         const prompt = normalizeEnginePrompt(await runtime.api.getPrompt());
-        if (prompt?.gameView) {
+        if (prompt?.input.gameView) {
           const currentView = useGameStore.getState().gameView;
           if (!currentView) {
             applyPrompt(prompt, "Initial", useGameStore.setState, useGameStore.getState);
@@ -44,7 +44,7 @@ export function useGameEventListeners() {
 
     try {
       unsubscribers.push(
-        platform.events.on<unknown>("game:prompt", (payload) => {
+        platform.events.on<Prompt>("game:prompt", (payload) => {
           const prompt = normalizeEnginePrompt(payload);
           if (!prompt) return;
           const activeRuntime = getSelectedGameRuntime();
@@ -52,11 +52,11 @@ export function useGameEventListeners() {
           if (gameView?.gameOver) return;
           if (
             activeRuntime.capabilities.manualTabletop &&
-            prompt?.gameView?.gameId !== gameView?.gameId
+            prompt.input.gameView.gameId !== gameView?.gameId
           ) {
             return;
           }
-          if (prompt && prompt.gameView) {
+          if (prompt.input.gameView) {
             applyPrompt(prompt, "Event", useGameStore.setState, useGameStore.getState);
           }
         }),
@@ -88,7 +88,7 @@ export function useGameEventListeners() {
 
       // Remote prompt listener: receives prompts relayed via the server for non-host players
       unsubscribers.push(
-        platform.events.on<{ kind: string; forPlayer: string; prompt: unknown }>(
+        platform.events.on<{ forPlayer: string; prompt: Prompt }>(
           "game:remote_prompt",
           (payload) => {
             const { forPlayer } = payload;
@@ -96,7 +96,7 @@ export function useGameEventListeners() {
             if (!prompt) return;
             const { myPlayerSlot } = useGameStore.getState();
             console.log(
-              `[MP] remote_prompt ${prompt.type} for ${forPlayer} | mine=${myPlayerSlot} | ${
+              `[MP] remote_prompt ${prompt.input.type} for ${forPlayer} | mine=${myPlayerSlot} | ${
                 forPlayer === myPlayerSlot ? "RENDER" : "sync-only"
               }`,
             );
@@ -110,21 +110,21 @@ export function useGameEventListeners() {
               const current = state.gameView;
               const keepLocalPrompt =
                 state.currentPrompt != null && !state.currentPrompt.decidingPlayerId;
-              if (current && prompt?.gameView) {
+              if (current && prompt.input.gameView) {
                 useGameStore.setState({
                   gameView: {
                     ...current,
-                    turn: prompt.gameView.turn,
-                    step: prompt.gameView.step,
-                    activePlayerId: prompt.gameView.activePlayerId,
-                    priorityPlayerId: prompt.gameView.priorityPlayerId,
-                    gameOver: prompt.gameView.gameOver,
-                    winnerId: prompt.gameView.winnerId,
+                    turn: prompt.input.gameView.turn,
+                    step: prompt.input.gameView.step,
+                    activePlayerId: prompt.input.gameView.activePlayerId,
+                    priorityPlayerId: prompt.input.gameView.priorityPlayerId,
+                    gameOver: prompt.input.gameView.gameOver,
+                    winnerId: prompt.input.gameView.winnerId,
                   },
                   // Never keep a stale actionable prompt when priority is not ours.
                   currentPrompt: keepLocalPrompt ? state.currentPrompt : null,
                   isWaitingForResponse: keepLocalPrompt ? state.isWaitingForResponse : false,
-                  debugInfo: `Remote sync: ${prompt.type}`,
+                  debugInfo: `Remote sync: ${prompt.input.type}`,
                 });
               }
             }

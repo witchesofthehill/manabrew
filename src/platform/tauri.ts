@@ -8,6 +8,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { Deck } from "@/types/manabrew";
+import type { Prompt } from "@/protocol";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
 import type {
@@ -78,8 +79,8 @@ class TauriGameApi implements IGameApi {
     return expandPresetDeckDefinitions(await invoke<PresetDeckDefinition[]>("get_preset_decks"));
   }
 
-  async getPrompt(): Promise<unknown> {
-    return invoke<unknown>("get_prompt");
+  async getPrompt(): Promise<Prompt | null> {
+    return invoke<Prompt | null>("get_prompt");
   }
 }
 

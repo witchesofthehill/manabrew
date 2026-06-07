@@ -5,8 +5,8 @@ import type {
   StartGameParams,
   StartMultiplayerGameParams,
 } from "@/platform";
-import { PromptType } from "@/types/promptType";
 import type { GameCard, Deck, GameView, Player } from "@/types/manabrew";
+import type { Prompt } from "@/protocol";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
 
 const MANUAL_GAME_ID = "manual-tabletop";
@@ -240,7 +240,7 @@ function syncVisibleZoneCountsWithLibraries(
 
 export class ManualTabletopGameApi implements ManualTabletopApi {
   private gameView: GameView | null = null;
-  private latestPrompt: unknown = null;
+  private latestPrompt: Prompt | null = null;
   private libraries: Record<string, GameCard[]> = {};
 
   async startGame(params: StartGameParams): Promise<string> {
@@ -272,7 +272,7 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     return [];
   }
 
-  async getPrompt(): Promise<unknown> {
+  async getPrompt(): Promise<Prompt | null> {
     return this.latestPrompt;
   }
 
@@ -397,10 +397,12 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
 
   private emitStateUpdate(): void {
     if (!this.gameView) return;
-    const prompt = {
-      type: PromptType.StateUpdate,
-      gameView: this.gameView,
+    const prompt: Prompt = {
       displayEvents: [],
+      input: {
+        type: "stateUpdate",
+        gameView: this.gameView,
+      },
     };
     this.latestPrompt = prompt;
     getPlatform().events.emit("game:prompt", prompt);

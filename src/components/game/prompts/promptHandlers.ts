@@ -1,7 +1,14 @@
-import { PromptType } from "@/types/promptType";
-import type { AgentPrompt } from "@/stores/gameStore.types";
+import type { PromptType } from "@/protocol";
+import type { Prompt } from "@/protocol";
+import type {
+  PromptInput,
+  PromptOutput,
+  PromptRequest,
+  PromptType as PromptKind,
+} from "@/protocol";
 
-export type RespondPayload = Record<string, unknown>;
+export type RespondPayload = PromptOutput;
+type PromptOf<TType extends PromptKind> = PromptRequest<Extract<PromptInput, { type: TType }>>;
 
 export type AutoResolution =
   | {
@@ -21,11 +28,13 @@ export interface PromptPreferencesSnapshot {
   triggerMemory: Record<string, "yes" | "no">;
 }
 
-export type PromptResolver = (prompt: AgentPrompt, ctx: ResolveCtx) => AutoResolution;
+export type PromptResolver<TType extends PromptKind = PromptKind> = {
+  resolve(prompt: PromptOf<TType>, ctx: ResolveCtx): AutoResolution;
+}["resolve"];
 
-export interface PromptHandler {
+export interface PromptHandler<TType extends PromptKind = PromptKind> {
   showByDefault: boolean;
-  resolve?: PromptResolver;
+  resolve?: PromptResolver<TType>;
 }
 
 import * as informational from "./resolvers/informational";
@@ -33,100 +42,84 @@ import * as forced from "./resolvers/forced";
 import * as optionalCosts from "./resolvers/optionalCosts";
 import * as triggerMemory from "./resolvers/triggerMemory";
 
-export const PROMPT_HANDLERS: Record<PromptType, PromptHandler> = {
-  [PromptType.StateUpdate]: { showByDefault: false },
-  [PromptType.GameOver]: { showByDefault: true },
+const DEFAULT_PROMPT_HANDLER: PromptHandler = { showByDefault: true };
 
-  [PromptType.Mulligan]: { showByDefault: true },
-  [PromptType.MulliganPutBack]: { showByDefault: true },
-
-  [PromptType.ChooseAction]: { showByDefault: false },
-
-  [PromptType.ChooseAttackers]: { showByDefault: false },
-  [PromptType.ChooseBlockers]: { showByDefault: false },
-  [PromptType.ChooseExertAttackers]: {
+const PROMPT_HANDLER_OVERRIDES: Partial<{
+  [TType in PromptKind]: PromptHandler<TType>;
+}> = {
+  ["stateUpdate"]: { showByDefault: false },
+  ["chooseAction"]: { showByDefault: false },
+  ["chooseAttackers"]: { showByDefault: false },
+  ["chooseBlockers"]: { showByDefault: false },
+  ["chooseExertAttackers"]: {
     showByDefault: true,
     resolve: optionalCosts.skipExertEnlist,
   },
-  [PromptType.ChooseEnlistAttackers]: {
+  ["chooseEnlistAttackers"]: {
     showByDefault: true,
     resolve: optionalCosts.skipExertEnlist,
   },
-  [PromptType.ChooseDamageAssignmentOrder]: {
+  ["chooseDamageAssignmentOrder"]: {
     showByDefault: true,
     resolve: forced.singleBlockerOrder,
   },
-  [PromptType.ChooseCombatDamageAssignment]: {
+  ["chooseCombatDamageAssignment"]: {
     showByDefault: true,
     resolve: forced.singleAssigneeDamage,
   },
-  [PromptType.PayCombatCost]: { showByDefault: true },
+  ["chooseTargetCard"]: { showByDefault: true, resolve: forced.singleLegalCard },
+  ["chooseTargetCardFromZone"]: { showByDefault: true, resolve: forced.singleLegalCard },
+  ["chooseTargetPlayer"]: { showByDefault: true, resolve: forced.singleLegalPlayer },
+  ["chooseTargetAny"]: { showByDefault: true, resolve: forced.singleLegalAny },
+  ["chooseTargetSpell"]: { showByDefault: true, resolve: forced.singleLegalSpell },
 
-  [PromptType.ChooseTargetCard]: { showByDefault: true, resolve: forced.singleLegalCard },
-  [PromptType.ChooseTargetCardFromZone]: { showByDefault: true, resolve: forced.singleLegalCard },
-  [PromptType.ChooseTargetPlayer]: { showByDefault: true, resolve: forced.singleLegalPlayer },
-  [PromptType.ChooseTargetAny]: { showByDefault: true, resolve: forced.singleLegalAny },
-  [PromptType.ChooseTargetSpell]: { showByDefault: true, resolve: forced.singleLegalSpell },
-
-  [PromptType.RevealCards]: { showByDefault: true, resolve: informational.ackReveal },
-  [PromptType.ChooseMode]: { showByDefault: true, resolve: forced.forcedAllModes },
-  [PromptType.ChooseOptionalTrigger]: {
+  ["revealCards"]: { showByDefault: true, resolve: informational.ackReveal },
+  ["chooseMode"]: { showByDefault: true, resolve: forced.forcedAllModes },
+  ["chooseOptionalTrigger"]: {
     showByDefault: true,
     resolve: triggerMemory.optionalTriggerMemory,
   },
-  [PromptType.PayCostToPreventEffect]: { showByDefault: true },
-  [PromptType.ChooseColor]: { showByDefault: true, resolve: forced.singleLegalColor },
-  [PromptType.ChooseType]: { showByDefault: true, resolve: forced.singleLegalType },
-  [PromptType.ChooseNumber]: { showByDefault: true, resolve: forced.singleLegalNumber },
-  [PromptType.ChooseCardName]: { showByDefault: true, resolve: forced.singleLegalName },
-  [PromptType.ChooseCardsForEffect]: { showByDefault: true },
-  [PromptType.ChooseDiscard]: { showByDefault: true },
-
-  [PromptType.ChoosePhyrexian]: { showByDefault: true },
-  [PromptType.ChooseKicker]: { showByDefault: true, resolve: optionalCosts.skipKicker },
-  [PromptType.ChooseBuyback]: { showByDefault: true, resolve: optionalCosts.skipBuyback },
-  [PromptType.ChooseMultikicker]: { showByDefault: true, resolve: optionalCosts.skipMultikicker },
-  [PromptType.ChooseReplicate]: { showByDefault: true, resolve: optionalCosts.skipReplicate },
-  [PromptType.ChooseAlternativeCost]: {
+  ["chooseColor"]: { showByDefault: true, resolve: forced.singleLegalColor },
+  ["chooseType"]: { showByDefault: true, resolve: forced.singleLegalType },
+  ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },
+  ["chooseCardName"]: { showByDefault: true, resolve: forced.singleLegalName },
+  ["chooseKicker"]: { showByDefault: true, resolve: optionalCosts.skipKicker },
+  ["chooseBuyback"]: { showByDefault: true, resolve: optionalCosts.skipBuyback },
+  ["chooseMultikicker"]: { showByDefault: true, resolve: optionalCosts.skipMultikicker },
+  ["chooseReplicate"]: { showByDefault: true, resolve: optionalCosts.skipReplicate },
+  ["chooseAlternativeCost"]: {
     showByDefault: true,
     resolve: forced.singleAlternativeCost,
   },
-  [PromptType.PayManaCost]: { showByDefault: true },
-  [PromptType.ChooseDelve]: { showByDefault: true, resolve: optionalCosts.skipDelve },
-  [PromptType.ChooseConvoke]: { showByDefault: true, resolve: optionalCosts.skipConvoke },
-  [PromptType.ChooseImprovise]: { showByDefault: true, resolve: optionalCosts.skipImprovise },
-  [PromptType.SpecifyManaCombo]: { showByDefault: true },
-
-  [PromptType.Scry]: { showByDefault: true, resolve: forced.emptyScry },
-  [PromptType.Surveil]: { showByDefault: true, resolve: forced.emptySurveil },
-  [PromptType.Dig]: { showByDefault: true, resolve: forced.emptyDig },
-  [PromptType.ReorderLibrary]: { showByDefault: true },
-
-  [PromptType.ExploreDecision]: { showByDefault: true },
-  [PromptType.HelpPayAssist]: { showByDefault: true, resolve: optionalCosts.skipAssist },
-
-  [PromptType.FirstPlayerRoll]: { showByDefault: true, resolve: informational.ackFirstPlayerRoll },
-  [PromptType.DiceRolled]: { showByDefault: true, resolve: informational.ackDiceRolled },
-  [PromptType.ChooseRollToIgnore]: { showByDefault: true },
-  [PromptType.ChooseRollToSwap]: { showByDefault: true },
-  [PromptType.ChooseRollToModify]: { showByDefault: true },
-  [PromptType.ChooseDiceToReroll]: { showByDefault: true },
-  [PromptType.ChooseRollSwapValue]: { showByDefault: true },
+  ["chooseDelve"]: { showByDefault: true, resolve: optionalCosts.skipDelve },
+  ["chooseConvoke"]: { showByDefault: true, resolve: optionalCosts.skipConvoke },
+  ["chooseImprovise"]: { showByDefault: true, resolve: optionalCosts.skipImprovise },
+  ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
+  ["surveil"]: { showByDefault: true, resolve: forced.emptySurveil },
+  ["dig"]: { showByDefault: true, resolve: forced.emptyDig },
+  ["helpPayAssist"]: { showByDefault: true, resolve: optionalCosts.skipAssist },
+  ["firstPlayerRoll"]: { showByDefault: true, resolve: informational.ackFirstPlayerRoll },
+  ["diceRolled"]: { showByDefault: true, resolve: informational.ackDiceRolled },
 };
 
-export function resolvePrompt(prompt: AgentPrompt, ctx: ResolveCtx): AutoResolution {
-  const handler = PROMPT_HANDLERS[prompt.type];
-  if (!handler) return { kind: "force-show" };
+export function getPromptHandler<TType extends PromptKind>(
+  promptType: TType,
+): PromptHandler<TType> {
+  return (PROMPT_HANDLER_OVERRIDES[promptType] ?? DEFAULT_PROMPT_HANDLER) as PromptHandler<TType>;
+}
+
+export function resolvePrompt(prompt: Prompt, ctx: ResolveCtx): AutoResolution {
+  const handler = getPromptHandler(prompt.input.type);
 
   const resolverResult = handler.resolve?.(prompt, ctx) ?? { kind: "force-show" };
   if (resolverResult.kind === "auto") return resolverResult;
 
-  const overridden = ctx.prefs.show[prompt.type];
+  const overridden = ctx.prefs.show[prompt.input.type];
   const show = overridden ?? handler.showByDefault;
   if (!show) {
     if (typeof console !== "undefined" && import.meta.env?.DEV) {
       console.warn(
-        `[prompt-resolver] ${prompt.type} is toggled off but resolver returned force-show; ` +
+        `[prompt-resolver] ${prompt.input.type} is toggled off but resolver returned force-show; ` +
           `showing modal as a fallback. Add a resolver branch if this case is auto-answerable.`,
       );
     }
@@ -135,7 +128,7 @@ export function resolvePrompt(prompt: AgentPrompt, ctx: ResolveCtx): AutoResolut
 }
 
 export function effectiveShow(promptType: PromptType, prefs: PromptPreferencesSnapshot): boolean {
-  return prefs.show[promptType] ?? PROMPT_HANDLERS[promptType].showByDefault;
+  return prefs.show[promptType] ?? getPromptHandler(promptType).showByDefault;
 }
 
 export function isToggledOff(promptType: PromptType, ctx: ResolveCtx): boolean {

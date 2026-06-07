@@ -4,8 +4,12 @@ import { useMemo, useState } from "react";
 import type { GameView } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
+import type { PromptOutput } from "@/protocol";
 
-type DamageEntry = { assigneeId: string; damage: number };
+type DamageEntry = Extract<
+  PromptOutput,
+  { type: "combatDamageAssignmentDecision" }
+>["assignments"][number];
 
 interface VAssignCombatDamageModalProps {
   attackerId: string;

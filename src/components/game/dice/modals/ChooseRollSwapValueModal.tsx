@@ -28,7 +28,9 @@ export function ChooseRollSwapValueModal({
       <div role="dialog" aria-modal="true" aria-labelledby="choose-roll-swap-value-title">
         <Modal.Header>
           <div className="flex items-center gap-3">
-            {sourceCard && <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />}
+            {sourceCard && (
+              <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />
+            )}
             <div>
               <h2 id="choose-roll-swap-value-title" className="font-semibold text-base">
                 Exchange roll {currentResult}

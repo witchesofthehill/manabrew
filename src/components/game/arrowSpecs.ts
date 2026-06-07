@@ -11,7 +11,8 @@
 
 import type { ArrowSpec } from "@/pixi/types";
 import type { StackObject, StackTarget } from "@/types/manabrew";
-import { PromptType as PT, type PromptType, TargetingIntent } from "@/types/promptType";
+import { TargetingIntent } from "@/types/promptType";
+import type { PromptType } from "@/protocol";
 
 export interface BuildArrowSpecsOptions {
   promptType?: PromptType;
@@ -79,7 +80,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
   }
 
   // Mid-selection block assignments while ChooseBlockers is active.
-  if (promptType === PT.ChooseBlockers) {
+  if (promptType === "chooseBlockers") {
     for (const { blockerId, attackerId } of blockAssignments) {
       specs.push({
         from: { kind: "card", id: blockerId },

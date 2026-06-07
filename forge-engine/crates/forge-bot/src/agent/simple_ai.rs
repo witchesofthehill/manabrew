@@ -23,7 +23,7 @@ impl SimpleAi {
 
 impl BotAgent for SimpleAi {
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PlayerAction> {
-        match prompt.inner {
+        match prompt.input {
             AgentPromptInner::Mulligan { .. } => {
                 Some(PlayerAction::MulliganDecision { keep: true })
             }

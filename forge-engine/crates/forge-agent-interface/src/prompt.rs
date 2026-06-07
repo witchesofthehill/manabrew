@@ -54,8 +54,7 @@ pub struct AgentPrompt {
     )]
     pub source_card_id: Option<String>,
     /// The actual prompt data (type + gameView + prompt-specific fields).
-    #[serde(flatten)]
-    pub inner: AgentPromptInner,
+    pub input: AgentPromptInner,
 }
 
 /// The actual decision prompt variants.

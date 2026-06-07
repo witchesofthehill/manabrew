@@ -11,8 +11,7 @@
  * decision.
  */
 import { useCallback, useState } from "react";
-import type { AgentPrompt } from "@/stores/useGameStore";
-import { PromptType } from "@/types/promptType";
+import type { Prompt } from "@/protocol";
 
 export interface MulliganSelection {
   /** True while the engine is asking the player to pick cards to
@@ -30,14 +29,13 @@ export interface MulliganSelection {
 }
 
 export function useMulliganSelection(
-  activePrompt: AgentPrompt | null,
+  activePrompt: Prompt | null,
   putBackDecision: (cardIds: string[]) => void,
 ): MulliganSelection {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const promptCount =
-    activePrompt?.type === PromptType.MulliganPutBack ? (activePrompt.count ?? 0) : 0;
+  const promptCount = activePrompt?.input.type === "mulliganPutBack" ? activePrompt.input.count : 0;
 
-  const promptKey = `${activePrompt?.type ?? ""}:${activePrompt?.count ?? ""}`;
+  const promptKey = `${activePrompt?.input.type ?? ""}:${promptCount}`;
   const [prevPromptKey, setPrevPromptKey] = useState(promptKey);
   if (prevPromptKey !== promptKey) {
     setPrevPromptKey(promptKey);
@@ -65,7 +63,7 @@ export function useMulliganSelection(
   }, [selected, promptCount, putBackDecision]);
 
   return {
-    active: activePrompt?.type === PromptType.MulliganPutBack,
+    active: activePrompt?.input.type === "mulliganPutBack",
     count: promptCount,
     selected,
     toggle,

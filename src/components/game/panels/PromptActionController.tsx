@@ -10,56 +10,40 @@ import { NoAction } from "./prompt-actions/NoAction";
 import { PromptLabel } from "./prompt-actions/PromptLabel";
 import { Mulligan } from "./prompt-actions/Mulligan";
 import { MulliganPutBack } from "./prompt-actions/MulliganPutBack";
-import { PromptType } from "@/types/promptType";
+import type { PromptType as PromptTypeValue } from "@/protocol";
 import type { PromptButtonLayout } from "./PromptActionButton";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 
-const PROMPT_TO_VIEW_KEY: Record<string, PromptActionViewKey> = {
-  [PromptType.ChooseAction]: "chooseAction",
-  [PromptType.ChooseAttackers]: "chooseAttackers",
-  [PromptType.ChooseBlockers]: "chooseBlockers",
-  [PromptType.ChooseTargetSpell]: "chooseTargetSpell",
-  [PromptType.PayManaCost]: "payManaCost",
-
-  [PromptType.Mulligan]: "mulligan",
-  [PromptType.MulliganPutBack]: "mulliganPutBack",
-  [PromptType.ChooseTargetPlayer]: "promptLabel",
-  [PromptType.ChooseTargetCard]: "promptLabel",
-  [PromptType.ChooseTargetAny]: "promptLabel",
-  [PromptType.ChooseTargetCardFromZone]: "promptLabel",
-  [PromptType.RevealCards]: "promptRequired",
-  [PromptType.ChooseMode]: "promptRequired",
-  [PromptType.ChooseOptionalTrigger]: "promptRequired",
-  [PromptType.PayCostToPreventEffect]: "promptRequired",
-  [PromptType.ChooseKicker]: "promptRequired",
-  [PromptType.ChooseBuyback]: "promptRequired",
-  [PromptType.ChooseMultikicker]: "promptRequired",
-  [PromptType.ChooseReplicate]: "promptRequired",
-  [PromptType.ChooseAlternativeCost]: "promptRequired",
-  [PromptType.Scry]: "promptRequired",
-  [PromptType.Surveil]: "promptRequired",
-  [PromptType.Dig]: "promptRequired",
-  [PromptType.ChooseDiscard]: "promptRequired",
-  [PromptType.PayCombatCost]: "promptRequired",
-  [PromptType.ChooseColor]: "promptRequired",
-  [PromptType.ChooseType]: "promptRequired",
-  [PromptType.ChooseNumber]: "promptRequired",
-  [PromptType.ChooseCardName]: "promptRequired",
-  [PromptType.ChooseDelve]: "promptRequired",
-  [PromptType.ChooseConvoke]: "promptRequired",
-  [PromptType.ChooseImprovise]: "promptRequired",
-  [PromptType.SpecifyManaCombo]: "promptRequired",
-  [PromptType.ChooseDamageAssignmentOrder]: "promptRequired",
-  [PromptType.ChooseCombatDamageAssignment]: "promptRequired",
-  [PromptType.ChooseCardsForEffect]: "promptRequired",
-  [PromptType.ChoosePhyrexian]: "promptRequired",
-  [PromptType.ChooseExertAttackers]: "promptRequired",
-  [PromptType.ChooseEnlistAttackers]: "promptRequired",
-  [PromptType.ReorderLibrary]: "promptRequired",
-  [PromptType.ExploreDecision]: "promptRequired",
-  [PromptType.HelpPayAssist]: "promptRequired",
-};
+function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
+  switch (promptType) {
+    case undefined:
+    case "stateUpdate":
+    case "gameOver":
+      return "noAction";
+    case "chooseAction":
+      return "chooseAction";
+    case "chooseAttackers":
+      return "chooseAttackers";
+    case "chooseBlockers":
+      return "chooseBlockers";
+    case "chooseTargetSpell":
+      return "chooseTargetSpell";
+    case "payManaCost":
+      return "payManaCost";
+    case "mulligan":
+      return "mulligan";
+    case "mulliganPutBack":
+      return "mulliganPutBack";
+    case "chooseTargetPlayer":
+    case "chooseTargetCard":
+    case "chooseTargetAny":
+    case "chooseTargetCardFromZone":
+      return "promptLabel";
+    default:
+      return "promptRequired";
+  }
+}
 
 interface PromptActionControllerProps {
   promptType?: PromptActionType;
@@ -201,14 +185,14 @@ export function PromptActionController({
     autoPassing: () => <NoAction buttonLayout={buttonLayout} label="Auto Pass" />,
     promptLabel: () => {
       const labels: Record<string, string> = {
-        [PromptType.ChooseTargetCard]: "Choose a target",
-        [PromptType.ChooseTargetPlayer]: "Choose a target player",
-        [PromptType.ChooseTargetAny]: "Choose a target",
-        [PromptType.ChooseTargetCardFromZone]: "Choose a target",
-        [PromptType.Scry]: "Scry",
-        [PromptType.Surveil]: "Surveil",
-        [PromptType.Dig]: "Choose cards",
-        [PromptType.ChooseDiscard]: "Discard",
+        ["chooseTargetCard"]: "Choose a target",
+        ["chooseTargetPlayer"]: "Choose a target player",
+        ["chooseTargetAny"]: "Choose a target",
+        ["chooseTargetCardFromZone"]: "Choose a target",
+        ["scry"]: "Scry",
+        ["surveil"]: "Surveil",
+        ["dig"]: "Choose cards",
+        ["chooseDiscard"]: "Discard",
       };
       return (
         <PromptLabel
@@ -240,7 +224,7 @@ export function PromptActionController({
     ? "passingUntilEot"
     : isAutoPassing
       ? "autoPassing"
-      : ((promptType ? PROMPT_TO_VIEW_KEY[promptType] : undefined) ?? "noAction");
+      : viewKeyForPrompt(promptType);
 
   const rendered = renderers[promptActionOverride ?? runtimeViewKey]();
 

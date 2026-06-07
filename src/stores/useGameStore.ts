@@ -16,19 +16,13 @@ import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
-import type { AgentPrompt } from "./gameStore.types";
+import type { Prompt } from "@/protocol";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
 import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
-export type {
-  AgentPrompt,
-  GameConfig,
-  GameState,
-  DisplayEvent,
-  DeferredSnapshot,
-} from "./gameStore.types";
+export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
 
 function isManualTabletopApi(
   runtime: GameRuntime,
@@ -235,8 +229,8 @@ export const useGameStore = create<GameState>()(
           ...seedManualDeck(gameView, deck),
         });
         const prompt = await runtime.api.getPrompt();
-        if (prompt && (prompt as AgentPrompt).gameView) {
-          applyPrompt(prompt as AgentPrompt, "Manual", set, get);
+        if (prompt && (prompt as Prompt).input?.gameView) {
+          applyPrompt(prompt as Prompt, "Manual", set, get);
         }
       },
 
@@ -293,8 +287,8 @@ export const useGameStore = create<GameState>()(
             gameView: initialGameView,
           });
           const prompt = await runtime.api.getPrompt();
-          if (prompt && (prompt as AgentPrompt).gameView) {
-            applyPrompt(prompt as AgentPrompt, "Manual", set, get);
+          if (prompt && (prompt as Prompt).input?.gameView) {
+            applyPrompt(prompt as Prompt, "Manual", set, get);
           }
         }
         set({
@@ -405,221 +399,6 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      castSpell: (cardId, mode?: string) => {
-        get().respond({ type: "playCard", cardId, mode: mode ?? null });
-      },
-
-      passPriority: (untilPhase: string | null = null) => {
-        if (get().isWaitingForResponse) return;
-        const prompt = get().currentPrompt;
-        if (!prompt) return;
-        switch (prompt.type) {
-          case "chooseAction":
-            get().respond({ type: "pass", untilPhase });
-            break;
-          case "chooseAttackers":
-            get().respond({ type: "declareAttackers", assignments: [] });
-            break;
-          case "chooseBlockers":
-            get().respond({ type: "declareBlockers", assignments: [] });
-            break;
-          default:
-            get().respond({ type: "pass", untilPhase: null });
-        }
-      },
-
-      declareAttackers: (attackerIds, defenderId) => {
-        const prompt = get().currentPrompt;
-        // Default to first possible defender (the opponent player)
-        const defaultDefender = prompt?.possibleDefenderIds?.[0]?.id ?? "player-1";
-        const assignments = attackerIds.map((id) => ({
-          attackerId: id,
-          defenderId: defenderId ?? defaultDefender,
-        }));
-        get().respond({ type: "declareAttackers", assignments });
-      },
-
-      declareBlockers: (assignments) => {
-        get().respond({ type: "declareBlockers", assignments });
-      },
-
-      targetPlayer: (playerId) => {
-        get().respond({ type: "targetPlayer", playerId });
-      },
-
-      targetCard: (cardId) => {
-        get().respond({ type: "targetCard", cardId });
-      },
-
-      targetAny: (target) => {
-        get().respond({ type: "targetAny", target });
-      },
-
-      mulliganDecision: (keep) => {
-        get().respond({ type: "mulliganDecision", keep });
-      },
-
-      mulliganPutBackDecision: (cardIds) => {
-        get().respond({ type: "mulliganPutBackDecision", cardIds });
-      },
-
-      tapLand: (cardId, abilityIndex, color) => {
-        get().respond({
-          type: "tapLand",
-          cardId,
-          abilityIndex: abilityIndex ?? null,
-          color: color ?? null,
-        });
-      },
-
-      untapLand: (cardId) => {
-        get().respond({ type: "untapLand", cardId });
-      },
-
-      activateAbility: (cardId, abilityIndex) => {
-        get().respond({ type: "activateAbility", cardId, abilityIndex });
-      },
-
-      scryDecision: (bottomCardIds) => {
-        get().respond({ type: "scryDecision", bottomCardIds });
-      },
-
-      surveilDecision: (graveyardCardIds) => {
-        get().respond({ type: "surveilDecision", graveyardCardIds });
-      },
-
-      digDecision: (chosenCardIds) => {
-        get().respond({ type: "digDecision", chosenCardIds });
-      },
-
-      discardDecision: (discardedCardIds) => {
-        get().respond({ type: "discardDecision", discardedCardIds });
-      },
-
-      targetSpell: (spellId) => {
-        get().respond({ type: "targetSpell", spellId });
-      },
-
-      modeDecision: (chosenIndices) => {
-        get().respond({ type: "modeDecision", chosenIndices });
-      },
-
-      revealCardsAcknowledged: () => {
-        get().respond({ type: "revealCardsAcknowledged" });
-      },
-
-      payCostToPreventEffectDecision: (accept) => {
-        get().respond({ type: "payCostToPreventEffectDecision", accept });
-      },
-
-      optionalTriggerDecision: (accept) => {
-        get().respond({ type: "optionalTriggerDecision", accept });
-      },
-
-      colorDecision: (color) => {
-        get().respond({ type: "colorDecision", color });
-      },
-
-      chooseCardsDecision: (chosenCardIds) => {
-        get().respond({ type: "chooseCardsDecision", chosenCardIds });
-      },
-
-      typeDecision: (chosenType) => {
-        get().respond({ type: "typeDecision", chosenType });
-      },
-
-      numberDecision: (chosenNumber) => {
-        get().respond({ type: "numberDecision", chosenNumber });
-      },
-
-      cardNameDecision: (chosenName) => {
-        get().respond({ type: "cardNameDecision", chosenName });
-      },
-
-      payCombatCost: () => {
-        get().respond({ type: "payCombatCost" });
-      },
-
-      declineCombatCost: () => {
-        get().respond({ type: "declineCombatCost" });
-      },
-
-      payManaCost: (auto = false) => {
-        get().respond({ type: "payManaCost", auto });
-      },
-
-      autoManaCost: () => {
-        get().respond({ type: "payManaCost", auto: true });
-      },
-
-      cancelManaCost: () => {
-        get().respond({ type: "cancelManaCost" });
-      },
-
-      delveDecision: (chosenCardIds) => {
-        get().respond({ type: "delveDecision", chosenCardIds });
-      },
-
-      convokeDecision: (chosenCardIds) => {
-        get().respond({ type: "convokeDecision", chosenCardIds });
-      },
-
-      improviseDecision: (chosenCardIds) => {
-        get().respond({ type: "improviseDecision", chosenCardIds });
-      },
-
-      manaComboDecision: (chosenColors) => {
-        get().respond({ type: "manaComboDecision", chosenColors });
-      },
-
-      exploreDecision: (putInGraveyard) => {
-        get().respond({ type: "exploreResponse", putInGraveyard });
-      },
-
-      exertDecision: (chosenAttackerIds) => {
-        get().respond({ type: "exertDecision", chosenAttackerIds });
-      },
-
-      enlistDecision: (chosenAttackerIds) => {
-        get().respond({ type: "enlistDecision", chosenAttackerIds });
-      },
-
-      reorderLibraryDecision: (orderedCardIds) => {
-        get().respond({ type: "reorderLibraryDecision", orderedCardIds });
-      },
-
-      assistDecision: (amountToPay) => {
-        get().respond({ type: "assistDecision", amountToPay });
-      },
-
-      diceRolledAcknowledged: () => {
-        get().respond({ type: "diceRolledAcknowledged" });
-      },
-
-      firstPlayerRollAcknowledged: () => {
-        get().respond({ type: "firstPlayerRollAcknowledged" });
-      },
-
-      rollToIgnoreDecision: (roll) => {
-        get().respond({ type: "rollToIgnoreDecision", roll });
-      },
-
-      rollToSwapDecision: (roll) => {
-        get().respond({ type: "rollToSwapDecision", roll });
-      },
-
-      rollToModifyDecision: (roll) => {
-        get().respond({ type: "rollToModifyDecision", roll });
-      },
-
-      diceToRerollDecision: (rolls) => {
-        get().respond({ type: "diceToRerollDecision", rolls });
-      },
-
-      rollSwapValueDecision: (choice) => {
-        get().respond({ type: "rollSwapValueDecision", choice });
-      },
-
       concede: async () => {
         const runtime = getSelectedGameRuntime();
         if (runtime.capabilities.concedeBehavior === "end-session") {
@@ -691,7 +470,7 @@ export const useGameStore = create<GameState>()(
       restoreSnapshot: async (checkpointId) => {
         const { isMultiplayer, isHost } = get();
         if (isMultiplayer && !isHost) return;
-        const promptType = get().currentPrompt?.type;
+        const promptType = get().currentPrompt?.input.type;
         const safePrompt =
           promptType === "chooseAction" ||
           promptType === "chooseAttackers" ||

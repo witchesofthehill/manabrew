@@ -1,8 +1,7 @@
-import { PromptType } from "@/types/promptType";
 import { isToggledOff, type PromptResolver } from "../promptHandlers";
 
-export const skipKicker: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseKicker, ctx)) return { kind: "force-show" };
+export const skipKicker: PromptResolver<"chooseKicker"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseKicker", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "kickerDecision", kicked: false },
@@ -10,8 +9,8 @@ export const skipKicker: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipBuyback: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseBuyback, ctx)) return { kind: "force-show" };
+export const skipBuyback: PromptResolver<"chooseBuyback"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseBuyback", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "buybackDecision", buybackPaid: false },
@@ -19,8 +18,8 @@ export const skipBuyback: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipMultikicker: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseMultikicker, ctx)) return { kind: "force-show" };
+export const skipMultikicker: PromptResolver<"chooseMultikicker"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseMultikicker", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "multikickerDecision", kickCount: 0 },
@@ -28,8 +27,8 @@ export const skipMultikicker: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipReplicate: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseReplicate, ctx)) return { kind: "force-show" };
+export const skipReplicate: PromptResolver<"chooseReplicate"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseReplicate", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "replicateDecision", replicateCount: 0 },
@@ -37,8 +36,8 @@ export const skipReplicate: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipDelve: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseDelve, ctx)) return { kind: "force-show" };
+export const skipDelve: PromptResolver<"chooseDelve"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseDelve", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "delveDecision", chosenCardIds: [] },
@@ -46,8 +45,8 @@ export const skipDelve: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipConvoke: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseConvoke, ctx)) return { kind: "force-show" };
+export const skipConvoke: PromptResolver<"chooseConvoke"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseConvoke", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "convokeDecision", chosenCardIds: [] },
@@ -55,8 +54,8 @@ export const skipConvoke: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipImprovise: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.ChooseImprovise, ctx)) return { kind: "force-show" };
+export const skipImprovise: PromptResolver<"chooseImprovise"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseImprovise", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "improviseDecision", chosenCardIds: [] },
@@ -64,14 +63,14 @@ export const skipImprovise: PromptResolver = (_prompt, ctx) => {
   };
 };
 
-export const skipExertEnlist: PromptResolver = (prompt, ctx) => {
+export const skipExertEnlist: PromptResolver<"chooseExertAttackers" | "chooseEnlistAttackers"> = (
+  prompt,
+  ctx,
+) => {
   const promptType =
-    prompt.type === PromptType.ChooseExertAttackers
-      ? PromptType.ChooseExertAttackers
-      : PromptType.ChooseEnlistAttackers;
+    prompt.input.type === "chooseExertAttackers" ? "chooseExertAttackers" : "chooseEnlistAttackers";
   if (!isToggledOff(promptType, ctx)) return { kind: "force-show" };
-  const wireType =
-    promptType === PromptType.ChooseExertAttackers ? "exertDecision" : "enlistDecision";
+  const wireType = promptType === "chooseExertAttackers" ? "exertDecision" : "enlistDecision";
   return {
     kind: "auto",
     respond: { type: wireType, chosenAttackerIds: [] },
@@ -79,8 +78,8 @@ export const skipExertEnlist: PromptResolver = (prompt, ctx) => {
   };
 };
 
-export const skipAssist: PromptResolver = (_prompt, ctx) => {
-  if (!isToggledOff(PromptType.HelpPayAssist, ctx)) return { kind: "force-show" };
+export const skipAssist: PromptResolver<"helpPayAssist"> = (_prompt, ctx) => {
+  if (!isToggledOff("helpPayAssist", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
     respond: { type: "assistDecision", amountToPay: 0 },

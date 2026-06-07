@@ -1,6 +1,5 @@
 import type { GameCard } from "@/types/manabrew";
 import type { PromptActionType, CombatAssignment } from "./game.types";
-import { PromptType } from "@/types/promptType";
 
 interface CombatSummarySectionProps {
   promptType?: PromptActionType;
@@ -31,8 +30,8 @@ export function CombatSummarySection({
   resolveCardName,
   resolveCard,
 }: CombatSummarySectionProps) {
-  const isAttackDecl = promptType === PromptType.ChooseAttackers;
-  const isBlockDecl = promptType === PromptType.ChooseBlockers;
+  const isAttackDecl = promptType === "chooseAttackers";
+  const isBlockDecl = promptType === "chooseBlockers";
   if (!isAttackDecl && !isBlockDecl) return null;
 
   const activeAttackers = isAttackDecl ? pendingAttackers : attackerIds;

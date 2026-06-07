@@ -58,7 +58,9 @@ export function ChooseDiceToRerollModal({
       <div role="dialog" aria-modal="true" aria-labelledby="choose-dice-reroll-title">
         <Modal.Header>
           <div className="flex items-center gap-3">
-            {sourceCard && <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />}
+            {sourceCard && (
+              <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />
+            )}
             <div>
               <h2 id="choose-dice-reroll-title" className="font-semibold text-base">
                 Choose dice to reroll

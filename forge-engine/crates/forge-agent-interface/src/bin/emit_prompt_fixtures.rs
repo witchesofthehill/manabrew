@@ -8,7 +8,7 @@ fn wrap(inner: AgentPromptInner) -> AgentPrompt {
         deciding_player_id: "player-0".to_string(),
         display_events: vec![],
         source_card_id: None,
-        inner,
+        input: inner,
     }
 }
 

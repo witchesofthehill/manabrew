@@ -122,7 +122,7 @@ impl<R: Responder> PromptAgent<R> {
             deciding_player_id: player_id_str(self.player_id),
             display_events,
             source_card_id: source.map(card_id_str),
-            inner,
+            input: inner,
         }
     }
 

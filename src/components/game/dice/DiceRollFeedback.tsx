@@ -51,7 +51,9 @@ export function DiceRollFeedback({
       <div role="dialog" aria-modal="true" aria-labelledby="dice-roll-title">
         <Modal.Header>
           <div className="flex items-center gap-3">
-            {sourceCard && <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />}
+            {sourceCard && (
+              <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />
+            )}
             <div>
               <h2 id="dice-roll-title" className="font-semibold text-base">
                 Rolled {summary} (d{sides})

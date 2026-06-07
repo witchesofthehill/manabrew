@@ -24,7 +24,7 @@ pub fn make_java_game_over_prompt(
         deciding_player_id: String::new(),
         display_events: Vec::new(),
         source_card_id: None,
-        inner: AgentPromptInner::GameOver { game_view },
+        input: AgentPromptInner::GameOver { game_view },
     }
 }
 
@@ -408,7 +408,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         deciding_player_id,
         display_events: Vec::new(),
         source_card_id,
-        inner,
+        input: inner,
     }
 }
 

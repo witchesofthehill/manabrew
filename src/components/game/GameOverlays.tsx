@@ -3,21 +3,13 @@ import {
   LibraryPeekModal,
   type LibraryPeekMode,
   SpellStackModal,
-  ChooseCardsModal,
   AbilityPickerModal,
-  PromptModalController,
 } from "@/components/game/modals";
 import { ZoneTargetSelector } from "@/components/game/ZoneTargetSelector";
-import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
-import type { AgentPrompt } from "@/stores/useGameStore";
+import type { GameCard, StackObject } from "@/types/manabrew";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
-import type { PromptType } from "@/types/promptType";
-import { PromptType as PT } from "@/types/promptType";
 
-interface TargetModalsProps {
-  promptType?: PromptType;
-  currentPrompt: AgentPrompt | null;
-  sourceDeckCard?: DeckCard;
+interface GameOverlaysProps {
   viewingZone: {
     title: string;
     cards: GameCard[];
@@ -43,15 +35,9 @@ interface TargetModalsProps {
   abilityPickerState: AbilityPickerState | null;
   onSelectAbility: (ability: HandActionOption) => void;
   onCancelAbilityPicker: () => void;
-  onChooseCardsDecision: (cardIds: string[]) => void;
-  onExertDecision: (chosenAttackerIds: string[]) => void;
-  onEnlistDecision: (chosenAttackerIds: string[]) => void;
 }
 
-export function TargetModals({
-  promptType,
-  currentPrompt,
-  sourceDeckCard,
+export function GameOverlays({
   viewingZone,
   onCloseZone,
   zoneTargetSelector,
@@ -68,15 +54,7 @@ export function TargetModals({
   abilityPickerState,
   onSelectAbility,
   onCancelAbilityPicker,
-  onChooseCardsDecision,
-  onExertDecision,
-  onEnlistDecision,
-}: TargetModalsProps) {
-  const isActiveTargetPromptModal =
-    (promptType === PT.ChooseCardsForEffect && currentPrompt?.zoneCards != null) ||
-    (promptType === PT.ChooseExertAttackers && currentPrompt?.attackerCards != null) ||
-    (promptType === PT.ChooseEnlistAttackers && currentPrompt?.attackerCards != null);
-
+}: GameOverlaysProps) {
   return (
     <>
       {viewingZone && (
@@ -126,41 +104,6 @@ export function TargetModals({
           onCancel={onCancelAbilityPicker}
         />
       )}
-
-      <PromptModalController isActive={isActiveTargetPromptModal} promptStateKey={currentPrompt}>
-        {promptType === PT.ChooseCardsForEffect && currentPrompt?.zoneCards != null && (
-          <ChooseCardsModal
-            cards={currentPrompt.zoneCards}
-            minChoices={currentPrompt.minChoices ?? 1}
-            maxChoices={currentPrompt.maxChoices ?? 1}
-            sourceCardName={sourceDeckCard?.name}
-            description={currentPrompt.description}
-            onConfirm={onChooseCardsDecision}
-          />
-        )}
-
-        {promptType === PT.ChooseExertAttackers && currentPrompt?.attackerCards != null && (
-          <ChooseCardsModal
-            cards={currentPrompt.attackerCards}
-            minChoices={0}
-            maxChoices={currentPrompt.attackerCards.length}
-            sourceCardName="Exert Attackers"
-            description="Choose which attacking creatures to exert. Exerted creatures won't untap during your next untap step."
-            onConfirm={onExertDecision}
-          />
-        )}
-
-        {promptType === PT.ChooseEnlistAttackers && currentPrompt?.attackerCards != null && (
-          <ChooseCardsModal
-            cards={currentPrompt.attackerCards}
-            minChoices={0}
-            maxChoices={currentPrompt.attackerCards.length}
-            sourceCardName="Enlist Attackers"
-            description="Choose which attacking creatures to enlist. Enlisted creatures tap a non-attacking creature to add its power."
-            onConfirm={onEnlistDecision}
-          />
-        )}
-      </PromptModalController>
     </>
   );
 }

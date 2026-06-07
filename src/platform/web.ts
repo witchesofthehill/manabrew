@@ -27,6 +27,7 @@ import type {
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
+import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/types/manabrew";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
@@ -219,7 +220,7 @@ class WorkerBridge {
   /**
    * Write a response to the SharedArrayBuffer and wake the worker.
    */
-  writeResponse(action: Record<string, unknown>): void {
+  writeResponse(action: PromptOutput): void {
     if (!this.gameSignal || !this.gameData) {
       console.error("[WorkerBridge] No SharedArrayBuffer available for response");
       return;
@@ -423,7 +424,7 @@ class WebGameApi implements IGameApi {
         fromPlayer,
         action: params.action,
       };
-      console.log(`[MP] respond→ as ${fromPlayer}:`, (params.action as { type?: string })?.type);
+      console.log(`[MP] respond→ as ${fromPlayer}:`, params.action.type);
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer
@@ -459,8 +460,8 @@ class WebGameApi implements IGameApi {
     );
   }
 
-  async getPrompt(): Promise<unknown> {
-    return this.bridge.invoke("get_prompt");
+  async getPrompt(): Promise<Prompt | null> {
+    return this.bridge.invoke<Prompt | null>("get_prompt");
   }
 }
 
@@ -564,9 +565,8 @@ class WebServerApi implements IServerApi {
     this.eventBus = eventBus;
 
     // Relay prompts from the game engine to remote players via WebSocket
-    eventBus.on<Record<string, unknown>>("game:relay_prompt", (prompt) => {
-      const forPlayer =
-        typeof prompt.decidingPlayerId === "string" ? prompt.decidingPlayerId : undefined;
+    eventBus.on<Prompt>("game:relay_prompt", (prompt) => {
+      const forPlayer = prompt.decidingPlayerId;
       if (!forPlayer) {
         console.error("[WebServerApi] Cannot relay prompt without decidingPlayerId");
         return;

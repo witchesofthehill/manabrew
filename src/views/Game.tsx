@@ -41,7 +41,9 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useLimitedStore } from "@/stores/useLimitedStore";
 import { tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
-import { PromptType, intentPrefersArrow } from "@/types/promptType";
+import { intentPrefersArrow } from "@/types/promptType";
+import type { PromptType } from "@/protocol";
+import { declareAttackersOutput } from "@/components/game/prompts/playerActions";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
@@ -54,16 +56,16 @@ import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 /** Prompt types where hover card preview is allowed (no modal overlay). */
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
-  PromptType.ChooseAction,
-  PromptType.ChooseAttackers,
-  PromptType.ChooseBlockers,
-  PromptType.ChooseTargetPlayer,
-  PromptType.ChooseTargetCard,
-  PromptType.ChooseTargetAny,
-  PromptType.ChooseTargetCardFromZone,
-  PromptType.ChooseTargetSpell,
-  PromptType.PayManaCost,
-  PromptType.GameOver,
+  "chooseAction",
+  "chooseAttackers",
+  "chooseBlockers",
+  "chooseTargetPlayer",
+  "chooseTargetCard",
+  "chooseTargetAny",
+  "chooseTargetCardFromZone",
+  "chooseTargetSpell",
+  "payManaCost",
+  "gameOver",
 ]);
 
 function isManualTabletopApi(
@@ -117,109 +119,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isHost = useGameStore((s) => s.isHost);
   const selectedRuntime = getSelectedGameRuntime();
   const manualApi = isManualTabletopApi(selectedRuntime) ? selectedRuntime.api : null;
-  const {
-    passPriority,
-    castSpell,
-    declareAttackers,
-    declareBlockers,
-    targetPlayer,
-    targetCard,
-    targetAny,
-    mulliganDecision,
-    mulliganPutBackDecision,
-    tapLand,
-    untapLand,
-    activateAbility,
-    scryDecision,
-    surveilDecision,
-    digDecision,
-    discardDecision,
-    targetSpell,
-    modeDecision,
-    optionalTriggerDecision,
-    revealCardsAcknowledged,
-    payCostToPreventEffectDecision,
-    colorDecision,
-    chooseCardsDecision,
-    typeDecision,
-    numberDecision,
-    cardNameDecision,
-    respond,
-    payCombatCost,
-    declineCombatCost,
-    payManaCost,
-    autoManaCost,
-    cancelManaCost,
-    delveDecision,
-    convokeDecision,
-    improviseDecision,
-    manaComboDecision,
-    exploreDecision,
-    exertDecision,
-    enlistDecision,
-    reorderLibraryDecision,
-    assistDecision,
-    diceRolledAcknowledged,
-    firstPlayerRollAcknowledged,
-    rollToIgnoreDecision,
-    rollToSwapDecision,
-    rollToModifyDecision,
-    diceToRerollDecision,
-    rollSwapValueDecision,
-    concede,
-    endGame,
-    restoreSnapshot,
-    gameDecks,
-  } = useGameStore(
+  const { respond, concede, endGame, restoreSnapshot, gameDecks } = useGameStore(
     useShallow((s) => ({
-      passPriority: s.passPriority,
-      castSpell: s.castSpell,
-      declareAttackers: s.declareAttackers,
-      declareBlockers: s.declareBlockers,
-      targetPlayer: s.targetPlayer,
-      targetCard: s.targetCard,
-      targetAny: s.targetAny,
-      mulliganDecision: s.mulliganDecision,
-      mulliganPutBackDecision: s.mulliganPutBackDecision,
-      tapLand: s.tapLand,
-      untapLand: s.untapLand,
-      activateAbility: s.activateAbility,
-      scryDecision: s.scryDecision,
-      surveilDecision: s.surveilDecision,
-      digDecision: s.digDecision,
-      discardDecision: s.discardDecision,
-      targetSpell: s.targetSpell,
-      modeDecision: s.modeDecision,
-      revealCardsAcknowledged: s.revealCardsAcknowledged,
-      payCostToPreventEffectDecision: s.payCostToPreventEffectDecision,
-      optionalTriggerDecision: s.optionalTriggerDecision,
-      colorDecision: s.colorDecision,
-      chooseCardsDecision: s.chooseCardsDecision,
-      typeDecision: s.typeDecision,
-      numberDecision: s.numberDecision,
-      cardNameDecision: s.cardNameDecision,
       respond: s.respond,
-      payCombatCost: s.payCombatCost,
-      declineCombatCost: s.declineCombatCost,
-      payManaCost: s.payManaCost,
-      autoManaCost: s.autoManaCost,
-      cancelManaCost: s.cancelManaCost,
-      delveDecision: s.delveDecision,
-      convokeDecision: s.convokeDecision,
-      improviseDecision: s.improviseDecision,
-      manaComboDecision: s.manaComboDecision,
-      exploreDecision: s.exploreDecision,
-      exertDecision: s.exertDecision,
-      enlistDecision: s.enlistDecision,
-      reorderLibraryDecision: s.reorderLibraryDecision,
-      assistDecision: s.assistDecision,
-      diceRolledAcknowledged: s.diceRolledAcknowledged,
-      firstPlayerRollAcknowledged: s.firstPlayerRollAcknowledged,
-      rollToIgnoreDecision: s.rollToIgnoreDecision,
-      rollToSwapDecision: s.rollToSwapDecision,
-      rollToModifyDecision: s.rollToModifyDecision,
-      diceToRerollDecision: s.diceToRerollDecision,
-      rollSwapValueDecision: s.rollSwapValueDecision,
       concede: s.concede,
       endGame: s.endGame,
       restoreSnapshot: s.restoreSnapshot,
@@ -305,19 +207,30 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, []);
 
   const activePrompt = manualApi || isWaitingForResponse ? null : currentPrompt;
-  const promptType = activePrompt?.type;
+  const promptType = activePrompt?.input.type;
+  const chooseActionInput = activePrompt?.input.type === "chooseAction" ? activePrompt.input : null;
+  const chooseAttackersInput =
+    activePrompt?.input.type === "chooseAttackers" ? activePrompt.input : null;
+  const chooseBlockersInput =
+    activePrompt?.input.type === "chooseBlockers" ? activePrompt.input : null;
+  const payCombatCostInput =
+    activePrompt?.input.type === "payCombatCost" ? activePrompt.input : null;
+  const payManaCostInput = activePrompt?.input.type === "payManaCost" ? activePrompt.input : null;
+  const mulliganInput = activePrompt?.input.type === "mulligan" ? activePrompt.input : null;
+  const exploreInput = activePrompt?.input.type === "exploreDecision" ? activePrompt.input : null;
+  const tappableInput = chooseActionInput ?? payCombatCostInput ?? payManaCostInput;
 
   // When the engine asks the player to pick cards to put on the bottom
   // of the library we drive that decision from the real in-game hand
   // instead of a separate modal. The hook bundles the selection state,
   // toggle, reset-on-prompt-change, and the put-back dispatch.
-  const mulliganPutBack = useMulliganSelection(activePrompt, mulliganPutBackDecision);
+  const mulliganPutBack = useMulliganSelection(activePrompt, (cardIds) =>
+    respond({ type: "mulliganPutBackDecision", cardIds }),
+  );
 
   const casting = useCastingState({
     currentPrompt: activePrompt,
-    targetCard,
-    targetPlayer,
-    targetAny,
+    respond,
   });
 
   // UI state from Zustand store (modals, panels)
@@ -365,27 +278,28 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const castOptionsByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
-    for (const o of activePrompt?.playableOptions ?? []) {
+    for (const o of chooseActionInput?.playableOptions ?? []) {
       const arr = map.get(o.cardId) ?? [];
       arr.push({ kind: "cast" as const, cardId: o.cardId, mode: o.mode, label: o.modeLabel });
       map.set(o.cardId, arr);
     }
     return map;
-  }, [activePrompt?.playableOptions]);
+  }, [chooseActionInput?.playableOptions]);
 
   const abilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
-    for (const a of activePrompt?.activatableAbilityIds ?? []) {
+    for (const a of chooseActionInput?.activatableAbilityIds ?? []) {
       const arr = map.get(a.cardId) ?? [];
       arr.push(toAbilityOption(a));
       map.set(a.cardId, arr);
     }
     return map;
-  }, [activePrompt?.activatableAbilityIds]);
+  }, [chooseActionInput?.activatableAbilityIds]);
 
   const manaAbilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
-    const rawOptions = activePrompt?.manaAbilityOptions ?? [];
+    const rawOptions =
+      chooseActionInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions ?? [];
     if (rawOptions.length === 0) return map;
     const byCard = new Map<string, ActivatableAbilityInfo[]>();
     for (const ab of rawOptions) {
@@ -418,11 +332,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       map.set(cardId, expanded.map(toAbilityOption));
     }
     return map;
-  }, [activePrompt?.manaAbilityOptions]);
+  }, [chooseActionInput?.manaAbilityOptions, payManaCostInput?.manaAbilityOptions]);
 
   const tappableLandIdSet = useMemo(
-    () => new Set(activePrompt?.tappableLandIds ?? []),
-    [activePrompt?.tappableLandIds],
+    () => new Set(tappableInput?.tappableLandIds ?? []),
+    [tappableInput?.tappableLandIds],
   );
 
   const applyManualAction = useCallback(
@@ -491,10 +405,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   const getCardActions = useCallback(
     (card: GameCard): HandActionOption[] => {
       if (manualApi) return getManualCardActions(card);
-      if (promptType === PromptType.PayManaCost) {
+      if (promptType === "payManaCost") {
         return manaAbilitiesByCardId.get(card.id) ?? [];
       }
-      if (promptType !== PromptType.ChooseAction) return [];
+      if (promptType !== "chooseAction") return [];
 
       const abilities = [...(abilitiesByCardId.get(card.id) ?? [])];
       const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
@@ -519,7 +433,7 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   // Wraps castSpell: if a card has multiple play modes, show picker first
   const handleCastSpell = (cardId: string) => {
-    const options = activePrompt?.playableOptions?.filter((o) => o.cardId === cardId);
+    const options = chooseActionInput?.playableOptions.filter((o) => o.cardId === cardId);
     if (options && options.length > 1) {
       const gc =
         gameView?.myHand.find((c) => c.id === cardId) ??
@@ -529,9 +443,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       const card = asDeckCard(gameDecks[gc.ownerId], gc);
       openPlayModePicker({ cardId, card, options });
     } else if (options && options.length === 1) {
-      castSpell(cardId, options[0].mode);
+      respond({ type: "playCard", cardId, mode: options[0].mode });
     } else {
-      castSpell(cardId);
+      respond({ type: "playCard", cardId, mode: null });
     }
   };
 
@@ -551,9 +465,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (actions.length === 1) {
       const [action] = actions;
       if (action.kind === "cast") {
-        castSpell(card.id, action.mode);
+        respond({ type: "playCard", cardId: card.id, mode: action.mode });
       } else if (action.abilityIndex != null) {
-        activateAbility(card.id, action.abilityIndex);
+        respond({ type: "activateAbility", cardId: card.id, abilityIndex: action.abilityIndex });
       }
       return;
     }
@@ -582,7 +496,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (abilities.length === 1) {
       const ability = abilities[0];
       if (ability.kind === "ability" && ability.abilityIndex != null) {
-        activateAbility(card.id, ability.abilityIndex);
+        respond({ type: "activateAbility", cardId: card.id, abilityIndex: ability.abilityIndex });
         return true;
       }
       return false;
@@ -613,10 +527,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     targetCard: casting.wrappedTargetCard,
     targetAny: casting.wrappedTargetAny,
     targetPlayer: casting.wrappedTargetPlayer,
-    declareAttackers,
+    respond,
     currentPrompt: activePrompt,
   });
-  const selectedAttackDefender = activePrompt?.possibleDefenderIds?.find(
+  const selectedAttackDefender = chooseAttackersInput?.possibleDefenderIds.find(
     (defender) => defender.id === attackDefenderId,
   );
 
@@ -661,8 +575,8 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   // Land tap/untap handler — shows interactive preview for multi-ability lands
   const handleTapLand = (card: GameCard) => {
-    if (promptType === PromptType.PayManaCost) {
-      const manaAbilities = (activePrompt?.manaAbilityOptions ?? [])
+    if (payManaCostInput) {
+      const manaAbilities = payManaCostInput.manaAbilityOptions
         .filter((a) => a.cardId === card.id)
         .map((ability) => ({
           kind: "ability" as const,
@@ -678,19 +592,19 @@ export default function Game({ exitTo }: GameProps = {}) {
         return;
       }
       if (manaAbilities.length === 1) {
-        tapLand(card.id, manaAbilities[0].abilityIndex);
+        respond({ type: "tapLand", cardId: card.id, abilityIndex: manaAbilities[0].abilityIndex });
         return;
       }
-      tapLand(card.id);
+      respond({ type: "tapLand", cardId: card.id });
       return;
     }
 
-    if (promptType !== PromptType.ChooseAction) {
-      tapLand(card.id);
+    if (promptType !== "chooseAction") {
+      respond({ type: "tapLand", cardId: card.id });
       return;
     }
 
-    const abilities = (activePrompt?.activatableAbilityIds ?? [])
+    const abilities = (chooseActionInput?.activatableAbilityIds ?? [])
       .filter((a) => a.cardId === card.id)
       .map((ability) => ({
         kind: "ability" as const,
@@ -700,10 +614,10 @@ export default function Game({ exitTo }: GameProps = {}) {
         isManaAbility: ability.isManaAbility,
         cost: ability.cost,
       }));
-    const manaAbilities = (activePrompt?.manaAbilityOptions ?? []).filter(
+    const manaAbilities = (chooseActionInput?.manaAbilityOptions ?? []).filter(
       (a) => a.cardId === card.id,
     );
-    const isManaSource = (activePrompt?.tappableLandIds ?? []).includes(card.id);
+    const isManaSource = (chooseActionInput?.tappableLandIds ?? []).includes(card.id);
     const hasManaAbility = isManaSource && card.types.includes("Land");
 
     // Multiple mana abilities (dual land) — show interactive preview for color choice
@@ -713,7 +627,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     // Single mana ability — tap directly with that ability index
     if (manaAbilities.length === 1 && abilities.length === 0) {
-      tapLand(card.id, manaAbilities[0].abilityIndex);
+      respond({ type: "tapLand", cardId: card.id, abilityIndex: manaAbilities[0].abilityIndex });
       return;
     }
 
@@ -722,15 +636,19 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.showSticky(card);
     } else if (abilities.length === 1) {
       if (abilities[0].abilityIndex != null) {
-        activateAbility(card.id, abilities[0].abilityIndex);
+        respond({
+          type: "activateAbility",
+          cardId: card.id,
+          abilityIndex: abilities[0].abilityIndex,
+        });
       }
     } else {
-      tapLand(card.id);
+      respond({ type: "tapLand", cardId: card.id });
     }
   };
 
   const handleUntapLand = (card: GameCard) => {
-    untapLand(card.id);
+    respond({ type: "untapLand", cardId: card.id });
   };
 
   // Queues for tapping/untapping multiple selected lands across prompt cycles
@@ -750,10 +668,14 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const handleTapLands = (cardIds: string[]) =>
-    startBatchLandAction(cardIds, pendingTapQueueRef, tapLand);
+    startBatchLandAction(cardIds, pendingTapQueueRef, (id) =>
+      respond({ type: "tapLand", cardId: id }),
+    );
 
   const handleUntapLands = (cardIds: string[]) =>
-    startBatchLandAction(cardIds, pendingUntapQueueRef, untapLand);
+    startBatchLandAction(cardIds, pendingUntapQueueRef, (id) =>
+      respond({ type: "untapLand", cardId: id }),
+    );
 
   /** Drain the next item from a land action queue if still valid. Returns true if an action was taken. */
   const drainQueue = (
@@ -778,14 +700,21 @@ export default function Game({ exitTo }: GameProps = {}) {
   useEffect(() => {
     if (isWaitingForResponse) return;
     if (!promptType) return;
-    if (promptType !== PromptType.ChooseAction && promptType !== PromptType.PayManaCost) {
+    if (promptType !== "chooseAction" && promptType !== "payManaCost") {
       pendingTapQueueRef.current = [];
       pendingUntapQueueRef.current = [];
       return;
     }
-    if (drainQueue(pendingTapQueueRef, activePrompt?.tappableLandIds ?? [], tapLand)) return;
-    drainQueue(pendingUntapQueueRef, activePrompt?.untappableLandIds ?? [], untapLand);
-  }, [activePrompt, isWaitingForResponse, promptType, tapLand, untapLand]);
+    if (
+      drainQueue(pendingTapQueueRef, tappableInput?.tappableLandIds ?? [], (id) =>
+        respond({ type: "tapLand", cardId: id }),
+      )
+    )
+      return;
+    drainQueue(pendingUntapQueueRef, tappableInput?.untappableLandIds ?? [], (id) =>
+      respond({ type: "untapLand", cardId: id }),
+    );
+  }, [activePrompt, isWaitingForResponse, promptType, respond, tappableInput]);
 
   // Prompt-driven effects: auto-pass, passUntilEot, library peek, zone target, spell stack
   const _earlyMyPlayerId =
@@ -805,7 +734,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   } = usePromptEffects({
     currentPrompt: activePrompt,
     isWaitingForResponse,
-    passPriority,
+    respond,
     myPlayerId: _earlyMyPlayerId,
     turn: gameView?.turn ?? 0,
     stackLength: gameView?.stack?.length ?? 0,
@@ -817,38 +746,40 @@ export default function Game({ exitTo }: GameProps = {}) {
   activatePassUntilEotRef.current = activatePassUntilEot;
   const payManaPrimaryRef = useRef(() => {});
   payManaPrimaryRef.current = () => {
-    if (promptType !== PromptType.PayManaCost) return;
-    if (activePrompt?.canConfirmFromPool) {
-      payManaCost(false);
+    if (promptType !== "payManaCost") return;
+    if (activePrompt?.input.canConfirmFromPool) {
+      respond({ type: "payManaCost", auto: false });
     } else {
-      autoManaCost();
+      respond({ type: "payManaCost", auto: true });
     }
   };
   const confirmPromptRef = useRef<() => boolean>(() => false);
   confirmPromptRef.current = () => {
-    if (promptType === PromptType.PayManaCost) {
+    if (promptType === "payManaCost") {
       payManaPrimaryRef.current();
       return true;
     }
-    if (promptType === PromptType.Mulligan) {
-      mulliganDecision(true);
+    if (promptType === "mulligan") {
+      respond({ type: "mulliganDecision", keep: true });
       return true;
     }
-    if (promptType === PromptType.MulliganPutBack) {
+    if (promptType === "mulliganPutBack") {
       if (!mulliganPutBack.active || mulliganPutBack.selected.size !== mulliganPutBack.count) {
         return false;
       }
       mulliganPutBack.confirm();
       return true;
     }
-    if (promptType === PromptType.ChooseAttackers) {
+    if (promptType === "chooseAttackers") {
       if (pendingAttackers.length === 0) return false;
-      declareAttackers(pendingAttackers, attackDefenderId ?? undefined);
+      respond(
+        declareAttackersOutput(activePrompt, pendingAttackers, attackDefenderId ?? undefined),
+      );
       return true;
     }
-    if (promptType === PromptType.ChooseBlockers) {
+    if (promptType === "chooseBlockers") {
       if (blockAssignments.length === 0) return false;
-      declareBlockers(blockAssignments);
+      respond({ type: "declareBlockers", assignments: blockAssignments });
       return true;
     }
     return false;
@@ -877,7 +808,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handlePreviewAction = (action: HandActionOption) => {
     preview.dismiss();
     if (action.kind === "cast") {
-      castSpell(action.cardId, action.mode);
+      respond({ type: "playCard", cardId: action.cardId, mode: action.mode });
     } else if (action.kind === "manual-move" && action.toZoneId) {
       const sourceCard = [
         ...(gameView?.myHand ?? []),
@@ -904,9 +835,18 @@ export default function Game({ exitTo }: GameProps = {}) {
         // Extract color from label (e.g. "Add {G}") if present.
         const matches = action.label.match(/\{([WUBRGC])\}/);
         const color = matches ? matches[1] : undefined;
-        tapLand(action.cardId, action.abilityIndex, color);
+        respond({
+          type: "tapLand",
+          cardId: action.cardId,
+          abilityIndex: action.abilityIndex,
+          color: color ?? null,
+        });
       } else {
-        activateAbility(action.cardId, action.abilityIndex);
+        respond({
+          type: "activateAbility",
+          cardId: action.cardId,
+          abilityIndex: action.abilityIndex,
+        });
       }
     }
   };
@@ -943,7 +883,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         e.preventDefault();
         if (document.querySelector('[role="dialog"]')) return;
         if (confirmPromptRef.current()) return;
-        if (promptType === PromptType.ChooseAction) {
+        if (promptType === "chooseAction") {
           unifiedPassRef.current();
         }
       } else if (e.code === "F6") {
@@ -995,9 +935,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   ];
   // Stabilize attackerIds so useGameArrows' useEffect doesn't re-run every render
   const attackerIds = useMemo(
-    () => activePrompt?.attackerIds ?? [],
+    () => chooseBlockersInput?.attackerIds ?? [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activePrompt?.attackerIds?.join(",")],
+    [chooseBlockersInput?.attackerIds.join(",")],
   );
   const combatAssignments = useMemo(
     () => gameView?.combatAssignments ?? [],
@@ -1150,10 +1090,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [activePrompt?.sourceCardId, visibleCardsById, stackCardsBySourceId, gameDecks]);
 
   const promptRevealedDeckCard = useMemo(() => {
-    const rc = activePrompt?.revealedCard;
+    const rc = exploreInput?.revealedCard;
     if (!rc) return undefined;
     return asDeckCard(gameDecks[rc.ownerId], rc);
-  }, [activePrompt?.revealedCard, gameDecks]);
+  }, [exploreInput?.revealedCard, gameDecks]);
 
   const handleLogCardHover = (
     cardId: string | null,
@@ -1304,10 +1244,10 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   // Auto-return to play menu when game is over.
   useEffect(() => {
-    if (!gameView?.gameOver && activePrompt?.type !== PromptType.GameOver) return;
+    if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
     const timer = setTimeout(() => endGame(), 3000);
     return () => clearTimeout(timer);
-  }, [gameView?.gameOver, activePrompt?.type, endGame]);
+  }, [gameView?.gameOver, activePrompt?.input.type, endGame]);
 
   const navigate = useNavigate();
   useEffect(() => {
@@ -1340,8 +1280,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   }
 
   const battlefieldActivatableIds = new Set(
-    promptType === PromptType.ChooseAction
-      ? (activePrompt?.activatableAbilityIds ?? []).map((ability) => ability.cardId)
+    promptType === "chooseAction"
+      ? (chooseActionInput?.activatableAbilityIds ?? []).map((ability) => ability.cardId)
       : [],
   );
   // While picking an attack target, mark every legal defender card
@@ -1351,8 +1291,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const markIfDefender = (c: GameCard): GameCard =>
     cardIsAttackTarget(c.id) ? { ...c, isChoosable: true } : c;
   const targetCardIdSet = new Set(
-    promptType === PromptType.ChooseTargetCard || promptType === PromptType.ChooseTargetAny
-      ? (activePrompt?.validCardIds ?? [])
+    promptType === "chooseTargetCard" || promptType === "chooseTargetAny"
+      ? (activePrompt?.input.validCardIds ?? [])
       : [],
   );
   const markIfValidTarget = (c: GameCard): GameCard =>
@@ -1384,7 +1324,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   // Game over overlay
-  if (gameView.gameOver || promptType === PromptType.GameOver) {
+  if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen
         winnerId={gameView.winnerId}
@@ -1499,7 +1439,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               });
               return;
             }
-            if (promptType === PromptType.ChooseAction && handleBattlefieldCardAction(card)) {
+            if (promptType === "chooseAction" && handleBattlefieldCardAction(card)) {
               return;
             }
             handleBattlefieldClick(card);
@@ -1522,7 +1462,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onReopenZoneTarget={reopenZoneTarget}
           onTargetFromZone={(cardId) => {
             closeZoneViewer();
-            if (promptType === PromptType.ChooseTargetAny) {
+            if (promptType === "chooseTargetAny") {
               casting.wrappedTargetAny({ kind: "card", cardId });
             } else {
               casting.wrappedTargetCard(cardId);
@@ -1530,27 +1470,34 @@ export default function Game({ exitTo }: GameProps = {}) {
           }}
           onCastSpell={handleCastSpell}
           onTapLand={
-            promptType === PromptType.ChooseAction ||
-            promptType === PromptType.PayCombatCost ||
-            promptType === PromptType.PayManaCost
+            promptType === "chooseAction" ||
+            promptType === "payCombatCost" ||
+            promptType === "payManaCost"
               ? handleTapLand
               : undefined
           }
           onTapLands={
-            promptType === PromptType.ChooseAction || promptType === PromptType.PayManaCost
+            promptType === "chooseAction" || promptType === "payManaCost"
               ? handleTapLands
               : undefined
           }
-          onTapLandAbility={(cardId, abilityIndex, color) => tapLand(cardId, abilityIndex, color)}
+          onTapLandAbility={(cardId, abilityIndex, color) =>
+            respond({
+              type: "tapLand",
+              cardId,
+              abilityIndex: abilityIndex ?? null,
+              color: color ?? null,
+            })
+          }
           onUntapLand={
-            promptType === PromptType.ChooseAction ||
-            promptType === PromptType.PayCombatCost ||
-            promptType === PromptType.PayManaCost
+            promptType === "chooseAction" ||
+            promptType === "payCombatCost" ||
+            promptType === "payManaCost"
               ? handleUntapLand
               : undefined
           }
           onUntapLands={
-            promptType === PromptType.ChooseAction || promptType === PromptType.PayManaCost
+            promptType === "chooseAction" || promptType === "payManaCost"
               ? handleUntapLands
               : undefined
           }
@@ -1569,9 +1516,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         snapshots={snapshots}
         canRestoreSnapshots={
           (!isMultiplayer || isHost) &&
-          (promptType === PromptType.ChooseAction ||
-            promptType === PromptType.ChooseAttackers ||
-            promptType === PromptType.ChooseBlockers)
+          (promptType === "chooseAction" ||
+            promptType === "chooseAttackers" ||
+            promptType === "chooseBlockers")
         }
         onRestoreSnapshot={restoreSnapshot}
       />
@@ -1582,19 +1529,21 @@ export default function Game({ exitTo }: GameProps = {}) {
           isWaitingForResponse={isWaitingForResponse}
           isAutoPassing={isAutoPassing}
           isPassingUntilEot={isPassingUntilEot}
-          availableAttackerIds={activePrompt?.availableAttackerIds ?? []}
+          availableAttackerIds={chooseAttackersInput?.availableAttackerIds ?? []}
           pendingAttackers={pendingAttackers}
           onPassPriority={unifiedPass}
           onPassUntilEot={activatePassUntilEot}
           selectedAttackDefenderId={attackDefenderId}
           selectedAttackDefenderLabel={selectedAttackDefender?.label}
           multipleAttackDefenders={multipleAttackDefenders}
-          onDeclareAttackers={declareAttackers}
+          onDeclareAttackers={(attackerIds, defenderId) =>
+            respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
+          }
           onBeginAttackTargetPick={selectAllAttackersForPick}
           pendingAttacker={pendingAttacker}
-          attackerIds={activePrompt?.attackerIds ?? []}
+          attackerIds={chooseBlockersInput?.attackerIds ?? []}
           blockAssignments={blockAssignments}
-          onDeclareBlockers={declareBlockers}
+          onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
           onOpenStack={() => setSpellStackModalOpen(true)}
           onConcede={concede}
           resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
@@ -1607,12 +1556,13 @@ export default function Game({ exitTo }: GameProps = {}) {
           isMyTurn={gameView.activePlayerId === me.id}
           step={gameView.step}
           payManaCostInfo={
-            promptType === PromptType.PayManaCost && activePrompt?.manaCost != null
+            payManaCostInput
               ? {
-                  cardName: activePrompt.cardName ?? "Spell",
-                  manaCost: activePrompt.manaCost,
-                  manaPool: activePrompt.gameView?.players?.find((p) => p.isHuman)?.manaPool ?? {},
-                  canConfirmFromPool: activePrompt.canConfirmFromPool ?? false,
+                  cardName: payManaCostInput.cardName,
+                  manaCost: payManaCostInput.manaCost,
+                  manaPool:
+                    payManaCostInput.gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
+                  canConfirmFromPool: payManaCostInput.canConfirmFromPool,
                 }
               : null
           }
@@ -1620,12 +1570,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           // doesn't clobber the `auto` default (truthy event ⇒ auto=true,
           // which would route to the wand path even when the player
           // meant to commit the already-tapped pool).
-          onPayManaCost={() => payManaCost(false)}
-          onAutoManaCost={autoManaCost}
-          onCancelManaCost={cancelManaCost}
-          mulliganCount={activePrompt?.mulliganCount ?? 0}
-          onMulliganKeep={() => mulliganDecision(true)}
-          onMulliganDraw={() => mulliganDecision(false)}
+          onPayManaCost={() => respond({ type: "payManaCost", auto: false })}
+          onAutoManaCost={() => respond({ type: "payManaCost", auto: true })}
+          onCancelManaCost={() => respond({ type: "cancelManaCost" })}
+          mulliganCount={mulliganInput?.mulliganCount ?? 0}
+          onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
+          onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
           mulliganPutBackCount={mulliganPutBack.count}
           mulliganSelectedCount={mulliganPutBack.selected.size}
           onMulliganPutBackConfirm={mulliganPutBack.confirm}
@@ -1648,7 +1598,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         </div>
       )}
 
-      {promptType === PromptType.ChooseTargetSpell && !spellStackModalOpen && (
+      {promptType === "chooseTargetSpell" && !spellStackModalOpen && (
         <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
           <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
             <span className="text-sm font-semibold tracking-wide">
@@ -1678,16 +1628,15 @@ export default function Game({ exitTo }: GameProps = {}) {
         rightPanelCollapsed={isActionPanelCollapsed}
         playerColorMap={playerColorMap}
         validSpellIds={
-          promptType === PromptType.ChooseTargetSpell ? (activePrompt?.validSpellIds ?? []) : []
+          promptType === "chooseTargetSpell" ? (activePrompt?.input.validSpellIds ?? []) : []
         }
         onTargetSpell={(spellId) => {
-          targetSpell(spellId);
+          respond({ type: "targetSpell", spellId });
           setSpellStackModalOpen(false);
         }}
       />
 
       <GameModals
-        promptType={promptType}
         currentPrompt={activePrompt}
         sourceDeckCard={promptSourceDeckCard}
         revealedDeckCard={promptRevealedDeckCard}
@@ -1701,19 +1650,22 @@ export default function Game({ exitTo }: GameProps = {}) {
         onCancelZoneTarget={dismissZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
-          if (libraryPeekModal!.mode === "scry") scryDecision(selectedIds);
-          else if (libraryPeekModal!.mode === "surveil") surveilDecision(selectedIds);
-          else if (libraryPeekModal!.mode === "discard") discardDecision(selectedIds);
-          else digDecision(selectedIds);
+          if (libraryPeekModal!.mode === "scry")
+            respond({ type: "scryDecision", bottomCardIds: selectedIds });
+          else if (libraryPeekModal!.mode === "surveil")
+            respond({ type: "surveilDecision", graveyardCardIds: selectedIds });
+          else if (libraryPeekModal!.mode === "discard")
+            respond({ type: "discardDecision", discardedCardIds: selectedIds });
+          else respond({ type: "digDecision", chosenCardIds: selectedIds });
           setLibraryPeekModal(null);
         }}
         spellStackModalOpen={spellStackModalOpen}
         stack={gameView.stack}
         validSpellIds={
-          promptType === PromptType.ChooseTargetSpell ? (activePrompt?.validSpellIds ?? []) : []
+          promptType === "chooseTargetSpell" ? (activePrompt?.input.validSpellIds ?? []) : []
         }
         onTargetSpell={(spellId) => {
-          targetSpell(spellId);
+          respond({ type: "targetSpell", spellId });
           setSpellStackModalOpen(false);
         }}
         onCloseStack={() => setSpellStackModalOpen(false)}
@@ -1721,66 +1673,27 @@ export default function Game({ exitTo }: GameProps = {}) {
         abilityPickerState={abilityPickerState}
         onSelectAbility={(ability) => {
           if (ability.kind === "cast") {
-            castSpell(ability.cardId, ability.mode);
+            respond({ type: "playCard", cardId: ability.cardId, mode: ability.mode });
           } else if (ability.abilityIndex === -1) {
-            tapLand(abilityPickerState!.cardId);
+            respond({ type: "tapLand", cardId: abilityPickerState!.cardId });
           } else if (ability.abilityIndex != null) {
-            if (promptType === PromptType.PayManaCost && ability.isManaAbility) {
-              tapLand(abilityPickerState!.cardId, ability.abilityIndex);
+            if (promptType === "payManaCost" && ability.isManaAbility) {
+              respond({
+                type: "tapLand",
+                cardId: abilityPickerState!.cardId,
+                abilityIndex: ability.abilityIndex,
+              });
             } else {
-              activateAbility(abilityPickerState!.cardId, ability.abilityIndex);
+              respond({
+                type: "activateAbility",
+                cardId: abilityPickerState!.cardId,
+                abilityIndex: ability.abilityIndex,
+              });
             }
           }
           closeAbilityPicker();
         }}
         onCancelAbilityPicker={closeAbilityPicker}
-        onModeDecision={modeDecision}
-        onRevealCardsAcknowledged={revealCardsAcknowledged}
-        onPayCostToPreventEffectDecision={payCostToPreventEffectDecision}
-        onOptionalTriggerDecision={optionalTriggerDecision}
-        onPhyrexianDecision={(payLife) => respond({ type: "phyrexianDecision", payLife })}
-        onKickerDecision={(kicked) => respond({ type: "kickerDecision", kicked })}
-        onBuybackDecision={(paid) => respond({ type: "buybackDecision", buybackPaid: paid })}
-        onMultikickerDecision={(kickCount) => respond({ type: "multikickerDecision", kickCount })}
-        onReplicateDecision={(replicateCount) =>
-          respond({ type: "replicateDecision", replicateCount })
-        }
-        onAlternativeCostDecision={(chosenIndex) =>
-          respond({ type: "alternativeCostDecision", chosenIndex })
-        }
-        onColorDecision={colorDecision}
-        onChooseCardsDecision={chooseCardsDecision}
-        onTypeDecision={typeDecision}
-        onNumberDecision={numberDecision}
-        onCardNameDecision={cardNameDecision}
-        onScryDecision={scryDecision}
-        onSurveilDecision={surveilDecision}
-        onDigDecision={digDecision}
-        onDiscardDecision={discardDecision}
-        onDamageOrderDecision={(orderedBlockerIds) =>
-          respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds })
-        }
-        onCombatDamageAssignmentDecision={(assignments) =>
-          respond({ type: "combatDamageAssignmentDecision", assignments })
-        }
-        onPayCombatCost={payCombatCost}
-        onDeclineCombatCost={declineCombatCost}
-        onDelveDecision={delveDecision}
-        onConvokeDecision={convokeDecision}
-        onImproviseDecision={improviseDecision}
-        onManaComboDecision={manaComboDecision}
-        onExploreDecision={exploreDecision}
-        onExertDecision={exertDecision}
-        onEnlistDecision={enlistDecision}
-        onReorderLibraryDecision={reorderLibraryDecision}
-        onAssistDecision={assistDecision}
-        onDiceRolledAcknowledged={diceRolledAcknowledged}
-        onRollToIgnoreDecision={rollToIgnoreDecision}
-        onRollToSwapDecision={rollToSwapDecision}
-        onRollToModifyDecision={rollToModifyDecision}
-        onDiceToRerollDecision={diceToRerollDecision}
-        onRollSwapValueDecision={rollSwapValueDecision}
-        onFirstPlayerRollAcknowledged={firstPlayerRollAcknowledged}
       />
 
       {playModePicker && (
@@ -1788,7 +1701,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           card={playModePicker.card}
           options={playModePicker.options}
           onSelect={(mode) => {
-            castSpell(playModePicker.cardId, mode);
+            respond({ type: "playCard", cardId: playModePicker.cardId, mode });
             closePlayModePicker();
           }}
           onCancel={closePlayModePicker}

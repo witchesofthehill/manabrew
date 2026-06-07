@@ -1,14 +1,13 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import type { GameCard, OpponentZones, Player } from "@/types/manabrew";
-import type { AgentPrompt } from "@/stores/useGameStore";
+import type { Prompt } from "@/protocol";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
 import { PixiPhaseStripCanvas } from "@/pixi/PixiPhaseStripCanvas";
 import type { BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PixiGameScene } from "@/pixi/PixiGameScene";
-import type { PromptType } from "@/types/promptType";
-import { PromptType as PT } from "@/types/promptType";
+import type { PromptType } from "@/protocol";
 import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
 import type { PlacementGhost } from "@/components/game/game.types";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -18,6 +17,15 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
+
+function promptOf<TType extends PromptType>(
+  prompt: Prompt | null | undefined,
+  type: TType,
+): Extract<Prompt, { input: { type: TType } }> | null {
+  return prompt?.input.type === type
+    ? (prompt as Extract<Prompt, { input: { type: TType } }>)
+    : null;
+}
 
 // Footprint of the bottom-right action cluster (PASS, Pass-Until-End,
 // phase buttons). Matches MainActionOverlay's `w-[300px]` + its visible
@@ -52,7 +60,7 @@ interface GameBoardProps {
 
   // Prompt state
   promptType?: PromptType;
-  currentPrompt: AgentPrompt | null;
+  currentPrompt: Prompt | null;
 
   // Combat state
   pendingAttackers: string[];
@@ -225,37 +233,56 @@ export function GameBoard({
     const pad = CLUSTER_GAP_FROM_HAND_PX + 8;
     return `max(${CLUSTER_MIN_WIDTH_PX}px, calc(50% - ${handHalf + pad}px))`;
   }, [handWidth]);
-  const hostileTargeting = currentPrompt?.hostile ?? false;
-  const isTargetingPrompt = promptType === PT.ChooseTargetCard || promptType === PT.ChooseTargetAny;
+  const isTargetingPrompt = promptType === "chooseTargetCard" || promptType === "chooseTargetAny";
+  const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
+  const chooseBlockersPrompt = promptOf(currentPrompt, "chooseBlockers");
+  const chooseTargetCardPrompt = promptOf(currentPrompt, "chooseTargetCard");
+  const chooseTargetAnyPrompt = promptOf(currentPrompt, "chooseTargetAny");
+  const chooseTargetCardFromZonePrompt = promptOf(currentPrompt, "chooseTargetCardFromZone");
+  const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
+  const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
+  const promptAttackerIds = chooseBlockersPrompt?.input.attackerIds;
+  const manaAbilityOptions =
+    chooseActionPrompt?.input.manaAbilityOptions ?? payManaCostPrompt?.input.manaAbilityOptions;
+  const hostileTargeting =
+    chooseTargetCardPrompt?.input.hostile ?? chooseTargetAnyPrompt?.input.hostile ?? false;
   const pixiBattlefield = useMemo(
     (): BattlefieldState => ({
       cards: myPermanents,
       pendingCardIds:
-        promptType === PT.ChooseAttackers
+        promptType === "chooseAttackers"
           ? pendingAttackers
-          : promptType === PT.ChooseBlockers
+          : promptType === "chooseBlockers"
             ? blockAssignments.map((a) => a.blockerId)
             : undefined,
-      attackingCardIds: currentPrompt?.attackerIds,
+      attackingCardIds: promptAttackerIds,
       tappableLandIds:
-        promptType === PT.ChooseAction ||
-        promptType === PT.PayCombatCost ||
-        promptType === PT.PayManaCost
-          ? (currentPrompt?.tappableLandIds ?? [])
+        chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
+          ? (chooseActionPrompt?.input.tappableLandIds ??
+            payCombatCostPrompt?.input.tappableLandIds ??
+            payManaCostPrompt?.input.tappableLandIds)
           : undefined,
       untappableLandIds:
-        promptType === PT.ChooseAction ||
-        promptType === PT.PayCombatCost ||
-        promptType === PT.PayManaCost
-          ? (currentPrompt?.untappableLandIds ?? [])
+        chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
+          ? (chooseActionPrompt?.input.untappableLandIds ??
+            payCombatCostPrompt?.input.untappableLandIds ??
+            payManaCostPrompt?.input.untappableLandIds)
           : undefined,
-      manaAbilityOptions:
-        promptType === PT.ChooseAction || promptType === PT.PayManaCost
-          ? (currentPrompt?.manaAbilityOptions ?? [])
-          : undefined,
+      manaAbilityOptions,
       hostileTargeting,
     }),
-    [myPermanents, promptType, pendingAttackers, blockAssignments, currentPrompt, hostileTargeting],
+    [
+      myPermanents,
+      promptType,
+      pendingAttackers,
+      blockAssignments,
+      promptAttackerIds,
+      chooseActionPrompt,
+      payCombatCostPrompt,
+      payManaCostPrompt,
+      manaAbilityOptions,
+      hostileTargeting,
+    ],
   );
 
   const pixiHand = useMemo(
@@ -272,12 +299,12 @@ export function GameBoard({
   const pixiCallbacks = useMemo(
     (): GameCanvasCallbacks => ({
       onClickCard:
-        promptType === PT.ChooseAction ||
-        promptType === PT.ChooseAttackers ||
-        promptType === PT.ChooseBlockers ||
-        promptType === PT.ChooseTargetCard ||
-        promptType === PT.ChooseTargetCardFromZone ||
-        promptType === PT.ChooseTargetAny
+        promptType === "chooseAction" ||
+        promptType === "chooseAttackers" ||
+        promptType === "chooseBlockers" ||
+        promptType === "chooseTargetCard" ||
+        promptType === "chooseTargetCardFromZone" ||
+        promptType === "chooseTargetAny"
           ? onBattlefieldClick
           : undefined,
       onHoverCard: (card, bounds) => {
@@ -437,7 +464,7 @@ export function GameBoard({
             step={step}
             promptType={promptType}
             pendingAttacker={pendingAttacker}
-            attackerIds={currentPrompt?.attackerIds}
+            attackerIds={promptAttackerIds}
             onClickCard={onBattlefieldClick}
             onClickAnyCard={onAttackerClick}
             onHoverCard={(card, e, opts) => onHoverCard(card, e, { useAnchor: true, ...opts })}
@@ -445,7 +472,7 @@ export function GameBoard({
             onOpenZone={onOpenZone}
             zonePanelOrder={zonePanelOrder}
             hostileTargeting={hostileTargeting}
-            manaAbilityOptions={currentPrompt?.manaAbilityOptions}
+            manaAbilityOptions={manaAbilityOptions}
             pixiSceneRef={getOpponentPixiSceneRef?.(opponents[0]!.id)}
           />
         ) : (
@@ -472,7 +499,7 @@ export function GameBoard({
                     step={step}
                     promptType={promptType}
                     pendingAttacker={pendingAttacker}
-                    attackerIds={currentPrompt?.attackerIds}
+                    attackerIds={promptAttackerIds}
                     onClickCard={onBattlefieldClick}
                     onClickAnyCard={onAttackerClick}
                     onHoverCard={(card, e, opts) =>
@@ -482,7 +509,7 @@ export function GameBoard({
                     onOpenZone={onOpenZone}
                     zonePanelOrder={zonePanelOrder}
                     hostileTargeting={hostileTargeting}
-                    manaAbilityOptions={currentPrompt?.manaAbilityOptions}
+                    manaAbilityOptions={manaAbilityOptions}
                     pixiSceneRef={getOpponentPixiSceneRef?.(op.id)}
                   />
                 </ResizablePanel>
@@ -558,7 +585,7 @@ export function GameBoard({
                         return;
                       }
                       const hasPlayable = myCommandZone!.some((c) => c.isPlayable);
-                      if (hasPlayable && promptType === PT.ChooseAction) {
+                      if (hasPlayable && promptType === "chooseAction") {
                         onOpenZoneAndCast("Your Command Zone", myCommandZone!, (_cardId) => {});
                       } else {
                         onOpenZone("Your Command Zone", myCommandZone!);
@@ -571,14 +598,14 @@ export function GameBoard({
                       return;
                     }
                     if (
-                      promptType === PT.ChooseTargetCardFromZone &&
-                      currentPrompt?.zone === "Graveyard"
+                      promptType === "chooseTargetCardFromZone" &&
+                      chooseTargetCardFromZonePrompt?.input.zone === "Graveyard"
                     ) {
                       onReopenZoneTarget();
                       return;
                     }
                     const hasPlayable = graveyard.some((c) => c.isPlayable);
-                    if (hasPlayable && promptType === PT.ChooseAction) {
+                    if (hasPlayable && promptType === "chooseAction") {
                       onOpenZoneAndCast("Your Graveyard", graveyard, (_cardId) => {});
                     } else {
                       onOpenZone("Your Graveyard", graveyard);
@@ -590,24 +617,24 @@ export function GameBoard({
                       return;
                     }
                     if (
-                      promptType === PT.ChooseTargetCardFromZone &&
-                      currentPrompt?.zone === "Exile"
+                      promptType === "chooseTargetCardFromZone" &&
+                      chooseTargetCardFromZonePrompt?.input.zone === "Exile"
                     ) {
                       onReopenZoneTarget();
                       return;
                     }
                     const hasPlayable = exile.some((c) => c.isPlayable);
-                    if (hasPlayable && promptType === PT.ChooseAction) {
+                    if (hasPlayable && promptType === "chooseAction") {
                       onOpenZoneAndCast("Your Exile", exile, (_cardId) => {});
                     } else {
                       onOpenZone("Your Exile", exile);
                     }
                   }}
                   hasPlayableInGraveyard={
-                    promptType === PT.ChooseAction && graveyard.some((c) => c.isPlayable)
+                    promptType === "chooseAction" && graveyard.some((c) => c.isPlayable)
                   }
                   hasPlayableInExile={
-                    promptType === PT.ChooseAction && exile.some((c) => c.isPlayable)
+                    promptType === "chooseAction" && exile.some((c) => c.isPlayable)
                   }
                   hasTargetInGraveyard={isTargetingPrompt && graveyard.some((c) => c.isChoosable)}
                   hasTargetInExile={isTargetingPrompt && exile.some((c) => c.isChoosable)}

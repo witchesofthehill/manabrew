@@ -61,4 +61,4 @@ Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::s
 
 ## Engine ↔ UI DTOs
 
-Game state reaches the UI through `src/types/manabrew.ts` and the prompt types in `src/types/promptType.ts`. These shapes are mirrored on the Rust side in `forge-engine/crates/forge-agent-interface/`. **Both sides change together**, or the UI breaks.
+Game state reaches the UI through `src/types/manabrew.ts` and the prompt protocol in `src/protocol/`: per-prompt `Type`/`Input`/`Output` payloads under `protocol/prompts/`, and the `Prompt` request/`Response` transport envelope under `protocol/transport/`. (`src/types/promptType.ts` holds only shared helper types like `TargetingIntent`, not prompt I/O.) These shapes are mirrored on the Rust side in `forge-engine/crates/forge-agent-interface/`. **Both sides change together**, or the UI breaks.

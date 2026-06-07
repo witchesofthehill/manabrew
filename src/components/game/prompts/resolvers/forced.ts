@@ -2,45 +2,48 @@ import type { PromptResolver, ResolveCtx } from "../promptHandlers";
 import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 
 function consumeIntentForCard(
-  prompt: { sourceCardId?: string; validCardIds?: string[] },
+  prompt: { sourceCardId?: string; input: { validCardIds: string[] } },
   ctx: ResolveCtx,
 ): string | null {
   const sourceId = prompt.sourceCardId;
   if (!sourceId) return null;
   const intent = ctx.targetIntents[sourceId];
   if (!intent || intent.kind !== "card") return null;
-  if (!(prompt.validCardIds ?? []).includes(intent.id)) return null;
+  if (!prompt.input.validCardIds.includes(intent.id)) return null;
   useTargetIntentStore.getState().clearIntent(sourceId);
   return intent.id;
 }
 
 function consumeIntentForPlayer(
-  prompt: { sourceCardId?: string; validPlayerIds?: string[] },
+  prompt: { sourceCardId?: string; input: { validPlayerIds: string[] } },
   ctx: ResolveCtx,
 ): string | null {
   const sourceId = prompt.sourceCardId;
   if (!sourceId) return null;
   const intent = ctx.targetIntents[sourceId];
   if (!intent || intent.kind !== "player") return null;
-  if (!(prompt.validPlayerIds ?? []).includes(intent.id)) return null;
+  if (!prompt.input.validPlayerIds.includes(intent.id)) return null;
   useTargetIntentStore.getState().clearIntent(sourceId);
   return intent.id;
 }
 
 function consumeIntentForSpell(
-  prompt: { sourceCardId?: string; validSpellIds?: string[] },
+  prompt: { sourceCardId?: string; input: { validSpellIds: string[] } },
   ctx: ResolveCtx,
 ): string | null {
   const sourceId = prompt.sourceCardId;
   if (!sourceId) return null;
   const intent = ctx.targetIntents[sourceId];
   if (!intent || intent.kind !== "spell") return null;
-  if (!(prompt.validSpellIds ?? []).includes(intent.id)) return null;
+  if (!prompt.input.validSpellIds.includes(intent.id)) return null;
   useTargetIntentStore.getState().clearIntent(sourceId);
   return intent.id;
 }
 
-export const singleLegalCard: PromptResolver = (prompt, ctx) => {
+export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetCardFromZone"> = (
+  prompt,
+  ctx,
+) => {
   const preselected = consumeIntentForCard(prompt, ctx);
   if (preselected) {
     return {
@@ -49,7 +52,7 @@ export const singleLegalCard: PromptResolver = (prompt, ctx) => {
       reason: `pre-selected target ${preselected}`,
     };
   }
-  const ids = prompt.validCardIds ?? [];
+  const ids = prompt.input.validCardIds;
   if (ids.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -58,7 +61,7 @@ export const singleLegalCard: PromptResolver = (prompt, ctx) => {
   };
 };
 
-export const singleLegalPlayer: PromptResolver = (prompt, ctx) => {
+export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, ctx) => {
   const preselected = consumeIntentForPlayer(prompt, ctx);
   if (preselected) {
     return {
@@ -67,7 +70,7 @@ export const singleLegalPlayer: PromptResolver = (prompt, ctx) => {
       reason: `pre-selected player ${preselected}`,
     };
   }
-  const ids = prompt.validPlayerIds ?? [];
+  const ids = prompt.input.validPlayerIds;
   if (ids.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -76,7 +79,7 @@ export const singleLegalPlayer: PromptResolver = (prompt, ctx) => {
   };
 };
 
-export const singleLegalSpell: PromptResolver = (prompt, ctx) => {
+export const singleLegalSpell: PromptResolver<"chooseTargetSpell"> = (prompt, ctx) => {
   const preselected = consumeIntentForSpell(prompt, ctx);
   if (preselected) {
     return {
@@ -85,7 +88,7 @@ export const singleLegalSpell: PromptResolver = (prompt, ctx) => {
       reason: `pre-selected spell ${preselected}`,
     };
   }
-  const ids = prompt.validSpellIds ?? [];
+  const ids = prompt.input.validSpellIds;
   if (ids.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -94,10 +97,10 @@ export const singleLegalSpell: PromptResolver = (prompt, ctx) => {
   };
 };
 
-export const forcedAllModes: PromptResolver = (prompt) => {
-  const opts = prompt.options ?? [];
-  const min = prompt.minChoices ?? 0;
-  const max = prompt.maxChoices ?? 0;
+export const forcedAllModes: PromptResolver<"chooseMode"> = (prompt) => {
+  const opts = prompt.input.options;
+  const min = prompt.input.minChoices;
+  const max = prompt.input.maxChoices;
   if (opts.length === 0) return { kind: "force-show" };
   if (min !== max || min !== opts.length) return { kind: "force-show" };
   return {
@@ -107,8 +110,8 @@ export const forcedAllModes: PromptResolver = (prompt) => {
   };
 };
 
-export const singleLegalColor: PromptResolver = (prompt) => {
-  const colors = prompt.validColors ?? [];
+export const singleLegalColor: PromptResolver<"chooseColor"> = (prompt) => {
+  const colors = prompt.input.validColors;
   if (colors.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -117,8 +120,8 @@ export const singleLegalColor: PromptResolver = (prompt) => {
   };
 };
 
-export const singleLegalType: PromptResolver = (prompt) => {
-  const types = prompt.validTypes ?? [];
+export const singleLegalType: PromptResolver<"chooseType"> = (prompt) => {
+  const types = prompt.input.validTypes;
   if (types.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -127,9 +130,9 @@ export const singleLegalType: PromptResolver = (prompt) => {
   };
 };
 
-export const singleLegalNumber: PromptResolver = (prompt) => {
-  const min = prompt.min;
-  const max = prompt.max;
+export const singleLegalNumber: PromptResolver<"chooseNumber"> = (prompt) => {
+  const min = prompt.input.min;
+  const max = prompt.input.max;
   if (min == null || max == null || min !== max) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -138,8 +141,8 @@ export const singleLegalNumber: PromptResolver = (prompt) => {
   };
 };
 
-export const singleLegalName: PromptResolver = (prompt) => {
-  const names = prompt.validNames ?? [];
+export const singleLegalName: PromptResolver<"chooseCardName"> = (prompt) => {
+  const names = prompt.input.validNames;
   if (names.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -148,10 +151,10 @@ export const singleLegalName: PromptResolver = (prompt) => {
   };
 };
 
-export const allCardsForced: PromptResolver = (prompt) => {
-  const ids = prompt.validCardIds ?? prompt.cardIds ?? [];
-  const min = prompt.minChoices ?? prompt.min;
-  const max = prompt.maxChoices ?? prompt.max;
+export const allCardsForced: PromptResolver<"chooseCardsForEffect"> = (prompt) => {
+  const ids = prompt.input.validCardIds;
+  const min = prompt.input.minChoices;
+  const max = prompt.input.maxChoices;
   if (ids.length === 0) return { kind: "force-show" };
   if (min == null || max == null || min !== max || min !== ids.length) {
     return { kind: "force-show" };
@@ -163,8 +166,8 @@ export const allCardsForced: PromptResolver = (prompt) => {
   };
 };
 
-export const singleAlternativeCost: PromptResolver = (prompt) => {
-  const opts = prompt.options ?? [];
+export const singleAlternativeCost: PromptResolver<"chooseAlternativeCost"> = (prompt) => {
+  const opts = prompt.input.options;
   if (opts.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -173,8 +176,8 @@ export const singleAlternativeCost: PromptResolver = (prompt) => {
   };
 };
 
-export const singleBlockerOrder: PromptResolver = (prompt) => {
-  const blockers = prompt.blockerIds ?? [];
+export const singleBlockerOrder: PromptResolver<"chooseDamageAssignmentOrder"> = (prompt) => {
+  const blockers = prompt.input.blockerIds;
   if (blockers.length > 1) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -183,10 +186,10 @@ export const singleBlockerOrder: PromptResolver = (prompt) => {
   };
 };
 
-export const singleAssigneeDamage: PromptResolver = (prompt) => {
-  const blockers = prompt.blockerIds ?? [];
-  const defenderId = prompt.defenderId ?? null;
-  const total = prompt.totalDamage ?? 0;
+export const singleAssigneeDamage: PromptResolver<"chooseCombatDamageAssignment"> = (prompt) => {
+  const blockers = prompt.input.blockerIds;
+  const defenderId = prompt.input.defenderId ?? null;
+  const total = prompt.input.totalDamage ?? 0;
   const assignees = blockers.length + (defenderId ? 1 : 0);
   if (assignees !== 1) return { kind: "force-show" };
   const target = blockers[0] ?? defenderId!;
@@ -200,7 +203,7 @@ export const singleAssigneeDamage: PromptResolver = (prompt) => {
   };
 };
 
-export const singleLegalAny: PromptResolver = (prompt, ctx) => {
+export const singleLegalAny: PromptResolver<"chooseTargetAny"> = (prompt, ctx) => {
   const preCard = consumeIntentForCard(prompt, ctx);
   if (preCard) {
     return {
@@ -217,18 +220,9 @@ export const singleLegalAny: PromptResolver = (prompt, ctx) => {
       reason: `pre-selected target (player ${prePlayer})`,
     };
   }
-  const preSpell = consumeIntentForSpell(prompt, ctx);
-  if (preSpell) {
-    return {
-      kind: "auto",
-      respond: { type: "targetAny", target: { kind: "stack", spellId: preSpell } },
-      reason: `pre-selected target (spell ${preSpell})`,
-    };
-  }
-  const cards = prompt.validCardIds ?? [];
-  const players = prompt.validPlayerIds ?? [];
-  const spells = prompt.validSpellIds ?? [];
-  const total = cards.length + players.length + spells.length;
+  const cards = prompt.input.validCardIds;
+  const players = prompt.input.validPlayerIds;
+  const total = cards.length + players.length;
   if (total !== 1) return { kind: "force-show" };
   if (cards.length === 1) {
     return {
@@ -244,16 +238,12 @@ export const singleLegalAny: PromptResolver = (prompt, ctx) => {
       reason: `single legal target (player ${players[0]})`,
     };
   }
-  return {
-    kind: "auto",
-    respond: { type: "targetAny", target: { kind: "stack", spellId: spells[0] } },
-    reason: `single legal target (spell ${spells[0]})`,
-  };
+  return { kind: "force-show" };
 };
 
-export const forcedDiscard: PromptResolver = (prompt) => {
-  const hand = prompt.handCardIds ?? [];
-  const required = prompt.numToDiscard ?? 0;
+export const forcedDiscard: PromptResolver<"chooseDiscard"> = (prompt) => {
+  const hand = prompt.input.handCardIds;
+  const required = prompt.input.numToDiscard;
   if (required <= 0) {
     return {
       kind: "auto",
@@ -271,8 +261,8 @@ export const forcedDiscard: PromptResolver = (prompt) => {
   return { kind: "force-show" };
 };
 
-export const emptyScry: PromptResolver = (prompt) => {
-  const cards = prompt.cardIds ?? prompt.cards?.map((c) => c.id) ?? [];
+export const emptyScry: PromptResolver<"scry"> = (prompt) => {
+  const cards = prompt.input.cardIds;
   if (cards.length > 0) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -281,8 +271,8 @@ export const emptyScry: PromptResolver = (prompt) => {
   };
 };
 
-export const emptySurveil: PromptResolver = (prompt) => {
-  const cards = prompt.cardIds ?? prompt.cards?.map((c) => c.id) ?? [];
+export const emptySurveil: PromptResolver<"surveil"> = (prompt) => {
+  const cards = prompt.input.cardIds;
   if (cards.length > 0) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -291,8 +281,8 @@ export const emptySurveil: PromptResolver = (prompt) => {
   };
 };
 
-export const emptyDig: PromptResolver = (prompt) => {
-  const cards = prompt.cardIds ?? prompt.cards?.map((c) => c.id) ?? [];
+export const emptyDig: PromptResolver<"dig"> = (prompt) => {
+  const cards = prompt.input.cardIds;
   if (cards.length > 0) return { kind: "force-show" };
   return {
     kind: "auto",
@@ -301,8 +291,8 @@ export const emptyDig: PromptResolver = (prompt) => {
   };
 };
 
-export const singleCardOrder: PromptResolver = (prompt) => {
-  const ids = prompt.cardIds ?? prompt.cards?.map((c) => c.id) ?? [];
+export const singleCardOrder: PromptResolver<"reorderLibrary"> = (prompt) => {
+  const ids = prompt.input.cardIds;
   if (ids.length > 1) return { kind: "force-show" };
   return {
     kind: "auto",

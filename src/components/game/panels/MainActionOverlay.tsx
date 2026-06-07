@@ -10,7 +10,6 @@ import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "./PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
-import { PromptType } from "@/types/promptType";
 
 export function MainActionOverlay({
   promptType,
@@ -48,7 +47,7 @@ export function MainActionOverlay({
   mulliganSelectedCount,
   onMulliganPutBackConfirm,
 }: MainActionOverlayProps) {
-  if (promptType === PromptType.GameOver) return null;
+  if (promptType === "gameOver") return null;
   const buttonLayout = "modern" as const;
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
   const passToPhaseShort =

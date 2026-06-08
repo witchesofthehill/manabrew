@@ -26,7 +26,7 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Oathbreaker",
 ];
 
-const PLAYER_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
+const PLAYER_COUNT_OPTIONS = [2, 3, 4];
 
 interface TablesListProps {
   rooms: RoomInfo[];
@@ -78,11 +78,12 @@ export function TablesList({
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
-  // The controller is the first seated player — they drive the lobby (format,
-  // seats, bots, start) even when the host is a non-playing engine node. In a
-  // self-hosted room the host (the node) takes no seat, so the controller is
-  // the first human to join, not currentRoom.host.
-  const controllerName = currentRoom?.players[0]?.username;
+  // The controller is the first human (non-bot) player — they drive the lobby
+  // (format, seats, bots, start) even when the host is a non-playing engine
+  // node. Mirrors the server's Room::controller_id: first non-bot seat, falling
+  // back to the first seat only if every player is a bot.
+  const controllerName =
+    currentRoom?.players.find((p) => !p.is_bot)?.username ?? currentRoom?.players[0]?.username;
   const isController = controllerName === username;
   const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
   const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;

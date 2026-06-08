@@ -613,14 +613,19 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::JoinRoom { room_id, observe } => {
+        ClientMessage::JoinRoom {
+            room_id,
+            observe,
+            as_bot,
+        } => {
             info!(
-                "[lobby] '{}' joining room {} (observe={})",
+                "[lobby] '{}' joining room {} (observe={}, bot={})",
                 username,
                 &room_id[..8.min(room_id.len())],
-                observe
+                observe,
+                as_bot
             );
-            match lobby::join_room_sync(state, player_id, &room_id, observe) {
+            match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot) {
                 Ok(info) => {
                     info!("[lobby] '{}' joined room '{}'", username, info.room_name);
                     if !observe {

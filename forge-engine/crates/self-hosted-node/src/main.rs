@@ -260,6 +260,7 @@ async fn host_one_room(
         host.send(&ClientMessage::JoinRoom {
             room_id: room_id.clone(),
             observe: !config.host_plays,
+            as_bot: false,
         })
         .await?;
         info!(room_id, "joining configured room");

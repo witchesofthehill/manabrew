@@ -84,6 +84,7 @@ pub fn join_room_sync(
     player_id: &str,
     room_id: &str,
     observe: bool,
+    as_bot: bool,
 ) -> Result<RoomInfo, ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
@@ -115,7 +116,7 @@ pub fn join_room_sync(
             room.add_observer(player_id.to_string(), username)
                 .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
         } else {
-            room.add_player(player_id.to_string(), username)
+            room.add_player(player_id.to_string(), username, as_bot)
                 .map_err(|msg| {
                     if msg.contains("full") {
                         ServerError::RoomFull(room_id.to_string())
@@ -321,7 +322,7 @@ pub fn set_max_players_sync(
         }
 
         let floor = (room.players.len() as u8).max(2);
-        room.max_players = max_players.clamp(floor, 8);
+        room.max_players = max_players.clamp(floor, 4);
     }
 
     Ok(room_id)

@@ -106,6 +106,8 @@ pub enum ClientMessage {
         room_id: String,
         #[serde(default)]
         observe: bool,
+        #[serde(default)]
+        as_bot: bool,
     },
 
     LeaveRoom,
@@ -270,6 +272,8 @@ pub struct RoomPlayerInfo {
     pub username: String,
     pub ready: bool,
     pub connected: bool,
+    #[serde(default)]
+    pub is_bot: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_deck_name: Option<String>,
 }

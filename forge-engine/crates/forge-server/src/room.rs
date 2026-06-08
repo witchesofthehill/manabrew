@@ -10,6 +10,7 @@ pub struct RoomSlot {
     pub username: String,
     pub ready: bool,
     pub connected: bool,
+    pub is_bot: bool,
     pub selected_deck_name: Option<String>,
     pub selected_deck: Option<Deck>,
     pub selected_commander_name: Option<String>,
@@ -59,6 +60,7 @@ impl Room {
                     username: host_username.clone(),
                     ready: false,
                     connected: true,
+                    is_bot: false,
                     selected_deck_name: None,
                     selected_deck: None,
                     selected_commander_name: None,
@@ -107,7 +109,12 @@ impl Room {
         self.players.len() >= min_players && self.players.iter().all(|p| p.ready)
     }
 
-    pub fn add_player(&mut self, player_id: String, username: String) -> Result<(), String> {
+    pub fn add_player(
+        &mut self,
+        player_id: String,
+        username: String,
+        is_bot: bool,
+    ) -> Result<(), String> {
         if self.is_full() {
             return Err("Room is full".into());
         }
@@ -122,6 +129,7 @@ impl Room {
             username,
             ready: false,
             connected: true,
+            is_bot,
             selected_deck_name: None,
             selected_deck: None,
             selected_commander_name: None,
@@ -241,14 +249,21 @@ impl Room {
         self.host_player_id == player_id
     }
 
-    /// The room controller is the first player to take a seat. The controller
-    /// drives the lobby (format, bots, start) regardless of who holds the
-    /// engine (`host`). In a normal self-created room the host is also the
-    /// first player, so the two coincide.
-    pub fn is_controller(&self, player_id: &str) -> bool {
+    /// The room controller is the first human (non-bot) player to take a seat.
+    /// They drive the lobby (format, seats, bots, start) regardless of who holds
+    /// the engine (`host`). Computed dynamically from current seats, so if the
+    /// controlling human leaves, control passes to the next human — never to a
+    /// bot. Falls back to the first seat only if every player is a bot.
+    pub fn controller_id(&self) -> Option<&str> {
         self.players
-            .first()
-            .is_some_and(|p| p.player_id == player_id)
+            .iter()
+            .find(|p| !p.is_bot)
+            .or_else(|| self.players.first())
+            .map(|p| p.player_id.as_str())
+    }
+
+    pub fn is_controller(&self, player_id: &str) -> bool {
+        self.controller_id() == Some(player_id)
     }
 
     pub fn host_username(&self) -> String {
@@ -298,6 +313,7 @@ impl Room {
                     username: p.username.clone(),
                     ready: p.ready,
                     connected: p.connected,
+                    is_bot: p.is_bot,
                     selected_deck_name: p.selected_deck_name.clone(),
                 })
                 .collect(),
@@ -335,9 +351,9 @@ mod tests {
         let mut r = room(false);
         assert!(r.is_host("host"));
         assert!(!r.is_controller("host"));
-        r.add_player("human".into(), "human".into()).unwrap();
+        r.add_player("human".into(), "human".into(), false).unwrap();
         assert!(r.is_controller("human"));
-        r.add_player("bot".into(), "bot".into()).unwrap();
+        r.add_player("bot".into(), "bot".into(), true).unwrap();
         assert!(!r.is_controller("bot"));
     }
 }

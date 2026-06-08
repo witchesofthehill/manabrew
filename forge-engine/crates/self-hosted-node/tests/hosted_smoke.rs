@@ -132,6 +132,7 @@ async fn play_game(
             &ClientMessage::JoinRoom {
                 room_id: room_id.to_string(),
                 observe: false,
+                as_bot: false,
             },
         )
         .await?;

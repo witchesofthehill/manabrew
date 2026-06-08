@@ -26,6 +26,8 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Oathbreaker",
 ];
 
+const PLAYER_COUNT_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
+
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -38,6 +40,7 @@ interface TablesListProps {
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
+  onSetMaxPlayers?: (maxPlayers: number) => void;
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
@@ -59,6 +62,7 @@ export function TablesList({
   onLeaveRoom,
   onSetReady,
   onSetFormat,
+  onSetMaxPlayers,
   onOpenDeckDialog,
   onStartGame,
   onStartTabletop,
@@ -78,6 +82,7 @@ export function TablesList({
   // bots, start) even when the host is a non-playing engine node. In a normal
   // self-created room the host is the first player, so the two coincide.
   const isController = currentRoom?.players[0]?.username === username;
+  const isSeated = !!myPlayer;
   const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
   const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
@@ -165,6 +170,36 @@ export function TablesList({
                         : currentRoom.format}
                   </Badge>
                 )}
+                {isSeated &&
+                currentRoom.status === "Lobby" &&
+                currentRoom.hosted &&
+                !isLimitedRoom &&
+                onSetMaxPlayers ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted/60"
+                      >
+                        <Users className="h-2.5 w-2.5" />
+                        {currentRoom.players.length}/{currentRoom.max_players}
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {PLAYER_COUNT_OPTIONS.map((n) => (
+                        <DropdownMenuItem
+                          key={n}
+                          onSelect={() => onSetMaxPlayers(n)}
+                          disabled={n === currentRoom.max_players || n < currentRoom.players.length}
+                          className="text-xs"
+                        >
+                          {n} players
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
                   className="text-[10px]"
@@ -226,7 +261,7 @@ export function TablesList({
                           : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
-                    {canRemove && isController ? (
+                    {canRemove ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -253,7 +288,7 @@ export function TablesList({
               })}
               {/* Hidden on Open rooms — draft bots come from the room's
                   draft_config.fill_with_bots, not this deck-picker flow. */}
-              {isController &&
+              {isSeated &&
                 !isOpenFormat &&
                 currentRoom.players.length < currentRoom.max_players &&
                 onAddBot && (

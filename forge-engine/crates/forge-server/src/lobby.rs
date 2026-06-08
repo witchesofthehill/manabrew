@@ -293,6 +293,40 @@ pub fn set_format_sync(
     Ok(room_id)
 }
 
+pub fn set_max_players_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    max_players: u8,
+) -> Result<String, ServerError> {
+    let room_id = {
+        state
+            .players
+            .get(player_id)
+            .and_then(|p| p.room_id.clone())
+            .ok_or(ServerError::NotInRoom)?
+    };
+
+    {
+        let mut room = state
+            .rooms
+            .get_mut(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+
+        if !room.players.iter().any(|p| p.player_id == player_id) {
+            return Err(ServerError::NotInRoom);
+        }
+
+        if room.status != RoomStatus::Lobby {
+            return Err(ServerError::GameAlreadyStarted);
+        }
+
+        let floor = (room.players.len() as u8).max(2);
+        room.max_players = max_players.clamp(floor, 8);
+    }
+
+    Ok(room_id)
+}
+
 pub fn start_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,

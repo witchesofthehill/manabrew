@@ -124,6 +124,10 @@ pub enum ClientMessage {
         format: GameFormat,
     },
 
+    SetMaxPlayers {
+        max_players: u8,
+    },
+
     StartGame {
         #[serde(default)]
         format: Option<GameFormat>,

@@ -72,6 +72,7 @@ interface ServerState {
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
   setFormat(format: GameFormat): Promise<void>;
+  setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
   endGame(): Promise<void>;
 
@@ -204,6 +205,12 @@ export const useServerStore = create<ServerState>()(
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.setFormat({ format });
+      },
+
+      async setMaxPlayers(maxPlayers) {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.setMaxPlayers({ maxPlayers });
       },
 
       async startGame(format) {

@@ -23,6 +23,7 @@ import type {
   SetDeckSelectionParams,
   StartServerGameParams,
   SetFormatParams,
+  SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
@@ -798,6 +799,10 @@ class WebServerApi implements IServerApi {
 
   async setFormat(params: SetFormatParams): Promise<void> {
     this.send({ type: "SetFormat", format: params.format });
+  }
+
+  async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
+    this.send({ type: "SetMaxPlayers", max_players: params.maxPlayers });
   }
 
   async startGame(params?: StartServerGameParams): Promise<void> {

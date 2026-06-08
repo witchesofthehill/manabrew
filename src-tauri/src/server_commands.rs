@@ -177,6 +177,20 @@ pub async fn server_set_format(
 }
 
 #[tauri::command]
+pub async fn server_set_max_players(
+    client: State<'_, ServerClient>,
+    max_players: u8,
+) -> Result<(), String> {
+    send_server_message(
+        &client,
+        serde_json::json!({
+            "type": "SetMaxPlayers",
+            "max_players": max_players,
+        }),
+    )
+}
+
+#[tauri::command]
 pub async fn server_start_game(
     client: State<'_, ServerClient>,
     format: Option<String>,

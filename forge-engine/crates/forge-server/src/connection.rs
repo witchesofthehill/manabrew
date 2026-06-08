@@ -787,6 +787,33 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::SetMaxPlayers { max_players } => {
+            info!("[lobby] '{}' set max_players={}", username, max_players);
+            match lobby::set_max_players_sync(state, player_id, max_players) {
+                Ok(room_id) => {
+                    if let Some(room) = state.rooms.get(&room_id) {
+                        broadcast_to_room(
+                            state,
+                            &room_id,
+                            &ServerMessage::RoomUpdate {
+                                room: room.to_room_info(),
+                            },
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("[lobby] '{}' set max_players failed: {}", username, e);
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: e.code().into(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
         ClientMessage::StartGame { format } => {
             info!("[game] '{}' starting game", username);
             match lobby::start_game_sync(state, player_id, format) {
@@ -946,6 +973,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
         ClientMessage::SetFormat { .. } => "SetFormat",
+        ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame => "EndGame",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

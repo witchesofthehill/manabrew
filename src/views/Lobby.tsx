@@ -121,6 +121,7 @@ export default function Lobby() {
     setDeckSelection,
     setReady,
     setFormat,
+    setMaxPlayers,
     startGame,
   } = useServerStore();
   const prefs = usePreferencesStore();
@@ -466,6 +467,14 @@ export default function Lobby() {
     }
   }
 
+  async function handleSetMaxPlayers(maxPlayers: number) {
+    try {
+      await setMaxPlayers(maxPlayers);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to change player count.");
+    }
+  }
+
   return (
     <div className="h-full w-full flex flex-col">
       {/* ── Header ── */}
@@ -593,6 +602,7 @@ export default function Lobby() {
             onLeaveRoom={leaveRoom}
             onSetReady={setReady}
             onSetFormat={setFormat}
+            onSetMaxPlayers={handleSetMaxPlayers}
             onOpenDeckDialog={() => setDeckDialogOpen(true)}
             onStartGame={startGame}
             onStartTabletop={handleStartTabletop}

@@ -750,6 +750,13 @@ fn maybe_start_hosted_engine(
     }
 
     let player_names = player_order;
+    let bot_index = if config.forge_ai && config.bot_enabled {
+        player_names
+            .iter()
+            .position(|name| name == &config.bot_username)
+    } else {
+        None
+    };
     let game_id = format!("room-game-{}", Uuid::new_v4());
 
     match backend {
@@ -835,6 +842,7 @@ fn maybe_start_hosted_engine(
                         ordered_decks,
                         commander_names,
                         local_player_index,
+                        bot_index,
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,

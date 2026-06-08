@@ -71,22 +71,6 @@ remains available under Apache-2.0 OR MIT from the origin above.
 The full text of GPL-3.0-or-later is in `LICENSE-GPL-3.0-or-later` at the
 repository root.
 
-## Phase (phase-rs/phase)
-
-- **Origin:** https://github.com/phase-rs/phase (crate `phase-ai`)
-- **License:** Apache-2.0 OR MIT
-
-### Use in this project
-
-The bot AI in `forge-engine/crates/forge-bot/src/agent/phase_eval/` is adapted
-from the `phase-ai` crate, used with the maintainer's permission. The board and
-creature evaluation heuristics, keyword-bonus weights, strategic-intent
-classification, and combat decision logic are reworked from `phase-ai` to read
-only this project's agent protocol (`GameViewDto`) rather than the Phase engine
-state. As an adaptation incorporated into this GPL-3.0-or-later project, the
-adapted code is distributed under GPL-3.0-or-later; the original `phase-ai`
-remains available under Apache-2.0 OR MIT from the origin above.
-
 ## Magic: The Gathering — name, rules, card content
 
 Magic: The Gathering is a property of Wizards of the Coast LLC. Card names,

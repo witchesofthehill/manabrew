@@ -2083,10 +2083,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-ai"
+version = "0.1.0"
+dependencies = [
+ "forge-engine-core",
+ "forge-foundation",
+]
+
+[[package]]
 name = "forge-bot"
 version = "0.1.0"
 dependencies = [
  "forge-agent-interface",
+ "forge-ai",
  "forge-engine-core",
  "futures-util",
  "serde",

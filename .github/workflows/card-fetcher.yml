@@ -1,0 +1,147 @@
+name: Card Fetcher
+
+# Replies to [[Card Name]] mentions in issues and PRs with card info from
+# Scryfall (https://scryfall.com/docs/api). Keyless, no external service —
+# the whole thing runs inline in actions/github-script.
+#
+# Syntax: [[Lightning Bolt]]  or  [[Lightning Bolt|set]] for a specific printing.
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  # One run per comment/issue/PR; cancel an in-flight run if the same body is
+  # edited again in quick succession.
+  group: card-fetcher-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.event.comment.id || 'body' }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reply with card info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MARKER = '<!-- card-fetcher-bot -->';
+            const MAX_CARDS = 5;
+            const UA = 'manabrew-card-fetcher/1.0 (https://github.com/witchesofthehill/manabrew)';
+
+            // --- Resolve the event into { body, issue_number, author } -------
+            const e = context.eventName;
+            const p = context.payload;
+            let body, issue_number, author;
+            if (e === 'issues') {
+              body = p.issue.body; issue_number = p.issue.number; author = p.issue.user.login;
+            } else if (e === 'issue_comment') {
+              body = p.comment.body; issue_number = p.issue.number; author = p.comment.user.login;
+            } else if (e === 'pull_request') {
+              body = p.pull_request.body; issue_number = p.pull_request.number; author = p.pull_request.user.login;
+            } else if (e === 'pull_request_review_comment') {
+              body = p.comment.body; issue_number = p.pull_request.number; author = p.comment.user.login;
+            } else {
+              core.info(`Unhandled event: ${e}`); return;
+            }
+
+            // --- Loop guard: never react to ourselves ------------------------
+            if (!body) { core.info('Empty body, nothing to do.'); return; }
+            if (author && author.endsWith('[bot]')) { core.info(`Skipping bot author ${author}.`); return; }
+            if (body.includes(MARKER)) { core.info('Body is one of our own comments, skipping.'); return; }
+
+            // --- Extract [[Card Name]] / [[Card Name|set]] tokens ------------
+            const tokens = [];
+            const seen = new Set();
+            const re = /\[\[([^\]\n|]{1,120})(?:\|([^\]\n]{1,32}))?\]\]/g;
+            let m;
+            while ((m = re.exec(body)) !== null) {
+              const name = m[1].trim();
+              const set = (m[2] || '').trim().toLowerCase();
+              if (!name) continue;
+              const key = `${name.toLowerCase()}|${set}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+              tokens.push({ name, set });
+              if (tokens.length >= MAX_CARDS) break;
+            }
+            if (tokens.length === 0) { core.info('No [[card]] tokens found.'); return; }
+            core.info(`Resolving ${tokens.length} card(s): ${tokens.map(t => t.name).join(', ')}`);
+
+            const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+            // --- Scryfall lookup (fuzzy named; optional set) -----------------
+            async function lookup({ name, set }) {
+              const params = new URLSearchParams({ fuzzy: name });
+              if (set) params.set('set', set);
+              const url = `https://api.scryfall.com/cards/named?${params}`;
+              try {
+                const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'application/json' } });
+                const data = await res.json();
+                if (!res.ok) return { name, error: data.details || `Scryfall ${res.status}` };
+                return { name, card: data };
+              } catch (err) {
+                return { name, error: String(err) };
+              }
+            }
+
+            // --- Render one card to compact markdown -------------------------
+            function render(card) {
+              const out = [];
+              const title = `**[${card.name}](${card.scryfall_uri})**`;
+              if (card.card_faces && card.card_faces.length && !card.oracle_text) {
+                // Double-faced / split: render each face.
+                const head = card.type_line ? `${title} — ${card.type_line}` : title;
+                out.push(head);
+                for (const f of card.card_faces) {
+                  const mana = f.mana_cost ? ` \`${f.mana_cost}\`` : '';
+                  out.push(`*${f.name}*${mana}${f.type_line ? ` — ${f.type_line}` : ''}`);
+                  if (f.oracle_text) out.push(f.oracle_text.split('\n').map(l => `> ${l}`).join('\n'));
+                }
+              } else {
+                const mana = card.mana_cost ? ` \`${card.mana_cost}\`` : '';
+                out.push(`${title}${mana}${card.type_line ? ` — ${card.type_line}` : ''}`);
+                if (card.oracle_text) out.push(card.oracle_text.split('\n').map(l => `> ${l}`).join('\n'));
+                if (card.power && card.toughness) out.push(`*${card.power}/${card.toughness}*`);
+              }
+              const img = card.image_uris?.small
+                || card.card_faces?.[0]?.image_uris?.small;
+              if (img) out.push(`<img src="${img}" height="170" alt="${card.name}">`);
+              return out.join('\n\n');
+            }
+
+            // --- Resolve all (throttled per Scryfall etiquette) -------------
+            const results = [];
+            for (const t of tokens) {
+              results.push(await lookup(t));
+              await sleep(120); // Scryfall asks for ~50-100ms between requests
+            }
+
+            const blocks = results.map(r =>
+              r.card ? render(r.card) : `⚠️ No card found for **${r.name}** — _${r.error}_`
+            );
+
+            const comment = [
+              MARKER,
+              blocks.join('\n\n---\n\n'),
+              '',
+              '<sub>🔮 card info via [Scryfall](https://scryfall.com) · type <code>[[Card Name]]</code> to summon</sub>',
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body: comment,
+            });
+            core.info('Posted card info comment.');

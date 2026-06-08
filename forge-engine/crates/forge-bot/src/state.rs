@@ -1,6 +1,6 @@
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::prompt::AgentPrompt;
+use forge_agent_interface::prompt::{AgentPrompt, StateUpdate};
 use forge_agent_interface::protocol::{ClientMessage, ServerMessage, StateEnvelope};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -140,8 +140,15 @@ impl BotState {
             Ok(envelope) => envelope,
             Err(_) => return Vec::new(),
         };
-        let StateEnvelope::Prompt { for_player, prompt } = envelope else {
-            return Vec::new();
+        let (for_player, prompt) = match envelope {
+            StateEnvelope::State { state } => {
+                if let Ok(update) = serde_json::from_value::<StateUpdate>(state) {
+                    self.agent.observe(&update.game_view);
+                }
+                return Vec::new();
+            }
+            StateEnvelope::Prompt { for_player, prompt } => (for_player, prompt),
+            _ => return Vec::new(),
         };
         let prompt_type = prompt
             .get("type")

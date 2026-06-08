@@ -2,6 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use forge_agent_interface::deck_dto::{CardIdentity, Deck, DeckCard};
+use forge_bot::AgentKind;
 use forge_server::protocol::GameFormat;
 use serde::Deserialize;
 use tracing::warn;
@@ -21,6 +22,7 @@ pub struct Config {
     pub host_plays: bool,
     pub bot_enabled: bool,
     pub bot_username: String,
+    pub bot_agent: AgentKind,
     pub host_deck: DeckSelection,
     pub bot_deck: DeckSelection,
 }
@@ -107,9 +109,19 @@ impl Config {
                 false,
             ),
             bot_username,
+            bot_agent: env_first("SELF_HOSTED_NODE_BOT_AGENT", "FORGE_ROOM_BOT_AGENT")
+                .map(|value| parse_agent(&value))
+                .unwrap_or_default(),
             host_deck: load_deck_selection(&host_deck_id, host_commander),
             bot_deck: load_deck_selection(&bot_deck_id, bot_commander),
         }
+    }
+}
+
+fn parse_agent(value: &str) -> AgentKind {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "phaseeval" | "phase_eval" | "phase-eval" => AgentKind::PhaseEval,
+        _ => AgentKind::Simple,
     }
 }
 

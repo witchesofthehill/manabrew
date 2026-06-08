@@ -13,7 +13,7 @@ use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
-use forge_bot::{run_bot, AgentKind, BotConfig};
+use forge_bot::{run_bot, BotConfig};
 use forge_engine_core::game::TypeRegistry;
 use forge_server::protocol::{
     ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
@@ -332,7 +332,7 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
         deck_name: deck.name.clone(),
         deck: deck.deck.clone(),
         commander_name: deck.commander_name.clone(),
-        agent: AgentKind::Simple,
+        agent: config.bot_agent,
     };
     let handle = tokio::spawn(async move {
         if let Err(error) = run_bot(relay_url, bot_config).await {

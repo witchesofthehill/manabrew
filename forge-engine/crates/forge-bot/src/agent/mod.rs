@@ -6,10 +6,13 @@
 //! picks which agent to spawn via the `agent` field of the bot config.
 
 use forge_agent_interface::agent_impl::Responder;
+use forge_agent_interface::game_view_dto::GameViewDto;
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use serde::{Deserialize, Serialize};
 
+pub mod phase_eval;
 pub mod simple_ai;
+pub use phase_eval::PhaseEvalAi;
 pub use simple_ai::SimpleAi;
 
 /// A bot's decision strategy. Each call to `decide` may consult per-bot state
@@ -19,6 +22,11 @@ pub trait BotAgent: Send {
     /// kinds (`StateUpdate`, `GameOver`); every decision prompt yields `Some`
     /// (an explicit `Pass` yields priority). Callers supply their own fallback.
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PlayerAction>;
+
+    /// Observe a `StateUpdate`'s game view. Stateful agents cache it to reason
+    /// over the board, since decision prompts no longer carry the view. The
+    /// default ignores it (stateless agents need nothing).
+    fn observe(&mut self, _view: &GameViewDto) {}
 }
 
 /// Wire-level selector for which built-in agent the bot should use.
@@ -27,12 +35,14 @@ pub trait BotAgent: Send {
 pub enum AgentKind {
     #[default]
     Simple,
+    PhaseEval,
 }
 
 impl AgentKind {
     pub fn build(self) -> Box<dyn BotAgent + Send> {
         match self {
             AgentKind::Simple => Box::<SimpleAi>::default(),
+            AgentKind::PhaseEval => Box::<PhaseEvalAi>::default(),
         }
     }
 }

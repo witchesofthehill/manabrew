@@ -19,6 +19,7 @@ members = [
     "forge-engine/crates/forge-cardset-archive",
     "forge-engine/crates/forge-limited",
     "forge-engine/crates/forge-bot",
+    "forge-engine/crates/forge-ai",
 ]
 
 [workspace.package]

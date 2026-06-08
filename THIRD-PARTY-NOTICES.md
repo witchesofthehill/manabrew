@@ -4,6 +4,22 @@ This project incorporates and derives from third-party software. The notices
 below identify each component, its origin, its license, and the form in which
 this project uses it.
 
+## Phase (phase-rs/phase)
+
+- **Origin:** https://github.com/phase-rs/phase (crate `phase-ai`)
+- **License:** Apache-2.0 OR MIT
+
+### Use in this project
+
+The AI evaluation heuristics in `forge-engine/crates/forge-ai/` (and the
+protocol-only bot in `forge-engine/crates/forge-bot/src/agent/phase_eval/`) are
+adapted from the `phase-ai` crate, used with the maintainer's permission. Board
+and creature evaluation, keyword-bonus weights, strategic-intent classification,
+and threat assessment are reworked from `phase-ai` onto this project's engine
+types. As an adaptation incorporated into this GPL-3.0-or-later project, the
+adapted code is distributed under GPL-3.0-or-later; the original `phase-ai`
+remains available under Apache-2.0 OR MIT from the origin above.
+
 ## Forge (Card-Forge/forge)
 
 - **Origin:** https://github.com/Card-Forge/forge

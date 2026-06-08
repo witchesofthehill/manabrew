@@ -489,7 +489,7 @@ pub(super) fn reveal_cards<T: Responder>(
     }
     let cards = cards
         .iter()
-        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &[], &[], &zone.to_string()))
+        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &[], &zone.to_string()))
         .collect();
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(

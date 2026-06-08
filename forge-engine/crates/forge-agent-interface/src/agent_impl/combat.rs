@@ -33,8 +33,6 @@ pub(super) fn choose_attackers<T: Responder>(
 ) -> Vec<(CardId, DefenderId)> {
     let available_attacker_ids = PromptAgent::<T>::card_ids(available);
     let possible_defender_dtos = PromptAgent::<T>::defender_ids_to_dtos(possible_defenders);
-    let mut view = agent.view();
-    PromptAgent::<T>::mark_battlefield_choosable(&mut view, &available_attacker_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseAttackers {
             available_attacker_ids,
@@ -74,8 +72,6 @@ pub(super) fn choose_blockers<T: Responder>(
 ) -> Vec<(CardId, CardId)> {
     let attacker_ids = PromptAgent::<T>::card_ids(attackers);
     let available_blocker_ids = PromptAgent::<T>::card_ids(available_blockers);
-    let mut view = agent.view();
-    PromptAgent::<T>::mark_battlefield_choosable(&mut view, &available_blocker_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseBlockers {
             attacker_ids,

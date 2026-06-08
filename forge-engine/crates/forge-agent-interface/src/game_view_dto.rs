@@ -135,7 +135,6 @@ pub struct CardDto {
     pub text: String,
     pub is_playable: bool,
     pub is_selected: bool,
-    pub is_choosable: bool,
     pub controller_id: String,
     pub owner_id: String,
     pub zone_id: String,
@@ -548,7 +547,6 @@ pub fn card_to_dto(
     game: &GameState,
     cid: CardId,
     playable_ids: &[CardId],
-    choosable_ids: &[CardId],
     zone_label: &str,
 ) -> CardDto {
     let card = game.card(cid);
@@ -661,7 +659,6 @@ pub fn card_to_dto(
         text,
         is_playable: playable_ids.contains(&cid),
         is_selected: false,
-        is_choosable: choosable_ids.contains(&cid),
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),
         zone_id: zone_label.to_string(),
@@ -755,7 +752,6 @@ impl GameViewDto {
         human_player: PlayerId,
         game_id: &str,
         playable_ids: &[CardId],
-        choosable_ids: &[CardId],
     ) -> Self {
         let mut players = Vec::new();
         for &pid in &game.player_order {
@@ -769,7 +765,7 @@ impl GameViewDto {
             let zone_cards = |zone: ZoneType, zone_name: &str| -> Vec<CardDto> {
                 game.cards_in_zone(zone, pid)
                     .iter()
-                    .map(|&cid| card_to_dto(game, cid, playable_ids, choosable_ids, zone_name))
+                    .map(|&cid| card_to_dto(game, cid, playable_ids, zone_name))
                     .collect()
             };
             let command_zone: Vec<CardDto> = game
@@ -777,7 +773,7 @@ impl GameViewDto {
                 .iter()
                 .copied()
                 .filter(|&cid| should_show_command_zone_card(game, cid))
-                .map(|cid| card_to_dto(game, cid, playable_ids, choosable_ids, "command"))
+                .map(|cid| card_to_dto(game, cid, playable_ids, "command"))
                 .collect();
             players.push(PlayerDto {
                 id: player_id_str(pid),
@@ -804,13 +800,7 @@ impl GameViewDto {
         let mut battlefield = Vec::new();
         for &pid in &game.player_order {
             for &cid in game.cards_in_zone(ZoneType::Battlefield, pid) {
-                battlefield.push(card_to_dto(
-                    game,
-                    cid,
-                    playable_ids,
-                    choosable_ids,
-                    "battlefield",
-                ));
+                battlefield.push(card_to_dto(game, cid, playable_ids, "battlefield"));
             }
         }
 

@@ -29,7 +29,7 @@ pub fn make_java_state_update(
     viewer: usize,
 ) -> StateUpdate {
     StateUpdate {
-        game_view: build_game_view(snapshot, session_id, viewer, &[]),
+        game_view: build_game_view(snapshot, session_id, viewer),
     }
 }
 
@@ -41,18 +41,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         body,
     } = prompt;
 
-    let choosable_ids: Vec<String> = match &body {
-        JavaRawPromptBody::ChooseAttackers { attackers, .. } => card_ids(attackers),
-        JavaRawPromptBody::ChooseBlockers { blockers, .. } => card_ids(blockers),
-        JavaRawPromptBody::ChooseTargetCard { cards, .. }
-        | JavaRawPromptBody::ChooseTargetAny { cards, .. }
-        | JavaRawPromptBody::ChooseCardsForEffect { cards, .. }
-        | JavaRawPromptBody::ChooseDelve { cards, .. }
-        | JavaRawPromptBody::ChooseConvoke { cards, .. }
-        | JavaRawPromptBody::ChooseImprovise { cards, .. } => card_ids(cards),
-        _ => Vec::new(),
-    };
-    let game_view = build_game_view(&snapshot, session_id.as_deref(), player, &choosable_ids);
+    let game_view = build_game_view(&snapshot, session_id.as_deref(), player);
     let card_index = index_view_cards(&game_view);
 
     let mut source_card_id = None;
@@ -663,22 +652,16 @@ fn build_game_view(
     snapshot: &JavaRawSnapshot,
     session_id: Option<&str>,
     viewer: usize,
-    choosable_ids: &[String],
 ) -> GameViewDto {
     let mut players: Vec<PlayerDto> = snapshot
         .players
         .iter()
         .enumerate()
-        .map(|(index, player)| to_player(player, index, viewer, choosable_ids))
+        .map(|(index, player)| to_player(player, index, viewer))
         .collect();
     while players.len() < 2 {
         let index = players.len();
-        players.push(to_player(
-            &JavaRawSnapshotPlayer::default(),
-            index,
-            viewer,
-            choosable_ids,
-        ));
+        players.push(to_player(&JavaRawSnapshotPlayer::default(), index, viewer));
     }
 
     let active_player_id = format!("player-{}", snapshot.active_player.unwrap_or(0));
@@ -692,7 +675,6 @@ fn build_game_view(
                 player_index,
                 card_index,
                 "battlefield",
-                choosable_ids,
             ));
         }
     }
@@ -735,33 +717,15 @@ fn build_game_view(
     }
 }
 
-fn build_cards(
-    cards: &[JavaRawCard],
-    player_index: usize,
-    zone_id: &str,
-    choosable_ids: &[String],
-) -> Vec<CardDto> {
+fn build_cards(cards: &[JavaRawCard], player_index: usize, zone_id: &str) -> Vec<CardDto> {
     cards
         .iter()
         .enumerate()
-        .map(|(card_index, card)| {
-            to_card(
-                &card.data(),
-                player_index,
-                card_index,
-                zone_id,
-                choosable_ids,
-            )
-        })
+        .map(|(card_index, card)| to_card(&card.data(), player_index, card_index, zone_id))
         .collect()
 }
 
-fn to_player(
-    player: &JavaRawSnapshotPlayer,
-    fallback_index: usize,
-    viewer: usize,
-    choosable_ids: &[String],
-) -> PlayerDto {
+fn to_player(player: &JavaRawSnapshotPlayer, fallback_index: usize, viewer: usize) -> PlayerDto {
     let index = player.index.unwrap_or(fallback_index);
     PlayerDto {
         id: format!("player-{index}"),
@@ -769,10 +733,10 @@ fn to_player(
         is_human: index == viewer,
         life: player.life.unwrap_or(20),
         poison: player.poison.unwrap_or(0),
-        hand: build_cards(player.hand_zone(), index, "hand", choosable_ids),
-        graveyard: build_cards(player.graveyard_zone(), index, "graveyard", choosable_ids),
-        exile: build_cards(player.exile_zone(), index, "exile", choosable_ids),
-        command_zone: build_cards(&player.command_zone_cards, index, "command", choosable_ids),
+        hand: build_cards(player.hand_zone(), index, "hand"),
+        graveyard: build_cards(player.graveyard_zone(), index, "graveyard"),
+        exile: build_cards(player.exile_zone(), index, "exile"),
+        command_zone: build_cards(&player.command_zone_cards, index, "command"),
         library_count: player.library_size.unwrap_or(0).max(0) as usize,
         mana_pool: player.mana_pool.clone().into_iter().collect(),
         commander_damage: player.commander_damage.clone().into_iter().collect(),
@@ -789,7 +753,6 @@ fn to_card(
     player_index: usize,
     card_index: usize,
     zone_id: &str,
-    choosable_ids: &[String],
 ) -> CardDto {
     let name = card
         .name
@@ -800,7 +763,6 @@ fn to_card(
         .id
         .clone()
         .unwrap_or_else(|| format!("engine-card-{player_index}-{zone_id}-{card_index}"));
-    let is_choosable = choosable_ids.iter().any(|candidate| candidate == &id);
     CardDto {
         id,
         set_code: card.set_code.clone().unwrap_or_default(),
@@ -810,7 +772,6 @@ fn to_card(
         base_power: card.power.map(|value| value as i32),
         base_toughness: card.toughness.map(|value| value as i32),
         is_playable: false,
-        is_choosable,
         controller_id: format!("player-{controller_index}"),
         owner_id: format!("player-{player_index}"),
         zone_id: zone_id.to_string(),

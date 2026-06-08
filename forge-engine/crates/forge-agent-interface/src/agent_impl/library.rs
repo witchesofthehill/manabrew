@@ -14,7 +14,7 @@ pub(super) fn on_library_peek<T: Responder>(
 ) {
     agent.peeked_library_cards = cards
         .iter()
-        .map(|&id| card_to_dto(game, id, &[], &[], "library"))
+        .map(|&id| card_to_dto(game, id, &[], "library"))
         .collect();
 }
 

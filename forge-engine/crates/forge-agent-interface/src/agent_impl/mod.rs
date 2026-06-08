@@ -261,12 +261,6 @@ impl<R: Responder> PromptAgent<R> {
         }
     }
 
-    pub(crate) fn mark_battlefield_choosable(view: &mut GameViewDto, valid_card_ids: &[String]) {
-        for card in &mut view.battlefield {
-            card.is_choosable = valid_card_ids.contains(&card.id);
-        }
-    }
-
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
             PlayerAction::TargetCard { card_id } => card_id.and_then(|id| parse_card_id(&id)),
@@ -317,8 +311,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             mana_pools,
             self.player_id,
             &self.game_id,
-            &[], // playable/choosable filled at prompt time
-            &[],
+            &[], // playable filled at prompt time
         ));
 
         // Cache per-ability descriptions from battlefield cards

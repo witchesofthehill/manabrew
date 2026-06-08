@@ -39,8 +39,6 @@ pub(super) fn choose_target_card<T: Responder>(
     intent: TargetingIntent,
 ) -> Option<CardId> {
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
-    let mut view = agent.view();
-    PromptAgent::<T>::mark_battlefield_choosable(&mut view, &valid_card_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseTargetCard {
             valid_card_ids,
@@ -65,8 +63,7 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
     intent: TargetingIntent,
 ) -> Option<CardId> {
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
-    let mut view = agent.view();
-    PromptAgent::<T>::mark_battlefield_choosable(&mut view, &valid_card_ids);
+    let view = agent.view();
 
     // Build the list of cards in the specified zone
     let zone_cards: Vec<CardDto> = match zone {
@@ -120,8 +117,6 @@ pub(super) fn choose_target_any<T: Responder>(
 ) -> TargetChoice {
     let valid_player_ids = PromptAgent::<T>::player_ids(valid_players);
     let valid_card_ids = PromptAgent::<T>::card_ids(valid_cards);
-    let mut view = agent.view();
-    PromptAgent::<T>::mark_battlefield_choosable(&mut view, &valid_card_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseTargetAny {
             valid_player_ids,
@@ -177,8 +172,6 @@ pub(super) fn choose_sacrifice<T: Responder>(
     source: Option<CardId>,
 ) -> Option<CardId> {
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
-    let mut view = agent.view();
-    PromptAgent::<T>::mark_battlefield_choosable(&mut view, &valid_card_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseTargetCard {
             valid_card_ids,

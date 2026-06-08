@@ -23,10 +23,12 @@ use forge_agent_interface::deck_dto::{CardIdentity, Deck};
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_prompt_normalizer::{
-    normalize_java_prompt, translate_java_player_action,
+    make_java_game_over_prompt, normalize_java_prompt, translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_raw::{JavaAction, JavaRawPrompt, JavaRawPromptBody};
+use forge_agent_interface::java_raw::{
+    JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
+};
 use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 #[cfg(feature = "java-forge")]
 use forge_bot::{BotAgent, SimpleAi};
@@ -423,6 +425,14 @@ impl JavaEngineHandle {
             .lock()
             .map_err(|_| "java subprocess mutex poisoned".to_string())?;
         guard.is_game_over(session_id)
+    }
+
+    pub fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.get_snapshot(session_id)
     }
 
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
@@ -870,6 +880,14 @@ fn run_hosted_engine_game_inner(
 
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
+            if let Ok(snapshot_json) = engine.get_snapshot(&session_id) {
+                if let Ok(raw_snapshot) = serde_json::from_str::<JavaRawSnapshot>(&snapshot_json) {
+                    let prompt = make_java_game_over_prompt(&raw_snapshot, Some(&session_id));
+                    for &agent_index in remote_response_rxs.keys() {
+                        let _ = remote_prompt_tx.send((agent_index, prompt.clone()));
+                    }
+                }
+            }
             let _ = game_over_tx.send(game_id.clone());
             engine.end_game(&session_id)?;
             guard.armed.set(false);

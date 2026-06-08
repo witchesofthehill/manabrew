@@ -39,6 +39,7 @@ import forge.game.replacement.ReplacementEffect;
 import forge.game.spellability.*;
 import forge.game.staticability.StaticAbility;
 import forge.game.trigger.WrappedAbility;
+import forge.game.zone.MagicStack;
 import forge.game.zone.PlayerZone;
 import forge.game.zone.ZoneType;
 import forge.item.PaperCard;
@@ -50,10 +51,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 
 public final class ManaBrewInteractiveController extends PlayerController implements HarnessPlayHooks {
@@ -133,7 +132,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaBrewInteractiveSession.PriorityChoice choice =
                     session.awaitPriorityAction(me(), all, undoableManaSources());
             if (choice.kind() == ManaBrewInteractiveSession.PriorityActionKind.UNDO) {
-                game.getStack().undo();
+                undoManaSource(choice.untapCard());
                 continue;
             }
             passUntilPhase = choice.untilPhase();
@@ -153,6 +152,25 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
         }
         return sources;
+    }
+
+    private void undoManaSource(final Card source) {
+        final MagicStack stack = game.getStack();
+        if (source == null) {
+            stack.undo();
+            return;
+        }
+        for (final SpellAbility sa : Lists.newArrayList(stack.filterUndoStackByHost(source))) {
+            if (sa.undo()) {
+                stack.clearUndoStack(sa);
+                new ManaRefundService(sa).refundManaPaid();
+            } else {
+                stack.clearUndoStack(sa);
+                for (final Mana pay : sa.getPayingMana()) {
+                    stack.clearUndoStack(pay.getManaAbility().getSourceSA());
+                }
+            }
+        }
     }
 
     @Override
@@ -1263,7 +1281,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private boolean payManaInteractively(final ManaCost payableCost, final SpellAbility sa, final boolean effect) {
         final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(payableCost);
         final ManaPool pool = player.getManaPool();
-        final Set<Integer> sessionTapped = new LinkedHashSet<>();
+        final GameSnapshot sessionSnapshot = beginManaPaymentSnapshot();
+        final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
         int guard = 0;
         while (guard++ < 512) {
             final List<SpellAbility> sources = autoPay.manaSources(sa);
@@ -1280,8 +1299,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     if (choice.color() != null && chosen.getManaPart() != null) {
                         chosen.getManaPart().setExpressChoice(choice.color());
                     }
-                    if (autoPay.floatManaFromSource(chosen, effect) && chosen.getHostCard() != null) {
-                        sessionTapped.add(chosen.getHostCard().getId());
+                    final Card source = chosen.getHostCard();
+                    if (autoPay.floatManaFromSource(chosen, effect) && source != null) {
+                        sessionTapped.put(source.getId(), source);
                     }
                     break;
                 }
@@ -1309,7 +1329,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     break;
                 }
                 case CANCEL:
-                    refundSession(pool, sessionTapped);
+                    restoreManaPaymentSnapshot(sessionSnapshot);
                     sa.setSkip(true);
                     CostPayment.handleOfferings(sa, false, false);
                     return false;
@@ -1317,7 +1337,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     break;
             }
         }
-        refundSession(pool, sessionTapped);
+        restoreManaPaymentSnapshot(sessionSnapshot);
         sa.setSkip(true);
         CostPayment.handleOfferings(sa, false, false);
         return false;
@@ -1333,18 +1353,23 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return paid;
     }
 
-    private List<Card> sessionTappedCards(final Set<Integer> sessionTapped) {
+    private List<Card> sessionTappedCards(final Map<Integer, Card> sessionTapped) {
         final List<Card> out = new ArrayList<>();
-        for (final Mana mana : player.getManaPool()) {
-            final Card source = mana.getSourceCard();
-            if (source != null && sessionTapped.contains(source.getId()) && !out.contains(source)) {
+        for (final Card source : sessionTapped.values()) {
+            if (source != null && !out.contains(source)) {
                 out.add(source);
             }
         }
         return out;
     }
 
-    private void untapSource(final Card source, final ManaPool pool, final Set<Integer> sessionTapped) {
+    private GameSnapshot beginManaPaymentSnapshot() {
+        final GameSnapshot snapshot = new GameSnapshot(getGame());
+        snapshot.makeCopy();
+        return snapshot;
+    }
+
+    private void untapSource(final Card source, final ManaPool pool, final Map<Integer, Card> sessionTapped) {
         if (source == null) {
             return;
         }
@@ -1361,10 +1386,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         sessionTapped.remove(source.getId());
     }
 
-    private void refundSession(final ManaPool pool, final Set<Integer> sessionTapped) {
-        for (final Card source : sessionTappedCards(sessionTapped)) {
-            untapSource(source, pool, sessionTapped);
-        }
+    private void restoreManaPaymentSnapshot(final GameSnapshot snapshot) {
+        snapshot.restoreGameState(getGame());
     }
 
     // ── Voting / division / mana from pool ────────────────────────────

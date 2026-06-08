@@ -140,11 +140,21 @@ public final class ManaBrewInteractiveSession {
         private final PriorityActionKind kind;
         private final SpellAbility action;
         private final String untilPhase;
+        private final Card untapCard;
 
         private PriorityChoice(final PriorityActionKind kind, final SpellAbility action, final String untilPhase) {
+            this(kind, action, untilPhase, null);
+        }
+
+        private PriorityChoice(
+                final PriorityActionKind kind,
+                final SpellAbility action,
+                final String untilPhase,
+                final Card untapCard) {
             this.kind = kind;
             this.action = action;
             this.untilPhase = untilPhase;
+            this.untapCard = untapCard;
         }
 
         PriorityActionKind kind() {
@@ -157,6 +167,10 @@ public final class ManaBrewInteractiveSession {
 
         String untilPhase() {
             return untilPhase;
+        }
+
+        Card untapCard() {
+            return untapCard;
         }
     }
 
@@ -183,7 +197,8 @@ public final class ManaBrewInteractiveSession {
                 return new PriorityChoice(PriorityActionKind.PASS, null, until);
             }
             if ("untap_land".equals(kind)) {
-                return new PriorityChoice(PriorityActionKind.UNDO, null, null);
+                final Card untapCard = resolveUntapCard(action, untappableCards);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null, untapCard);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();

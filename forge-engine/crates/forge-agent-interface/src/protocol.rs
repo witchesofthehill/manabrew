@@ -12,6 +12,12 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum StateEnvelope {
+    State {
+        state: Value,
+    },
+    Display {
+        event: Value,
+    },
     /// Engine asks a player for a decision. `prompt` is `AgentPrompt` for the
     /// Rust engine; the Java bridge emits a different shape, so the payload is
     /// kept as raw `Value` here and parsed by the receiver.
@@ -63,6 +69,24 @@ pub enum StateEnvelope {
         room_id: Option<String>,
         payload: Value,
     },
+}
+
+impl StateEnvelope {
+    pub fn for_agent_message(for_player: String, message: &crate::prompt::AgentMessage) -> Self {
+        use crate::prompt::AgentMessage;
+        match message {
+            AgentMessage::State(state) => StateEnvelope::State {
+                state: serde_json::to_value(state).unwrap_or(Value::Null),
+            },
+            AgentMessage::Display(event) => StateEnvelope::Display {
+                event: serde_json::to_value(event).unwrap_or(Value::Null),
+            },
+            AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {
+                for_player,
+                prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

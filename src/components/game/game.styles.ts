@@ -8,7 +8,7 @@
 // ── Card ring variants ────────────────────────────────────────────────────
 
 export const CARD_RING = {
-  choosable: "ring-2 cursor-pointer",
+  selectable: "ring-2 cursor-pointer",
   pending: "ring-2 cursor-pointer",
   attacking: "ring-2 cursor-pointer",
   tappable: "ring-2 cursor-pointer",

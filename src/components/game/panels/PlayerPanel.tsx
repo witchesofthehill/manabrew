@@ -115,7 +115,7 @@ export function PlayerPanel({
   const effectiveLife =
     applyOverride && devOverrides.life != null ? devOverrides.life : player.life;
   const effectiveHandCount =
-    applyOverride && devOverrides.handCount != null ? devOverrides.handCount : player.handCount;
+    applyOverride && devOverrides.handCount != null ? devOverrides.handCount : player.hand.length;
 
   const realCmdDmg = Object.values(player.commanderDamage ?? {}).reduce((a, b) => a + b, 0);
   const totalCmdDmg =
@@ -126,7 +126,6 @@ export function PlayerPanel({
   const effectivePlayer: Player = {
     ...player,
     life: effectiveLife,
-    handCount: effectiveHandCount,
     poison: effectivePoison,
     energyCounters: effectiveEnergy,
   };

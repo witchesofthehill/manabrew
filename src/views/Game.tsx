@@ -92,7 +92,6 @@ function buildDebugKeywordCard(controllerId: string, name: string, keywords: str
     text: "Dev debug card.",
     isPlayable: false,
     isSelected: false,
-    isChoosable: false,
     controllerId,
     ownerId: controllerId,
     zoneId: "dev-zone",
@@ -108,6 +107,7 @@ interface GameProps {
 export default function Game({ exitTo }: GameProps = {}) {
   useAutoResolvePrompt();
   const gameView = useGameStore((s) => s.gameView);
+  const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
@@ -435,10 +435,11 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handleCastSpell = (cardId: string) => {
     const options = chooseActionInput?.playableOptions.filter((o) => o.cardId === cardId);
     if (options && options.length > 1) {
+      const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
       const gc =
-        gameView?.myHand.find((c) => c.id === cardId) ??
-        gameView?.graveyard.find((c) => c.id === cardId) ??
-        gameView?.exile.find((c) => c.id === cardId);
+        myPlayer?.hand.find((c) => c.id === cardId) ??
+        myPlayer?.graveyard.find((c) => c.id === cardId) ??
+        myPlayer?.exile.find((c) => c.id === cardId);
       if (!gc) throw new Error(`No game card to cast: ${cardId}`);
       const card = asDeckCard(gameDecks[gc.ownerId], gc);
       openPlayModePicker({ cardId, card, options });
@@ -516,7 +517,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     multipleAttackDefenders,
     awaitingAttackTarget,
     playerIsTargetable,
-    cardIsAttackTarget,
     handleTargetPlayer,
     handleBattlefieldClick,
     handleAttackerClick,
@@ -535,8 +535,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   // Zone viewer helpers (wrap store actions)
-  function openZone(title: string, cards: GameCard[], onClickCard?: (cardId: string) => void) {
-    openZoneViewer({ title, cards, onClickCard });
+  function openZone(
+    title: string,
+    cards: GameCard[],
+    onClickCard?: (cardId: string) => void,
+    clickableCardIds?: string[],
+  ) {
+    openZoneViewer({ title, cards, onClickCard, clickableCardIds });
   }
   function openManualZone(title: string, cards: GameCard[]) {
     openZoneViewer({
@@ -562,10 +567,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     title: string,
     cards: GameCard[],
     onClickCard: (cardId: string) => void,
+    clickableCardIds?: string[],
   ) {
     openZoneViewer({
       title,
       cards,
+      clickableCardIds,
       onClickCard: (cardId) => {
         closeZoneViewer();
         onClickCard(cardId);
@@ -733,6 +740,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     setSpellStackModalOpen,
   } = usePromptEffects({
     currentPrompt: activePrompt,
+    gameView,
     isWaitingForResponse,
     respond,
     myPlayerId: _earlyMyPlayerId,
@@ -810,12 +818,13 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (action.kind === "cast") {
       respond({ type: "playCard", cardId: action.cardId, mode: action.mode });
     } else if (action.kind === "manual-move" && action.toZoneId) {
+      const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
       const sourceCard = [
-        ...(gameView?.myHand ?? []),
+        ...(myPlayer?.hand ?? []),
         ...(gameView?.battlefield ?? []),
-        ...(gameView?.graveyard ?? []),
-        ...(gameView?.exile ?? []),
-        ...(gameView?.myCommandZone ?? []),
+        ...(myPlayer?.graveyard ?? []),
+        ...(myPlayer?.exile ?? []),
+        ...(myPlayer?.commandZone ?? []),
       ].find((card) => card.id === action.cardId);
       void applyManualAction({
         type: "moveCard",
@@ -896,10 +905,13 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [manualApi, promptType]);
 
   // Targeting / combat arrows — must be called unconditionally (Rules of Hooks)
-  const me = gameView?.players?.find((p) => p.isHuman) ?? gameView?.players?.[0];
+  const me =
+    gameView?.players?.find((p) => p.id === myPlayerSlot) ??
+    gameView?.players?.find((p) => p.isHuman) ??
+    gameView?.players?.[0];
   const opponents = useMemo(
-    () => gameView?.players?.filter((p) => !p.isHuman) ?? [],
-    [gameView?.players],
+    () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
+    [gameView?.players, me?.id],
   );
   const opponent = opponents[0]; // alias for arrows hook + game-over screen
 
@@ -925,10 +937,11 @@ export default function Game({ exitTo }: GameProps = {}) {
           isHuman: false,
           life: 20,
           poison: 0,
-          handCount: 7,
+          hand: [],
+          graveyard: [],
+          exile: [],
+          commandZone: [],
           libraryCount: 40,
-          graveyardCount: 0,
-          exileCount: 0,
           manaPool: {} as Record<string, number>,
         }) as Player,
     ),
@@ -1050,16 +1063,9 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, GameCard>();
-    const opponentZones = Object.values(gameView.opponentZones);
     const cards: GameCard[] = [
       ...gameView.battlefield,
-      ...gameView.myHand,
-      ...gameView.graveyard,
-      ...gameView.exile,
-      ...opponentZones.flatMap((z) => z.graveyard),
-      ...opponentZones.flatMap((z) => z.exile),
-      ...(gameView.myCommandZone ?? []),
-      ...opponentZones.flatMap((z) => z.commandZone),
+      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
     ];
     const map = new Map(cards.map((c) => [c.id, c]));
     if (debugCardEnabled && me?.id) {
@@ -1279,24 +1285,16 @@ export default function Game({ exitTo }: GameProps = {}) {
     return <GameLoadingScreen debugInfo={debugInfo || "Waiting for player state..."} />;
   }
 
-  const battlefieldActivatableIds = new Set(
+  const promptPlayableIds = new Set(
     promptType === "chooseAction"
-      ? (chooseActionInput?.activatableAbilityIds ?? []).map((ability) => ability.cardId)
+      ? [
+          ...(chooseActionInput?.playableCardIds ?? []),
+          ...(chooseActionInput?.activatableAbilityIds ?? []).map((ability) => ability.cardId),
+        ]
       : [],
   );
-  // While picking an attack target, mark every legal defender card
-  // (planeswalker / siege from the engine's `possibleDefenderIds`) as
-  // choosable so battlefield clicks land on them — the engine doesn't
-  // pre-mark them during attacker declaration.
-  const markIfDefender = (c: GameCard): GameCard =>
-    cardIsAttackTarget(c.id) ? { ...c, isChoosable: true } : c;
-  const targetCardIdSet = new Set(
-    promptType === "chooseTargetCard" || promptType === "chooseTargetAny"
-      ? (activePrompt?.input.validCardIds ?? [])
-      : [],
-  );
-  const markIfValidTarget = (c: GameCard): GameCard =>
-    targetCardIdSet.has(c.id) ? { ...c, isChoosable: true } : c;
+  const markIfPlayable = (c: GameCard): GameCard =>
+    promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c;
   // Pending attackers display as tapped so the user has an immediate
   // visual signal of "selected" without us drawing a misleading arrow
   // toward an arbitrary default opponent. Tap state flips for real on
@@ -1306,21 +1304,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     pendingAttackerSet.has(c.id) ? { ...c, tapped: true } : c;
   const myPermanents = gameView.battlefield
     .filter((c) => c.controllerId === me.id)
-    .map((c) => (battlefieldActivatableIds.has(c.id) ? { ...c, isChoosable: true } : c))
-    .map(markIfDefender)
-    .map(markIfValidTarget)
     .map(markIfPendingAttacker);
   if (debugCardEnabled) {
     myPermanents.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
   }
   const opponentPermanentsByPlayer = new Map(
-    opponents.map((op) => [
-      op.id,
-      gameView.battlefield
-        .filter((c) => c.controllerId === op.id)
-        .map(markIfDefender)
-        .map(markIfValidTarget),
-    ]),
+    opponents.map((op) => [op.id, gameView.battlefield.filter((c) => c.controllerId === op.id)]),
   );
 
   // Game over overlay
@@ -1399,11 +1388,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           opponents={displayOpponents}
           myPermanents={myPermanents}
           opponentPermanentsByPlayer={opponentPermanentsByPlayer}
-          myHand={gameView.myHand}
-          graveyard={gameView.graveyard.map(markIfValidTarget)}
-          exile={gameView.exile.map(markIfValidTarget)}
-          myCommandZone={gameView.myCommandZone?.map(markIfValidTarget)}
-          opponentZones={gameView.opponentZones}
+          myHand={(me?.hand ?? []).map(markIfPlayable)}
+          graveyard={(me?.graveyard ?? []).map(markIfPlayable)}
+          exile={(me?.exile ?? []).map(markIfPlayable)}
+          myCommandZone={(me?.commandZone ?? []).map(markIfPlayable)}
           activePlayerId={gameView.activePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
@@ -1446,18 +1434,23 @@ export default function Game({ exitTo }: GameProps = {}) {
           }}
           onAttackerClick={handleAttackerClick}
           onTargetPlayer={handleTargetPlayer}
-          onOpenZone={(title, cards, onClickCard) => {
+          onOpenZone={(title, cards, onClickCard, clickableCardIds) => {
             if (manualApi) {
               openManualZone(title, cards);
               return;
             }
-            openZone(title, cards, onClickCard);
+            openZone(title, cards, onClickCard, clickableCardIds);
           }}
-          onOpenZoneAndCast={(title, cards, onClickCard) =>
-            openZoneAndCast(title, cards, (cardId) => {
-              handleCastSpell(cardId);
-              onClickCard(cardId);
-            })
+          onOpenZoneAndCast={(title, cards, onClickCard, clickableCardIds) =>
+            openZoneAndCast(
+              title,
+              cards,
+              (cardId) => {
+                handleCastSpell(cardId);
+                onClickCard(cardId);
+              },
+              clickableCardIds,
+            )
           }
           onReopenZoneTarget={reopenZoneTarget}
           onTargetFromZone={(cardId) => {
@@ -1560,8 +1553,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               ? {
                   cardName: payManaCostInput.cardName,
                   manaCost: payManaCostInput.manaCost,
-                  manaPool:
-                    payManaCostInput.gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
+                  manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
                   canConfirmFromPool: payManaCostInput.canConfirmFromPool,
                 }
               : null

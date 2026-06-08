@@ -4,13 +4,13 @@ use std::time::Duration;
 use forge_agent_interface::agent_impl::Responder;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
 
 enum PromptSink {
-    Local(mpsc::Sender<AgentPrompt>),
+    Local(mpsc::Sender<AgentMessage>),
     Relay {
         player_index: usize,
-        tx: mpsc::Sender<(usize, AgentPrompt)>,
+        tx: mpsc::Sender<(usize, AgentMessage)>,
     },
 }
 
@@ -24,7 +24,7 @@ pub struct MpscTransport {
 
 impl MpscTransport {
     pub fn new_local(
-        prompt_tx: mpsc::Sender<AgentPrompt>,
+        prompt_tx: mpsc::Sender<AgentMessage>,
         response_rx: mpsc::Receiver<PlayerAction>,
         notify_tx: mpsc::Sender<GameLogEntryDto>,
         snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
@@ -40,7 +40,7 @@ impl MpscTransport {
 
     pub fn new_relay(
         player_index: usize,
-        prompt_tx: mpsc::Sender<(usize, AgentPrompt)>,
+        prompt_tx: mpsc::Sender<(usize, AgentMessage)>,
         response_rx: mpsc::Receiver<PlayerAction>,
     ) -> Self {
         Self {
@@ -57,13 +57,13 @@ impl MpscTransport {
 }
 
 impl MpscTransport {
-    fn send_to_sink(&self, prompt: AgentPrompt) {
+    fn send_to_sink(&self, message: AgentMessage) {
         match &self.prompt_sink {
             PromptSink::Local(tx) => {
-                let _ = tx.send(prompt);
+                let _ = tx.send(message);
             }
             PromptSink::Relay { player_index, tx } => {
-                let _ = tx.send((*player_index, prompt));
+                let _ = tx.send((*player_index, message));
             }
         }
     }
@@ -97,8 +97,8 @@ impl MpscTransport {
 }
 
 impl Responder for MpscTransport {
-    fn present(&mut self, prompt: &AgentPrompt) {
-        self.send_to_sink(prompt.clone());
+    fn present(&mut self, message: &AgentMessage) {
+        self.send_to_sink(message.clone());
     }
 
     fn respond(&mut self, _prompt: AgentPrompt) -> PlayerAction {

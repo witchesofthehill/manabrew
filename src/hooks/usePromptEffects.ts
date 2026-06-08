@@ -3,10 +3,11 @@ import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore"
 import type { Prompt, PromptOutput } from "@/protocol";
 import { passOutput } from "@/components/game/prompts/playerActions";
 import type { LibraryPeekMode } from "@/components/game/modals";
-import type { GameCard } from "@/types/manabrew";
+import type { GameCard, GameView } from "@/types/manabrew";
 
 interface UsePromptEffectsOptions {
   currentPrompt: Prompt | null;
+  gameView: GameView | null;
   isWaitingForResponse: boolean;
   respond: (output: PromptOutput) => void;
   myPlayerId: string;
@@ -46,10 +47,10 @@ const ACTIVE_COMBAT_PRIORITY_STEPS = new Set([
 
 const MANDATORY_COMBAT_STOPS = new Set(["declare_blockers"]);
 
-function hasActiveCombatAfterAttackers(prompt: Prompt): boolean {
+function hasActiveCombatAfterAttackers(gameView: GameView): boolean {
   return (
-    ACTIVE_COMBAT_PRIORITY_STEPS.has(prompt.input.gameView.step) &&
-    prompt.input.gameView.battlefield.some((card) => card.isAttacking === true)
+    ACTIVE_COMBAT_PRIORITY_STEPS.has(gameView.step) &&
+    gameView.battlefield.some((card) => card.isAttacking === true)
   );
 }
 
@@ -71,6 +72,7 @@ type AutoPassPlan =
 
 interface AutoPassInputs {
   currentPrompt: Prompt;
+  gameView: GameView;
   passUntilTurn: number | null;
   passUntilPhase: string | null;
   turn: number;
@@ -83,7 +85,7 @@ function stopForActiveCombatAfterAttackers(inputs: AutoPassInputs): AutoPassPlan
   if (
     currentPrompt.input.type !== "chooseAction" ||
     stackLength !== 0 ||
-    !hasActiveCombatAfterAttackers(currentPrompt) ||
+    !hasActiveCombatAfterAttackers(inputs.gameView) ||
     !hasNonPassPriorityAction(currentPrompt)
   ) {
     return null;
@@ -94,25 +96,26 @@ function stopForActiveCombatAfterAttackers(inputs: AutoPassInputs): AutoPassPlan
 function stopForMandatoryCombatStop(inputs: AutoPassInputs): AutoPassPlan | null {
   const { currentPrompt, stackLength, passUntilTurn, myPlayerId } = inputs;
   if (currentPrompt.input.type !== "chooseAction" || stackLength !== 0) return null;
-  const gv = currentPrompt.input.gameView;
+  const gv = inputs.gameView;
   if (gv.activePlayerId === myPlayerId) return null;
   if (!MANDATORY_COMBAT_STOPS.has(gv.step)) return null;
   return passUntilTurn !== null ? { action: "clearPassUntil" } : { action: "none" };
 }
 
 function planWhilePassingUntilPhase(inputs: AutoPassInputs): AutoPassPlan {
-  const { currentPrompt, passUntilTurn, passUntilPhase, turn, stackLength, myPlayerId } = inputs;
+  const { currentPrompt, gameView, passUntilTurn, passUntilPhase, turn, stackLength, myPlayerId } =
+    inputs;
 
   if (passUntilTurn !== null && turn > passUntilTurn) return { action: "clearPassUntil" };
   if (currentPrompt.input.type === "chooseAction" && stackLength > 0) {
     return { action: "clearPassUntil" };
   }
-  if (passUntilPhase && currentPrompt.input.gameView.step === passUntilPhase && stackLength === 0) {
+  if (passUntilPhase && gameView.step === passUntilPhase && stackLength === 0) {
     return { action: "clearPassUntil" };
   }
 
   if (currentPrompt.input.type === "chooseAction" && stackLength === 0) {
-    const gv = currentPrompt.input.gameView;
+    const gv = gameView;
     const isMyTurn = gv.activePlayerId === myPlayerId;
     const store = usePhaseStopStore.getState();
     const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
@@ -134,7 +137,7 @@ function planForIdlePhaseSkip(inputs: AutoPassInputs): AutoPassPlan {
   if (currentPrompt.input.type !== "chooseAction" || stackLength !== 0) {
     return { action: "none" };
   }
-  const gv = currentPrompt.input.gameView;
+  const gv = inputs.gameView;
   const isMyTurn = gv.activePlayerId === myPlayerId;
   const store = usePhaseStopStore.getState();
   const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
@@ -145,6 +148,7 @@ function planForIdlePhaseSkip(inputs: AutoPassInputs): AutoPassPlan {
 
 function computeAutoPassPlan(
   currentPrompt: Prompt | null,
+  gameView: GameView | null,
   isWaitingForResponse: boolean,
   passUntilTurn: number | null,
   passUntilPhase: string | null,
@@ -152,9 +156,10 @@ function computeAutoPassPlan(
   stackLength: number,
   myPlayerId: string,
 ): AutoPassPlan {
-  if (!currentPrompt || isWaitingForResponse) return { action: "none" };
+  if (!currentPrompt || !gameView || isWaitingForResponse) return { action: "none" };
   const inputs: AutoPassInputs = {
     currentPrompt,
+    gameView,
     passUntilTurn,
     passUntilPhase,
     turn,
@@ -188,6 +193,7 @@ function computeZoneTarget(currentPrompt: Prompt | null): ZoneTargetState | null
 
 export function usePromptEffects({
   currentPrompt,
+  gameView,
   isWaitingForResponse,
   respond,
   myPlayerId,
@@ -208,6 +214,7 @@ export function usePromptEffects({
     () =>
       computeAutoPassPlan(
         currentPrompt,
+        gameView,
         isWaitingForResponse,
         passUntilTurn,
         passUntilPhase,
@@ -217,6 +224,7 @@ export function usePromptEffects({
       ),
     [
       currentPrompt,
+      gameView,
       isWaitingForResponse,
       passUntilTurn,
       passUntilPhase,
@@ -227,9 +235,9 @@ export function usePromptEffects({
   );
 
   const unifiedPass = useCallback(() => {
-    if (!currentPrompt || isWaitingForResponse) return;
+    if (!currentPrompt || !gameView || isWaitingForResponse) return;
 
-    const gv = currentPrompt.input.gameView;
+    const gv = gameView;
     const hasStack = (gv.stack?.length ?? 0) > 0;
 
     if (hasStack) {
@@ -246,7 +254,7 @@ export function usePromptEffects({
     usePhaseStopStore.getState().setPassUntil(nextStop, turn);
 
     pass(nextStop);
-  }, [currentPrompt, isWaitingForResponse, pass, myPlayerId, turn]);
+  }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId, turn]);
 
   function activatePassUntilEot() {
     unifiedPass();

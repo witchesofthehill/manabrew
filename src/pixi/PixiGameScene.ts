@@ -144,7 +144,7 @@ const HAND_SELECTION_DROP_PX = 30;
 interface ActionKind {
   isTappable: boolean;
   isUntappable: boolean;
-  isChoosable: boolean;
+  isSelectable: boolean;
 }
 
 // ───── Pure helpers ─────
@@ -1569,7 +1569,7 @@ export class PixiGameScene {
     const kind: ActionKind = {
       isTappable: state.tappableLandIds?.includes(card.id) ?? false,
       isUntappable: state.untappableLandIds?.includes(card.id) ?? false,
-      isChoosable: !!card.isChoosable,
+      isSelectable: state.selectableCardIds?.includes(card.id) ?? false,
     };
 
     if (kind.isTappable) {
@@ -1614,7 +1614,7 @@ export class PixiGameScene {
       sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
     } else if (state.untappableLandIds?.includes(card.id)) {
       sprite.setRing(hexToNum(this.theme.gameTheme.promptAction.cancel));
-    } else if (card.isChoosable) {
+    } else if (state.selectableCardIds?.includes(card.id)) {
       sprite.setRing(
         state.hostileTargeting
           ? hexToNum(this.theme.gameTheme.arrow.hostileTarget)
@@ -1636,10 +1636,10 @@ export class PixiGameScene {
     const kind: ActionKind = {
       isTappable: state.tappableLandIds?.includes(card.id) ?? false,
       isUntappable: state.untappableLandIds?.includes(card.id) ?? false,
-      isChoosable: !!(card.isChoosable && this.callbacks.onClickCard),
+      isSelectable: !!(state.selectableCardIds?.includes(card.id) && this.callbacks.onClickCard),
     };
 
-    if (!kind.isTappable && !kind.isUntappable && !kind.isChoosable) {
+    if (!kind.isTappable && !kind.isUntappable && !kind.isSelectable) {
       if (entry.overlay) entry.overlay.visible = false;
       return;
     }
@@ -1805,7 +1805,7 @@ export class PixiGameScene {
    * The button also forwards `pointerdown` to the sprite's drag-start
    * handler — without this, overlay buttons (which sit above the sprite
    * in the display tree) would swallow the press and the user could
-   * never drag a tappable/choosable card. If the press turns into a
+   * never drag an actionable card. If the press turns into a
    * real drag, `pointertap` bails out via `justDraggedCardIds`.
    */
   private wireOverlayButton(
@@ -1898,7 +1898,7 @@ export class PixiGameScene {
       const batch = this.selectedBatch(state.untappableLandIds, card.id);
       if (batch.length > 1) this.callbacks.onUntapLands?.(batch);
       else this.callbacks.onUntapLand?.(card);
-    } else if (kind.isChoosable) {
+    } else if (kind.isSelectable) {
       this.callbacks.onClickCard?.(card);
     }
   }

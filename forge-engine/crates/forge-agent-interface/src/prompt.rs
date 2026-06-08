@@ -26,8 +26,21 @@ pub enum DisplayEvent {
     },
 }
 
-/// Sent from game thread to frontend: what the human player must decide,
-/// bundled with any display events that happened since the last prompt.
+#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum AgentMessage {
+    State(StateUpdate),
+    Display(DisplayEvent),
+    Prompt(AgentPrompt),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StateUpdate {
+    #[serde(rename = "gameView")]
+    pub game_view: GameViewDto,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentPrompt {
@@ -38,9 +51,6 @@ pub struct AgentPrompt {
         skip_serializing_if = "String::is_empty"
     )]
     pub deciding_player_id: String,
-    /// Display events to animate before applying the game state.
-    #[serde(default)]
-    pub display_events: Vec<DisplayEvent>,
     /// Engine card id of the prompt's source card (the spell being cast, the
     /// permanent whose ability triggered, etc.). The UI resolves the matching
     /// `DeckCard` from this for image rendering. `None` when the prompt has
@@ -53,7 +63,7 @@ pub struct AgentPrompt {
         skip_serializing_if = "Option::is_none"
     )]
     pub source_card_id: Option<String>,
-    /// The actual prompt data (type + gameView + prompt-specific fields).
+    /// The actual prompt data (type + prompt-specific fields).
     pub input: AgentPromptInner,
 }
 
@@ -63,8 +73,6 @@ pub struct AgentPrompt {
 #[allow(clippy::large_enum_variant)]
 pub enum AgentPromptInner {
     Mulligan {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "handCardIds")]
         hand_card_ids: Vec<String>,
         #[serde(rename = "mulliganCount")]
@@ -72,8 +80,6 @@ pub enum AgentPromptInner {
     },
     /// London Mulligan: choose which cards to put on the bottom of the library.
     MulliganPutBack {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "handCardIds")]
         hand_card_ids: Vec<String>,
         /// Card DTOs for display.
@@ -82,8 +88,6 @@ pub enum AgentPromptInner {
         count: usize,
     },
     ChooseAction {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "playableCardIds")]
         playable_card_ids: Vec<String>,
         /// All play options with their modes (normal, spectacle, evoke, etc.).
@@ -108,8 +112,6 @@ pub enum AgentPromptInner {
         available_player_actions: Vec<EnginePlayerAction>,
     },
     ChooseAttackers {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "availableAttackerIds")]
         available_attacker_ids: Vec<String>,
         /// Possible defenders: opponent players and their planeswalkers.
@@ -117,16 +119,12 @@ pub enum AgentPromptInner {
         possible_defender_ids: Vec<DefenderIdDto>,
     },
     ChooseBlockers {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "attackerIds")]
         attacker_ids: Vec<String>,
         #[serde(rename = "availableBlockerIds")]
         available_blocker_ids: Vec<String>,
     },
     ChooseTargetPlayer {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validPlayerIds")]
         valid_player_ids: Vec<String>,
         /// Whether the targeting effect is hostile (damage/destroy) vs friendly (buff).
@@ -138,8 +136,6 @@ pub enum AgentPromptInner {
         intent: TargetingIntent,
     },
     ChooseTargetCard {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validCardIds")]
         valid_card_ids: Vec<String>,
         #[serde(default)]
@@ -154,8 +150,6 @@ pub enum AgentPromptInner {
         chosen_targets: i32,
     },
     ChooseTargetAny {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validPlayerIds")]
         valid_player_ids: Vec<String>,
         #[serde(rename = "validCardIds")]
@@ -166,8 +160,6 @@ pub enum AgentPromptInner {
         intent: TargetingIntent,
     },
     ChooseTargetCardFromZone {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validCardIds")]
         valid_card_ids: Vec<String>,
         zone: String,
@@ -182,20 +174,8 @@ pub enum AgentPromptInner {
         #[serde(rename = "chosenTargets", default)]
         chosen_targets: i32,
     },
-    GameOver {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
-    },
-    /// Display-only state update — no player decision required.
-    /// Emitted after each card play / turn change so the frontend can
-    /// animate events one-at-a-time even during the AI's turn.
-    StateUpdate {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
-    },
+    GameOver {},
     RevealCards {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         cards: Vec<CardDto>,
         zone: String,
         #[serde(rename = "ownerPlayerId")]
@@ -204,8 +184,6 @@ pub enum AgentPromptInner {
     },
     /// Scry N: player sees `card_ids` (top N of library) and picks which go to bottom.
     Scry {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// The top N cards the player is looking at (in library order, last = topmost).
         #[serde(rename = "cardIds")]
         card_ids: Vec<String>,
@@ -215,8 +193,6 @@ pub enum AgentPromptInner {
     },
     /// Surveil N: player sees `card_ids` (top N of library) and picks which go to graveyard.
     Surveil {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "cardIds")]
         card_ids: Vec<String>,
         #[serde(rename = "cards")]
@@ -224,8 +200,6 @@ pub enum AgentPromptInner {
     },
     /// Dig N, take K: player sees `card_ids` (top N) and picks up to `num_to_take` to keep.
     Dig {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "cardIds")]
         card_ids: Vec<String>,
         #[serde(rename = "cards")]
@@ -236,8 +210,6 @@ pub enum AgentPromptInner {
     },
     /// Discard N cards from hand.
     ChooseDiscard {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// All card IDs currently in hand.
         #[serde(rename = "handCardIds")]
         hand_card_ids: Vec<String>,
@@ -247,8 +219,6 @@ pub enum AgentPromptInner {
     },
     /// Choose a target spell on the stack (for Counter).
     ChooseTargetSpell {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Stack entry IDs (as strings) that can be countered.
         #[serde(rename = "validSpellIds")]
         valid_spell_ids: Vec<String>,
@@ -257,8 +227,6 @@ pub enum AgentPromptInner {
     },
     /// Choose whether an optional triggered ability fires.
     ChooseOptionalTrigger {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Description of the trigger.
         description: String,
         /// Optional card DTOs to show alongside the prompt (e.g. looked-at cards).
@@ -276,8 +244,6 @@ pub enum AgentPromptInner {
         api: Option<String>,
     },
     PayCostToPreventEffect {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         description: String,
         #[serde(rename = "costKind")]
         cost_kind: String,
@@ -285,8 +251,6 @@ pub enum AgentPromptInner {
     },
     /// Choose N modes for a modal spell (SP$ Charm).
     ChooseMode {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Human-readable descriptions for each available mode.
         options: Vec<String>,
         /// Minimum number of modes that must be chosen.
@@ -304,60 +268,44 @@ pub enum AgentPromptInner {
     },
     /// Choose whether to pay 2 life instead of mana for a Phyrexian mana shard.
     ChoosePhyrexian {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// The phyrexian shard string (e.g. "W/P", "U/P").
         #[serde(rename = "phyrexianColor")]
         phyrexian_color: String,
     },
     /// Choose whether to pay a kicker cost.
     ChooseKicker {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// The kicker cost string (e.g. "W", "2 R").
         #[serde(rename = "kickerCost")]
         kicker_cost: String,
     },
     /// Choose whether to pay buyback cost.
     ChooseBuyback {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "buybackCost")]
         buyback_cost: String,
     },
     /// Choose how many times to pay multikicker cost.
     ChooseMultikicker {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         cost: String,
         #[serde(rename = "maxKicks")]
         max_kicks: u32,
     },
     /// Choose how many times to pay replicate cost.
     ChooseReplicate {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         cost: String,
         #[serde(rename = "maxReplicates")]
         max_replicates: u32,
     },
     /// Choose between normal cost and an alternative cost.
     ChooseAlternativeCost {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         options: Vec<String>,
     },
     /// Choose a color (for ChooseColorEffect).
     ChooseColor {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validColors")]
         valid_colors: Vec<String>,
     },
     /// Choose a creature/card type (for ChooseType effect).
     ChooseType {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Category: "Creature", "Card", "Land", etc.
         #[serde(rename = "typeCategory")]
         type_category: String,
@@ -367,23 +315,17 @@ pub enum AgentPromptInner {
     },
     /// Choose a number (for ChooseNumber effect).
     ChooseNumber {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         min: i32,
         max: i32,
     },
     /// Choose a card name (for NameCard effect).
     ChooseCardName {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Valid card name choices (for ChooseFromList mode).
         #[serde(rename = "validNames")]
         valid_names: Vec<String>,
     },
     /// Choose damage assignment order for a multi-blocked attacker.
     ChooseDamageAssignmentOrder {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// The attacker card ID.
         #[serde(rename = "attackerId")]
         attacker_id: String,
@@ -396,8 +338,6 @@ pub enum AgentPromptInner {
     },
     /// Choose exact combat damage assignment amounts.
     ChooseCombatDamageAssignment {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "attackerId")]
         attacker_id: String,
         #[serde(rename = "blockerIds")]
@@ -412,8 +352,6 @@ pub enum AgentPromptInner {
     },
     /// Pay an attack cost (Propaganda, Ghostly Prison).
     PayCombatCost {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "attackerId")]
         attacker_id: String,
         #[serde(rename = "attackerName")]
@@ -429,8 +367,6 @@ pub enum AgentPromptInner {
     },
     /// Choose graveyard cards to exile for Delve.
     ChooseDelve {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validCardIds")]
         valid_card_ids: Vec<String>,
         #[serde(rename = "zoneCards")]
@@ -440,8 +376,6 @@ pub enum AgentPromptInner {
     },
     /// Choose creatures to tap for Convoke.
     ChooseConvoke {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validCardIds")]
         valid_card_ids: Vec<String>,
         #[serde(rename = "remainingCost")]
@@ -449,8 +383,6 @@ pub enum AgentPromptInner {
     },
     /// Choose artifacts to tap for Improvise.
     ChooseImprovise {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validCardIds")]
         valid_card_ids: Vec<String>,
         #[serde(rename = "remainingCost")]
@@ -458,8 +390,6 @@ pub enum AgentPromptInner {
     },
     /// Pay a mana cost interactively (for spells/abilities).
     PayManaCost {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "cardId")]
         card_id: String,
         #[serde(rename = "cardName")]
@@ -479,8 +409,6 @@ pub enum AgentPromptInner {
     },
     /// Specify mana color distribution for combo/any mana production.
     SpecifyManaCombo {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Available color letters (e.g. ["W", "U", "B", "R", "G"]).
         #[serde(rename = "availableColors")]
         available_colors: Vec<String>,
@@ -489,8 +417,6 @@ pub enum AgentPromptInner {
     },
     /// Choose which attackers to exert.
     ChooseExertAttackers {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "attackerIds")]
         attacker_ids: Vec<String>,
         #[serde(rename = "attackerCards")]
@@ -498,8 +424,6 @@ pub enum AgentPromptInner {
     },
     /// Choose which attackers to enlist.
     ChooseEnlistAttackers {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "attackerIds")]
         attacker_ids: Vec<String>,
         #[serde(rename = "attackerCards")]
@@ -507,8 +431,6 @@ pub enum AgentPromptInner {
     },
     /// Reorder top cards of library (Ponder-style effects).
     ReorderLibrary {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Card IDs to reorder (in current top-first order).
         #[serde(rename = "cardIds")]
         card_ids: Vec<String>,
@@ -517,8 +439,6 @@ pub enum AgentPromptInner {
     },
     /// Explore: choose whether to put the revealed nonland card in graveyard or on top.
     ExploreDecision {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         /// Name of the revealed card.
         #[serde(rename = "revealedCardName")]
         revealed_card_name: String,
@@ -528,8 +448,6 @@ pub enum AgentPromptInner {
     },
     /// Help pay for a spell with Assist.
     HelpPayAssist {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "cardName")]
         card_name: String,
         #[serde(rename = "maxGeneric")]
@@ -539,8 +457,6 @@ pub enum AgentPromptInner {
     /// Sent once with the full roll-off result + winner. The frontend
     /// animates every die in parallel and auto-acknowledges.
     FirstPlayerRoll {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         sides: i32,
         /// Per-player roll, in `player_order`.
         #[serde(rename = "firstPlayerRolls")]
@@ -553,8 +469,6 @@ pub enum AgentPromptInner {
     /// no player decision required (acknowledged automatically by the game thread
     /// like `StateUpdate`).
     DiceRolled {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "playerId")]
         player_id: String,
         sides: i32,
@@ -572,32 +486,22 @@ pub enum AgentPromptInner {
     },
     /// Choose one rolled value to drop (ignore).
     ChooseRollToIgnore {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         rolls: Vec<i32>,
     },
     /// Choose one rolled value to exchange with a creature's P/T.
     ChooseRollToSwap {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         rolls: Vec<i32>,
     },
     /// Choose one rolled value to increment/decrement by 1.
     ChooseRollToModify {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         rolls: Vec<i32>,
     },
     /// Choose any subset of dice to reroll.
     ChooseDiceToReroll {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         rolls: Vec<i32>,
     },
     /// Choose whether a roll/PT exchange swaps power or toughness.
     ChooseRollSwapValue {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "currentResult")]
         current_result: i32,
         power: i32,
@@ -605,8 +509,6 @@ pub enum AgentPromptInner {
     },
     /// Choose card(s) for an effect (ChooseCardEffect, CloneEffect).
     ChooseCardsForEffect {
-        #[serde(rename = "gameView")]
-        game_view: GameViewDto,
         #[serde(rename = "validCardIds")]
         valid_card_ids: Vec<String>,
         #[serde(rename = "zoneCards")]
@@ -618,64 +520,6 @@ pub enum AgentPromptInner {
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
     },
-}
-
-impl AgentPromptInner {
-    pub fn game_view(&self) -> &GameViewDto {
-        match self {
-            AgentPromptInner::Mulligan { game_view, .. }
-            | AgentPromptInner::MulliganPutBack { game_view, .. }
-            | AgentPromptInner::ChooseAction { game_view, .. }
-            | AgentPromptInner::ChooseAttackers { game_view, .. }
-            | AgentPromptInner::ChooseBlockers { game_view, .. }
-            | AgentPromptInner::ChooseTargetPlayer { game_view, .. }
-            | AgentPromptInner::ChooseTargetCard { game_view, .. }
-            | AgentPromptInner::ChooseTargetAny { game_view, .. }
-            | AgentPromptInner::ChooseTargetCardFromZone { game_view, .. }
-            | AgentPromptInner::GameOver { game_view }
-            | AgentPromptInner::StateUpdate { game_view }
-            | AgentPromptInner::RevealCards { game_view, .. }
-            | AgentPromptInner::Scry { game_view, .. }
-            | AgentPromptInner::Surveil { game_view, .. }
-            | AgentPromptInner::Dig { game_view, .. }
-            | AgentPromptInner::ChooseDiscard { game_view, .. }
-            | AgentPromptInner::ChooseTargetSpell { game_view, .. }
-            | AgentPromptInner::ChooseMode { game_view, .. }
-            | AgentPromptInner::ChooseOptionalTrigger { game_view, .. }
-            | AgentPromptInner::PayCostToPreventEffect { game_view, .. }
-            | AgentPromptInner::ChoosePhyrexian { game_view, .. }
-            | AgentPromptInner::ChooseKicker { game_view, .. }
-            | AgentPromptInner::ChooseBuyback { game_view, .. }
-            | AgentPromptInner::ChooseMultikicker { game_view, .. }
-            | AgentPromptInner::ChooseReplicate { game_view, .. }
-            | AgentPromptInner::ChooseAlternativeCost { game_view, .. }
-            | AgentPromptInner::ChooseColor { game_view, .. }
-            | AgentPromptInner::ChooseType { game_view, .. }
-            | AgentPromptInner::ChooseNumber { game_view, .. }
-            | AgentPromptInner::ChooseCardName { game_view, .. }
-            | AgentPromptInner::ChooseDamageAssignmentOrder { game_view, .. }
-            | AgentPromptInner::ChooseCombatDamageAssignment { game_view, .. }
-            | AgentPromptInner::ChooseExertAttackers { game_view, .. }
-            | AgentPromptInner::ChooseEnlistAttackers { game_view, .. }
-            | AgentPromptInner::ReorderLibrary { game_view, .. }
-            | AgentPromptInner::ExploreDecision { game_view, .. }
-            | AgentPromptInner::HelpPayAssist { game_view, .. }
-            | AgentPromptInner::ChooseCardsForEffect { game_view, .. }
-            | AgentPromptInner::FirstPlayerRoll { game_view, .. }
-            | AgentPromptInner::DiceRolled { game_view, .. }
-            | AgentPromptInner::ChooseRollToIgnore { game_view, .. }
-            | AgentPromptInner::ChooseRollToSwap { game_view, .. }
-            | AgentPromptInner::ChooseRollToModify { game_view, .. }
-            | AgentPromptInner::ChooseDiceToReroll { game_view, .. }
-            | AgentPromptInner::ChooseRollSwapValue { game_view, .. }
-            | AgentPromptInner::PayCombatCost { game_view, .. }
-            | AgentPromptInner::PayManaCost { game_view, .. }
-            | AgentPromptInner::ChooseDelve { game_view, .. }
-            | AgentPromptInner::ChooseConvoke { game_view, .. }
-            | AgentPromptInner::ChooseImprovise { game_view, .. }
-            | AgentPromptInner::SpecifyManaCombo { game_view, .. } => game_view,
-        }
-    }
 }
 
 /// One player's roll in the start-of-game first-player roll-off.

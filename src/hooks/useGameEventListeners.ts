@@ -4,8 +4,9 @@ import { getSelectedGameRuntime } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
 import { normalizeGameLogPayload } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
-import { applyPrompt } from "@/stores/gameStore.constants";
-import type { Prompt } from "@/protocol";
+import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
+import type { Prompt, StateUpdate } from "@/protocol";
+import type { DisplayEvent } from "@/protocol/display";
 
 function normalizeEnginePrompt(prompt: unknown): Prompt | null {
   return typeof prompt === "object" && prompt !== null && "input" in prompt
@@ -13,10 +14,13 @@ function normalizeEnginePrompt(prompt: unknown): Prompt | null {
     : null;
 }
 
+const { setState, getState } = useGameStore;
+
 /**
- * Hook that sets up platform event listeners for game state updates.
- * Works with both Tauri and Web platforms.
- * Automatically cleans up on unmount.
+ * Sets up platform event listeners for the three engine→UI message families:
+ * `state` (game view), `display` (animations) and `prompt` (decisions).
+ * State and display are applied for whichever player they are addressed to;
+ * a prompt only becomes actionable when it is addressed to this player.
  */
 export function useGameEventListeners() {
   useEffect(() => {
@@ -24,19 +28,13 @@ export function useGameEventListeners() {
     const runtime = getSelectedGameRuntime();
     const unsubscribers: (() => void)[] = [];
 
-    // Fetch initial game state on mount to handle race condition where
-    // the game:prompt event was emitted before this component mounted
     const fetchInitialState = async () => {
       try {
         const prompt = normalizeEnginePrompt(await runtime.api.getPrompt());
-        if (prompt?.input.gameView) {
-          const currentView = useGameStore.getState().gameView;
-          if (!currentView) {
-            applyPrompt(prompt, "Initial", useGameStore.setState, useGameStore.getState);
-          }
+        if (prompt && !getState().currentPrompt) {
+          applyPrompt(prompt, "Initial", setState, getState);
         }
       } catch (e) {
-        // getPrompt may not be available on all platforms or if no game is active
         console.debug("[useGameEventListeners] Could not fetch initial state:", e);
       }
     };
@@ -44,28 +42,32 @@ export function useGameEventListeners() {
 
     try {
       unsubscribers.push(
+        platform.events.on<StateUpdate>("game:state", (payload) => {
+          if (!payload?.gameView) return;
+          applyState(payload.gameView, "Event", setState, getState);
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on<DisplayEvent>("game:display", (payload) => {
+          if (!payload?.kind) return;
+          applyDisplay(payload, "Event", setState, getState);
+        }),
+      );
+
+      unsubscribers.push(
         platform.events.on<Prompt>("game:prompt", (payload) => {
           const prompt = normalizeEnginePrompt(payload);
           if (!prompt) return;
-          const activeRuntime = getSelectedGameRuntime();
-          const gameView = useGameStore.getState().gameView;
-          if (gameView?.gameOver) return;
-          if (
-            activeRuntime.capabilities.manualTabletop &&
-            prompt.input.gameView.gameId !== gameView?.gameId
-          ) {
-            return;
-          }
-          if (prompt.input.gameView) {
-            applyPrompt(prompt, "Event", useGameStore.setState, useGameStore.getState);
-          }
+          if (getState().gameView?.gameOver) return;
+          applyPrompt(prompt, "Event", setState, getState);
         }),
       );
 
       unsubscribers.push(
         platform.events.on<unknown>("game:log", (payload) => {
           const entry = normalizeGameLogPayload(payload);
-          useGameStore.setState((state) => ({
+          setState((state) => ({
             gameLog: [...state.gameLog.slice(-199), entry],
           }));
         }),
@@ -75,7 +77,7 @@ export function useGameEventListeners() {
         platform.events.on<unknown>("game:snapshot", (payload) => {
           const snapshot = normalizeSnapshotPayload(payload);
           if (!snapshot.gameView) return;
-          useGameStore.setState((state) => ({
+          setState((state) => ({
             snapshots: [
               ...state.snapshots
                 .filter((s) => s.checkpointId !== snapshot.checkpointId)
@@ -86,48 +88,29 @@ export function useGameEventListeners() {
         }),
       );
 
-      // Remote prompt listener: receives prompts relayed via the server for non-host players
+      // Relay (non-host) seats receive state/display/prompt addressed per player.
+      unsubscribers.push(
+        platform.events.on<{ state: StateUpdate }>("game:remote_state", (payload) => {
+          if (!payload.state?.gameView) return;
+          applyState(payload.state.gameView, "Remote", setState, getState);
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on<{ event: DisplayEvent }>("game:remote_display", (payload) => {
+          if (!payload.event?.kind) return;
+          applyDisplay(payload.event, "Remote", setState, getState);
+        }),
+      );
+
       unsubscribers.push(
         platform.events.on<{ forPlayer: string; prompt: Prompt }>(
           "game:remote_prompt",
           (payload) => {
-            const { forPlayer } = payload;
+            if (payload.forPlayer !== getState().myPlayerSlot) return;
             const prompt = normalizeEnginePrompt(payload.prompt);
             if (!prompt) return;
-            const { myPlayerSlot } = useGameStore.getState();
-            console.log(
-              `[MP] remote_prompt ${prompt.input.type} for ${forPlayer} | mine=${myPlayerSlot} | ${
-                forPlayer === myPlayerSlot ? "RENDER" : "sync-only"
-              }`,
-            );
-            if (forPlayer === myPlayerSlot) {
-              // This prompt is for us — render it fully.
-              applyPrompt(prompt, "Remote", useGameStore.setState, useGameStore.getState);
-            } else {
-              // Keep shared turn/priority in sync even when the prompt is for another player.
-              // Do not apply full foreign-perspective view (would leak/flip local actionability).
-              const state = useGameStore.getState();
-              const current = state.gameView;
-              const keepLocalPrompt =
-                state.currentPrompt != null && !state.currentPrompt.decidingPlayerId;
-              if (current && prompt.input.gameView) {
-                useGameStore.setState({
-                  gameView: {
-                    ...current,
-                    turn: prompt.input.gameView.turn,
-                    step: prompt.input.gameView.step,
-                    activePlayerId: prompt.input.gameView.activePlayerId,
-                    priorityPlayerId: prompt.input.gameView.priorityPlayerId,
-                    gameOver: prompt.input.gameView.gameOver,
-                    winnerId: prompt.input.gameView.winnerId,
-                  },
-                  // Never keep a stale actionable prompt when priority is not ours.
-                  currentPrompt: keepLocalPrompt ? state.currentPrompt : null,
-                  isWaitingForResponse: keepLocalPrompt ? state.isWaitingForResponse : false,
-                  debugInfo: `Remote sync: ${prompt.input.type}`,
-                });
-              }
-            }
+            applyPrompt(prompt, "Remote", setState, getState);
           },
         ),
       );
@@ -135,7 +118,7 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
           const message = payload?.message ?? "Forced game exit";
-          useGameStore.setState({
+          setState({
             isGameActive: false,
             gameView: null,
             currentPrompt: null,

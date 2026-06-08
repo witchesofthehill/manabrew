@@ -18,11 +18,17 @@ export function useFlashQueue(flashDurationMs: number) {
     const deferred = deferredStateRef.current;
     if (!deferred) return;
     deferredStateRef.current = null;
-    useGameStore.setState({
-      gameView: deferred.gameView,
-      isWaitingForResponse: false,
-      currentPrompt: deferred.prompt ?? null,
-    } as Record<string, unknown>);
+    applySnapshotFields(deferred.gameView, deferred.prompt);
+  }
+
+  function applySnapshotFields(gameView: unknown, prompt: unknown) {
+    const updates: Record<string, unknown> = {};
+    if (gameView) updates.gameView = gameView;
+    if (prompt) {
+      updates.currentPrompt = prompt;
+      updates.isWaitingForResponse = false;
+    }
+    if (Object.keys(updates).length > 0) useGameStore.setState(updates);
   }
 
   function startNextSnapshot() {
@@ -37,11 +43,7 @@ export function useFlashQueue(flashDurationMs: number) {
     useGameStore.setState({ deferredQueue: rest });
 
     if (snapshot.displayEvents.length === 0) {
-      useGameStore.setState({
-        gameView: snapshot.gameView,
-        isWaitingForResponse: false,
-        currentPrompt: snapshot.prompt ?? null,
-      } as Record<string, unknown>);
+      applySnapshotFields(snapshot.gameView, snapshot.prompt);
       if (rest.length > 0) {
         setTimeout(startNextSnapshot, 0);
       } else {

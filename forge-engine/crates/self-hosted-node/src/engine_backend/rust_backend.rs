@@ -6,7 +6,7 @@ use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
 use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::deck_dto::Deck;
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 
 use crate::config::DeckSelection;
 use forge_bot::BotResponder;
@@ -31,7 +31,7 @@ pub fn run_hosted_engine_game(
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
     starting_life: i32,
-    remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     game_over_tx: std_mpsc::Sender<String>,
 ) {

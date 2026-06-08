@@ -39,7 +39,6 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): GameC
     zoneId,
     isPlayable: false,
     isSelected: false,
-    isChoosable: false,
     tapped: false,
   };
 }
@@ -63,13 +62,12 @@ function seedManualDeck(
   return {
     gameView: {
       ...gameView,
-      myHand: hand,
-      myCommandZone: commandZone,
       players: gameView.players.map((player) =>
         player.id === playerId
           ? {
               ...player,
-              handCount: hand.length,
+              hand,
+              commandZone,
               libraryCount: library.length,
             }
           : player,
@@ -229,7 +227,7 @@ export const useGameStore = create<GameState>()(
           ...seedManualDeck(gameView, deck),
         });
         const prompt = await runtime.api.getPrompt();
-        if (prompt && (prompt as Prompt).input?.gameView) {
+        if (prompt) {
           applyPrompt(prompt as Prompt, "Manual", set, get);
         }
       },
@@ -287,7 +285,7 @@ export const useGameStore = create<GameState>()(
             gameView: initialGameView,
           });
           const prompt = await runtime.api.getPrompt();
-          if (prompt && (prompt as Prompt).input?.gameView) {
+          if (prompt) {
             applyPrompt(prompt as Prompt, "Manual", set, get);
           }
         }

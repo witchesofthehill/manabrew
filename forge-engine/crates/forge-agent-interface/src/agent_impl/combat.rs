@@ -37,7 +37,6 @@ pub(super) fn choose_attackers<T: Responder>(
     PromptAgent::<T>::mark_battlefield_choosable(&mut view, &available_attacker_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseAttackers {
-            game_view: view,
             available_attacker_ids,
             possible_defender_ids: possible_defender_dtos,
         },
@@ -79,7 +78,6 @@ pub(super) fn choose_blockers<T: Responder>(
     PromptAgent::<T>::mark_battlefield_choosable(&mut view, &available_blocker_ids);
     agent.send_prompt(
         AgentPromptInner::ChooseBlockers {
-            game_view: view,
             attacker_ids,
             available_blocker_ids,
         },
@@ -116,10 +114,8 @@ pub(super) fn choose_damage_assignment_order<T: Responder>(
     let attacker_id = card_id_str(attacker);
     let blocker_ids: Vec<String> = blockers.iter().map(|&b| card_id_str(b)).collect();
     let blocker_cards: Vec<CardDto> = Vec::new(); // Blocker info available from gameView
-    let view = agent.view();
     agent.send_prompt(
         AgentPromptInner::ChooseDamageAssignmentOrder {
-            game_view: view,
             attacker_id,
             blocker_ids,
             blocker_cards,
@@ -159,10 +155,8 @@ pub(super) fn choose_combat_damage_assignment<T: Responder>(
         DefenderId::Player(pid) => format!("player-{}", pid.0),
         DefenderId::Permanent(cid) => format!("card-{}", cid.0),
     });
-    let view = agent.view();
     agent.send_prompt(
         AgentPromptInner::ChooseCombatDamageAssignment {
-            game_view: view,
             attacker_id,
             blocker_ids: blocker_ids.clone(),
             defender_id: defender_id.clone(),
@@ -220,7 +214,6 @@ pub(super) fn pay_combat_cost<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::PayCombatCost {
-            game_view: agent.view(),
             attacker_id,
             attacker_name,
             cost,
@@ -256,7 +249,6 @@ pub(super) fn exert_attackers<T: Responder>(
         .collect();
     agent.send_prompt(
         AgentPromptInner::ChooseExertAttackers {
-            game_view: view,
             attacker_ids,
             attacker_cards,
         },
@@ -287,7 +279,6 @@ pub(super) fn enlist_attackers<T: Responder>(
         .collect();
     agent.send_prompt(
         AgentPromptInner::ChooseEnlistAttackers {
-            game_view: view,
             attacker_ids,
             attacker_cards,
         },

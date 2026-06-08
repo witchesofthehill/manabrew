@@ -323,7 +323,6 @@ export const Card = memo(CardComponent, (prev, next) => {
     pc.foil !== nc.foil ||
     pc.isDoubleFaced !== nc.isDoubleFaced ||
     pc.isPlayable !== nc.isPlayable ||
-    pc.isChoosable !== nc.isChoosable ||
     pc.color !== nc.color ||
     pc.setCode !== nc.setCode ||
     pc.cardNumber !== nc.cardNumber ||

@@ -12,7 +12,7 @@ use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
 use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 use forge_bot::{run_bot, AgentKind, BotConfig};
 use forge_engine_core::game::TypeRegistry;
 use forge_server::protocol::{
@@ -754,7 +754,7 @@ fn maybe_start_hosted_engine(
 
     match backend {
         EngineBackendKind::Rust => {
-            let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentPrompt)>();
+            let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentMessage)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
             for i in 0..num_players {
@@ -799,7 +799,7 @@ fn maybe_start_hosted_engine(
             });
         }
         EngineBackendKind::JavaForge => {
-            let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentPrompt)>();
+            let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentMessage)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
             for i in 0..num_players {
@@ -1011,16 +1011,26 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
 
 fn spawn_remote_prompt_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    remote_prompt_rx: std_mpsc::Receiver<(usize, AgentPrompt)>,
+    remote_prompt_rx: std_mpsc::Receiver<(usize, AgentMessage)>,
 ) {
     thread::spawn(move || {
-        while let Ok((player_index, prompt)) = remote_prompt_rx.recv() {
-            let Ok(state) = serde_json::to_value(StateEnvelope::Prompt {
-                for_player: player_slot(player_index),
-                prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
-            }) else {
+        // State/Display have no `forPlayer` and are identical for every player,
+        // so the engine's per-agent fan-out produces N consecutive identical
+        // copies. Broadcast each once.
+        let mut last_state: Option<Value> = None;
+        let mut last_display: Option<Value> = None;
+        while let Ok((player_index, message)) = remote_prompt_rx.recv() {
+            let envelope = StateEnvelope::for_agent_message(player_slot(player_index), &message);
+            let Ok(state) = serde_json::to_value(envelope) else {
                 continue;
             };
+            match &message {
+                AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
+                AgentMessage::State(_) => last_state = Some(state.clone()),
+                AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
+                AgentMessage::Display(_) => last_display = Some(state.clone()),
+                AgentMessage::Prompt(_) => {}
+            }
             if outbound_tx
                 .send(ClientMessage::BroadcastState { state })
                 .is_err()

@@ -35,7 +35,6 @@ const STATUS_ROWS: BoolRow[] = [
   { key: "forceAttacking", label: "Attacking" },
   { key: "forcePlayable", label: "Playable" },
   { key: "forceSelected", label: "Selected" },
-  { key: "forceChoosable", label: "Choosable" },
   { key: "forceDoubleFaced", label: "Double-faced" },
 ];
 

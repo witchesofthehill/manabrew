@@ -16,7 +16,6 @@ pub(super) fn choose_phyrexian_pay_life<T: Responder>(
 ) -> bool {
     agent.send_prompt(
         AgentPromptInner::ChoosePhyrexian {
-            game_view: agent.view(),
             phyrexian_color: color.to_string(),
         },
         source,
@@ -35,7 +34,6 @@ pub(super) fn choose_kicker<T: Responder>(
 ) -> bool {
     agent.send_prompt(
         AgentPromptInner::ChooseKicker {
-            game_view: agent.view(),
             kicker_cost: kicker_cost.to_string(),
         },
         source,
@@ -54,7 +52,6 @@ pub(super) fn choose_buyback<T: Responder>(
 ) -> bool {
     agent.send_prompt(
         AgentPromptInner::ChooseBuyback {
-            game_view: agent.view(),
             buyback_cost: buyback_cost.to_string(),
         },
         source,
@@ -74,7 +71,6 @@ pub(super) fn choose_multikicker<T: Responder>(
 ) -> u32 {
     agent.send_prompt(
         AgentPromptInner::ChooseMultikicker {
-            game_view: agent.view(),
             cost: cost.to_string(),
             max_kicks,
         },
@@ -95,7 +91,6 @@ pub(super) fn choose_replicate<T: Responder>(
 ) -> u32 {
     agent.send_prompt(
         AgentPromptInner::ChooseReplicate {
-            game_view: agent.view(),
             cost: cost.to_string(),
             max_replicates,
         },
@@ -115,7 +110,6 @@ pub(super) fn choose_alternative_cost<T: Responder>(
 ) -> usize {
     agent.send_prompt(
         AgentPromptInner::ChooseAlternativeCost {
-            game_view: agent.view(),
             options: options.to_vec(),
         },
         source,
@@ -147,7 +141,6 @@ pub(super) fn pay_mana_cost<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::PayManaCost {
-            game_view: agent.view(),
             card_id: card_id_s,
             card_name: card_name.to_string(),
             mana_cost: mana_cost_display.to_string(),
@@ -211,7 +204,6 @@ pub(super) fn specify_mana_combo<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::SpecifyManaCombo {
-            game_view: agent.view(),
             available_colors: available_colors.to_vec(),
             amount,
         },
@@ -252,9 +244,9 @@ pub(super) fn choose_delve<T: Responder>(
         .iter()
         .filter_map(|&cid| {
             agent.latest_view.as_ref().and_then(|v| {
-                v.graveyard
+                v.players
                     .iter()
-                    .chain(v.opponent_zones.values().flat_map(|z| z.graveyard.iter()))
+                    .flat_map(|p| p.graveyard.iter())
                     .find(|c| c.id == card_id_str(cid))
                     .cloned()
             })
@@ -263,7 +255,6 @@ pub(super) fn choose_delve<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::ChooseDelve {
-            game_view: agent.view(),
             valid_card_ids: valid_ids,
             zone_cards,
             max_cards: max,
@@ -292,7 +283,6 @@ pub(super) fn choose_improvise<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::ChooseImprovise {
-            game_view: agent.view(),
             valid_card_ids: valid_ids,
             remaining_cost: remaining_cost.to_string(),
         },
@@ -319,7 +309,6 @@ pub(super) fn choose_convoke<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::ChooseConvoke {
-            game_view: agent.view(),
             valid_card_ids: valid_ids,
             remaining_cost: remaining_cost.to_string(),
         },

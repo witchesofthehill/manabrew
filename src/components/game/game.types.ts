@@ -52,6 +52,7 @@ export interface OpponentHalfProps {
   promptType: PromptType | undefined;
   pendingAttacker: string | null;
   attackerIds?: string[];
+  selectableCardIds?: string[];
   onClickCard: (card: GameCard) => void;
   onClickAnyCard: (card: GameCard) => void;
   onHoverCard: (

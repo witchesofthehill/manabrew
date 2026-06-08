@@ -10,27 +10,37 @@ use crate::server_client::ServerClient;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
 use forge_agent_interface::protocol::StateEnvelope;
 
 pub fn spawn_engine_prompt_forwarder(
     app: AppHandle,
     latest_prompt: Arc<Mutex<Option<AgentPrompt>>>,
     latest_prompt_payload: Arc<Mutex<Option<Value>>>,
-    rx: mpsc::Receiver<AgentPrompt>,
+    rx: mpsc::Receiver<AgentMessage>,
 ) {
     thread::spawn(move || {
-        eprintln!("[prompt_fwd] Engine prompt forwarder started");
-        while let Ok(prompt) = rx.recv() {
-            if let Ok(mut lp) = latest_prompt.lock() {
-                *lp = Some(prompt.clone());
+        eprintln!("[prompt_fwd] Engine message forwarder started");
+        while let Ok(message) = rx.recv() {
+            match message {
+                AgentMessage::State(state) => {
+                    let _ = app.emit("game:state", &state);
+                }
+                AgentMessage::Display(event) => {
+                    let _ = app.emit("game:display", &event);
+                }
+                AgentMessage::Prompt(prompt) => {
+                    if let Ok(mut lp) = latest_prompt.lock() {
+                        *lp = Some(prompt.clone());
+                    }
+                    if let Ok(mut lp) = latest_prompt_payload.lock() {
+                        *lp = serde_json::to_value(&prompt).ok();
+                    }
+                    let _ = app.emit("game:prompt", &prompt);
+                }
             }
-            if let Ok(mut lp) = latest_prompt_payload.lock() {
-                *lp = serde_json::to_value(&prompt).ok();
-            }
-            let _ = app.emit("game:prompt", &prompt);
         }
-        eprintln!("[prompt_fwd] Engine prompt forwarder ended");
+        eprintln!("[prompt_fwd] Engine message forwarder ended");
     });
 }
 
@@ -102,34 +112,36 @@ pub fn spawn_snapshot_forwarder(
     });
 }
 
-pub fn spawn_remote_prompt_forwarder(app: AppHandle, rx: mpsc::Receiver<(usize, AgentPrompt)>) {
+pub fn spawn_remote_prompt_forwarder(app: AppHandle, rx: mpsc::Receiver<(usize, AgentMessage)>) {
     thread::spawn(move || {
-        eprintln!("[remote_fwd] Remote prompt forwarder started");
-        while let Ok((player_index, prompt)) = rx.recv() {
-            let prompt_value = match serde_json::to_value(&prompt) {
-                Ok(v) => v,
-                Err(e) => {
-                    eprintln!("[remote_fwd] Failed to encode prompt payload: {}", e);
-                    continue;
-                }
-            };
-            let envelope = StateEnvelope::Prompt {
-                for_player: player_slot(player_index),
-                prompt: prompt_value,
-            };
+        eprintln!("[remote_fwd] Remote message forwarder started");
+        // State/Display carry no `forPlayer` and are identical for every player;
+        // the engine's per-agent fan-out emits N consecutive identical copies.
+        // Broadcast each once.
+        let mut last_state: Option<Value> = None;
+        let mut last_display: Option<Value> = None;
+        while let Ok((player_index, message)) = rx.recv() {
+            let envelope = StateEnvelope::for_agent_message(player_slot(player_index), &message);
             let state = match serde_json::to_value(envelope) {
                 Ok(v) => v,
                 Err(e) => {
-                    eprintln!("[remote_fwd] Failed to encode prompt envelope: {}", e);
+                    eprintln!("[remote_fwd] Failed to encode envelope: {}", e);
                     continue;
                 }
             };
+            match &message {
+                AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
+                AgentMessage::State(_) => last_state = Some(state.clone()),
+                AgentMessage::Display(_) if last_display.as_ref() == Some(&state) => continue,
+                AgentMessage::Display(_) => last_display = Some(state.clone()),
+                AgentMessage::Prompt(_) => {}
+            }
             let msg = wrap_broadcast_state(state);
             if let Some(client) = app.try_state::<ServerClient>() {
                 let _ = client.send(&msg);
             }
         }
-        eprintln!("[remote_fwd] Remote prompt forwarder ended");
+        eprintln!("[remote_fwd] Remote message forwarder ended");
     });
 }
 

@@ -3,7 +3,7 @@ use std::time::Duration;
 use forge_agent_interface::agent_impl::Responder;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
 
 use js_sys::{Int32Array, SharedArrayBuffer, Uint8Array};
 use wasm_bindgen::prelude::*;
@@ -120,9 +120,18 @@ impl WasmTransport {
 }
 
 impl WasmTransport {
-    fn send(&self, prompt: &AgentPrompt) {
+    fn send(&self, message: &AgentMessage) {
         self.wait_until_prompt_slot_available();
-        let json = serde_json::to_vec(prompt).unwrap_or_default();
+        let tagged = match message {
+            AgentMessage::State(state) => serde_json::json!({ "kind": "state", "state": state }),
+            AgentMessage::Display(event) => {
+                serde_json::json!({ "kind": "display", "event": event })
+            }
+            AgentMessage::Prompt(prompt) => {
+                serde_json::json!({ "kind": "prompt", "prompt": prompt })
+            }
+        };
+        let json = serde_json::to_vec(&tagged).unwrap_or_default();
         if !self.write_data(&json) {
             // The prompt didn't fit the SAB.
             let payload = js_sys::Object::new();
@@ -193,8 +202,8 @@ impl WasmTransport {
 }
 
 impl Responder for WasmTransport {
-    fn present(&mut self, prompt: &AgentPrompt) {
-        self.send(prompt);
+    fn present(&mut self, message: &AgentMessage) {
+        self.send(message);
     }
 
     fn respond(&mut self, _prompt: AgentPrompt) -> PlayerAction {

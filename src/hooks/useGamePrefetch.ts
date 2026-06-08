@@ -11,11 +11,7 @@ import type { Deck, DeckCard, GameView } from "@/types/manabrew";
  *  re-fetched. */
 function cardsToPrefetchImmediately(view: GameView, gameDecks: Record<string, Deck>): DeckCard[] {
   const cards: DeckCard[] = [];
-  const visible = [
-    ...view.myHand,
-    ...(view.myCommandZone ?? []),
-    ...Object.values(view.opponentZones).flatMap((z) => z.commandZone),
-  ];
+  const visible = view.players.flatMap((p) => [...p.hand, ...p.commandZone]);
   for (const gc of visible) {
     const deck = gameDecks[gc.ownerId];
     if (deck) cards.push(asDeckCard(deck, gc));

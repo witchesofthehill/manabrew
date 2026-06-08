@@ -1,5 +1,6 @@
 import type { Deck } from "@/types/manabrew";
-import type { Prompt, PromptOutput } from "@/protocol";
+import type { Prompt, PromptOutput, StateUpdate } from "@/protocol";
+import type { DisplayEvent } from "@/protocol/display";
 
 export type GameFormat =
   | "Any"
@@ -149,6 +150,8 @@ export interface RoomRelayEnvelope<TPayload = unknown> {
 }
 
 export type StateEnvelope =
+  | { kind: "state"; state: StateUpdate }
+  | { kind: "display"; event: DisplayEvent }
   | { kind: "prompt"; forPlayer: string; prompt: Prompt }
   | { kind: "response"; fromPlayer: string; action: PromptOutput }
   | { kind: "log"; fromPlayer: string; entry: unknown }

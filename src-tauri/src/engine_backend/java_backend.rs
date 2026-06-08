@@ -17,13 +17,14 @@ use serde_json::Value;
 use crate::preset_decks::CardIdentity;
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_prompt_normalizer::{
-    make_java_game_over_prompt, normalize_java_prompt, translate_java_player_action,
+    make_java_game_over_prompt, make_java_state_update, normalize_java_prompt,
+    translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_raw::{
     JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
 };
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 
 pub fn unsupported_error() -> String {
     "Engine backend 'java-forge' requires building Tauri with --features java-forge".to_string()
@@ -36,7 +37,7 @@ pub fn run_game(
     starting_life: i32,
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
-    prompt_tx: mpsc::Sender<AgentPrompt>,
+    prompt_tx: mpsc::Sender<AgentMessage>,
     response_rx: mpsc::Receiver<PlayerAction>,
 ) {
     if let Err(error) = run_game_inner(
@@ -59,7 +60,7 @@ pub fn run_game(
     _starting_life: i32,
     _commander_name: Option<String>,
     _opponent_deck_list: Option<Vec<CardIdentity>>,
-    _prompt_tx: mpsc::Sender<AgentPrompt>,
+    _prompt_tx: mpsc::Sender<AgentMessage>,
     _response_rx: mpsc::Receiver<PlayerAction>,
 ) {
     eprintln!("[java_game_thread] {}", unsupported_error());
@@ -72,7 +73,7 @@ fn run_game_inner(
     starting_life: i32,
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
-    prompt_tx: mpsc::Sender<AgentPrompt>,
+    prompt_tx: mpsc::Sender<AgentMessage>,
     response_rx: mpsc::Receiver<PlayerAction>,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
@@ -127,14 +128,23 @@ fn run_game_inner(
                 let player_index = raw.player;
                 let is_first_player_roll =
                     matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. });
+                let state = AgentMessage::State(make_java_state_update(
+                    &raw.snapshot,
+                    raw.session_id.as_deref(),
+                    raw.player,
+                ));
+                let _ = prompt_tx.send(state);
                 if player_index == 0 || is_first_player_roll {
-                    if prompt_tx.send(normalize_java_prompt(raw)).is_err() {
+                    if prompt_tx
+                        .send(AgentMessage::Prompt(normalize_java_prompt(raw)))
+                        .is_err()
+                    {
                         session.end_game()?;
                         return Ok(());
                     }
                 } else {
                     let auto = auto_java_action(&raw);
-                    let _ = prompt_tx.send(normalize_java_prompt(raw));
+                    let _ = prompt_tx.send(AgentMessage::Prompt(normalize_java_prompt(raw)));
                     submit_java_action(&mut session, &auto)?;
                 }
                 last_prompt_json = Some(prompt_json);
@@ -152,8 +162,10 @@ fn run_game_inner(
             eprintln!("[java_game_thread] Java Forge session reached game over");
             let raw_snapshot: JavaRawSnapshot = serde_json::from_str(&snapshot_json)
                 .map_err(|err| format!("failed to parse java snapshot for game-over: {err}"))?;
-            let prompt = make_java_game_over_prompt(&raw_snapshot, Some(&session_id));
-            let _ = prompt_tx.send(prompt);
+            let state =
+                AgentMessage::State(make_java_state_update(&raw_snapshot, Some(&session_id), 0));
+            let _ = prompt_tx.send(state);
+            let _ = prompt_tx.send(AgentMessage::Prompt(make_java_game_over_prompt()));
             session.end_game()?;
             return Ok(());
         }

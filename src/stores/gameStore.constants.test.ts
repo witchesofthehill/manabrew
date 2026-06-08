@@ -2,9 +2,11 @@ import { execFileSync } from "node:child_process";
 
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { applyPrompt } from "./gameStore.constants";
+import { applyDisplay, applyPrompt, applyState } from "./gameStore.constants";
 import type { GameState } from "./gameStore.types";
 import type { Prompt } from "@/protocol";
+import type { DisplayEvent } from "@/protocol/display";
+import type { GameView } from "@/types/manabrew";
 
 // Corpus = one example of every AgentPromptInner variant, generated on demand by
 // the rust emitter (no committed fixture, can't drift), replayed through applyPrompt.
@@ -41,25 +43,43 @@ function makeStoreStub(myPlayerSlot: unknown) {
   };
 }
 
-describe("UI prompt handling (engine -> applyPrompt)", () => {
+describe("UI message handling (engine -> store)", () => {
   it("emits a prompt for every variant", () => {
     expect(corpus.length).toBeGreaterThan(0);
   });
 
-  it("ingests every prompt without throwing and routes decision prompts", () => {
+  it("routes every prompt to currentPrompt without throwing", () => {
     for (const prompt of corpus) {
-      const decider = (prompt as { decidingPlayerId?: string }).decidingPlayerId ?? "player-0";
-      const store = makeStoreStub(decider);
+      const store = makeStoreStub("player-0");
       expect(
         () => applyPrompt(prompt, "test", store.set, store.get),
         prompt.input.type,
       ).not.toThrow();
-      if (prompt.input.type !== "stateUpdate") {
-        expect(
-          (store.get() as { currentPrompt: unknown }).currentPrompt,
-          `${prompt.input.type} did not route to currentPrompt`,
-        ).not.toBeNull();
-      }
+      expect(
+        (store.get() as { currentPrompt: unknown }).currentPrompt,
+        `${prompt.input.type} did not route to currentPrompt`,
+      ).not.toBeNull();
     }
+  });
+
+  it("prompts carry no game view", () => {
+    for (const prompt of corpus) {
+      expect((prompt.input as Record<string, unknown>).gameView).toBeUndefined();
+    }
+  });
+
+  it("applyState is the sole carrier of game state", () => {
+    const store = makeStoreStub("player-0");
+    applyState({ gameId: "g" } as GameView, "test", store.set, store.get);
+    expect((store.get() as { gameView: unknown }).gameView).not.toBeNull();
+    expect((store.get() as { currentPrompt: unknown }).currentPrompt).toBeNull();
+  });
+
+  it("applyDisplay enqueues an animation and never sets a prompt", () => {
+    const store = makeStoreStub("player-0");
+    applyDisplay({ kind: "cardPlayed" } as DisplayEvent, "test", store.set, store.get);
+    const s = store.get() as { deferredQueue: unknown[]; currentPrompt: unknown };
+    expect(s.deferredQueue.length).toBe(1);
+    expect(s.currentPrompt).toBeNull();
   });
 });

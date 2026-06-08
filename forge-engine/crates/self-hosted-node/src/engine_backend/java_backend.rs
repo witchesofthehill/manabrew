@@ -23,11 +23,11 @@ use forge_agent_interface::deck_dto::{CardIdentity, Deck};
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_prompt_normalizer::{
-    normalize_java_prompt, translate_java_player_action,
+    make_java_state_update, normalize_java_prompt, translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_raw::{JavaAction, JavaRawPrompt, JavaRawPromptBody};
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 #[cfg(feature = "java-forge")]
 use forge_bot::{BotAgent, SimpleAi};
 use serde::Serialize;
@@ -690,7 +690,7 @@ pub fn run_hosted_engine_game(
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
     starting_life: i32,
-    remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     game_over_tx: std_mpsc::Sender<String>,
     cancel: Arc<AtomicBool>,
@@ -719,7 +719,7 @@ pub fn run_hosted_engine_game(
     _commander_names: Vec<Option<String>>,
     _local_player_index: Option<usize>,
     _starting_life: i32,
-    _remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     _game_over_tx: std_mpsc::Sender<String>,
     _cancel: Arc<AtomicBool>,
@@ -738,7 +738,7 @@ fn run_hosted_engine_game_inner(
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
     starting_life: i32,
-    remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     game_over_tx: std_mpsc::Sender<String>,
     cancel: Arc<AtomicBool>,
@@ -841,8 +841,14 @@ fn run_hosted_engine_game_inner(
                     "forwarding java prompt to remote"
                 );
                 if matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. }) {
-                    let normalized = normalize_java_prompt(raw);
+                    let state = AgentMessage::State(make_java_state_update(
+                        &raw.snapshot,
+                        raw.session_id.as_deref(),
+                        raw.player,
+                    ));
+                    let normalized = AgentMessage::Prompt(normalize_java_prompt(raw));
                     for &agent_index in remote_response_rxs.keys() {
+                        let _ = remote_prompt_tx.send((agent_index, state.clone()));
                         let _ = remote_prompt_tx.send((agent_index, normalized.clone()));
                     }
                     pending_roll_acks = remote_response_rxs.len();
@@ -858,11 +864,18 @@ fn run_hosted_engine_game_inner(
                     let action_json = serde_json::to_string(&auto)
                         .map_err(|err| format!("failed to serialize java auto action: {err}"))?;
                     engine.submit_action(&session_id, &action_json)?;
-                } else if remote_prompt_tx
-                    .send((player_index, normalize_java_prompt(raw)))
-                    .is_err()
-                {
-                    return Ok(());
+                } else {
+                    let state = AgentMessage::State(make_java_state_update(
+                        &raw.snapshot,
+                        raw.session_id.as_deref(),
+                        raw.player,
+                    ));
+                    let prompt = AgentMessage::Prompt(normalize_java_prompt(raw));
+                    if remote_prompt_tx.send((player_index, state)).is_err()
+                        || remote_prompt_tx.send((player_index, prompt)).is_err()
+                    {
+                        return Ok(());
+                    }
                 }
                 last_prompt_json = Some(prompt_json);
             }

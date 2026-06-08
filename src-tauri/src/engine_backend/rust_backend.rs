@@ -6,7 +6,7 @@ use std::sync::Arc;
 use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 use forge_bot::BotResponder;
 use forge_engine_core::agent::PlayerAgent;
 use forge_engine_core::ids::PlayerId;
@@ -26,7 +26,7 @@ pub fn run_game(
     starting_life: i32,
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
-    prompt_tx: mpsc::Sender<AgentPrompt>,
+    prompt_tx: mpsc::Sender<AgentMessage>,
     response_rx: mpsc::Receiver<PlayerAction>,
     notify_tx: mpsc::Sender<GameLogEntryDto>,
     snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
@@ -117,11 +117,11 @@ pub fn run_multiplayer_game(
     commander_names: Vec<Option<String>>,
     engine_player_index: usize,
     starting_life: i32,
-    engine_prompt_tx: mpsc::Sender<AgentPrompt>,
+    engine_prompt_tx: mpsc::Sender<AgentMessage>,
     engine_response_rx: mpsc::Receiver<PlayerAction>,
     engine_notify_tx: mpsc::Sender<GameLogEntryDto>,
     engine_snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
-    remote_prompt_tx: mpsc::Sender<(usize, AgentPrompt)>,
+    remote_prompt_tx: mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, mpsc::Receiver<PlayerAction>)>,
     abort_signal: Arc<AtomicBool>,
 ) {

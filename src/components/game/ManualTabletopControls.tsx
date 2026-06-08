@@ -62,7 +62,6 @@ function createManualCard(
     text: base?.text ?? "",
     isPlayable: false,
     isSelected: false,
-    isChoosable: false,
     controllerId,
     ownerId: controllerId,
     zoneId: "battlefield",

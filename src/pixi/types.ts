@@ -106,6 +106,7 @@ export interface BattlefieldState {
   cards: GameCard[];
   pendingCardIds?: string[];
   attackingCardIds?: string[];
+  selectableCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
   manaAbilityOptions?: ActivatableAbilityInfo[];

@@ -206,6 +206,14 @@ fn emit_server_message(app: &AppHandle, msg: &ServerMessage) {
                         serde_json::json!({ "from_player": from_player, "state": state }),
                     );
                 }
+                StateEnvelope::State { .. } => {
+                    let _ = app.emit("game:remote_state", state);
+                    return;
+                }
+                StateEnvelope::Display { .. } => {
+                    let _ = app.emit("game:remote_display", state);
+                    return;
+                }
                 StateEnvelope::Prompt { .. } => {
                     let _ = app.emit("game:remote_prompt", state);
                     return;

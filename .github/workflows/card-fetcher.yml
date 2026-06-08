@@ -1,8 +1,9 @@
 name: Card Fetcher
 
 # Replies to [[Card Name]] mentions in issues and PRs with card info from
-# Scryfall (https://scryfall.com/docs/api). Keyless, no external service —
-# the whole thing runs inline in actions/github-script.
+# Scryfall (https://scryfall.com/docs/api) plus the card's Forge script (the
+# DSL) pulled from the public forge fork. Keyless, no external service, no
+# checkout — the whole thing runs inline in actions/github-script.
 #
 # Syntax: [[Lightning Bolt]]  or  [[Lightning Bolt|set]] for a specific printing.
 
@@ -31,13 +32,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Reply with card info
+      - name: Reply with card info and Forge script
         uses: actions/github-script@v7
         with:
           script: |
             const MARKER = '<!-- card-fetcher-bot -->';
             const MAX_CARDS = 5;
             const UA = 'manabrew-card-fetcher/1.0 (https://github.com/witchesofthehill/manabrew)';
+            // Forge card scripts (the DSL) live in the public forge fork, one .txt
+            // per card under cardsfolder/<first-letter>/<transformed-name>.txt.
+            const FORGE_RAW = 'https://raw.githubusercontent.com/witchesofthehill/forge/manabrew/forge-gui/res/cardsfolder';
+            const MAX_SCRIPT_CHARS = 4000;
 
             // --- Resolve the event into { body, issue_number, author } -------
             const e = context.eventName;
@@ -95,6 +100,45 @@ jobs:
               }
             }
 
+            // --- Card name -> Forge script filename --------------------------
+            // Mirrors Forge's CardStorageReader.transformName (single-pass:
+            // lowercase, drop apostrophes, collapse every other non-alnum run to
+            // one '_', drop commas, trim a trailing '_') plus an accent fold so
+            // "Lim-Dûl" resolves to lim_dul (Forge's files are already folded).
+            // DFC/split names arrive joined by " // " and fold naturally, e.g.
+            // fable_of_the_mirror_breaker_reflection_of_kiki_jiki.
+            function forgeFileName(name) {
+              const folded = name.normalize('NFD').replace(/[̀-ͯ]/g, '');
+              let out = '';
+              for (const ch of folded) {
+                const c = ch.toLowerCase();
+                if (c === "'" || c === '’') continue;
+                if (c >= 'a' && c <= 'z') { out += c; continue; }
+                if (c >= '0' && c <= '9') { out += c; continue; }
+                if (out.endsWith('_')) continue;
+                if (c === ',' && out.length > 0) continue;
+                out += '_';
+              }
+              return out.endsWith('_') ? out.slice(0, -1) : out;
+            }
+
+            async function fetchForgeScript(cardName) {
+              const file = forgeFileName(cardName);
+              if (!file) return null;
+              const url = `${FORGE_RAW}/${file[0]}/${file}.txt`;
+              try {
+                const res = await fetch(url, { headers: { 'User-Agent': UA } });
+                if (!res.ok) return null;
+                const text = (await res.text()).trim();
+                if (!text) return null;
+                return text.length > MAX_SCRIPT_CHARS
+                  ? `${text.slice(0, MAX_SCRIPT_CHARS)}\n… (truncated)`
+                  : text;
+              } catch {
+                return null;
+              }
+            }
+
             // --- Render one card to compact markdown -------------------------
             function render(card) {
               const out = [];
@@ -123,19 +167,26 @@ jobs:
             // --- Resolve all (throttled per Scryfall etiquette) -------------
             const results = [];
             for (const t of tokens) {
-              results.push(await lookup(t));
+              const r = await lookup(t);
+              if (r.card) r.script = await fetchForgeScript(r.card.name);
+              results.push(r);
               await sleep(120); // Scryfall asks for ~50-100ms between requests
             }
 
-            const blocks = results.map(r =>
-              r.card ? render(r.card) : `⚠️ No card found for **${r.name}** — _${r.error}_`
-            );
+            const blocks = results.map(r => {
+              if (!r.card) return `⚠️ No card found for **${r.name}** — _${r.error}_`;
+              let block = render(r.card);
+              if (r.script) {
+                block += `\n\n<details><summary>🔧 Forge script</summary>\n\n\`\`\`\n${r.script}\n\`\`\`\n\n</details>`;
+              }
+              return block;
+            });
 
             const comment = [
               MARKER,
               blocks.join('\n\n---\n\n'),
               '',
-              '<sub>🔮 card info via [Scryfall](https://scryfall.com) · type <code>[[Card Name]]</code> to summon</sub>',
+              '<sub>🔮 card info via [Scryfall](https://scryfall.com) · 🔧 script via [Forge](https://github.com/witchesofthehill/forge) · type <code>[[Card Name]]</code> to summon</sub>',
             ].join('\n');
 
             await github.rest.issues.createComment({

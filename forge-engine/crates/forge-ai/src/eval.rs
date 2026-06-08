@@ -4,36 +4,26 @@ use forge_engine_core::game::GameState;
 use forge_engine_core::ids::PlayerId;
 use forge_foundation::ZoneType;
 
+use crate::stats::{CreatureStats, StrategicIntent};
+
 const WIN_SCORE: f64 = 10000.0;
 const LOSS_SCORE: f64 = -10000.0;
 
-#[derive(Debug, Clone)]
-pub struct KeywordBonuses {
-    pub flying_mult: f64,
-    pub trample_mult: f64,
-    pub deathtouch_flat: f64,
-    pub lifelink_mult: f64,
-    pub hexproof_flat: f64,
-    pub indestructible_flat: f64,
-    pub first_strike_mult: f64,
-    pub vigilance_flat: f64,
-    pub menace_mult: f64,
-    pub tapped_penalty: f64,
-}
-
-impl Default for KeywordBonuses {
-    fn default() -> Self {
-        Self {
-            flying_mult: 1.0,
-            trample_mult: 0.5,
-            deathtouch_flat: 3.0,
-            lifelink_mult: 0.5,
-            hexproof_flat: 2.0,
-            indestructible_flat: 4.0,
-            first_strike_mult: 0.8,
-            vigilance_flat: 1.0,
-            menace_mult: 0.5,
-            tapped_penalty: 1.5,
+impl CreatureStats for Card {
+    fn power(&self) -> i32 {
+        Card::power(self)
+    }
+    fn toughness(&self) -> i32 {
+        Card::toughness(self)
+    }
+    fn tapped(&self) -> bool {
+        self.tapped
+    }
+    fn has_kw(&self, kw: &str) -> bool {
+        match kw {
+            "Trample" => self.has_trample(),
+            "Deathtouch" => self.has_deathtouch(),
+            _ => self.has_keyword(kw),
         }
     }
 }
@@ -81,62 +71,6 @@ impl EvalWeights {
             },
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StrategicIntent {
-    PushLethal,
-    Stabilize,
-    PreserveAdvantage,
-    Develop,
-}
-
-fn kw(card: &Card, name: &str) -> bool {
-    card.has_keyword(name)
-}
-
-pub fn creature_combat_value(card: &Card, b: &KeywordBonuses) -> f64 {
-    let power = card.power() as f64;
-    let toughness = card.toughness() as f64;
-    let mut value = power * 1.5 + toughness;
-
-    if kw(card, "Flying") {
-        value += power * b.flying_mult;
-    }
-    if card.has_trample() {
-        value += power * b.trample_mult;
-    }
-    if card.has_deathtouch() {
-        value += b.deathtouch_flat;
-    }
-    if kw(card, "Lifelink") {
-        value += power * b.lifelink_mult;
-    }
-    if kw(card, "Hexproof") {
-        value += b.hexproof_flat;
-    }
-    if kw(card, "Indestructible") {
-        value += b.indestructible_flat;
-    }
-    if kw(card, "First Strike") || kw(card, "Double Strike") {
-        value += power * b.first_strike_mult;
-    }
-    if kw(card, "Vigilance") {
-        value += b.vigilance_flat;
-    }
-    if kw(card, "Menace") {
-        value += power * b.menace_mult;
-    }
-
-    value
-}
-
-pub fn evaluate_creature(card: &Card, b: &KeywordBonuses) -> f64 {
-    let mut value = creature_combat_value(card, b);
-    if card.tapped {
-        value -= b.tapped_penalty;
-    }
-    value
 }
 
 /// (creature_count, total_power, total_toughness, non_creature_permanents)
@@ -211,7 +145,11 @@ pub fn strategic_intent(game: &GameState, me: PlayerId) -> StrategicIntent {
 
     let (_, my_power, _, _) = board_stats(game, me);
     let total_opp_power: i32 = opps.iter().map(|&o| board_stats(game, o).1).sum();
-    let min_opp_life = opps.iter().map(|&o| life(game, o)).min().unwrap_or(i32::MAX);
+    let min_opp_life = opps
+        .iter()
+        .map(|&o| life(game, o))
+        .min()
+        .unwrap_or(i32::MAX);
     let my_life = life(game, me);
     let avg_opp_life = opps.iter().map(|&o| life(game, o)).sum::<i32>() as f64 / opps.len() as f64;
 
@@ -250,10 +188,7 @@ pub fn evaluate_state(game: &GameState, me: PlayerId, weights: &EvalWeights) -> 
 
     let (my_creatures, my_power, my_toughness, my_nc) = board_stats(game, me);
 
-    let threats: Vec<(PlayerId, f64)> = opps
-        .iter()
-        .map(|&o| (o, threat_level(game, o)))
-        .collect();
+    let threats: Vec<(PlayerId, f64)> = opps.iter().map(|&o| (o, threat_level(game, o))).collect();
     let total_threat: f64 = threats.iter().map(|(_, t)| t).sum::<f64>().max(0.01);
     let multi = opps.len() >= 2;
 

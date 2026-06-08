@@ -6,3 +6,4 @@
 //! (Apache-2.0). See THIRD-PARTY-NOTICES.md.
 
 pub mod eval;
+pub mod stats;

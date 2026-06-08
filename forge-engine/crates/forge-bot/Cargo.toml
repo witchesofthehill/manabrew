@@ -9,6 +9,7 @@ native = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util"]
 
 [dependencies]
 forge-agent-interface = { path = "../forge-agent-interface" }
+forge-ai = { path = "../forge-ai" }
 forge-engine-core = { path = "../forge-engine" }
 serde = { workspace = true }
 serde_json = { workspace = true }

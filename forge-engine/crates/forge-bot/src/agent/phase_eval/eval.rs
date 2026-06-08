@@ -1,89 +1,35 @@
 // Adapted from phase-rs/phase crates/phase-ai (Apache-2.0). See THIRD-PARTY-NOTICES.md.
 use forge_agent_interface::game_view_dto::CardDto;
+use forge_ai::stats::{self, CreatureStats};
+pub use forge_ai::stats::{KeywordBonuses, StrategicIntent};
 
-use super::view::{has_kw, power_of, toughness_of, BotView};
+use super::view::{has_kw, is_creature, is_land, power_of, toughness_of, BotView};
 
-#[derive(Debug, Clone)]
-pub struct KeywordBonuses {
-    pub flying_mult: f64,
-    pub trample_mult: f64,
-    pub deathtouch_flat: f64,
-    pub lifelink_mult: f64,
-    pub hexproof_flat: f64,
-    pub indestructible_flat: f64,
-    pub first_strike_mult: f64,
-    pub vigilance_flat: f64,
-    pub menace_mult: f64,
-    pub tapped_penalty: f64,
-}
+// CardDto and CreatureStats are both foreign here, so the impl rides a local
+// newtype; the shared scoring logic lives once in `forge_ai::stats`.
+struct CardStats<'a>(&'a CardDto);
 
-impl Default for KeywordBonuses {
-    fn default() -> Self {
-        Self {
-            flying_mult: 1.0,
-            trample_mult: 0.5,
-            deathtouch_flat: 3.0,
-            lifelink_mult: 0.5,
-            hexproof_flat: 2.0,
-            indestructible_flat: 4.0,
-            first_strike_mult: 0.8,
-            vigilance_flat: 1.0,
-            menace_mult: 0.5,
-            tapped_penalty: 1.5,
-        }
+impl CreatureStats for CardStats<'_> {
+    fn power(&self) -> i32 {
+        power_of(self.0)
+    }
+    fn toughness(&self) -> i32 {
+        toughness_of(self.0)
+    }
+    fn tapped(&self) -> bool {
+        self.0.tapped
+    }
+    fn has_kw(&self, kw: &str) -> bool {
+        has_kw(self.0, kw)
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StrategicIntent {
-    PushLethal,
-    Stabilize,
-    PreserveAdvantage,
-    Develop,
+pub fn creature_combat_value(c: &CardDto, b: &KeywordBonuses) -> f64 {
+    stats::creature_combat_value(&CardStats(c), b)
 }
 
-pub fn creature_combat_value(c: &CardDto, bonuses: &KeywordBonuses) -> f64 {
-    let power = power_of(c) as f64;
-    let toughness = toughness_of(c) as f64;
-    let mut value = power * 1.5 + toughness;
-
-    if has_kw(c, "flying") {
-        value += power * bonuses.flying_mult;
-    }
-    if has_kw(c, "trample") {
-        value += power * bonuses.trample_mult;
-    }
-    if has_kw(c, "deathtouch") {
-        value += bonuses.deathtouch_flat;
-    }
-    if has_kw(c, "lifelink") {
-        value += power * bonuses.lifelink_mult;
-    }
-    if has_kw(c, "hexproof") {
-        value += bonuses.hexproof_flat;
-    }
-    if has_kw(c, "indestructible") {
-        value += bonuses.indestructible_flat;
-    }
-    if has_kw(c, "first strike") || has_kw(c, "double strike") {
-        value += power * bonuses.first_strike_mult;
-    }
-    if has_kw(c, "vigilance") {
-        value += bonuses.vigilance_flat;
-    }
-    if has_kw(c, "menace") {
-        value += power * bonuses.menace_mult;
-    }
-
-    value
-}
-
-pub fn evaluate_creature(c: &CardDto, bonuses: &KeywordBonuses) -> f64 {
-    let mut value = creature_combat_value(c, bonuses);
-    if c.tapped {
-        value -= bonuses.tapped_penalty;
-    }
-    value
+pub fn evaluate_creature(c: &CardDto, b: &KeywordBonuses) -> f64 {
+    stats::evaluate_creature(&CardStats(c), b)
 }
 
 fn board_stats(view: &BotView, pid: &str) -> (i32, i32, i32, i32) {
@@ -96,11 +42,11 @@ fn board_stats(view: &BotView, pid: &str) -> (i32, i32, i32, i32) {
         if c.controller_id != pid {
             continue;
         }
-        if super::view::is_creature(c) {
+        if is_creature(c) {
             creatures += 1;
             total_power += power_of(c);
             total_toughness += toughness_of(c);
-        } else if !super::view::is_land(c) {
+        } else if !is_land(c) {
             non_creatures += 1;
         }
     }

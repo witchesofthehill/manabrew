@@ -312,8 +312,8 @@ pub fn set_max_players_sync(
             .get_mut(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
-        if !room.players.iter().any(|p| p.player_id == player_id) {
-            return Err(ServerError::NotInRoom);
+        if !room.is_controller(player_id) {
+            return Err(ServerError::NotHost);
         }
 
         if room.status != RoomStatus::Lobby {

@@ -79,10 +79,11 @@ export function TablesList({
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
   // The controller is the first seated player — they drive the lobby (format,
-  // bots, start) even when the host is a non-playing engine node. In a normal
-  // self-created room the host is the first player, so the two coincide.
-  const isController = currentRoom?.players[0]?.username === username;
-  const isSeated = !!myPlayer;
+  // seats, bots, start) even when the host is a non-playing engine node. In a
+  // self-hosted room the host (the node) takes no seat, so the controller is
+  // the first human to join, not currentRoom.host.
+  const controllerName = currentRoom?.players[0]?.username;
+  const isController = controllerName === username;
   const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
   const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
@@ -93,8 +94,8 @@ export function TablesList({
 
   const orderedPlayers = currentRoom
     ? [...currentRoom.players].sort((a, b) => {
-        if (a.username === currentRoom.host) return -1;
-        if (b.username === currentRoom.host) return 1;
+        if (a.username === controllerName) return -1;
+        if (b.username === controllerName) return 1;
         return a.username.localeCompare(b.username);
       })
     : [];
@@ -170,7 +171,7 @@ export function TablesList({
                         : currentRoom.format}
                   </Badge>
                 )}
-                {isSeated &&
+                {isController &&
                 currentRoom.status === "Lobby" &&
                 currentRoom.hosted &&
                 !isLimitedRoom &&
@@ -180,6 +181,7 @@ export function TablesList({
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted/60"
+                        title="Change the number of seats"
                       >
                         <Users className="h-2.5 w-2.5" />
                         {currentRoom.players.length}/{currentRoom.max_players}
@@ -199,7 +201,12 @@ export function TablesList({
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                ) : null}
+                ) : (
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Users className="h-2.5 w-2.5" />
+                    {currentRoom.players.length}/{currentRoom.max_players}
+                  </Badge>
+                )}
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
                   className="text-[10px]"
@@ -246,10 +253,11 @@ export function TablesList({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium truncate">{p.username}</span>
-                        {p.username === currentRoom.host && (
+                        {p.username === controllerName && (
                           <GameIcon
                             name="overlord-helm"
                             className="h-3 w-3 text-commander shrink-0"
+                            title="Room host — controls seats, bots & start"
                           />
                         )}
                       </div>
@@ -261,7 +269,7 @@ export function TablesList({
                           : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
-                    {canRemove ? (
+                    {canRemove && isController ? (
                       <Button
                         size="icon"
                         variant="ghost"
@@ -288,7 +296,7 @@ export function TablesList({
               })}
               {/* Hidden on Open rooms — draft bots come from the room's
                   draft_config.fill_with_bots, not this deck-picker flow. */}
-              {isSeated &&
+              {isController &&
                 !isOpenFormat &&
                 currentRoom.players.length < currentRoom.max_players &&
                 onAddBot && (
@@ -379,6 +387,11 @@ export function TablesList({
                     </Button>
                   )}
                 </div>
+              )}
+              {!isController && currentRoom.status === "Lobby" && (
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {controllerName ? `Only ${controllerName} (host) can add bots & start` : null}
+                </span>
               )}
             </div>
           </div>

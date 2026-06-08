@@ -151,7 +151,6 @@ class WorkerBridge {
         Atomics.store(this.gameSignal, 0, 3); // PROMPT_ACKNOWLEDGED
         Atomics.notify(this.gameSignal, 0);
 
-        console.log("[transport←sab/local] received:", jsonStr);
         try {
           this.dispatchEngineMessage(JSON.parse(jsonStr));
         } catch (e) {

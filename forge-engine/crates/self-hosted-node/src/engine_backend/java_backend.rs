@@ -903,19 +903,32 @@ fn run_hosted_engine_game_inner(
 
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
-            if let Ok(snapshot_json) = engine.get_snapshot(&session_id) {
-                if let Ok(raw_snapshot) = serde_json::from_str::<JavaRawSnapshot>(&snapshot_json) {
+            // Best-effort final state: it needs the snapshot, but the result
+            // screen must not depend on it. A snapshot fetch/parse failure here
+            // used to drop the whole game-over emission and soft-lock the client
+            // in a dead game view (#77).
+            match engine.get_snapshot(&session_id).and_then(|json| {
+                serde_json::from_str::<JavaRawSnapshot>(&json).map_err(|e| e.to_string())
+            }) {
+                Ok(raw_snapshot) => {
                     let state = AgentMessage::State(make_java_state_update(
                         &raw_snapshot,
                         Some(&session_id),
                         0,
                     ));
-                    let game_over = AgentMessage::Prompt(make_java_game_over_prompt());
                     for &agent_index in remote_response_rxs.keys() {
                         let _ = remote_prompt_tx.send((agent_index, state.clone()));
-                        let _ = remote_prompt_tx.send((agent_index, game_over.clone()));
                     }
                 }
+                Err(error) => {
+                    warn!(%error, "game over: final snapshot unavailable; sending game-over prompt only");
+                }
+            }
+            // Always send the GameOver prompt — it carries no snapshot data, so the
+            // client shows the result screen regardless of the snapshot above.
+            let game_over = AgentMessage::Prompt(make_java_game_over_prompt());
+            for &agent_index in remote_response_rxs.keys() {
+                let _ = remote_prompt_tx.send((agent_index, game_over.clone()));
             }
             let _ = game_over_tx.send(game_id.clone());
             engine.end_game(&session_id)?;

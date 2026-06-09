@@ -1,6 +1,6 @@
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
-    SealedConfig,
+    AiSeat, DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo,
+    RoomStatus, SealedConfig,
 };
 use forge_agent_interface::deck_dto::Deck;
 
@@ -13,6 +13,7 @@ pub struct RoomSlot {
     pub selected_deck_name: Option<String>,
     pub selected_deck: Option<Deck>,
     pub selected_commander_name: Option<String>,
+    pub is_bot: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -50,9 +51,10 @@ impl Room {
         host_plays: bool,
         draft_config: Option<DraftConfig>,
         sealed_config: Option<SealedConfig>,
+        ai_seats: Vec<AiSeat>,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
-        let (players, observers) = if host_plays {
+        let (mut players, observers) = if host_plays {
             (
                 vec![RoomSlot {
                     player_id: host_player_id.clone(),
@@ -62,6 +64,7 @@ impl Room {
                     selected_deck_name: None,
                     selected_deck: None,
                     selected_commander_name: None,
+                    is_bot: false,
                 }],
                 vec![],
             )
@@ -74,6 +77,18 @@ impl Room {
                 }],
             )
         };
+        for (i, seat) in ai_seats.into_iter().enumerate() {
+            players.push(RoomSlot {
+                player_id: format!("ai-{i}"),
+                username: seat.name,
+                ready: true,
+                connected: true,
+                selected_deck_name: Some(seat.deck_name),
+                selected_deck: Some(seat.deck),
+                selected_commander_name: seat.commander_name,
+                is_bot: true,
+            });
+        }
         Room {
             room_id,
             room_name,
@@ -125,6 +140,7 @@ impl Room {
             selected_deck_name: None,
             selected_deck: None,
             selected_commander_name: None,
+            is_bot: false,
         });
         Ok(())
     }
@@ -327,6 +343,7 @@ mod tests {
             host_plays,
             None,
             None,
+            Vec::new(),
         )
     }
 

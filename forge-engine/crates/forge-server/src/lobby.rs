@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::error::ServerError;
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
+    AiSeat, DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
 };
 use crate::room::Room;
 use crate::state::ServerState;
@@ -18,6 +18,7 @@ pub fn create_room_sync(
     engine: EngineKind,
     draft_config: Option<DraftConfig>,
     sealed_config: Option<SealedConfig>,
+    ai_seats: Vec<AiSeat>,
 ) -> Result<RoomInfo, ServerError> {
     if let Some(cfg) = &draft_config {
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
@@ -67,6 +68,7 @@ pub fn create_room_sync(
         !hosted,
         draft_config,
         sealed_config,
+        ai_seats,
     );
     let info = room.to_room_info();
 
@@ -257,6 +259,7 @@ pub struct StartedGame {
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
+    pub ai_player_indices: Vec<usize>,
     pub room_info: RoomInfo,
 }
 
@@ -306,7 +309,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (player_order, player_decks, starting_life, room_info) = {
+    let (player_order, player_decks, starting_life, ai_player_indices, room_info) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -362,10 +365,18 @@ pub fn start_game_sync(
             | GameFormat::Sealed => 20,
             GameFormat::Any => unreachable!("Any resolved to concrete format above"),
         };
+        let ai_player_indices = room
+            .players
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.is_bot)
+            .map(|(i, _)| i)
+            .collect();
         (
             room.player_usernames(),
             room.player_decks(),
             starting_life,
+            ai_player_indices,
             room.to_room_info(),
         )
     };
@@ -375,6 +386,7 @@ pub fn start_game_sync(
         player_order,
         player_decks,
         starting_life,
+        ai_player_indices,
         room_info,
     })
 }

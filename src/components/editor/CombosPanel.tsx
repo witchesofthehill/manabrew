@@ -57,6 +57,12 @@ function ComboRow({
           <span className="block truncate text-[11px] text-muted-foreground">{subtitle}</span>
         </span>
       </button>
+      <span
+        className="shrink-0 rounded bg-counter-charge/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-counter-charge"
+        title={`${combo.uses.length}-card combo`}
+      >
+        {combo.uses.length}c
+      </span>
       {onAdd ? (
         <button
           type="button"

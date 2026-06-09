@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Gauge, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
-import { BRACKET_INFO, type Bracket } from "@/lib/brackets";
+import { BRACKET_INFO, bracketAdvice, type Bracket } from "@/lib/brackets";
 
 const BRACKET_STYLE: Record<Bracket, { badge: string; text: string }> = {
   1: { badge: "bg-muted text-muted-foreground", text: "text-muted-foreground" },
@@ -90,6 +90,26 @@ export function DeckBracketPanel() {
               </div>
             </div>
           )}
+
+          {(() => {
+            const advice = bracketAdvice(bracket);
+            if (!advice || advice.actions.length === 0) return null;
+            return (
+              <div className="space-y-1 rounded-md border border-border/40 bg-muted/20 p-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  To reach Bracket {advice.target}
+                </span>
+                <ul className="space-y-0.5">
+                  {advice.actions.map((action, i) => (
+                    <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <span className="shrink-0 mt-0.5">&#x2022;</span>
+                      <span>{action}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
 
           <p className="text-[10px] text-muted-foreground/50 italic">
             Estimate covers brackets 2–4. Bracket 1 (casual) and 5 (cEDH) are self-declared.

@@ -98,3 +98,34 @@ export function assessBracket(
 
   return { bracket, gameChangers: gameChangerNames, massLandDenial, earlyCombos, reasons };
 }
+
+/** Actionable steps to drop the deck to the next-lower bracket, or null when
+ *  already at the auto-assignable floor (Bracket 2). */
+export function bracketAdvice(
+  assessment: BracketAssessment,
+): { target: Bracket; actions: string[] } | null {
+  const { bracket, gameChangers, massLandDenial, earlyCombos } = assessment;
+  if (bracket >= 4) {
+    const actions: string[] = [];
+    if (gameChangers.length >= 4) {
+      const cut = gameChangers.length - 3;
+      actions.push(`Cut ${cut} Game Changer${cut === 1 ? "" : "s"}`);
+    }
+    if (massLandDenial.length > 0) {
+      actions.push(`Remove mass land denial: ${massLandDenial.join(", ")}`);
+    }
+    if (earlyCombos > 0) {
+      actions.push(`Remove ${earlyCombos} early two-card combo${earlyCombos === 1 ? "" : "s"}`);
+    }
+    return { target: 3, actions };
+  }
+  if (bracket === 3 && gameChangers.length > 0) {
+    return {
+      target: 2,
+      actions: [
+        `Cut all ${gameChangers.length} Game Changer${gameChangers.length === 1 ? "" : "s"}`,
+      ],
+    };
+  }
+  return null;
+}

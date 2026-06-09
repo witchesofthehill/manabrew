@@ -1,13 +1,22 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Sparkles, Plus, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Trophy, Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { normalizeCardName } from "@/lib/gameChangers";
+import { getCardByName } from "@/api/scryfall";
+import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { ComboDetailModal } from "./ComboDetailModal";
-import { cn } from "@/lib/utils";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
 
 const SUGGESTION_LIMIT = 12;
+
+const WIN_PATTERN =
+  /win the game|wins the game|lose the game|loses the game|each opponent loses|infinite damage/i;
+
+function isWinCombo(combo: SpellbookCombo): boolean {
+  return combo.produces.some((p) => WIN_PATTERN.test(p.feature.name));
+}
 
 function producesLabel(combo: SpellbookCombo): string {
   return combo.produces.map((p) => p.feature.name).join(", ") || "combo";
@@ -19,34 +28,51 @@ function ComboRow({
   icon,
   title,
   subtitle,
+  onAdd,
+  addLabel,
 }: {
   combo: SpellbookCombo;
   onOpen: (combo: SpellbookCombo) => void;
   icon: React.ReactNode;
   title: string;
   subtitle: string;
+  onAdd?: () => void;
+  addLabel?: string;
 }) {
   return (
-    <button
-      type="button"
-      className={cn(
-        "group flex w-full items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 text-left",
-        "transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10",
+    <div className="group flex w-full items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10">
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen(combo);
+        }}
+      >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-counter-charge/15 text-counter-charge transition-colors group-hover:bg-counter-charge/25">
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-medium text-foreground">{title}</span>
+          <span className="block truncate text-[11px] text-muted-foreground">{subtitle}</span>
+        </span>
+      </button>
+      {onAdd ? (
+        <button
+          type="button"
+          title={addLabel}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-counter-charge transition-colors hover:bg-counter-charge/25"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd();
+          }}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-counter-charge" />
       )}
-      onClick={(e) => {
-        e.stopPropagation();
-        onOpen(combo);
-      }}
-    >
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-counter-charge/15 text-counter-charge transition-colors group-hover:bg-counter-charge/25">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-foreground">{title}</span>
-        <span className="block truncate text-[11px] text-muted-foreground">{subtitle}</span>
-      </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:text-counter-charge" />
-    </button>
+    </div>
   );
 }
 
@@ -54,9 +80,13 @@ export function CombosPanel() {
   const [collapsed, setCollapsed] = useState(true);
   const [openCombo, setOpenCombo] = useState<SpellbookCombo | null>(null);
   const currentDeck = useDeckStore((s) => s.currentDeck);
+  const addToMain = useDeckStore((s) => s.addToMain);
   const included = useDeckAnalysisStore((s) => s.included);
   const almostIncluded = useDeckAnalysisStore((s) => s.almostIncluded);
   const loading = useDeckAnalysisStore((s) => s.loading);
+
+  const winCombos = useMemo(() => included.filter(isWinCombo), [included]);
+  const otherCombos = useMemo(() => included.filter((c) => !isWinCombo(c)), [included]);
 
   const deckNames = useMemo(() => {
     const set = new Set<string>();
@@ -77,6 +107,16 @@ export function CombosPanel() {
       .sort((a, b) => (b.combo.popularity ?? 0) - (a.combo.popularity ?? 0))
       .slice(0, SUGGESTION_LIMIT);
   }, [almostIncluded, deckNames]);
+
+  async function handleAdd(name: string) {
+    try {
+      const sc = await getCardByName(name);
+      addToMain({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
+      toast.success(`Added ${name}`);
+    } catch {
+      toast.error(`Couldn't add ${name}`);
+    }
+  }
 
   if (!loading && included.length === 0 && suggestions.length === 0) return null;
 
@@ -112,12 +152,30 @@ export function CombosPanel() {
 
         {!collapsed && (
           <div className="px-3 pb-3 space-y-3">
-            {included.length > 0 && (
+            {winCombos.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warning/80">
+                  Win lines
+                </span>
+                {winCombos.map((combo) => (
+                  <ComboRow
+                    key={combo.id}
+                    combo={combo}
+                    onOpen={setOpenCombo}
+                    icon={<Trophy className="h-3.5 w-3.5" />}
+                    title={producesLabel(combo)}
+                    subtitle={combo.uses.map((u) => u.card.name).join(" + ")}
+                  />
+                ))}
+              </div>
+            )}
+
+            {otherCombos.length > 0 && (
               <div className="space-y-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-counter-charge/80">
                   In your deck
                 </span>
-                {included.map((combo) => (
+                {otherCombos.map((combo) => (
                   <ComboRow
                     key={combo.id}
                     combo={combo}
@@ -140,9 +198,11 @@ export function CombosPanel() {
                     key={combo.id}
                     combo={combo}
                     onOpen={setOpenCombo}
-                    icon={<Plus className="h-3.5 w-3.5" />}
-                    title={`Add ${missing[0]}`}
-                    subtitle={producesLabel(combo)}
+                    icon={<Sparkles className="h-3.5 w-3.5" />}
+                    title={producesLabel(combo)}
+                    subtitle={`Needs ${missing[0]}`}
+                    onAdd={() => handleAdd(missing[0])}
+                    addLabel={`Add ${missing[0]} to deck`}
                   />
                 ))}
               </div>

@@ -28,6 +28,7 @@ import type {
 import type { Deck, GameView } from "@/types/manabrew";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
+  SELF_HOSTED_NODE_RELAY_PROTOCOL,
   createRoomRelayEnvelope,
   isRoomRelayProtocol,
 } from "@/game";
@@ -444,13 +445,34 @@ export default function Lobby() {
     const room = currentRoom;
     if (!room || !username || !getPlatform().server) return;
     try {
-      await getPlatform().server!.spawnAiBot({
-        roomId: room.room_id,
-        username: botName,
-        deckName: deck.name,
-        deck: deck.deck,
-        commanderName: deck.commanderName ?? null,
-      });
+      if (room.hosted) {
+        // Node-hosted room: ask the engine node to add a seat. In forge-ai mode
+        // the node reserves an in-engine Forge AI seat (one per request); in the
+        // relay-bot mode it spawns a protocol bot. Either way the user's deck is
+        // carried through, so adding N bots yields N AI opponents.
+        await getPlatform().server!.sendRoomMessage(
+          createRoomRelayEnvelope({
+            protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
+            roomId: room.room_id,
+            payload: {
+              type: "spawnBot",
+              deck: {
+                deckName: deck.name,
+                deck: deck.deck,
+                commanderName: deck.commanderName ?? null,
+              },
+            },
+          }),
+        );
+      } else {
+        await getPlatform().server!.spawnAiBot({
+          roomId: room.room_id,
+          username: botName,
+          deckName: deck.name,
+          deck: deck.deck,
+          commanderName: deck.commanderName ?? null,
+        });
+      }
       setMySpawnedBots((prev) => [...prev, botName]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to spawn bot.");

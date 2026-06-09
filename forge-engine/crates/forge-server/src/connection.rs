@@ -562,7 +562,6 @@ fn handle_client_message(
             engine,
             draft_config,
             sealed_config,
-            ai_seats,
         } => {
             info!(
                 "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
@@ -585,7 +584,6 @@ fn handle_client_message(
                 engine,
                 draft_config,
                 sealed_config,
-                ai_seats,
             ) {
                 Ok(info) => {
                     info!(
@@ -604,25 +602,6 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' create room failed: {}", username, e);
-                    send_msg(
-                        sender,
-                        &ServerMessage::Error {
-                            code: e.code().into(),
-                            message: e.to_string(),
-                        },
-                    );
-                }
-            }
-        }
-
-        ClientMessage::AddAiSeats { ai_seats } => {
-            match lobby::add_ai_seats_sync(state, player_id, ai_seats) {
-                Ok(info) => {
-                    let room_id = info.room_id.clone();
-                    broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
-                }
-                Err(e) => {
-                    warn!("[lobby] '{}' add ai seats failed: {}", username, e);
                     send_msg(
                         sender,
                         &ServerMessage::Error {
@@ -864,7 +843,6 @@ fn handle_client_message(
                             player_order: started.player_order,
                             player_decks: started.player_decks,
                             starting_life: started.starting_life,
-                            ai_player_indices: started.ai_player_indices,
                         },
                     );
                 }
@@ -995,7 +973,6 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::ListRooms => "ListRooms",
         ClientMessage::ListPlayers => "ListPlayers",
         ClientMessage::CreateRoom { .. } => "CreateRoom",
-        ClientMessage::AddAiSeats { .. } => "AddAiSeats",
         ClientMessage::JoinRoom { .. } => "JoinRoom",
         ClientMessage::LeaveRoom => "LeaveRoom",
         ClientMessage::SetReady { .. } => "SetReady",

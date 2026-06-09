@@ -1,6 +1,6 @@
 use crate::protocol::{
-    AiSeat, DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo,
-    RoomStatus, SealedConfig,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
+    SealedConfig,
 };
 use forge_agent_interface::deck_dto::Deck;
 
@@ -39,19 +39,6 @@ pub struct Room {
     pub sealed_config: Option<SealedConfig>,
 }
 
-fn make_ai_slot(index: usize, seat: AiSeat) -> RoomSlot {
-    RoomSlot {
-        player_id: format!("ai-{index}"),
-        username: seat.name,
-        ready: true,
-        connected: true,
-        selected_deck_name: Some(seat.deck_name),
-        selected_deck: Some(seat.deck),
-        selected_commander_name: seat.commander_name,
-        is_bot: true,
-    }
-}
-
 impl Room {
     pub fn new(
         room_id: String,
@@ -64,10 +51,9 @@ impl Room {
         host_plays: bool,
         draft_config: Option<DraftConfig>,
         sealed_config: Option<SealedConfig>,
-        ai_seats: Vec<AiSeat>,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
-        let (mut players, observers) = if host_plays {
+        let (players, observers) = if host_plays {
             (
                 vec![RoomSlot {
                     player_id: host_player_id.clone(),
@@ -90,9 +76,6 @@ impl Room {
                 }],
             )
         };
-        for (i, seat) in ai_seats.into_iter().enumerate() {
-            players.push(make_ai_slot(i, seat));
-        }
         Room {
             room_id,
             room_name,
@@ -152,11 +135,6 @@ impl Room {
             selected_commander_name: None,
         });
         Ok(())
-    }
-
-    pub fn add_ai_seat(&mut self, seat: AiSeat) {
-        let index = self.players.len();
-        self.players.push(make_ai_slot(index, seat));
     }
 
     pub fn add_observer(&mut self, player_id: String, _username: String) -> Result<(), String> {
@@ -262,6 +240,7 @@ impl Room {
                         .unwrap_or_else(|| "Unknown Deck".to_string()),
                     deck,
                     commander_name: p.selected_commander_name.clone(),
+                    is_bot: p.is_bot,
                 })
             })
             .collect()
@@ -365,7 +344,6 @@ mod tests {
             host_plays,
             None,
             None,
-            Vec::new(),
         )
     }
 

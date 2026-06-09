@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::error::ServerError;
 use crate::protocol::{
-    AiSeat, DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
 };
 use crate::room::Room;
 use crate::state::ServerState;
@@ -18,7 +18,6 @@ pub fn create_room_sync(
     engine: EngineKind,
     draft_config: Option<DraftConfig>,
     sealed_config: Option<SealedConfig>,
-    ai_seats: Vec<AiSeat>,
 ) -> Result<RoomInfo, ServerError> {
     if let Some(cfg) = &draft_config {
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
@@ -68,7 +67,6 @@ pub fn create_room_sync(
         !hosted,
         draft_config,
         sealed_config,
-        ai_seats,
     );
     let info = room.to_room_info();
 
@@ -255,41 +253,11 @@ pub fn set_deck_selection_sync(
     Ok(room_id)
 }
 
-pub fn add_ai_seats_sync(
-    state: &Arc<ServerState>,
-    player_id: &str,
-    ai_seats: Vec<AiSeat>,
-) -> Result<RoomInfo, ServerError> {
-    let room_id = state
-        .players
-        .get(player_id)
-        .and_then(|p| p.room_id.clone())
-        .ok_or(ServerError::NotInRoom)?;
-
-    let mut room = state
-        .rooms
-        .get_mut(&room_id)
-        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
-
-    if !room.is_controller(player_id) {
-        return Err(ServerError::NotHost);
-    }
-    if room.status != RoomStatus::Lobby {
-        return Err(ServerError::GameAlreadyStarted);
-    }
-
-    for seat in ai_seats {
-        room.add_ai_seat(seat);
-    }
-    Ok(room.to_room_info())
-}
-
 pub struct StartedGame {
     pub room_id: String,
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
     pub starting_life: i32,
-    pub ai_player_indices: Vec<usize>,
     pub room_info: RoomInfo,
 }
 
@@ -373,7 +341,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (player_order, player_decks, starting_life, ai_player_indices, room_info) = {
+    let (player_order, player_decks, starting_life, room_info) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -429,18 +397,10 @@ pub fn start_game_sync(
             | GameFormat::Sealed => 20,
             GameFormat::Any => unreachable!("Any resolved to concrete format above"),
         };
-        let ai_player_indices = room
-            .players
-            .iter()
-            .enumerate()
-            .filter(|(_, p)| p.is_bot)
-            .map(|(i, _)| i)
-            .collect();
         (
             room.player_usernames(),
             room.player_decks(),
             starting_life,
-            ai_player_indices,
             room.to_room_info(),
         )
     };
@@ -450,7 +410,6 @@ pub fn start_game_sync(
         player_order,
         player_decks,
         starting_life,
-        ai_player_indices,
         room_info,
     })
 }

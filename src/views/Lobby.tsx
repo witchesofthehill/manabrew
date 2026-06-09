@@ -28,7 +28,6 @@ import type {
 import type { Deck, GameView } from "@/types/manabrew";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
-  SELF_HOSTED_NODE_RELAY_PROTOCOL,
   createRoomRelayEnvelope,
   isRoomRelayProtocol,
 } from "@/game";
@@ -446,31 +445,13 @@ export default function Lobby() {
     const room = currentRoom;
     if (!room || !username || !getPlatform().server) return;
     try {
-      if (room.hosted) {
-        // Node-hosted: the engine node adds the seat (Forge AI in forge-ai mode).
-        await getPlatform().server!.sendRoomMessage(
-          createRoomRelayEnvelope({
-            protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,
-            roomId: room.room_id,
-            payload: {
-              type: "spawnBot",
-              deck: {
-                deckName: deck.name,
-                deck: deck.deck,
-                commanderName: deck.commanderName ?? null,
-              },
-            },
-          }),
-        );
-      } else {
-        await getPlatform().server!.spawnAiBot({
-          roomId: room.room_id,
-          username: botName,
-          deckName: deck.name,
-          deck: deck.deck,
-          commanderName: deck.commanderName ?? null,
-        });
-      }
+      await getPlatform().server!.spawnAiBot({
+        roomId: room.room_id,
+        username: botName,
+        deckName: deck.name,
+        deck: deck.deck,
+        commanderName: deck.commanderName ?? null,
+      });
       setMySpawnedBots((prev) => [...prev, botName]);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to spawn bot.");

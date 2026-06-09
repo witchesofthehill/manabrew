@@ -32,6 +32,7 @@ interface ViewingZoneState {
   title: string;
   cards: GameCard[];
   onClickCard?: (cardId: string) => void;
+  clickableCardIds?: string[];
 }
 
 // ── Store Interface ───────────────────────────────────────────────────────────

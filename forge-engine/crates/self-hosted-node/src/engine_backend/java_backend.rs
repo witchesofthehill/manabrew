@@ -23,11 +23,14 @@ use forge_agent_interface::deck_dto::{CardIdentity, Deck};
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
 use forge_agent_interface::java_prompt_normalizer::{
-    normalize_java_prompt, translate_java_player_action,
+    make_java_game_over_prompt, make_java_state_update, normalize_java_prompt,
+    translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_raw::{JavaAction, JavaRawPrompt, JavaRawPromptBody};
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::java_raw::{
+    JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
+};
+use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 #[cfg(feature = "java-forge")]
 use forge_bot::{BotAgent, SimpleAi};
 use serde::Serialize;
@@ -425,6 +428,14 @@ impl JavaEngineHandle {
         guard.is_game_over(session_id)
     }
 
+    pub fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+        let bridge = self.bridge_for(session_id)?;
+        let mut guard = bridge
+            .lock()
+            .map_err(|_| "java subprocess mutex poisoned".to_string())?;
+        guard.get_snapshot(session_id)
+    }
+
     pub fn end_game(&self, session_id: &str) -> Result<(), String> {
         let bridge = {
             let mut in_use = self
@@ -691,7 +702,7 @@ pub fn run_hosted_engine_game(
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
-    remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     game_over_tx: std_mpsc::Sender<String>,
     cancel: Arc<AtomicBool>,
@@ -722,7 +733,7 @@ pub fn run_hosted_engine_game(
     _local_player_index: Option<usize>,
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
-    _remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     _game_over_tx: std_mpsc::Sender<String>,
     _cancel: Arc<AtomicBool>,
@@ -742,7 +753,7 @@ fn run_hosted_engine_game_inner(
     local_player_index: Option<usize>,
     ai_player_indices: Vec<usize>,
     starting_life: i32,
-    remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
+    remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
     game_over_tx: std_mpsc::Sender<String>,
     cancel: Arc<AtomicBool>,
@@ -850,8 +861,14 @@ fn run_hosted_engine_game_inner(
                     "forwarding java prompt to remote"
                 );
                 if matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. }) {
-                    let normalized = normalize_java_prompt(raw);
+                    let state = AgentMessage::State(make_java_state_update(
+                        &raw.snapshot,
+                        raw.session_id.as_deref(),
+                        raw.player,
+                    ));
+                    let normalized = AgentMessage::Prompt(normalize_java_prompt(raw));
                     for &agent_index in remote_response_rxs.keys() {
+                        let _ = remote_prompt_tx.send((agent_index, state.clone()));
                         let _ = remote_prompt_tx.send((agent_index, normalized.clone()));
                     }
                     pending_roll_acks = remote_response_rxs.len();
@@ -867,11 +884,18 @@ fn run_hosted_engine_game_inner(
                     let action_json = serde_json::to_string(&auto)
                         .map_err(|err| format!("failed to serialize java auto action: {err}"))?;
                     engine.submit_action(&session_id, &action_json)?;
-                } else if remote_prompt_tx
-                    .send((player_index, normalize_java_prompt(raw)))
-                    .is_err()
-                {
-                    return Ok(());
+                } else {
+                    let state = AgentMessage::State(make_java_state_update(
+                        &raw.snapshot,
+                        raw.session_id.as_deref(),
+                        raw.player,
+                    ));
+                    let prompt = AgentMessage::Prompt(normalize_java_prompt(raw));
+                    if remote_prompt_tx.send((player_index, state)).is_err()
+                        || remote_prompt_tx.send((player_index, prompt)).is_err()
+                    {
+                        return Ok(());
+                    }
                 }
                 last_prompt_json = Some(prompt_json);
             }
@@ -879,6 +903,20 @@ fn run_hosted_engine_game_inner(
 
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
+            if let Ok(snapshot_json) = engine.get_snapshot(&session_id) {
+                if let Ok(raw_snapshot) = serde_json::from_str::<JavaRawSnapshot>(&snapshot_json) {
+                    let state = AgentMessage::State(make_java_state_update(
+                        &raw_snapshot,
+                        Some(&session_id),
+                        0,
+                    ));
+                    let game_over = AgentMessage::Prompt(make_java_game_over_prompt());
+                    for &agent_index in remote_response_rxs.keys() {
+                        let _ = remote_prompt_tx.send((agent_index, state.clone()));
+                        let _ = remote_prompt_tx.send((agent_index, game_over.clone()));
+                    }
+                }
+            }
             let _ = game_over_tx.send(game_id.clone());
             engine.end_game(&session_id)?;
             guard.armed.set(false);

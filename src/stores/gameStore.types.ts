@@ -12,11 +12,12 @@ export interface GameConfig {
   startingLife: number;
 }
 
-/** A snapshot queued for sequential flash-then-apply processing. */
+/** One ordered effect queued for flash-then-apply processing: animate
+ *  `displayEvents`, then apply `gameView` and/or `prompt` if present. Each
+ *  incoming message (display / state / prompt) becomes one of these. */
 export interface DeferredSnapshot {
   displayEvents: DisplayEvent[];
-  gameView: GameView;
-  /** null for display-only state updates (no player decision). */
+  gameView: GameView | null;
   prompt: Prompt | null;
 }
 

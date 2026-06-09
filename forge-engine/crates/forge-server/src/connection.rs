@@ -634,14 +634,19 @@ fn handle_client_message(
             }
         }
 
-        ClientMessage::JoinRoom { room_id, observe } => {
+        ClientMessage::JoinRoom {
+            room_id,
+            observe,
+            as_bot,
+        } => {
             info!(
-                "[lobby] '{}' joining room {} (observe={})",
+                "[lobby] '{}' joining room {} (observe={}, bot={})",
                 username,
                 &room_id[..8.min(room_id.len())],
-                observe
+                observe,
+                as_bot
             );
-            match lobby::join_room_sync(state, player_id, &room_id, observe) {
+            match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot) {
                 Ok(info) => {
                     info!("[lobby] '{}' joined room '{}'", username, info.room_name);
                     if !observe {
@@ -797,6 +802,33 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' set format failed: {}", username, e);
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: e.code().into(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
+        ClientMessage::SetMaxPlayers { max_players } => {
+            info!("[lobby] '{}' set max_players={}", username, max_players);
+            match lobby::set_max_players_sync(state, player_id, max_players) {
+                Ok(room_id) => {
+                    if let Some(room) = state.rooms.get(&room_id) {
+                        broadcast_to_room(
+                            state,
+                            &room_id,
+                            &ServerMessage::RoomUpdate {
+                                room: room.to_room_info(),
+                            },
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("[lobby] '{}' set max_players failed: {}", username, e);
                     send_msg(
                         sender,
                         &ServerMessage::Error {
@@ -969,6 +1001,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
         ClientMessage::SetFormat { .. } => "SetFormat",
+        ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame => "EndGame",
         ClientMessage::BroadcastState { .. } => "BroadcastState",

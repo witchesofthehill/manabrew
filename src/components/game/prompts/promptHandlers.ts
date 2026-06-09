@@ -47,7 +47,6 @@ const DEFAULT_PROMPT_HANDLER: PromptHandler = { showByDefault: true };
 const PROMPT_HANDLER_OVERRIDES: Partial<{
   [TType in PromptKind]: PromptHandler<TType>;
 }> = {
-  ["stateUpdate"]: { showByDefault: false },
   ["chooseAction"]: { showByDefault: false },
   ["chooseAttackers"]: { showByDefault: false },
   ["chooseBlockers"]: { showByDefault: false },

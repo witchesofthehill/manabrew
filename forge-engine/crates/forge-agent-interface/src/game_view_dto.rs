@@ -21,14 +21,8 @@ pub struct GameViewDto {
     pub active_player_id: String,
     pub priority_player_id: String,
     pub players: Vec<PlayerDto>,
-    pub my_hand: Vec<CardDto>,
     pub battlefield: Vec<CardDto>,
     pub stack: Vec<StackObjectDto>,
-    pub exile: Vec<CardDto>,
-    pub graveyard: Vec<CardDto>,
-    /// Cards in my command zone (typically just the commander).
-    pub my_command_zone: Vec<CardDto>,
-    pub opponent_zones: HashMap<String, OpponentZonesDto>,
     pub game_over: bool,
     pub winner_id: Option<String>,
     #[serde(default)]
@@ -49,13 +43,8 @@ impl GameViewDto {
             active_player_id: String::new(),
             priority_player_id: String::new(),
             players: vec![],
-            my_hand: vec![],
             battlefield: vec![],
             stack: vec![],
-            exile: vec![],
-            graveyard: vec![],
-            my_command_zone: vec![],
-            opponent_zones: HashMap::new(),
             game_over: false,
             winner_id: None,
             conceded_player_ids: vec![],
@@ -65,12 +54,24 @@ impl GameViewDto {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct OpponentZonesDto {
-    pub graveyard: Vec<CardDto>,
-    pub exile: Vec<CardDto>,
-    pub command_zone: Vec<CardDto>,
+impl GameViewDto {
+    pub fn player(&self, id: &str) -> Option<&PlayerDto> {
+        self.players.iter().find(|p| p.id == id)
+    }
+
+    /// Every visible card across the battlefield and all players' hand,
+    /// graveyard, exile, and command zones.
+    pub fn all_zone_cards(&self) -> impl Iterator<Item = &CardDto> {
+        self.battlefield
+            .iter()
+            .chain(self.players.iter().flat_map(|p| {
+                p.hand
+                    .iter()
+                    .chain(p.graveyard.iter())
+                    .chain(p.exile.iter())
+                    .chain(p.command_zone.iter())
+            }))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,10 +89,11 @@ pub struct PlayerDto {
     pub is_human: bool,
     pub life: i32,
     pub poison: i32,
-    pub hand_count: usize,
+    pub hand: Vec<CardDto>,
+    pub graveyard: Vec<CardDto>,
+    pub exile: Vec<CardDto>,
+    pub command_zone: Vec<CardDto>,
     pub library_count: usize,
-    pub graveyard_count: usize,
-    pub exile_count: usize,
     pub mana_pool: HashMap<String, i32>,
     /// Commander damage received: source card id string -> total damage.
     pub commander_damage: HashMap<String, i32>,
@@ -133,7 +135,6 @@ pub struct CardDto {
     pub text: String,
     pub is_playable: bool,
     pub is_selected: bool,
-    pub is_choosable: bool,
     pub controller_id: String,
     pub owner_id: String,
     pub zone_id: String,
@@ -546,7 +547,6 @@ pub fn card_to_dto(
     game: &GameState,
     cid: CardId,
     playable_ids: &[CardId],
-    choosable_ids: &[CardId],
     zone_label: &str,
 ) -> CardDto {
     let card = game.card(cid);
@@ -659,7 +659,6 @@ pub fn card_to_dto(
         text,
         is_playable: playable_ids.contains(&cid),
         is_selected: false,
-        is_choosable: choosable_ids.contains(&cid),
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),
         zone_id: zone_label.to_string(),
@@ -753,7 +752,6 @@ impl GameViewDto {
         human_player: PlayerId,
         game_id: &str,
         playable_ids: &[CardId],
-        choosable_ids: &[CardId],
     ) -> Self {
         let mut players = Vec::new();
         for &pid in &game.player_order {
@@ -764,16 +762,30 @@ impl GameViewDto {
                 .iter()
                 .map(|(&card_raw_id, &dmg)| (card_id_str(CardId(card_raw_id)), dmg))
                 .collect();
+            let zone_cards = |zone: ZoneType, zone_name: &str| -> Vec<CardDto> {
+                game.cards_in_zone(zone, pid)
+                    .iter()
+                    .map(|&cid| card_to_dto(game, cid, playable_ids, zone_name))
+                    .collect()
+            };
+            let command_zone: Vec<CardDto> = game
+                .cards_in_zone(ZoneType::Command, pid)
+                .iter()
+                .copied()
+                .filter(|&cid| should_show_command_zone_card(game, cid))
+                .map(|cid| card_to_dto(game, cid, playable_ids, "command"))
+                .collect();
             players.push(PlayerDto {
                 id: player_id_str(pid),
                 name: ps.name.clone(),
                 is_human: pid == human_player,
                 life: ps.life,
                 poison: ps.poison_counters,
-                hand_count: game.cards_in_zone(ZoneType::Hand, pid).len(),
+                hand: zone_cards(ZoneType::Hand, "hand"),
+                graveyard: zone_cards(ZoneType::Graveyard, "graveyard"),
+                exile: zone_cards(ZoneType::Exile, "exile"),
+                command_zone,
                 library_count: game.cards_in_zone(ZoneType::Library, pid).len(),
-                graveyard_count: game.cards_in_zone(ZoneType::Graveyard, pid).len(),
-                exile_count: game.cards_in_zone(ZoneType::Exile, pid).len(),
                 mana_pool: mana_pool_to_map(&pool),
                 commander_damage,
                 energy_counters: ps.energy_counters,
@@ -784,24 +796,11 @@ impl GameViewDto {
             });
         }
 
-        // Hand cards -- only for the human player
-        let my_hand: Vec<CardDto> = game
-            .cards_in_zone(ZoneType::Hand, human_player)
-            .iter()
-            .map(|&cid| card_to_dto(game, cid, playable_ids, choosable_ids, "hand"))
-            .collect();
-
         // Battlefield -- all players
         let mut battlefield = Vec::new();
         for &pid in &game.player_order {
             for &cid in game.cards_in_zone(ZoneType::Battlefield, pid) {
-                battlefield.push(card_to_dto(
-                    game,
-                    cid,
-                    playable_ids,
-                    choosable_ids,
-                    "battlefield",
-                ));
+                battlefield.push(card_to_dto(game, cid, playable_ids, "battlefield"));
             }
         }
 
@@ -839,63 +838,6 @@ impl GameViewDto {
             })
             .collect();
 
-        // Graveyard -- human player
-        let graveyard: Vec<CardDto> = game
-            .cards_in_zone(ZoneType::Graveyard, human_player)
-            .iter()
-            .map(|&cid| card_to_dto(game, cid, playable_ids, choosable_ids, "graveyard"))
-            .collect();
-
-        // Exile -- human player
-        let exile: Vec<CardDto> = game
-            .cards_in_zone(ZoneType::Exile, human_player)
-            .iter()
-            .map(|&cid| card_to_dto(game, cid, playable_ids, choosable_ids, "exile"))
-            .collect();
-
-        let opponent_zones: HashMap<String, OpponentZonesDto> = game
-            .player_order
-            .iter()
-            .copied()
-            .filter(|&pid| pid != human_player)
-            .map(|pid| {
-                let graveyard: Vec<CardDto> = game
-                    .cards_in_zone(ZoneType::Graveyard, pid)
-                    .iter()
-                    .map(|&cid| card_to_dto(game, cid, &[], &[], "graveyard"))
-                    .collect();
-                let exile: Vec<CardDto> = game
-                    .cards_in_zone(ZoneType::Exile, pid)
-                    .iter()
-                    .map(|&cid| card_to_dto(game, cid, &[], &[], "exile"))
-                    .collect();
-                let command_zone: Vec<CardDto> = game
-                    .cards_in_zone(ZoneType::Command, pid)
-                    .iter()
-                    .copied()
-                    .filter(|&cid| should_show_command_zone_card(game, cid))
-                    .map(|cid| card_to_dto(game, cid, &[], &[], "command"))
-                    .collect();
-                (
-                    player_id_str(pid),
-                    OpponentZonesDto {
-                        graveyard,
-                        exile,
-                        command_zone,
-                    },
-                )
-            })
-            .collect();
-
-        // Command zone — local player only (opponents' command zones are in opponent_zones).
-        let my_command_zone: Vec<CardDto> = game
-            .cards_in_zone(ZoneType::Command, human_player)
-            .iter()
-            .copied()
-            .filter(|&cid| should_show_command_zone_card(game, cid))
-            .map(|cid| card_to_dto(game, cid, playable_ids, choosable_ids, "command"))
-            .collect();
-
         GameViewDto {
             game_id: game_id.to_string(),
             turn: game.turn.turn_number,
@@ -912,13 +854,8 @@ impl GameViewDto {
             active_player_id: player_id_str(game.active_player()),
             priority_player_id: player_id_str(game.turn.priority_player),
             players,
-            my_hand,
             battlefield,
             stack,
-            exile,
-            graveyard,
-            my_command_zone,
-            opponent_zones,
             game_over: game.game_over,
             winner_id: game.winner.map(player_id_str),
             conceded_player_ids: game

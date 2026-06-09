@@ -23,6 +23,7 @@ import type {
   SetDeckSelectionParams,
   StartServerGameParams,
   SetFormatParams,
+  SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
 import { SERVER_ERROR_CODE } from "@/types/server";
@@ -64,6 +65,12 @@ interface RemoteSeat {
   /** terminate() flips this so an already-queued rAF poll short-circuits. */
   cancelled: boolean;
 }
+
+// A kind-tagged engine message read off a seat's SAB, awaiting relay.
+type RelayMessage = {
+  forPlayer: string;
+  msg: { kind: string; state?: unknown; event?: unknown; prompt?: unknown };
+};
 
 // ============================================================================
 // Worker Bridge
@@ -146,10 +153,9 @@ class WorkerBridge {
         Atomics.notify(this.gameSignal, 0);
 
         try {
-          const prompt = JSON.parse(jsonStr);
-          this.eventBus.emit("game:prompt", prompt);
+          this.dispatchEngineMessage(JSON.parse(jsonStr));
         } catch (e) {
-          console.error("[WorkerBridge] Failed to parse SAB prompt:", e);
+          console.error("[WorkerBridge] Failed to parse SAB message:", e);
         }
       }
 
@@ -162,7 +168,26 @@ class WorkerBridge {
     requestAnimationFrame(poll);
   }
 
-  /** One rAF poll loop per remote seat's SAB; relays prompts via the bus. */
+  private dispatchEngineMessage(msg: {
+    kind?: string;
+    state?: unknown;
+    event?: unknown;
+    prompt?: unknown;
+  }): void {
+    switch (msg?.kind) {
+      case "state":
+        this.eventBus.emit("game:state", msg.state);
+        break;
+      case "display":
+        this.eventBus.emit("game:display", msg.event);
+        break;
+      case "prompt":
+        this.eventBus.emit("game:prompt", msg.prompt);
+        break;
+    }
+  }
+
+  /** One rAF poll loop per remote seat's SAB; relays messages via the bus. */
   private pollForRemotePromptsSeat(playerSlot: string, seat: RemoteSeat): void {
     const poll = () => {
       if (seat.cancelled || !this.remoteSeats.has(playerSlot)) return;
@@ -176,12 +201,12 @@ class WorkerBridge {
         Atomics.store(seat.signal, 0, 3); // ACKNOWLEDGED
         Atomics.notify(seat.signal, 0);
 
+        console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, jsonStr);
         try {
-          const prompt = JSON.parse(jsonStr);
-          console.log(`[MP] relay→ ${playerSlot}:`, prompt?.type, "for", prompt?.decidingPlayerId);
-          this.eventBus.emit("game:relay_prompt", prompt);
+          const msg = JSON.parse(jsonStr);
+          this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
         } catch (e) {
-          console.error(`[WorkerBridge] Failed to parse SAB prompt for ${playerSlot}:`, e);
+          console.error(`[WorkerBridge] Failed to parse SAB message for ${playerSlot}:`, e);
         }
       }
 
@@ -560,23 +585,29 @@ class WebServerApi implements IServerApi {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempt = 0;
   private serverShutdownPending: { reconnectInS: number } | null = null;
+  // State/Display carry no recipient and are identical per seat; each seat's
+  // poll relays a copy, so coalesce consecutive-identical ones to one broadcast.
+  private lastRelayState: string | null = null;
+  private lastRelayDisplay: string | null = null;
 
   constructor(eventBus: WebEventBus) {
     this.eventBus = eventBus;
 
-    // Relay prompts from the game engine to remote players via WebSocket
-    eventBus.on<Prompt>("game:relay_prompt", (prompt) => {
-      const forPlayer = prompt.decidingPlayerId;
-      if (!forPlayer) {
-        console.error("[WebServerApi] Cannot relay prompt without decidingPlayerId");
-        return;
+    // Relay engine messages (state/display/prompt) to remote players via WebSocket.
+    eventBus.on<RelayMessage>("game:relay_message", ({ forPlayer, msg }) => {
+      if (msg.kind === "state") {
+        const json = JSON.stringify(msg.state);
+        if (json === this.lastRelayState) return;
+        this.lastRelayState = json;
+        this.broadcastState({ kind: "state", state: msg.state });
+      } else if (msg.kind === "display") {
+        const json = JSON.stringify(msg.event);
+        if (json === this.lastRelayDisplay) return;
+        this.lastRelayDisplay = json;
+        this.broadcastState({ kind: "display", event: msg.event });
+      } else if (msg.kind === "prompt") {
+        this.broadcastState({ kind: "prompt", forPlayer, prompt: msg.prompt });
       }
-      const envelope: StateEnvelope = {
-        kind: "prompt",
-        forPlayer,
-        prompt,
-      };
-      this.broadcastState(envelope);
     });
   }
 
@@ -800,6 +831,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "SetFormat", format: params.format });
   }
 
+  async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
+    this.send({ type: "SetMaxPlayers", max_players: params.maxPlayers });
+  }
+
   async startGame(params?: StartServerGameParams): Promise<void> {
     this.send({ type: "StartGame", format: params?.format ?? null });
   }
@@ -887,6 +922,7 @@ class WebServerApi implements IServerApi {
   }
 
   private handleServerMessage(msg: Record<string, unknown>): void {
+    console.log("[transport←ws] received:", JSON.stringify(msg));
     const type = msg.type as string;
 
     if (type === "ServerShuttingDown") {
@@ -916,6 +952,12 @@ class WebServerApi implements IServerApi {
             state: envelope,
           });
           break;
+        case "state":
+          this.eventBus.emit("game:remote_state", envelope);
+          return;
+        case "display":
+          this.eventBus.emit("game:remote_display", envelope);
+          return;
         case "prompt":
           this.eventBus.emit("game:remote_prompt", envelope);
           return;

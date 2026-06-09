@@ -49,7 +49,6 @@ export interface GameCard extends CardIdentity, CardRulesSummary {
   baseToughness?: number;
   isPlayable: boolean;
   isSelected: boolean;
-  isChoosable: boolean;
   controllerId: string; // UUID
   ownerId: string; // UUID
   zoneId: string; // UUID
@@ -145,10 +144,11 @@ export interface Player {
   isHuman: boolean;
   life: number;
   poison: number;
-  handCount: number;
+  hand: GameCard[];
+  graveyard: GameCard[];
+  exile: GameCard[];
+  commandZone: GameCard[];
   libraryCount: number;
-  graveyardCount: number;
-  exileCount: number;
   manaPool: Record<string, number>; // W, U, B, R, G, C
   /** Commander damage received: source card id → total damage. */
   commanderDamage?: Record<string, number>;
@@ -181,12 +181,6 @@ export interface PlayerInfo {
   flag: string; // Country code
 }
 
-export interface OpponentZones {
-  graveyard: GameCard[];
-  exile: GameCard[];
-  commandZone: GameCard[];
-}
-
 export interface GameView {
   gameId: string; // UUID
   turn: number;
@@ -195,13 +189,8 @@ export interface GameView {
   activePlayerId: string; // UUID
   priorityPlayerId: string; // UUID
   players: Player[];
-  myHand: GameCard[];
   battlefield: GameCard[];
   stack: StackObject[];
-  exile: GameCard[];
-  graveyard: GameCard[];
-  myCommandZone?: GameCard[];
-  opponentZones: Record<string, OpponentZones>;
   gameOver?: boolean;
   winnerId?: string | null;
   concededPlayerIds?: string[];

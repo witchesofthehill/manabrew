@@ -89,6 +89,10 @@ export interface SetFormatParams {
   format: GameFormat;
 }
 
+export interface SetMaxPlayersParams {
+  maxPlayers: number;
+}
+
 export type BotAgentKind = "simple";
 
 export interface SpawnAiBotParams extends SetDeckSelectionParams {
@@ -144,6 +148,7 @@ export interface IServerApi {
   setReady(params: SetReadyParams): Promise<void>;
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
   setFormat(params: SetFormatParams): Promise<void>;
+  setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(): Promise<void>;
   broadcastState(state: Record<string, unknown>): Promise<void>;

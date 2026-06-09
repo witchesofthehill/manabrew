@@ -90,7 +90,6 @@ export interface DevCardOverrides {
   forceAttacking: boolean;
   forcePlayable: boolean;
   forceSelected: boolean;
-  forceChoosable: boolean;
   forceDoubleFaced: boolean;
   p1p1: number | null;
   m1m1: number | null;
@@ -128,7 +127,6 @@ export const DEFAULT_DEV_CARD_OVERRIDES: DevCardOverrides = {
   forceAttacking: false,
   forcePlayable: false,
   forceSelected: false,
-  forceChoosable: false,
   forceDoubleFaced: false,
   p1p1: null,
   m1m1: null,
@@ -268,7 +266,6 @@ export function hasActiveCardOverride(o: DevCardOverrides): boolean {
     o.forceAttacking ||
     o.forcePlayable ||
     o.forceSelected ||
-    o.forceChoosable ||
     o.forceDoubleFaced ||
     o.p1p1 != null ||
     o.m1m1 != null ||
@@ -329,7 +326,6 @@ export function applyCardOverrides(card: GameCard, o: DevCardOverrides): GameCar
     isAttacking: o.forceAttacking || card.isAttacking,
     isPlayable: o.forcePlayable || card.isPlayable,
     isSelected: o.forceSelected || card.isSelected,
-    isChoosable: o.forceChoosable || card.isChoosable,
     isDoubleFaced: o.forceDoubleFaced || card.isDoubleFaced,
     damage: o.damage != null ? o.damage : card.damage,
     counters,

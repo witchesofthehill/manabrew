@@ -3,7 +3,13 @@ import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 
-type OverlayVariant = "tap" | "untap" | "choosable" | "choosable-hostile" | "pending" | "attacking";
+type OverlayVariant =
+  | "tap"
+  | "untap"
+  | "selectable"
+  | "selectable-hostile"
+  | "pending"
+  | "attacking";
 
 interface CardOverlayButtonProps {
   variant: OverlayVariant;
@@ -18,8 +24,8 @@ export function CardOverlayButton({ variant, onClick, title, label }: CardOverla
   const variantColorMap: Record<OverlayVariant, string> = {
     tap: themeColors.cardRing,
     untap: themeColors.promptAction.cancel,
-    choosable: themeColors.cardRing,
-    "choosable-hostile": themeColors.arrow.hostileTarget,
+    selectable: themeColors.cardRing,
+    "selectable-hostile": themeColors.arrow.hostileTarget,
     pending: themeColors.promptAction.passAction,
     attacking: themeColors.promptAction.attackAction,
   };

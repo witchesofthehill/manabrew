@@ -14,13 +14,21 @@ interface ZoneViewerProps {
   cards: GameCard[];
   onClose: () => void;
   onClickCard?: (cardId: string) => void;
+  clickableCardIds?: string[];
 }
 
-export function ZoneViewer({ title, cards, onClose, onClickCard }: ZoneViewerProps) {
+export function ZoneViewer({
+  title,
+  cards,
+  onClose,
+  onClickCard,
+  clickableCardIds,
+}: ZoneViewerProps) {
   const preview = useCardPreview();
 
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
+  const clickableIdSet = clickableCardIds ? new Set(clickableCardIds) : null;
 
   return (
     <Modal onClose={onClose}>
@@ -34,7 +42,8 @@ export function ZoneViewer({ title, cards, onClose, onClickCard }: ZoneViewerPro
         ) : (
           <div className="flex flex-wrap gap-2 content-start">
             {cards.map((card) => {
-              const clickable = (card.isPlayable || card.isChoosable) && !!onClickCard;
+              const clickable =
+                !!onClickCard && (clickableIdSet == null || clickableIdSet.has(card.id));
               return (
                 <div
                   key={card.id}

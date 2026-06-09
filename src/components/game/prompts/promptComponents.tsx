@@ -35,13 +35,14 @@ import {
 } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
-import type { DeckCard, GameCard } from "@/types/manabrew";
+import type { DeckCard, GameCard, GameView } from "@/types/manabrew";
 
 export type PromptOf<T extends PromptType> = Extract<Prompt, { input: { type: T } }>;
 
 export interface PromptModalContext {
   sourceDeckCard?: DeckCard;
   revealedDeckCard?: DeckCard;
+  gameView?: GameView | null;
 }
 
 export interface PromptComponentProps<T extends PromptType> {
@@ -157,37 +158,39 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  chooseDiscard: ({ prompt, respond }) => (
+  chooseDiscard: ({ prompt, respond, ctx }) => (
     <LibraryPeekModal
       mode="discard"
       cards={prompt.input.handCardIds
-        .map((id) => prompt.input.gameView.myHand.find((card) => card.id === id))
+        .map((id) =>
+          (ctx.gameView?.players.flatMap((p) => p.hand) ?? []).find((card) => card.id === id),
+        )
         .filter((card): card is GameCard => card != null)}
       numToTake={prompt.input.numToDiscard}
       onConfirm={(discardedCardIds) => respond({ type: "discardDecision", discardedCardIds })}
     />
   ),
 
-  chooseDamageAssignmentOrder: ({ prompt, respond }) => (
+  chooseDamageAssignmentOrder: ({ prompt, respond, ctx }) => (
     <DamageOrderModal
       attackerId={prompt.input.attackerId}
       blockerIds={prompt.input.blockerIds}
       blockerCards={prompt.input.blockerCards}
-      gameViewCards={prompt.input.gameView.battlefield}
+      gameViewCards={ctx.gameView?.battlefield ?? []}
       onConfirm={(orderedBlockerIds) =>
         respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds })
       }
     />
   ),
 
-  chooseCombatDamageAssignment: ({ prompt, respond }) => (
+  chooseCombatDamageAssignment: ({ prompt, respond, ctx }) => (
     <VAssignCombatDamageModal
       attackerId={prompt.input.attackerId}
       blockerIds={prompt.input.blockerIds}
       defenderId={prompt.input.defenderId}
       totalDamage={prompt.input.totalDamage}
       attackerHasDeathtouch={prompt.input.attackerHasDeathtouch}
-      gameView={prompt.input.gameView}
+      gameView={ctx.gameView!}
       onConfirm={(assignments) => respond({ type: "combatDamageAssignmentDecision", assignments })}
     />
   ),
@@ -227,12 +230,12 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  firstPlayerRoll: ({ prompt, respond }) => (
+  firstPlayerRoll: ({ prompt, respond, ctx }) => (
     <FirstPlayerRollFeedback
       sides={prompt.input.sides}
       rolls={prompt.input.firstPlayerRolls}
       winnerPlayerId={prompt.input.winnerPlayerId}
-      players={prompt.input.gameView.players.map((p) => ({ id: p.id, isHuman: p.isHuman }))}
+      players={(ctx.gameView?.players ?? []).map((p) => ({ id: p.id, isHuman: p.isHuman }))}
       onAcknowledge={() => respond({ type: "firstPlayerRollAcknowledged" })}
     />
   ),
@@ -244,7 +247,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       finalResults={prompt.input.finalResults}
       ignoredRolls={prompt.input.ignoredRolls}
       playerId={prompt.input.playerId}
-      players={prompt.input.gameView.players.map((p) => ({ id: p.id, isHuman: p.isHuman }))}
+      players={(ctx.gameView?.players ?? []).map((p) => ({ id: p.id, isHuman: p.isHuman }))}
       sourceCard={ctx.sourceDeckCard}
       onAcknowledge={() => respond({ type: "diceRolledAcknowledged" })}
     />
@@ -346,12 +349,12 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  payCombatCost: ({ prompt, respond }) => (
+  payCombatCost: ({ prompt, respond, ctx }) => (
     <PayCombatCostModal
       attackerName={prompt.input.attackerName}
       cost={prompt.input.cost}
       description={prompt.input.description}
-      manaPool={prompt.input.gameView.players[0]?.manaPool ?? {}}
+      manaPool={ctx.gameView?.players?.[0]?.manaPool ?? {}}
       onPay={() => respond({ type: "payCombatCost" })}
       onDecline={() => respond({ type: "declineCombatCost" })}
     />
@@ -366,9 +369,9 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  chooseConvoke: ({ prompt, respond }) => (
+  chooseConvoke: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
-      cards={prompt.input.gameView.battlefield.filter((c) =>
+      cards={(ctx.gameView?.battlefield ?? []).filter((c) =>
         prompt.input.validCardIds.includes(c.id),
       )}
       minChoices={0}
@@ -380,9 +383,9 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  chooseImprovise: ({ prompt, respond }) => (
+  chooseImprovise: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
-      cards={prompt.input.gameView.battlefield.filter((c) =>
+      cards={(ctx.gameView?.battlefield ?? []).filter((c) =>
         prompt.input.validCardIds.includes(c.id),
       )}
       minChoices={0}
@@ -435,6 +438,7 @@ export function PromptModalHost({
   ctx: PromptModalContext;
 }) {
   const respond = useGameStore((s) => s.respond);
+  const gameView = useGameStore((s) => s.gameView);
   const input = currentPrompt?.input;
   const entry = (input ? PROMPT_MODALS[input.type] : undefined) as
     | PromptComponent<PromptType>
@@ -442,7 +446,9 @@ export function PromptModalHost({
 
   return (
     <PromptModalController isActive={!!entry} promptStateKey={currentPrompt}>
-      {entry && currentPrompt ? entry({ prompt: currentPrompt, respond, ctx }) : null}
+      {entry && currentPrompt
+        ? entry({ prompt: currentPrompt, respond, ctx: { ...ctx, gameView } })
+        : null}
     </PromptModalController>
   );
 }

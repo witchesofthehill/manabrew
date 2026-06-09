@@ -29,6 +29,7 @@ import type {
   SetDeckSelectionParams,
   StartServerGameParams,
   SetFormatParams,
+  SetMaxPlayersParams,
   SpawnAiBotParams,
 } from "./types";
 import type { RoomRelayEnvelope } from "@/types/server";
@@ -135,6 +136,10 @@ class TauriServerApi implements IServerApi {
 
   async setFormat(params: SetFormatParams): Promise<void> {
     return invoke<void>("server_set_format", { ...params });
+  }
+
+  async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
+    return invoke<void>("server_set_max_players", { maxPlayers: params.maxPlayers });
   }
 
   async startGame(params?: StartServerGameParams): Promise<void> {

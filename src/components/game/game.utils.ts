@@ -48,7 +48,6 @@ export function stackObjectToCardStub(obj: StackObject): GameCard {
     text: obj.text,
     isPlayable: false,
     isSelected: false,
-    isChoosable: false,
     controllerId: obj.controllerId,
     ownerId: obj.controllerId,
     zoneId: "stack",

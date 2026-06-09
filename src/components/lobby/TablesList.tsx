@@ -26,6 +26,8 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Oathbreaker",
 ];
 
+const PLAYER_COUNT_OPTIONS = [2, 3, 4];
+
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -38,6 +40,7 @@ interface TablesListProps {
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
+  onSetMaxPlayers?: (maxPlayers: number) => void;
   onOpenDeckDialog: () => void;
   onStartGame: () => void;
   onStartTabletop?: () => void;
@@ -59,6 +62,7 @@ export function TablesList({
   onLeaveRoom,
   onSetReady,
   onSetFormat,
+  onSetMaxPlayers,
   onOpenDeckDialog,
   onStartGame,
   onStartTabletop,
@@ -74,10 +78,13 @@ export function TablesList({
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
   const myPlayerHasDeck = !!myPlayer?.selected_deck_name;
-  // The controller is the first seated player — they drive the lobby (format,
-  // bots, start) even when the host is a non-playing engine node. In a normal
-  // self-created room the host is the first player, so the two coincide.
-  const isController = currentRoom?.players[0]?.username === username;
+  // The controller is the first human (non-bot) player — they drive the lobby
+  // (format, seats, bots, start) even when the host is a non-playing engine
+  // node. Mirrors the server's Room::controller_id: first non-bot seat, falling
+  // back to the first seat only if every player is a bot.
+  const controllerName =
+    currentRoom?.players.find((p) => !p.is_bot)?.username ?? currentRoom?.players[0]?.username;
+  const isController = controllerName === username;
   const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
   const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
@@ -88,8 +95,8 @@ export function TablesList({
 
   const orderedPlayers = currentRoom
     ? [...currentRoom.players].sort((a, b) => {
-        if (a.username === currentRoom.host) return -1;
-        if (b.username === currentRoom.host) return 1;
+        if (a.username === controllerName) return -1;
+        if (b.username === controllerName) return 1;
         return a.username.localeCompare(b.username);
       })
     : [];
@@ -165,6 +172,42 @@ export function TablesList({
                         : currentRoom.format}
                   </Badge>
                 )}
+                {isController &&
+                currentRoom.status === "Lobby" &&
+                currentRoom.hosted &&
+                !isLimitedRoom &&
+                onSetMaxPlayers ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[10px] font-medium hover:bg-muted/60"
+                        title="Change the number of seats"
+                      >
+                        <Users className="h-2.5 w-2.5" />
+                        {currentRoom.players.length}/{currentRoom.max_players}
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {PLAYER_COUNT_OPTIONS.map((n) => (
+                        <DropdownMenuItem
+                          key={n}
+                          onSelect={() => onSetMaxPlayers(n)}
+                          disabled={n === currentRoom.max_players || n < currentRoom.players.length}
+                          className="text-xs"
+                        >
+                          {n} players
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Users className="h-2.5 w-2.5" />
+                    {currentRoom.players.length}/{currentRoom.max_players}
+                  </Badge>
+                )}
                 <Badge
                   variant={currentRoom.status === "Lobby" ? "outline" : "secondary"}
                   className="text-[10px]"
@@ -211,10 +254,11 @@ export function TablesList({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium truncate">{p.username}</span>
-                        {p.username === currentRoom.host && (
+                        {p.username === controllerName && (
                           <GameIcon
                             name="overlord-helm"
                             className="h-3 w-3 text-commander shrink-0"
+                            title="Room host — controls seats, bots & start"
                           />
                         )}
                       </div>
@@ -344,6 +388,11 @@ export function TablesList({
                     </Button>
                   )}
                 </div>
+              )}
+              {!isController && currentRoom.status === "Lobby" && (
+                <span className="ml-auto text-[11px] text-muted-foreground">
+                  {controllerName ? `Only ${controllerName} (host) can add bots & start` : null}
+                </span>
               )}
             </div>
           </div>

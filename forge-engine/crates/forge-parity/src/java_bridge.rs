@@ -159,7 +159,11 @@ impl JavaBridge {
             // Auto-detect: JAR is at forge-harness/target/, and the engine
             // assets live in the forge/ submodule, so forge-gui/ is at
             // ../../forge/forge-gui/ relative to the JAR.
-            let forge_gui = jar_parent.join("..").join("..").join("forge").join("forge-gui");
+            let forge_gui = jar_parent
+                .join("..")
+                .join("..")
+                .join("forge")
+                .join("forge-gui");
             if forge_gui.join("res").join("cardsfolder").exists() {
                 let forge_gui_str = format!("{}/", forge_gui.display());
                 if verbose {
@@ -390,7 +394,11 @@ impl JavaServer {
             cmd.arg("--forge-home").arg(home);
         } else if let Some(jar_parent) = jar.parent() {
             // forge-gui/ lives in the forge/ submodule: ../../forge/forge-gui/
-            let forge_gui = jar_parent.join("..").join("..").join("forge").join("forge-gui");
+            let forge_gui = jar_parent
+                .join("..")
+                .join("..")
+                .join("forge")
+                .join("forge-gui");
             if forge_gui.join("res").join("cardsfolder").exists() {
                 let forge_gui_str = format!("{}/", forge_gui.display());
                 if verbose {

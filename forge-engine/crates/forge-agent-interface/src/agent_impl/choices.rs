@@ -15,18 +15,7 @@ fn card_name<T: Responder>(agent: &PromptAgent<T>, card_id: CardId) -> String {
         .latest_view
         .as_ref()
         .and_then(|view| {
-            view.battlefield
-                .iter()
-                .chain(view.my_hand.iter())
-                .chain(view.graveyard.iter())
-                .chain(view.exile.iter())
-                .chain(
-                    view.opponent_zones
-                        .values()
-                        .flat_map(|z| z.graveyard.iter()),
-                )
-                .chain(view.opponent_zones.values().flat_map(|z| z.exile.iter()))
-                .chain(view.my_command_zone.iter())
+            view.all_zone_cards()
                 .find(|card| card.id == id)
                 .map(|card| card.name.clone())
         })
@@ -100,7 +89,6 @@ pub(super) fn mulligan_decision_send<T: Responder>(
     let hand_card_ids = PromptAgent::<T>::card_ids(hand);
     agent.send_prompt(
         AgentPromptInner::Mulligan {
-            game_view: agent.view(),
             hand_card_ids,
             mulligan_count,
         },
@@ -146,12 +134,11 @@ pub(super) fn choose_cards_to_bottom_send<T: Responder>(
         .iter()
         .filter_map(|&cid| {
             let id_str = crate::ids_codec::card_id_str(cid);
-            view.my_hand.iter().find(|c| c.id == id_str).cloned()
+            view.all_zone_cards().find(|c| c.id == id_str).cloned()
         })
         .collect();
     agent.send_prompt(
         AgentPromptInner::MulliganPutBack {
-            game_view: view,
             hand_card_ids,
             cards,
             count,
@@ -184,7 +171,6 @@ pub(super) fn choose_mode<T: Responder>(
 ) -> Vec<usize> {
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options: descriptions.to_vec(),
             min_choices: min,
             max_choices: max,
@@ -215,7 +201,6 @@ pub(super) fn choose_spell_abilities_for_effect<T: Responder>(
     let source_card_id = abilities.first().and_then(|ability| ability.source);
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options,
             min_choices: num.min(abilities.len()),
             max_choices: num.min(abilities.len()),
@@ -305,7 +290,6 @@ pub(super) fn choose_single_entity_for_effect<T: Responder>(
         .collect();
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options,
             min_choices: usize::from(!is_optional),
             max_choices: 1,
@@ -360,7 +344,6 @@ pub(super) fn choose_entities_for_effect<T: Responder>(
         .collect();
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options,
             min_choices: min.min(valid.len()),
             max_choices: max.min(valid.len()),
@@ -387,7 +370,6 @@ pub(super) fn choose_optional_trigger<T: Responder>(
 ) -> bool {
     agent.send_prompt(
         AgentPromptInner::ChooseOptionalTrigger {
-            game_view: agent.view(),
             description: description.to_string(),
             cards: Vec::new(),
             prompt_kind: Some("optional_trigger".to_string()),
@@ -422,7 +404,6 @@ pub(super) fn confirm_replacement_effect<T: Responder>(
     };
     agent.send_prompt(
         AgentPromptInner::ChooseOptionalTrigger {
-            game_view: agent.view(),
             description: message,
             cards: Vec::new(),
             prompt_kind: Some("confirm_replacement_effect".to_string()),
@@ -455,7 +436,6 @@ pub(super) fn confirm_action<T: Responder>(
     };
     agent.send_prompt(
         AgentPromptInner::ChooseOptionalTrigger {
-            game_view: agent.view(),
             description: message.to_string(),
             cards: Vec::new(),
             prompt_kind: Some("confirm_action".to_string()),
@@ -481,7 +461,6 @@ pub(super) fn confirm_payment<T: Responder>(
 ) -> bool {
     agent.send_prompt(
         AgentPromptInner::ChooseOptionalTrigger {
-            game_view: agent.view(),
             description: message.to_string(),
             cards: Vec::new(),
             prompt_kind: Some("confirm_payment".to_string()),
@@ -510,12 +489,11 @@ pub(super) fn reveal_cards<T: Responder>(
     }
     let cards = cards
         .iter()
-        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &[], &[], &zone.to_string()))
+        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &[], &zone.to_string()))
         .collect();
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(
         AgentPromptInner::RevealCards {
-            game_view: agent.view(),
             cards,
             zone: zone.to_string(),
             owner_player_id: crate::ids_codec::player_id_str(owner),
@@ -540,7 +518,6 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::PayCostToPreventEffect {
-            game_view: agent.view(),
             description: message.to_string(),
             cost_kind: cost_kind.to_string(),
             api: api.map(|a| a.name().to_string()),
@@ -567,7 +544,6 @@ pub(super) fn choose_binary<T: Responder>(
     // reverse labels so `true` still maps to Java's first (left) choice.
     agent.send_prompt(
         AgentPromptInner::ChooseOptionalTrigger {
-            game_view: agent.view(),
             description: question.to_string(),
             cards: Vec::new(),
             prompt_kind: Some("choose_binary".to_string()),
@@ -596,7 +572,6 @@ pub(super) fn choose_color<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::ChooseColor {
-            game_view: agent.view(),
             valid_colors: valid_colors.to_vec(),
         },
         None,
@@ -619,7 +594,6 @@ pub(super) fn choose_colors<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options: valid_colors.to_vec(),
             min_choices: min.min(valid_colors.len()),
             max_choices: max.min(valid_colors.len()),
@@ -649,7 +623,6 @@ pub(super) fn choose_type<T: Responder>(
 ) -> Option<String> {
     agent.send_prompt(
         AgentPromptInner::ChooseType {
-            game_view: agent.view(),
             type_category: type_category.to_string(),
             valid_types: valid_types.to_vec(),
         },
@@ -668,7 +641,6 @@ pub(super) fn choose_card_name<T: Responder>(
 ) -> Option<String> {
     agent.send_prompt(
         AgentPromptInner::ChooseCardName {
-            game_view: agent.view(),
             valid_names: valid_names.to_vec(),
         },
         None,
@@ -691,7 +663,6 @@ pub(super) fn choose_number_from_list<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options: choices.iter().map(i32::to_string).collect(),
             min_choices: 1,
             max_choices: 1,
@@ -739,7 +710,6 @@ pub(super) fn choose_roll_to_ignore<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseRollToIgnore {
-            game_view: agent.view(),
             rolls: rolls.to_vec(),
         },
         None,
@@ -761,7 +731,6 @@ pub(super) fn choose_roll_to_swap<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseRollToSwap {
-            game_view: agent.view(),
             rolls: rolls.to_vec(),
         },
         None,
@@ -783,7 +752,6 @@ pub(super) fn choose_roll_to_modify<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseRollToModify {
-            game_view: agent.view(),
             rolls: rolls.to_vec(),
         },
         None,
@@ -805,7 +773,6 @@ pub(super) fn choose_dice_to_reroll<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseDiceToReroll {
-            game_view: agent.view(),
             rolls: rolls.to_vec(),
         },
         None,
@@ -828,7 +795,6 @@ pub(super) fn choose_roll_swap_value<T: Responder>(
 ) -> Option<RollSwapChoice> {
     agent.send_prompt(
         AgentPromptInner::ChooseRollSwapValue {
-            game_view: agent.view(),
             current_result,
             power,
             toughness,
@@ -865,7 +831,6 @@ pub(super) fn choose_x_value<T: Responder>(
 ) -> u32 {
     agent.send_prompt(
         AgentPromptInner::ChooseNumber {
-            game_view: agent.view(),
             min: 0,
             max: max_x as i32,
         },
@@ -885,14 +850,7 @@ pub(super) fn choose_number<T: Responder>(
     min: i32,
     max: i32,
 ) -> Option<i32> {
-    agent.send_prompt(
-        AgentPromptInner::ChooseNumber {
-            game_view: agent.view(),
-            min,
-            max,
-        },
-        None,
-    );
+    agent.send_prompt(AgentPromptInner::ChooseNumber { min, max }, None);
     match agent.recv_action() {
         PlayerAction::NumberDecision { chosen_number } => chosen_number,
         _ => Some(min),
@@ -908,7 +866,6 @@ pub(super) fn choose_discard<T: Responder>(
     let hand_card_ids = PromptAgent::<T>::card_ids(hand);
     agent.send_prompt(
         AgentPromptInner::ChooseDiscard {
-            game_view: agent.view(),
             hand_card_ids,
             num_to_discard: num,
         },
@@ -955,19 +912,7 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
     let view = agent.view();
 
     // Build zone_cards from the snapshot view's zones (find matching DTOs)
-    let all_cards: Vec<&CardDto> = view
-        .battlefield
-        .iter()
-        .chain(view.my_hand.iter())
-        .chain(view.graveyard.iter())
-        .chain(view.exile.iter())
-        .chain(
-            view.opponent_zones
-                .values()
-                .flat_map(|z| z.graveyard.iter()),
-        )
-        .chain(view.opponent_zones.values().flat_map(|z| z.exile.iter()))
-        .collect();
+    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
     let zone_cards: Vec<CardDto> = valid_card_ids
         .iter()
         .filter_map(|id| all_cards.iter().find(|c| c.id == *id).map(|c| (*c).clone()))
@@ -975,7 +920,6 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::ChooseCardsForEffect {
-            game_view: view,
             valid_card_ids,
             zone_cards,
             min_choices: min,
@@ -1005,20 +949,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
 
     // Build zone_cards from all known zones + peeked library cards
     let peeked = std::mem::take(&mut agent.peeked_library_cards);
-    let all_cards: Vec<&CardDto> = view
-        .battlefield
-        .iter()
-        .chain(view.my_hand.iter())
-        .chain(view.graveyard.iter())
-        .chain(view.exile.iter())
-        .chain(
-            view.opponent_zones
-                .values()
-                .flat_map(|z| z.graveyard.iter()),
-        )
-        .chain(view.opponent_zones.values().flat_map(|z| z.exile.iter()))
-        .chain(view.my_command_zone.iter())
-        .collect();
+    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
     let mut zone_cards: Vec<CardDto> = valid_card_ids
         .iter()
         .filter_map(|id| {
@@ -1036,7 +967,6 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     let min_choices = if is_optional { 0 } else { 1 };
     agent.send_prompt(
         AgentPromptInner::ChooseCardsForEffect {
-            game_view: view,
             valid_card_ids,
             zone_cards,
             min_choices,
@@ -1072,20 +1002,7 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
 
     // Build zone_cards from all known zones + peeked library cards
     let peeked = std::mem::take(&mut agent.peeked_library_cards);
-    let all_cards: Vec<&CardDto> = view
-        .battlefield
-        .iter()
-        .chain(view.my_hand.iter())
-        .chain(view.graveyard.iter())
-        .chain(view.exile.iter())
-        .chain(
-            view.opponent_zones
-                .values()
-                .flat_map(|z| z.graveyard.iter()),
-        )
-        .chain(view.opponent_zones.values().flat_map(|z| z.exile.iter()))
-        .chain(view.my_command_zone.iter())
-        .collect();
+    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
     let mut zone_cards: Vec<CardDto> = valid_card_ids
         .iter()
         .filter_map(|id| {
@@ -1101,7 +1018,6 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
 
     agent.send_prompt(
         AgentPromptInner::ChooseCardsForEffect {
-            game_view: view,
             valid_card_ids,
             zone_cards,
             min_choices: min,
@@ -1132,7 +1048,6 @@ pub(super) fn choose_explore_put_in_graveyard<T: Responder>(
     let revealed_card = peeked.into_iter().next();
     agent.send_prompt(
         AgentPromptInner::ExploreDecision {
-            game_view: agent.view(),
             revealed_card_name: revealed_card_name.to_string(),
             revealed_card,
         },
@@ -1152,7 +1067,6 @@ pub(super) fn help_pay_assist<T: Responder>(
 ) -> u32 {
     agent.send_prompt(
         AgentPromptInner::HelpPayAssist {
-            game_view: agent.view(),
             card_name: card_name.to_string(),
             max_generic,
         },
@@ -1183,7 +1097,6 @@ pub(super) fn choose_land_or_spell<T: Responder>(
 ) -> Option<bool> {
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options: vec!["Land".to_string(), "Spell".to_string()],
             min_choices: 1,
             max_choices: 1,
@@ -1213,7 +1126,6 @@ pub(super) fn choose_single_replacement_effect<T: Responder>(
     }
     agent.send_prompt(
         AgentPromptInner::ChooseMode {
-            game_view: agent.view(),
             options: descriptions.to_vec(),
             min_choices: 1,
             max_choices: 1,

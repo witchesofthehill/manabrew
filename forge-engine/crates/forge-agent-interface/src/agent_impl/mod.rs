@@ -17,8 +17,8 @@ use crate::game_snapshot_event::GameSnapshotEventDto;
 use crate::game_view_dto::{CardDto, GameViewDto};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::prompt::{
-    ActivatableAbilityInfo, AgentPrompt, AgentPromptInner, DisplayEvent, PlayOptionDto,
-    PlayerAction,
+    ActivatableAbilityInfo, AgentMessage, AgentPrompt, AgentPromptInner, DisplayEvent,
+    PlayOptionDto, PlayerAction, StateUpdate,
 };
 
 mod choices;
@@ -61,16 +61,9 @@ pub(crate) fn find_matching_color<'a>(
 
 /// Answers the prompts a `PromptAgent` builds.
 ///
-/// `present` ships a prompt one-way to the client; an interactive transport
-/// writes it to its channel now (so a broadcast reaches every client in
-/// parallel), a bot has nothing to show and leaves the default no-op.
-/// `respond` returns the action for the prompt just presented: a transport
-/// blocks on its channel (ignoring `prompt`, already on the wire), a bot
-/// computes its answer from `prompt` — so neither side has to buffer it.
-/// `await_ack`/`send_log`/`send_snapshot` are one-way and default to dropping.
 pub trait Responder {
     fn respond(&mut self, prompt: AgentPrompt) -> PlayerAction;
-    fn present(&mut self, _prompt: &AgentPrompt) {}
+    fn present(&mut self, _message: &AgentMessage) {}
     fn await_ack(&mut self) {}
     fn send_log(&mut self, _entry: GameLogEntryDto) {}
     fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
@@ -82,8 +75,6 @@ pub struct PromptAgent<R: Responder> {
     pub responder: R,
     pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
-    /// Display events accumulated between prompts — drained and attached to each outgoing prompt.
-    pub(crate) pending_display_events: Vec<DisplayEvent>,
     /// Card DTOs pre-built by on_library_peek() for Scry/Surveil/Dig prompts.
     pub(crate) peeked_library_cards: Vec<CardDto>,
     /// Cached per-ability descriptions, is_mana_ability flags, and cost strings, populated in snapshot_state.
@@ -102,7 +93,6 @@ impl<R: Responder> PromptAgent<R> {
             responder,
             pending_prompt: None,
             latest_view: None,
-            pending_display_events: Vec::new(),
             peeked_library_cards: Vec::new(),
             ability_descriptions: std::collections::HashMap::new(),
             pending_restore_checkpoint: None,
@@ -111,16 +101,9 @@ impl<R: Responder> PromptAgent<R> {
         }
     }
 
-    /// Send a prompt to the frontend. `source` is the engine card id of the
-    /// prompt's source — the spell being cast, the ability whose trigger
-    /// fired, the cost being paid. `None` only for genuinely sourceless
-    /// prompts (mulligan, game-over, generic state updates). Required at
-    /// every call site so the compiler can't let one slip through.
     fn build_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) -> AgentPrompt {
-        let display_events = std::mem::take(&mut self.pending_display_events);
         AgentPrompt {
             deciding_player_id: player_id_str(self.player_id),
-            display_events,
             source_card_id: source.map(card_id_str),
             input: inner,
         }
@@ -128,7 +111,9 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn send_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
-        self.responder.present(&prompt);
+        self.emit_state();
+        self.responder
+            .present(&AgentMessage::Prompt(prompt.clone()));
         self.pending_prompt = Some(prompt);
     }
 
@@ -140,9 +125,20 @@ impl<R: Responder> PromptAgent<R> {
         self.responder.respond(prompt)
     }
 
-    pub(crate) fn notify_view(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
+    pub(crate) fn present_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
-        self.responder.present(&prompt);
+        self.emit_state();
+        self.responder.present(&AgentMessage::Prompt(prompt));
+    }
+
+    pub(crate) fn emit_state(&mut self) {
+        let game_view = self.view();
+        self.responder
+            .present(&AgentMessage::State(StateUpdate { game_view }));
+    }
+
+    pub(crate) fn emit_display(&mut self, event: DisplayEvent) {
+        self.responder.present(&AgentMessage::Display(event));
     }
 
     pub(crate) fn view(&self) -> GameViewDto {
@@ -265,12 +261,6 @@ impl<R: Responder> PromptAgent<R> {
         }
     }
 
-    pub(crate) fn mark_battlefield_choosable(view: &mut GameViewDto, valid_card_ids: &[String]) {
-        for card in &mut view.battlefield {
-            card.is_choosable = valid_card_ids.contains(&card.id);
-        }
-    }
-
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
             PlayerAction::TargetCard { card_id } => card_id.and_then(|id| parse_card_id(&id)),
@@ -321,8 +311,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             mana_pools,
             self.player_id,
             &self.game_id,
-            &[], // playable/choosable filled at prompt time
-            &[],
+            &[], // playable filled at prompt time
         ));
 
         // Cache per-ability descriptions from battlefield cards
@@ -486,25 +475,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             })
             .collect();
 
-        let hand_activatable_ids: Vec<String> = activatable
-            .iter()
-            .map(|&(card_id, _)| card_id_str(card_id))
-            .filter(|card_id| view_ref.my_hand.iter().any(|card| card.id == *card_id))
-            .collect();
-
-        // Update the view with playable info (hand, graveyard, command zone)
-        let mut view = view_ref;
-        for card in &mut view.my_hand {
-            card.is_playable =
-                playable_card_ids.contains(&card.id) || hand_activatable_ids.contains(&card.id);
-        }
-        for card in &mut view.graveyard {
-            card.is_playable = playable_card_ids.contains(&card.id);
-        }
-        for card in &mut view.my_command_zone {
-            card.is_playable = playable_card_ids.contains(&card.id);
-        }
-
         let available_player_actions = playable
             .iter()
             .copied()
@@ -532,7 +502,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
 
         self.send_prompt(
             AgentPromptInner::ChooseAction {
-                game_view: view,
                 playable_card_ids,
                 playable_options,
                 tappable_land_ids,
@@ -1295,18 +1264,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 card_name,
                 set_code,
             } => {
-                self.pending_display_events.push(DisplayEvent::CardPlayed {
+                self.emit_display(DisplayEvent::CardPlayed {
                     card_id: card_id_str(card_id),
                     card_name,
                     set_code,
                     player_id: player_id_str(player),
                 });
-                self.notify_view(
-                    AgentPromptInner::StateUpdate {
-                        game_view: self.view(),
-                    },
-                    None,
-                );
+                self.emit_state();
             }
             GameNotification::TurnChanged {
                 active_player,
@@ -1326,27 +1290,19 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     ))
                     .with_player(active_player),
                 ));
-                self.pending_display_events.push(DisplayEvent::TurnChanged {
+                self.emit_display(DisplayEvent::TurnChanged {
                     active_player_id: player_id,
                     active_player_name,
                     turn_number,
                 });
-                self.notify_view(
-                    AgentPromptInner::StateUpdate {
-                        game_view: self.view(),
-                    },
-                    None,
-                );
+                self.emit_state();
             }
             GameNotification::PhaseChanged { .. } | GameNotification::StateChanged => {
-                self.notify_view(
-                    AgentPromptInner::StateUpdate {
-                        game_view: self.view(),
-                    },
-                    None,
-                );
+                self.emit_state();
             }
-            GameNotification::PriorityChanged { .. } => {}
+            GameNotification::PriorityChanged { .. } => {
+                self.emit_state();
+            }
             GameNotification::FirstPlayerRoll {
                 sides,
                 rolls,
@@ -1370,9 +1326,8 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         }
                     })
                     .collect();
-                self.notify_view(
+                self.present_prompt(
                     AgentPromptInner::FirstPlayerRoll {
-                        game_view: view,
                         sides,
                         rolls: entries,
                         winner_player_id: player_id_str(winner),
@@ -1395,9 +1350,8 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 // pass after broadcasting — that way all clients see the
                 // animation start at the same time and we wait once for
                 // the slowest player rather than serially per-agent.
-                self.notify_view(
+                self.present_prompt(
                     AgentPromptInner::DiceRolled {
-                        game_view: self.view(),
                         player_id: player_id_str(player),
                         sides,
                         natural_results,
@@ -1421,21 +1375,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 }
             }
             GameNotification::GameOver => {
-                self.notify_view(
-                    AgentPromptInner::GameOver {
-                        game_view: self.view(),
-                    },
-                    None,
-                );
+                self.emit_state();
+                self.present_prompt(AgentPromptInner::GameOver {}, None);
             }
             GameNotification::ManaPaymentResolved { .. } => {}
             GameNotification::ActivatedAbilityPaymentFailed { .. } => {
-                self.notify_view(
-                    AgentPromptInner::StateUpdate {
-                        game_view: self.view(),
-                    },
-                    None,
-                );
+                self.emit_state();
             }
         }
     }

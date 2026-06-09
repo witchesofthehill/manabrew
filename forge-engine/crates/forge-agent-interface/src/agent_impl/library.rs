@@ -14,7 +14,7 @@ pub(super) fn on_library_peek<T: Responder>(
 ) {
     agent.peeked_library_cards = cards
         .iter()
-        .map(|&id| card_to_dto(game, id, &[], &[], "library"))
+        .map(|&id| card_to_dto(game, id, &[], "library"))
         .collect();
 }
 
@@ -27,7 +27,6 @@ pub(super) fn choose_scry<T: Responder>(
     let peeked = std::mem::take(&mut agent.peeked_library_cards);
     agent.send_prompt(
         AgentPromptInner::Scry {
-            game_view: agent.view(),
             card_ids,
             cards: peeked,
         },
@@ -51,7 +50,6 @@ pub(super) fn choose_surveil<T: Responder>(
     let peeked = std::mem::take(&mut agent.peeked_library_cards);
     agent.send_prompt(
         AgentPromptInner::Surveil {
-            game_view: agent.view(),
             card_ids,
             cards: peeked,
         },
@@ -82,7 +80,6 @@ pub(super) fn choose_dig<T: Responder>(
         .collect();
     agent.send_prompt(
         AgentPromptInner::Dig {
-            game_view: agent.view(),
             card_ids,
             cards: valid_peeked,
             num_to_take: max,
@@ -112,7 +109,6 @@ pub(super) fn choose_reorder_library<T: Responder>(
         .collect();
     agent.send_prompt(
         AgentPromptInner::ReorderLibrary {
-            game_view: agent.view(),
             card_ids,
             cards: prompt_cards,
         },

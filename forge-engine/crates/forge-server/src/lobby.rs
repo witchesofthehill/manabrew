@@ -86,6 +86,7 @@ pub fn join_room_sync(
     player_id: &str,
     room_id: &str,
     observe: bool,
+    as_bot: bool,
 ) -> Result<RoomInfo, ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
@@ -117,7 +118,7 @@ pub fn join_room_sync(
             room.add_observer(player_id.to_string(), username)
                 .map_err(|_| ServerError::AlreadyInRoom(room_id.to_string()))?;
         } else {
-            room.add_player(player_id.to_string(), username)
+            room.add_player(player_id.to_string(), username, as_bot)
                 .map_err(|msg| {
                     if msg.contains("full") {
                         ServerError::RoomFull(room_id.to_string())
@@ -320,6 +321,40 @@ pub fn set_format_sync(
         }
 
         room.format = format;
+    }
+
+    Ok(room_id)
+}
+
+pub fn set_max_players_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    max_players: u8,
+) -> Result<String, ServerError> {
+    let room_id = {
+        state
+            .players
+            .get(player_id)
+            .and_then(|p| p.room_id.clone())
+            .ok_or(ServerError::NotInRoom)?
+    };
+
+    {
+        let mut room = state
+            .rooms
+            .get_mut(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+
+        if !room.is_controller(player_id) {
+            return Err(ServerError::NotHost);
+        }
+
+        if room.status != RoomStatus::Lobby {
+            return Err(ServerError::GameAlreadyStarted);
+        }
+
+        let floor = (room.players.len() as u8).max(2);
+        room.max_players = max_players.clamp(floor, 4);
     }
 
     Ok(room_id)

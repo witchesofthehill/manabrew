@@ -1,4 +1,3 @@
-import type { DisplayEvent } from "@/protocol/display";
 import type { GameView } from "@/types/manabrew";
 import type { PromptInput } from "@/protocol/prompts";
 
@@ -6,13 +5,10 @@ export interface PromptRequestEnvelope {
   promptId?: string;
   decidingPlayerId?: string;
   sourceCardId?: string;
-  displayEvents?: DisplayEvent[];
 }
 
 export type PromptRequest<TInput extends { type: string }> = PromptRequestEnvelope & {
-  input: {
-    gameView: GameView;
-  } & TInput;
+  input: TInput;
 };
 
 // `TInput extends unknown` distributes over each member of the union (only a
@@ -23,3 +19,8 @@ type DistributeRequest<TInput extends { type: string }> = TInput extends unknown
   : never;
 
 export type Prompt = DistributeRequest<PromptInput>;
+
+// The sole carrier of game state. Mirrors the Rust `StateUpdate`.
+export interface StateUpdate {
+  gameView: GameView;
+}

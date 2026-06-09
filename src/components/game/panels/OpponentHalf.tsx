@@ -36,6 +36,7 @@ export function OpponentHalf({
   promptType,
   pendingAttacker,
   attackerIds,
+  selectableCardIds,
   onClickCard,
   onClickAnyCard,
   onHoverCard,
@@ -76,6 +77,7 @@ export function OpponentHalf({
       cards: permanents,
       attackingCardIds: canPickForBlockers ? (attackerIds ?? []) : undefined,
       pendingCardIds: canPickForBlockers && pendingAttacker ? [pendingAttacker] : undefined,
+      selectableCardIds,
       hostileTargeting,
       manaAbilityOptions,
     }),
@@ -84,6 +86,7 @@ export function OpponentHalf({
       canPickForBlockers,
       attackerIds,
       pendingAttacker,
+      selectableCardIds,
       hostileTargeting,
       manaAbilityOptions,
     ],
@@ -92,11 +95,14 @@ export function OpponentHalf({
   const pixiCallbacks: GameCanvasCallbacks = useMemo(
     () => ({
       onClickCard: (c) => {
-        if (canTarget || (canPickAttackDefender && c.isChoosable)) onClickCard(c);
-        else if (canPickForBlockers) onClickAnyCard(c);
+        if (canTarget || (canPickAttackDefender && selectableCardIds?.includes(c.id))) {
+          onClickCard(c);
+        } else if (canPickForBlockers && attackerIds?.includes(c.id)) {
+          onClickAnyCard(c);
+        }
       },
       onClickAnyCard: (c) => {
-        if (canPickForBlockers) onClickAnyCard(c);
+        if (canPickForBlockers && attackerIds?.includes(c.id)) onClickAnyCard(c);
       },
       onHoverCard: (c, bounds, opts) => {
         if (c && bounds) {
@@ -116,6 +122,8 @@ export function OpponentHalf({
       canTarget,
       canPickAttackDefender,
       canPickForBlockers,
+      selectableCardIds,
+      attackerIds,
       onClickCard,
       onClickAnyCard,
       onHoverCard,

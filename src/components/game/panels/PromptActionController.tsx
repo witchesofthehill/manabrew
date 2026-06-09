@@ -18,7 +18,6 @@ import { useGameUIStore } from "@/stores/useGameUIStore";
 function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
   switch (promptType) {
     case undefined:
-    case "stateUpdate":
     case "gameOver":
       return "noAction";
     case "chooseAction":

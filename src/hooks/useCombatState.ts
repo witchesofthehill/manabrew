@@ -76,8 +76,7 @@ export function useCombatState({
               : false
         : () => false;
 
-  /** True when a battlefield card is a legal defender (planeswalker /
-   *  siege) — shown choosable so battlefield clicks land on it. */
+  /** True when a battlefield card is a legal defender (planeswalker / siege). */
   function cardIsAttackTarget(cardId: string): boolean {
     return awaitingAttackTarget && possibleDefenders.some((defender) => defender.id === cardId);
   }
@@ -122,22 +121,28 @@ export function useCombatState({
   function handleBattlefieldClick(card: GameCard) {
     if (!currentPrompt) return;
 
-    // Awaiting a defender pick — battlefield cards can be defenders too
-    // (planeswalkers, sieges). Bypass `isChoosable` because the engine
-    // doesn't pre-mark defender cards during attacker declaration; we
-    // gate on `possibleDefenderIds` instead.
     if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === card.id)) {
       commitAttackAgainst(card.id);
       return;
     }
 
-    if (!card.isChoosable) return;
-
     if (promptType === "chooseAttackers") {
+      if (
+        currentPrompt.input.type !== "chooseAttackers" ||
+        !currentPrompt.input.availableAttackerIds.includes(card.id)
+      ) {
+        return;
+      }
       setPendingAttackers((prev) =>
         prev.includes(card.id) ? prev.filter((id) => id !== card.id) : [...prev, card.id],
       );
     } else if (promptType === "chooseBlockers") {
+      if (
+        currentPrompt.input.type !== "chooseBlockers" ||
+        !currentPrompt.input.availableBlockerIds.includes(card.id)
+      ) {
+        return;
+      }
       if (pendingAttacker) {
         setBlockAssignments((prev) => {
           // Toggle: clicking the same blocker on the same attacker again
@@ -162,8 +167,21 @@ export function useCombatState({
         // blockers onto the same attacker without re-clicking it.
       }
     } else if (promptType === "chooseTargetCard" || promptType === "chooseTargetCardFromZone") {
+      if (
+        (currentPrompt.input.type !== "chooseTargetCard" &&
+          currentPrompt.input.type !== "chooseTargetCardFromZone") ||
+        !currentPrompt.input.validCardIds.includes(card.id)
+      ) {
+        return;
+      }
       targetCard(card.id);
     } else if (promptType === "chooseTargetAny") {
+      if (
+        currentPrompt.input.type !== "chooseTargetAny" ||
+        !currentPrompt.input.validCardIds.includes(card.id)
+      ) {
+        return;
+      }
       targetAny({ kind: "card", cardId: card.id });
     }
   }

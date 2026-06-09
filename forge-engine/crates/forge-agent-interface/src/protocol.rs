@@ -12,6 +12,12 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum StateEnvelope {
+    State {
+        state: Value,
+    },
+    Display {
+        event: Value,
+    },
     /// Engine asks a player for a decision. `prompt` is `AgentPrompt` for the
     /// Rust engine; the Java bridge emits a different shape, so the payload is
     /// kept as raw `Value` here and parsed by the receiver.
@@ -63,6 +69,24 @@ pub enum StateEnvelope {
         room_id: Option<String>,
         payload: Value,
     },
+}
+
+impl StateEnvelope {
+    pub fn for_agent_message(for_player: String, message: &crate::prompt::AgentMessage) -> Self {
+        use crate::prompt::AgentMessage;
+        match message {
+            AgentMessage::State(state) => StateEnvelope::State {
+                state: serde_json::to_value(state).unwrap_or(Value::Null),
+            },
+            AgentMessage::Display(event) => StateEnvelope::Display {
+                event: serde_json::to_value(event).unwrap_or(Value::Null),
+            },
+            AgentMessage::Prompt(prompt) => StateEnvelope::Prompt {
+                for_player,
+                prompt: serde_json::to_value(prompt).unwrap_or(Value::Null),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,6 +145,8 @@ pub enum ClientMessage {
         room_id: String,
         #[serde(default)]
         observe: bool,
+        #[serde(default)]
+        as_bot: bool,
     },
 
     LeaveRoom,
@@ -137,6 +163,10 @@ pub enum ClientMessage {
 
     SetFormat {
         format: GameFormat,
+    },
+
+    SetMaxPlayers {
+        max_players: u8,
     },
 
     StartGame {
@@ -283,6 +313,8 @@ pub struct RoomPlayerInfo {
     pub username: String,
     pub ready: bool,
     pub connected: bool,
+    #[serde(default)]
+    pub is_bot: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_deck_name: Option<String>,
 }

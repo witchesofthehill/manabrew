@@ -70,6 +70,7 @@ impl BotState {
                     vec![ClientMessage::JoinRoom {
                         room_id: self.config.room_id.clone(),
                         observe: false,
+                        as_bot: true,
                     }]
                 } else {
                     self.fail(format!("authentication failed: {:?}", error))

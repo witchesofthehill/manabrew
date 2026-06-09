@@ -98,6 +98,7 @@ pub fn run() {
             server_commands::server_set_ready,
             server_commands::server_set_deck_selection,
             server_commands::server_set_format,
+            server_commands::server_set_max_players,
             server_commands::server_start_game,
             server_commands::server_end_game,
             server_commands::server_broadcast_state,

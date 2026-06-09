@@ -1,4 +1,3 @@
-import type * as StateUpdate from "./stateUpdate";
 import type * as GameOver from "./gameOver";
 import type * as Mulligan from "./mulligan";
 import type * as MulliganPutBack from "./mulliganPutBack";
@@ -51,7 +50,6 @@ import type * as ChooseDiceToReroll from "./chooseDiceToReroll";
 import type * as ChooseRollSwapValue from "./chooseRollSwapValue";
 
 export type PromptInput =
-  | StateUpdate.Input
   | GameOver.Input
   | Mulligan.Input
   | MulliganPutBack.Input
@@ -104,9 +102,7 @@ export type PromptInput =
   | ChooseRollSwapValue.Input;
 
 export type PromptType = PromptInput["type"];
-
 export type PromptOutput =
-  | StateUpdate.Output
   | GameOver.Output
   | Mulligan.Output
   | MulliganPutBack.Output

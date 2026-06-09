@@ -13,6 +13,7 @@ interface GameModalsProps {
     title: string;
     cards: GameCard[];
     onClickCard?: (cardId: string) => void;
+    clickableCardIds?: string[];
   } | null;
   onCloseZone: () => void;
   zoneTargetSelector: { title: string; cards: GameCard[]; validCardIds: string[] } | null;

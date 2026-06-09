@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::game_view_dto::{
-    CardDto, CombatAssignmentDto, GameViewDto, OpponentZonesDto, PlayerDto, StackObjectDto,
-    StackTargetDto, StackTargetKindDto, TargetingIntent,
+    CardDto, CombatAssignmentDto, GameViewDto, PlayerDto, StackObjectDto, StackTargetDto,
+    StackTargetKindDto, TargetingIntent,
 };
 use crate::java_raw::{
     JavaAction, JavaActionError, JavaAttackAssignment, JavaBlockAssignment, JavaCombatAssignment,
@@ -12,19 +12,24 @@ use crate::java_raw::{
 };
 use crate::prompt::{
     ActivatableAbilityInfo, AgentPrompt, AgentPromptInner, DefenderIdDto, PlayOptionDto,
-    PlayerAction, TargetAnyChoice,
+    PlayerAction, StateUpdate, TargetAnyChoice,
 };
 
-pub fn make_java_game_over_prompt(
-    snapshot: &JavaRawSnapshot,
-    session_id: Option<&str>,
-) -> AgentPrompt {
-    let game_view = build_game_view(snapshot, session_id, 0, &[]);
+pub fn make_java_game_over_prompt() -> AgentPrompt {
     AgentPrompt {
         deciding_player_id: String::new(),
-        display_events: Vec::new(),
         source_card_id: None,
-        input: AgentPromptInner::GameOver { game_view },
+        input: AgentPromptInner::GameOver {},
+    }
+}
+
+pub fn make_java_state_update(
+    snapshot: &JavaRawSnapshot,
+    session_id: Option<&str>,
+    viewer: usize,
+) -> StateUpdate {
+    StateUpdate {
+        game_view: build_game_view(snapshot, session_id, viewer),
     }
 }
 
@@ -36,18 +41,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         body,
     } = prompt;
 
-    let choosable_ids: Vec<String> = match &body {
-        JavaRawPromptBody::ChooseAttackers { attackers, .. } => card_ids(attackers),
-        JavaRawPromptBody::ChooseBlockers { blockers, .. } => card_ids(blockers),
-        JavaRawPromptBody::ChooseTargetCard { cards, .. }
-        | JavaRawPromptBody::ChooseTargetAny { cards, .. }
-        | JavaRawPromptBody::ChooseCardsForEffect { cards, .. }
-        | JavaRawPromptBody::ChooseDelve { cards, .. }
-        | JavaRawPromptBody::ChooseConvoke { cards, .. }
-        | JavaRawPromptBody::ChooseImprovise { cards, .. } => card_ids(cards),
-        _ => Vec::new(),
-    };
-    let game_view = build_game_view(&snapshot, session_id.as_deref(), player, &choosable_ids);
+    let game_view = build_game_view(&snapshot, session_id.as_deref(), player);
     let card_index = index_view_cards(&game_view);
 
     let mut source_card_id = None;
@@ -55,9 +49,8 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::Priority {
             actions,
             untappable_land_ids,
-        } => build_choose_action(&game_view, &actions, untappable_land_ids),
+        } => build_choose_action(&actions, untappable_land_ids),
         JavaRawPromptBody::ChooseDiscard { cards, min, max } => AgentPromptInner::ChooseDiscard {
-            game_view,
             hand_card_ids: card_ids(&cards),
             num_to_discard: if max > 0 {
                 max
@@ -68,13 +61,11 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             },
         },
         JavaRawPromptBody::Mulligan { cards, count } => AgentPromptInner::Mulligan {
-            game_view,
             hand_card_ids: card_ids(&cards),
             mulligan_count: count,
         },
         JavaRawPromptBody::MulliganPutBack { cards, count, max } => {
             AgentPromptInner::MulliganPutBack {
-                game_view,
                 hand_card_ids: card_ids(&cards),
                 cards: prompt_cards(&cards, &card_index),
                 count: if count > 0 { count } else { max },
@@ -86,7 +77,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             owner_player_id,
             message,
         } => AgentPromptInner::RevealCards {
-            game_view,
             cards: prompt_cards(&cards, &card_index),
             zone: zone.unwrap_or_else(|| "unknown".to_string()),
             owner_player_id: owner_player_id.unwrap_or_else(|| format!("player-{player}")),
@@ -97,7 +87,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             rolls,
             winner_player_id,
         } => AgentPromptInner::FirstPlayerRoll {
-            game_view,
             sides,
             rolls: rolls
                 .iter()
@@ -113,7 +102,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             attackers,
             defenders,
         } => AgentPromptInner::ChooseAttackers {
-            game_view,
             available_attacker_ids: card_ids(&attackers),
             possible_defender_ids: defender_ids(&defenders),
         },
@@ -121,7 +109,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             attackers,
             blockers,
         } => AgentPromptInner::ChooseBlockers {
-            game_view,
             attacker_ids: card_ids(&attackers),
             available_blocker_ids: card_ids(&blockers),
         },
@@ -129,7 +116,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             attacker_id,
             blockers,
         } => AgentPromptInner::ChooseDamageAssignmentOrder {
-            game_view,
             attacker_id: attacker_id.unwrap_or_default(),
             blocker_ids: card_ids(&blockers),
             blocker_cards: prompt_cards(&blockers, &card_index),
@@ -141,7 +127,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             attacker_has_deathtouch,
             blockers,
         } => AgentPromptInner::ChooseCombatDamageAssignment {
-            game_view,
             attacker_id: attacker_id.unwrap_or_default(),
             blocker_ids: card_ids(&blockers),
             defender_id,
@@ -155,7 +140,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_name,
             description: _,
         } => AgentPromptInner::ChooseCardsForEffect {
-            game_view,
             valid_card_ids: card_ids(&cards),
             zone_cards: prompt_cards(&cards, &card_index),
             min_choices: min,
@@ -168,7 +152,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             max,
             source_card_name,
         } => AgentPromptInner::ChooseMode {
-            game_view,
             options,
             min_choices: min,
             max_choices: max,
@@ -182,7 +165,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             mode,
             api,
         } => AgentPromptInner::ChooseOptionalTrigger {
-            game_view,
             description: description.unwrap_or_else(|| "Confirm?".to_string()),
             cards: Vec::new(),
             prompt_kind,
@@ -196,7 +178,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_name: _,
             api,
         } => AgentPromptInner::PayCostToPreventEffect {
-            game_view,
             description: description.unwrap_or_else(|| "Pay cost?".to_string()),
             cost_kind: mode.unwrap_or_else(|| "Cost".to_string()),
             api,
@@ -207,7 +188,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_name: _,
             description: _,
         } => AgentPromptInner::ChooseNumber {
-            game_view,
             min: min as i32,
             max: max as i32,
         },
@@ -215,7 +195,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             options,
             source_card_name: _,
         } => AgentPromptInner::ChooseColor {
-            game_view,
             valid_colors: options,
         },
         JavaRawPromptBody::ChooseType {
@@ -223,7 +202,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             description,
             source_card_name: _,
         } => AgentPromptInner::ChooseType {
-            game_view,
             type_category: description.unwrap_or_else(|| "Card".to_string()),
             valid_types: options,
         },
@@ -231,16 +209,13 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             options,
             source_card_name: _,
         } => AgentPromptInner::ChooseCardName {
-            game_view,
             valid_names: options,
         },
         JavaRawPromptBody::ChooseScry { cards } => AgentPromptInner::Scry {
-            game_view,
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
         },
         JavaRawPromptBody::ChooseSurveil { cards } => AgentPromptInner::Surveil {
-            game_view,
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
         },
@@ -250,7 +225,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             optional,
             source_card_name: _,
         } => AgentPromptInner::Dig {
-            game_view,
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
             num_to_take: max,
@@ -261,7 +235,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             max,
             source_card_name: _,
         } => AgentPromptInner::ChooseDelve {
-            game_view,
             valid_card_ids: card_ids(&cards),
             zone_cards: prompt_cards(&cards, &card_index),
             max_cards: max,
@@ -271,7 +244,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             description,
             source_card_name: _,
         } => AgentPromptInner::ChooseConvoke {
-            game_view,
             valid_card_ids: card_ids(&cards),
             remaining_cost: description.unwrap_or_default(),
         },
@@ -280,7 +252,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             description,
             source_card_name: _,
         } => AgentPromptInner::ChooseImprovise {
-            game_view,
             valid_card_ids: card_ids(&cards),
             remaining_cost: description.unwrap_or_default(),
         },
@@ -288,7 +259,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             cards,
             source_card_name: _,
         } => AgentPromptInner::ReorderLibrary {
-            game_view,
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
         },
@@ -302,7 +272,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
             AgentPromptInner::ChooseTargetPlayer {
-                game_view,
                 valid_player_ids: target_ids(&players),
                 hostile: intent.is_hostile(),
                 intent,
@@ -323,7 +292,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             let intent = intent_from_api(&api, &destination, &counter_type);
             match zone {
                 Some(zone) if zone != "Battlefield" => AgentPromptInner::ChooseTargetCardFromZone {
-                    game_view,
                     valid_card_ids: target_ids(&cards),
                     zone,
                     zone_cards: prompt_cards(&cards, &card_index),
@@ -333,7 +301,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                     chosen_targets,
                 },
                 _ => AgentPromptInner::ChooseTargetCard {
-                    game_view,
                     valid_card_ids: target_ids(&cards),
                     hostile: intent.is_hostile(),
                     intent,
@@ -354,7 +321,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
             AgentPromptInner::ChooseTargetAny {
-                game_view,
                 valid_player_ids: target_ids(&players),
                 valid_card_ids: target_ids(&cards),
                 hostile: intent.is_hostile(),
@@ -370,7 +336,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => {
             source_card_id = source;
             AgentPromptInner::ChooseTargetSpell {
-                game_view,
                 valid_spell_ids: target_ids(&spells),
                 intent: intent_from_api(&api, &destination, &counter_type),
             }
@@ -385,7 +350,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             mana_pool_total,
             can_confirm_from_pool,
         } => AgentPromptInner::PayManaCost {
-            game_view,
             card_id: card_id.unwrap_or_default(),
             card_name: card_name.unwrap_or_default(),
             mana_cost: mana_cost.unwrap_or_default(),
@@ -406,7 +370,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
     };
     AgentPrompt {
         deciding_player_id,
-        display_events: Vec::new(),
         source_card_id,
         input: inner,
     }
@@ -622,7 +585,6 @@ struct NormalizedAction {
 }
 
 fn build_choose_action(
-    game_view: &GameViewDto,
     raw_actions: &[JavaRawAction],
     untappable_land_ids: Vec<String>,
 ) -> AgentPromptInner {
@@ -672,24 +634,7 @@ fn build_choose_action(
         }
     }
 
-    // Single source of truth: a card is playable iff it produced a cast option.
-    let playable_ids: std::collections::HashSet<String> = playable_options
-        .iter()
-        .map(|option| option.card_id.clone())
-        .collect();
-    let mut view = game_view.clone();
-    for card in view
-        .my_hand
-        .iter_mut()
-        .chain(view.my_command_zone.iter_mut())
-        .chain(view.graveyard.iter_mut())
-        .chain(view.exile.iter_mut())
-    {
-        card.is_playable = playable_ids.contains(&card.id);
-    }
-
     AgentPromptInner::ChooseAction {
-        game_view: view,
         playable_card_ids: playable_options
             .iter()
             .map(|option| option.card_id.clone())
@@ -707,7 +652,6 @@ fn build_game_view(
     snapshot: &JavaRawSnapshot,
     session_id: Option<&str>,
     viewer: usize,
-    choosable_ids: &[String],
 ) -> GameViewDto {
     let mut players: Vec<PlayerDto> = snapshot
         .players
@@ -731,7 +675,6 @@ fn build_game_view(
                 player_index,
                 card_index,
                 "battlefield",
-                choosable_ids,
             ));
         }
     }
@@ -742,37 +685,6 @@ fn build_game_view(
         .enumerate()
         .map(|(index, entry)| to_stack_object(entry, index, &active_player_id))
         .collect();
-
-    let me = snapshot.players.get(viewer);
-    let my_hand = me
-        .map(|player| build_cards(player.hand_zone(), viewer, "hand", choosable_ids))
-        .unwrap_or_default();
-    let my_command_zone = me
-        .map(|player| build_cards(&player.command_zone_cards, viewer, "command", choosable_ids))
-        .unwrap_or_default();
-    let graveyard = me
-        .map(|player| build_cards(player.graveyard_zone(), viewer, "graveyard", choosable_ids))
-        .unwrap_or_default();
-    let exile = me
-        .map(|player| build_cards(player.exile_zone(), viewer, "exile", choosable_ids))
-        .unwrap_or_default();
-
-    let mut opponent_zones = HashMap::new();
-    for (index, opp) in snapshot
-        .players
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| *index != viewer)
-    {
-        opponent_zones.insert(
-            format!("player-{index}"),
-            OpponentZonesDto {
-                graveyard: build_cards(opp.graveyard_zone(), index, "graveyard", choosable_ids),
-                exile: build_cards(opp.exile_zone(), index, "exile", choosable_ids),
-                command_zone: build_cards(&opp.command_zone_cards, index, "command", choosable_ids),
-            },
-        );
-    }
 
     GameViewDto {
         game_id: session_id.unwrap_or("engine-game").to_string(),
@@ -789,13 +701,8 @@ fn build_game_view(
         active_player_id,
         priority_player_id,
         players,
-        my_hand,
         battlefield,
         stack,
-        exile,
-        graveyard,
-        my_command_zone,
-        opponent_zones,
         game_over: snapshot.game_over,
         winner_id: snapshot.winner.map(|index| format!("player-{index}")),
         conceded_player_ids: snapshot
@@ -810,24 +717,11 @@ fn build_game_view(
     }
 }
 
-fn build_cards(
-    cards: &[JavaRawCard],
-    player_index: usize,
-    zone_id: &str,
-    choosable_ids: &[String],
-) -> Vec<CardDto> {
+fn build_cards(cards: &[JavaRawCard], player_index: usize, zone_id: &str) -> Vec<CardDto> {
     cards
         .iter()
         .enumerate()
-        .map(|(card_index, card)| {
-            to_card(
-                &card.data(),
-                player_index,
-                card_index,
-                zone_id,
-                choosable_ids,
-            )
-        })
+        .map(|(card_index, card)| to_card(&card.data(), player_index, card_index, zone_id))
         .collect()
 }
 
@@ -839,10 +733,11 @@ fn to_player(player: &JavaRawSnapshotPlayer, fallback_index: usize, viewer: usiz
         is_human: index == viewer,
         life: player.life.unwrap_or(20),
         poison: player.poison.unwrap_or(0),
-        hand_count: player.hand.len(),
+        hand: build_cards(player.hand_zone(), index, "hand"),
+        graveyard: build_cards(player.graveyard_zone(), index, "graveyard"),
+        exile: build_cards(player.exile_zone(), index, "exile"),
+        command_zone: build_cards(&player.command_zone_cards, index, "command"),
         library_count: player.library_size.unwrap_or(0).max(0) as usize,
-        graveyard_count: player.graveyard.len(),
-        exile_count: player.exile.len(),
         mana_pool: player.mana_pool.clone().into_iter().collect(),
         commander_damage: player.commander_damage.clone().into_iter().collect(),
         energy_counters: player.energy.unwrap_or(0),
@@ -858,7 +753,6 @@ fn to_card(
     player_index: usize,
     card_index: usize,
     zone_id: &str,
-    choosable_ids: &[String],
 ) -> CardDto {
     let name = card
         .name
@@ -869,7 +763,6 @@ fn to_card(
         .id
         .clone()
         .unwrap_or_else(|| format!("engine-card-{player_index}-{zone_id}-{card_index}"));
-    let is_choosable = choosable_ids.iter().any(|candidate| candidate == &id);
     CardDto {
         id,
         set_code: card.set_code.clone().unwrap_or_default(),
@@ -879,7 +772,6 @@ fn to_card(
         base_power: card.power.map(|value| value as i32),
         base_toughness: card.toughness.map(|value| value as i32),
         is_playable: false,
-        is_choosable,
         controller_id: format!("player-{controller_index}"),
         owner_id: format!("player-{player_index}"),
         zone_id: zone_id.to_string(),
@@ -1111,25 +1003,8 @@ fn prompt_cards(cards: &[JavaRawCardOption], index: &HashMap<String, CardDto>) -
 
 fn index_view_cards(view: &GameViewDto) -> HashMap<String, CardDto> {
     let mut index = HashMap::new();
-    for card in view
-        .battlefield
-        .iter()
-        .chain(&view.my_hand)
-        .chain(&view.graveyard)
-        .chain(&view.exile)
-        .chain(&view.my_command_zone)
-    {
+    for card in view.all_zone_cards() {
         index.insert(card.id.clone(), card.clone());
-    }
-    for zones in view.opponent_zones.values() {
-        for card in zones
-            .graveyard
-            .iter()
-            .chain(&zones.exile)
-            .chain(&zones.command_zone)
-        {
-            index.insert(card.id.clone(), card.clone());
-        }
     }
     index
 }

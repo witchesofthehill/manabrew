@@ -571,28 +571,6 @@
   }
 }
 
-.choosable-pulse {
-  animation: choosable-ring-pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes choosable-ring-pulse {
-  0% {
-    box-shadow:
-      0 0 0 2px var(--choosable-ring-color),
-      0 0 8px var(--choosable-glow-color);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px var(--choosable-ring-color),
-      0 0 16px var(--choosable-glow-color);
-  }
-  100% {
-    box-shadow:
-      0 0 0 2px var(--choosable-ring-color),
-      0 0 8px var(--choosable-glow-color);
-  }
-}
-
 .animate-reject-flash {
   animation: reject-flash 400ms ease-out;
 }

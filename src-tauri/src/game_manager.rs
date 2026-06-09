@@ -16,7 +16,7 @@ use crate::preset_decks::CardIdentity;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use forge_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
@@ -88,7 +88,7 @@ impl GameManager {
             return Err(java_backend::unsupported_error());
         }
 
-        let (prompt_tx, prompt_rx) = mpsc::channel::<AgentPrompt>();
+        let (prompt_tx, prompt_rx) = mpsc::channel::<AgentMessage>();
         let (response_tx, response_rx) = mpsc::channel::<PlayerAction>();
         let (notify_tx, notify_rx) = mpsc::channel::<GameLogEntryDto>();
         let (snapshot_tx, snapshot_rx) = mpsc::channel::<GameSnapshotEventDto>();
@@ -243,13 +243,13 @@ impl GameManager {
             return Err("Tauri multiplayer java-forge dispatch is not wired yet".to_string());
         }
 
-        let (engine_prompt_tx, engine_prompt_rx) = mpsc::channel::<AgentPrompt>();
+        let (engine_prompt_tx, engine_prompt_rx) = mpsc::channel::<AgentMessage>();
         let (engine_response_tx, engine_response_rx) = mpsc::channel::<PlayerAction>();
         let (engine_notify_tx, notify_rx) = mpsc::channel::<GameLogEntryDto>();
         let (engine_snapshot_tx, snapshot_rx) = mpsc::channel::<GameSnapshotEventDto>();
 
         let engine_response_tx_clone = engine_response_tx.clone();
-        let (remote_prompt_tx, remote_prompt_rx) = mpsc::channel::<(usize, AgentPrompt)>();
+        let (remote_prompt_tx, remote_prompt_rx) = mpsc::channel::<(usize, AgentMessage)>();
         let mut remote_response_txs: HashMap<usize, mpsc::Sender<PlayerAction>> = HashMap::new();
         let mut remote_response_rxs: Vec<(usize, mpsc::Receiver<PlayerAction>)> = Vec::new();
 

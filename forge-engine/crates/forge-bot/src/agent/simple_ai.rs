@@ -318,7 +318,7 @@ impl BotAgent for SimpleAi {
             AgentPromptInner::HelpPayAssist { .. } => {
                 Some(PlayerAction::AssistDecision { amount_to_pay: 0 })
             }
-            AgentPromptInner::StateUpdate { .. } | AgentPromptInner::GameOver { .. } => None,
+            AgentPromptInner::GameOver { .. } => None,
             // Display-only acknowledgements: the engine `await`s these so
             // every transport must produce an ack — keeps the engine's
             // broadcast loop polymorphic (no `if is_human` branching).

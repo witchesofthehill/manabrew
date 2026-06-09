@@ -19,6 +19,8 @@ pub struct Config {
     pub auto_start: bool,
     pub engine_enabled: bool,
     pub host_plays: bool,
+    pub official_key: Option<String>,
+    pub room_password: Option<String>,
     pub bot_enabled: bool,
     pub bot_username: String,
     pub host_deck: DeckSelection,
@@ -101,6 +103,12 @@ impl Config {
                 "FORGE_ROOM_NODE_HOST_PLAYS",
                 false,
             ),
+            official_key: arg_value("--official")
+                .or_else(|| env_first("SELF_HOSTED_NODE_OFFICIAL_KEY", "SECRET_MANABREW_KEY"))
+                .filter(|value| !value.is_empty()),
+            room_password: arg_value("--password")
+                .or_else(|| env_first("SELF_HOSTED_NODE_ROOM_PASSWORD", "FORGE_ROOM_PASSWORD"))
+                .filter(|value| !value.is_empty()),
             bot_enabled: env_bool(
                 "SELF_HOSTED_NODE_BOT_ENABLED",
                 "FORGE_ROOM_BOT_ENABLED",
@@ -280,6 +288,20 @@ fn infer_commander_name(deck_id: &str) -> Option<&'static str> {
 
 fn env_first(primary: &str, fallback: &str) -> Option<String> {
     env::var(primary).ok().or_else(|| env::var(fallback).ok())
+}
+
+fn arg_value(flag: &str) -> Option<String> {
+    let prefix = format!("{flag}=");
+    let mut args = env::args();
+    while let Some(arg) = args.next() {
+        if let Some(value) = arg.strip_prefix(&prefix) {
+            return Some(value.to_string());
+        }
+        if arg == flag {
+            return args.next();
+        }
+    }
+    None
 }
 
 fn env_bool(primary: &str, fallback: &str, default: bool) -> bool {

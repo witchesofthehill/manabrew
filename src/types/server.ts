@@ -33,6 +33,8 @@ export interface RoomInfo {
   room_name: string;
   host: string;
   hosted: boolean;
+  official: boolean;
+  password_protected: boolean;
   players: RoomPlayerInfo[];
   max_players: number;
   format: GameFormat;
@@ -187,6 +189,7 @@ export const SERVER_ERROR_CODE = {
   AuthTimeout: "auth_timeout",
   RoomNotFound: "room_not_found",
   RoomFull: "room_full",
+  IncorrectPassword: "incorrect_password",
   NotInRoom: "not_in_room",
   NotHost: "not_host",
   PlayersNotReady: "players_not_ready",
@@ -218,6 +221,7 @@ export const USER_FACING_ERROR_MESSAGES: Partial<Record<ServerErrorCode, string>
   [SERVER_ERROR_CODE.PlayersNotReady]: "Not all players are ready",
   [SERVER_ERROR_CODE.NotHost]: "Only the host can do that",
   [SERVER_ERROR_CODE.RoomFull]: "Room is full",
+  [SERVER_ERROR_CODE.IncorrectPassword]: "Incorrect room password",
   [SERVER_ERROR_CODE.AlreadyInRoom]: "You're already in a room",
   [SERVER_ERROR_CODE.FormatNotChosen]: "Choose a format before starting",
   [SERVER_ERROR_CODE.InvalidDraftConfig]: "Draft config is invalid",

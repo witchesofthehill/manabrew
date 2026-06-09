@@ -67,7 +67,7 @@ interface ServerState {
     draftConfig?: DraftConfig,
     sealedConfig?: SealedConfig,
   ): Promise<void>;
-  joinRoom(roomId: string): Promise<void>;
+  joinRoom(roomId: string, password?: string): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
@@ -153,10 +153,10 @@ export const useServerStore = create<ServerState>()(
         });
       },
 
-      async joinRoom(roomId) {
+      async joinRoom(roomId, password) {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.joinRoom({ roomId });
+        await platform.server.joinRoom({ roomId, password });
       },
 
       async leaveRoom() {

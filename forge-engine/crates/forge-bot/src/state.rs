@@ -59,6 +59,7 @@ impl BotState {
         vec![ClientMessage::Authenticate {
             username: self.config.username.clone(),
             password: self.config.password.clone(),
+            service: true,
         }]
     }
 
@@ -71,6 +72,7 @@ impl BotState {
                         room_id: self.config.room_id.clone(),
                         observe: false,
                         as_bot: true,
+                        password: None,
                     }]
                 } else {
                     self.fail(format!("authentication failed: {:?}", error))

@@ -78,6 +78,7 @@ async fn discover_rooms(relay: &str, key: &str, want: usize) -> Result<Vec<Strin
         &ClientMessage::Authenticate {
             username: "smoke-probe".to_string(),
             password: key.to_string(),
+            service: false,
         },
     )
     .await?;
@@ -122,6 +123,7 @@ async fn play_game(
             &ClientMessage::Authenticate {
                 username: username.clone(),
                 password: key.to_string(),
+                service: false,
             },
         )
         .await?;
@@ -133,6 +135,7 @@ async fn play_game(
                 room_id: room_id.to_string(),
                 observe: false,
                 as_bot: false,
+                password: None,
             },
         )
         .await?;

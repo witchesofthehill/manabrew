@@ -31,6 +31,7 @@ async fn main() {
     let state = Arc::new(state::ServerState::new(
         config.server_key.clone(),
         config.max_rooms,
+        config.official_key.clone(),
     ));
 
     server::run_server(state, addr, health_addr).await;

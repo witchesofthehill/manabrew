@@ -261,6 +261,7 @@ async fn host_one_room(
             room_id: room_id.clone(),
             observe: !config.host_plays,
             as_bot: false,
+            password: config.room_password.clone(),
         })
         .await?;
         info!(room_id, "joining configured room");
@@ -279,6 +280,8 @@ async fn host_one_room(
             engine,
             draft_config: None,
             sealed_config: None,
+            official_key: config.official_key.clone(),
+            password: config.room_password.clone(),
         })
         .await?;
         info!(room_name = %config.room_name, "creating room");
@@ -1090,6 +1093,7 @@ impl RelayClient {
             .send(&ClientMessage::Authenticate {
                 username: username.to_string(),
                 password: password.to_string(),
+                service: true,
             })
             .await?;
         client.wait_for_auth().await?;

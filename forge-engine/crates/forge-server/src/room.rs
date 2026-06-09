@@ -29,6 +29,8 @@ pub struct Room {
     pub host_player_id: String,
     pub host_username: String,
     pub hosted: bool,
+    pub official: bool,
+    pub password: Option<String>,
     pub max_players: u8,
     pub format: GameFormat,
     pub engine: EngineKind,
@@ -51,6 +53,8 @@ impl Room {
         host_plays: bool,
         draft_config: Option<DraftConfig>,
         sealed_config: Option<SealedConfig>,
+        official: bool,
+        password: Option<String>,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
         let (players, observers) = if host_plays {
@@ -82,6 +86,8 @@ impl Room {
             host_player_id: host_player_id.clone(),
             host_username,
             hosted: !host_plays,
+            official,
+            password,
             max_players,
             format,
             engine,
@@ -306,6 +312,8 @@ impl Room {
             room_name: self.room_name.clone(),
             host: self.host_username(),
             hosted: self.hosted,
+            official: self.official,
+            password_protected: self.password.is_some(),
             players: self
                 .players
                 .iter()
@@ -342,6 +350,8 @@ mod tests {
             EngineKind::Java,
             host_plays,
             None,
+            None,
+            false,
             None,
         )
     }

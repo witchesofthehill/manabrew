@@ -1,16 +1,39 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Hand, Users, Swords, Shield, LogOut, Bot, X, ChevronDown } from "lucide-react";
+import {
+  Hand,
+  Users,
+  Swords,
+  Shield,
+  LogOut,
+  Bot,
+  X,
+  ChevronDown,
+  BadgeCheck,
+  Lock,
+  Cpu,
+  Anvil,
+  Search,
+} from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
+import { getFormat } from "@/lib/formats";
 import { cn } from "@/lib/utils";
 
 const HOST_SELECTABLE_FORMATS: GameFormat[] = [
@@ -28,6 +51,44 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
 
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];
 
+const TAG_CLASSES: Record<string, string> = {
+  official: "bg-primary text-primary-foreground",
+  blue: "bg-format-badge-blue/15 text-format-badge-blue",
+  amber: "bg-format-badge-amber/15 text-format-badge-amber",
+  emerald: "bg-format-badge-emerald/15 text-format-badge-emerald",
+  rose: "bg-format-badge-rose/15 text-format-badge-rose",
+  slate: "bg-format-badge-slate/15 text-format-badge-slate",
+  zinc: "bg-format-badge-zinc/15 text-format-badge-zinc",
+  purple: "bg-format-badge-purple/15 text-format-badge-purple",
+  teal: "bg-format-badge-teal/15 text-format-badge-teal",
+  orange: "bg-format-badge-orange/15 text-format-badge-orange",
+  sky: "bg-format-badge-sky/15 text-format-badge-sky",
+  indigo: "bg-format-badge-indigo/15 text-format-badge-indigo",
+  neutral: "bg-muted text-muted-foreground",
+};
+
+function LobbyTag({
+  tone,
+  className,
+  children,
+}: {
+  tone: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold leading-tight",
+        TAG_CLASSES[tone] ?? TAG_CLASSES.neutral,
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -36,7 +97,7 @@ interface TablesListProps {
   onRefresh: () => void;
   refreshing: boolean;
   refreshDisabled: boolean;
-  onJoinRoom: (roomId: string) => Promise<void>;
+  onJoinRoom: (roomId: string, password?: string) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
@@ -74,6 +135,9 @@ export function TablesList({
   mySpawnedBots = [],
 }: TablesListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
+  const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [search, setSearch] = useState("");
 
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
@@ -101,15 +165,41 @@ export function TablesList({
       })
     : [];
 
-  async function handleJoinRoom(roomId: string) {
+  async function handleJoinRoom(roomId: string, password?: string) {
     if (joiningRoomId) return;
     setJoiningRoomId(roomId);
     try {
-      await onJoinRoom(roomId);
+      await onJoinRoom(roomId, password);
     } finally {
       setJoiningRoomId(null);
     }
   }
+
+  function requestJoin(room: RoomInfo) {
+    if (room.password_protected) {
+      setPasswordValue("");
+      setPasswordRoom(room);
+    } else {
+      void handleJoinRoom(room.room_id);
+    }
+  }
+
+  function submitPasswordJoin() {
+    if (!passwordRoom) return;
+    const roomId = passwordRoom.room_id;
+    setPasswordRoom(null);
+    void handleJoinRoom(roomId, passwordValue);
+  }
+
+  const trimmedSearch = search.trim().toLowerCase();
+  const visibleRooms = rooms
+    .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
+    .filter(
+      (room) =>
+        !trimmedSearch ||
+        room.room_name.toLowerCase().includes(trimmedSearch) ||
+        room.host.toLowerCase().includes(trimmedSearch),
+    );
 
   return (
     <div className="h-full flex flex-col">
@@ -399,115 +489,173 @@ export function TablesList({
         </div>
       )}
 
+      {/* Room search */}
+      {rooms.length > 0 && (
+        <div className="px-4 pt-1 pb-1 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search rooms…"
+              className="h-8 pl-8 text-sm"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Room list */}
       <ScrollArea className="flex-1">
-        <div className="p-4">
-          {rooms.length === 0 ? (
+        <div className="px-4 pb-4 pt-2">
+          {visibleRooms.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="text-4xl mb-3 opacity-20">🎮</div>
-              <p className="text-sm text-muted-foreground">No rooms available</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                Create a new room to start playing
+              <p className="text-sm text-muted-foreground">
+                {rooms.length === 0 ? "No rooms available" : "No rooms match your search"}
               </p>
+              {rooms.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Create a new room to start playing
+                </p>
+              )}
             </div>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {rooms
-                .filter((room) => room.status === "Lobby" || room.room_id === currentRoom?.room_id)
-                .map((room) => {
-                  const isMyRoom = room.room_id === currentRoom?.room_id;
-                  const canJoin =
-                    !inRoom && room.status === "Lobby" && room.players.length < room.max_players;
-                  const isFull = room.players.length >= room.max_players;
+            <div className="divide-y overflow-hidden rounded-lg border bg-card/40">
+              {visibleRooms.map((room) => {
+                const isMyRoom = room.room_id === currentRoom?.room_id;
+                const canJoin =
+                  !inRoom && room.status === "Lobby" && room.players.length < room.max_players;
+                const isFull = room.players.length >= room.max_players;
+                const format = getFormat(room.format.toLowerCase());
+                const modeLabel = format?.name ?? room.format;
+                const modeTone = format?.badgeColor ?? "neutral";
+                const limitedLabel = room.draft_config
+                  ? (room.draft_config.cube_name ?? room.draft_config.set_code)
+                  : room.sealed_config
+                    ? room.sealed_config.set_code
+                    : null;
+                const showHost = !room.official && !room.hosted;
 
-                  return (
-                    <div
-                      key={room.room_id}
-                      className={cn(
-                        "rounded-lg border p-3 transition-colors",
-                        isMyRoom && "border-primary/40 bg-primary/5",
-                        !isMyRoom &&
-                          canJoin &&
-                          "hover:border-primary/30 hover:bg-muted/20 cursor-pointer",
-                      )}
-                      onClick={() => {
-                        if (canJoin) void handleJoinRoom(room.room_id);
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="min-w-0">
-                          <div className="font-medium text-sm truncate">{room.room_name}</div>
-                          <div className="text-[11px] text-muted-foreground">by {room.host}</div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {room.hosted && (
-                            <Badge variant="secondary" className="text-[10px]">
-                              ManaBrew
-                            </Badge>
-                          )}
-                          {room.draft_config && (
-                            <Badge variant="secondary" className="text-[10px] uppercase">
-                              {room.draft_config.cube_name ?? room.draft_config.set_code}
-                            </Badge>
-                          )}
-                          {room.sealed_config && (
-                            <Badge variant="secondary" className="text-[10px] uppercase">
-                              {room.sealed_config.set_code}
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-[10px]">
-                            {room.engine === "Java" ? "Forge" : "Rust"}
-                          </Badge>
-                          <Badge variant="outline" className="text-[10px]">
-                            {room.format}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Users className="h-3 w-3" />
-                          <span>
-                            {room.players.length}/{room.max_players}
+                return (
+                  <div
+                    key={room.room_id}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 transition-colors",
+                      isMyRoom && "bg-primary/5",
+                      !isMyRoom && canJoin && "hover:bg-muted/40 cursor-pointer",
+                    )}
+                    onClick={() => {
+                      if (canJoin) requestJoin(room);
+                    }}
+                  >
+                    {(room.official || room.password_protected) && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {room.official && (
+                          <span title="Official room" className="inline-flex">
+                            <BadgeCheck className="h-4 w-4 text-primary" />
                           </span>
-                          <Badge
-                            variant={room.status === "Lobby" ? "outline" : "secondary"}
-                            className="text-[9px] ml-1"
-                          >
-                            {room.status === "InGame" ? "In Game" : room.status}
-                          </Badge>
-                        </div>
-
-                        {isMyRoom ? (
-                          <Badge variant="secondary" className="text-[10px]">
-                            Joined
-                          </Badge>
-                        ) : canJoin ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-6 text-[11px] px-2"
-                            disabled={joiningRoomId === room.room_id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleJoinRoom(room.room_id);
-                            }}
-                          >
-                            {joiningRoomId === room.room_id ? "Joining..." : "Join"}
-                          </Button>
-                        ) : room.status === "InGame" ? (
-                          <span className="text-[10px] text-muted-foreground">Playing</span>
-                        ) : isFull ? (
-                          <span className="text-[10px] text-muted-foreground">Full</span>
-                        ) : null}
+                        )}
+                        {room.password_protected && (
+                          <span title="Private room" className="inline-flex">
+                            <Lock className="h-3.5 w-3.5 text-format-badge-amber" />
+                          </span>
+                        )}
                       </div>
+                    )}
+
+                    <span className="font-medium text-sm truncate min-w-0">{room.room_name}</span>
+
+                    <LobbyTag tone={room.engine === "Java" ? "blue" : "sky"} className="shrink-0">
+                      {room.engine === "Java" ? (
+                        <Anvil className="h-3 w-3" />
+                      ) : (
+                        <Cpu className="h-3 w-3" />
+                      )}
+                      {room.engine === "Java" ? "Forge" : "ManaBrew"}
+                    </LobbyTag>
+                    {room.format !== "Any" && (
+                      <LobbyTag tone={modeTone} className="shrink-0">
+                        {modeLabel}
+                      </LobbyTag>
+                    )}
+                    {limitedLabel && (
+                      <LobbyTag tone="purple" className="uppercase max-w-[7rem] truncate shrink-0">
+                        {limitedLabel}
+                      </LobbyTag>
+                    )}
+                    {showHost && (
+                      <span className="hidden truncate text-[11px] text-muted-foreground sm:block max-w-[9rem]">
+                        by {room.host}
+                      </span>
+                    )}
+
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        <span>
+                          {room.players.length}/{room.max_players}
+                        </span>
+                      </div>
+                      {isMyRoom ? (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Joined
+                        </Badge>
+                      ) : canJoin ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 text-[11px] px-2"
+                          disabled={joiningRoomId === room.room_id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            requestJoin(room);
+                          }}
+                        >
+                          {joiningRoomId === room.room_id ? "Joining..." : "Join"}
+                        </Button>
+                      ) : room.status === "InGame" ? (
+                        <span className="text-[10px] text-muted-foreground">Playing</span>
+                      ) : isFull ? (
+                        <span className="text-[10px] text-muted-foreground">Full</span>
+                      ) : null}
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </ScrollArea>
+
+      <Dialog open={passwordRoom != null} onOpenChange={(open) => !open && setPasswordRoom(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle className="flex items-center gap-2">
+            <Lock className="h-4 w-4" />
+            Private room
+          </DialogTitle>
+          <DialogDescription>
+            Enter the password to join {passwordRoom?.room_name}.
+          </DialogDescription>
+          <Input
+            type="password"
+            autoFocus
+            value={passwordValue}
+            onChange={(e) => setPasswordValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitPasswordJoin();
+            }}
+            placeholder="Password"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPasswordRoom(null)}>
+              Cancel
+            </Button>
+            <Button onClick={submitPasswordJoin} disabled={passwordValue.length === 0}>
+              Join
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

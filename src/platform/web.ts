@@ -807,7 +807,12 @@ class WebServerApi implements IServerApi {
   }
 
   async joinRoom(params: JoinRoomParams): Promise<void> {
-    this.send({ type: "JoinRoom", room_id: params.roomId, observe: params.observe ?? false });
+    this.send({
+      type: "JoinRoom",
+      room_id: params.roomId,
+      observe: params.observe ?? false,
+      password: params.password ?? null,
+    });
   }
 
   async leaveRoom(): Promise<void> {

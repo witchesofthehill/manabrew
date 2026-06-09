@@ -300,7 +300,11 @@ async fn authenticate(
         serde_json::from_str(&text).map_err(|e| ServerError::AuthFailed(e.to_string()))?;
 
     match msg {
-        ClientMessage::Authenticate { username, password } => {
+        ClientMessage::Authenticate {
+            username,
+            password,
+            service,
+        } => {
             if password != state.server_key {
                 let reply = ServerMessage::AuthResult {
                     success: false,
@@ -473,6 +477,7 @@ async fn authenticate(
                     generation,
                     last_seen: Instant::now(),
                     disconnected_at: None,
+                    is_service: service,
                 },
             );
 
@@ -539,6 +544,7 @@ fn handle_client_message(
             let players: Vec<_> = state
                 .players
                 .iter()
+                .filter(|entry| !entry.value().is_service)
                 .map(|entry| crate::protocol::PlayerInfo {
                     username: entry.value().username.clone(),
                     player_id: entry.value().player_id.clone(),
@@ -562,6 +568,8 @@ fn handle_client_message(
             engine,
             draft_config,
             sealed_config,
+            official_key,
+            password,
         } => {
             info!(
                 "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
@@ -584,6 +592,8 @@ fn handle_client_message(
                 engine,
                 draft_config,
                 sealed_config,
+                official_key,
+                password,
             ) {
                 Ok(info) => {
                     info!(
@@ -617,6 +627,7 @@ fn handle_client_message(
             room_id,
             observe,
             as_bot,
+            password,
         } => {
             info!(
                 "[lobby] '{}' joining room {} (observe={}, bot={})",
@@ -625,7 +636,7 @@ fn handle_client_message(
                 observe,
                 as_bot
             );
-            match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot) {
+            match lobby::join_room_sync(state, player_id, &room_id, observe, as_bot, password) {
                 Ok(info) => {
                     info!("[lobby] '{}' joined room '{}'", username, info.room_name);
                     if !observe {

@@ -14,6 +14,7 @@ pub struct ConnectedPlayer {
     pub generation: u64,
     pub last_seen: Instant,
     pub disconnected_at: Option<Instant>,
+    pub is_service: bool,
 }
 
 pub struct ServerState {
@@ -21,15 +22,17 @@ pub struct ServerState {
     pub rooms: DashMap<String, Room>,
     pub server_key: String,
     pub max_rooms: usize,
+    pub official_key: Option<String>,
 }
 
 impl ServerState {
-    pub fn new(server_key: String, max_rooms: usize) -> Self {
+    pub fn new(server_key: String, max_rooms: usize, official_key: Option<String>) -> Self {
         ServerState {
             players: DashMap::new(),
             rooms: DashMap::new(),
             server_key,
             max_rooms,
+            official_key,
         }
     }
 

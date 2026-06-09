@@ -4,6 +4,7 @@ pub struct ServerConfig {
     pub health_port: u16,
     pub max_rooms: usize,
     pub server_key: String,
+    pub official_key: Option<String>,
 }
 
 impl ServerConfig {
@@ -23,6 +24,9 @@ impl ServerConfig {
                 .and_then(|r| r.parse().ok())
                 .unwrap_or(100),
             server_key: std::env::var("FORGE_SERVER_KEY").unwrap_or_else(|_| "forge".into()),
+            official_key: std::env::var("SECRET_MANABREW_KEY")
+                .ok()
+                .filter(|key| !key.is_empty()),
         }
     }
 }

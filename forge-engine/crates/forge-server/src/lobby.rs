@@ -18,6 +18,8 @@ pub fn create_room_sync(
     engine: EngineKind,
     draft_config: Option<DraftConfig>,
     sealed_config: Option<SealedConfig>,
+    official_key: Option<String>,
+    password: Option<String>,
 ) -> Result<RoomInfo, ServerError> {
     if let Some(cfg) = &draft_config {
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
@@ -55,6 +57,11 @@ pub fn create_room_sync(
         .map(|p| p.username.clone())
         .unwrap_or_default();
 
+    let official = match &state.official_key {
+        Some(key) => official_key.as_deref() == Some(key.as_str()),
+        None => false,
+    };
+
     let room_id = uuid::Uuid::new_v4().to_string();
     let room = Room::new(
         room_id.clone(),
@@ -67,6 +74,8 @@ pub fn create_room_sync(
         !hosted,
         draft_config,
         sealed_config,
+        official,
+        password.filter(|value| !value.is_empty()),
     );
     let info = room.to_room_info();
 
@@ -85,6 +94,7 @@ pub fn join_room_sync(
     room_id: &str,
     observe: bool,
     as_bot: bool,
+    password: Option<String>,
 ) -> Result<RoomInfo, ServerError> {
     {
         if let Some(player) = state.players.get(player_id) {
@@ -110,6 +120,12 @@ pub fn join_room_sync(
 
         if room.status != RoomStatus::Lobby {
             return Err(ServerError::GameAlreadyStarted);
+        }
+
+        if let Some(required) = &room.password {
+            if password.as_deref() != Some(required.as_str()) {
+                return Err(ServerError::IncorrectPassword);
+            }
         }
 
         if observe {

@@ -113,6 +113,7 @@ pub async fn server_join_room(
     client: State<'_, ServerClient>,
     room_id: String,
     observe: Option<bool>,
+    password: Option<String>,
 ) -> Result<(), String> {
     send_server_message(
         &client,
@@ -120,6 +121,7 @@ pub async fn server_join_room(
             "type": "JoinRoom",
             "room_id": room_id,
             "observe": observe.unwrap_or(false),
+            "password": password,
         }),
     )
 }

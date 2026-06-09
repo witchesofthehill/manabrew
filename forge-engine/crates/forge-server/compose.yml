@@ -25,6 +25,7 @@ services:
       FORGE_PORT: "9443"
       FORGE_MAX_ROOMS: "100"
       FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "forge_server=info"
     restart: on-failure:5
 
@@ -38,6 +39,7 @@ services:
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      SELF_HOSTED_NODE_OFFICIAL_KEY: "${SECRET_MANABREW_KEY:-}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       RUST_LOG: "self_hosted_node=info,forge_bot=info"

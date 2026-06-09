@@ -69,6 +69,7 @@ export interface CreateRoomParams {
 export interface JoinRoomParams {
   roomId: string;
   observe?: boolean;
+  password?: string;
 }
 
 export interface SetReadyParams {

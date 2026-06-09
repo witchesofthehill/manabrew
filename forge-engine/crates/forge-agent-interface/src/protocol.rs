@@ -104,6 +104,8 @@ pub enum ClientMessage {
     Authenticate {
         username: String,
         password: String,
+        #[serde(default)]
+        service: bool,
     },
 
     Ping,
@@ -124,6 +126,10 @@ pub enum ClientMessage {
         draft_config: Option<DraftConfig>,
         #[serde(default)]
         sealed_config: Option<SealedConfig>,
+        #[serde(default)]
+        official_key: Option<String>,
+        #[serde(default)]
+        password: Option<String>,
     },
 
     JoinRoom {
@@ -132,6 +138,8 @@ pub enum ClientMessage {
         observe: bool,
         #[serde(default)]
         as_bot: bool,
+        #[serde(default)]
+        password: Option<String>,
     },
 
     LeaveRoom,
@@ -256,6 +264,10 @@ pub struct RoomInfo {
     pub host: String,
     #[serde(default)]
     pub hosted: bool,
+    #[serde(default)]
+    pub official: bool,
+    #[serde(default)]
+    pub password_protected: bool,
     pub players: Vec<RoomPlayerInfo>,
     pub max_players: u8,
     pub format: GameFormat,

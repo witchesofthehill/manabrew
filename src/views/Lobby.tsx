@@ -446,10 +446,7 @@ export default function Lobby() {
     if (!room || !username || !getPlatform().server) return;
     try {
       if (room.hosted) {
-        // Node-hosted room: ask the engine node to add a seat. In forge-ai mode
-        // the node reserves an in-engine Forge AI seat (one per request); in the
-        // relay-bot mode it spawns a protocol bot. Either way the user's deck is
-        // carried through, so adding N bots yields N AI opponents.
+        // Node-hosted: the engine node adds the seat (Forge AI in forge-ai mode).
         await getPlatform().server!.sendRoomMessage(
           createRoomRelayEnvelope({
             protocol: SELF_HOSTED_NODE_RELAY_PROTOCOL,

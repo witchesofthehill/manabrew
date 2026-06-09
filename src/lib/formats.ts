@@ -497,3 +497,20 @@ export function inferFormats(cardNames: string[]): GameFormat[] {
 export function inferFormatsFromDeck(deck: Deck): GameFormat[] {
   return GAME_FORMATS.filter((format) => validateDeckSections({ deck }, format).legal);
 }
+
+/** Whether a deck should be analyzed as Commander (combos, bracket). The stored
+ *  format is the primary signal, but legacy/imported decks often land as
+ *  "standard" with no commander, so a ~100-card singleton shape is accepted as
+ *  a fallback. */
+export function looksLikeCommanderDeck(deck: Deck): boolean {
+  if (getFormat(deck.format ?? "")?.deckRules.requiresCommander) return true;
+  if ((deck.commanders?.length ?? 0) > 0) return true;
+  const total = deck.cards.length + (deck.commanders?.length ?? 0);
+  if (total < 90) return false;
+  const counts = new Map<string, number>();
+  for (const card of deck.cards) {
+    if (BASIC_LAND_NAMES.has(card.name)) continue;
+    counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
+  }
+  return [...counts.values()].every((n) => n === 1);
+}

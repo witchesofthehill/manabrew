@@ -72,6 +72,9 @@ import { DeckLabelsModal } from "./DeckLabelsModal";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckValidationPanel } from "./DeckValidationPanel";
+import { DeckBracketPanel } from "./DeckBracketPanel";
+import { CombosPanel } from "./CombosPanel";
+import { useDeckAnalysis } from "@/hooks/useDeckAnalysis";
 import { useDeckSelection } from "./useDeckSelection";
 import {
   type CardGroup,
@@ -385,6 +388,8 @@ export function DeckBuilder({
     useDeckSelection();
 
   const preview = useCardPreview();
+
+  useDeckAnalysis();
 
   const { setNodeRef: setMainDropRef, isOver: isOverMain } = useDroppable({ id: DROP_ZONE.MAIN });
   const { setNodeRef: setSideDropRef, isOver: isOverSide } = useDroppable({ id: DROP_ZONE.SIDE });
@@ -1354,6 +1359,8 @@ export function DeckBuilder({
         )}
 
         <DeckValidationPanel unsupportedNames={unsupportedNames} />
+        <DeckBracketPanel />
+        <CombosPanel />
         <TokenSection
           tokens={mergedTokens}
           cardSize={cardSize}

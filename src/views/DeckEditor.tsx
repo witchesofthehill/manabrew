@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { Plus, Download } from "lucide-react";
 import { toast } from "sonner";
 import { ImportDeckTextDialog } from "@/components/editor/ImportDeckTextDialog";
-import type { ParsedDeckEntry } from "@/lib/deckImport";
+import { inferImportedFormat, type ParsedDeckEntry } from "@/lib/deckImport";
 import { fetchCardCollection, fetchCardByFuzzyName } from "@/api/scryfall";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { applyDeckFilters } from "@/views/myDecks.utils";
@@ -242,7 +242,7 @@ export default function DeckEditor() {
     }
     const id = addSavedDeck({
       name: deckName,
-      format: "standard",
+      format: inferImportedFormat(cards.map((c) => c.name)),
       cards,
       sideboard,
       attractions: [],

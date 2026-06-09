@@ -12,6 +12,7 @@
       "allow": [
         { "url": "https://archidekt.com/*" },
         { "url": "https://api2.moxfield.com/*" },
+        { "url": "https://backend.commanderspellbook.com/*" },
         { "url": "https://api.scryfall.com/*" },
         { "url": "https://cards.scryfall.io/*" },
         { "url": "https://svgs.scryfall.io/*" },

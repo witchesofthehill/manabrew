@@ -4,7 +4,7 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
@@ -41,6 +41,38 @@ export function CardThumbnail({ card }: { card: DeckCard }) {
         draggable={false}
       />
       {card.foil && <FoilBadge />}
+    </div>
+  );
+}
+
+// ─── Card Analysis Badges (combo / game changer) ─────────────────────────────
+
+export function CardAnalysisBadges({
+  isCombo,
+  isGameChanger,
+}: {
+  isCombo?: boolean;
+  isGameChanger?: boolean;
+}) {
+  if (!isCombo && !isGameChanger) return null;
+  return (
+    <div className="absolute bottom-1 right-1 z-30 flex gap-0.5">
+      {isGameChanger && (
+        <div
+          className="rounded-full bg-pt-lethal/90 text-white p-0.5 shadow"
+          title="Game Changer — restricted to bracket 3+"
+        >
+          <Gem className="h-3 w-3" />
+        </div>
+      )}
+      {isCombo && (
+        <div
+          className="rounded-full bg-counter-charge/90 text-white p-0.5 shadow"
+          title="Part of a combo in this deck"
+        >
+          <Sparkles className="h-3 w-3" />
+        </div>
+      )}
     </div>
   );
 }

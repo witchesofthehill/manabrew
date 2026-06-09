@@ -11,8 +11,23 @@ import {
   type RequestOptions,
 } from "./archidekt";
 import { fetchMoxfieldDeck, fetchMoxfieldResult, parseMoxfieldUrl } from "./moxfield";
+import { BASIC_LAND_NAMES } from "./formats";
+import type { DeckFormatId } from "@/types/manabrew";
 
 export type DeckSource = "archidekt" | "moxfield";
+
+/** Infer a deck format from a plain card list (no format metadata, e.g. a
+ *  pasted list). A ~100-card singleton deck is treated as Commander; anything
+ *  else falls back to standard. */
+export function inferImportedFormat(cardNames: string[]): DeckFormatId {
+  if (cardNames.length < 90) return "standard";
+  const counts = new Map<string, number>();
+  for (const name of cardNames) {
+    if (BASIC_LAND_NAMES.has(name)) continue;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return [...counts.values()].every((n) => n === 1) ? "commander" : "standard";
+}
 
 export interface ParsedDeckUrl {
   source: DeckSource;

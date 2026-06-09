@@ -27,6 +27,7 @@ import {
   Info,
   Image as ImageIcon,
   Sparkles,
+  Gem,
   Trash2,
   Bookmark,
   Check,
@@ -45,11 +46,13 @@ import {
   CardCountBadge,
   CardThumbnail,
   CardHoverOverlay,
+  CardAnalysisBadges,
   CollapsibleHeader,
   EmptyDropZone,
 } from "./deckEditor.primitives";
 import { buildCardActions, handleCardClick } from "./deckEditor.utils";
 import { useIsUnsupported } from "@/stores/useCardSupportStore";
+import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 
 type CardLocation = "main" | "side" | "maybe";
 
@@ -363,6 +366,8 @@ function DraggableStackCard({
     data: { type: "deck-card", card: group.card, name: group.card.name },
   });
   const unsupported = useIsUnsupported(group.card.name);
+  const isCombo = useIsComboCard(group.card.name);
+  const isGameChanger = useIsGameChangerCard(group.card.name);
 
   return (
     <div
@@ -374,6 +379,7 @@ function DraggableStackCard({
         isDragging && "opacity-30",
         isSelected && cn(CARD_RING.selected, "z-50"),
         unsupported && "ring-2 ring-warning/70 rounded-[4%]",
+        isCombo && !isSelected && !unsupported && "ring-2 ring-counter-charge/70 rounded-[4%]",
       )}
       style={{ top: topOffset, width: cardWidth, zIndex: index + 1 }}
       data-card-name={group.card.name}
@@ -392,6 +398,7 @@ function DraggableStackCard({
           <AlertTriangle className="h-3 w-3" />
         </div>
       )}
+      <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
       <CardHoverOverlay
         actions={buildCardActions(
           onAddOne,
@@ -550,6 +557,8 @@ function CardVisual({
     data: { type: "deck-card", card: group.card, name: group.card.name },
   });
   const unsupported = useIsUnsupported(group.card.name);
+  const isCombo = useIsComboCard(group.card.name);
+  const isGameChanger = useIsGameChangerCard(group.card.name);
 
   const visualContent = (
     <div
@@ -561,6 +570,7 @@ function CardVisual({
         isDragging && "opacity-30",
         isSelected && cn(CARD_RING.selected, "rounded-lg"),
         unsupported && "ring-2 ring-warning/70 rounded-lg",
+        isCombo && !isSelected && !unsupported && "ring-2 ring-counter-charge/70 rounded-lg",
       )}
       data-card-name={group.card.name}
       data-card-supported={unsupported ? "false" : undefined}
@@ -576,6 +586,7 @@ function CardVisual({
           <AlertTriangle className="h-3 w-3" />
         </div>
       )}
+      <CardAnalysisBadges isCombo={isCombo} isGameChanger={isGameChanger} />
       <div className="absolute top-1 left-1 z-20 flex gap-0.5">
         {showCommander && (
           <button
@@ -741,6 +752,8 @@ function CardRow({
     data: { type: "deck-card", card: group.card, name: group.card.name },
   });
   const unsupported = useIsUnsupported(group.card.name);
+  const isCombo = useIsComboCard(group.card.name);
+  const isGameChanger = useIsGameChangerCard(group.card.name);
 
   const rowContent = (
     <div
@@ -795,6 +808,15 @@ function CardRow({
       >
         {group.card.name}
       </span>
+      {isGameChanger && (
+        <Gem className="h-3 w-3 text-pt-lethal shrink-0" aria-label="Game Changer" />
+      )}
+      {isCombo && (
+        <Sparkles
+          className="h-3 w-3 text-counter-charge shrink-0"
+          aria-label="Part of a combo in this deck"
+        />
+      )}
       {group.card.manaCost && (
         <ManaSymbols cost={group.card.manaCost} size="sm" className="shrink-0" />
       )}

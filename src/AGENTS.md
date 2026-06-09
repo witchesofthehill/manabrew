@@ -59,6 +59,10 @@ Use the exported hook helpers, not the raw store:
 
 Lookup keys are normalized internally (`id:` / `set:…::cn:…` / `name:…[::set:…]`); always pass structured args, never assemble keys yourself. Token cards resolve through the same store from `public/token_archive.json`; do not add per-component token fetch/discovery hooks.
 
+## Deck analysis — combos & bracket
+
+Commander deck analysis (combos, Game Changers, bracket estimate) lives in `stores/useDeckAnalysisStore.ts`, driven by `hooks/useDeckAnalysis.ts` (mounted once in `DeckBuilder`). Combos come from Commander Spellbook (`api/commanderSpellbook.ts`); the Game Changers list and bracket logic come from Scryfall + `lib/brackets.ts` (`lib/gameChangers.ts`). Card cells read membership via the name-keyed selectors `useIsComboCard` / `useIsGameChangerCard` — the same pattern as `useIsUnsupported`, so no prop-drilling through `DeckListView`. This is deck-level analysis, not card lookup; it is exempt from the "Scryfall store only" rule above.
+
 ## Engine ↔ UI DTOs
 
 The engine→UI channel carries **three separate message families**, never conflated: `state` (a `StateUpdate` = `{ gameView }`, the sole carrier of game state), `display` (a `DisplayEvent` animation hint), and `prompt` (a `Prompt` call-to-action that carries **no** gameView). The store has one apply fn each — `applyState` / `applyDisplay` / `applyPrompt` (`stores/gameStore.constants.ts`) — and `useGameEventListeners` routes `game:state` / `game:display` / `game:prompt` (plus `game:remote_*` for relay seats) to them. State is applied for whichever player it is addressed to; a prompt only becomes actionable when `forPlayer === myPlayerSlot`. Prompt modals read gameView from the store (via `ctx.gameView`), never off the prompt.

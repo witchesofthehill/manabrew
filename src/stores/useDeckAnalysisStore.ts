@@ -60,6 +60,8 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
         }),
       ]);
 
+      if (get().lastSignature !== signature) return;
+
       const comboCardNames = new Set<string>();
       for (const combo of combos.included) {
         for (const use of combo.uses) comboCardNames.add(normalizeCardName(use.card.name));
@@ -74,6 +76,7 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
         bracket: assessBracket(deck, gameChangers, combos.included),
       });
     } catch (err) {
+      if (get().lastSignature !== signature) return;
       console.warn("[deck-analysis] failed", err);
       set({
         loading: false,

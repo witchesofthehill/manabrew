@@ -23,6 +23,7 @@ pub struct Config {
     pub room_password: Option<String>,
     pub bot_enabled: bool,
     pub bot_username: String,
+    pub forge_ai: bool,
     pub host_deck: DeckSelection,
     pub bot_deck: DeckSelection,
 }
@@ -115,6 +116,7 @@ impl Config {
                 false,
             ),
             bot_username,
+            forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", false),
             host_deck: load_deck_selection(&host_deck_id, host_commander),
             bot_deck: load_deck_selection(&bot_deck_id, bot_commander),
         }

@@ -9,6 +9,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import forge.ai.LobbyPlayerAi;
 import forge.deck.CardPool;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
@@ -84,8 +85,12 @@ public final class ManaBrewEngineAdapter {
             Deck deck = buildDeck(playerConfig);
             RegisteredPlayer registeredPlayer = RegisteredPlayer.forVariants(
                     playerCount, variants, deck, null, false, null, null);
-            registeredPlayer.setPlayer(new ManaBrewInteractiveLobbyPlayer(
-                    playerConfig.getName(), session));
+            if (playerConfig.isAi()) {
+                registeredPlayer.setPlayer(new LobbyPlayerAi(playerConfig.getName(), null));
+            } else {
+                registeredPlayer.setPlayer(new ManaBrewInteractiveLobbyPlayer(
+                        playerConfig.getName(), session));
+            }
             registeredPlayers.add(registeredPlayer);
         }
 
@@ -225,7 +230,10 @@ public final class ManaBrewEngineAdapter {
                         requiredString(cardObject, "name"),
                         optionalString(cardObject, "setCode")));
             }
-            players.add(new PlayerConfig(name, deck, commanderName));
+            boolean ai = playerObject.has("ai")
+                    && !playerObject.get("ai").isJsonNull()
+                    && playerObject.get("ai").getAsBoolean();
+            players.add(new PlayerConfig(name, deck, commanderName, ai));
         }
         return new StartGameRequest(gameId, startingLife, seed, players);
     }
@@ -290,11 +298,13 @@ public final class ManaBrewEngineAdapter {
         private final String name;
         private final List<CardIdentity> deck;
         private final String commanderName;
+        private final boolean ai;
 
         public PlayerConfig(
                 final String name,
                 final List<CardIdentity> deck,
-                final String commanderName
+                final String commanderName,
+                final boolean ai
         ) {
             if (name == null || name.isBlank()) {
                 throw new IllegalArgumentException("player name is required");
@@ -305,6 +315,7 @@ public final class ManaBrewEngineAdapter {
             this.name = name;
             this.deck = List.copyOf(deck);
             this.commanderName = commanderName;
+            this.ai = ai;
         }
 
         public String getName() {
@@ -317,6 +328,10 @@ public final class ManaBrewEngineAdapter {
 
         public String getCommanderName() {
             return commanderName;
+        }
+
+        public boolean isAi() {
+            return ai;
         }
     }
 

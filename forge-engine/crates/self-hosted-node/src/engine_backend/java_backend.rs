@@ -700,6 +700,7 @@ pub fn run_hosted_engine_game(
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
+    ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
@@ -712,6 +713,7 @@ pub fn run_hosted_engine_game(
         decks,
         commander_names,
         local_player_index,
+        ai_player_indices,
         starting_life,
         remote_prompt_tx,
         remote_response_rxs,
@@ -729,6 +731,7 @@ pub fn run_hosted_engine_game(
     _decks: Vec<Deck>,
     _commander_names: Vec<Option<String>>,
     _local_player_index: Option<usize>,
+    _ai_player_indices: Vec<usize>,
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
@@ -748,6 +751,7 @@ fn run_hosted_engine_game_inner(
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
+    ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
@@ -764,6 +768,11 @@ fn run_hosted_engine_game_inner(
             &identities,
             commander_names[index].clone(),
         ));
+    }
+    for &idx in &ai_player_indices {
+        if let Some(player) = players.get_mut(idx) {
+            player.ai = true;
+        }
     }
     let request = StartGameRequest::new(game_id.clone(), starting_life, rand::random(), players);
     let session_id = engine.start_game(&request.to_json().map_err(|err| err.to_string())?)?;
@@ -1779,6 +1788,7 @@ pub struct PlayerConfig {
     name: String,
     deck: Vec<CardIdentityForJava>,
     commander_name: Option<String>,
+    ai: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1817,6 +1827,7 @@ impl PlayerConfig {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
             commander_name,
+            ai: false,
         }
     }
 }

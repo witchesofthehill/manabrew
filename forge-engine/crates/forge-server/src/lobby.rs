@@ -254,6 +254,35 @@ pub fn set_deck_selection_sync(
     Ok(room_id)
 }
 
+pub fn add_ai_seats_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    ai_seats: Vec<AiSeat>,
+) -> Result<RoomInfo, ServerError> {
+    let room_id = state
+        .players
+        .get(player_id)
+        .and_then(|p| p.room_id.clone())
+        .ok_or(ServerError::NotInRoom)?;
+
+    let mut room = state
+        .rooms
+        .get_mut(&room_id)
+        .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+
+    if !room.is_controller(player_id) {
+        return Err(ServerError::NotHost);
+    }
+    if room.status != RoomStatus::Lobby {
+        return Err(ServerError::GameAlreadyStarted);
+    }
+
+    for seat in ai_seats {
+        room.add_ai_seat(seat);
+    }
+    Ok(room.to_room_info())
+}
+
 pub struct StartedGame {
     pub room_id: String,
     pub player_order: Vec<String>,

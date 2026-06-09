@@ -113,6 +113,10 @@ pub enum ClientMessage {
         ai_seats: Vec<AiSeat>,
     },
 
+    AddAiSeats {
+        ai_seats: Vec<AiSeat>,
+    },
+
     JoinRoom {
         room_id: String,
         #[serde(default)]

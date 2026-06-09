@@ -615,6 +615,25 @@ fn handle_client_message(
             }
         }
 
+        ClientMessage::AddAiSeats { ai_seats } => {
+            match lobby::add_ai_seats_sync(state, player_id, ai_seats) {
+                Ok(info) => {
+                    let room_id = info.room_id.clone();
+                    broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                }
+                Err(e) => {
+                    warn!("[lobby] '{}' add ai seats failed: {}", username, e);
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: e.code().into(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
         ClientMessage::JoinRoom { room_id, observe } => {
             info!(
                 "[lobby] '{}' joining room {} (observe={})",
@@ -944,6 +963,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::ListRooms => "ListRooms",
         ClientMessage::ListPlayers => "ListPlayers",
         ClientMessage::CreateRoom { .. } => "CreateRoom",
+        ClientMessage::AddAiSeats { .. } => "AddAiSeats",
         ClientMessage::JoinRoom { .. } => "JoinRoom",
         ClientMessage::LeaveRoom => "LeaveRoom",
         ClientMessage::SetReady { .. } => "SetReady",

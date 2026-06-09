@@ -39,6 +39,19 @@ pub struct Room {
     pub sealed_config: Option<SealedConfig>,
 }
 
+fn make_ai_slot(index: usize, seat: AiSeat) -> RoomSlot {
+    RoomSlot {
+        player_id: format!("ai-{index}"),
+        username: seat.name,
+        ready: true,
+        connected: true,
+        selected_deck_name: Some(seat.deck_name),
+        selected_deck: Some(seat.deck),
+        selected_commander_name: seat.commander_name,
+        is_bot: true,
+    }
+}
+
 impl Room {
     pub fn new(
         room_id: String,
@@ -78,16 +91,7 @@ impl Room {
             )
         };
         for (i, seat) in ai_seats.into_iter().enumerate() {
-            players.push(RoomSlot {
-                player_id: format!("ai-{i}"),
-                username: seat.name,
-                ready: true,
-                connected: true,
-                selected_deck_name: Some(seat.deck_name),
-                selected_deck: Some(seat.deck),
-                selected_commander_name: seat.commander_name,
-                is_bot: true,
-            });
+            players.push(make_ai_slot(i, seat));
         }
         Room {
             room_id,
@@ -143,6 +147,11 @@ impl Room {
             is_bot: false,
         });
         Ok(())
+    }
+
+    pub fn add_ai_seat(&mut self, seat: AiSeat) {
+        let index = self.players.len();
+        self.players.push(make_ai_slot(index, seat));
     }
 
     pub fn add_observer(&mut self, player_id: String, _username: String) -> Result<(), String> {

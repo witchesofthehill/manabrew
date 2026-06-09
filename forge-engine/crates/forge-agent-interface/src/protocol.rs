@@ -75,6 +75,15 @@ pub struct PlayerDeckInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiSeat {
+    pub name: String,
+    pub deck_name: String,
+    pub deck: Deck,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commander_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ClientMessage {
     Authenticate {
@@ -100,6 +109,8 @@ pub enum ClientMessage {
         draft_config: Option<DraftConfig>,
         #[serde(default)]
         sealed_config: Option<SealedConfig>,
+        #[serde(default)]
+        ai_seats: Vec<AiSeat>,
     },
 
     JoinRoom {
@@ -196,6 +207,8 @@ pub enum ServerMessage {
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
         starting_life: i32,
+        #[serde(default)]
+        ai_player_indices: Vec<usize>,
     },
 
     StateUpdate {

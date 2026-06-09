@@ -562,6 +562,7 @@ fn handle_client_message(
             engine,
             draft_config,
             sealed_config,
+            ai_seats: _,
         } => {
             info!(
                 "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
@@ -811,6 +812,7 @@ fn handle_client_message(
                             player_order: started.player_order,
                             player_decks: started.player_decks,
                             starting_life: started.starting_life,
+                            ai_player_indices: Vec::new(),
                         },
                     );
                 }

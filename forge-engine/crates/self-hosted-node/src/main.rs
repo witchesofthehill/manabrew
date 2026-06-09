@@ -278,6 +278,7 @@ async fn host_one_room(
             engine,
             draft_config: None,
             sealed_config: None,
+            ai_seats: Vec::new(),
         })
         .await?;
         info!(room_name = %config.room_name, "creating room");
@@ -509,6 +510,7 @@ async fn handle_server_message(
             player_order,
             player_decks,
             starting_life,
+            ai_player_indices: _,
         } => {
             info!(room_id, ?player_order, observer = %client.username, "game started");
             maybe_start_hosted_engine(

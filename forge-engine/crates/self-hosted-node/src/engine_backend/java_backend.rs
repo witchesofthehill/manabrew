@@ -689,7 +689,7 @@ pub fn run_hosted_engine_game(
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
-    ai_player_index: Option<usize>,
+    ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
@@ -702,7 +702,7 @@ pub fn run_hosted_engine_game(
         decks,
         commander_names,
         local_player_index,
-        ai_player_index,
+        ai_player_indices,
         starting_life,
         remote_prompt_tx,
         remote_response_rxs,
@@ -720,7 +720,7 @@ pub fn run_hosted_engine_game(
     _decks: Vec<Deck>,
     _commander_names: Vec<Option<String>>,
     _local_player_index: Option<usize>,
-    _ai_player_index: Option<usize>,
+    _ai_player_indices: Vec<usize>,
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
@@ -740,7 +740,7 @@ fn run_hosted_engine_game_inner(
     decks: Vec<Deck>,
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
-    ai_player_index: Option<usize>,
+    ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentPrompt)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
@@ -758,7 +758,7 @@ fn run_hosted_engine_game_inner(
             commander_names[index].clone(),
         ));
     }
-    if let Some(idx) = ai_player_index {
+    for &idx in &ai_player_indices {
         if let Some(player) = players.get_mut(idx) {
             player.ai = true;
         }

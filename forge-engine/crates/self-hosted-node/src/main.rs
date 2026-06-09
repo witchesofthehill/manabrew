@@ -16,8 +16,8 @@ use forge_agent_interface::prompt::{AgentPrompt, PlayerAction};
 use forge_bot::{run_bot, AgentKind, BotConfig};
 use forge_engine_core::game::TypeRegistry;
 use forge_server::protocol::{
-    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope,
+    AiSeat, ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus,
+    ServerMessage, StateEnvelope,
 };
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -510,7 +510,7 @@ async fn handle_server_message(
             player_order,
             player_decks,
             starting_life,
-            ai_player_indices: _,
+            ai_player_indices,
         } => {
             info!(room_id, ?player_order, observer = %client.username, "game started");
             maybe_start_hosted_engine(
@@ -520,6 +520,7 @@ async fn handle_server_message(
                 player_order,
                 player_decks,
                 starting_life,
+                ai_player_indices,
             );
         }
         ServerMessage::Error { code, message } => {
@@ -580,8 +581,22 @@ async fn handle_state_update(
                     if effective_room_id == room_id {
                         info!(observer = %client.username, room_id, "received spawnBot request");
                         let bot_deck = bot_deck_from_payload(config, &payload);
-                        stop_bot(bot_state);
-                        spawn_bot(config, &bot_deck, room_id.to_string(), bot_state);
+                        if config.forge_ai {
+                            let ai_seat = AiSeat {
+                                name: config.bot_username.clone(),
+                                deck_name: bot_deck.name.clone(),
+                                deck: bot_deck.deck.clone(),
+                                commander_name: bot_deck.commander_name.clone(),
+                            };
+                            client
+                                .send(&ClientMessage::AddAiSeats {
+                                    ai_seats: vec![ai_seat],
+                                })
+                                .await?;
+                        } else {
+                            stop_bot(bot_state);
+                            spawn_bot(config, &bot_deck, room_id.to_string(), bot_state);
+                        }
                     } else {
                         debug!(
                             observer = %client.username,
@@ -675,6 +690,7 @@ fn maybe_start_hosted_engine(
     player_order: Vec<String>,
     player_decks: Vec<PlayerDeckInfo>,
     starting_life: i32,
+    ai_player_indices: Vec<usize>,
 ) {
     if !config.engine_enabled {
         debug!("hosted engine disabled for this node");
@@ -752,13 +768,6 @@ fn maybe_start_hosted_engine(
     }
 
     let player_names = player_order;
-    let bot_index = if config.forge_ai && config.bot_enabled {
-        player_names
-            .iter()
-            .position(|name| name == &config.bot_username)
-    } else {
-        None
-    };
     let game_id = format!("room-game-{}", Uuid::new_v4());
 
     match backend {
@@ -844,7 +853,7 @@ fn maybe_start_hosted_engine(
                         ordered_decks,
                         commander_names,
                         local_player_index,
-                        bot_index,
+                        ai_player_indices,
                         starting_life,
                         remote_prompt_tx,
                         remote_response_rxs,

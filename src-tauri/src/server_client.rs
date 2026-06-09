@@ -293,6 +293,7 @@ fn emit_server_message(app: &AppHandle, msg: &ServerMessage) {
             player_order,
             player_decks,
             starting_life,
+            ai_player_indices: _,
         } => (
             "server:game_started",
             serde_json::json!({

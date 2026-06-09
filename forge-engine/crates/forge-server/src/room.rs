@@ -240,7 +240,6 @@ impl Room {
                         .unwrap_or_else(|| "Unknown Deck".to_string()),
                     deck,
                     commander_name: p.selected_commander_name.clone(),
-                    is_bot: p.is_bot,
                 })
             })
             .collect()

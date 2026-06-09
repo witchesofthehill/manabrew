@@ -1,5 +1,5 @@
 #![allow(clippy::too_many_arguments)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
@@ -430,6 +430,7 @@ async fn run_client_loop(
     heartbeat.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
     let disconnect_tracker: SharedDisconnectTracker =
         Arc::new(Mutex::new(DisconnectTracker::default()));
+    let mut bot_usernames: HashSet<String> = HashSet::new();
 
     loop {
         tokio::select! {
@@ -460,6 +461,7 @@ async fn run_client_loop(
                     &bot_state,
                     &outbound_tx,
                     &disconnect_tracker,
+                    &mut bot_usernames,
                     message,
                 ).await?;
             }
@@ -475,10 +477,17 @@ async fn handle_server_message(
     bot_state: &SharedBotState,
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     disconnect_tracker: &SharedDisconnectTracker,
+    bot_usernames: &mut HashSet<String>,
     message: ServerMessage,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match message {
         ServerMessage::RoomUpdate { room } => {
+            *bot_usernames = room
+                .players
+                .iter()
+                .filter(|p| p.is_bot)
+                .map(|p| p.username.clone())
+                .collect();
             log_room_update(&client.username, &room);
             handle_disconnect_grace(&room, engine_session, outbound_tx, disconnect_tracker);
             maybe_auto_start_room(client, config, &room).await?;
@@ -519,6 +528,7 @@ async fn handle_server_message(
                 player_order,
                 player_decks,
                 starting_life,
+                bot_usernames,
             );
         }
         ServerMessage::Error { code, message } => {
@@ -674,6 +684,7 @@ fn maybe_start_hosted_engine(
     player_order: Vec<String>,
     player_decks: Vec<PlayerDeckInfo>,
     starting_life: i32,
+    bot_usernames: &HashSet<String>,
 ) {
     if !config.engine_enabled {
         debug!("hosted engine disabled for this node");
@@ -747,7 +758,7 @@ fn maybe_start_hosted_engine(
             warn!(username, "missing deck for player; not starting engine");
             return;
         };
-        if config.forge_ai && deck.is_bot {
+        if config.forge_ai && bot_usernames.contains(username) {
             ai_player_indices.push(index);
         }
         ordered_decks.push(deck.deck);

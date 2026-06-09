@@ -96,8 +96,6 @@ pub struct PlayerDeckInfo {
     pub deck: Deck,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commander_name: Option<String>,
-    #[serde(default)]
-    pub is_bot: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

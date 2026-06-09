@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Sparkles, Trophy, Plus, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Trophy, Plus, Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
@@ -58,10 +58,11 @@ function ComboRow({
         </span>
       </button>
       <span
-        className="shrink-0 rounded bg-counter-charge/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-counter-charge"
+        className="flex shrink-0 items-center gap-0.5 rounded bg-counter-charge/15 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-counter-charge"
         title={`${combo.uses.length}-card combo`}
       >
-        {combo.uses.length}c
+        <Layers className="h-3 w-3" />
+        {combo.uses.length}
       </span>
       {onAdd ? (
         <button

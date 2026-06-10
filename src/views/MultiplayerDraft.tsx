@@ -35,6 +35,13 @@ export default function MultiplayerDraft() {
     if (mode === "idle") navigate("/lobby");
   }, [mode, navigate]);
 
+  useEffect(() => {
+    return () => {
+      teardownHost(true);
+      useMultiplayerDraftStore.getState().clear();
+    };
+  }, []);
+
   const handlePick = async (card: DraftCard) => {
     if (!state?.awaitingHuman) return;
     if (amHost) {

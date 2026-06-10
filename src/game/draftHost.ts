@@ -101,6 +101,12 @@ export async function startDraftAsHost(args: {
       return { ok: false, error: "draft config has no pool source (set or cube)" };
     }
   } catch (err) {
+    if (config.setCode && String(err).includes("unknown set")) {
+      return {
+        ok: false,
+        error: `your game data doesn't include set ${config.setCode.toUpperCase()} — update the app to draft it`,
+      };
+    }
     const source = config.cubeId ? `cube ${config.cubeId}` : `set ${config.setCode}`;
     return { ok: false, error: `failed to load ${source}: ${String(err)}` };
   }
@@ -302,7 +308,13 @@ async function finishDraft(): Promise<void> {
 export function teardownHost(signalEnd = false): void {
   if (!active) return;
   active.unsubscribe();
+  const { sessionId } = active;
   active = null;
+  void getPlatform()
+    .invoke("limited_drop_session", { kind: "draft", sessionId })
+    .catch((err) => {
+      console.warn("[draftHost] limited_drop_session failed:", err);
+    });
   if (signalEnd) {
     void useServerStore
       .getState()

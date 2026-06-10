@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SetPicker } from "@/components/limited/SetPicker";
 import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
-import { fetchCubeMetadata } from "@/api/limitedEdition";
+import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { CubeImportResult } from "@/types/limited";
@@ -144,6 +144,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [draftSeed, setDraftSeed] = useState("");
   const [draftFillWithBots, setDraftFillWithBots] = useState(true);
   const [prefetchingSet, setPrefetchingSet] = useState<string | null>(null);
+  const [unsupportedSet, setUnsupportedSet] = useState<string | null>(null);
 
   const [cubeInput, setCubeInput] = useState("");
   const [importedCube, setImportedCube] = useState<CubeImportResult | null>(null);
@@ -154,6 +155,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [sealedNumBoosters, setSealedNumBoosters] = useState(6);
   const [sealedSeed, setSealedSeed] = useState("");
   const [prefetchingSealedSet, setPrefetchingSealedSet] = useState<string | null>(null);
+  const [unsupportedSealedSet, setUnsupportedSealedSet] = useState<string | null>(null);
 
   const [creating, setCreating] = useState(false);
 
@@ -184,6 +186,21 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   }, [draftSet, prefetchSet]);
 
   useEffect(() => {
+    if (!draftSet) {
+      setUnsupportedSet(null);
+      return;
+    }
+    let cancelled = false;
+    setUnsupportedSet(null);
+    fetchSetPool(draftSet).catch(() => {
+      if (!cancelled) setUnsupportedSet(draftSet);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draftSet]);
+
+  useEffect(() => {
     if (!sealedSet) return;
     let cancelled = false;
     setPrefetchingSealedSet(sealedSet);
@@ -194,6 +211,21 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
       cancelled = true;
     };
   }, [sealedSet, prefetchSet]);
+
+  useEffect(() => {
+    if (!sealedSet) {
+      setUnsupportedSealedSet(null);
+      return;
+    }
+    let cancelled = false;
+    setUnsupportedSealedSet(null);
+    fetchSetPool(sealedSet).catch(() => {
+      if (!cancelled) setUnsupportedSealedSet(sealedSet);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sealedSet]);
 
   useEffect(() => {
     if (open) return;
@@ -221,7 +253,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const limitedKindEnabled =
     kind !== "limited" || (LIMITED_KINDS.find((k) => k.value === limitedKind)?.enabled ?? false);
   const draftConfigReady =
-    (!isBoosterDraft || !!draftSet) && (!isCube || !!importedCube) && (!isSealed || !!sealedSet);
+    (!isBoosterDraft || (!!draftSet && unsupportedSet !== draftSet)) &&
+    (!isCube || !!importedCube) &&
+    (!isSealed || (!!sealedSet && unsupportedSealedSet !== sealedSet));
   const canSubmit = limitedKindEnabled && draftConfigReady;
 
   async function handleImportCube() {
@@ -454,6 +488,12 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   onSelect={setDraftSet}
                 />
               )}
+              {!!draftSet && unsupportedSet === draftSet && (
+                <p className="text-[11px] text-destructive">
+                  Your game data doesn't include {draftSet.toUpperCase()}. Update the app to use
+                  this set.
+                </p>
+              )}
             </div>
           )}
 
@@ -473,6 +513,12 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                     prefetching={prefetchingSealedSet}
                     onSelect={setSealedSet}
                   />
+                )}
+                {!!sealedSet && unsupportedSealedSet === sealedSet && (
+                  <p className="text-[11px] text-destructive">
+                    Your game data doesn't include {sealedSet.toUpperCase()}. Update the app to use
+                    this set.
+                  </p>
                 )}
               </div>
 

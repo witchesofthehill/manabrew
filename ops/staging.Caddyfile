@@ -1,13 +1,8 @@
-# Staging preview web container. Production caddy proxies
-# staging.manabrew.app here, so accept any Host on :80. Same COEP split +
-# Scryfall proxy as ops/Caddyfile, minus the relay/parity routes.
 :80 {
     root * /srv/manabrew
 
-    # Compress text assets — the JS bundle is ~8 MB raw, ~2 MB gzipped.
     encode zstd gzip
 
-    # Module workers need require-corp (Chrome's SharedArrayBuffer rule).
     @worker path_regexp \.worker[.-][^/]+\.js$
     handle @worker {
         header {
@@ -19,7 +14,6 @@
         file_server
     }
 
-    # Long-cache hashed Vite assets + WASM bundles + cardset archive.
     @static path /assets/* /wasm/*
     handle @static {
         header {
@@ -31,8 +25,6 @@
         file_server
     }
 
-    # Scryfall SVG proxy. Regex capture (not handle_path) so the upstream
-    # URI is unambiguous — same fix as the main Caddyfile.
     @scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
     handle @scryfall {
         rewrite * /card-symbols/{re.scryfall.1}
@@ -46,8 +38,6 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    # Commander Spellbook proxy — same reason as the main Caddyfile
-    # (their CORS allowlist blocks non-commanderspellbook origins).
     @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
     handle @spellbook {
         rewrite * /{re.spellbook.1}

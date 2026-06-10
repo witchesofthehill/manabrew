@@ -1,26 +1,8 @@
-# manabrew.app — the React/WASM web client.
-#
-# COEP layout:
-#   - page + assets + wasm + scryfall proxy: `credentialless`. This lets the
-#     page fetch cross-origin resources (Scryfall card art) without each
-#     needing an explicit Cross-Origin-Resource-Policy header.
-#   - the module worker script (`*.worker.<hash>.js`): `require-corp`.
-#     Chrome enforces this for any ES module worker that uses
-#     SharedArrayBuffer, regardless of the embedding document's COEP.
-#   - every response also carries `Cross-Origin-Resource-Policy: same-origin`
-#     so our own resources satisfy require-corp contexts when fetched.
-#
-# Without this split, browsers either block cross-origin Scryfall fetches
-# (require-corp everywhere) or refuse to spin up the SharedArrayBuffer-using
-# worker (credentialless everywhere).
 manabrew.app {
     root * /srv/manabrew
 
-    # Compress text assets — the JS bundle is ~8 MB raw, ~2 MB gzipped.
     encode zstd gzip
 
-    # Module-worker bundles need require-corp; matched before the broader
-    # asset block below.
     @worker path_regexp \.worker[.-][^/]+\.js$
     handle @worker {
         header {
@@ -32,7 +14,6 @@ manabrew.app {
         file_server
     }
 
-    # Long-cache hashed Vite assets + WASM bundles + cardset archive
     @static path /assets/* /wasm/*
     handle @static {
         header {
@@ -44,15 +25,6 @@ manabrew.app {
         file_server
     }
 
-    # Proxy Scryfall mana-symbol SVGs through our own origin so the client
-    # can fetch() them. svgs.scryfall.io doesn't send Access-Control-Allow-
-    # Origin, which blocks cross-origin fetch(). Card art works because it
-    # uses <img>, which doesn't need CORS for display.
-    #
-    # Regex capture (not `handle_path` + `{path}`) so the upstream URI is
-    # unambiguous: /scryfall-symbols/G.svg → /card-symbols/G.svg. The
-    # `handle_path` + `{path}` form left the prefix in the rewritten path
-    # and 404'd.
     @scryfall path_regexp scryfall ^/scryfall-symbols/(.*)$
     handle @scryfall {
         rewrite * /card-symbols/{re.scryfall.1}
@@ -62,15 +34,10 @@ manabrew.app {
             header_down -Cross-Origin-Resource-Policy
             header_down -Cache-Control
         }
-        # Don't tag 4xx responses with the long cache — a transient upstream
-        # error shouldn't be pinned in browsers for a week.
         header Cache-Control "public, max-age=604800"
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    # Proxy Commander Spellbook through our own origin. Their backend
-    # allowlists CORS origins (commanderspellbook.com + localhost only),
-    # so a direct fetch() from manabrew.app fails preflight.
     @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
     handle @spellbook {
         rewrite * /{re.spellbook.1}
@@ -81,7 +48,6 @@ manabrew.app {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    # SPA fallback for client-side router deep links
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"
@@ -102,7 +68,6 @@ relay.manabrew.app {
     }
 }
 
-# Per-PR preview slot (compose.staging.yml). 502 when none is deployed.
 staging.manabrew.app {
     reverse_proxy manabrew-staging:80
 }

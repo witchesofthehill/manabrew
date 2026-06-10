@@ -602,9 +602,12 @@ export default function Lobby() {
         <div className="w-72 shrink-0 border-l h-full">
           <UserList
             players={players}
+            rooms={rooms}
+            currentRoom={currentRoom}
             currentPlayerId={playerId}
             currentUsername={myUsername}
             connectionState={connectionState}
+            onJoinRoom={joinRoom}
           />
         </div>
       )}
@@ -615,9 +618,12 @@ export default function Lobby() {
             <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}
+              rooms={rooms}
+              currentRoom={currentRoom}
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
+              onJoinRoom={joinRoom}
             />
           </SheetContent>
         </Sheet>

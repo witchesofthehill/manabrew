@@ -3,13 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,7 +130,6 @@ export function TablesList({
 }: TablesListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
-  const [passwordValue, setPasswordValue] = useState("");
   const [search, setSearch] = useState("");
 
   const inRoom = currentRoom != null;
@@ -177,18 +170,10 @@ export function TablesList({
 
   function requestJoin(room: RoomInfo) {
     if (room.password_protected) {
-      setPasswordValue("");
       setPasswordRoom(room);
     } else {
       void handleJoinRoom(room.room_id);
     }
-  }
-
-  function submitPasswordJoin() {
-    if (!passwordRoom) return;
-    const roomId = passwordRoom.room_id;
-    setPasswordRoom(null);
-    void handleJoinRoom(roomId, passwordValue);
   }
 
   const trimmedSearch = search.trim().toLowerCase();
@@ -627,35 +612,11 @@ export function TablesList({
         </div>
       </ScrollArea>
 
-      <Dialog open={passwordRoom != null} onOpenChange={(open) => !open && setPasswordRoom(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4" />
-            Private room
-          </DialogTitle>
-          <DialogDescription>
-            Enter the password to join {passwordRoom?.room_name}.
-          </DialogDescription>
-          <Input
-            type="password"
-            autoFocus
-            value={passwordValue}
-            onChange={(e) => setPasswordValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitPasswordJoin();
-            }}
-            placeholder="Password"
-          />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setPasswordRoom(null)}>
-              Cancel
-            </Button>
-            <Button onClick={submitPasswordJoin} disabled={passwordValue.length === 0}>
-              Join
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <JoinPasswordDialog
+        room={passwordRoom}
+        onClose={() => setPasswordRoom(null)}
+        onSubmit={(roomId, password) => void handleJoinRoom(roomId, password)}
+      />
     </div>
   );
 }

@@ -40,7 +40,7 @@ services:
       SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
       SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
       SELF_HOSTED_NODE_OFFICIAL_KEY: "${SECRET_MANABREW_KEY:-}"
-      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
+      SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-any}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       RUST_LOG: "self_hosted_node=info,forge_bot=info"
     depends_on:

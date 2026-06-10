@@ -71,7 +71,7 @@ impl Config {
 
         let format = env_first("SELF_HOSTED_NODE_FORMAT", "FORGE_ROOM_FORMAT")
             .and_then(|value| parse_format(&value))
-            .unwrap_or(GameFormat::Commander);
+            .unwrap_or(GameFormat::Any);
         Self {
             relay_url: env_first("SELF_HOSTED_NODE_RELAY_URL", "FORGE_RELAY_URL")
                 .unwrap_or_else(|| "ws://127.0.0.1:9443".to_string()),
@@ -317,18 +317,9 @@ fn env_bool(primary: &str, fallback: &str, default: bool) -> bool {
 }
 
 fn parse_format(value: &str) -> Option<GameFormat> {
-    match value.to_ascii_lowercase().as_str() {
-        "standard" => Some(GameFormat::Standard),
-        "pioneer" => Some(GameFormat::Pioneer),
-        "modern" => Some(GameFormat::Modern),
-        "legacy" => Some(GameFormat::Legacy),
-        "vintage" => Some(GameFormat::Vintage),
-        "pauper" => Some(GameFormat::Pauper),
-        "commander" => Some(GameFormat::Commander),
-        "brawl" => Some(GameFormat::Brawl),
-        "oathbreaker" => Some(GameFormat::Oathbreaker),
-        "draft" => Some(GameFormat::Draft),
-        "sealed" => Some(GameFormat::Sealed),
-        _ => None,
-    }
+    let mut chars = value.trim().chars();
+    let first = chars.next()?;
+    let mut canonical = first.to_ascii_uppercase().to_string();
+    canonical.extend(chars.map(|c| c.to_ascii_lowercase()));
+    serde_json::from_value(serde_json::Value::String(canonical)).ok()
 }

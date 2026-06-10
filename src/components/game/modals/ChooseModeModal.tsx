@@ -31,13 +31,6 @@ export function ChooseModeModal({
 }: ChooseModeModalProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
-  // Reset selection whenever the option list changes (new prompt arrived).
-  const [prevOptions, setPrevOptions] = useState(options);
-  if (prevOptions !== options) {
-    setPrevOptions(options);
-    setSelected(new Set());
-  }
-
   // If exactly 1 must be picked and max 1 can be picked, auto-confirm on click.
   const isAutoConfirm = maxChoices === 1 && minChoices === 1;
   const showCheckboxes = maxChoices > 1;

@@ -17,11 +17,6 @@ interface ReplicateModalProps {
 export function ReplicateModal({ cost, maxReplicates, sourceCard, onDecide }: ReplicateModalProps) {
   const [count, setCount] = useState(0);
 
-  const [prevInputs, setPrevInputs] = useState({ cost, maxReplicates });
-  if (prevInputs.cost !== cost || prevInputs.maxReplicates !== maxReplicates) {
-    setPrevInputs({ cost, maxReplicates });
-    setCount(0);
-  }
   useModalKeyboard({ onSpace: count > 0 ? () => onDecide(count) : undefined }, [count, onDecide]);
 
   return (

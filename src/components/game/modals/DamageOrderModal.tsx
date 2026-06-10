@@ -26,13 +26,6 @@ export function DamageOrderModal({
 }: DamageOrderModalProps) {
   const [ordered, setOrdered] = useState<string[]>([]);
 
-  // Reset when blockerIds change
-  const [prevBlockerIds, setPrevBlockerIds] = useState(blockerIds);
-  if (prevBlockerIds !== blockerIds) {
-    setPrevBlockerIds(blockerIds);
-    setOrdered([]);
-  }
-
   const remaining = blockerIds.filter((id) => !ordered.includes(id));
   const isComplete = ordered.length === blockerIds.length;
 

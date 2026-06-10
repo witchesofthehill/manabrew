@@ -27,11 +27,6 @@ export function ChooseCardsModal({
   onConfirm,
 }: ChooseCardsModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [prevCards, setPrevCards] = useState(cards);
-  if (prevCards !== cards) {
-    setPrevCards(cards);
-    setSelected(new Set());
-  }
   const isAutoConfirm = maxChoices === 1 && minChoices === 1;
   const canConfirm = selected.size >= minChoices && selected.size <= maxChoices;
 

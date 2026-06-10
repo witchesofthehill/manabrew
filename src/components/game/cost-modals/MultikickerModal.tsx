@@ -17,11 +17,6 @@ interface MultikickerModalProps {
 export function MultikickerModal({ cost, maxKicks, sourceCard, onDecide }: MultikickerModalProps) {
   const [count, setCount] = useState(0);
 
-  const [prevInputs, setPrevInputs] = useState({ cost, maxKicks });
-  if (prevInputs.cost !== cost || prevInputs.maxKicks !== maxKicks) {
-    setPrevInputs({ cost, maxKicks });
-    setCount(0);
-  }
   useModalKeyboard({ onSpace: count > 0 ? () => onDecide(count) : undefined }, [count, onDecide]);
 
   return (

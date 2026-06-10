@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import {
   ChooseModeModal,
   ChooseOptionalTriggerModal,
@@ -444,11 +444,20 @@ export function PromptModalHost({
     | PromptComponent<PromptType>
     | undefined;
 
+  const [promptSeq, setPromptSeq] = useState(0);
+  const [prevPrompt, setPrevPrompt] = useState(currentPrompt);
+  if (prevPrompt !== currentPrompt) {
+    setPrevPrompt(currentPrompt);
+    setPromptSeq(promptSeq + 1);
+  }
+
   return (
     <PromptModalController isActive={!!entry} promptStateKey={currentPrompt}>
-      {entry && currentPrompt
-        ? entry({ prompt: currentPrompt, respond, ctx: { ...ctx, gameView } })
-        : null}
+      {entry && currentPrompt ? (
+        <Fragment key={promptSeq}>
+          {entry({ prompt: currentPrompt, respond, ctx: { ...ctx, gameView } })}
+        </Fragment>
+      ) : null}
     </PromptModalController>
   );
 }

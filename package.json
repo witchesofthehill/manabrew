@@ -31,7 +31,7 @@
     "build:harness": "node scripts/harness.mjs build",
     "parity": "node scripts/parity.mjs",
     "parity:gui": "cargo run -p forge-engine-debugger",
-    "parity:test": "node scripts/harness.mjs ensure && cargo run --release -p forge-parity --bin forge-parity -- --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar",
+    "parity:test": "node scripts/harness.mjs ensure && cargo run --profile parity -p forge-parity --bin forge-parity -- --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar",
     "audit:prompts": "node scripts/audit-prompt-contract.mjs",
     "scan": "node scan_structure.cjs",
     "import-deck": "tsx scripts/import-deck.ts",

@@ -68,6 +68,19 @@ manabrew.app {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    # Proxy Commander Spellbook through our own origin. Their backend
+    # allowlists CORS origins (commanderspellbook.com + localhost only),
+    # so a direct fetch() from manabrew.app fails preflight.
+    @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
+    handle @spellbook {
+        rewrite * /{re.spellbook.1}
+        reverse_proxy https://backend.commanderspellbook.com {
+            header_up Host backend.commanderspellbook.com
+            header_down -Access-Control-Allow-Origin
+        }
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
     # SPA fallback for client-side router deep links
     handle {
         header {

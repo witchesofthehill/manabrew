@@ -46,6 +46,18 @@
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
+    # Commander Spellbook proxy — same reason as the main Caddyfile
+    # (their CORS allowlist blocks non-commanderspellbook origins).
+    @spellbook path_regexp spellbook ^/spellbook-api/(.*)$
+    handle @spellbook {
+        rewrite * /{re.spellbook.1}
+        reverse_proxy https://backend.commanderspellbook.com {
+            header_up Host backend.commanderspellbook.com
+            header_down -Access-Control-Allow-Origin
+        }
+        header Cross-Origin-Resource-Policy "same-origin"
+    }
+
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"

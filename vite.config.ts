@@ -1,11 +1,11 @@
-import path from "path"
-import { defineConfig } from 'vite'
-import type { Plugin } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import Icons from 'unplugin-icons/vite'
+import path from "path";
+import { defineConfig } from "vite";
+import type { Plugin } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import Icons from "unplugin-icons/vite";
 
-const host = process.env.TAURI_DEV_HOST
+const host = process.env.TAURI_DEV_HOST;
 
 /** Adds COOP/COEP headers to enable SharedArrayBuffer for Atomics.wait() */
 function crossOriginIsolation(): Plugin {
@@ -34,7 +34,7 @@ export default defineConfig({
       // matches our `?raw` usage in `PointerLayer` and avoids pulling
       // in `@svgr/core` which the `jsx` compiler would otherwise need
       // as a peer dependency.
-      compiler: 'raw',
+      compiler: "raw",
     }),
     crossOriginIsolation(),
   ],
@@ -49,28 +49,35 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     host: host || false,
-    hmr: host
-      ? { protocol: "ws", host, port: 1421 }
-      : undefined,
+    hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: {
-      ignored: ["**/src-tauri/**", '**/forge/**', '**/node_modules/**'],
+      ignored: ["**/src-tauri/**", "**/forge/**", "**/node_modules/**"],
     },
     // Required for SharedArrayBuffer (used by game engine Atomics.wait)
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
       "Cross-Origin-Embedder-Policy": "credentialless",
     },
+    // Same-origin Commander Spellbook path; mirrors the /spellbook-api
+    // reverse_proxy in ops/Caddyfile so dev and prod share one code path.
+    proxy: {
+      "/spellbook-api": {
+        target: "https://backend.commanderspellbook.com",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/spellbook-api/, ""),
+      },
+    },
   },
   // Web Worker configuration
   worker: {
-    format: 'es',
+    format: "es",
   },
   // Exclude WASM from dependency optimization
   optimizeDeps: {
-    exclude: ['@/wasm/forge_wasm'],
+    exclude: ["@/wasm/forge_wasm"],
   },
   // Build configuration for WASM
   build: {
-    target: 'esnext',
+    target: "esnext",
   },
-})
+});

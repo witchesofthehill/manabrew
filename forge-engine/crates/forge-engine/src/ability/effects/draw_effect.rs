@@ -78,7 +78,7 @@ fn draw_for_player(
     // This ensures `drawn_this_turn` is correct for triggers with `Number$ N`
     // (e.g. Sneaky Snacker: "When you draw your third card in a turn...").
     let remember_drawn = sa.ir.remember_drawn;
-    let should_reveal = sa.ir.reveal_true;
+    let should_reveal = sa.ir.reveal_text.is_some();
     let mut drawn: Vec<crate::ids::CardId> = Vec::new();
     for _ in 0..actual_num {
         if let Some(card_id) = ctx.game.draw_card_with_agents(target, ctx.agents) {

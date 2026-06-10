@@ -183,9 +183,24 @@ pub(super) fn resolve_dest_owner(
     dest_zone: ZoneType,
 ) -> PlayerId {
     if dest_zone == ZoneType::Battlefield && sa.is_gain_control() {
-        sa.activating_player
+        gain_control_player(ctx.game, sa)
     } else {
         ctx.game.card(card_id).owner
+    }
+}
+
+pub(super) fn gain_control_player(game: &crate::game::GameState, sa: &SpellAbility) -> PlayerId {
+    match sa.ir.gain_control_text.as_deref() {
+        None | Some("True") => sa.activating_player,
+        Some(g) => crate::ability::ability_utils::resolve_defined_players_with_sa(
+            g,
+            sa,
+            sa.activating_player,
+            game,
+        )
+        .first()
+        .copied()
+        .unwrap_or(sa.activating_player),
     }
 }
 
@@ -345,7 +360,8 @@ pub(super) fn apply_post_move(
             ctx.game.tap(card_id);
         }
         if sa.is_gain_control() {
-            ctx.game.card_mut(card_id).set_controller(controller);
+            let new_controller = gain_control_player(ctx.game, sa);
+            ctx.game.card_mut(card_id).set_controller(new_controller);
         }
         if sa.ir.ninjutsu {
             let _ = super::super::add_to_combat(ctx, sa, card_id, keys::NINJUTSU);
@@ -379,7 +395,8 @@ pub(super) fn apply_post_move(
         }
         if let Some(counter_type) = sa.with_counters_type_enum() {
             // WithCountersAmount$ goes through the AddCounter replacement chain.
-            let amount = sa.with_counters_amount().unwrap_or(1);
+            let amount =
+                crate::svar::resolve_numeric_svar(ctx.game, sa, keys::WITH_COUNTERS_AMOUNT, 1);
             if !crate::staticability::static_ability_cant_put_counter::any_cant_put_counter_on_card(
                 &ctx.game.cards,
                 &ctx.game.cards[card_id.index()],

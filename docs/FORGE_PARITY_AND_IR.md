@@ -100,6 +100,8 @@ The current direction is:
 
 - keep raw Forge script data as the compatibility source;
 - parse common ability records into `SpellAbilityIr`;
+- compile trigger, replacement, and static params into typed IR at
+  construction (`TriggerIr`, `ReplacementEffectIr`, `StaticAbilityIr`);
 - keep a lazy parsed-SVar cache on card state;
 - lower numeric SVar expression families where they are used;
 - type selected `DefinedRef` forms;
@@ -138,8 +140,8 @@ The next useful slices are narrow and family-based:
 - cost-part DSL;
 - amount and comparison expressions;
 - effect-specific sub-IR for common high-traffic effects;
-- trigger, replacement, and static params that are still interpreted late as
-  raw strings.
+- `Defined$` and `Produced$` resolution that still round-trips typed IR
+  through the legacy string matchers (`as_legacy_str`, `as_script_text`).
 
 Each slice should keep a raw fallback until parity is stable.
 

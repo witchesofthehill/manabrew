@@ -252,9 +252,4 @@ impl SpellAbility {
     pub fn with_counters_type_enum(&self) -> Option<&CounterType> {
         self.ir.with_counters_type.as_ref()
     }
-
-    /// Get the `WithCountersAmount$` as i32.
-    pub fn with_counters_amount(&self) -> Option<i32> {
-        self.ir.with_counters_amount
-    }
 }

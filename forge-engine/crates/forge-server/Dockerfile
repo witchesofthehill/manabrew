@@ -6,8 +6,8 @@ WORKDIR /build
 # Workspace manifests + lockfile
 COPY Cargo.toml Cargo.lock ./
 
-# Engine workspace members (forge-server pulls in forge-agent-interface,
-# which transitively requires forge-engine and friends).
+# Workspace crates. forge-server only compiles forge-protocol now, but cargo
+# needs every member's manifest to resolve the workspace, so copy the tree.
 COPY forge-engine/ forge-engine/
 
 # Stub the other workspace members that cargo metadata validates.

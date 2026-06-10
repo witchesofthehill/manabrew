@@ -6,7 +6,7 @@ use crate::protocol::{
 };
 use crate::room::Room;
 use crate::state::ServerState;
-use forge_agent_interface::deck_dto::Deck;
+use forge_protocol::deck_dto::Deck;
 
 pub fn create_room_sync(
     state: &Arc<ServerState>,

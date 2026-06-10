@@ -98,14 +98,11 @@ INFRA_CHANGED=false
 # would otherwise be classified JAVA_CHANGED and skip the web rebuild — leaving
 # the deployed archive stale (missing newly-added sets).
 CARDDATA_CHANGED=false
-# forge-server (the public relay) is rebuilt/restarted only when its own Cargo
-# dependency closure changes. Restarting it bounces the relay and interrupts
-# live games, so a Rust change confined to crates it doesn't depend on (the
-# self-hosted-node, forge-wasm, bots, etc.) must NOT redeploy it. Closure from
-# `cargo tree -p forge-server`: forge-server, forge-agent-interface,
-# forge-engine(-core), forge-foundation, forge-card-script, forge-carddb,
-# forge-cardset-archive, forge-engine-macros — i.e. everything under
-# forge-engine/crates/ EXCEPT the excluded leaves listed below.
+# forge-server (the relay) is rebuilt/restarted only when its own dep closure
+# changes — restarting it bounces the relay and interrupts live games. Since the
+# forge-protocol split, that closure is just forge-server + forge-protocol (it no
+# longer compiles the engine), so a change anywhere else under forge-engine/ must
+# NOT redeploy it.
 FORGE_SERVER_CHANGED=false
 
 while IFS= read -r file; do
@@ -116,19 +113,8 @@ while IFS= read -r file; do
             RUST_CHANGED=true ;;
     esac
     case "$file" in
-        # Leaves outside forge-server's dependency closure — a change here never
-        # alters the relay binary, so it must not trigger a relay-bouncing
-        # rebuild. Keep in sync with `cargo tree -p forge-server`.
-        forge-engine/crates/self-hosted-node/*|\
-        forge-engine/crates/forge-wasm/*|\
-        forge-engine/crates/forge-bot/*|\
-        forge-engine/crates/forge-game-runtime/*|\
-        forge-engine/crates/forge-limited/*|\
-        forge-engine/crates/forge-parity/*|\
-        forge-engine/crates/forge-engine-debugger/*|\
-        forge-engine/crates/forge-card-script-lsp/*)
-            : ;;
-        forge-engine/*|Cargo.toml|Cargo.lock)
+        # forge-server's whole closure (see `cargo tree -p forge-server`).
+        forge-engine/crates/forge-server/*|forge-engine/crates/forge-protocol/*|Cargo.toml|Cargo.lock)
             FORGE_SERVER_CHANGED=true ;;
     esac
     case "$file" in

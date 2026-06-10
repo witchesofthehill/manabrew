@@ -1,1 +1,1 @@
-pub use forge_agent_interface::protocol::*;
+pub use forge_protocol::protocol::*;

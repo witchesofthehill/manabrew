@@ -2,8 +2,10 @@ use std::time::Duration;
 
 use forge_agent_interface::ids_codec::player_slot;
 use forge_agent_interface::prompt::AgentPrompt;
+use forge_agent_interface::protocol::{
+    ClientMessage, GameFormat, RoomStatus, ServerMessage, StateEnvelope,
+};
 use forge_bot::{BotAgent, SimpleAi};
-use forge_server::protocol::{ClientMessage, GameFormat, RoomStatus, ServerMessage, StateEnvelope};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};

@@ -2,7 +2,7 @@ use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
     SealedConfig,
 };
-use forge_agent_interface::deck_dto::Deck;
+use forge_protocol::deck_dto::Deck;
 
 #[derive(Debug, Clone)]
 pub struct RoomSlot {

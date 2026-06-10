@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
 import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import {
   DropdownMenu,
@@ -91,7 +92,7 @@ interface TablesListProps {
   onRefresh: () => void;
   refreshing: boolean;
   refreshDisabled: boolean;
-  onJoinRoom: (roomId: string, password?: string) => Promise<void>;
+  onJoinRoom: (roomId: string, password?: string, format?: GameFormat) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
@@ -130,6 +131,8 @@ export function TablesList({
 }: TablesListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
+  const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
+  const [pendingFormat, setPendingFormat] = useState<GameFormat | undefined>(undefined);
   const [search, setSearch] = useState("");
 
   const inRoom = currentRoom != null;
@@ -158,21 +161,39 @@ export function TablesList({
       })
     : [];
 
-  async function handleJoinRoom(roomId: string, password?: string) {
+  async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
     if (joiningRoomId) return;
     setJoiningRoomId(roomId);
     try {
-      await onJoinRoom(roomId, password);
+      await onJoinRoom(roomId, password, format);
     } finally {
       setJoiningRoomId(null);
     }
   }
 
+  function needsFormatChoice(room: RoomInfo) {
+    return (
+      room.format === "Any" &&
+      !room.draft_config &&
+      !room.sealed_config &&
+      room.players.every((p) => p.is_bot)
+    );
+  }
+
   function requestJoin(room: RoomInfo) {
+    if (needsFormatChoice(room)) {
+      setFormatRoom(room);
+    } else {
+      joinWithFormat(room, undefined);
+    }
+  }
+
+  function joinWithFormat(room: RoomInfo, format?: GameFormat) {
     if (room.password_protected) {
+      setPendingFormat(format);
       setPasswordRoom(room);
     } else {
-      void handleJoinRoom(room.room_id);
+      void handleJoinRoom(room.room_id, undefined, format);
     }
   }
 
@@ -612,10 +633,16 @@ export function TablesList({
         </div>
       </ScrollArea>
 
+      <ChooseFormatDialog
+        room={formatRoom}
+        onClose={() => setFormatRoom(null)}
+        onSelect={(room, format) => joinWithFormat(room, format)}
+      />
+
       <JoinPasswordDialog
         room={passwordRoom}
         onClose={() => setPasswordRoom(null)}
-        onSubmit={(roomId, password) => void handleJoinRoom(roomId, password)}
+        onSubmit={(roomId, password) => void handleJoinRoom(roomId, password, pendingFormat)}
       />
     </div>
   );

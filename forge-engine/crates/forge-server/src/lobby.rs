@@ -454,6 +454,10 @@ pub fn end_game_sync(
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
         room.players.clear();
+        if room.draft_config.is_none() && room.sealed_config.is_none() {
+            room.format = GameFormat::Any;
+            room.max_players = 4;
+        }
         (room.to_room_info(), cleared)
     };
 

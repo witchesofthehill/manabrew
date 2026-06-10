@@ -12,6 +12,7 @@ export default defineConfig([
     "target",
     "**/target",
     "src-tauri/gen",
+    "src-tauri/resources",
     "forge",
     "forge-engine",
   ]),

@@ -32,7 +32,10 @@ import {
 } from "@/game";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Settings, RefreshCw } from "lucide-react";
+import { Settings, RefreshCw, Users, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { DESKTOP_QUERY } from "@/components/layout/AppShell";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 
@@ -137,6 +140,9 @@ export default function Lobby() {
   const [deckDialogOpen, setDeckDialogOpen] = useState(false);
   const [aiDeckDialogOpen, setAiDeckDialogOpen] = useState(false);
   const [refreshingLobby, setRefreshingLobby] = useState(false);
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const [playersCollapsed, setPlayersCollapsed] = useState(false);
+  const [playersDrawerOpen, setPlayersDrawerOpen] = useState(false);
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
@@ -539,6 +545,29 @@ export default function Lobby() {
               <Settings className="h-3 w-3 mr-1" /> Settings
             </Button>
           )}
+          {myUsername && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() =>
+                isDesktop
+                  ? setPlayersCollapsed((collapsed) => !collapsed)
+                  : setPlayersDrawerOpen(true)
+              }
+              title={
+                !isDesktop ? "Show players" : playersCollapsed ? "Show players" : "Hide players"
+              }
+            >
+              {!isDesktop ? (
+                <Users className="h-3.5 w-3.5" />
+              ) : playersCollapsed ? (
+                <PanelRightOpen className="h-3.5 w-3.5" />
+              ) : (
+                <PanelRightClose className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
         </div>
 
         {/* ── Rooms ── */}
@@ -569,7 +598,7 @@ export default function Lobby() {
         </div>
       </div>
 
-      {myUsername && (
+      {myUsername && isDesktop && !playersCollapsed && (
         <div className="w-72 shrink-0 border-l h-full">
           <UserList
             players={players}
@@ -578,6 +607,20 @@ export default function Lobby() {
             connectionState={connectionState}
           />
         </div>
+      )}
+
+      {myUsername && !isDesktop && (
+        <Sheet open={playersDrawerOpen} onOpenChange={setPlayersDrawerOpen}>
+          <SheetContent side="left" className="w-72 p-0">
+            <SheetTitle className="sr-only">Players</SheetTitle>
+            <UserList
+              players={players}
+              currentPlayerId={playerId}
+              currentUsername={myUsername}
+              connectionState={connectionState}
+            />
+          </SheetContent>
+        </Sheet>
       )}
 
       <CreateRoomDialog open={createRoomOpen} onOpenChange={setCreateRoomOpen} />

@@ -115,4 +115,3 @@ function CompareColumn({
     </section>
   );
 }
-

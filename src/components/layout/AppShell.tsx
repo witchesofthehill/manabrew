@@ -15,7 +15,7 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 
 // Tailwind's default `md` breakpoint. Kept in sync with utility classes
 // like `md:hidden` / `hidden md:flex` so the JS gate matches the CSS.
-const DESKTOP_QUERY = "(min-width: 768px)";
+export const DESKTOP_QUERY = "(min-width: 768px)";
 
 export function AppShell() {
   // Render only the active layout branch. Previously both <Outlet /> trees

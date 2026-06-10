@@ -22,7 +22,6 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SECRET_MANABREW_KEY: ${{ secrets.SECRET_MANABREW_KEY }}
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
@@ -39,7 +38,7 @@ jobs:
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=120 \
               "$USER@$HOST" \
-            "cd '$DEPLOY_PATH' && SECRET_MANABREW_KEY='$SECRET_MANABREW_KEY' ./deploy.sh 2>&1" 2>&1 | tee deploy.log
+            "cd '$DEPLOY_PATH' && ./deploy.sh 2>&1" 2>&1 | tee deploy.log
           exit ${PIPESTATUS[0]}
 
       - name: Fetch raw deploy log on failure

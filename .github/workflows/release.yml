@@ -24,7 +24,10 @@ concurrency:
 jobs:
   release-please:
     name: Run release-please
-    runs-on: [self-hosted, Linux]
+    # Lightweight GitHub-API job; keep it off the self-hosted runner so it does
+    # not compete with deploys/builds on that box (a likely cause of flaky
+    # "Error creating commit" failures).
+    runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}

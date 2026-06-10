@@ -17,6 +17,10 @@ Dependency rule (do not violate): `parity → common`, `host → common`, `Main 
 - **parity** — `DeterministicController`, `DeterministicLobbyPlayer`, `PresetDecks`.
 - **host** — `ManaBrewEngineAdapter` (the in-process facade Rust j4rs talks to), `ManaBrewInteractiveSession`, `ManaBrewInteractiveController`, `ManaBrewInteractiveLobbyPlayer`, `InteractiveSnapshotExtractor`, `PriorityFastForward` (skips a priority window with no roundtrip when the player has a standing pass-until; mirrors `forge-engine` `priority.rs`).
 
+### Host payability probes must stay silent
+
+`ManaBrewInteractiveController` sets `probingPayability` while engine code runs feasibility tests (`ActionSpace.getPossibleActions` → `ComputerUtilMana.canPayManaCost`, and the `ComputerUtilCost.canPayCost` pre-checks). These test paths call regular `PlayerController` choosers (`chooseCardsForConvokeOrImprovise`, `chooseCardsToDelve`, `choosePermanentsToSacrifice` via offering/emerge, `choosePlayerToAssistPayment`) — in native Forge only the AI ever hits them. Any chooser reachable from `CostAdjustment`/`ComputerUtilMana` must check the flag and answer silently (maximally permissive) instead of round-tripping to the UI. The real prompt happens once, in `payManaCost`, via `CostAdjustment.adjust(..., test=false, ...)` mirroring `HumanPlay.payManaCost` (taps convoked creatures, collects delve cards; `handleOfferingConvokeAndDelve` mirrors the HumanPlay helper).
+
 ## Boundary API discipline
 
 `common` types are `public` only where genuinely consumed across a package boundary. `HarnessCostPlumbing` / `HarnessPlayPlumbing` / `AutoPay` expose **only** the constructor + methods the two controllers call (`payWithControllerDecision`, `isSpellPaymentContext`, `currentReservedSacrifices`, `playNoStack`, `handlePlayingSpellAbility`, `prepareSingleSa`, `orderAndPlaySimultaneousSa`, `playSaFromPlayEffect`, `payManaCost(WithTrace)`, `manaSources`, `floatManaFromSource`, `PayManaCostResult.paid/steps`); everything else stays package-private. When adding a member, keep it package-private unless a controller in `parity`/`host` needs it — don't widen the surface by default.

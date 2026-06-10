@@ -25,6 +25,7 @@ import forge.card.mana.ManaCostShard;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
 import forge.game.*;
+import forge.game.ability.AbilityKey;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
@@ -62,6 +63,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final AutoPay autoPay;
     private final HarnessPlayPlumbing playPlumbing;
     private String passUntilPhase;
+    private boolean probingPayability;
 
     public ManaBrewInteractiveController(
             final Game game,
@@ -126,9 +128,15 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return null;
         }
         while (true) {
-            final List<SpellAbility> all = ChoiceSpace.sortNative(
-                    new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
-                    ParityOrder.actionComparator());
+            final List<SpellAbility> all;
+            probingPayability = true;
+            try {
+                all = ChoiceSpace.sortNative(
+                        new ArrayList<>(ActionSpace.getPossibleActions(player, true)),
+                        ParityOrder.actionComparator());
+            } finally {
+                probingPayability = false;
+            }
             final ManaBrewInteractiveSession.PriorityChoice choice =
                     session.awaitPriorityAction(me(), all, undoableManaSources());
             if (choice.kind() == ManaBrewInteractiveSession.PriorityActionKind.UNDO) {
@@ -579,6 +587,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (cappedMax <= 0) {
             return CardCollection.EMPTY;
         }
+        if (probingPayability) {
+            final CardCollection sorted = new CardCollection(validTargets);
+            CardLists.sortByCmcDesc(sorted);
+            return new CardCollection(sorted.subList(0, Math.max(min, Math.min(cappedMax, 1))));
+        }
         return session.awaitCardChoice("choose_cards_for_effect", me(), validTargets, min, cappedMax, sourceName(sa), message);
     }
 
@@ -638,7 +651,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public CardCollectionView chooseCardsToDelve(final int genericAmount, final CardCollection grave) {
-        return session.awaitCardChoice("choose_delve", me(), grave, 0, Math.min(genericAmount, grave.size()));
+        final int max = Math.min(genericAmount, grave.size());
+        if (max <= 0) {
+            return CardCollection.EMPTY;
+        }
+        if (probingPayability) {
+            return new CardCollection(grave.subList(0, max));
+        }
+        return session.awaitCardChoice("choose_delve", me(), grave, 0, max);
     }
 
     @Override
@@ -650,38 +670,59 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final boolean creatures,
             final Integer maxReduction
     ) {
-        final String kind = artifacts && !creatures ? "choose_improvise" : "choose_convoke";
         final Map<Card, ManaCostShard> result = new LinkedHashMap<>();
         if (untappedCards == null || untappedCards.isEmpty()) {
             return result;
         }
-        final int cap = maxReduction == null
-                ? untappedCards.size()
-                : Math.max(0, Math.min(maxReduction, untappedCards.size()));
-        final CardCollection selected = session.awaitCardChoice(
-                kind, me(), untappedCards, 0, cap, sourceName(sa), manaCost == null ? null : manaCost.toString());
+        int cap = Math.min(manaCost.getCMC(), untappedCards.size());
+        if (maxReduction != null) {
+            cap = Math.max(0, Math.min(maxReduction, cap));
+        }
+        if (cap <= 0) {
+            return result;
+        }
         final ManaCostBeingPaid remainingCost = new ManaCostBeingPaid(manaCost);
-        for (final Card card : selected) {
-            final byte chosenColor;
-            if (artifacts) {
-                chosenColor = ManaCostShard.COLORLESS.getColorMask();
-            } else {
-                ColorSet colors = card.getColor();
-                if (colors.isMulticolor()) {
-                    colors = ColorSet.fromMask(colors.getColor() & remainingCost.getUnpaidColors());
+        if (probingPayability) {
+            for (final Card card : untappedCards) {
+                if (result.size() >= cap) {
+                    break;
                 }
-                if (colors.isMulticolor()) {
-                    chosenColor = chooseColorAllowColorless("Convoke " + card + "  for which color?", card, colors);
-                } else {
-                    chosenColor = colors.getColor();
+                final ManaCostShard shard = remainingCost.payManaViaConvoke(
+                        convokeColor(card, remainingCost, artifacts, true));
+                if (shard != null) {
+                    result.put(card, shard);
                 }
             }
-            final ManaCostShard shard = remainingCost.payManaViaConvoke(chosenColor);
+            return result;
+        }
+        final String kind = artifacts && !creatures ? "choose_improvise" : "choose_convoke";
+        final CardCollection selected = session.awaitCardChoice(
+                kind, me(), untappedCards, 0, cap, sourceName(sa), manaCost.toString());
+        for (final Card card : selected) {
+            final ManaCostShard shard = remainingCost.payManaViaConvoke(
+                    convokeColor(card, remainingCost, artifacts, false));
             if (shard != null) {
                 result.put(card, shard);
             }
         }
         return result;
+    }
+
+    private byte convokeColor(
+            final Card card, final ManaCostBeingPaid remainingCost, final boolean artifacts, final boolean silent) {
+        if (artifacts) {
+            return ManaCostShard.COLORLESS.getColorMask();
+        }
+        ColorSet colors = card.getColor();
+        if (colors.isMulticolor()) {
+            colors = ColorSet.fromMask(colors.getColor() & remainingCost.getUnpaidColors());
+        }
+        if (colors.isMulticolor()) {
+            return silent
+                    ? (byte) Integer.lowestOneBit(colors.getColor())
+                    : chooseColorAllowColorless("Convoke " + card + "  for which color?", card, colors);
+        }
+        return colors.getColor();
     }
 
     @Override
@@ -1194,8 +1235,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public boolean payCostToPreventEffect(
             final Cost cost, final SpellAbility sa, final boolean alreadyPaid, final FCollectionView<Player> allPayers) {
-        if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
-            return false;
+        probingPayability = true;
+        try {
+            if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
+                return false;
+            }
+        } finally {
+            probingPayability = false;
         }
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
@@ -1213,8 +1259,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean payCostDuringRoll(final Cost cost, final SpellAbility sa, final FCollectionView<Player> allPayers) {
-        if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
-            return false;
+        probingPayability = true;
+        try {
+            if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
+                return false;
+            }
+        } finally {
+            probingPayability = false;
         }
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
@@ -1243,45 +1294,86 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaConversionMatrix matrix,
             final boolean effect
     ) {
-        final ManaCost payableCost = effectiveManaCost(toPay, sa, effect);
+        final ManaCost payableCost = effectiveManaCost(toPay, sa);
         if (sa == null
                 || sa.isManaAbility()
                 || payableCost == null
-                || payableCost.isNoCost()
-                || payableCost.isZero()) {
+                || payableCost.isNoCost()) {
             return autoPay.payManaCost(payableCost, sa, effect);
         }
-        return payManaInteractively(payableCost, sa, effect);
+        final ManaCostBeingPaid toPayBeing = new ManaCostBeingPaid(payableCost);
+        final Player activator = sa.getActivatingPlayer() != null ? sa.getActivatingPlayer() : player;
+        final GameSnapshot snapshot = beginManaPaymentSnapshot();
+        final CardCollection cardsToDelve = new CardCollection();
+        CostAdjustment.adjust(toPayBeing, sa, activator, cardsToDelve, false, effect);
+        if ((sa.isOffering() && sa.getSacrificedAsOffering() == null)
+                || (sa.isEmerge() && sa.getSacrificedAsEmerge() == null)) {
+            restoreManaPaymentSnapshot(snapshot);
+            sa.setSkip(true);
+            return false;
+        }
+        final boolean paid = toPayBeing.isPaid()
+                || payManaInteractively(toPayBeing.toManaCost(), sa, effect, snapshot);
+        return handleOfferingConvokeAndDelve(sa, cardsToDelve, !paid);
     }
 
-    private ManaCost effectiveManaCost(final ManaCost toPay, final SpellAbility sa, final boolean effect) {
-        ManaCost payableCost = toPay;
-        if (sa != null && sa.getXManaCostPaid() != null && toPay != null && toPay.countX() > 0) {
-            final ManaCostBeingPaid expanded = new ManaCostBeingPaid(toPay);
-            expanded.setXManaCostPaid(sa.getXManaCostPaid(), sa.getXColor());
-            payableCost = expanded.toManaCost();
-        }
+    private ManaCost effectiveManaCost(final ManaCost toPay, final SpellAbility sa) {
         if (sa != null && sa.getManaCostBeingPaid() != null) {
             return new ManaCostBeingPaid(sa.getManaCostBeingPaid()).toManaCost();
         }
-        if (sa != null
-                && sa.isSpell()
-                && sa.getHostCard() != null
-                && payableCost != null
-                && !payableCost.isNoCost()) {
-            final ManaCostBeingPaid adjusted = new ManaCostBeingPaid(payableCost);
-            final Player payer = sa.getActivatingPlayer() != null ? sa.getActivatingPlayer() : player;
-            if (CostAdjustment.adjust(adjusted, sa, payer, null, true, effect)) {
-                payableCost = adjusted.toManaCost();
-            }
+        if (sa != null && sa.getXManaCostPaid() != null && toPay != null && toPay.countX() > 0) {
+            final ManaCostBeingPaid expanded = new ManaCostBeingPaid(toPay);
+            expanded.setXManaCostPaid(sa.getXManaCostPaid(), sa.getXColor());
+            return expanded.toManaCost();
         }
-        return payableCost;
+        return toPay;
     }
 
-    private boolean payManaInteractively(final ManaCost payableCost, final SpellAbility sa, final boolean effect) {
+    private boolean handleOfferingConvokeAndDelve(
+            final SpellAbility ability, final CardCollection cardsToDelve, final boolean manaInputCancelled) {
+        final Card hostCard = ability.getHostCard();
+        final CardZoneTable table = new CardZoneTable(game.getLastStateBattlefield(), game.getLastStateGraveyard());
+        final Map<AbilityKey, Object> params = AbilityKey.newMap();
+        AbilityKey.addCardZoneTableParams(params, table);
+
+        if (!manaInputCancelled && !cardsToDelve.isEmpty()) {
+            for (final Card c : cardsToDelve) {
+                hostCard.addDelved(c);
+                final Card d = game.getAction().exile(c, null, params);
+                hostCard.addExiledCard(d);
+                d.setExiledWith(hostCard);
+                d.setExiledBy(hostCard.getController());
+                d.setExiledSA(ability);
+            }
+        }
+        if (ability.isOffering() && ability.getSacrificedAsOffering() != null) {
+            final Card offering = ability.getSacrificedAsOffering();
+            offering.setUsedToPay(false);
+            if (!manaInputCancelled) {
+                game.getAction().sacrifice(new CardCollection(offering), ability, false, params);
+            }
+            ability.resetSacrificedAsOffering();
+        }
+        if (ability.isEmerge() && ability.getSacrificedAsEmerge() != null) {
+            final Card emerge = ability.getSacrificedAsEmerge();
+            emerge.setUsedToPay(false);
+            if (!manaInputCancelled) {
+                game.getAction().sacrifice(new CardCollection(emerge), ability, false, params);
+                ability.setSacrificedAsEmerge(game.getChangeZoneLKIInfo(emerge));
+            } else {
+                ability.resetSacrificedAsEmerge();
+            }
+        }
+        if (!table.isEmpty() && !manaInputCancelled) {
+            table.triggerChangesZoneAll(game, ability);
+        }
+        return !manaInputCancelled;
+    }
+
+    private boolean payManaInteractively(
+            final ManaCost payableCost, final SpellAbility sa, final boolean effect, final GameSnapshot sessionSnapshot) {
         final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(payableCost);
         final ManaPool pool = player.getManaPool();
-        final GameSnapshot sessionSnapshot = beginManaPaymentSnapshot();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
         int guard = 0;
         while (guard++ < 512) {
@@ -1311,7 +1403,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 case PAY: {
                     if (choice.auto()) {
                         if (autoPay.payManaCost(unpaid.toManaCost(), sa, effect)) {
-                            CostPayment.handleOfferings(sa, false, true);
                             return true;
                         }
                         break;
@@ -1323,7 +1414,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     }
                     pool.payManaCostFromPool(unpaid, sa, false, new ArrayList<>());
                     if (unpaid.isPaid()) {
-                        CostPayment.handleOfferings(sa, false, true);
                         return true;
                     }
                     break;
@@ -1331,7 +1421,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 case CANCEL:
                     restoreManaPaymentSnapshot(sessionSnapshot);
                     sa.setSkip(true);
-                    CostPayment.handleOfferings(sa, false, false);
                     return false;
                 default:
                     break;
@@ -1339,7 +1428,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         restoreManaPaymentSnapshot(sessionSnapshot);
         sa.setSkip(true);
-        CostPayment.handleOfferings(sa, false, false);
         return false;
     }
 
@@ -1483,6 +1571,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public Player choosePlayerToAssistPayment(final FCollectionView<Player> optionList, final SpellAbility sa, final String title, final int max) {
+        if (probingPayability) {
+            return null;
+        }
         final List<Player> players = new ArrayList<>();
         for (final Player p : optionList) {
             players.add(p);

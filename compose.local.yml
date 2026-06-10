@@ -17,6 +17,7 @@ services:
       FORGE_PORT: "9443"
       FORGE_MAX_ROOMS: "100"
       FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "forge_server=info"
     ports:
       - "9443:9443"

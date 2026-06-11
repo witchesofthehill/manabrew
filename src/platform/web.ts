@@ -803,6 +803,7 @@ class WebServerApi implements IServerApi {
       engine: params.engine ?? "Wasm",
       draft_config: params.draftConfig ?? null,
       sealed_config: params.sealedConfig ?? null,
+      reconnect_timeout_s: params.reconnectTimeoutS ?? null,
     });
   }
 
@@ -846,6 +847,10 @@ class WebServerApi implements IServerApi {
 
   async endGame(): Promise<void> {
     this.send({ type: "EndGame" });
+  }
+
+  async requestResync(): Promise<void> {
+    this.send({ type: "RequestResync" });
   }
 
   /** Broadcast game state to other players in the room */
@@ -1020,6 +1025,7 @@ class WebServerApi implements IServerApi {
           turn_number: msg.turn_number,
         },
       ],
+      GameAborted: ["server:game_aborted", { room_id: msg.room_id }],
       Error: ["server:error", { code: msg.code, message: msg.message }],
     };
 

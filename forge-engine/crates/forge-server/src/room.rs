@@ -2,6 +2,7 @@ use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
     SealedConfig,
 };
+use crate::replay::GameReplayCache;
 use forge_protocol::deck_dto::Deck;
 
 #[derive(Debug, Clone)]
@@ -39,6 +40,8 @@ pub struct Room {
     pub observers: Vec<RoomObserver>,
     pub draft_config: Option<DraftConfig>,
     pub sealed_config: Option<SealedConfig>,
+    pub reconnect_timeout_s: u32,
+    pub replay: Option<GameReplayCache>,
 }
 
 impl Room {
@@ -55,6 +58,7 @@ impl Room {
         sealed_config: Option<SealedConfig>,
         official: bool,
         password: Option<String>,
+        reconnect_timeout_s: u32,
     ) -> Self {
         let max_players = max_players.clamp(2, 8);
         let (players, observers) = if host_plays {
@@ -96,6 +100,8 @@ impl Room {
             observers,
             draft_config,
             sealed_config,
+            reconnect_timeout_s,
+            replay: None,
         }
     }
 
@@ -328,6 +334,7 @@ impl Room {
             max_players: self.max_players,
             format: self.format.clone(),
             engine: self.engine,
+            reconnect_timeout_s: self.reconnect_timeout_s,
             status: self.status.clone(),
             draft_config: self.draft_config.clone(),
             sealed_config: self.sealed_config.clone(),
@@ -353,6 +360,7 @@ mod tests {
             None,
             false,
             None,
+            60,
         )
     }
 

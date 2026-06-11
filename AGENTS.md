@@ -113,6 +113,7 @@ The PR body itself must follow `.github/pull_request_template.md`: `Summary`, `W
 ## Workflow rules
 
 - **Branch + PR** — never push to `main`. Never push code automatically; wait for an explicit push command.
+- **Never commit on your own.** Do not run `git commit` unless the developer explicitly asks for a commit in this conversation. Finishing a task, passing checks, or having a clean diff is not permission to commit — leave the changes in the working tree and report what's ready.
 - **Pull with merge, never rebase.** When integrating `main` into a feature branch, or pulling someone else's work, use `git merge` (or `git pull` with `pull.rebase=false`) — never `git rebase`, never `git pull --rebase`. The repo's history convention is merge-based; rebasing rewrites already-pushed commits and creates divergence for collaborators. This applies to every branch, every time.
 - **No unit tests** unless explicitly asked.
 - **UI work** must reference `docs/STYLE_GUIDELINES.md` (and `docs/agents/UI_THEME_RULES.md` for colors).

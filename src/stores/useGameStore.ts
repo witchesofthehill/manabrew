@@ -11,6 +11,7 @@ import {
 } from "@/game";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { getFormat } from "@/lib/formats";
+import { armActiveGameSession, clearActiveGameSession } from "@/lib/activeGameSession";
 import { startHostedAiGame } from "@/game/hostedAiPlay";
 import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
@@ -326,6 +327,14 @@ export const useGameStore = create<GameState>()(
         decks.forEach((d, i) => {
           gameDecks[`player-${i}`] = d;
         });
+        const server = useServerStore.getState();
+        if (server.currentRoom) {
+          armActiveGameSession({
+            roomId: server.currentRoom.room_id,
+            isHost: localIsHost,
+            username: server.username ?? "",
+          });
+        }
         try {
           set({
             isGameActive: true,
@@ -419,6 +428,7 @@ export const useGameStore = create<GameState>()(
       },
 
       endGame: async () => {
+        clearActiveGameSession();
         const runtime = getSelectedGameRuntime();
         const wasMultiplayer = get().isMultiplayer;
         set({

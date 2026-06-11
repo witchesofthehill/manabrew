@@ -4,9 +4,15 @@ use crate::error::ServerError;
 use crate::protocol::{
     DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
 };
+use crate::replay::GameReplayCache;
 use crate::room::Room;
 use crate::state::ServerState;
 use forge_protocol::deck_dto::Deck;
+use forge_protocol::protocol::DEFAULT_RECONNECT_TIMEOUT_S;
+
+const MIN_RECONNECT_TIMEOUT_S: u32 = 10;
+// Must stay below forge-game-runtime's 120s relay response_timeout
+const MAX_RECONNECT_TIMEOUT_S: u32 = 90;
 
 pub fn create_room_sync(
     state: &Arc<ServerState>,
@@ -20,6 +26,7 @@ pub fn create_room_sync(
     sealed_config: Option<SealedConfig>,
     official_key: Option<String>,
     password: Option<String>,
+    reconnect_timeout_s: Option<u32>,
 ) -> Result<RoomInfo, ServerError> {
     if let Some(cfg) = &draft_config {
         match (cfg.set_code.as_ref(), cfg.cube_id.as_ref()) {
@@ -76,6 +83,9 @@ pub fn create_room_sync(
         sealed_config,
         official,
         password.filter(|value| !value.is_empty()),
+        reconnect_timeout_s
+            .unwrap_or(DEFAULT_RECONNECT_TIMEOUT_S)
+            .clamp(MIN_RECONNECT_TIMEOUT_S, MAX_RECONNECT_TIMEOUT_S),
     );
     let info = room.to_room_info();
 
@@ -413,9 +423,16 @@ pub fn start_game_sync(
             | GameFormat::Sealed => 20,
             GameFormat::Any => unreachable!("Any resolved to concrete format above"),
         };
+        let player_order = room.player_usernames();
+        let player_decks = room.player_decks();
+        room.replay = Some(GameReplayCache::new(
+            player_order.clone(),
+            player_decks.clone(),
+            starting_life,
+        ));
         (
-            room.player_usernames(),
-            room.player_decks(),
+            player_order,
+            player_decks,
             starting_life,
             room.to_room_info(),
         )
@@ -433,17 +450,17 @@ pub fn start_game_sync(
 pub fn end_game_sync(
     state: &Arc<ServerState>,
     player_id: &str,
-) -> Result<(String, RoomInfo), ServerError> {
+) -> Result<(String, RoomInfo, Vec<String>), ServerError> {
     let room_id = state
         .players
         .get(player_id)
         .and_then(|p| p.room_id.clone())
         .ok_or(ServerError::NotInRoom)?;
 
-    let (info, cleared) = {
-        let mut room = state
+    {
+        let room = state
             .rooms
-            .get_mut(&room_id)
+            .get(&room_id)
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
         if !room.is_host(player_id) {
             return Err(ServerError::NotHost);
@@ -451,8 +468,23 @@ pub fn end_game_sync(
         if room.status != RoomStatus::InGame {
             return Err(ServerError::GameNotInProgress);
         }
+    }
+
+    let (info, notify) =
+        reset_room_to_lobby(state, &room_id).ok_or(ServerError::RoomNotFound(room_id.clone()))?;
+
+    Ok((room_id, info, notify))
+}
+
+pub fn reset_room_to_lobby(
+    state: &Arc<ServerState>,
+    room_id: &str,
+) -> Option<(RoomInfo, Vec<String>)> {
+    let (info, cleared) = {
+        let mut room = state.rooms.get_mut(room_id)?;
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
+        room.replay = None;
         room.players.clear();
         if room.draft_config.is_none() && room.sealed_config.is_none() {
             room.format = GameFormat::Any;
@@ -461,6 +493,7 @@ pub fn end_game_sync(
         (room.to_room_info(), cleared)
     };
 
+    let mut notify = Vec::new();
     for pid in cleared {
         match state.players.get(&pid).map(|p| p.disconnected_at.is_some()) {
             Some(true) => {
@@ -470,10 +503,11 @@ pub fn end_game_sync(
                 if let Some(mut p) = state.players.get_mut(&pid) {
                     p.room_id = None;
                 }
+                notify.push(pid);
             }
             None => {}
         }
     }
 
-    Ok((room_id, info))
+    Some((info, notify))
 }

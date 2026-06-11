@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDragToggle } from "@/hooks/useDragToggle";
+import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -41,6 +42,8 @@ export function AppShell() {
     const cleanup = setupListeners();
     return cleanup;
   }, [setupListeners]);
+
+  useGameSessionResume();
 
   function toggleSidebar() {
     const panel = sidebarRef.current;

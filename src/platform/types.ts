@@ -64,6 +64,7 @@ export interface CreateRoomParams {
   engine?: EngineKind;
   draftConfig?: DraftConfig;
   sealedConfig?: SealedConfig;
+  reconnectTimeoutS?: number;
 }
 
 export interface JoinRoomParams {
@@ -152,6 +153,7 @@ export interface IServerApi {
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;
   endGame(): Promise<void>;
+  requestResync(): Promise<void>;
   broadcastState(state: Record<string, unknown>): Promise<void>;
   sendRoomMessage(message: RoomRelayEnvelope): Promise<void>;
   spawnAiBot(params: SpawnAiBotParams): Promise<void>;

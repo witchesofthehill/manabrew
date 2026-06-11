@@ -5,24 +5,16 @@ import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
 import { EngineChoiceModal } from "@/components/lobby/EngineChoiceModal";
 import Game from "./Game";
 import { getPlatform } from "@/platform";
+import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import type { Deck } from "@/types/manabrew";
-import type { EngineKind, PlayerDeckInfo } from "@/types/server";
+import type { EngineKind } from "@/types/server";
 
 interface PendingAiStart {
   playerDeck: Deck;
   opponentDeck: Deck;
   formatId?: string;
   commanderName?: string;
-}
-
-interface MultiplayerLocationState {
-  multiplayer: true;
-  playerOrder: string[];
-  playerDecks: PlayerDeckInfo[];
-  isHost: boolean;
-  startingLife: number;
-  myPlayerSlot: string;
 }
 
 export default function Play() {
@@ -33,9 +25,9 @@ export default function Play() {
   const gameWasActive = useRef(false);
   const [pendingAiStart, setPendingAiStart] = useState<PendingAiStart | null>(null);
 
-  const routeState = location.state as MultiplayerLocationState | null;
+  const routeState = location.state;
   const mpState = useMemo(
-    () => (routeState && "multiplayer" in routeState ? routeState : null),
+    () => (isLiveEngineGameRouteState(routeState) ? routeState : null),
     [routeState],
   );
 

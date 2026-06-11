@@ -66,6 +66,7 @@ interface ServerState {
     engine?: EngineKind,
     draftConfig?: DraftConfig,
     sealedConfig?: SealedConfig,
+    reconnectTimeoutS?: number,
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   leaveRoom(): Promise<void>;
@@ -140,7 +141,15 @@ export const useServerStore = create<ServerState>()(
         await platform.server.listPlayers();
       },
 
-      async createRoom(roomName, maxPlayers, format, engine, draftConfig, sealedConfig) {
+      async createRoom(
+        roomName,
+        maxPlayers,
+        format,
+        engine,
+        draftConfig,
+        sealedConfig,
+        reconnectTimeoutS,
+      ) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.createRoom({
@@ -150,6 +159,7 @@ export const useServerStore = create<ServerState>()(
           engine,
           draftConfig,
           sealedConfig,
+          reconnectTimeoutS,
         });
       },
 
@@ -339,6 +349,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
+            if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,

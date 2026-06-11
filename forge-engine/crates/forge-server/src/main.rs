@@ -7,6 +7,7 @@ mod connection;
 mod error;
 mod lobby;
 mod protocol;
+mod replay;
 mod room;
 mod server;
 mod state;

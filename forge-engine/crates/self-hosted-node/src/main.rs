@@ -282,6 +282,7 @@ async fn host_one_room(
             sealed_config: None,
             official_key: config.official_key.clone(),
             password: config.room_password.clone(),
+            reconnect_timeout_s: None,
         })
         .await?;
         info!(room_name = %config.room_name, "creating room");

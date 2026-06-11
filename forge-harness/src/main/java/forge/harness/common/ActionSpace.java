@@ -6,6 +6,7 @@ import forge.card.mana.ManaAtom;
 import forge.card.mana.ManaCost;
 import forge.card.mana.ManaCostShard;
 import forge.game.Game;
+import forge.game.GameActionUtil;
 import forge.game.GameEntity;
 import forge.game.GameObject;
 import forge.game.card.Card;
@@ -109,27 +110,33 @@ public final class ActionSpace {
 
         final List<SpellAbility> actions = new ArrayList<>();
         for (final Card c : candidates) {
-            for (final SpellAbility sa : c.getAllPossibleAbilities(player, true)) {
-                sa.setActivatingPlayer(player);
-                final boolean hasManaCost = sa.getPayCosts() != null && sa.getPayCosts().hasManaCost();
-                final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
-                final boolean canPayMana = !hasManaCost
-                        || (reservedSacrifices.isEmpty()
-                        ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
-                        : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
-                final boolean validTargets = hasValidTargets(sa);
-                // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
-                // is permissive in engine core. Add an explicit mana-feasibility check.
-                if (!canPayMana) {
-                    continue;
+            for (final SpellAbility original : c.getAllPossibleAbilities(player, true)) {
+                original.setActivatingPlayer(player);
+                final List<SpellAbility> expanded = original.isBasicSpell()
+                        ? GameActionUtil.getAdditionalCostSpell(original)
+                        : List.of(original);
+                for (final SpellAbility sa : expanded) {
+                    sa.setActivatingPlayer(player);
+                    final boolean hasManaCost = sa.getPayCosts() != null && sa.getPayCosts().hasManaCost();
+                    final Set<Card> reservedSacrifices = getFixedReservedSacrifices(sa);
+                    final boolean canPayMana = !hasManaCost
+                            || (reservedSacrifices.isEmpty()
+                            ? ComputerUtilMana.canPayManaCost(sa, player, 0, false)
+                            : canPayManaCostWithReservedSacrifices(sa, player, reservedSacrifices));
+                    final boolean validTargets = hasValidTargets(sa);
+                    // SpellAbility.canPlay() uses Cost.canPay(), and CostPartMana.canPay()
+                    // is permissive in engine core. Add an explicit mana-feasibility check.
+                    if (!canPayMana) {
+                        continue;
+                    }
+                    if (!includeManaAbilities && sa.isManaAbility()) {
+                        continue;
+                    }
+                    if (!validTargets) {
+                        continue;
+                    }
+                    actions.add(sa);
                 }
-                if (!includeManaAbilities && sa.isManaAbility()) {
-                    continue;
-                }
-                if (!validTargets) {
-                    continue;
-                }
-                actions.add(sa);
             }
         }
         return actions;

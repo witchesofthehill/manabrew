@@ -185,10 +185,30 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public boolean playChosenSpellAbility(final SpellAbility sa) {
         session.beginCast(sa);
         try {
-            return playPlumbing.handlePlayingSpellAbility(player, sa, getGame());
+            final SpellAbility chosen = chooseOptionalAdditionalCosts(sa);
+            if (chosen == null) {
+                return false;
+            }
+            return playPlumbing.handlePlayingSpellAbility(player, chosen, getGame());
         } finally {
             session.endCast();
         }
+    }
+
+    private SpellAbility chooseOptionalAdditionalCosts(final SpellAbility original) {
+        SpellAbility chosen = original;
+        if (original.isSpell() && original.isBasicSpell()) {
+            final List<SpellAbility> abilities = GameActionUtil.getAdditionalCostSpell(original);
+            chosen = getAbilityToPlay(original.getHostCard(), abilities);
+            if (chosen == null) {
+                return null;
+            }
+        }
+        List<OptionalCostValue> options = GameActionUtil.getOptionalCostValues(chosen);
+        if (!options.isEmpty()) {
+            options = chooseOptionalCosts(chosen, options);
+        }
+        return GameActionUtil.addOptionalCosts(chosen, options);
     }
 
     @Override

@@ -24,18 +24,13 @@ const BAR_MAX_PX = 140;
 const TOOLTIP_MAX_NAMES = 10;
 
 interface DeckStatsProps {
-  cards?: DeckCard[];
   activeBucket?: number | null;
   onBucketClick?: (bucket: number | null) => void;
 }
 
-export function DeckStats({
-  cards: propCards,
-  activeBucket = null,
-  onBucketClick,
-}: DeckStatsProps) {
+export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps) {
   const { currentDeck } = useDeckStore();
-  const cards = propCards ?? currentDeck.cards;
+  const cards = currentDeck.cards;
   const [hoveredBucket, setHoveredBucket] = useState<number | null>(null);
 
   const lands: DeckCard[] = [];

@@ -460,6 +460,37 @@ interface DragHandleProps {
   onMouseDown: (e: React.MouseEvent) => void;
 }
 
+// ─── Empty Stack Board Placeholder ───────────────────────────────────────────
+
+function EmptyStackBoard({
+  label,
+  cardWidth,
+  dragHandleProps,
+}: {
+  label: string;
+  cardWidth: number;
+  dragHandleProps: DragHandleProps;
+}) {
+  return (
+    <div className="flex flex-col" style={{ width: cardWidth }}>
+      <div className="flex items-center gap-1 mb-2">
+        <div
+          className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+          onMouseDown={dragHandleProps.onMouseDown}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {label}
+        </span>
+      </div>
+      <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
+        <p className="text-[10px] text-muted-foreground/40">Drop here</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Stack Column Component ───────────────────────────────────────────────────
 
 interface StackColumnProps {
@@ -1646,22 +1677,7 @@ export function DeckListView({
               dragHandleProps={dhProps}
             />
           ) : (
-            <div className="flex flex-col" style={{ width: cardWidth }}>
-              <div className="flex items-center gap-1 mb-2">
-                <div
-                  className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors "
-                  onMouseDown={dhProps.onMouseDown}
-                >
-                  <GripVertical className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sideboard
-                </span>
-              </div>
-              <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-                <p className="text-[10px] text-muted-foreground/40">Drop here</p>
-              </div>
-            </div>
+            <EmptyStackBoard label="Sideboard" cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
         </div>
       );
@@ -1692,22 +1708,7 @@ export function DeckListView({
               dragHandleProps={dhProps}
             />
           ) : (
-            <div className="flex flex-col" style={{ width: cardWidth }}>
-              <div className="flex items-center gap-1 mb-2">
-                <div
-                  className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors "
-                  onMouseDown={dhProps.onMouseDown}
-                >
-                  <GripVertical className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Maybeboard
-                </span>
-              </div>
-              <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-                <p className="text-[10px] text-muted-foreground/40">Drop here</p>
-              </div>
-            </div>
+            <EmptyStackBoard label="Maybeboard" cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
         </div>
       );

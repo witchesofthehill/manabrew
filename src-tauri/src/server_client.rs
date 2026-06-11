@@ -322,6 +322,10 @@ fn emit_server_message(app: &AppHandle, msg: &ServerMessage) {
             "server:turn_changed",
             serde_json::json!({ "from_player": from_player, "new_active_player": new_active_player, "turn_number": turn_number }),
         ),
+        ServerMessage::GameAborted { room_id } => (
+            "server:game_aborted",
+            serde_json::json!({ "room_id": room_id }),
+        ),
         ServerMessage::Error { code, message } => (
             "server:error",
             serde_json::json!({ "code": code, "message": message }),

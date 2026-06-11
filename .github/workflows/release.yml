@@ -24,7 +24,10 @@ concurrency:
 jobs:
   release-please:
     name: Run release-please
-    runs-on: [self-hosted, Linux]
+    # Lightweight GitHub-API job; keep it off the self-hosted runner so it does
+    # not compete with deploys/builds on that box (a likely cause of flaky
+    # "Error creating commit" failures).
+    runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
@@ -52,58 +55,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: gh workflow run release-artifacts.yml --ref "$TAG"
-
-  # After a release PR is merged, open a PR that bumps the pinned `release-as`
-  # in release-please-config.json to the next minor (e.g. 0.1.0 -> 0.2.0) so
-  # the next release-please PR targets that version. A PR (rather than a
-  # direct push) is required because `main` is protected by branch rules
-  # (PR-only + signed commits + required status checks).
-  bump-release-as:
-    name: Bump release-as to next minor
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          token: ${{ secrets.RELEASE_BOT_TOKEN }}
-      - name: Bump minor in release-please-config.json
-        id: bump
-        run: |
-          set -euo pipefail
-          current=$(jq -r '.packages["."]["release-as"] // ""' release-please-config.json)
-          if [ -z "$current" ]; then
-            echo "release-as not set; nothing to bump"
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          IFS='.' read -r major minor patch <<< "$current"
-          if ! [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ && "$patch" =~ ^[0-9]+$ ]]; then
-            echo "release-as '$current' is not a plain X.Y.Z; refusing to bump"
-            exit 1
-          fi
-          new="${major}.$((minor + 1)).0"
-          echo "Bumping release-as: $current -> $new"
-          tmp=$(mktemp)
-          jq --arg v "$new" '.packages["."]["release-as"] = $v' release-please-config.json > "$tmp"
-          mv "$tmp" release-please-config.json
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "current=$current" >> "$GITHUB_OUTPUT"
-          echo "new=$new" >> "$GITHUB_OUTPUT"
-      - name: Open PR with bump
-        if: steps.bump.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.RELEASE_BOT_TOKEN }}
-          branch: chore/bump-release-as-${{ steps.bump.outputs.new }}
-          base: main
-          commit-message: "chore(release): bump release-as to ${{ steps.bump.outputs.new }}"
-          title: "chore(release): bump release-as to ${{ steps.bump.outputs.new }}"
-          body: |
-            Automated bump of `release-please-config.json` `release-as` from `${{ steps.bump.outputs.current }}` to `${{ steps.bump.outputs.new }}`.
-
-            Opened by the `Release` workflow after the release PR for `${{ needs.release-please.outputs.tag_name }}` was merged. Merge this so the next release-please PR targets `${{ steps.bump.outputs.new }}`.
-          sign-commits: true
-          delete-branch: true
-          labels: automated, release

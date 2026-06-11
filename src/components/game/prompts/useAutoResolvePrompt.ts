@@ -4,7 +4,7 @@ import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
 import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 import { resolvePrompt } from "./promptHandlers";
 
-export function useAutoResolvePrompt(): void {
+export function useAutoResolvePrompt(paused = false): void {
   const currentPrompt = useGameStore((s) => s.currentPrompt);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
   const isGameActive = useGameStore((s) => s.isGameActive);
@@ -24,6 +24,7 @@ export function useAutoResolvePrompt(): void {
   }, [isGameActive]);
 
   useLayoutEffect(() => {
+    if (paused) return;
     if (!currentPrompt) return;
     if (isWaitingForResponse) return;
 
@@ -38,7 +39,15 @@ export function useAutoResolvePrompt(): void {
     }
     appendAutoResolutionLog(currentPrompt.input.type, result.reason);
     void respond(result.respond);
-  }, [currentPrompt, isWaitingForResponse, respond, showOverrides, triggerMemory, targetIntents]);
+  }, [
+    paused,
+    currentPrompt,
+    isWaitingForResponse,
+    respond,
+    showOverrides,
+    triggerMemory,
+    targetIntents,
+  ]);
 }
 
 function appendAutoResolutionLog(promptType: string, reason: string): void {

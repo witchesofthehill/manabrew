@@ -10,7 +10,7 @@ use tracing::{debug, info, warn};
 use crate::cleanup::mark_disconnected;
 use crate::error::ServerError;
 use crate::lobby;
-use crate::protocol::{ClientMessage, ServerMessage};
+use crate::protocol::{ClientMessage, RoomStatus, ServerMessage};
 use crate::state::{ConnectedPlayer, ServerState};
 
 type WsSender = futures_util::stream::SplitSink<
@@ -40,7 +40,7 @@ fn send_msg(sender: &mpsc::UnboundedSender<Message>, msg: &ServerMessage) {
     }
 }
 
-fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMessage, json: &str) {
+pub(crate) fn emit_to(state: &Arc<ServerState>, player_id: &str, msg: &ServerMessage, json: &str) {
     if let Some(player) = state.players.get(player_id) {
         if player.connected {
             debug!("[emit] -> '{}': {}", player.username, msg_type_of(msg));
@@ -330,55 +330,8 @@ async fn authenticate(
             if let Some((existing_pid, room_id, old_gen)) =
                 state.find_disconnected_by_username(&username)
             {
-                let new_gen = old_gen + 1;
-                info!(
-                    "[auth] reclaiming session for '{}' (id={}, gen={})",
-                    username,
-                    &existing_pid[..8],
-                    new_gen
-                );
-
-                if let Some(mut player) = state.players.get_mut(&existing_pid) {
-                    player.sender = sender.clone();
-                    player.connected = true;
-                    player.generation = new_gen;
-                    player.last_seen = Instant::now();
-                    player.disconnected_at = None;
-                }
-
-                let reply = ServerMessage::AuthResult {
-                    success: true,
-                    player_id: Some(existing_pid.clone()),
-                    reconnected: Some(true),
-                    error: None,
-                };
-                send_msg(sender, &reply);
-
-                if let Some(rid) = &room_id {
-                    if let Some(mut room) = state.rooms.get_mut(rid) {
-                        room.set_connected(&existing_pid, true);
-                    }
-
-                    broadcast_to_room_except(
-                        state,
-                        &existing_pid,
-                        rid,
-                        &ServerMessage::PlayerConnected {
-                            username: username.clone(),
-                        },
-                    );
-
-                    if let Some(room) = state.rooms.get(rid) {
-                        broadcast_to_room(
-                            state,
-                            rid,
-                            &ServerMessage::RoomUpdate {
-                                room: room.to_room_info(),
-                            },
-                        );
-                    }
-                }
-
+                let new_gen =
+                    reclaim_session(state, sender, &existing_pid, &username, room_id, old_gen);
                 return Ok((existing_pid, username, true, new_gen));
             }
 
@@ -398,55 +351,14 @@ async fn authenticate(
                     if let Some((reclaim_pid, room_id, old_gen)) =
                         state.find_disconnected_by_username(&username)
                     {
-                        let new_gen = old_gen + 1;
-                        info!(
-                            "[auth] reclaiming session for '{}' (id={}, gen={})",
-                            username,
-                            &reclaim_pid[..8],
-                            new_gen
+                        let new_gen = reclaim_session(
+                            state,
+                            sender,
+                            &reclaim_pid,
+                            &username,
+                            room_id,
+                            old_gen,
                         );
-
-                        if let Some(mut player) = state.players.get_mut(&reclaim_pid) {
-                            player.sender = sender.clone();
-                            player.connected = true;
-                            player.generation = new_gen;
-                            player.last_seen = Instant::now();
-                            player.disconnected_at = None;
-                        }
-
-                        let reply = ServerMessage::AuthResult {
-                            success: true,
-                            player_id: Some(reclaim_pid.clone()),
-                            reconnected: Some(true),
-                            error: None,
-                        };
-                        send_msg(sender, &reply);
-
-                        if let Some(rid) = &room_id {
-                            if let Some(mut room) = state.rooms.get_mut(rid) {
-                                room.set_connected(&reclaim_pid, true);
-                            }
-
-                            broadcast_to_room_except(
-                                state,
-                                &reclaim_pid,
-                                rid,
-                                &ServerMessage::PlayerConnected {
-                                    username: username.clone(),
-                                },
-                            );
-
-                            if let Some(room) = state.rooms.get(rid) {
-                                broadcast_to_room(
-                                    state,
-                                    rid,
-                                    &ServerMessage::RoomUpdate {
-                                        room: room.to_room_info(),
-                                    },
-                                );
-                            }
-                        }
-
                         return Ok((reclaim_pid, username, true, new_gen));
                     }
                 }
@@ -504,6 +416,92 @@ async fn authenticate(
             ))
         }
     }
+}
+
+fn reclaim_session(
+    state: &Arc<ServerState>,
+    sender: &mpsc::UnboundedSender<Message>,
+    existing_pid: &str,
+    username: &str,
+    room_id: Option<String>,
+    old_gen: u64,
+) -> u64 {
+    let new_gen = old_gen + 1;
+    info!(
+        "[auth] reclaiming session for '{}' (id={}, gen={})",
+        username,
+        &existing_pid[..8],
+        new_gen
+    );
+
+    if let Some(mut player) = state.players.get_mut(existing_pid) {
+        player.sender = sender.clone();
+        player.connected = true;
+        player.generation = new_gen;
+        player.last_seen = Instant::now();
+        player.disconnected_at = None;
+    }
+
+    let reply = ServerMessage::AuthResult {
+        success: true,
+        player_id: Some(existing_pid.to_string()),
+        reconnected: Some(true),
+        error: None,
+    };
+    send_msg(sender, &reply);
+
+    if let Some(rid) = &room_id {
+        if let Some(mut room) = state.rooms.get_mut(rid) {
+            room.set_connected(existing_pid, true);
+        }
+
+        broadcast_to_room_except(
+            state,
+            existing_pid,
+            rid,
+            &ServerMessage::PlayerConnected {
+                username: username.to_string(),
+            },
+        );
+
+        if let Some(room) = state.rooms.get(rid) {
+            broadcast_to_room(
+                state,
+                rid,
+                &ServerMessage::RoomUpdate {
+                    room: room.to_room_info(),
+                },
+            );
+        }
+
+        let queued = state.rooms.get_mut(rid).and_then(|mut room| {
+            let room = &mut *room;
+            if room.status != RoomStatus::InGame {
+                return None;
+            }
+            let replay = room.replay.as_mut()?;
+            let responses = replay.take_queued_responses(username);
+            (!responses.is_empty()).then(|| (room.host_username(), responses))
+        });
+        if let Some((host_username, responses)) = queued {
+            info!(
+                "[auth] flushing {} queued responses to '{}'",
+                responses.len(),
+                username
+            );
+            for response in responses {
+                send_msg(
+                    sender,
+                    &ServerMessage::StateUpdate {
+                        from_player: host_username.clone(),
+                        state: response,
+                    },
+                );
+            }
+        }
+    }
+
+    new_gen
 }
 
 fn handle_client_message(
@@ -570,6 +568,7 @@ fn handle_client_message(
             sealed_config,
             official_key,
             password,
+            reconnect_timeout_s,
         } => {
             info!(
                 "[lobby] '{}' creating room '{}' (max={}, format={:?}, hosted={}, engine={:?}, draft={}, sealed={})",
@@ -594,6 +593,7 @@ fn handle_client_message(
                 sealed_config,
                 official_key,
                 password,
+                reconnect_timeout_s,
             ) {
                 Ok(info) => {
                     info!(
@@ -871,18 +871,84 @@ fn handle_client_message(
         }
 
         ClientMessage::EndGame => match lobby::end_game_sync(state, player_id) {
-            Ok((room_id, info)) => {
+            Ok((room_id, info, notify)) => {
                 info!("[game] '{}' ended game in room {}", username, &room_id[..8]);
                 broadcast_to_room(state, &room_id, &ServerMessage::RoomUpdate { room: info });
+                let aborted = ServerMessage::GameAborted {
+                    room_id: room_id.clone(),
+                };
+                if let Ok(json) = serde_json::to_string(&aborted) {
+                    for pid in notify.iter().filter(|pid| pid.as_str() != player_id) {
+                        emit_to(state, pid, &aborted, &json);
+                    }
+                }
             }
             Err(e) => {
                 debug!("[game] '{}' end game ignored: {}", username, e);
             }
         },
 
+        ClientMessage::RequestResync => {
+            let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
+            let replayed = room_id.and_then(|rid| {
+                let room = state.rooms.get(&rid)?;
+                if room.status != RoomStatus::InGame {
+                    return None;
+                }
+                let replay = room.replay.as_ref()?;
+                let mut messages = vec![ServerMessage::GameStarted {
+                    room_id: rid.clone(),
+                    player_order: replay.player_order.clone(),
+                    player_decks: replay.player_decks.clone(),
+                    starting_life: replay.starting_life,
+                }];
+                if let Some(state_env) = replay.last_state.clone() {
+                    messages.push(ServerMessage::StateUpdate {
+                        from_player: room.host_username(),
+                        state: state_env,
+                    });
+                }
+                if let Some(prompt) = replay
+                    .slot_for(username)
+                    .and_then(|slot| replay.pending_prompts.get(&slot).cloned())
+                {
+                    messages.push(ServerMessage::StateUpdate {
+                        from_player: room.host_username(),
+                        state: prompt,
+                    });
+                }
+                Some(messages)
+            });
+            match replayed {
+                Some(messages) => {
+                    info!("[game] '{}' resync ({} messages)", username, messages.len());
+                    for msg in &messages {
+                        send_msg(sender, msg);
+                    }
+                }
+                None => {
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: ServerError::GameNotInProgress.code().into(),
+                            message: ServerError::GameNotInProgress.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
         ClientMessage::BroadcastState { state: game_state } => {
             let room_id = { state.players.get(player_id).and_then(|p| p.room_id.clone()) };
             if let Some(rid) = room_id {
+                if let Some(mut room) = state.rooms.get_mut(&rid) {
+                    let room = &mut *room;
+                    if room.status == RoomStatus::InGame {
+                        if let Some(replay) = room.replay.as_mut() {
+                            replay.observe(&game_state, &room.players);
+                        }
+                    }
+                }
                 debug!(
                     "[game] '{}' broadcasting state to room {}",
                     username,
@@ -972,6 +1038,7 @@ fn msg_type_of(msg: &ServerMessage) -> &'static str {
         ServerMessage::GameStarted { .. } => "GameStarted",
         ServerMessage::StateUpdate { .. } => "StateUpdate",
         ServerMessage::TurnChanged { .. } => "TurnChanged",
+        ServerMessage::GameAborted { .. } => "GameAborted",
         ServerMessage::Error { .. } => "Error",
         ServerMessage::ServerShuttingDown { .. } => "ServerShuttingDown",
     }
@@ -992,6 +1059,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",
         ClientMessage::EndGame => "EndGame",
+        ClientMessage::RequestResync => "RequestResync",
         ClientMessage::BroadcastState { .. } => "BroadcastState",
         ClientMessage::TurnChange { .. } => "TurnChange",
     }

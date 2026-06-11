@@ -11,6 +11,7 @@ import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { CubeImportResult } from "@/types/limited";
+import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
 import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
@@ -87,6 +88,8 @@ const FORMATS: {
 
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
 const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
+// Capped at 90s: the engine auto-passes a silent seat after 120s
+const RECONNECT_TIMEOUT_OPTIONS = [30, 60, 90] as const;
 
 type RoomKind = "match" | "limited";
 
@@ -147,6 +150,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [limitedPlayers, setLimitedPlayers] = useState(8);
   const [format, setFormat] = useState<GameFormat>("Standard");
   const [engine, setEngine] = useState<EngineKind>("Wasm");
+  const [reconnectTimeoutS, setReconnectTimeoutS] = useState<number>(DEFAULT_RECONNECT_TIMEOUT_S);
 
   const [draftSet, setDraftSet] = useState<string>("");
   const [draftRounds, setDraftRounds] = useState(3);
@@ -244,6 +248,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setRoomName("");
     setFormat("Standard");
     setEngine("Wasm");
+    setReconnectTimeoutS(DEFAULT_RECONNECT_TIMEOUT_S);
     setDraftSet("");
     setDraftRounds(3);
     setDraftPicksPerPass(1);
@@ -318,6 +323,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         engine,
         draftConfig,
         sealedConfig,
+        reconnectTimeoutS,
       );
       onOpenChange(false);
       setRoomName("");
@@ -635,6 +641,32 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   <span>Fill empty seats with AI bots</span>
                 </label>
               </>
+            )}
+
+            {kind === "match" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Reconnect timeout</Label>
+                <div className="flex items-center gap-2">
+                  {RECONNECT_TIMEOUT_OPTIONS.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setReconnectTimeoutS(s)}
+                      className={cn(
+                        "flex-1 h-9 rounded-lg border flex items-center justify-center transition-colors",
+                        reconnectTimeoutS === s
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <span className="text-sm font-medium">{s}s</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  How long the game waits for a disconnected player before it is aborted.
+                </p>
+              </div>
             )}
           </div>
 

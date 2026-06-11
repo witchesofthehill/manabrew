@@ -101,6 +101,7 @@ pub fn run() {
             server_commands::server_set_max_players,
             server_commands::server_start_game,
             server_commands::server_end_game,
+            server_commands::server_request_resync,
             server_commands::server_broadcast_state,
             server_commands::server_send_room_message,
             server_commands::server_respond,

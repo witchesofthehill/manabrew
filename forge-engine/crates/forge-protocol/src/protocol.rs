@@ -42,6 +42,8 @@ pub enum ClientMessage {
         official_key: Option<String>,
         #[serde(default)]
         password: Option<String>,
+        #[serde(default)]
+        reconnect_timeout_s: Option<u32>,
     },
 
     JoinRoom {
@@ -80,6 +82,8 @@ pub enum ClientMessage {
     },
 
     EndGame,
+
+    RequestResync,
 
     BroadcastState {
         state: serde_json::Value,
@@ -159,6 +163,10 @@ pub enum ServerMessage {
         turn_number: u32,
     },
 
+    GameAborted {
+        room_id: String,
+    },
+
     Error {
         code: String,
         message: String,
@@ -186,10 +194,18 @@ pub struct RoomInfo {
     pub status: RoomStatus,
     #[serde(default)]
     pub engine: EngineKind,
+    #[serde(default = "default_reconnect_timeout_s")]
+    pub reconnect_timeout_s: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draft_config: Option<DraftConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sealed_config: Option<SealedConfig>,
+}
+
+pub const DEFAULT_RECONNECT_TIMEOUT_S: u32 = 60;
+
+fn default_reconnect_timeout_s() -> u32 {
+    DEFAULT_RECONNECT_TIMEOUT_S
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

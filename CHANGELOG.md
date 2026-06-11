@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.3.0](https://github.com/witchesofthehill/manabrew/compare/v0.2.0...v0.3.0) (2026-06-11)
+
+
+### Features
+
+* **ai:** Forge's native AI in hosted play — 1v1 seat + multiplayer pods ([#139](https://github.com/witchesofthehill/manabrew/issues/139)) ([5e3ee15](https://github.com/witchesofthehill/manabrew/commit/5e3ee15e374dcf2be818295567c126dc03b9bb15))
+* **companion:** focus mode, bar restructure, mobile polish ([#116](https://github.com/witchesofthehill/manabrew/issues/116)) ([546ca60](https://github.com/witchesofthehill/manabrew/commit/546ca604d49c7fc734d47a15d13596def7741192))
+* **companion:** multi-touch, LifeTap layouts, commander-damage modal ([#122](https://github.com/witchesofthehill/manabrew/issues/122)) ([df6db65](https://github.com/witchesofthehill/manabrew/commit/df6db65daacad28a532e3b759160a51e82de2a44))
+* **companion:** paper-play life tracker with layouts, drag-rotate-scale, themed icons ([#111](https://github.com/witchesofthehill/manabrew/issues/111)) ([2bd1238](https://github.com/witchesofthehill/manabrew/commit/2bd12389b446ccabab77fc29be22d114575bd8b1))
+* **companion:** tracker v2 — turn flow, ring/speed/day-night, mana pool, log, archive, more ([#113](https://github.com/witchesofthehill/manabrew/issues/113)) ([53518c8](https://github.com/witchesofthehill/manabrew/commit/53518c82f8a209e304eb087e7cdd2205eb9a49f1))
+* Join player, clear room mode init, and correct reset ([#150](https://github.com/witchesofthehill/manabrew/issues/150)) ([61a0a3f](https://github.com/witchesofthehill/manabrew/commit/61a0a3fb87943ffba8b9de0954d04671be1fd293))
+* lobby improvements and self-hosting protocol ([#142](https://github.com/witchesofthehill/manabrew/issues/142)) ([db1e849](https://github.com/witchesofthehill/manabrew/commit/db1e8495c6f8a177b766103415dc23930aec069a))
+* **lobby:** change player count and let any player add bots ([#131](https://github.com/witchesofthehill/manabrew/issues/131)) ([a6100c2](https://github.com/witchesofthehill/manabrew/commit/a6100c23cc63f600a7bbe3ace3947c9b03639553))
+* reconnect to in-game lobby ([#156](https://github.com/witchesofthehill/manabrew/issues/156)) ([d898556](https://github.com/witchesofthehill/manabrew/commit/d8985568cd53f5b61558644ecead15100e4dcd83))
+* **ui:** commander combo highlighting and bracket estimation ([#140](https://github.com/witchesofthehill/manabrew/issues/140)) ([6fdbab5](https://github.com/witchesofthehill/manabrew/commit/6fdbab5bda4bb8dea59fab164da32f541baf06ff))
+
+
+### Fixes
+
+* **build:** bundle editions/blockdata in web cardset archive ([#123](https://github.com/witchesofthehill/manabrew/issues/123)) ([a962d4b](https://github.com/witchesofthehill/manabrew/commit/a962d4bced7fc2a57d8fc51c1b1b73dccb0c63ab))
+* **ci:** bad secret overwrite ([#145](https://github.com/witchesofthehill/manabrew/issues/145)) ([6b79158](https://github.com/witchesofthehill/manabrew/commit/6b791588c2a59f3f3eac18b0fba3ebfb616acf78))
+* **ci:** open PR for release-as bump instead of pushing to main ([#110](https://github.com/witchesofthehill/manabrew/issues/110)) ([14757fa](https://github.com/witchesofthehill/manabrew/commit/14757fab031570a1acb92c6786da236a8d59091f))
+* **ci:** reload caddy when caddyfile changes during deploy ([#155](https://github.com/witchesofthehill/manabrew/issues/155)) ([5c0f9b5](https://github.com/witchesofthehill/manabrew/commit/5c0f9b55aeeb4c0a02c6b96b3267e28414fd0df3))
+* **companion:** lock page scroll and harden responsiveness ([#117](https://github.com/witchesofthehill/manabrew/issues/117)) ([be3a798](https://github.com/witchesofthehill/manabrew/commit/be3a7988da22109e016290d03d81ea0c347cdcb4))
+* compose and remove local compose ([#147](https://github.com/witchesofthehill/manabrew/issues/147)) ([dd783ef](https://github.com/witchesofthehill/manabrew/commit/dd783ef5caf45a8e2f39cc4ce358883634172de0))
+* **harness:** convoke delve, and some alt payment issues ([#143](https://github.com/witchesofthehill/manabrew/issues/143)) ([f6385f8](https://github.com/witchesofthehill/manabrew/commit/f6385f8a9c3f314446c9c304e7d518af120e58f8))
+* **harness:** java engine handler incompleteness ([#112](https://github.com/witchesofthehill/manabrew/issues/112)) ([93421d6](https://github.com/witchesofthehill/manabrew/commit/93421d6e3caaa3d45a1fd619c17fdf090a6112f8))
+* **java-harness:** misc java issues ([#119](https://github.com/witchesofthehill/manabrew/issues/119)) ([9dc3e31](https://github.com/witchesofthehill/manabrew/commit/9dc3e3111adc4bac31887f89cead59bb2190598e))
+* **node:** always emit game-over prompt, even if final snapshot fails ([#141](https://github.com/witchesofthehill/manabrew/issues/141)) ([8ce0215](https://github.com/witchesofthehill/manabrew/commit/8ce0215199d98df92e3cd069bc2f8d395581c9dc))
+* **node:** any not being parsed, put any as default ([#144](https://github.com/witchesofthehill/manabrew/issues/144)) ([c161a79](https://github.com/witchesofthehill/manabrew/commit/c161a792dcafdf3190f53a77dd2205ad6a468ed4))
+* **node:** emit game-over prompt from hosted java sessions ([#127](https://github.com/witchesofthehill/manabrew/issues/127)) ([6342152](https://github.com/witchesofthehill/manabrew/commit/6342152175189022e61b2a0852b07b5f8b3eb5bb))
+* payment session rollback and untap ([#136](https://github.com/witchesofthehill/manabrew/issues/136)) ([6a75cbe](https://github.com/witchesofthehill/manabrew/commit/6a75cbe2a2b3b6b6ffd6feab6315bb4ef79c3b62))
+* protocol state update being deferred ([#130](https://github.com/witchesofthehill/manabrew/issues/130)) ([460e3bd](https://github.com/witchesofthehill/manabrew/commit/460e3bd498e4faa882ab0b5a9a3491dee1ada4ba))
+* **ui:** deck editor save & exit flow bugs ([#108](https://github.com/witchesofthehill/manabrew/issues/108)) ([585327b](https://github.com/witchesofthehill/manabrew/commit/585327bdcf2d20b9126adabda4552d250412ad85))
+* **ui:** mobile lobby view ([#146](https://github.com/witchesofthehill/manabrew/issues/146)) ([c4fd04d](https://github.com/witchesofthehill/manabrew/commit/c4fd04d8f99e5d16c2a3a44f90e4fddba57b93ab))
+* **web:** proxy commander spellbook api to bypass cors allowlist ([#151](https://github.com/witchesofthehill/manabrew/issues/151)) ([743d5ba](https://github.com/witchesofthehill/manabrew/commit/743d5ba42086c819b489e3c49ffa93d93ab149d8))
+* **web:** strip x-forwarded-host on spellbook proxy to avoid django 400 ([#154](https://github.com/witchesofthehill/manabrew/issues/154)) ([7b879d7](https://github.com/witchesofthehill/manabrew/commit/7b879d7e5a502525154a4545dac35141b98933da))
+
+
+### Refactors
+
+* decouple relay from engine + only redeploy forge-server when its code changes ([#149](https://github.com/witchesofthehill/manabrew/issues/149)) ([9c3b46e](https://github.com/witchesofthehill/manabrew/commit/9c3b46ee5733ae4a7449ba815cc2b5086ca41b15))
+* prompt typing system ([#125](https://github.com/witchesofthehill/manabrew/issues/125)) ([72c77f6](https://github.com/witchesofthehill/manabrew/commit/72c77f640d6ed90658620fb9a08848a217e9ea5f))
+
 ## [0.2.0](https://github.com/witchesofthehill/manabrew/compare/v0.1.0...v0.2.0) (2026-06-01)
 
 

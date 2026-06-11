@@ -15,9 +15,7 @@ import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/
 import { cn } from "@/lib/utils";
 import {
   Boxes,
-  Cloud,
   Coins,
-  Cpu,
   Gem,
   Layers,
   Loader2,
@@ -27,7 +25,7 @@ import {
   Users,
   Wand2,
 } from "lucide-react";
-import { GameIcon } from "@/components/game/GameIcon";
+import { GameIcon, type GameIconName } from "@/components/game/GameIcon";
 
 const CommanderIcon = ({ className }: { className?: string }) => (
   <GameIcon name="overlord-helm" className={className} />
@@ -416,21 +414,21 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 <EngineCard
                   selected={engine === "Wasm"}
                   onClick={() => setEngine("Wasm")}
-                  icon={Cpu}
-                  label="Rust (Wasm)"
+                  icon="beer-stein"
+                  label="ManaBrew"
                   badge="in-browser"
                   description="ManaBrew's own engine, running locally. Instant, no network."
                 />
                 <EngineCard
                   selected={engine === "Java"}
                   onClick={() => setEngine("Java")}
-                  icon={Cloud}
-                  label="Forge (hosted)"
+                  icon="anvil"
+                  label="Forge"
                   badge={hostedAvailable ? "hosted" : "coming soon"}
                   description={
                     hostedAvailable
-                      ? "Java Forge on a ManaBrew-hosted node. Full card support."
-                      : "Hosted multiplayer Java match requires a node-side host that isn't wired yet."
+                      ? "The Forge engine on a ManaBrew-hosted node. Full card support."
+                      : "Hosted Forge matches need a node-side host that isn't wired yet."
                   }
                   disabled={!hostedAvailable}
                 />
@@ -780,7 +778,7 @@ function LimitedKindCard({
 interface EngineCardProps {
   selected: boolean;
   onClick: () => void;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: GameIconName;
   label: string;
   badge: string;
   description: string;
@@ -790,7 +788,7 @@ interface EngineCardProps {
 function EngineCard({
   selected,
   onClick,
-  icon: Icon,
+  icon,
   label,
   badge,
   description,
@@ -810,7 +808,10 @@ function EngineCard({
       )}
     >
       <div className="flex items-center gap-1.5">
-        <Icon className={cn("h-3.5 w-3.5", selected ? "text-primary" : "text-muted-foreground")} />
+        <GameIcon
+          name={icon}
+          className={cn("h-3.5 w-3.5", selected ? "text-primary" : "text-muted-foreground")}
+        />
         <span className="text-xs font-medium">{label}</span>
         <Badge variant="outline" className="text-[9px]">
           {badge}

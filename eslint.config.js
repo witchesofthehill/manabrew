@@ -41,4 +41,10 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["tests/**/*.ts", "vitest.*.config.ts"],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ]);

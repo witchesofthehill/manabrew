@@ -43,6 +43,7 @@
     "build:web": "yarn build:wasm && tsc -b && vite build",
     "prepare": "husky",
     "test": "vitest run",
+    "test:hosted-bridge": "yarn ensure:harness && vitest run --config vitest.hosted.config.ts",
     "test:watch": "vitest"
   },
   "lint-staged": {

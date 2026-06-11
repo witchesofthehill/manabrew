@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
+import { GITHUB_REPO_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
 import {
   Github,
@@ -8,6 +10,7 @@ import {
   Home,
   Gamepad2,
   Hand,
+  Info,
   Layers,
   Package,
   Settings,
@@ -15,6 +18,7 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AboutDialog } from "@/components/AboutDialog";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -31,6 +35,7 @@ function DiscordIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isGameActive = useGameStore((s) => s.isGameActive);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <div
@@ -168,9 +173,18 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 )}
               </NavLink>
             )}
+            <Button
+              variant="ghost"
+              className="w-full justify-start whitespace-nowrap"
+              onClick={() => setAboutOpen(true)}
+            >
+              <Info className="mr-2 h-4 w-4 shrink-0" />
+              About ManaBrew
+            </Button>
           </div>
         </div>
       </div>
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <div className="mt-auto flex w-max items-center gap-3 overflow-visible px-7 py-4 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-muted-foreground">
           Get in touch
@@ -184,7 +198,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </Button>
           <span className="shrink-0 text-muted-foreground">|</span>
           <Button asChild variant="ghost" size="icon" className="shrink-0" title="GitHub">
-            <a href="https://github.com/witchesofthehill/manabrew" target="_blank" rel="noreferrer">
+            <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
               <Github className="h-4 w-4" />
               <span className="sr-only">GitHub</span>
             </a>

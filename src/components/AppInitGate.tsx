@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAcknowledgement } from "@/hooks/useAcknowledgement";
+import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/OnboardingWelcome";
 import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
 
 const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
+const ONBOARDING_STORAGE_KEY = "manabrew.onboarding";
 
 const BAR_FILL_MS = 200;
 // Minimum dwell at the initial `idle` stage. Without it, a cache hit can
@@ -62,6 +64,10 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     TERMS_STORAGE_KEY,
     TERMS_AND_CONDITIONS.version,
   );
+  const { accepted: onboardingDone, accept: completeOnboarding } = useAcknowledgement(
+    ONBOARDING_STORAGE_KEY,
+    ONBOARDING_GUIDE_VERSION,
+  );
   const [consent, setConsent] = useState(false);
 
   const [minHoldPassed, setMinHoldPassed] = useState(hasReleasedOnce);
@@ -97,7 +103,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (phase === "done") return;
     if (stage !== "ready") return;
-    if (!termsAccepted) return;
+    if (!termsAccepted || !onboardingDone) return;
     const release = window.setTimeout(() => setPhase("releasing"), RELEASE_DELAY_MS);
     const done = window.setTimeout(() => {
       setPhase("done");
@@ -107,7 +113,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       window.clearTimeout(release);
       window.clearTimeout(done);
     };
-  }, [stage, phase, termsAccepted, RELEASE_DELAY_MS, EXIT_MS]);
+  }, [stage, phase, termsAccepted, onboardingDone, RELEASE_DELAY_MS, EXIT_MS]);
 
   // The companion is pure UI with no engine dependency, so never block it behind
   // the worker boot — which can't initialise without cross-origin isolation
@@ -138,6 +144,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   const pct = Math.round(target);
   const showBytes = total > 0;
   const showTerms = stage === "ready" && !termsAccepted;
+  const showOnboarding = stage === "ready" && termsAccepted && !onboardingDone;
 
   const exiting = phase === "releasing";
   const showChildren = phase !== "gating";
@@ -257,6 +264,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                 </p>
               </div>
             </div>
+          ) : showOnboarding ? (
+            <OnboardingWelcome onComplete={completeOnboarding} />
           ) : (
             <div className="w-full space-y-5">
               <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">

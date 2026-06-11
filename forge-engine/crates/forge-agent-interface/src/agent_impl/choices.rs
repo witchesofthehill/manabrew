@@ -925,6 +925,7 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
             min_choices: min,
             max_choices: max,
             source_card_name: None,
+            optional: false,
         },
         None,
     );
@@ -972,6 +973,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
             min_choices,
             max_choices: 1,
             source_card_name: Some(select_prompt.to_string()),
+            optional: is_optional,
         },
         None,
     );
@@ -1023,6 +1025,7 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
             min_choices: min,
             max_choices: max,
             source_card_name: Some(select_prompt.to_string()),
+            optional: false,
         },
         None,
     );

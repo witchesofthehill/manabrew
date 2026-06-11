@@ -8,13 +8,29 @@ import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import type { DeckCard, GameCard } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 
+const DECK_ZONES = ["Library", "PlanarDeck", "SchemeDeck", "AttractionDeck", "ContraptionDeck"];
+
 interface ReorderLibraryModalProps {
   cards: GameCard[];
   sourceCard?: DeckCard;
+  destination?: string | null;
+  topOfDeck?: boolean;
   onConfirm: (orderedCardIds: string[]) => void;
 }
 
-export function ReorderLibraryModal({ cards, sourceCard, onConfirm }: ReorderLibraryModalProps) {
+export function ReorderLibraryModal({
+  cards,
+  sourceCard,
+  destination,
+  topOfDeck = true,
+  onConfirm,
+}: ReorderLibraryModalProps) {
+  const isDeck = !destination || DECK_ZONES.includes(destination);
+  const title = isDeck
+    ? topOfDeck
+      ? "Reorder Top of Library"
+      : "Order Cards for Bottom of Library"
+    : `Order Cards — ${destination}`;
   // unsorted = cards not yet placed; sorted = placed in chosen order
   const [sorted, setSorted] = useState<GameCard[]>([]);
   const unsorted = cards.filter((c) => !sorted.some((s) => s.id === c.id));
@@ -48,15 +64,16 @@ export function ReorderLibraryModal({ cards, sourceCard, onConfirm }: ReorderLib
         <div className="flex items-center gap-3">
           {sourceCard && <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />}
           <div>
-            <h2 className="font-semibold text-base">Reorder Top of Library</h2>
+            <h2 className="font-semibold text-base">{title}</h2>
             <p className="text-xs text-muted-foreground font-medium">{sourceCard?.name}</p>
           </div>
         </div>
       </Modal.Header>
 
       <Modal.Instructions>
-        Click cards in the order you want them on your library. First clicked = bottom, last clicked
-        = top.
+        {isDeck
+          ? "Click cards in the order you want them. First clicked = closest to the bottom, last clicked = closest to the top."
+          : "Click cards in the order they should be placed. First clicked = placed first."}
       </Modal.Instructions>
 
       <div className="p-4 space-y-4">
@@ -82,7 +99,7 @@ export function ReorderLibraryModal({ cards, sourceCard, onConfirm }: ReorderLib
         {sorted.length > 0 && (
           <div>
             <p className="text-xs text-muted-foreground mb-2">
-              Library order (left = bottom, right = top):
+              {isDeck ? "Library order (left = bottom, right = top):" : "Order (left = first):"}
             </p>
             <div className="flex gap-2 flex-wrap justify-center items-end">
               {sorted.map((card, i) => (
@@ -95,7 +112,13 @@ export function ReorderLibraryModal({ cards, sourceCard, onConfirm }: ReorderLib
                         : "bg-muted text-muted-foreground",
                     )}
                   >
-                    {i === sorted.length - 1 ? "TOP" : i === 0 ? "BTM" : `${i + 1}`}
+                    {isDeck
+                      ? i === sorted.length - 1
+                        ? "TOP"
+                        : i === 0
+                          ? "BTM"
+                          : `${i + 1}`
+                      : `${i + 1}`}
                   </span>
                   <button
                     onClick={() => handleClickSorted(card)}

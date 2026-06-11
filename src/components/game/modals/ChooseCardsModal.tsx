@@ -15,6 +15,8 @@ interface ChooseCardsModalProps {
   sourceCardName?: string;
   /** Optional description shown below the card name (e.g. remaining cost for Convoke/Improvise). */
   description?: string;
+  /** The whole choice may be declined; a non-empty pick still honors minChoices. */
+  optional?: boolean;
   onConfirm: (chosenCardIds: string[]) => void;
 }
 
@@ -24,11 +26,14 @@ export function ChooseCardsModal({
   maxChoices,
   sourceCardName,
   description,
+  optional = false,
   onConfirm,
 }: ChooseCardsModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const isAutoConfirm = maxChoices === 1 && minChoices === 1;
-  const canConfirm = selected.size >= minChoices && selected.size <= maxChoices;
+  const isAutoConfirm = maxChoices === 1 && minChoices === 1 && !optional;
+  const canConfirm =
+    (selected.size >= minChoices && selected.size <= maxChoices) ||
+    (optional && selected.size === 0);
 
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +65,8 @@ export function ChooseCardsModal({
     });
   }
 
-  const spaceConfirms = canConfirm && !isAutoConfirm && !(minChoices === 0 && selected.size === 0);
+  const spaceConfirms =
+    canConfirm && !isAutoConfirm && !((minChoices === 0 || optional) && selected.size === 0);
   useModalKeyboard(
     {
       onEnter: canConfirm && !isAutoConfirm ? handleConfirm : undefined,
@@ -139,7 +145,7 @@ export function ChooseCardsModal({
         ) : !isAutoConfirm ? (
           <div className={MODAL_FOOTER_BETWEEN}>
             <span className="text-xs text-muted-foreground text-left leading-tight max-w-[200px]">
-              {minChoices === 0
+              {minChoices === 0 || optional
                 ? "Choosing is optional."
                 : `You must select at least ${minChoices}.`}
             </span>
@@ -149,7 +155,7 @@ export function ChooseCardsModal({
               onClick={handleConfirm}
               className="min-w-[100px] shrink-0"
             >
-              {minChoices === 0 && selected.size === 0
+              {(minChoices === 0 || optional) && selected.size === 0
                 ? "Skip"
                 : `Confirm ${selected.size > 0 ? `(${selected.size})` : ""}`}
             </Button>

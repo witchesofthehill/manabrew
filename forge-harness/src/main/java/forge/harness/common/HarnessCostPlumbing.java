@@ -389,8 +389,7 @@ public final class HarnessCostPlumbing {
 
         @Override
         public PaymentDecision visit(final CostExert cost) {
-            final boolean shouldAsk = cost.payCostFromSource() || "OriginalHost".equals(cost.getType());
-            if (!confirm(cost, shouldAsk)) return null;
+            // no confirm: mirrors HumanPlay.payCostDuringAbilityResolve, which pays CostExert unconditionally
             if (cost.payCostFromSource()) {
                 return PaymentDecision.card(source);
             }

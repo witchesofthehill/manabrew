@@ -56,7 +56,7 @@ public final class AutoPay {
                 break;
             }
 
-            final ManaAbilityCandidate chosen = chooseCandidate(unpaid, candidates);
+            final ManaAbilityCandidate chosen = chooseCandidate(unpaid, candidates, saBeingPaid);
             if (chosen == null) {
                 break;
             }
@@ -74,25 +74,33 @@ public final class AutoPay {
             pool.payManaCostFromPool(unpaid, saBeingPaid, false, spentFromPool);
         }
 
-        // Pay remaining phyrexian shards with life (2 life each).
+        // Pay remaining phyrexian (or PayLifeInsteadOf:B black) shards with life (2 each).
         // Matches ComputerUtilMana.payManaCost() phyrexian handling.
         while (!unpaid.isPaid()) {
             boolean foundPhyrexian = false;
+            boolean foundLifeInsteadBlack = false;
             for (final ManaCostShard s : unpaid.getUnpaidShards()) {
                 if (s.isPhyrexian()) {
                     foundPhyrexian = true;
                     break;
                 }
+                if (s.isBlack() && payer.hasKeyword("PayLifeInsteadOf:B")) {
+                    foundLifeInsteadBlack = true;
+                }
             }
-            if (!foundPhyrexian) {
+            if (!foundPhyrexian && !foundLifeInsteadBlack) {
                 break;
             }
             if (!payer.canPayLife(2, false, saBeingPaid)) {
                 break;
             }
-            unpaid.payPhyrexian();
+            if (foundPhyrexian) {
+                unpaid.payPhyrexian();
+                saBeingPaid.setSpendPhyrexianMana(true);
+            } else {
+                unpaid.decreaseShard(ManaCostShard.BLACK, 1);
+            }
             payer.payLife(2, saBeingPaid, false);
-            saBeingPaid.setSpendPhyrexianMana(true);
         }
 
         final boolean paid = unpaid.isPaid();
@@ -138,10 +146,11 @@ public final class AutoPay {
 
     private ManaAbilityCandidate chooseCandidate(
             final ManaCostBeingPaid unpaid,
-            final List<ManaAbilityCandidate> candidates
+            final List<ManaAbilityCandidate> candidates,
+            final SpellAbility saBeingPaid
     ) {
-        for (final ManaCostShard shard : shardPriority(unpaid, candidates)) {
-            final ManaAbilityCandidate match = chooseLeastVersatileCandidate(candidates, shard, unpaid);
+        for (final ManaCostShard shard : shardPriority(unpaid, candidates, saBeingPaid)) {
+            final ManaAbilityCandidate match = chooseLeastVersatileCandidate(candidates, shard, unpaid, saBeingPaid);
             if (match != null) {
                 configureExpressChoiceForShard(match.spellAbility, shard);
                 return match;
@@ -152,7 +161,8 @@ public final class AutoPay {
 
     private List<ManaCostShard> shardPriority(
             final ManaCostBeingPaid unpaid,
-            final List<ManaAbilityCandidate> candidates
+            final List<ManaAbilityCandidate> candidates,
+            final SpellAbility saBeingPaid
     ) {
         final List<ManaCostShard> colored = new ArrayList<>();
         ManaCostShard generic = null;
@@ -171,7 +181,7 @@ public final class AutoPay {
             }
         }
         colored.sort(Comparator
-                .comparingInt((ManaCostShard shard) -> countCandidatesForShard(candidates, shard))
+                .comparingInt((ManaCostShard shard) -> countCandidatesForShard(candidates, shard, saBeingPaid))
                 .thenComparingInt(ParityOrder::colorShardRank));
         if (generic != null) {
             colored.add(generic);
@@ -179,10 +189,11 @@ public final class AutoPay {
         return colored;
     }
 
-    private int countCandidatesForShard(final List<ManaAbilityCandidate> candidates, final ManaCostShard shard) {
+    private int countCandidatesForShard(
+            final List<ManaAbilityCandidate> candidates, final ManaCostShard shard, final SpellAbility saBeingPaid) {
         int count = 0;
         for (final ManaAbilityCandidate c : candidates) {
-            if (canPayShard(c.spellAbility, shard)) {
+            if (canPayShard(c.spellAbility, shard, saBeingPaid)) {
                 count++;
             }
         }
@@ -192,18 +203,19 @@ public final class AutoPay {
     private ManaAbilityCandidate chooseLeastVersatileCandidate(
             final List<ManaAbilityCandidate> candidates,
             final ManaCostShard shard,
-            final ManaCostBeingPaid unpaid
+            final ManaCostBeingPaid unpaid,
+            final SpellAbility saBeingPaid
     ) {
         ManaAbilityCandidate fallback = null;
 
         for (final ManaAbilityCandidate c : candidates) {
-            if (!canPayShard(c.spellAbility, shard)) {
+            if (!canPayShard(c.spellAbility, shard, saBeingPaid)) {
                 continue;
             }
             if (fallback == null) {
                 fallback = c;
             }
-            if (!isSoleSourceForOtherShard(c, shard, candidates, unpaid)) {
+            if (!isSoleSourceForOtherShard(c, shard, candidates, unpaid, saBeingPaid)) {
                 return c;
             }
         }
@@ -214,7 +226,8 @@ public final class AutoPay {
             final ManaAbilityCandidate candidate,
             final ManaCostShard currentShard,
             final List<ManaAbilityCandidate> candidates,
-            final ManaCostBeingPaid unpaid
+            final ManaCostBeingPaid unpaid,
+            final SpellAbility saBeingPaid
     ) {
         final Set<ManaCostShard> seen = new LinkedHashSet<>();
         for (final ManaCostShard other : unpaid.getUnpaidShards()) {
@@ -224,12 +237,12 @@ public final class AutoPay {
             if (!seen.add(other)) {
                 continue;
             }
-            if (!canPayShard(candidate.spellAbility, other)) {
+            if (!canPayShard(candidate.spellAbility, other, saBeingPaid)) {
                 continue;
             }
             int sourcesForOther = 0;
             for (final ManaAbilityCandidate alt : candidates) {
-                if (canPayShard(alt.spellAbility, other)) {
+                if (canPayShard(alt.spellAbility, other, saBeingPaid)) {
                     sourcesForOther++;
                     if (sourcesForOther > 1) {
                         break;
@@ -243,7 +256,7 @@ public final class AutoPay {
         return false;
     }
 
-    private boolean canPayShard(final SpellAbility manaAbility, final ManaCostShard shard) {
+    private boolean canPayShard(final SpellAbility manaAbility, final ManaCostShard shard, final SpellAbility saBeingPaid) {
         if (shard == ManaCostShard.X) {
             return false;
         }
@@ -251,7 +264,7 @@ public final class AutoPay {
         if (manaPart == null) {
             return false;
         }
-        if (!manaPart.meetsManaRestrictions(manaAbility)) {
+        if (!manaPart.meetsManaRestrictions(saBeingPaid)) {
             return false;
         }
         if (shard == ManaCostShard.GENERIC) {
@@ -303,9 +316,6 @@ public final class AutoPay {
         for (final Card source : manaSources) {
             for (final SpellAbility manaAbility : source.getManaAbilities()) {
                 if (!manaAbility.isManaAbility()) {
-                    continue;
-                }
-                if (manaAbility.getPayCosts() != null && manaAbility.getPayCosts().hasManaCost()) {
                     continue;
                 }
                 manaAbility.setActivatingPlayer(payer);

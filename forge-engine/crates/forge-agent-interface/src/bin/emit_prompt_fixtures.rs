@@ -204,6 +204,8 @@ fn main() {
         ReorderLibrary {
             card_ids: vec![],
             cards: vec![],
+            destination: None,
+            top_of_deck: true,
         },
         ExploreDecision {
             revealed_card_name: String::new(),
@@ -241,6 +243,7 @@ fn main() {
             min_choices: 0,
             max_choices: 0,
             source_card_name: None,
+            optional: false,
         },
     ];
 

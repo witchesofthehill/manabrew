@@ -111,6 +111,8 @@ pub(super) fn choose_reorder_library<T: Responder>(
         AgentPromptInner::ReorderLibrary {
             card_ids,
             cards: prompt_cards,
+            destination: None,
+            top_of_deck: true,
         },
         None,
     );

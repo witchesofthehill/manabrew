@@ -8,5 +8,6 @@ export type Input = {
   minChoices: number;
   maxChoices: number;
   sourceCardName?: string | null;
+  optional?: boolean;
 };
 export type Output = { type: "chooseCardsDecision"; chosenCardIds: string[] };

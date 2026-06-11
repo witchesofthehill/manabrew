@@ -20,12 +20,14 @@ import forge.ai.ComputerUtilCost;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.MagicColor.Color;
+import forge.card.mana.ManaAtom;
 import forge.card.mana.ManaCost;
 import forge.card.mana.ManaCostShard;
 import forge.deck.Deck;
 import forge.deck.DeckSection;
 import forge.game.*;
 import forge.game.ability.AbilityKey;
+import forge.game.ability.AbilityUtils;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.card.*;
@@ -39,21 +41,28 @@ import forge.game.player.*;
 import forge.game.replacement.ReplacementEffect;
 import forge.game.spellability.*;
 import forge.game.staticability.StaticAbility;
+import forge.game.staticability.StaticAbilityManaConvert;
+import forge.game.staticability.StaticAbilityMustTarget;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.MagicStack;
 import forge.game.zone.PlayerZone;
 import forge.game.zone.ZoneType;
 import forge.item.PaperCard;
+import forge.util.Aggregates;
 import forge.util.ITriggerEvent;
+import forge.util.Lang;
+import forge.util.MessageUtil;
 import forge.util.collect.FCollectionView;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.function.Predicate;
 
 public final class ManaBrewInteractiveController extends PlayerController implements HarnessPlayHooks {
@@ -222,6 +231,27 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (abilities == null || abilities.isEmpty()) {
             return null;
         }
+        if (triggerEvent != null && !hostCard.isInPlay() && !hostCard.getOwner().equals(player)
+                && !hostCard.getController().equals(player)
+                && (!player.hasKeyword("Shaman's Trance") || !hostCard.isInZone(ZoneType.Graveyard))) {
+            boolean noPermission = true;
+            for (final CardPlayOption o : hostCard.mayPlay(player)) {
+                if (o.grantsZonePermissions()) {
+                    noPermission = false;
+                    break;
+                }
+            }
+            for (final SpellAbility sa : hostCard.getAllSpellAbilities()) {
+                if (sa.hasParam("Activator")
+                        && player.isValid(sa.getParam("Activator"), hostCard.getController(), hostCard, sa)) {
+                    noPermission = false;
+                    break;
+                }
+            }
+            if (noPermission) {
+                return null;
+            }
+        }
         if (abilities.size() == 1) {
             return abilities.get(0);
         }
@@ -229,9 +259,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final SpellAbility sa : abilities) {
             labels.add(sa == null ? "Ability" : sa.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, hostCard == null ? null : hostCard.getName());
-        final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
-        return idx >= 0 && idx < abilities.size() ? abilities.get(idx) : abilities.get(0);
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 0, 1, hostCard == null ? null : hostCard.getName());
+        if (chosen.isEmpty()) {
+            return null;
+        }
+        final int idx = chosen.get(0);
+        return idx >= 0 && idx < abilities.size() ? abilities.get(idx) : null;
     }
 
     @Override
@@ -262,10 +295,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final Map<Card, List<Card>> validByAttacker =
                 EngineHandler.validBlockersByAttacker(combat, attackers, blockers);
         final int defenderIndex = SnapshotExtractor.playerIndex(game, defender);
+        String error = null;
         while (true) {
             final List<Pair<Card, Card>> assignments =
-                    session.awaitBlockers(defenderIndex, attackers, blockers, validByAttacker);
-            final String error = EngineHandler.applyBlockerAssignments(combat, defender, assignments);
+                    session.awaitBlockers(defenderIndex, attackers, blockers, validByAttacker, error);
+            error = EngineHandler.applyBlockerAssignments(combat, defender, assignments);
             if (error == null || session.isClosed() || game.isGameOver()) {
                 return;
             }
@@ -281,13 +315,27 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public CardCollection orderBlocker(final Card attacker, final Card blocker, final CardCollection oldBlockers) {
         final CardCollection all = new CardCollection(oldBlockers);
         all.add(blocker);
-        return session.awaitDamageAssignmentOrder(me(), attacker, all);
+        final CardCollection ordered = session.awaitDamageAssignmentOrder(me(), attacker, all);
+        int previous = -1;
+        for (final Card old : oldBlockers) {
+            final int index = ordered.indexOf(old);
+            if (index <= previous) {
+                throw new IllegalArgumentException(
+                        "damage assignment order must preserve the relative order of existing blockers");
+            }
+            previous = index;
+        }
+        return ordered;
     }
 
     @Override
     public CardCollection orderAttackers(final Card blocker, final CardCollection attackers) {
         return session.awaitDamageAssignmentOrder(me(), blocker, attackers);
     }
+
+    private static final String DIVIDE_COMBAT_DAMAGE_KEYWORD =
+            "You may assign CARDNAME's combat damage divided as you choose among "
+                    + "defending player and/or any number of creatures they control.";
 
     @Override
     public Map<Card, Integer> assignCombatDamage(
@@ -298,22 +346,67 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final GameEntity defender,
             final boolean overrideOrder
     ) {
+        final boolean dividesFreely = attacker.hasKeyword(DIVIDE_COMBAT_DAMAGE_KEYWORD) && overrideOrder;
         final boolean mustPrompt = (attacker.hasKeyword(Keyword.TRAMPLE) && defender != null)
                 || blockers.size() > 1
-                || (attacker.hasKeyword("You may assign CARDNAME's combat damage divided as you choose among "
-                        + "defending player and/or any number of creatures they control.")
-                        && overrideOrder && !blockers.isEmpty())
+                || (dividesFreely && !blockers.isEmpty())
                 || (attacker.hasKeyword("Trample:Planeswalker") && defender instanceof Card);
         if (!mustPrompt) {
             final Map<Card, Integer> map = new LinkedHashMap<>();
             map.put(blockers.isEmpty() ? null : blockers.get(0), damageDealt);
             return map;
         }
-        final Map<Card, Integer> selected = session.awaitCombatDamageAssignment(me(), attacker, blockers, damageDealt, defender);
+        final boolean defenderAssignable = defender != null
+                && (attacker.hasKeyword(Keyword.TRAMPLE)
+                        || (attacker.hasKeyword("Trample:Planeswalker") && defender instanceof Card)
+                        || (dividesFreely && !blockers.isEmpty()));
+        final boolean maySkip = remaining != null && remaining.size() > 1 && attacker.isAttacking();
+        final Map<Card, Integer> selected = session.awaitCombatDamageAssignment(
+                me(), attacker, blockers, damageDealt, defender, defenderAssignable, maySkip);
+        if (selected == null) {
+            return null;
+        }
         if (!selected.isEmpty()) {
+            validateCombatDamageAssignment(selected, attacker, blockers, damageDealt, overrideOrder, dividesFreely);
             return selected;
         }
         return fallbackCombatDamage(attacker, blockers, damageDealt, defender);
+    }
+
+    private static void validateCombatDamageAssignment(
+            final Map<Card, Integer> assignment,
+            final Card attacker,
+            final CardCollectionView blockers,
+            final int damageDealt,
+            final boolean overrideOrder,
+            final boolean dividesFreely
+    ) {
+        int total = 0;
+        for (final Integer damage : assignment.values()) {
+            total += damage == null ? 0 : damage;
+        }
+        if (total != damageDealt) {
+            throw new IllegalArgumentException(
+                    "combat damage assignment must total " + damageDealt + ", got " + total);
+        }
+        if (dividesFreely) {
+            return;
+        }
+        boolean priorLethal = true;
+        boolean allBlockersLethal = true;
+        for (final Card blocker : blockers) {
+            final int assigned = assignment.getOrDefault(blocker, 0);
+            if (assigned > 0 && !overrideOrder && !priorLethal) {
+                throw new IllegalArgumentException(
+                        "combat damage assigned out of damage assignment order to " + blocker);
+            }
+            final int lethal = ComputerUtilCombat.getEnoughDamageToKill(blocker, damageDealt, attacker, false, false);
+            priorLethal &= assigned >= lethal;
+            allBlockersLethal &= assigned >= lethal;
+        }
+        if (assignment.getOrDefault(null, 0) > 0 && !allBlockersLethal) {
+            throw new IllegalArgumentException("trample damage assigned before all blockers have lethal damage");
+        }
     }
 
     @Override
@@ -342,28 +435,79 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (tr == null) {
             return true;
         }
-        if (!selectTargets(currentAbility, tr, null)) {
+        boolean canFilterMustTarget = true;
+        SpellAbility checkSA = currentAbility.getParent();
+        while (checkSA != null) {
+            if (checkSA.usesTargeting()) {
+                canFilterMustTarget = false;
+                break;
+            }
+            checkSA = checkSA.getParent();
+        }
+        checkSA = currentAbility.getSubAbility();
+        while (checkSA != null) {
+            if (checkSA.usesTargeting()) {
+                canFilterMustTarget = false;
+                break;
+            }
+            checkSA = checkSA.getSubAbility();
+        }
+        if (!selectTargets(currentAbility, tr, null, null, isMandatoryTargeting(currentAbility, tr), canFilterMustTarget)) {
             return false;
         }
-        return assignDividedAllocation(currentAbility);
+        return assignDividedAllocation(currentAbility, null);
     }
 
-    private boolean selectTargets(final SpellAbility ability, final TargetRestrictions tr, final Predicate<GameObject> filter) {
-        while (ability.canAddMoreTarget()) {
-            final List<Pair<GameEntity, GameObject>> valid = targetCandidates(ability, tr, filter);
+    private static boolean isMandatoryTargeting(final SpellAbility ability, final TargetRestrictions tr) {
+        return ability.isTrigger() || tr.getMandatory();
+    }
+
+    private boolean selectTargets(
+            final SpellAbility ability,
+            final TargetRestrictions tr,
+            final Integer numTargets,
+            final Predicate<GameObject> filter,
+            final boolean mandatory,
+            final boolean canFilterMustTarget) {
+        if (tr.isRandomTarget() && numTargets == null) {
+            final List<GameEntity> candidates = tr.getAllCandidates(ability, true);
+            final List<GameEntity> choices = new ArrayList<>();
+            final int minTargets = ability.getMinTargets();
+            final int top = Math.min(candidates.size(), ability.getMaxTargets());
+            final int bot = minTargets > 0 ? minTargets : 1;
+            final int num = tr.isRandomNumTargets() ? Aggregates.randomInt(bot, top) : minTargets;
+            for (int i = 0; i < num; i++) {
+                final GameEntity choice = Aggregates.random(candidates);
+                if (choice != null) {
+                    choices.add(choice);
+                    candidates.remove(choice);
+                }
+            }
+            return ability.getTargets().addAll(choices);
+        }
+        while (numTargets != null ? ability.getTargets().size() < numTargets : ability.canAddMoreTarget()) {
+            List<Card> validCards = CardUtil.getValidCardsToTarget(ability);
+            final boolean mustTargetFiltered = canFilterMustTarget
+                    && StaticAbilityMustTarget.filterMustTargetCards(player, validCards, ability);
+            if (mustTargetFiltered && validCards.isEmpty()) {
+                return false;
+            }
+            final List<Pair<GameEntity, GameObject>> valid =
+                    targetCandidates(ability, tr, filter, mustTargetFiltered ? validCards : null);
             if (valid.isEmpty()) {
                 break;
             }
-            final Pair<GameEntity, GameObject> chosen = session.awaitTargetChoice(me(), ability, valid);
+            final boolean mustChoose = mandatory && (numTargets != null || !ability.isMinTargetChosen());
+            final Pair<GameEntity, GameObject> chosen = session.awaitTargetChoice(me(), ability, valid, mustChoose);
             if (chosen == null) {
                 break;
             }
             ability.getTargets().add(chosen.getRight());
         }
-        return ability.isTargetNumberValid();
+        return numTargets != null ? ability.getTargets().size() == numTargets : ability.isTargetNumberValid();
     }
 
-    private boolean assignDividedAllocation(final SpellAbility ability) {
+    private boolean assignDividedAllocation(final SpellAbility ability, final Collection<Integer> dividedValues) {
         if (!ability.isDividedAsYouChoose()) {
             return true;
         }
@@ -371,21 +515,41 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final GameEntity entity : ability.getTargets().getTargetEntities()) {
             targets.add(entity);
         }
-        final int amount = ability.getStillToDivide();
-        if (targets.isEmpty() || amount <= 0) {
+        if (dividedValues != null) {
+            final Iterator<Integer> values = dividedValues.iterator();
+            for (final GameEntity entity : targets) {
+                if (!values.hasNext()) {
+                    return false;
+                }
+                ability.addDividedAllocation(entity, values.next());
+            }
             return true;
         }
-        if (targets.size() == 1) {
+        final int size = targets.size();
+        int amount = ability.getStillToDivide();
+        if (size == 0 || amount <= 0) {
+            return true;
+        }
+        if (ability.hasParam("DividedUpTo")) {
+            amount = chooseNumber(ability, "How many?", size, amount);
+        }
+        if (size == 1) {
             ability.addDividedAllocation(targets.get(0), amount);
             return true;
         }
-        if (targets.size() == amount) {
+        if (size == amount) {
             for (final GameEntity entity : targets) {
                 ability.addDividedAllocation(entity, 1);
             }
             return true;
         }
-        if (targets.size() > amount) {
+        if (amount == 0) {
+            for (final GameEntity entity : targets) {
+                ability.addDividedAllocation(entity, 0);
+            }
+            return true;
+        }
+        if (size > amount) {
             return false;
         }
         final Map<GameEntity, Integer> allocation = session.awaitDividedAllocation(me(), ability, targets, amount);
@@ -406,8 +570,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return null;
         }
         final TargetChoices oldTarget = sa.getTargets();
+        final List<Integer> dividedValues =
+                sa.isDividedAsYouChoose() ? Lists.newArrayList(oldTarget.getDividedValues()) : null;
         sa.clearTargets();
-        if (selectTargets(sa, tr, filter) && assignDividedAllocation(sa)) {
+        if (selectTargets(sa, tr, oldTarget.size(), filter, isMandatoryTargeting(sa, tr) && !optional, false)
+                && assignDividedAllocation(sa, dividedValues)) {
             return sa.getTargets();
         }
         sa.setTargets(oldTarget);
@@ -463,7 +630,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 return chosen;
             }
         }
-        return new CardCollection();
+        return new CardCollection(new CardCollection(hand).subList(0, max));
     }
 
     private static boolean containsType(final CardCollection chosen, final String[] splitUTypes, final SpellAbility sa) {
@@ -485,7 +652,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final boolean isOptional,
             final Map<String, Object> params
     ) {
-        return session.awaitCardChoice("choose_cards_for_effect", me(), sourceList, isOptional ? 0 : min, max, sourceName(sa), title);
+        if (sourceList.isEmpty()) {
+            return CardCollection.EMPTY;
+        }
+        return session.awaitCardChoice(
+                "choose_cards_for_effect", me(), sourceList, min, max, sourceName(sa), title, isOptional);
     }
 
     @Override
@@ -528,7 +699,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return chooseSingleEntityGeneric(optionList, sa, title, isOptional);
         }
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), cards, isOptional ? 0 : 1, 1, sourceName(sa), title);
+                "choose_cards_for_effect", me(), cards, 1, 1, sourceName(sa), title, isOptional);
         if (selected.isEmpty()) {
             return null;
         }
@@ -564,7 +735,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         final CardCollection selected;
         if (sa != null && sa.getApi() == ApiType.Dig) {
-            selected = session.awaitDigChoice(me(), cards, max, min == 0, sourceName(sa));
+            selected = session.awaitDigChoice(me(), cards, min, max, sourceName(sa));
         } else {
             selected = session.awaitCardChoice("choose_cards_for_effect", me(), cards, min, max, sourceName(sa), title);
         }
@@ -626,7 +797,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return fetchList.get(0);
         }
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), fetchList, isOptional ? 0 : 1, 1, sourceName(sa), selectPrompt);
+                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), selectPrompt, isOptional);
         return selected.isEmpty() ? null : selected.get(0);
     }
 
@@ -644,6 +815,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     ) {
         if (delayedReveal != null) {
             reveal(delayedReveal);
+        }
+        if (fetchList.isEmpty()) {
+            return new ArrayList<>();
         }
         return new ArrayList<Card>(session.awaitCardChoice(
                 "choose_cards_for_effect", me(), fetchList, min, max, sourceName(sa), selectPrompt));
@@ -696,16 +870,28 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return result;
         }
         final String kind = artifacts && !creatures ? "choose_improvise" : "choose_convoke";
-        final CardCollection selected = session.awaitCardChoice(
-                kind, me(), untappedCards, 0, cap, sourceName(sa), manaCost.toString());
-        for (final Card card : selected) {
-            final ManaCostShard shard = remainingCost.payManaViaConvoke(
-                    convokeColor(card, remainingCost, artifacts, false));
-            if (shard != null) {
-                result.put(card, shard);
+        String error = null;
+        int guard = 0;
+        while (true) {
+            final ManaCostBeingPaid attempt = new ManaCostBeingPaid(manaCost);
+            final CardCollection selected = session.awaitCardChoice(
+                    kind, me(), untappedCards, 0, cap, sourceName(sa), manaCost.toString(), false, error);
+            result.clear();
+            Card unpayable = null;
+            for (final Card card : selected) {
+                final ManaCostShard shard = attempt.payManaViaConvoke(
+                        convokeColor(card, attempt, artifacts, false));
+                if (shard == null) {
+                    unpayable = card;
+                } else {
+                    result.put(card, shard);
+                }
             }
+            if (unpayable == null || guard++ >= 512) {
+                return result;
+            }
+            error = unpayable.getName() + " cannot help pay this cost";
         }
-        return result;
     }
 
     private byte convokeColor(
@@ -759,7 +945,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         for (final AbilitySub mode : possible) {
             labels.add(mode == null ? "Mode" : mode.toString());
         }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, num, sourceName(sa));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, min, num, sourceName(sa), allowRepeat);
         return EngineHandler.selectModes(possible, chosen, allowRepeat);
     }
 
@@ -786,6 +972,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public SpellAbility chooseSingleSpellForEffect(
             final List<SpellAbility> spells, final SpellAbility sa, final String title, final Map<String, Object> params) {
+        if (spells == null || spells.size() < 2) {
+            return spells == null || spells.isEmpty() ? null : spells.get(0);
+        }
         final List<SpellAbility> selected = chooseSpellAbilitiesForEffect(spells, sa, title, 1, params);
         return selected.isEmpty() ? null : selected.get(0);
     }
@@ -814,6 +1003,21 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (possibleReplacers == null || possibleReplacers.isEmpty()) {
             return null;
         }
+        final ReplacementEffect first = possibleReplacers.get(0);
+        if (possibleReplacers.size() == 1) {
+            return first;
+        }
+        final String firstStr = first.toString();
+        boolean allSame = true;
+        for (int i = 1; i < possibleReplacers.size(); i++) {
+            if (!possibleReplacers.get(i).toString().equals(firstStr)) {
+                allSame = false;
+                break;
+            }
+        }
+        if (allSame) {
+            return first;
+        }
         final List<String> labels = new ArrayList<>();
         for (final ReplacementEffect replacer : possibleReplacers) {
             labels.add(replacer == null ? "Replacement effect" : replacer.getDescription());
@@ -831,6 +1035,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmTrigger(final WrappedAbility sa) {
+        if (sa != null) {
+            final SpellAbility wrapped = sa.getWrappedAbility();
+            if (wrapped.hasParam("Cost") && !wrapped.getParam("Cost").equals("0")) {
+                return true;
+            }
+        }
         return session.awaitBooleanChoice(
                 "choose_optional_trigger",
                 me(),
@@ -857,14 +1067,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 cardToShow != null ? cardToShow.getName() : sourceName(sa),
                 "confirm_action",
                 mode == null ? null : mode.toString(),
-                sa == null || sa.getApi() == null ? null : sa.getApi().toString());
+                sa == null || sa.getApi() == null ? null : sa.getApi().toString(),
+                options != null && options.size() == 2 ? options : null,
+                null);
     }
 
     @Override
     public boolean confirmBidAction(
             final SpellAbility sa, final PlayerActionConfirmMode bidlife, final String string, final int bid, final Player winner) {
+        final String question = (string == null ? "Bid life? Current bid: " + bid : string)
+                + " Highest Bidder " + winner;
         return session.awaitBooleanChoice(
-                "confirm_action", me(), string == null ? "Bid life?" : string, sourceName(sa), "confirm_bid", null, null);
+                "confirm_action", me(), question, sourceName(sa), "confirm_bid", null, null);
     }
 
     @Override
@@ -899,10 +1113,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmPayment(final CostPart costPart, final String prompt, final SpellAbility sa) {
-        if (costPart == null || costPart instanceof CostPartMana) {
-            return true;
-        }
-        if (HarnessCostPlumbing.isSpellPaymentContext(sa)) {
+        if (costPart == null || costPart instanceof CostPartMana || probingPayability) {
             return true;
         }
         return session.awaitBooleanChoice(
@@ -925,20 +1136,66 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 sourceName(sa),
                 "binary",
                 kindOfChoice == null ? null : kindOfChoice.name(),
-                sa == null || sa.getApi() == null ? null : sa.getApi().toString());
+                sa == null || sa.getApi() == null ? null : sa.getApi().toString(),
+                binaryLabels(kindOfChoice),
+                defaultChoice == null || defaultChoice);
+    }
+
+    private static List<String> binaryLabels(final BinaryChoiceType kindOfChoice) {
+        if (kindOfChoice == null) {
+            return null;
+        }
+        switch (kindOfChoice) {
+            case HeadsOrTails:
+                return Lists.newArrayList("heads", "tails");
+            case TapOrUntap:
+                return Lists.newArrayList("Tap", "Untap");
+            case OddsOrEvens:
+                return Lists.newArrayList("Odds", "Evens");
+            case UntapOrLeaveTapped:
+                return Lists.newArrayList("Untap", "Leave tapped");
+            case PlayOrDraw:
+                return Lists.newArrayList("Play", "Draw");
+            case LeftOrRight:
+                return Lists.newArrayList("Left", "Right");
+            case AddOrRemove:
+                return Lists.newArrayList("Add Counter", "Remove Counter");
+            case IncreaseOrDecrease:
+                return Lists.newArrayList("Increase", "Decrease");
+            default:
+                return Lists.newArrayList(kindOfChoice.toString().split("Or"));
+        }
     }
 
     @Override
     public boolean chooseFlipResult(final SpellAbility sa, final Player flipper, final boolean[] results, final boolean call) {
+        final List<String> labels = call
+                ? Lists.newArrayList("heads", "tails")
+                : Lists.newArrayList("win the flip", "lose the flip");
         return session.awaitBooleanChoice(
-                "confirm_action", me(), "Call heads?", sourceName(sa), "flip_coin", null, null);
+                "confirm_action", me(), "Choose a result", sourceName(sa), "flip_coin", null, null, labels, null);
     }
 
     @Override
     public boolean chooseCardsPile(
             final SpellAbility sa, final CardCollectionView pile1, final CardCollectionView pile2, final String faceUp) {
-        return session.awaitBooleanChoice(
-                "confirm_action", me(), "Choose the first pile?", sourceName(sa), "cards_pile", null, null);
+        final List<String> labels = new ArrayList<>();
+        labels.add(pileLabel(1, pile1, "False".equals(faceUp)));
+        labels.add(pileLabel(2, pile2, !"True".equals(faceUp)));
+        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, sourceName(sa));
+        final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
+        return idx == 0;
+    }
+
+    private static String pileLabel(final int pileNumber, final CardCollectionView pile, final boolean revealed) {
+        final StringBuilder label = new StringBuilder()
+                .append("-- Pile ").append(pileNumber).append(" (").append(pile.size()).append(" cards) --");
+        if (revealed) {
+            for (final Card card : pile) {
+                label.append(" ").append(card.getName());
+            }
+        }
+        return label.toString();
     }
 
     @Override
@@ -949,8 +1206,20 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean helpPayForAssistSpell(final ManaCostBeingPaid cost, final SpellAbility sa, final int max, final int requested) {
-        return session.awaitBooleanChoice(
-                "confirm_action", me(), "Assist with payment?", sourceName(sa), "assist_payment", null, null);
+        final String title = String.format(
+                "%s trying to cast (%s) How much would you like to help pay for Assist? (Max: %s)",
+                sa.getActivatingPlayer(), sa, max);
+        final int willPay = chooseNumber(sa, title, 0, max);
+        if (willPay <= 0) {
+            return true;
+        }
+        final ManaCostBeingPaid assistCost = new ManaCostBeingPaid(ManaCost.get(willPay));
+        final GameSnapshot snapshot = beginManaPaymentSnapshot();
+        if (payManaInteractively(assistCost, sa, true, snapshot)) {
+            cost.decreaseGenericMana(willPay);
+            return true;
+        }
+        return false;
     }
 
     // ── Reveal ────────────────────────────────────────────────────────
@@ -971,29 +1240,48 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public ImmutablePair<CardCollection, CardCollection> arrangeForScry(final CardCollection topN) {
-        final CardCollection bottom = session.awaitCardIdListChoice(
+        final Pair<CardCollection, CardCollection> decision = session.awaitCardIdListChoice(
                 "choose_scry", "scry_decision", "bottom_card_ids", me(), topN, sourceName(null));
-        final CardCollection top = new CardCollection(topN);
-        top.removeAll(bottom);
-        return ImmutablePair.of(top, bottom);
+        return ImmutablePair.of(decision.getRight(), decision.getLeft());
     }
 
     @Override
     public ImmutablePair<CardCollection, CardCollection> arrangeForSurveil(final CardCollection topN) {
-        final CardCollection graveyard = session.awaitCardIdListChoice(
+        final Pair<CardCollection, CardCollection> decision = session.awaitCardIdListChoice(
                 "choose_surveil", "surveil_decision", "graveyard_card_ids", me(), topN, sourceName(null));
-        final CardCollection top = new CardCollection(topN);
-        top.removeAll(graveyard);
-        return ImmutablePair.of(top, graveyard);
+        return ImmutablePair.of(decision.getRight(), decision.getLeft());
     }
 
     @Override
     public CardCollectionView orderMoveToZoneList(
             final CardCollectionView cards, final ZoneType destinationZone, final SpellAbility source) {
-        if (destinationZone != ZoneType.Library) {
+        if (cards.size() <= 1) {
             return new CardCollection(cards);
         }
-        return session.awaitReorderLibrary(me(), cards, sourceName(source));
+        final boolean orderedByEffect = source != null && source.getApi() == ApiType.ReorderZone;
+        if (destinationZone == ZoneType.Graveyard && !orderedByEffect) {
+            return new CardCollection(cards);
+        }
+        switch (destinationZone) {
+            case Library:
+            case Battlefield:
+            case Graveyard:
+            case Exile:
+            case PlanarDeck:
+            case SchemeDeck:
+            case AttractionDeck:
+            case ContraptionDeck:
+            case Stack:
+            case None:
+                break;
+            default:
+                return new CardCollection(cards);
+        }
+        final boolean topOfDeck = destinationZone.isDeck()
+                && (source == null
+                        || !source.hasParam("LibraryPosition")
+                        || AbilityUtils.calculateAmount(source.getHostCard(), source.getParam("LibraryPosition"), source) >= 0);
+        return session.awaitReorderZone(me(), cards, destinationZone, topOfDeck, sourceName(source));
     }
 
     // ── Numbers / colors / types / names ──────────────────────────────
@@ -1019,7 +1307,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public int chooseNumberForCostReduction(final SpellAbility sa, final int min, final int max) {
-        return session.awaitNumberChoice(me(), min, max, sourceName(sa), "Choose amount");
+        return max;
     }
 
     @Override
@@ -1037,7 +1325,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (bounds[0] >= bounds[1]) {
             return bounds[0];
         }
-        return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
+        if (ability.getPayCosts() != null && ability.getPayCosts().isMandatory()) {
+            return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
+        }
+        return session.awaitCancellableNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
     }
 
     @Override
@@ -1102,6 +1393,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public String chooseSomeType(
             final String kindOfType, final SpellAbility sa, final Collection<String> validTypes, final boolean isOptional) {
         final List<String> typeOptions = validTypes == null ? new ArrayList<>() : new ArrayList<>(validTypes);
+        if (isOptional) {
+            final List<Integer> chosen = session.awaitModeChoice(me(), typeOptions, 0, 1, sourceName(sa));
+            if (chosen.isEmpty()) {
+                return null;
+            }
+            final int idx = chosen.get(0);
+            return idx >= 0 && idx < typeOptions.size() ? typeOptions.get(idx) : null;
+        }
         final String chosen = session.awaitStringChoice("choose_type", me(), typeOptions, sourceName(sa), kindOfType == null ? "Card" : kindOfType);
         return EngineHandler.validateOption(chosen, typeOptions, isOptional);
     }
@@ -1254,7 +1553,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (!accept) {
             return false;
         }
-        return alreadyPaid || costPlumbing.payWithControllerDecision(cost, sa, true);
+        return costPlumbing.payWithControllerDecision(cost, sa, true);
     }
 
     @Override
@@ -1280,7 +1579,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean payCombatCost(final Card card, final Cost cost, final SpellAbility sa, final String prompt) {
-        return playPlumbing.playNoStack(card.getController(), sa, getGame(), true);
+        return costPlumbing.payWithControllerDecision(cost, sa, true);
     }
 
     // ── Mana payment (interactive) ────────────────────────────────────
@@ -1294,14 +1593,17 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaConversionMatrix matrix,
             final boolean effect
     ) {
-        final ManaCost payableCost = effectiveManaCost(toPay, sa);
+        final ManaCostBeingPaid toPayBeing = effectiveManaCost(toPay, costPartMana, sa);
+        final ManaCost payableCost = toPayBeing == null ? toPay : toPayBeing.toManaCost();
         if (sa == null
                 || sa.isManaAbility()
                 || payableCost == null
                 || payableCost.isNoCost()) {
+            if (sa != null && payableCost != null && !payableCost.isNoCost()) {
+                applyManaConversionMatrix(matrix, sa);
+            }
             return autoPay.payManaCost(payableCost, sa, effect);
         }
-        final ManaCostBeingPaid toPayBeing = new ManaCostBeingPaid(payableCost);
         final Player activator = sa.getActivatingPlayer() != null ? sa.getActivatingPlayer() : player;
         final GameSnapshot snapshot = beginManaPaymentSnapshot();
         final CardCollection cardsToDelve = new CardCollection();
@@ -1312,21 +1614,53 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             sa.setSkip(true);
             return false;
         }
-        final boolean paid = toPayBeing.isPaid()
-                || payManaInteractively(toPayBeing.toManaCost(), sa, effect, snapshot);
+        boolean paid = toPayBeing.isPaid();
+        if (!paid) {
+            applyManaConversionMatrix(matrix, sa);
+            paid = payManaInteractively(toPayBeing, sa, effect, snapshot);
+            if (paid) {
+                sa.getHostCard().setXManaCostPaidByColor(toPayBeing.getXManaCostPaidByColor());
+            }
+        }
         return handleOfferingConvokeAndDelve(sa, cardsToDelve, !paid);
     }
 
-    private ManaCost effectiveManaCost(final ManaCost toPay, final SpellAbility sa) {
+    private ManaCostBeingPaid effectiveManaCost(final ManaCost toPay, final CostPartMana costPartMana, final SpellAbility sa) {
         if (sa != null && sa.getManaCostBeingPaid() != null) {
-            return new ManaCostBeingPaid(sa.getManaCostBeingPaid()).toManaCost();
+            return new ManaCostBeingPaid(sa.getManaCostBeingPaid());
         }
-        if (sa != null && sa.getXManaCostPaid() != null && toPay != null && toPay.countX() > 0) {
-            final ManaCostBeingPaid expanded = new ManaCostBeingPaid(toPay);
-            expanded.setXManaCostPaid(sa.getXManaCostPaid(), sa.getXColor());
-            return expanded.toManaCost();
+        if (toPay == null) {
+            return null;
         }
-        return toPay;
+        final ManaCostBeingPaid toPayBeing = new ManaCostBeingPaid(toPay);
+        if (sa == null) {
+            return toPayBeing;
+        }
+        final Card source = sa.getHostCard();
+        final String xInCard = sa.getParamOrDefault("XAlternative", sa.getSVar("X"));
+        String xColor = sa.getXColor();
+        if (source != null && source.hasKeyword("Spend only colored mana on X. No more than one mana of each color may be spent this way.")) {
+            xColor = "WUBRGX";
+        }
+        if (costPartMana != null && costPartMana.getAmountOfX() > 0 && !"Count$xPaid".equals(xInCard)) {
+            final int xPaid = AbilityUtils.calculateAmount(source, xInCard, sa);
+            toPayBeing.setXManaCostPaid(xPaid, xColor);
+            sa.setXManaCostPaid(xPaid);
+        } else if (sa.getXManaCostPaid() != null) {
+            toPayBeing.setXManaCostPaid(sa.getXManaCostPaid(), xColor);
+        }
+        return toPayBeing;
+    }
+
+    private void applyManaConversionMatrix(final ManaConversionMatrix matrix, final SpellAbility sa) {
+        ManaConversionMatrix extraMatrix = matrix;
+        if (extraMatrix == null) {
+            extraMatrix = new ManaConversionMatrix();
+            extraMatrix.restoreColorReplacements();
+            final Player activator = sa.getActivatingPlayer() != null ? sa.getActivatingPlayer() : player;
+            StaticAbilityManaConvert.manaConvert(extraMatrix, activator, sa.getHostCard(), null);
+        }
+        player.getManaPool().applyCardMatrix(extraMatrix);
     }
 
     private boolean handleOfferingConvokeAndDelve(
@@ -1371,17 +1705,29 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     private boolean payManaInteractively(
-            final ManaCost payableCost, final SpellAbility sa, final boolean effect, final GameSnapshot sessionSnapshot) {
-        final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(payableCost);
+            final ManaCostBeingPaid unpaid, final SpellAbility sa, final boolean effect, final GameSnapshot sessionSnapshot) {
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
+        // CR 118.3c: a mandatory cost the pool can already cover may not be cancelled
+        // (mirrors InputPayManaOfCostPayment's constructor).
+        boolean mandatory = false;
+        if (sa.getPayCosts() != null && sa.getPayCosts().isMandatory()) {
+            final List<Mana> refund = new ArrayList<>();
+            mandatory = pool.payManaCostFromPool(new ManaCostBeingPaid(unpaid), sa, true, refund);
+            pool.refundMana(refund);
+        }
         int guard = 0;
         while (guard++ < 512) {
             final List<SpellAbility> sources = autoPay.manaSources(sa);
             final List<Card> untappable = sessionTappedCards(sessionTapped);
             final boolean canConfirm = poolCanCover(pool, unpaid, sa);
+            final boolean lifeInsteadBlack =
+                    player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK);
+            final boolean canPayLife = (unpaid.containsPhyrexianMana() || lifeInsteadBlack)
+                    && player.canPayLife(2, effect, sa);
             final ManaBrewInteractiveSession.ManaPaymentChoice choice = session.awaitManaPaymentChoice(
-                    me(), sa.getHostCard(), unpaid.toString(), sources, untappable, pool.totalMana(), canConfirm);
+                    me(), sa.getHostCard(), unpaid.toString(), sources, untappable, pool.totalMana(),
+                    canConfirm, !mandatory, canPayLife, 2);
             switch (choice.kind()) {
                 case TAP: {
                     final SpellAbility chosen = choice.tapAbility();
@@ -1398,8 +1744,23 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     break;
                 }
                 case UNTAP:
-                    untapSource(choice.untapCard(), pool, sessionTapped);
+                    untapSource(choice.untapCard(), sessionTapped);
                     break;
+                case PAY_LIFE: {
+                    if (player.canPayLife(2, effect, sa)) {
+                        if (unpaid.payPhyrexian()) {
+                            sa.setSpendPhyrexianMana(true);
+                            player.payLife(2, sa, effect);
+                        } else if (player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK)) {
+                            unpaid.decreaseShard(ManaCostShard.BLACK, 1);
+                            player.payLife(2, sa, effect);
+                        }
+                    }
+                    if (unpaid.isPaid()) {
+                        return true;
+                    }
+                    break;
+                }
                 case PAY: {
                     if (choice.auto()) {
                         if (autoPay.payManaCost(unpaid.toManaCost(), sa, effect)) {
@@ -1419,6 +1780,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     break;
                 }
                 case CANCEL:
+                    if (mandatory) {
+                        break;
+                    }
                     restoreManaPaymentSnapshot(sessionSnapshot);
                     sa.setSkip(true);
                     return false;
@@ -1457,20 +1821,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return snapshot;
     }
 
-    private void untapSource(final Card source, final ManaPool pool, final Map<Integer, Card> sessionTapped) {
+    private void untapSource(final Card source, final Map<Integer, Card> sessionTapped) {
         if (source == null) {
             return;
         }
-        final List<Mana> toRemove = new ArrayList<>();
-        for (final Mana mana : pool) {
-            if (mana.getSourceCard() != null && mana.getSourceCard().getId() == source.getId()) {
-                toRemove.add(mana);
-            }
-        }
-        for (final Mana mana : toRemove) {
-            pool.removeMana(mana);
-        }
-        source.untap();
+        undoManaSource(source);
         sessionTapped.remove(source.getId());
     }
 
@@ -1676,19 +2031,57 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public void notifyOfValue(final SpellAbility saSource, final GameObject realtedTarget, final String value) {
-        // interactive client reads state from snapshots — nothing to push here
+        final String message = MessageUtil.formatNotificationMessage(saSource, player, realtedTarget, value);
+        if (saSource != null && saSource.isManaAbility()) {
+            game.getGameLog().add(GameLogEntryType.LAND, message);
+        } else {
+            session.awaitNotifyAcknowledgement(me(), message);
+        }
     }
 
     @Override
     public void revealAnte(final String message, final Multimap<Player, PaperCard> removedAnteCards) {
+        for (final Player p : removedAnteCards.keySet()) {
+            session.awaitNotifyAcknowledgement(me(), fromPlayerDeckMessage(message, p)
+                    + ": " + paperCardNames(removedAnteCards.get(p)));
+        }
     }
 
     @Override
     public void revealAISkipCards(final String message, final Map<Player, Map<DeckSection, List<? extends PaperCard>>> deckCards) {
+        for (final Player p : deckCards.keySet()) {
+            final Map<DeckSection, List<? extends PaperCard>> removedUnplayableCards = deckCards.get(p);
+            final StringBuilder labels = new StringBuilder();
+            for (final DeckSection s : new TreeSet<>(removedUnplayableCards.keySet())) {
+                labels.append(" === ").append(s).append(" === ");
+                labels.append(paperCardNames(removedUnplayableCards.get(s)));
+            }
+            session.awaitNotifyAcknowledgement(me(), fromPlayerDeckMessage(message, p) + ":" + labels);
+        }
     }
 
     @Override
     public void revealUnsupported(final Map<Player, List<PaperCard>> unsupported) {
+        for (final Player p : unsupported.keySet()) {
+            final List<PaperCard> removed = unsupported.get(p);
+            if (removed == null || removed.isEmpty()) {
+                continue;
+            }
+            session.awaitNotifyAcknowledgement(me(), fromPlayerDeckMessage("Removed", p)
+                    + ": " + paperCardNames(removed));
+        }
+    }
+
+    private String fromPlayerDeckMessage(final String message, final Player p) {
+        return message + " from " + Lang.getInstance().getPossessedObject(MessageUtil.mayBeYou(player, p), "deck");
+    }
+
+    private static String paperCardNames(final Iterable<? extends PaperCard> cards) {
+        final List<String> names = new ArrayList<>();
+        for (final PaperCard card : cards) {
+            names.add(card.getName());
+        }
+        return String.join(", ", names);
     }
 
     @Override
@@ -1809,15 +2202,23 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     private List<Pair<GameEntity, GameObject>> targetCandidates(
-            final SpellAbility ability, final TargetRestrictions restrictions, final Predicate<GameObject> filter) {
+            final SpellAbility ability,
+            final TargetRestrictions restrictions,
+            final Predicate<GameObject> filter,
+            final List<Card> mustTargetCards) {
         final List<Pair<GameEntity, GameObject>> valid = new ArrayList<>();
         for (final GameEntity candidate : restrictions.getAllCandidates(ability, true)) {
+            if (mustTargetCards != null && (!(candidate instanceof Card) || !mustTargetCards.contains(candidate))) {
+                continue;
+            }
             final GameObject normalized = normalizeStackTargetCandidate(candidate);
             if (ability.canTarget(normalized) && (filter == null || filter.test(normalized))) {
                 valid.add(ImmutablePair.of(candidate, normalized));
             }
         }
-        valid.addAll(ActionSpace.getStackTargetCandidates(ability));
+        if (mustTargetCards == null) {
+            valid.addAll(ActionSpace.getStackTargetCandidates(ability));
+        }
         final Map<String, Pair<GameEntity, GameObject>> deduped = new LinkedHashMap<>();
         for (final Pair<GameEntity, GameObject> pair : valid) {
             deduped.putIfAbsent(targetCandidateKey(pair), pair);

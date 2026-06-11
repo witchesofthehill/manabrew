@@ -7,6 +7,10 @@ fn default_intent() -> TargetingIntent {
     TargetingIntent::Hostile
 }
 
+fn default_top_of_deck() -> bool {
+    true
+}
+
 /// A display-only event that the frontend should animate before rendering the prompt's game state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
@@ -429,13 +433,18 @@ pub enum AgentPromptInner {
         #[serde(rename = "attackerCards")]
         attacker_cards: Vec<CardDto>,
     },
-    /// Reorder top cards of library (Ponder-style effects).
     ReorderLibrary {
         /// Card IDs to reorder (in current top-first order).
         #[serde(rename = "cardIds")]
         card_ids: Vec<String>,
         /// Card DTOs for display.
         cards: Vec<CardDto>,
+        /// Destination zone; absent means the library.
+        #[serde(default)]
+        destination: Option<String>,
+        /// For deck destinations: whether the cards go to the top (false = bottom).
+        #[serde(rename = "topOfDeck", default = "default_top_of_deck")]
+        top_of_deck: bool,
     },
     /// Explore: choose whether to put the revealed nonland card in graveyard or on top.
     ExploreDecision {
@@ -519,6 +528,8 @@ pub enum AgentPromptInner {
         max_choices: usize,
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
+        #[serde(default)]
+        optional: bool,
     },
 }
 
@@ -783,6 +794,8 @@ pub enum PlayerAction {
         #[serde(default)]
         auto: bool,
     },
+    /// Pay a phyrexian (or PayLifeInsteadOf:B black) shard with life during mana cost payment.
+    PayLife,
     /// Cancel casting the spell (mana cost payment).
     CancelManaCost,
     /// Acknowledge a `DiceRolled` display-only prompt (UI animation done).

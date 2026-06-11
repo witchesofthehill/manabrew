@@ -41,7 +41,7 @@ function ComboRow({
   addLabel?: string;
 }) {
   return (
-    <div className="group flex w-full items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10">
+    <div className="group flex w-full min-w-0 items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10">
       <button
         type="button"
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -145,7 +145,7 @@ export function CombosPanel() {
               <span className="text-[10px] font-semibold uppercase tracking-wider text-warning/80">
                 Win lines
               </span>
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {winCombos.map((combo) => (
                   <ComboRow
                     key={combo.id}
@@ -167,12 +167,12 @@ export function CombosPanel() {
           {(otherCombos.length > 0 || suggestions.length > 0) && (
             <div
               className={cn(
-                "grid items-start gap-6",
+                "grid grid-cols-1 items-start gap-6",
                 otherCombos.length > 0 && suggestions.length > 0 && "md:grid-cols-2",
               )}
             >
               {otherCombos.length > 0 && (
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-counter-charge/80">
                     In your deck
                   </span>
@@ -192,7 +192,7 @@ export function CombosPanel() {
               )}
 
               {suggestions.length > 0 && (
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                     One card away
                   </span>

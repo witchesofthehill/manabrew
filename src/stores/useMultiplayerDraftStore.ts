@@ -25,6 +25,7 @@ interface MultiplayerDraftStore {
   state: DraftState | null;
   finalPools: MpDraftPlayerPool[];
   lastError: string | null;
+  pickPending: boolean;
 
   enterAsHost: (args: {
     sessionId: string;
@@ -43,6 +44,7 @@ interface MultiplayerDraftStore {
     state: DraftState;
   }) => void;
   setLocalState: (state: DraftState) => void;
+  setPickPending: (pending: boolean) => void;
   complete: (pools: MpDraftPlayerPool[]) => void;
   setError: (msg: string | null) => void;
   clear: () => void;
@@ -61,6 +63,7 @@ export const useMultiplayerDraftStore = create<MultiplayerDraftStore>()(
       state: null,
       finalPools: [],
       lastError: null,
+      pickPending: false,
 
       enterAsHost: ({ sessionId, roomId, config, seats, mySeat, state }) => {
         set({
@@ -74,6 +77,7 @@ export const useMultiplayerDraftStore = create<MultiplayerDraftStore>()(
           state,
           finalPools: [],
           lastError: null,
+          pickPending: false,
         });
       },
       enterAsPeer: ({ sessionId, roomId, config, seats, mySeat, state }) => {
@@ -88,10 +92,13 @@ export const useMultiplayerDraftStore = create<MultiplayerDraftStore>()(
           state,
           finalPools: [],
           lastError: null,
+          pickPending: false,
         });
       },
-      setLocalState: (state) => set({ state }),
-      complete: (pools) => set({ mode: "complete", finalPools: pools, lastError: null }),
+      setLocalState: (state) => set({ state, pickPending: false }),
+      setPickPending: (pickPending) => set({ pickPending }),
+      complete: (pools) =>
+        set({ mode: "complete", finalPools: pools, lastError: null, pickPending: false }),
       setError: (msg) => set({ lastError: msg }),
       clear: () =>
         set({
@@ -105,6 +112,7 @@ export const useMultiplayerDraftStore = create<MultiplayerDraftStore>()(
           state: null,
           finalPools: [],
           lastError: null,
+          pickPending: false,
         }),
     }),
     { name: "multiplayerDraft", enabled: import.meta.env.DEV },

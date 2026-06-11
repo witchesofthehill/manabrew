@@ -13,6 +13,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { startDraftAsHost, type DraftHostParticipant } from "@/game/draftHost";
+import { buildEngineGameRouteState } from "@/game/engineGameLaunch";
 import { startMpSealed } from "@/game/sealedStart";
 import { getFormat } from "@/lib/formats";
 import { getPlatform } from "@/platform";
@@ -94,12 +95,6 @@ function isManualTabletopLaunchPayload(value: unknown): value is ManualTabletopL
     typeof candidate.startingLife === "number" &&
     !!candidate.initialGameView
   );
-}
-
-function samePlayers(left: string[], right: string[]) {
-  if (left.length !== right.length) return false;
-  const rightSet = new Set(right);
-  return left.every((player) => rightSet.has(player));
 }
 
 export default function Lobby() {
@@ -211,33 +206,19 @@ export default function Lobby() {
       }
       return;
     }
-    const isHost = currentRoom?.host === username;
-    if (
-      currentRoom &&
-      !samePlayers(
-        playerOrder,
-        currentRoom.players.map((player) => player.username),
-      )
-    ) {
-      toast.error("Server player order does not match the current room.");
-      return;
-    }
-    const myIndex = playerOrder.indexOf(username ?? "");
-    if (myIndex < 0) {
-      toast.error("Could not determine your player slot for this game.");
+    const launch = buildEngineGameRouteState(
+      username,
+      currentRoom,
+      playerOrder,
+      playerDecks,
+      startingLife,
+    );
+    if (launch.error) {
+      toast.error(launch.error);
       return;
     }
     useServerStore.setState({ gameStarted: false });
-    navigate("/play", {
-      state: {
-        multiplayer: true,
-        playerOrder,
-        playerDecks,
-        isHost,
-        startingLife,
-        myPlayerSlot: `player-${myIndex}`,
-      },
-    });
+    navigate("/play", { state: launch.state });
   }, [gameStarted, currentRoom, navigate, playerDecks, playerOrder, startingLife, username]);
 
   useEffect(() => {

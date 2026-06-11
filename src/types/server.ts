@@ -28,6 +28,8 @@ export type DeckSection =
   | "schemes"
   | "planes";
 
+export const DEFAULT_RECONNECT_TIMEOUT_S = 60;
+
 export interface RoomInfo {
   room_id: string;
   room_name: string;
@@ -40,6 +42,7 @@ export interface RoomInfo {
   format: GameFormat;
   status: "Lobby" | "InGame";
   engine: EngineKind;
+  reconnect_timeout_s: number;
   draft_config?: DraftConfig;
   sealed_config?: SealedConfig;
 }
@@ -137,6 +140,10 @@ export interface GameStartedPayload {
 export interface StateUpdatePayload {
   from_player: string;
   state: StateEnvelope;
+}
+
+export interface GameAbortedPayload {
+  room_id: string;
 }
 
 export const ROOM_RELAY_KIND = "roomRelay" as const;

@@ -11,6 +11,7 @@ import { Card } from "@/components/game/Card";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
+import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { FullscreenToggle } from "@/components/game/FullscreenToggle";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, RightActionPanel } from "@/components/game/panels";
@@ -33,6 +34,7 @@ import { usePromptEffects } from "@/hooks/usePromptEffects";
 import { useCombatState } from "@/hooks/useCombatState";
 import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
+import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { GameBoard } from "@/components/game/GameBoard";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -105,7 +107,8 @@ interface GameProps {
 }
 
 export default function Game({ exitTo }: GameProps = {}) {
-  useAutoResolvePrompt();
+  const interruption = useMultiplayerInterruption();
+  useAutoResolvePrompt(interruption.waiting);
   const gameView = useGameStore((s) => s.gameView);
   const myPlayerSlot = useGameStore((s) => s.myPlayerSlot);
   const currentPrompt = useGameStore((s) => s.currentPrompt);
@@ -1743,6 +1746,14 @@ export default function Game({ exitTo }: GameProps = {}) {
             onSelectAction={handlePreviewAction}
           />
         )}
+
+      {interruption.waiting && (
+        <WaitingForPlayerScreen
+          reason={interruption.reason}
+          secondsLeft={interruption.secondsLeft}
+          disconnectedNames={interruption.disconnectedNames}
+        />
+      )}
     </div>
   );
 }

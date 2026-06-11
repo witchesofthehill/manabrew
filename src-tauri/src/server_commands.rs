@@ -92,6 +92,7 @@ pub async fn server_create_room(
     engine: Option<String>,
     draft_config: Option<serde_json::Value>,
     sealed_config: Option<serde_json::Value>,
+    reconnect_timeout_s: Option<u32>,
 ) -> Result<(), String> {
     send_server_message(
         &client,
@@ -104,6 +105,7 @@ pub async fn server_create_room(
             "engine": engine.unwrap_or_else(|| "Wasm".to_string()),
             "draft_config": draft_config,
             "sealed_config": sealed_config,
+            "reconnect_timeout_s": reconnect_timeout_s,
         }),
     )
 }
@@ -206,6 +208,11 @@ pub async fn server_start_game(
 #[tauri::command]
 pub async fn server_end_game(client: State<'_, ServerClient>) -> Result<(), String> {
     send_server_message(&client, serde_json::json!({"type": "EndGame"}))
+}
+
+#[tauri::command]
+pub async fn server_request_resync(client: State<'_, ServerClient>) -> Result<(), String> {
+    send_server_message(&client, serde_json::json!({"type": "RequestResync"}))
 }
 
 #[tauri::command]

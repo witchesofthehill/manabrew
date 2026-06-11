@@ -1,12 +1,15 @@
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { getSelectedGameRuntime } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
+import { clearActiveGameSession } from "@/lib/activeGameSession";
 import { normalizeGameLogPayload } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
+import type { AuthResultPayload } from "@/types/server";
 
 function normalizeEnginePrompt(prompt: unknown): Prompt | null {
   return typeof prompt === "object" && prompt !== null && "input" in prompt
@@ -39,6 +42,10 @@ export function useGameEventListeners() {
       }
     };
     fetchInitialState();
+
+    if (getState().isMultiplayer && !getState().isHost) {
+      void platform.server?.requestResync();
+    }
 
     try {
       unsubscribers.push(
@@ -116,8 +123,35 @@ export function useGameEventListeners() {
       );
 
       unsubscribers.push(
+        platform.events.on<AuthResultPayload>("server:auth_result", (payload) => {
+          const state = getState();
+          if (
+            payload.success &&
+            payload.reconnected &&
+            state.isMultiplayer &&
+            !state.isHost &&
+            state.isGameActive
+          ) {
+            void platform.server?.requestResync();
+          }
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on("server:game_aborted", () => {
+          const state = getState();
+          if (!state.isMultiplayer || !state.isGameActive) return;
+          if (state.gameView?.gameOver) return;
+          clearActiveGameSession();
+          toast.error("Game aborted — a player did not reconnect.");
+          void useGameStore.getState().endGame();
+        }),
+      );
+
+      unsubscribers.push(
         platform.events.on<{ reason: string; message: string }>("game:forced_end", (payload) => {
           const message = payload?.message ?? "Forced game exit";
+          clearActiveGameSession();
           setState({
             isGameActive: false,
             gameView: null,

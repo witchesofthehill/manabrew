@@ -504,9 +504,9 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
           files: |
-            release-assets/macos/*.dmg
-            release-assets/windows/*.exe
-            release-assets/windows/*.msi
+            release-assets/macos/**/*.dmg
+            release-assets/windows/**/*.exe
+            release-assets/windows/**/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

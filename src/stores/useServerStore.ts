@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
+import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
   RoomInfo,
@@ -66,6 +67,7 @@ interface ServerState {
     engine?: EngineKind,
     draftConfig?: DraftConfig,
     sealedConfig?: SealedConfig,
+    reconnectTimeoutS?: number,
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   leaveRoom(): Promise<void>;
@@ -140,7 +142,15 @@ export const useServerStore = create<ServerState>()(
         await platform.server.listPlayers();
       },
 
-      async createRoom(roomName, maxPlayers, format, engine, draftConfig, sealedConfig) {
+      async createRoom(
+        roomName,
+        maxPlayers,
+        format,
+        engine,
+        draftConfig,
+        sealedConfig,
+        reconnectTimeoutS,
+      ) {
         const platform = getPlatform();
         if (!platform.server) return;
         await platform.server.createRoom({
@@ -150,6 +160,7 @@ export const useServerStore = create<ServerState>()(
           engine,
           draftConfig,
           sealedConfig,
+          reconnectTimeoutS,
         });
       },
 
@@ -164,6 +175,10 @@ export const useServerStore = create<ServerState>()(
         // strand the user in a "still-in-room" UI. The server-side teardown
         // is attempted afterwards as best-effort; if it fails, the next
         // listRooms() call will reconcile.
+        // The peer relay listener stays attached — it is connection-scoped
+        // (attached once at auth), not room-scoped.
+        teardownDraftHost();
+        useMultiplayerDraftStore.getState().clear();
         set({
           currentRoom: null,
           gameStarted: false,
@@ -339,6 +354,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
+            if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,
@@ -360,6 +376,7 @@ export const useServerStore = create<ServerState>()(
             if (payload?.terminal) {
               detachDraftPeer();
               teardownDraftHost();
+              useMultiplayerDraftStore.getState().clear();
               set({
                 connected: false,
                 connecting: false,

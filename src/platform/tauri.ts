@@ -115,6 +115,7 @@ class TauriServerApi implements IServerApi {
       engine: params.engine ?? "Wasm",
       draftConfig: params.draftConfig ?? null,
       sealedConfig: params.sealedConfig ?? null,
+      reconnectTimeoutS: params.reconnectTimeoutS ?? null,
     });
   }
 
@@ -148,6 +149,10 @@ class TauriServerApi implements IServerApi {
 
   async endGame(): Promise<void> {
     return invoke<void>("server_end_game");
+  }
+
+  async requestResync(): Promise<void> {
+    return invoke<void>("server_request_resync");
   }
 
   async broadcastState(state: Record<string, unknown>): Promise<void> {

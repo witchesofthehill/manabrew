@@ -18,10 +18,17 @@ interface PreviewRailProps {
   collapsed: boolean;
   onCollapse: () => void;
   previewCard?: PreviewCard | null;
+  defaultWidth?: number;
 }
 
-export function PreviewRail({ setSlot, collapsed, onCollapse, previewCard }: PreviewRailProps) {
-  const [width, setWidth] = useState<number>(DEFAULT_WIDTH);
+export function PreviewRail({
+  setSlot,
+  collapsed,
+  onCollapse,
+  previewCard,
+  defaultWidth = DEFAULT_WIDTH,
+}: PreviewRailProps) {
+  const [width, setWidth] = useState<number>(() => clampWidth(defaultWidth));
 
   const onDragStart = useCallback(
     (e: React.MouseEvent) => {

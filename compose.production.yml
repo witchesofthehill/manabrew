@@ -35,6 +35,7 @@ services:
       FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
       FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
       RUST_LOG: "forge_server=info"
     expose:
       - "9443"

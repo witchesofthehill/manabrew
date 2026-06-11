@@ -13,12 +13,12 @@ use engine_backend::{java_backend, rust_backend, EngineBackendKind};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
-use forge_bot::{run_bot, AgentKind, BotConfig};
-use forge_engine_core::game::TypeRegistry;
-use forge_server::protocol::{
+use forge_agent_interface::protocol::{
     ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
     StateEnvelope,
 };
+use forge_bot::{run_bot, AgentKind, BotConfig};
+use forge_engine_core::game::TypeRegistry;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;

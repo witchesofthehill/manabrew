@@ -1,6 +1,11 @@
 import { platformFetch } from "@/lib/platformFetch";
+import { getPlatformType } from "@/platform";
 
-export const COMMANDER_SPELLBOOK_API = "https://backend.commanderspellbook.com";
+const COMMANDER_SPELLBOOK_API = "https://backend.commanderspellbook.com";
+
+function apiBase(): string {
+  return getPlatformType() === "tauri" ? COMMANDER_SPELLBOOK_API : "/spellbook-api";
+}
 
 interface DeckEntry {
   card: string;
@@ -47,7 +52,7 @@ export async function findMyCombos(
   commanders: string[],
   main: string[],
 ): Promise<FindMyCombosResult> {
-  const response = await platformFetch(`${COMMANDER_SPELLBOOK_API}/find-my-combos`, {
+  const response = await platformFetch(`${apiBase()}/find-my-combos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ commanders: toEntries(commanders), main: toEntries(main) }),

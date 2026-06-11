@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+forge-protocol = { path = "../forge-protocol" }
 forge-engine-core = { path = "../forge-engine" }
 forge-foundation = { path = "../forge-foundation" }
 serde = { workspace = true }

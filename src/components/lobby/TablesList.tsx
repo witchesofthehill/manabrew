@@ -3,13 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ChooseFormatDialog } from "@/components/lobby/ChooseFormatDialog";
+import { JoinPasswordDialog } from "@/components/lobby/JoinPasswordDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,7 +94,7 @@ interface TablesListProps {
   onRefresh: () => void;
   refreshing: boolean;
   refreshDisabled: boolean;
-  onJoinRoom: (roomId: string, password?: string) => Promise<void>;
+  onJoinRoom: (roomId: string, password?: string, format?: GameFormat) => Promise<void>;
   onLeaveRoom: () => void;
   onSetReady: (ready: boolean) => void;
   onSetFormat?: (format: GameFormat) => void;
@@ -138,7 +133,8 @@ export function TablesList({
 }: TablesListProps) {
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
-  const [passwordValue, setPasswordValue] = useState("");
+  const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
+  const [pendingFormat, setPendingFormat] = useState<GameFormat | undefined>(undefined);
   const [search, setSearch] = useState("");
 
   const inRoom = currentRoom != null;
@@ -167,30 +163,40 @@ export function TablesList({
       })
     : [];
 
-  async function handleJoinRoom(roomId: string, password?: string) {
+  async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
     if (joiningRoomId) return;
     setJoiningRoomId(roomId);
     try {
-      await onJoinRoom(roomId, password);
+      await onJoinRoom(roomId, password, format);
     } finally {
       setJoiningRoomId(null);
     }
   }
 
+  function needsFormatChoice(room: RoomInfo) {
+    return (
+      room.format === "Any" &&
+      !room.draft_config &&
+      !room.sealed_config &&
+      room.players.every((p) => p.is_bot)
+    );
+  }
+
   function requestJoin(room: RoomInfo) {
-    if (room.password_protected) {
-      setPasswordValue("");
-      setPasswordRoom(room);
+    if (needsFormatChoice(room)) {
+      setFormatRoom(room);
     } else {
-      void handleJoinRoom(room.room_id);
+      joinWithFormat(room, undefined);
     }
   }
 
-  function submitPasswordJoin() {
-    if (!passwordRoom) return;
-    const roomId = passwordRoom.room_id;
-    setPasswordRoom(null);
-    void handleJoinRoom(roomId, passwordValue);
+  function joinWithFormat(room: RoomInfo, format?: GameFormat) {
+    if (room.password_protected) {
+      setPendingFormat(format);
+      setPasswordRoom(room);
+    } else {
+      void handleJoinRoom(room.room_id, undefined, format);
+    }
   }
 
   const trimmedSearch = search.trim().toLowerCase();
@@ -629,35 +635,17 @@ export function TablesList({
         </div>
       </ScrollArea>
 
-      <Dialog open={passwordRoom != null} onOpenChange={(open) => !open && setPasswordRoom(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-4 w-4" />
-            Private room
-          </DialogTitle>
-          <DialogDescription>
-            Enter the password to join {passwordRoom?.room_name}.
-          </DialogDescription>
-          <Input
-            type="password"
-            autoFocus
-            value={passwordValue}
-            onChange={(e) => setPasswordValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitPasswordJoin();
-            }}
-            placeholder="Password"
-          />
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setPasswordRoom(null)}>
-              Cancel
-            </Button>
-            <Button onClick={submitPasswordJoin} disabled={passwordValue.length === 0}>
-              Join
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ChooseFormatDialog
+        room={formatRoom}
+        onClose={() => setFormatRoom(null)}
+        onSelect={(room, format) => joinWithFormat(room, format)}
+      />
+
+      <JoinPasswordDialog
+        room={passwordRoom}
+        onClose={() => setPasswordRoom(null)}
+        onSubmit={(roomId, password) => void handleJoinRoom(roomId, password, pendingFormat)}
+      />
     </div>
   );
 }

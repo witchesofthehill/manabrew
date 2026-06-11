@@ -17,7 +17,6 @@ forge-carddb = { path = "../forge-carddb" }
 forge-engine-core = { path = "../forge-engine" }
 forge-foundation = { path = "../forge-foundation" }
 forge-game-runtime = { path = "../forge-game-runtime" }
-forge-server = { path = "../forge-server" }
 memmap2 = "0.9"
 tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }

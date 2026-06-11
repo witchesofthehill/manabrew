@@ -21,7 +21,7 @@ trap on_failure ERR
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
-COMPOSE_FILE="${COMPOSE_FILE:-forge-engine/crates/forge-server/compose.yml}"
+COMPOSE_FILE="${COMPOSE_FILE:-compose.production.yml}"
 RAW_LOG="/tmp/deploy-raw.log"
 : > "$RAW_LOG"   # truncate
 
@@ -98,6 +98,17 @@ INFRA_CHANGED=false
 # would otherwise be classified JAVA_CHANGED and skip the web rebuild — leaving
 # the deployed archive stale (missing newly-added sets).
 CARDDATA_CHANGED=false
+# forge-server (the relay) is rebuilt/restarted only when its own dep closure
+# changes — restarting it bounces the relay and interrupts live games. Since the
+# forge-protocol split, that closure is just forge-server + forge-protocol (it no
+# longer compiles the engine), so a change anywhere else under forge-engine/ must
+# NOT redeploy it.
+FORGE_SERVER_CHANGED=false
+# The Caddyfile is volume-mounted into the manabrew container, not baked into
+# the image, and caddy does not watch its config file. Rebuilding the image
+# can't apply it (identical image → `up -d` won't recreate the container), so
+# it needs an explicit `caddy reload`.
+CADDYFILE_CHANGED=false
 
 while IFS= read -r file; do
     case "$file" in
@@ -105,6 +116,11 @@ while IFS= read -r file; do
             JAVA_CHANGED=true ;;
         forge-engine/*|Cargo.toml|Cargo.lock)
             RUST_CHANGED=true ;;
+    esac
+    case "$file" in
+        # forge-server's whole closure (see `cargo tree -p forge-server`).
+        forge-engine/crates/forge-server/*|forge-engine/crates/forge-protocol/*|Cargo.toml|Cargo.lock)
+            FORGE_SERVER_CHANGED=true ;;
     esac
     case "$file" in
         forge|forge/*)
@@ -115,11 +131,10 @@ while IFS= read -r file; do
             WEB_CHANGED=true ;;
         forge-engine/crates/forge-wasm/*)
             WEB_CHANGED=true ;;
+    esac
+    case "$file" in
         ops/Caddyfile)
-            # Caddyfile is mounted into the manabrew container at runtime,
-            # but a `docker compose up -d` is the cheapest way to pick up
-            # config changes (caddy auto-reloads on mount change too).
-            WEB_CHANGED=true ;;
+            CADDYFILE_CHANGED=true ;;
     esac
     case "$file" in
         *Dockerfile*|*compose*|.dockerignore|deploy.sh)
@@ -151,12 +166,12 @@ else
     echo "Parity dashboard skipped (COMPOSE_PROFILES does not include 'parity')" >> "$RAW_LOG"
 fi
 
-# -- forge-server (Rust only) --
+# -- forge-server (relay; rebuilt only when its own dep closure changes) --
 if $INFRA_CHANGED; then
     echo "Building forge-server (full)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache forge-server >> "$RAW_LOG" 2>&1
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART forge-server"
-elif $RUST_CHANGED; then
+elif $FORGE_SERVER_CHANGED; then
     echo "Building forge-server (cached)..." >> "$RAW_LOG"
     docker compose -f "$COMPOSE_FILE" build --progress=plain forge-server >> "$RAW_LOG" 2>&1
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART forge-server"
@@ -173,7 +188,7 @@ elif $WEB_CHANGED || $RUST_CHANGED || $CARDDATA_CHANGED; then
     SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew"
 fi
 
-if [ -z "$SERVICES_TO_RESTART" ]; then
+if [ -z "$SERVICES_TO_RESTART" ] && ! $CADDYFILE_CHANGED; then
     echo "🧹 No Java/Rust/infra changes — skipping build."
     exit 0
 fi
@@ -187,7 +202,15 @@ fi
 # nginx→caddy consolidation that dropped the separate `caddy` service),
 # the old container otherwise lingers and can hold the host ports the new
 # one needs — exactly what took prod down on the #19 merge deploy.
-docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --remove-orphans $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
+if [ -n "$SERVICES_TO_RESTART" ]; then
+    docker compose -f "$COMPOSE_FILE" $PROFILE_FLAG up -d --remove-orphans $SERVICES_TO_RESTART >> "$RAW_LOG" 2>&1
+fi
+
+if $CADDYFILE_CHANGED; then
+    echo "Reloading caddy config..." >> "$RAW_LOG"
+    docker compose -f "$COMPOSE_FILE" exec -T manabrew \
+        caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile >> "$RAW_LOG" 2>&1
+fi
 
 BUILD_END=$(date +%s)
 BUILD_DURATION=$(( BUILD_END - BUILD_START ))
@@ -197,10 +220,11 @@ SERVICES_FMT=$(echo "$SERVICES_TO_RESTART" | xargs -n1 | sed 's/^/  - /' | tr '\
 
 # Build change flags string (with per-stack emoji)
 CHANGES=""
-$JAVA_CHANGED  && CHANGES="${CHANGES} ☕ Java"
-$RUST_CHANGED  && CHANGES="${CHANGES} 🦀 Rust"
-$WEB_CHANGED   && CHANGES="${CHANGES} 🌐 Web"
-$INFRA_CHANGED && CHANGES="${CHANGES} 🐳 Infra"
+$JAVA_CHANGED      && CHANGES="${CHANGES} ☕ Java"
+$RUST_CHANGED      && CHANGES="${CHANGES} 🦀 Rust"
+$WEB_CHANGED       && CHANGES="${CHANGES} 🌐 Web"
+$INFRA_CHANGED     && CHANGES="${CHANGES} 🐳 Infra"
+$CADDYFILE_CHANGED && CHANGES="${CHANGES} ⚙️ Caddy"
 CHANGES=$(echo "$CHANGES" | xargs)
 
 cat <<EOF

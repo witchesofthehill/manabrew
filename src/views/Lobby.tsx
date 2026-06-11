@@ -19,6 +19,7 @@ import { getPlatform } from "@/platform";
 import { START_GAME_FAILURE_CODES } from "@/types/server";
 import type {
   DraftConfig,
+  GameFormat,
   GameStartedPayload,
   RoomMessagePayload,
   ServerErrorCode,
@@ -277,6 +278,11 @@ export default function Lobby() {
     } finally {
       setRefreshingLobby(false);
     }
+  }
+
+  async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
+    await joinRoom(roomId, password);
+    if (format) await setFormat(format);
   }
 
   async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
@@ -580,7 +586,7 @@ export default function Lobby() {
             onRefresh={refreshLobbyData}
             refreshing={refreshingLobby}
             refreshDisabled={!connected || connecting}
-            onJoinRoom={joinRoom}
+            onJoinRoom={handleJoinRoom}
             onLeaveRoom={leaveRoom}
             onSetReady={setReady}
             onSetFormat={setFormat}
@@ -602,9 +608,12 @@ export default function Lobby() {
         <div className="w-72 shrink-0 border-l h-full">
           <UserList
             players={players}
+            rooms={rooms}
+            currentRoom={currentRoom}
             currentPlayerId={playerId}
             currentUsername={myUsername}
             connectionState={connectionState}
+            onJoinRoom={joinRoom}
           />
         </div>
       )}
@@ -615,9 +624,12 @@ export default function Lobby() {
             <SheetTitle className="sr-only">Players</SheetTitle>
             <UserList
               players={players}
+              rooms={rooms}
+              currentRoom={currentRoom}
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
+              onJoinRoom={joinRoom}
             />
           </SheetContent>
         </Sheet>

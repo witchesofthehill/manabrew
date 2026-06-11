@@ -2074,6 +2074,7 @@ version = "0.1.0"
 dependencies = [
  "forge-engine-core",
  "forge-foundation",
+ "forge-protocol",
  "rand 0.8.6",
  "serde",
  "serde_json",
@@ -2246,12 +2247,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "forge-server"
 version = "0.1.0"
 dependencies = [
  "axum",
  "dashmap 6.1.0",
- "forge-agent-interface",
+ "forge-protocol",
  "futures-util",
  "serde",
  "serde_json",
@@ -5957,7 +5966,6 @@ dependencies = [
  "forge-engine-core",
  "forge-foundation",
  "forge-game-runtime",
- "forge-server",
  "futures-util",
  "memmap2",
  "rand 0.8.6",

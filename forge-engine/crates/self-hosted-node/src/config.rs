@@ -2,7 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use forge_agent_interface::deck_dto::{CardIdentity, Deck, DeckCard};
-use forge_server::protocol::GameFormat;
+use forge_agent_interface::protocol::GameFormat;
 use serde::Deserialize;
 use tracing::warn;
 

@@ -6,7 +6,7 @@ use crate::protocol::{
 };
 use crate::room::Room;
 use crate::state::ServerState;
-use forge_agent_interface::deck_dto::Deck;
+use forge_protocol::deck_dto::Deck;
 
 pub fn create_room_sync(
     state: &Arc<ServerState>,
@@ -449,6 +449,10 @@ pub fn end_game_sync(
         let cleared: Vec<String> = room.players.iter().map(|p| p.player_id.clone()).collect();
         room.status = RoomStatus::Lobby;
         room.players.clear();
+        if room.draft_config.is_none() && room.sealed_config.is_none() {
+            room.format = GameFormat::Any;
+            room.max_players = 4;
+        }
         (room.to_room_info(), cleared)
     };
 

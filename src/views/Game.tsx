@@ -6,7 +6,7 @@ import { useAutoResolvePrompt } from "@/components/game/prompts/useAutoResolvePr
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { GameCard, Player, StackObject, ActivatableAbilityInfo } from "@/types/manabrew";
+import type { ActivatableAbilityInfo, GameCard, Player, StackObject } from "@/types/manabrew";
 import { Card } from "@/components/game/Card";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
@@ -21,7 +21,7 @@ import { PixiArrowsCanvas } from "@/pixi/PixiArrowsCanvas";
 import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { buildPointerSpecs } from "@/components/game/pointerSpecs";
-import { ANY_COLOR_LETTERS } from "@/components/game/manaUtils";
+import { getExpandedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASES } from "@/components/game/game.styles";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -279,6 +279,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     cost: a.cost,
   });
 
+  const manaColorFromAction = (action: HandActionOption): string | null => {
+    const matches = action.label.match(/\{([WUBRGC])\}/);
+    return matches ? matches[1] : null;
+  };
+
   const castOptionsByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     for (const o of chooseActionInput?.playableOptions ?? []) {
@@ -311,28 +316,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       byCard.set(ab.cardId, arr);
     }
     for (const [cardId, abilities] of byCard) {
-      const expanded: ActivatableAbilityInfo[] = [];
-      for (const ab of abilities) {
-        const desc = ab.description.toLowerCase();
-        const matches = ab.description.matchAll(/\{([WUBRGC])\}/g);
-        const letters = Array.from(matches, (m) => m[1]);
-        const isAnyColor =
-          desc.includes("any color") ||
-          desc.includes("any one color") ||
-          desc.includes("mana of any color");
-        if (letters.length > 1) {
-          letters.forEach((letter) => expanded.push({ ...ab, description: `Add {${letter}}` }));
-        } else if (letters.length === 1) {
-          expanded.push(ab);
-        } else if (isAnyColor) {
-          ANY_COLOR_LETTERS.forEach((letter) =>
-            expanded.push({ ...ab, description: `Add {${letter}}` }),
-          );
-        } else {
-          expanded.push(ab);
-        }
-      }
-      map.set(cardId, expanded.map(toAbilityOption));
+      map.set(cardId, getExpandedManaAbilities(cardId, abilities).map(toAbilityOption));
     }
     return map;
   }, [chooseActionInput?.manaAbilityOptions, payManaCostInput?.manaAbilityOptions]);
@@ -415,9 +399,9 @@ export default function Game({ exitTo }: GameProps = {}) {
 
       const abilities = [...(abilitiesByCardId.get(card.id) ?? [])];
       const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
-      const isLandTappable = tappableLandIdSet.has(card.id) && card.types?.includes("Land");
+      const isManaSource = tappableLandIdSet.has(card.id);
 
-      if (isLandTappable && manaAbilities.length > 0) {
+      if (isManaSource && manaAbilities.length > 0) {
         // Use explicit mana abilities emitted by the engine instead of inventing a generic land tap action.
         abilities.unshift(...manaAbilities);
       }
@@ -586,23 +570,22 @@ export default function Game({ exitTo }: GameProps = {}) {
   // Land tap/untap handler — shows interactive preview for multi-ability lands
   const handleTapLand = (card: GameCard) => {
     if (payManaCostInput) {
-      const manaAbilities = payManaCostInput.manaAbilityOptions
-        .filter((a) => a.cardId === card.id)
-        .map((ability) => ({
-          kind: "ability" as const,
-          cardId: ability.cardId,
-          abilityIndex: ability.abilityIndex,
-          label: ability.description,
-          isManaAbility: true,
-          cost: ability.cost,
-        }));
+      const manaAbilities = getExpandedManaAbilities(
+        card.id,
+        payManaCostInput.manaAbilityOptions,
+      ).map(toAbilityOption);
 
       if (manaAbilities.length > 1) {
         preview.showSticky(card);
         return;
       }
       if (manaAbilities.length === 1) {
-        respond({ type: "tapLand", cardId: card.id, abilityIndex: manaAbilities[0].abilityIndex });
+        respond({
+          type: "tapLand",
+          cardId: card.id,
+          abilityIndex: manaAbilities[0].abilityIndex,
+          color: manaColorFromAction(manaAbilities[0]),
+        });
         return;
       }
       respond({ type: "tapLand", cardId: card.id });
@@ -624,11 +607,12 @@ export default function Game({ exitTo }: GameProps = {}) {
         isManaAbility: ability.isManaAbility,
         cost: ability.cost,
       }));
-    const manaAbilities = (chooseActionInput?.manaAbilityOptions ?? []).filter(
-      (a) => a.cardId === card.id,
-    );
+    const manaAbilities = getExpandedManaAbilities(
+      card.id,
+      chooseActionInput?.manaAbilityOptions ?? [],
+    ).map(toAbilityOption);
     const isManaSource = (chooseActionInput?.tappableLandIds ?? []).includes(card.id);
-    const hasManaAbility = isManaSource && card.types.includes("Land");
+    const hasManaAbility = isManaSource;
 
     // Multiple mana abilities (dual land) — show interactive preview for color choice
     if (manaAbilities.length > 1) {
@@ -637,7 +621,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     // Single mana ability — tap directly with that ability index
     if (manaAbilities.length === 1 && abilities.length === 0) {
-      respond({ type: "tapLand", cardId: card.id, abilityIndex: manaAbilities[0].abilityIndex });
+      respond({
+        type: "tapLand",
+        cardId: card.id,
+        abilityIndex: manaAbilities[0].abilityIndex,
+        color: manaColorFromAction(manaAbilities[0]),
+      });
       return;
     }
 
@@ -843,15 +832,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       });
     } else if (action.abilityIndex != null) {
       if (action.isManaAbility) {
-        // Mana abilities use tapLand (ActivateMana) in both ChooseAction and PayManaCost.
-        // Extract color from label (e.g. "Add {G}") if present.
-        const matches = action.label.match(/\{([WUBRGC])\}/);
-        const color = matches ? matches[1] : undefined;
         respond({
           type: "tapLand",
           cardId: action.cardId,
           abilityIndex: action.abilityIndex,
-          color: color ?? null,
+          color: manaColorFromAction(action),
         });
       } else {
         respond({
@@ -1672,11 +1657,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           } else if (ability.abilityIndex === -1) {
             respond({ type: "tapLand", cardId: abilityPickerState!.cardId });
           } else if (ability.abilityIndex != null) {
-            if (promptType === "payManaCost" && ability.isManaAbility) {
+            if (ability.isManaAbility) {
               respond({
                 type: "tapLand",
                 cardId: abilityPickerState!.cardId,
                 abilityIndex: ability.abilityIndex,
+                color: manaColorFromAction(ability),
               });
             } else {
               respond({

@@ -600,6 +600,7 @@ struct NormalizedAction {
     label: String,
     card_id: Option<String>,
     kind: Option<&'static str>,
+    cost: Option<String>,
 }
 
 fn build_choose_action(
@@ -630,7 +631,7 @@ fn build_choose_action(
                     ability_index: action.index,
                     description: action.label.clone(),
                     is_mana_ability: true,
-                    cost: None,
+                    cost: action.cost.clone(),
                 });
             }
             Some("ability") => {
@@ -977,6 +978,7 @@ fn to_actions(actions: &[JavaRawAction]) -> Vec<NormalizedAction> {
                 label,
                 card_id: action.card_id.clone(),
                 kind: java_action_kind(action.kind.as_deref()),
+                cost: action.cost.clone(),
             })
         })
         .collect()

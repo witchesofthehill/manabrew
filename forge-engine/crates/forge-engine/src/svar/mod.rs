@@ -1300,8 +1300,12 @@ fn resolve_paid_hash_property(
 /// and `Count$KickedCount` (returns the multikicker count).
 pub fn evaluate_svar(expr: &str, sa: &SpellAbility) -> i32 {
     // X mana cost — return the value of X paid when casting
-    if expr == "Count$xPaid" || expr == "Count$XPaid" {
-        return sa.x_mana_cost_paid as i32;
+    if let Some(rest) = expr
+        .strip_prefix("Count$xPaid")
+        .or_else(|| expr.strip_prefix("Count$XPaid"))
+    {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        return apply_simple_operator_chain(sa.x_mana_cost_paid as i32, operators);
     }
     // Converge/Sunburst — handled in resolve_numeric_svar (needs GameState)
     if expr == "Count$Converge" || expr == "Count$Sunburst" {
@@ -1465,8 +1469,19 @@ pub fn resolve_count_svar_for_sa(
 ) -> i32 {
     use forge_foundation::ZoneType;
 
-    if expr == "Count$xPaid" || expr == "Count$XPaid" {
-        return sa.x_mana_cost_paid as i32;
+    if let Some(rest) = expr
+        .strip_prefix("Count$xPaid")
+        .or_else(|| expr.strip_prefix("Count$XPaid"))
+    {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        return do_x_math(
+            sa.x_mana_cost_paid as i32,
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
     }
     if let Some(operators) = expr.strip_prefix("Count$CastTotalManaSpent") {
         let operators = operators.strip_prefix('/').unwrap_or(operators);
@@ -1590,6 +1605,20 @@ pub fn resolve_count_svar_for_sa(
         let parts: Vec<&str> = rest.splitn(2, '.').collect();
         if parts.len() == 2 {
             let chosen = if sa.kicked { parts[0] } else { parts[1] };
+            return resolve_svar_expression(chosen, game, source_id, controller, sa);
+        }
+    }
+
+    // Count$UrzaLands.A.B — return A when the controller has all three Urza
+    // lands, else B.
+    if let Some(rest) = expr.strip_prefix("Count$UrzaLands.") {
+        let parts: Vec<&str> = rest.splitn(2, '.').collect();
+        if parts.len() == 2 {
+            let chosen = if crate::player::player_predicates::has_urza_lands(game, controller) {
+                parts[0]
+            } else {
+                parts[1]
+            };
             return resolve_svar_expression(chosen, game, source_id, controller, sa);
         }
     }

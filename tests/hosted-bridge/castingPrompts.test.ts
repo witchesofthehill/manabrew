@@ -213,4 +213,76 @@ describe.sequential("hosted Forge casting prompt flow", () => {
     await waitForGameOver(sessionId);
     expect(await harness!.getPromptRaw(sessionId)).not.toBe(consumedPriority);
   });
+
+  it("announces X for Banefire before targets or mana", async () => {
+    const { sessionId, priority } = await startAtOpeningPriority([
+      card("Banefire"),
+      card("Banefire"),
+      ...simianSpiritGuides(6),
+    ]);
+
+    const spellPriority = await passUntilAction(sessionId, priority, "Banefire");
+    const action = findAction(spellPriority.prompt, "Banefire");
+    const prompt = await chooseAction(sessionId, spellPriority, action.index);
+
+    expect(prompt.prompt.kind).toBe("choose_number");
+    expect(prompt.prompt.sourceCardName).toBe("Banefire");
+    expect(prompt.prompt.description).toBe("Announce X");
+  });
+
+  it("prompts for optional kicker costs before Burst Lightning targets or mana", async () => {
+    const { sessionId, priority } = await startAtOpeningPriority([
+      card("Burst Lightning"),
+      card("Burst Lightning"),
+      ...simianSpiritGuides(6),
+    ]);
+
+    const spellPriority = await passUntilAction(sessionId, priority, "Burst Lightning");
+    const action = findAction(spellPriority.prompt, "Burst Lightning");
+    const prompt = await chooseAction(sessionId, spellPriority, action.index);
+
+    expect(prompt.prompt.kind).toBe("choose_mode");
+    expect(prompt.prompt.sourceCardName).toBe("Burst Lightning");
+    expect(prompt.prompt.min).toBe(0);
+    expect(prompt.prompt.max).toBeGreaterThanOrEqual(1);
+    expect(prompt.prompt.options).toEqual(
+      expect.arrayContaining([expect.stringContaining("Kicker")]),
+    );
+  });
+
+  it("preserves optional target counts for Jaya's Immolating Inferno", async () => {
+    const { sessionId, priority } = await startAtOpeningPriority([
+      card("Rograkh, Son of Rohgahh"),
+      card("Rograkh, Son of Rohgahh"),
+      card("Jaya's Immolating Inferno"),
+      card("Jaya's Immolating Inferno"),
+      ...simianSpiritGuides(4),
+    ]);
+
+    const rograkhPriority = await passUntilAction(sessionId, priority, "Rograkh, Son of Rohgahh");
+    const rograkh = findAction(rograkhPriority.prompt, "Rograkh, Son of Rohgahh");
+    const stackPriority = await chooseAction(sessionId, rograkhPriority, rograkh.index, "priority");
+    const jayaPriority = await passUntilAction(
+      sessionId,
+      stackPriority,
+      "Jaya's Immolating Inferno",
+    );
+    const jaya = findAction(jayaPriority.prompt, "Jaya's Immolating Inferno");
+    const announce = await chooseAction(sessionId, jayaPriority, jaya.index, "choose_number");
+
+    expect(announce.prompt.description).toBe("Announce X");
+    await harness!.submitAction(sessionId, { kind: "number_decision", number: 0 });
+    const targetPrompt = await harness!.waitForPrompt(sessionId, {
+      kind: "choose_target_any",
+      afterRaw: announce.raw,
+    });
+
+    expect(targetPrompt.prompt.minTargets).toBe(0);
+    expect(targetPrompt.prompt.maxTargets).toBe(3);
+    expect(targetPrompt.prompt.chosenTargets).toBe(0);
+
+    await harness!.submitAction(sessionId, { kind: "pass" });
+    const afterPass = await harness!.waitForPrompt(sessionId, { afterRaw: targetPrompt.raw });
+    expect(afterPass.prompt.kind).not.toBe("choose_target_any");
+  });
 });

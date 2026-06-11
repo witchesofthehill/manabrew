@@ -135,6 +135,14 @@ public final class HarnessPlayPlumbing {
 
         sa = GameActionUtil.addExtraKeywordCost(sa);
 
+        if (!announceValuesLikeX(ai, sa)) {
+            if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
+                GameActionUtil.rollbackAbility(sa, hz, zonePosition,
+                        new CostPayment(sa.getPayCosts(), sa), host);
+            }
+            return false;
+        }
+
         if (!sa.setupTargets()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
                 GameActionUtil.rollbackAbility(sa, hz, zonePosition,
@@ -196,6 +204,52 @@ public final class HarnessPlayPlumbing {
     private static void clearPaymentState(final SpellAbility sa) {
         sa.clearManaPaid();
         sa.getPayingManaAbilities().clear();
+    }
+
+    private static boolean announceValuesLikeX(final Player player, final SpellAbility ability) {
+        if (ability.isCopied() || ability.isWrapper()) {
+            return true;
+        }
+
+        final Cost cost = ability.getPayCosts();
+        final Card card = ability.getHostCard();
+        boolean needX = ability.getXManaCostPaid() == null;
+        final String announce = ability.getParam("Announce");
+        if (announce != null && needX) {
+            for (final String aVar : announce.split(",")) {
+                final String varName = aVar.trim();
+                final Integer value = player.getController().announceRequirements(ability, varName);
+                if (value == null) {
+                    return false;
+                }
+                if ("X".equalsIgnoreCase(varName)) {
+                    needX = false;
+                    ability.setXManaCostPaid(value);
+                } else {
+                    ability.setSVar(varName, value.toString());
+                    card.setSVar(varName, value.toString());
+                }
+            }
+        }
+
+        if (needX) {
+            if (cost != null && cost.hasXInAnyCostPart()) {
+                final String sVar = ability.getParamOrDefault("XAlternative", ability.getSVar("X"));
+                final boolean replacedXshard = ability.isSpell()
+                        && ability.getHostCard().getManaCost().countX() > 0
+                        && !cost.hasXInAnyCostPart();
+                if (("Count$xPaid".equals(sVar) && !replacedXshard) || sVar.isEmpty()) {
+                    final Integer value = player.getController().announceRequirements(ability, "X");
+                    if (value == null) {
+                        return false;
+                    }
+                    ability.setXManaCostPaid(value);
+                }
+            } else {
+                ability.setXManaCostPaid(null);
+            }
+        }
+        return true;
     }
 
     /**

@@ -40,6 +40,10 @@ function consumeIntentForSpell(
   return intent.id;
 }
 
+function needsTarget(prompt: { input: { minTargets?: number; chosenTargets?: number } }): boolean {
+  return (prompt.input.chosenTargets ?? 0) < (prompt.input.minTargets ?? 1);
+}
+
 export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetCardFromZone"> = (
   prompt,
   ctx,
@@ -52,6 +56,7 @@ export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetC
       reason: `pre-selected target ${preselected}`,
     };
   }
+  if (!needsTarget(prompt)) return { kind: "force-show" };
   const ids = prompt.input.validCardIds;
   if (ids.length !== 1) return { kind: "force-show" };
   return {
@@ -70,6 +75,7 @@ export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, 
       reason: `pre-selected player ${preselected}`,
     };
   }
+  if (!needsTarget(prompt)) return { kind: "force-show" };
   const ids = prompt.input.validPlayerIds;
   if (ids.length !== 1) return { kind: "force-show" };
   return {
@@ -88,6 +94,7 @@ export const singleLegalSpell: PromptResolver<"chooseTargetSpell"> = (prompt, ct
       reason: `pre-selected spell ${preselected}`,
     };
   }
+  if (!needsTarget(prompt)) return { kind: "force-show" };
   const ids = prompt.input.validSpellIds;
   if (ids.length !== 1) return { kind: "force-show" };
   return {
@@ -220,6 +227,7 @@ export const singleLegalAny: PromptResolver<"chooseTargetAny"> = (prompt, ctx) =
       reason: `pre-selected target (player ${prePlayer})`,
     };
   }
+  if (!needsTarget(prompt)) return { kind: "force-show" };
   const cards = prompt.input.validCardIds;
   const players = prompt.input.validPlayerIds;
   const total = cards.length + players.length;

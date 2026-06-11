@@ -20,7 +20,6 @@ import {
   X,
   Save,
   Trash2,
-  Check,
   Search,
   LayoutGrid,
   List,
@@ -44,7 +43,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import type { DeckCard, DeckFormatId, GameCard } from "@/types/manabrew";
+import type { DeckCard, GameCard } from "@/types/manabrew";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
@@ -59,18 +58,15 @@ import {
   canBePartners,
   hasPartner,
   getPartnerWithName,
-  GAME_FORMATS,
   copyLimitFromText,
 } from "@/lib/formats";
-import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckListView } from "./DeckListView";
+import { DeckHero } from "./DeckHero";
 import { PreviewRail } from "./PreviewRail";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { CardDetailModal } from "./CardDetailModal";
 import { DeckLabelsModal } from "./DeckLabelsModal";
-import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
-import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { DeckValidationPanel } from "./DeckValidationPanel";
 import { DeckBracketPanel } from "./DeckBracketPanel";
 import { CombosPanel } from "./CombosPanel";
@@ -81,6 +77,9 @@ import {
   type ViewMode,
   type GroupByMode,
   GROUP_BY_OPTIONS,
+  CMC_BUCKET_LABELS,
+  cmcBucketIndex,
+  parseFilterTerms,
   groupCards,
   exportToArena,
   computeGroupedSections,
@@ -273,9 +272,7 @@ export function DeckBuilder({
     removeFromSide,
     addToMain,
     addToSide,
-    setDeckName,
     clearDeck,
-    setDeckFormat,
     saveCurrentDeck,
     saveDraft,
     addToMaybe,
@@ -301,10 +298,9 @@ export function DeckBuilder({
     [derivedTokens, currentDeck.tokens],
   );
 
-  const [editingName, setEditingName] = useState(false);
   const [deckFilter, setDeckFilter] = useState("");
+  const [cmcFilter, setCmcFilter] = useState<number | null>(null);
   const [newTagInput, setNewTagInput] = useState("");
-  const [nameInput, setNameInput] = useState(currentDeck.name);
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [cardSize, setCardSize] = useState(3);
@@ -318,7 +314,6 @@ export function DeckBuilder({
   const [pendingDeleteDeck, setPendingDeleteDeck] = useState<{ id: string; name: string } | null>(
     null,
   );
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const filterInputRef = useRef<HTMLInputElement>(null);
   const enrichedNamesRef = useRef(new Set<string>());
 
@@ -506,13 +501,25 @@ export function DeckBuilder({
         ).legal
       : false);
 
-  const filterLc = deckFilter.toLowerCase();
+  const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
+  const matchesFilters = useCallback(
+    (c: DeckCard) => {
+      if (filterTerms.length > 0 && !filterTerms.some((t) => c.name.toLowerCase().includes(t))) {
+        return false;
+      }
+      if (cmcFilter !== null && cmcBucketIndex(c) !== cmcFilter) return false;
+      return true;
+    },
+    [filterTerms, cmcFilter],
+  );
+  const hasActiveFilter = filterTerms.length > 0 || cmcFilter !== null;
+  const applyFilters = useCallback(
+    (cards: DeckCard[]) => (hasActiveFilter ? cards.filter(matchesFilters) : cards),
+    [hasActiveFilter, matchesFilters],
+  );
   const filteredMain = useMemo(
-    () =>
-      filterLc
-        ? currentDeck.cards.filter((c) => c.name.toLowerCase().includes(filterLc))
-        : currentDeck.cards,
-    [filterLc, currentDeck.cards],
+    () => applyFilters(currentDeck.cards),
+    [applyFilters, currentDeck.cards],
   );
   // Compute groups
   const { sections: sectionGroups, otherGroups } = computeGroupedSections(
@@ -521,36 +528,12 @@ export function DeckBuilder({
     currentDeck.customTags,
     currentDeck.cardTags,
   );
-  const sideGroups = groupCards(
-    filterLc
-      ? currentDeck.sideboard.filter((c) => c.name.toLowerCase().includes(filterLc))
-      : currentDeck.sideboard,
-  );
-  const attractionGroups = groupCards(
-    filterLc
-      ? (currentDeck.attractions ?? []).filter((c) => c.name.toLowerCase().includes(filterLc))
-      : (currentDeck.attractions ?? []),
-  );
-  const contraptionGroups = groupCards(
-    filterLc
-      ? (currentDeck.contraptions ?? []).filter((c) => c.name.toLowerCase().includes(filterLc))
-      : (currentDeck.contraptions ?? []),
-  );
-  const schemeGroups = groupCards(
-    filterLc
-      ? (currentDeck.schemes ?? []).filter((c) => c.name.toLowerCase().includes(filterLc))
-      : (currentDeck.schemes ?? []),
-  );
-  const planeGroups = groupCards(
-    filterLc
-      ? (currentDeck.planes ?? []).filter((c) => c.name.toLowerCase().includes(filterLc))
-      : (currentDeck.planes ?? []),
-  );
-  const maybeGroups = groupCards(
-    filterLc
-      ? (currentDeck.maybeboard ?? []).filter((c) => c.name.toLowerCase().includes(filterLc))
-      : (currentDeck.maybeboard ?? []),
-  );
+  const sideGroups = groupCards(applyFilters(currentDeck.sideboard));
+  const attractionGroups = groupCards(applyFilters(currentDeck.attractions ?? []));
+  const contraptionGroups = groupCards(applyFilters(currentDeck.contraptions ?? []));
+  const schemeGroups = groupCards(applyFilters(currentDeck.schemes ?? []));
+  const planeGroups = groupCards(applyFilters(currentDeck.planes ?? []));
+  const maybeGroups = groupCards(applyFilters(currentDeck.maybeboard ?? []));
   const specialSections = [
     { id: "attractions", label: "Attractions", groups: attractionGroups },
     { id: "contraptions", label: "Contraptions", groups: contraptionGroups },
@@ -787,11 +770,6 @@ export function DeckBuilder({
     if (existing) addToMain({ ...existing, id: crypto.randomUUID() });
   }
 
-  function confirmName() {
-    if (nameInput.trim()) setDeckName(nameInput.trim());
-    setEditingName(false);
-  }
-
   function handleExport() {
     const text = exportToArena(currentDeck);
     navigator.clipboard.writeText(text).then(() => toast.success("Deck copied to clipboard"));
@@ -845,8 +823,6 @@ export function DeckBuilder({
     toast.success(`Imported "${importedName}" — now editable`);
   }
 
-  const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
-
   return (
     <div className="flex flex-col h-full w-full relative">
       {isReadOnly && (
@@ -864,247 +840,36 @@ export function DeckBuilder({
           </Button>
         </div>
       )}
-      <fieldset disabled={isReadOnly} className="contents">
-        {/* ── Header: deck identity + quick add + save ── */}
-        <div
-          className={cn(
-            "relative isolate overflow-hidden px-3 py-3 border-b shrink-0 flex items-center gap-2",
-            isReadOnly && "bg-muted/15",
-          )}
-        >
-          {coverArt && (
-            <ScryfallImg
-              src={coverArt}
-              alt=""
-              aria-hidden
-              draggable={false}
-              loading="lazy"
-              className="pointer-events-none absolute inset-0 -z-10 size-full select-none object-cover object-top opacity-30 blur-xs"
-            />
-          )}
-          {onBack && (
-            <div
-              role="button"
-              tabIndex={0}
-              className="h-7 w-7 shrink-0 rounded-md inline-flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Back to My Decks"
-              onClick={onBack}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onBack();
-                }
-              }}
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </div>
-          )}
+      <div className="flex flex-1 min-h-0">
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
+          <DeckHero />
 
-          {/* Radix portals escape the fieldset disabled cascade — gate name + format explicitly. */}
-          {isReadOnly ? (
-            <span className="font-semibold text-base shrink-0 px-1.5 py-0.5">
-              {currentDeck.name}
-            </span>
-          ) : editingName ? (
-            <div className="flex items-center gap-1 shrink-0">
-              <Input
-                ref={nameInputRef}
-                className="h-7 text-sm font-semibold w-40"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
+          <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
+            {onBack && (
+              <div
+                role="button"
+                tabIndex={0}
+                className="h-7 w-7 shrink-0 rounded-md inline-flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Back to My Decks"
+                onClick={onBack}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") confirmName();
-                  if (e.key === "Escape") {
-                    setEditingName(false);
-                    setNameInput(currentDeck.name);
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onBack();
                   }
                 }}
-                autoFocus
-              />
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={confirmName}>
-                <Check className="h-3 w-3" />
-              </Button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="flex items-center gap-1 shrink-0 min-w-0 hover:bg-muted/60 rounded px-1.5 py-0.5 transition-colors"
-              onClick={() => {
-                setNameInput(currentDeck.name);
-                setEditingName(true);
-              }}
-            >
-              <span className="font-semibold text-base whitespace-nowrap">{currentDeck.name}</span>
-            </button>
-          )}
-
-          {isReadOnly ? (
-            <span className="shrink-0">
-              <FormatBadge formatId={currentDeck.format ?? "standard"} />
-            </span>
-          ) : (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button type="button" className="shrink-0 cursor-pointer flex items-center gap-1">
-                  <FormatBadge formatId={currentDeck.format ?? "standard"} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {GAME_FORMATS.map((f) => (
-                  <DropdownMenuItem
-                    key={f.id}
-                    onSelect={() => setDeckFormat(f.id as DeckFormatId)}
-                    className="gap-2"
-                  >
-                    <FormatBadge formatId={f.id} />
-                    <span className="text-xs">{f.name}</span>
-                    {(currentDeck.format ?? "standard") === f.id && (
-                      <Check className="h-3 w-3 ml-auto text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {/* Labels */}
-          {(currentDeck.labels ?? []).map((label) => (
-            <DeckLabelBadge key={label.name} label={label} size="md" className="shrink-0" />
-          ))}
-
-          <div className="flex-1" />
-
-          {/* Right: Save + overflow menu */}
-          {isReadOnly ? (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled
-              className="h-7 shrink-0 gap-1 text-xs text-muted-foreground/60"
-              title="Preset deck — import to enable editing"
-            >
-              <Save className="h-3.5 w-3.5" />
-              Save
-            </Button>
-          ) : isDeckLegal ? (
-            <Button
-              size="sm"
-              variant={hasUnsavedChanges ? "default" : "secondary"}
-              disabled={!hasUnsavedChanges}
-              className="h-7 shrink-0 gap-1 text-xs"
-              title={hasUnsavedChanges ? "Save deck (unsaved changes)" : "Deck saved"}
-              onClick={handleSave}
-            >
-              <Save className="h-3.5 w-3.5" />
-              Save
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
-              title={
-                hasUnsupportedCards
-                  ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — draft only, can't be played`
-                  : "Deck has errors — save as draft (not playable)"
-              }
-              onClick={handleSaveDraft}
-            >
-              <FileBox className="h-3.5 w-3.5" />
-              Save Draft
-            </Button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0">
-                <EllipsisVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onSelect={handleExport}
-                disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
               >
-                <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
-              </DropdownMenuItem>
-              <div className="border-t my-1" />
-              <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
-                <Palette className="h-3.5 w-3.5 mr-2" /> Labels
-                {(currentDeck.labels?.length ?? 0) > 0 && (
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    {currentDeck.labels!.length}
-                  </span>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
-                {(currentDeck.customTags?.length ?? 0) > 0 && (
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    {currentDeck.customTags!.length}
-                  </span>
-                )}
-              </DropdownMenuItem>
-              {(currentDeck.customTags ?? []).length > 0 && (
-                <>
-                  {(currentDeck.customTags ?? []).map((tag) => (
-                    <DropdownMenuItem
-                      key={tag}
-                      className="text-xs pl-8 justify-between"
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      <span>{tag}</span>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5 text-destructive shrink-0"
-                        onClick={() => {
-                          removeCustomTag(tag);
-                          toast.success(`Tag "${tag}" removed`);
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-              <div className="px-2 py-1.5">
-                <Input
-                  className="h-7 text-xs"
-                  placeholder="New tag…"
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    e.stopPropagation();
-                    if (e.key === "Enter" && newTagInput.trim()) {
-                      addCustomTag(newTagInput.trim());
-                      toast.success(`Tag "${newTagInput.trim()}" added`);
-                      setNewTagInput("");
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <ArrowLeft className="h-3.5 w-3.5" />
               </div>
-              <div className="border-t my-1" />
-              <DropdownMenuItem className="text-destructive" onSelect={() => setConfirmClear(true)}>
-                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </fieldset>
+            )}
 
-      <div className="flex flex-1 min-h-0">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          {/* View toolbar lives outside the readonly fieldset — none of these mutate the deck. */}
-          <div className="mt-2 px-3 py-1 shrink-0 flex items-center gap-2">
-            <div className="relative shrink-0 w-28">
+            <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input
                 ref={filterInputRef}
                 className="h-6 text-xs pl-6 pr-6"
                 placeholder="Filter…"
+                title="Filter cards by name — comma-separate to match several, e.g. bolt, elves"
                 value={deckFilter}
                 onChange={(e) => setDeckFilter(e.target.value)}
               />
@@ -1118,6 +883,17 @@ export function DeckBuilder({
                 </button>
               )}
             </div>
+            {cmcFilter !== null && (
+              <button
+                type="button"
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25"
+                title="Clear mana value filter"
+                onClick={() => setCmcFilter(null)}
+              >
+                {CMC_BUCKET_LABELS[cmcFilter]} mana
+                <X className="h-3 w-3" />
+              </button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md border shrink-0 transition-colors">
@@ -1174,7 +950,7 @@ export function DeckBuilder({
                 title={`Card size: ${cardSize}`}
               />
             )}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-40">
               <QuickCardSearch
                 onAdd={(sc) => {
                   if (isAtCopyLimit(sc.name)) {
@@ -1204,16 +980,140 @@ export function DeckBuilder({
                 <Search className="h-3.5 w-3.5" />
               </Button>
             )}
+
+            {isReadOnly ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled
+                className="h-7 shrink-0 gap-1 text-xs text-muted-foreground/60"
+                title="Preset deck — import to enable editing"
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save
+              </Button>
+            ) : isDeckLegal ? (
+              <Button
+                size="sm"
+                variant={hasUnsavedChanges ? "default" : "secondary"}
+                disabled={!hasUnsavedChanges}
+                className="h-7 shrink-0 gap-1 text-xs"
+                title={hasUnsavedChanges ? "Save deck (unsaved changes)" : "Deck saved"}
+                onClick={handleSave}
+              >
+                <Save className="h-3.5 w-3.5" />
+                Save
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 gap-1 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                title={
+                  hasUnsupportedCards
+                    ? `${unsupportedNames.size} card${unsupportedNames.size === 1 ? "" : "s"} not implemented by the engine — draft only, can't be played`
+                    : "Deck has errors — save as draft (not playable)"
+                }
+                onClick={handleSaveDraft}
+              >
+                <FileBox className="h-3.5 w-3.5" />
+                Save Draft
+              </Button>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 shrink-0"
+                  disabled={isReadOnly}
+                >
+                  <EllipsisVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onSelect={handleExport}
+                  disabled={currentDeck.cards.length === 0 && !currentDeck.commanders?.length}
+                >
+                  <ClipboardCopy className="h-3.5 w-3.5 mr-2" /> Export to clipboard
+                </DropdownMenuItem>
+                <div className="border-t my-1" />
+                <DropdownMenuItem onSelect={() => setLabelsOpen(true)}>
+                  <Palette className="h-3.5 w-3.5 mr-2" /> Labels
+                  {(currentDeck.labels?.length ?? 0) > 0 && (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {currentDeck.labels!.length}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <Bookmark className="h-3.5 w-3.5 mr-2" /> Tags
+                  {(currentDeck.customTags?.length ?? 0) > 0 && (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {currentDeck.customTags!.length}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+                {(currentDeck.customTags ?? []).length > 0 && (
+                  <>
+                    {(currentDeck.customTags ?? []).map((tag) => (
+                      <DropdownMenuItem
+                        key={tag}
+                        className="text-xs pl-8 justify-between"
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        <span>{tag}</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-5 w-5 text-destructive shrink-0"
+                          onClick={() => {
+                            removeCustomTag(tag);
+                            toast.success(`Tag "${tag}" removed`);
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+                <div className="px-2 py-1.5">
+                  <Input
+                    className="h-7 text-xs"
+                    placeholder="New tag…"
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter" && newTagInput.trim()) {
+                        addCustomTag(newTagInput.trim());
+                        toast.success(`Tag "${newTagInput.trim()}" added`);
+                        setNewTagInput("");
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+                <div className="border-t my-1" />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onSelect={() => setConfirmClear(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete deck
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <fieldset disabled={isReadOnly} className="contents">
-            <div className={cn("flex-1 min-h-0 flex", isReadOnly && "opacity-60 bg-muted/15")}>
+            <div className={cn(isReadOnly && "opacity-60 bg-muted/15")}>
+              <DeckValidationPanel unsupportedNames={unsupportedNames} />
               <div
                 ref={setMainDropRef}
-                className={cn(
-                  "flex-1 min-w-0 transition-colors overflow-hidden",
-                  isOverMain && !isOverSide && "bg-primary/5",
-                )}
+                className={cn("transition-colors", isOverMain && !isOverSide && "bg-primary/5")}
               >
                 <DeckListView
                   viewMode={viewMode}
@@ -1288,21 +1188,53 @@ export function DeckBuilder({
                   onStackPositionsChange={setStackPositions}
                 />
               </div>
+
+              <div className="px-4 pb-10 pt-4">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Deck Analysis
+                  </span>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
+                <div className="space-y-5">
+                  {mergedTokens.length > 0 && (
+                    <TokenSection
+                      tokens={mergedTokens}
+                      cardSize={cardSize}
+                      onShowInfo={handleShowInfo}
+                      onPickPrint={setTokenPrintPickerName}
+                      onRemoveToken={removeToken}
+                      onHover={(token, e) =>
+                        preview.handleMouseEnter(token as unknown as GameCard, e, {
+                          useDelay: true,
+                        })
+                      }
+                      onLeave={preview.handleMouseLeave}
+                    />
+                  )}
+                  <DeckStats activeBucket={cmcFilter} onBucketClick={setCmcFilter} />
+                  <CombosPanel />
+                  <DeckBracketPanel />
+                </div>
+              </div>
             </div>
           </fieldset>
         </div>
         {setPreviewSlot && onTogglePreview && (
-          <PreviewRail
-            setSlot={setPreviewSlot}
-            collapsed={previewCollapsed ?? false}
-            onCollapse={onTogglePreview}
-          />
+          <div className="hidden lg:contents">
+            <PreviewRail
+              setSlot={setPreviewSlot}
+              collapsed={previewCollapsed ?? false}
+              onCollapse={onTogglePreview}
+              previewCard={preview.hoveredCard}
+            />
+          </div>
         )}
       </div>
 
       <fieldset disabled={isReadOnly} className="contents">
         {selectedCards.size > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-selection/30 px-4 py-2 flex items-center gap-2 z-50">
+          <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur border-t border-selection/30 px-4 py-2 flex flex-wrap items-center gap-2 z-50">
             <span className="text-sm font-medium text-selection">
               {selectedCards.size} card{selectedCards.size !== 1 ? "s" : ""} selected
             </span>
@@ -1357,22 +1289,6 @@ export function DeckBuilder({
             </Button>
           </div>
         )}
-
-        <DeckValidationPanel unsupportedNames={unsupportedNames} />
-        <DeckBracketPanel />
-        <CombosPanel />
-        <TokenSection
-          tokens={mergedTokens}
-          cardSize={cardSize}
-          onShowInfo={handleShowInfo}
-          onPickPrint={setTokenPrintPickerName}
-          onRemoveToken={removeToken}
-          onHover={(token, e) =>
-            preview.handleMouseEnter(token as unknown as GameCard, e, { useDelay: true })
-          }
-          onLeave={preview.handleMouseLeave}
-        />
-        <DeckStats />
 
         <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
         <PrintPickerModal cardName={printPickerCard} onClose={() => setPrintPickerCard(null)} />

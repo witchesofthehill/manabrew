@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { ManaCode } from "@/types/scryfall";
+import { MANA_BG_CLASS } from "@/themes/gameTheme";
 
 interface ChooseColorModalProps {
   validColors: string[];
@@ -11,15 +12,13 @@ interface ChooseColorModalProps {
   onConfirm: (color: string) => void;
 }
 
-/** Per-colour picker cell — each uses its `mana-<letter>` theme token for
- *  the background so a preset can retone the whole set at once.  */
 const COLOR_INFO: Record<string, { symbol: ManaCode; bg: string }> = {
-  White: { symbol: "W", bg: "bg-mana-w" },
-  Blue: { symbol: "U", bg: "bg-mana-u" },
-  Black: { symbol: "B", bg: "bg-mana-b" },
-  Red: { symbol: "R", bg: "bg-mana-r" },
-  Green: { symbol: "G", bg: "bg-mana-g" },
-  Colorless: { symbol: "C", bg: "bg-mana-c" },
+  White: { symbol: "W", bg: MANA_BG_CLASS.W },
+  Blue: { symbol: "U", bg: MANA_BG_CLASS.U },
+  Black: { symbol: "B", bg: MANA_BG_CLASS.B },
+  Red: { symbol: "R", bg: MANA_BG_CLASS.R },
+  Green: { symbol: "G", bg: MANA_BG_CLASS.G },
+  Colorless: { symbol: "C", bg: MANA_BG_CLASS.C },
 };
 
 export function ChooseColorModal({

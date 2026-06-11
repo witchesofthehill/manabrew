@@ -44,6 +44,11 @@ use tracing::{debug, info};
 
 use crate::config::workspace_root;
 
+pub struct HostedGameOver {
+    pub game_id: String,
+    pub messages: Vec<(usize, AgentMessage)>,
+}
+
 pub fn unsupported_message() -> &'static str {
     "hosted java-forge backend is unavailable; rebuild self-hosted-node with --features java-forge"
 }
@@ -704,7 +709,7 @@ pub fn run_hosted_engine_game(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
-    game_over_tx: std_mpsc::Sender<String>,
+    game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) {
     if let Err(error) = run_hosted_engine_game_inner(
@@ -735,7 +740,7 @@ pub fn run_hosted_engine_game(
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
-    _game_over_tx: std_mpsc::Sender<String>,
+    _game_over_tx: std_mpsc::Sender<HostedGameOver>,
     _cancel: Arc<AtomicBool>,
 ) {
     warn!(
@@ -755,7 +760,7 @@ fn run_hosted_engine_game_inner(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
-    game_over_tx: std_mpsc::Sender<String>,
+    game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
     let engine = engine_handle()?;
@@ -903,10 +908,7 @@ fn run_hosted_engine_game_inner(
 
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
-            // Best-effort final state: it needs the snapshot, but the result
-            // screen must not depend on it. A snapshot fetch/parse failure here
-            // used to drop the whole game-over emission and soft-lock the client
-            // in a dead game view (#77).
+            let mut final_messages = Vec::new();
             match engine.get_snapshot(&session_id).and_then(|json| {
                 serde_json::from_str::<JavaRawSnapshot>(&json).map_err(|e| e.to_string())
             }) {
@@ -917,20 +919,21 @@ fn run_hosted_engine_game_inner(
                         0,
                     ));
                     for &agent_index in remote_response_rxs.keys() {
-                        let _ = remote_prompt_tx.send((agent_index, state.clone()));
+                        final_messages.push((agent_index, state.clone()));
                     }
                 }
                 Err(error) => {
                     warn!(%error, "game over: final snapshot unavailable; sending game-over prompt only");
                 }
             }
-            // Always send the GameOver prompt — it carries no snapshot data, so the
-            // client shows the result screen regardless of the snapshot above.
             let game_over = AgentMessage::Prompt(make_java_game_over_prompt());
             for &agent_index in remote_response_rxs.keys() {
-                let _ = remote_prompt_tx.send((agent_index, game_over.clone()));
+                final_messages.push((agent_index, game_over.clone()));
             }
-            let _ = game_over_tx.send(game_id.clone());
+            let _ = game_over_tx.send(HostedGameOver {
+                game_id: game_id.clone(),
+                messages: final_messages,
+            });
             engine.end_game(&session_id)?;
             guard.armed.set(false);
             return Ok(());

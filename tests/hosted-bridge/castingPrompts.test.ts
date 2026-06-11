@@ -251,6 +251,25 @@ async function castTormentForX(sessionId: string, current: PromptResult, xValue:
   });
 }
 
+async function castSphinxForX(sessionId: string, current: PromptResult, xValue: number) {
+  const sphinxPriority = await passUntilAction(sessionId, current, "Sphinx's Revelation");
+  const action = findAction(sphinxPriority.prompt, "Sphinx's Revelation");
+  let cursor = await chooseAction(sessionId, sphinxPriority, action.index, "choose_number");
+  await harness!.submitAction(sessionId, { kind: "number_decision", number: xValue });
+  cursor = await harness!.waitForPrompt(sessionId, {
+    kind: "pay_mana_cost",
+    afterRaw: cursor.raw,
+  });
+  await harness!.submitAction(sessionId, { kind: "pay_mana" });
+  await harness!.waitForPrompt<PriorityPrompt>(sessionId, {
+    kind: "priority",
+    afterRaw: cursor.raw,
+  });
+  await harness!.submitAction(sessionId, { kind: "pass" });
+  await waitForGameOver(sessionId);
+  return harness!.getSnapshot(sessionId);
+}
+
 describe.sequential("hosted Forge casting prompt flow", () => {
   it("prompts for Demand Answers' additional discard/sacrifice cost before mana", async () => {
     const { sessionId, priority } = await startAtOpeningPriority([
@@ -398,6 +417,24 @@ describe.sequential("hosted Forge casting prompt flow", () => {
     expect(prompt.prompt.kind).toBe("choose_number");
     expect(prompt.prompt.sourceCardName).toBe("Sphinx's Revelation");
     expect(prompt.prompt.description).toBe("Announce X");
+  });
+
+  it("marks self-decking Sphinx's Revelation as a loss", async () => {
+    const { sessionId, priority } = await startAtOpeningPriority([
+      card("Sphinx's Revelation"),
+      card("Sphinx's Revelation"),
+      ...blackLotuses(6),
+    ]);
+
+    let cursor = await castSpellAndReturnPriority(sessionId, priority, "Black Lotus");
+    cursor = await castSpellAndReturnPriority(sessionId, cursor, "Black Lotus");
+    cursor = await activatePriorityManaAbility(sessionId, cursor, "Black Lotus", "W");
+    cursor = await activatePriorityManaAbility(sessionId, cursor, "Black Lotus", "U");
+    const snapshot = await castSphinxForX(sessionId, cursor, 2);
+
+    expect(snapshot.game_over).toBe(true);
+    expect(snapshot.winner).toBe(1);
+    expect(player(snapshot, 0).has_lost).toBe(true);
   });
 
   it("announces X for Torment of Hailfire before mana", async () => {

@@ -43,6 +43,9 @@ manabrew.app {
         rewrite * /{re.spellbook.1}
         reverse_proxy https://backend.commanderspellbook.com {
             header_up Host backend.commanderspellbook.com
+            # Django rejects the request (DisallowedHost 400) if the
+            # forwarded host leaks through.
+            header_up -X-Forwarded-Host
             header_down -Access-Control-Allow-Origin
         }
         header Cross-Origin-Resource-Policy "same-origin"

@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
+import { DraftPodButton } from "@/components/limited/DraftPodButton";
 import { DraftingView } from "@/views/Draft";
 import { submitHostPick, teardownHost } from "@/game/draftHost";
 import { submitPeerPick } from "@/game/draftPeer";
@@ -23,6 +24,7 @@ export default function MultiplayerDraft() {
   const mySeat = useMultiplayerDraftStore((s) => s.mySeat);
   const finalPools = useMultiplayerDraftStore((s) => s.finalPools);
   const lastError = useMultiplayerDraftStore((s) => s.lastError);
+  const pickPending = useMultiplayerDraftStore((s) => s.pickPending);
   const clear = useMultiplayerDraftStore((s) => s.clear);
   const conspiracyHooks = useLimitedStore((s) => s.conspiracyHooks);
   const fetchConspiracyHooks = useLimitedStore((s) => s.fetchConspiracyHooks);
@@ -36,6 +38,8 @@ export default function MultiplayerDraft() {
   }, [mode, navigate]);
 
   useEffect(() => {
+    // Relies on StrictMode staying disabled in main.tsx — a dev double-mount
+    // would run this cleanup mid-draft and tear down the live session.
     return () => {
       teardownHost(true);
       useMultiplayerDraftStore.getState().clear();
@@ -43,7 +47,7 @@ export default function MultiplayerDraft() {
   }, []);
 
   const handlePick = async (card: DraftCard) => {
-    if (!state?.awaitingHuman) return;
+    if (!state?.awaitingHuman || pickPending) return;
     if (amHost) {
       await submitHostPick(card.name);
     } else {
@@ -115,19 +119,27 @@ export default function MultiplayerDraft() {
             )}
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            if (amHost) teardownHost(true);
-            clear();
-            navigate("/lobby");
-          }}
-        >
-          Back to lobby
-        </Button>
+        <div className="flex items-center gap-2">
+          <DraftPodButton seats={state.seatSummaries} />
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (amHost) teardownHost(true);
+              clear();
+              navigate("/lobby");
+            }}
+          >
+            Back to lobby
+          </Button>
+        </div>
       </header>
 
-      <DraftingView activeDraft={state} onPick={handlePick} conspiracyHooks={conspiracyHooks} />
+      <DraftingView
+        activeDraft={state}
+        onPick={handlePick}
+        conspiracyHooks={conspiracyHooks}
+        pickPending={pickPending}
+      />
 
       {lastError && (
         <p className="rounded border border-destructive/70 bg-destructive/10 p-3 text-sm text-destructive">

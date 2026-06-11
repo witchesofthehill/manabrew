@@ -73,6 +73,18 @@ const FORMATS: {
     icon: Wand2,
     description: "60-card singleton, planeswalker cmdr",
   },
+  {
+    value: "Draft",
+    label: "Draft",
+    icon: Boxes,
+    description: "40-card decks built from a draft",
+  },
+  {
+    value: "Sealed",
+    label: "Sealed",
+    icon: Boxes,
+    description: "40-card decks built from a sealed pool",
+  },
 ];
 
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
@@ -250,6 +262,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
   const isSealed = kind === "limited" && limitedKind === "sealed";
+  const showPicker = isBoosterDraft || isSealed;
+  const pickerSet = isSealed ? sealedSet : draftSet;
+  const pickerUnsupported = isSealed ? unsupportedSealedSet : unsupportedSet;
   const limitedKindEnabled =
     kind !== "limited" || (LIMITED_KINDS.find((k) => k.value === limitedKind)?.enabled ?? false);
   const draftConfigReady =
@@ -315,7 +330,12 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden flex flex-col max-h-[90vh]">
+      <DialogContent
+        className={cn(
+          "p-0 gap-0 overflow-hidden flex flex-col max-h-[90dvh]",
+          showPicker ? "max-w-4xl" : "max-w-3xl",
+        )}
+      >
         <div className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="text-lg">Create Room</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
@@ -323,340 +343,331 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           </DialogDescription>
         </div>
 
-        <div className="px-6 pb-6 space-y-5 overflow-y-auto flex-1 min-h-0">
-          {/* Room kind */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Room type</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <RoomKindCard
-                selected={kind === "match"}
-                onClick={() => setKind("match")}
-                icon={Swords}
-                label="Match"
-                description="Constructed game — pick a format and bring a deck."
-              />
-              <RoomKindCard
-                selected={kind === "limited"}
-                onClick={() => setKind("limited")}
-                icon={Sparkles}
-                label="Limited"
-                description="Draft, sealed, or other built-on-the-fly formats."
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-y-auto",
+            showPicker && "md:flex-row md:overflow-hidden",
+          )}
+        >
+          <div
+            className={cn(
+              "space-y-5 px-6 pb-6",
+              showPicker && "md:min-h-0 md:flex-1 md:overflow-y-auto",
+            )}
+          >
+            {/* Room kind */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Room type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <RoomKindCard
+                  selected={kind === "match"}
+                  onClick={() => setKind("match")}
+                  icon={Swords}
+                  label="Match"
+                  description="Constructed game — pick a format and bring a deck."
+                />
+                <RoomKindCard
+                  selected={kind === "limited"}
+                  onClick={() => setKind("limited")}
+                  icon={Sparkles}
+                  label="Limited"
+                  description="Draft, sealed, or other built-on-the-fly formats."
+                />
+              </div>
+            </div>
+
+            {/* Limited subtype picker — mirrors the offline Limited view's
+              mode grid so the multiplayer surface area lines up. */}
+            {kind === "limited" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Limited mode</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {LIMITED_KINDS.map((meta) => (
+                    <LimitedKindCard
+                      key={meta.value}
+                      meta={meta}
+                      selected={limitedKind === meta.value}
+                      onClick={() => meta.enabled && setLimitedKind(meta.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Room name */}
+            <div className="space-y-1.5">
+              <Label htmlFor="room-name" className="text-xs font-medium">
+                Room Name
+              </Label>
+              <Input
+                id="room-name"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder={defaultName}
+                className="h-9"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               />
             </div>
-          </div>
 
-          {/* Limited subtype picker — mirrors the offline Limited view's
-              mode grid so the multiplayer surface area lines up. */}
-          {kind === "limited" && (
+            {/* Engine */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Limited mode</Label>
+              <Label className="text-xs font-medium">Engine</Label>
               <div className="grid grid-cols-2 gap-2">
-                {LIMITED_KINDS.map((meta) => (
-                  <LimitedKindCard
-                    key={meta.value}
-                    meta={meta}
-                    selected={limitedKind === meta.value}
-                    onClick={() => meta.enabled && setLimitedKind(meta.value)}
-                  />
+                <EngineCard
+                  selected={engine === "Wasm"}
+                  onClick={() => setEngine("Wasm")}
+                  icon={Cpu}
+                  label="Rust (Wasm)"
+                  badge="in-browser"
+                  description="ManaBrew's own engine, running locally. Instant, no network."
+                />
+                <EngineCard
+                  selected={engine === "Java"}
+                  onClick={() => setEngine("Java")}
+                  icon={Cloud}
+                  label="Forge (hosted)"
+                  badge={hostedAvailable ? "hosted" : "coming soon"}
+                  description={
+                    hostedAvailable
+                      ? "Java Forge on a ManaBrew-hosted node. Full card support."
+                      : "Hosted multiplayer Java match requires a node-side host that isn't wired yet."
+                  }
+                  disabled={!hostedAvailable}
+                />
+              </div>
+            </div>
+
+            {/* Format (Match only) */}
+            {kind === "match" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Format</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {FORMATS.map((f) => {
+                    const Icon = f.icon;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setFormat(f.value)}
+                        className={cn(
+                          "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
+                          format === f.value
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/30 hover:bg-muted/30",
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Icon
+                            className={cn(
+                              "h-3.5 w-3.5",
+                              format === f.value ? "text-primary" : "text-muted-foreground",
+                            )}
+                          />
+                          <span className="text-xs font-medium">{f.label}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground leading-tight">
+                          {f.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Max players */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">
+                {kind === "limited" ? "Pod size" : "Players"}
+              </Label>
+              <div className="flex items-center gap-2">
+                {playerOptions.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setMaxPlayers(n)}
+                    className={cn(
+                      "flex-1 h-10 rounded-lg border flex items-center justify-center gap-1.5 transition-colors",
+                      maxPlayers === n
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="text-sm font-medium">{n}</span>
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Room name */}
-          <div className="space-y-1.5">
-            <Label htmlFor="room-name" className="text-xs font-medium">
-              Room Name
-            </Label>
-            <Input
-              id="room-name"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              placeholder={defaultName}
-              className="h-9"
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            />
-          </div>
+            {isSealed && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sealed-boosters" className="text-xs font-medium">
+                      Packs per player
+                    </Label>
+                    <Input
+                      id="sealed-boosters"
+                      type="number"
+                      min={3}
+                      max={12}
+                      value={sealedNumBoosters}
+                      onChange={(e) =>
+                        setSealedNumBoosters(Math.max(3, Math.min(12, Number(e.target.value) || 6)))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sealed-seed" className="text-xs font-medium">
+                      Seed
+                    </Label>
+                    <Input
+                      id="sealed-seed"
+                      type="text"
+                      inputMode="numeric"
+                      value={sealedSeed}
+                      onChange={(e) => setSealedSeed(e.target.value)}
+                      placeholder="random"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Each player opens their own pool — pools are independent but reproducible from the
+                  seed.
+                </p>
+              </>
+            )}
 
-          {/* Engine */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Engine</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <EngineCard
-                selected={engine === "Wasm"}
-                onClick={() => setEngine("Wasm")}
-                icon={Cpu}
-                label="Rust (Wasm)"
-                badge="in-browser"
-                description="ManaBrew's own engine, running locally. Instant, no network."
-              />
-              <EngineCard
-                selected={engine === "Java"}
-                onClick={() => setEngine("Java")}
-                icon={Cloud}
-                label="Forge (hosted)"
-                badge={hostedAvailable ? "hosted" : "coming soon"}
-                description={
-                  hostedAvailable
-                    ? "Java Forge on a ManaBrew-hosted node. Full card support."
-                    : "Hosted multiplayer Java match requires a node-side host that isn't wired yet."
-                }
-                disabled={!hostedAvailable}
-              />
-            </div>
-          </div>
-
-          {/* Format (Match only) */}
-          {kind === "match" && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Format</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {FORMATS.map((f) => {
-                  const Icon = f.icon;
-                  return (
-                    <button
-                      key={f.value}
-                      type="button"
-                      onClick={() => setFormat(f.value)}
-                      className={cn(
-                        "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
-                        format === f.value
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/30 hover:bg-muted/30",
-                      )}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Icon
-                          className={cn(
-                            "h-3.5 w-3.5",
-                            format === f.value ? "text-primary" : "text-muted-foreground",
-                          )}
-                        />
-                        <span className="text-xs font-medium">{f.label}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground leading-tight">
-                        {f.description}
-                      </span>
-                    </button>
-                  );
-                })}
+            {isCube && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Cube</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    value={cubeInput}
+                    onChange={(e) => setCubeInput(e.target.value)}
+                    placeholder="cubeid or cubecobra.com/…"
+                    className="h-9 text-sm flex-1"
+                    disabled={importingCube}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleImportCube}
+                    disabled={importingCube || !cubeInput.trim()}
+                    className="gap-1.5"
+                  >
+                    {importingCube ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3.5 w-3.5" />
+                    )}
+                    {importingCube ? "Importing…" : "Import"}
+                  </Button>
+                </div>
+                {importedCube && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
+                    {importedCube.cardCount} cards
+                  </p>
+                )}
+                {cubeImportError && !importedCube && !importingCube && (
+                  <p className="text-[11px] text-destructive">{cubeImportError}</p>
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Max players */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">
-              {kind === "limited" ? "Pod size" : "Players"}
-            </Label>
-            <div className="flex items-center gap-2">
-              {playerOptions.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setMaxPlayers(n)}
-                  className={cn(
-                    "flex-1 h-10 rounded-lg border flex items-center justify-center gap-1.5 transition-colors",
-                    maxPlayers === n
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border hover:border-primary/30 text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  <span className="text-sm font-medium">{n}</span>
-                </button>
-              ))}
-            </div>
+            {(isBoosterDraft || isCube) && (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="draft-rounds" className="text-xs font-medium">
+                      Rounds
+                    </Label>
+                    <Input
+                      id="draft-rounds"
+                      type="number"
+                      min={1}
+                      max={6}
+                      value={draftRounds}
+                      onChange={(e) =>
+                        setDraftRounds(Math.max(1, Math.min(6, Number(e.target.value) || 3)))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="draft-picks-per-pass" className="text-xs font-medium">
+                      Picks / pass
+                    </Label>
+                    <Input
+                      id="draft-picks-per-pass"
+                      type="number"
+                      min={1}
+                      max={4}
+                      value={draftPicksPerPass}
+                      onChange={(e) =>
+                        setDraftPicksPerPass(Math.max(1, Math.min(4, Number(e.target.value) || 1)))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="draft-seed" className="text-xs font-medium">
+                      Seed
+                    </Label>
+                    <Input
+                      id="draft-seed"
+                      type="text"
+                      inputMode="numeric"
+                      value={draftSeed}
+                      onChange={(e) => setDraftSeed(e.target.value)}
+                      placeholder="random"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={draftFillWithBots}
+                    onChange={(e) => setDraftFillWithBots(e.target.checked)}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>Fill empty seats with AI bots</span>
+                </label>
+              </>
+            )}
           </div>
 
-          {/* Pool source — Booster Draft uses a Scryfall set, Cube uses
-              a CubeCobra import. The downstream draftHost branches on
-              draft_config.cube_id vs set_code. */}
-          {isBoosterDraft && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Set</Label>
+          {/* Pool source — Booster Draft and Sealed pick a Scryfall set;
+              Cube uses the CubeCobra import above. The downstream draftHost
+              branches on draft_config.cube_id vs set_code. */}
+          {showPicker && (
+            <div className="flex flex-col border-t border-border/60 md:w-96 md:min-h-0 md:shrink-0 md:border-t-0 md:border-l">
               {draftableSets.length === 0 ? (
-                <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
+                <p className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Loading sets from Scryfall…
                 </p>
               ) : (
-                <SetPicker
-                  sets={draftableSets}
-                  selectedCode={draftSet}
-                  prefetching={prefetchingSet}
-                  onSelect={setDraftSet}
-                />
+                <div className="md:min-h-0 md:flex-1">
+                  <SetPicker
+                    variant="column"
+                    sets={draftableSets}
+                    selectedCode={pickerSet}
+                    prefetching={isSealed ? prefetchingSealedSet : prefetchingSet}
+                    onSelect={isSealed ? setSealedSet : setDraftSet}
+                  />
+                </div>
               )}
-              {!!draftSet && unsupportedSet === draftSet && (
-                <p className="text-[11px] text-destructive">
-                  Your game data doesn't include {draftSet.toUpperCase()}. Update the app to use
+              {!!pickerSet && pickerUnsupported === pickerSet && (
+                <p className="shrink-0 border-t border-border/60 px-4 py-2 text-[11px] text-destructive">
+                  Your game data doesn't include {pickerSet.toUpperCase()}. Update the app to use
                   this set.
                 </p>
               )}
             </div>
-          )}
-
-          {isSealed && (
-            <>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Set</Label>
-                {draftableSets.length === 0 ? (
-                  <p className="flex items-center gap-2 rounded border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Loading sets from Scryfall…
-                  </p>
-                ) : (
-                  <SetPicker
-                    sets={draftableSets}
-                    selectedCode={sealedSet}
-                    prefetching={prefetchingSealedSet}
-                    onSelect={setSealedSet}
-                  />
-                )}
-                {!!sealedSet && unsupportedSealedSet === sealedSet && (
-                  <p className="text-[11px] text-destructive">
-                    Your game data doesn't include {sealedSet.toUpperCase()}. Update the app to use
-                    this set.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="sealed-boosters" className="text-xs font-medium">
-                    Packs per player
-                  </Label>
-                  <Input
-                    id="sealed-boosters"
-                    type="number"
-                    min={3}
-                    max={12}
-                    value={sealedNumBoosters}
-                    onChange={(e) =>
-                      setSealedNumBoosters(Math.max(3, Math.min(12, Number(e.target.value) || 6)))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sealed-seed" className="text-xs font-medium">
-                    Seed
-                  </Label>
-                  <Input
-                    id="sealed-seed"
-                    type="text"
-                    inputMode="numeric"
-                    value={sealedSeed}
-                    onChange={(e) => setSealedSeed(e.target.value)}
-                    placeholder="random"
-                  />
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Each player opens their own pool — pools are independent but reproducible from the
-                seed.
-              </p>
-            </>
-          )}
-
-          {isCube && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Cube</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="text"
-                  value={cubeInput}
-                  onChange={(e) => setCubeInput(e.target.value)}
-                  placeholder="cubeid or cubecobra.com/…"
-                  className="h-9 text-sm flex-1"
-                  disabled={importingCube}
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleImportCube}
-                  disabled={importingCube || !cubeInput.trim()}
-                  className="gap-1.5"
-                >
-                  {importingCube ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Wand2 className="h-3.5 w-3.5" />
-                  )}
-                  {importingCube ? "Importing…" : "Import"}
-                </Button>
-              </div>
-              {importedCube && (
-                <p className="text-[11px] text-muted-foreground">
-                  Loaded: <span className="text-foreground/90">{importedCube.name}</span> —{" "}
-                  {importedCube.cardCount} cards
-                </p>
-              )}
-              {cubeImportError && !importedCube && !importingCube && (
-                <p className="text-[11px] text-destructive">{cubeImportError}</p>
-              )}
-            </div>
-          )}
-
-          {(isBoosterDraft || isCube) && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="draft-rounds" className="text-xs font-medium">
-                    Rounds
-                  </Label>
-                  <Input
-                    id="draft-rounds"
-                    type="number"
-                    min={1}
-                    max={6}
-                    value={draftRounds}
-                    onChange={(e) =>
-                      setDraftRounds(Math.max(1, Math.min(6, Number(e.target.value) || 3)))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="draft-picks-per-pass" className="text-xs font-medium">
-                    Picks / pass
-                  </Label>
-                  <Input
-                    id="draft-picks-per-pass"
-                    type="number"
-                    min={1}
-                    max={4}
-                    value={draftPicksPerPass}
-                    onChange={(e) =>
-                      setDraftPicksPerPass(Math.max(1, Math.min(4, Number(e.target.value) || 1)))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="draft-seed" className="text-xs font-medium">
-                    Seed
-                  </Label>
-                  <Input
-                    id="draft-seed"
-                    type="text"
-                    inputMode="numeric"
-                    value={draftSeed}
-                    onChange={(e) => setDraftSeed(e.target.value)}
-                    placeholder="random"
-                  />
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={draftFillWithBots}
-                  onChange={(e) => setDraftFillWithBots(e.target.checked)}
-                  className="h-3.5 w-3.5"
-                />
-                <span>Fill empty seats with AI bots</span>
-              </label>
-            </>
           )}
         </div>
 

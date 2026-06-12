@@ -1116,10 +1116,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (costPart == null || costPart instanceof CostPartMana || probingPayability) {
             return true;
         }
+        final String description = sourceNamePrompt(prompt == null ? "Confirm payment?" : prompt, sa);
         return session.awaitBooleanChoice(
                 "confirm_action",
                 me(),
-                prompt == null ? "Confirm payment?" : prompt,
+                description,
                 sourceName(sa),
                 "confirm_payment",
                 costPart.getClass().getSimpleName(),
@@ -2254,6 +2255,14 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     private static String sourceName(final SpellAbility sa) {
         return sa == null || sa.getHostCard() == null ? null : sa.getHostCard().getName();
+    }
+
+    private static String sourceNamePrompt(final String prompt, final SpellAbility sa) {
+        final String name = sourceName(sa);
+        if (name == null) {
+            return prompt;
+        }
+        return prompt.replace("CARDNAME", name).replace("NICKNAME", name);
     }
 
     private static <T extends GameEntity> CardCollection cardOptions(final FCollectionView<T> optionList) {

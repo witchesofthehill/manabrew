@@ -23,6 +23,8 @@ export type GameIconName =
   | "book-cover"
   | "book-aura"
   | "overlord-helm"
+  | "beer-stein"
+  | "anvil"
   | "muscle-up"
   | "skull-crack"
   | "shiny-omega"

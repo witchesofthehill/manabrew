@@ -838,8 +838,8 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
-            spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<java_backend::HostedGameOver>();
+            spawn_java_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -1087,6 +1087,55 @@ fn spawn_game_over_forwarder(
             }
             if outbound_tx.send(ClientMessage::EndGame).is_err() {
                 break;
+            }
+        }
+    });
+}
+
+fn spawn_java_game_over_forwarder(
+    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
+    game_over_rx: std_mpsc::Receiver<java_backend::HostedGameOver>,
+) {
+    thread::spawn(move || {
+        while let Ok(game_over) = game_over_rx.recv() {
+            let mut last_state: Option<Value> = None;
+            for (player_index, message) in game_over.messages {
+                let envelope =
+                    StateEnvelope::for_agent_message(player_slot(player_index), &message);
+                let Ok(state) = serde_json::to_value(envelope) else {
+                    continue;
+                };
+                match &message {
+                    AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
+                    AgentMessage::State(_) => last_state = Some(state.clone()),
+                    AgentMessage::Display(_) | AgentMessage::Prompt(_) => {}
+                }
+                if outbound_tx
+                    .send(ClientMessage::BroadcastState { state })
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            let Ok(state) = serde_json::to_value(StateEnvelope::RoomRelay {
+                protocol: SELF_HOSTED_NODE_PROTOCOL.to_string(),
+                version: 1,
+                message_id: Uuid::new_v4().to_string(),
+                from_player: None,
+                target_player: None,
+                room_id: None,
+                payload: json!({ "type": "gameOver", "gameId": game_over.game_id }),
+            }) else {
+                continue;
+            };
+            if outbound_tx
+                .send(ClientMessage::BroadcastState { state })
+                .is_err()
+            {
+                return;
+            }
+            if outbound_tx.send(ClientMessage::EndGame).is_err() {
+                return;
             }
         }
     });

@@ -4,15 +4,46 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Changed files
+    runs-on: ubuntu-latest
+    outputs:
+      run_checks: ${{ steps.scope.outputs.run_checks }}
+    steps:
+      - name: Detect website-only PR
+        id: scope
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName !== 'pull_request') {
+              core.setOutput('run_checks', 'true');
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+            const websiteOnly = files.length > 0 && files.every((file) => file.filename.startsWith('website/'));
+            core.setOutput('run_checks', websiteOnly ? 'false' : 'true');
+
   # ── TypeScript type-check ──────────────────────────────────────────
   typescript:
     name: TypeScript & Wasm
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
     defaults:
       run:
         working-directory: typescript
@@ -51,6 +82,8 @@ jobs:
   rust-engine:
     name: Rust engine
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
     defaults:
       run:
         working-directory: rust-engine
@@ -79,6 +112,8 @@ jobs:
   rust-server:
     name: Rust server
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
     defaults:
       run:
         working-directory: rust-server
@@ -99,6 +134,8 @@ jobs:
   rust-parity:
     name: Rust parity dashboard
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
     defaults:
       run:
         working-directory: rust-parity
@@ -119,7 +156,8 @@ jobs:
   web-build:
     name: Web build (full)
     runs-on: ubuntu-latest
-    needs: [typescript]
+    needs: [changes, typescript]
+    if: needs.changes.outputs.run_checks == 'true'
     defaults:
       run:
         working-directory: web-build
@@ -157,6 +195,8 @@ jobs:
   json-lint:
     name: JSON lint
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_checks == 'true'
     defaults:
       run:
         working-directory: json-lint

@@ -278,6 +278,22 @@ fn resolve_card_list_property(
     if cards.is_empty() {
         return None;
     }
+    if let Some(rest) = property.strip_prefix("Valid ") {
+        let (valid, operators) = rest.split_once('/').unwrap_or((rest, ""));
+        let num = cards
+            .into_iter()
+            .filter(|&cid| {
+                crate::ability::ability_utils::matches_valid_cards_for_sa(
+                    game,
+                    sa,
+                    game.card(cid),
+                    None,
+                    valid,
+                )
+            })
+            .count() as i32;
+        return Some(do_x_math(num, operators, game, source_id, controller, sa));
+    }
     Some(
         cards
             .into_iter()
@@ -448,7 +464,16 @@ fn resolve_lowered_svar_expression(
                 Some(sacrificed_card_property_value(game, sa, property))
             }
             ScriptSVarObjectRef::TriggeredCard => {
-                crate::lki::resolve_triggered_card_lki_property(game, sa, property)
+                crate::lki::resolve_triggered_card_lki_property(game, sa, property).or_else(|| {
+                    resolve_card_list_property(
+                        "TriggeredCard",
+                        property,
+                        game,
+                        source_id,
+                        controller,
+                        sa,
+                    )
+                })
             }
             ScriptSVarObjectRef::CardList(defined) => {
                 resolve_card_list_property(defined, property, game, source_id, controller, sa)

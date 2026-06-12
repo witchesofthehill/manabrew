@@ -4,10 +4,14 @@ Astro + Starlight static site serving `manabrew.app/home` (landing page) and `ma
 
 ## Layout
 
-- `src/pages/home.astro` — the landing page (route `/home`). Self-contained: palette, fonts, and styles live in this file. Keep the `:root` palette in sync with `src/styles/starlight.css`.
+- `src/pages/home.astro` — the landing page (route `/home`). Fonts and styles live in this file; colors come from the shared theme via `define:vars`.
+- `src/theme.ts` — single source of truth for colors: re-exports the app's default preset from `../../src/themes/default.ts` (pure data, safe to import at build time). Both the landing page and the docs theme read from it.
+- `src/components/Head.astro` — Starlight `Head` override that injects the preset as `--mb-*` custom properties for both `data-theme` states.
+- `src/components/SiteTitle.astro` — Starlight `SiteTitle` override: app logo (`../../src/assets/manaBrew.png`) linking to `/home/`, never `/` (the root belongs to the wasm app and 404s on the dev server).
 - `src/content/docs/docs/` — documentation content. The extra `docs/` nesting is what puts the routes under `/docs` — there is no Astro `base`. Keep the nesting.
-- `src/styles/starlight.css` — Starlight theme overrides (amber/tavern palette).
-- Landing-page images are imported via relative paths that escape this folder (`../images/`, `../public/manabrew_brewery_1.png`) — `vite.server.fs.allow` in `astro.config.mjs` and the directory layout in the `website` Docker stage both exist to support this.
+- `src/styles/starlight.css` — maps the injected `--mb-*` variables onto Starlight's `--sl-color-*` tokens, plus the site fonts.
+- `public/` — favicons copied from the app's `/public` so the Astro dev server can serve them; in production they're byte-identical duplicates of the app's, so the web-root merge is harmless.
+- Images and theme data are imported via relative paths that escape this folder (`../images/`, `../public/`, `../src/`) — `vite.server.fs.allow` in `astro.config.mjs` and the directory layout in the `website` Docker stage both exist to support this. New escapes need a matching `COPY` in `Dockerfile.web`.
 
 ## Constraints
 

@@ -14,10 +14,18 @@ WebAssembly — nothing to install.
 Native installers for macOS (`.dmg`) and Windows (`.exe`) are published on the
 [GitHub releases page](https://github.com/witchesofthehill/manabrew/releases).
 
+## Card images
+
+The client does not ship card images. They are fetched from
+[Scryfall](https://scryfall.com) at runtime, so playing needs an internet
+connection even in the desktop app.
+
 ## Build from source
 
-You need [Node.js](https://nodejs.org) 20+, [Yarn](https://classic.yarnpkg.com),
-and a [Rust](https://rustup.rs) toolchain.
+You need [Node.js](https://nodejs.org) 22+, [Yarn v1](https://classic.yarnpkg.com),
+and a [Rust](https://rustup.rs) toolchain. Desktop builds also need the
+[Tauri platform prerequisites](https://tauri.app/start/prerequisites/); Java
+(18+) and Maven are only required for Java Forge-backed games and parity runs.
 
 ```bash
 git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git

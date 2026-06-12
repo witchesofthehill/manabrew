@@ -148,6 +148,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             passUntilPhase = choice.untilPhase();
             final SpellAbility selected = choice.action();
+            if (selected != null && selected.isManaAbility() && selected.getManaPart() != null) {
+                if (choice.color() == null) {
+                    selected.getManaPart().clearExpressChoice();
+                } else {
+                    selected.getManaPart().setExpressChoice(shortColorName(choice.color()));
+                }
+            }
             return selected == null ? null : Lists.newArrayList(selected);
         }
     }
@@ -2303,6 +2310,25 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return Color.GREEN.getColorMask();
         }
         return Color.COLORLESS.getColorMask();
+    }
+
+    private static String shortColorName(final String color) {
+        if ("White".equals(color) || "W".equals(color)) {
+            return "W";
+        }
+        if ("Blue".equals(color) || "U".equals(color)) {
+            return "U";
+        }
+        if ("Black".equals(color) || "B".equals(color)) {
+            return "B";
+        }
+        if ("Red".equals(color) || "R".equals(color)) {
+            return "R";
+        }
+        if ("Green".equals(color) || "G".equals(color)) {
+            return "G";
+        }
+        return "C";
     }
 
     private Map<Card, Integer> fallbackCombatDamage(

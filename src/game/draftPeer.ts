@@ -118,6 +118,7 @@ function handleStateUpdate(msg: DraftStateBroadcastMessage): void {
 export async function submitPeerPick(cardName: string): Promise<void> {
   const store = useMultiplayerDraftStore.getState();
   if (!store.sessionId || store.mySeat == null || store.amHost) return;
+  if (store.pickPending) return;
   const platform = getPlatform();
   const server = platform.server;
   if (!server) return;
@@ -130,12 +131,20 @@ export async function submitPeerPick(cardName: string): Promise<void> {
     type: "pick",
     sessionId: store.sessionId,
     cardName,
+    round: store.state?.round,
+    pickNumber: store.state?.pickNumber,
   };
-  await server.sendRoomMessage(
-    makeDraftRelay(msg, {
-      fromPlayer: myPlayerSlot,
-      targetPlayer: hostSlot,
-      roomId: store.roomId ?? undefined,
-    }),
-  );
+  store.setPickPending(true);
+  try {
+    await server.sendRoomMessage(
+      makeDraftRelay(msg, {
+        fromPlayer: myPlayerSlot,
+        targetPlayer: hostSlot,
+        roomId: store.roomId ?? undefined,
+      }),
+    );
+  } catch (err) {
+    store.setPickPending(false);
+    throw err;
+  }
 }

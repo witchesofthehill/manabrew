@@ -37,7 +37,9 @@ export type GameIconName =
   | "mining"
   | "brick-wall"
   | "battery-pack-alt"
-  | "scroll-unfurled";
+  | "scroll-unfurled"
+  | "anvil"
+  | "beer-stein";
 
 interface GameIconProps {
   name: GameIconName;

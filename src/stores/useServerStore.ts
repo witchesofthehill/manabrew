@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { getPlatform } from "@/platform";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
+import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
   RoomInfo,
@@ -174,6 +175,10 @@ export const useServerStore = create<ServerState>()(
         // strand the user in a "still-in-room" UI. The server-side teardown
         // is attempted afterwards as best-effort; if it fails, the next
         // listRooms() call will reconcile.
+        // The peer relay listener stays attached — it is connection-scoped
+        // (attached once at auth), not room-scoped.
+        teardownDraftHost();
+        useMultiplayerDraftStore.getState().clear();
         set({
           currentRoom: null,
           gameStarted: false,
@@ -371,6 +376,7 @@ export const useServerStore = create<ServerState>()(
             if (payload?.terminal) {
               detachDraftPeer();
               teardownDraftHost();
+              useMultiplayerDraftStore.getState().clear();
               set({
                 connected: false,
                 connecting: false,

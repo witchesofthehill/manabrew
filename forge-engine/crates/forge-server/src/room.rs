@@ -113,11 +113,15 @@ impl Room {
         self.players.is_empty() && self.observers.is_empty()
     }
 
+    pub fn is_limited_session(&self) -> bool {
+        matches!(
+            self.format,
+            GameFormat::Any | GameFormat::Draft | GameFormat::Sealed
+        ) && (self.draft_config.is_some() || self.sealed_config.is_some())
+    }
+
     pub fn all_ready(&self) -> bool {
-        let min_players = match self.format {
-            GameFormat::Draft | GameFormat::Sealed => 1,
-            _ => 2,
-        };
+        let min_players = if self.is_limited_session() { 1 } else { 2 };
         self.players.len() >= min_players && self.players.iter().all(|p| p.ready)
     }
 

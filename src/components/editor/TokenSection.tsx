@@ -1,18 +1,8 @@
-/**
- * Collapsible bottom-panel section that displays tokens referenced by cards in the deck.
- * Renders as a sticky footer panel above the mana curve, matching DeckStats style.
- * Always uses grid card thumbnails for token display.
- *
- * Image resolution: uses token DeckCard URIs from the deck store.
- */
-
-import { useState, type MouseEvent } from "react";
-import { ChevronDown, ChevronRight, Palette, X } from "lucide-react";
+import type { MouseEvent } from "react";
+import { Palette, X } from "lucide-react";
 import { CARD_WIDTH_MAP } from "./deckBuilder.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { DeckCard } from "@/types/manabrew";
-
-// ─── Main TokenSection Component ────────────────────────────────────────────
 
 export interface TokenSectionProps {
   tokens: DeckCard[];
@@ -33,95 +23,37 @@ export function TokenSection({
   onHover,
   onLeave,
 }: TokenSectionProps) {
-  const [collapsed, setCollapsed] = useState(tokens.length === 0);
+  if (tokens.length === 0) return null;
 
   const cardWidth = CARD_WIDTH_MAP[cardSize] ?? 115;
 
   return (
-    <div className="border-t shrink-0">
-      {/* ── Toggle header ── */}
-      <div className="flex items-center gap-1.5 w-full px-3 py-2 hover:bg-muted/30 transition-colors">
-        <div
-          role="button"
-          tabIndex={0}
-          className="flex items-center gap-1.5 flex-1 text-left cursor-pointer"
-          onClick={() => setCollapsed((v) => !v)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setCollapsed((v) => !v);
-            }
-          }}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-          )}
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Tokens
-          </span>
-          <span className="text-xs text-muted-foreground/70">
-            {tokens.length} token{tokens.length !== 1 ? "s" : ""}
-          </span>
-
-          {/* Mini preview thumbnails when collapsed */}
-          {collapsed && tokens.length > 0 && (
-            <div className="ml-auto flex items-center gap-1 shrink-0">
-              {tokens.slice(0, 6).map((t) => (
-                <MiniTokenPill key={t.name} token={t} />
-              ))}
-              {tokens.length > 6 && (
-                <span className="text-[10px] text-muted-foreground/50">+{tokens.length - 6}</span>
-              )}
-            </div>
-          )}
-        </div>
+    <section className="rounded-xl border bg-card/40 p-6">
+      <div className="mb-4 flex items-baseline gap-2.5">
+        <h3 className="text-base font-semibold">Tokens</h3>
+        <span className="text-xs text-muted-foreground/70">
+          {tokens.length} token{tokens.length !== 1 ? "s" : ""} produced by this deck
+        </span>
       </div>
-
-      {/* ── Expandable content ── */}
-      {!collapsed && (
-        <div className="px-3 pb-3 max-h-[300px] overflow-y-auto">
-          {tokens.length === 0 ? (
-            <div className="text-xs text-muted-foreground py-3">
-              No tokens produced by this deck.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {tokens.map((t) => (
-                <div
-                  key={`${t.name}-${t.setCode}-${t.cardNumber}`}
-                  className="shrink-0"
-                  style={{ width: cardWidth }}
-                >
-                  <TokenGridCard
-                    token={t}
-                    onShowInfo={onShowInfo}
-                    onPickPrint={onPickPrint}
-                    onRemove={onRemoveToken}
-                    onHover={onHover}
-                    onLeave={onLeave}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Mini pill shown in collapsed header ─────────────────────────────────────
-
-function MiniTokenPill({ token }: { token: DeckCard }) {
-  return (
-    <ScryfallImg
-      src={token.uris.small}
-      alt={token.name}
-      className="h-5 w-[14px] rounded-sm object-cover object-top border border-border/30"
-      draggable={false}
-    />
+      <div className="flex flex-wrap gap-3">
+        {tokens.map((t) => (
+          <div
+            key={`${t.name}-${t.setCode}-${t.cardNumber}`}
+            className="shrink-0"
+            style={{ width: cardWidth }}
+          >
+            <TokenGridCard
+              token={t}
+              onShowInfo={onShowInfo}
+              onPickPrint={onPickPrint}
+              onRemove={onRemoveToken}
+              onHover={onHover}
+              onLeave={onLeave}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

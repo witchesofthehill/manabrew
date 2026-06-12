@@ -42,6 +42,8 @@ const HOST_SELECTABLE_FORMATS: GameFormat[] = [
   "Commander",
   "Brawl",
   "Oathbreaker",
+  "Draft",
+  "Sealed",
 ];
 
 const PLAYER_COUNT_OPTIONS = [2, 3, 4];

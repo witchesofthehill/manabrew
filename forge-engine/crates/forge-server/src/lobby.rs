@@ -232,10 +232,7 @@ pub fn set_ready_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        let format_requires_deck = !matches!(
-            room.format,
-            GameFormat::Any | GameFormat::Draft | GameFormat::Sealed
-        );
+        let format_requires_deck = room.format != GameFormat::Any && !room.is_limited_session();
         if ready && format_requires_deck && !room.has_selected_deck(player_id) {
             return Err(ServerError::DeckNotSelected);
         }
@@ -314,7 +311,12 @@ pub fn set_format_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        room.format = format;
+        if room.format != format {
+            room.format = format;
+            for player in room.players.iter_mut().filter(|p| !p.is_bot) {
+                player.ready = false;
+            }
+        }
     }
 
     Ok(room_id)
@@ -388,18 +390,11 @@ pub fn start_game_sync(
             }
         }
 
-        if matches!(room.format, GameFormat::Draft) && room.draft_config.is_none() {
-            return Err(ServerError::FormatNotChosen);
-        }
-        if matches!(room.format, GameFormat::Sealed) && room.sealed_config.is_none() {
-            return Err(ServerError::FormatNotChosen);
-        }
-
         if !room.all_ready() {
             return Err(ServerError::PlayersNotReady);
         }
 
-        if !matches!(room.format, GameFormat::Draft | GameFormat::Sealed)
+        if !room.is_limited_session()
             && room
                 .players
                 .iter()

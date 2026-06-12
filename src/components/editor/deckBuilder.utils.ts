@@ -1,4 +1,5 @@
 import type { DeckCard } from "@/types/manabrew";
+import { computeCmc, isLand } from "@/lib/mana";
 export { scryfallToDeckCard } from "@/lib/scryfall.utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -23,6 +24,27 @@ export interface SectionDefinition {
   id: string;
   label: string;
   filter: (types: string[]) => boolean;
+}
+
+// ─── Filtering ────────────────────────────────────────────────────────────────
+
+export const CMC_BUCKET_LABELS = ["1", "2", "3", "4", "5", "6", "7+"] as const;
+
+/** Mana-curve bucket (0–6) for a card; null for lands and unknown costs. */
+export function cmcBucketIndex(card: DeckCard): number | null {
+  if (isLand(card.types)) return null;
+  const cmc = card.cmc ?? (card.manaCost ? computeCmc(card.manaCost) : undefined);
+  if (cmc === undefined || cmc === null) return null;
+  return Math.min(Math.max(Math.round(cmc) - 1, 0), 6);
+}
+
+/** Comma-separated filter input → lowercase terms; a card matches if its name contains any term. */
+export function parseFilterTerms(filter: string): string[] {
+  return filter
+    .toLowerCase()
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────

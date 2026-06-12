@@ -41,6 +41,7 @@ import init, {
   limited_update_gauntlet_human_deck,
   limited_cubecobra_url,
   limited_import_cube,
+  limited_drop_session,
 } from "../wasm/forge_wasm";
 import type { Deck } from "@/types/manabrew";
 
@@ -602,6 +603,8 @@ async function handleCommand(command: string, args?: Record<string, unknown>): P
       return limited_cubecobra_url(args?.cubeIdOrUrl as string);
     case "limited_import_cube":
       return limited_import_cube(args?.request as object, args?.body as string);
+    case "limited_drop_session":
+      return limited_drop_session(args?.kind as string, args?.sessionId as string);
 
     default:
       throw new Error(`Unknown command: ${command}`);

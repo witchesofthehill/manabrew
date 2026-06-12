@@ -48,7 +48,7 @@ Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-
 | `forge/AGENTS.md`                                                | Anything under `forge/` (read-only warning)                                 |
 | `forge-harness/src/main/java/forge/harness/AGENTS.md`            | Any change under `forge-harness/` (parity/host/common package boundaries)   |
 | `scripts/AGENTS.md`                                              | Adding or running a build/parity script                                     |
-| `website/AGENTS.md`                                              | Any change under `website/` (landing page at `/dev`, docs site at `/docs`)  |
+| `website/AGENTS.md`                                              | Any change under `website/` (landing page at `/home`, docs site at `/docs`) |
 
 Topic spinoffs (cross-cut multiple folders):
 

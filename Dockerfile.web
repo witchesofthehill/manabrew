@@ -78,10 +78,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/build/target,sharing=locked \
     yarn build:web
 
-# --- Website: landing page (/dev) + docs (/docs), Astro + Starlight ---
+# --- Website: landing page (/home) + docs (/docs), Astro + Starlight ---
 FROM node:20-slim AS website
 
-# dev.astro imports hero/screenshot images via relative paths that escape
+# home.astro imports hero/screenshot images via relative paths that escape
 # website/ (../images, ../public) — keep the same directory layout here.
 WORKDIR /repo/website
 COPY website/package.json website/package-lock.json ./

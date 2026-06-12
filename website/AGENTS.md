@@ -1,10 +1,10 @@
 # website/ — Landing page + docs site
 
-Astro + Starlight static site serving `manabrew.app/dev` (landing page) and `manabrew.app/docs` (documentation). The wasm app owns the domain root; this site's `dist/` is merged into the same Caddy web root (`/srv/manabrew`) by `Dockerfile.web`, so its output must never contain a root `index.html`.
+Astro + Starlight static site serving `manabrew.app/home` (landing page) and `manabrew.app/docs` (documentation). The wasm app owns the domain root; this site's `dist/` is merged into the same Caddy web root (`/srv/manabrew`) by `Dockerfile.web`, so its output must never contain a root `index.html`.
 
 ## Layout
 
-- `src/pages/dev.astro` — the landing page (route `/dev`). Self-contained: palette, fonts, and styles live in this file. Keep the `:root` palette in sync with `src/styles/starlight.css`.
+- `src/pages/home.astro` — the landing page (route `/home`). Self-contained: palette, fonts, and styles live in this file. Keep the `:root` palette in sync with `src/styles/starlight.css`.
 - `src/content/docs/docs/` — documentation content. The extra `docs/` nesting is what puts the routes under `/docs` — there is no Astro `base`. Keep the nesting.
 - `src/styles/starlight.css` — Starlight theme overrides (amber/tavern palette).
 - Landing-page images are imported via relative paths that escape this folder (`../images/`, `../public/manabrew_brewery_1.png`) — `vite.server.fs.allow` in `astro.config.mjs` and the directory layout in the `website` Docker stage both exist to support this.
@@ -18,4 +18,4 @@ Astro + Starlight static site serving `manabrew.app/dev` (landing page) and `man
 
 ## Deploy
 
-`Dockerfile.web` builds this site in its own stage and copies `dist/` into `/srv/manabrew`. `ops/Caddyfile` routes `/dev*` and `/docs*` to those files ahead of the SPA fallback. `deploy.sh` classifies `website/*` changes as `WEB_CHANGED` (rebuilds the `manabrew` image).
+`Dockerfile.web` builds this site in its own stage and copies `dist/` into `/srv/manabrew`. `ops/Caddyfile` routes `/home*` and `/docs*` to those files ahead of the SPA fallback. `deploy.sh` classifies `website/*` changes as `WEB_CHANGED` (rebuilds the `manabrew` image).

@@ -53,8 +53,8 @@ manabrew.app {
 
     # Static site built from website/ (Astro + Starlight), copied into
     # /srv/manabrew next to the app bundle. Must match before the SPA
-    # fallback below or /dev and /docs get swallowed by index.html.
-    handle /dev* {
+    # fallback below or /home and /docs get swallowed by index.html.
+    handle /home* {
         try_files {path} {path}/
         file_server
     }

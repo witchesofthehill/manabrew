@@ -3,7 +3,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 
 // No `base`: the wasm app owns the domain root. The landing page lives at
-// /dev (src/pages/dev.astro) and the docs under /docs because the content
+// /home (src/pages/home.astro) and the docs under /docs because the content
 // files are nested in src/content/docs/docs/ — keep that folder nesting.
 export default defineConfig({
   site: "https://manabrew.app",

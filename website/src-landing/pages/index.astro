@@ -5,7 +5,7 @@ import "@fontsource/cormorant-garamond/700.css";
 import "@fontsource/alegreya-sans/400.css";
 import "@fontsource/alegreya-sans/500.css";
 import "@fontsource/alegreya-sans/700.css";
-import preset from "../theme";
+import preset from "../../src/theme";
 import logo from "../../../src/assets/manaBrew.png";
 import brewery from "../../../public/manabrew_brewery_1.png";
 import battleground from "../../../images/battleground.png";
@@ -32,17 +32,17 @@ const mana = preset.gameColors;
     <meta property="og:title" content="ManaBrew" />
     <meta property="og:description" content={DESCRIPTION} />
     <meta property="og:image" content={new URL(brewery.src, Astro.site)} />
-    <meta property="og:url" content={new URL("/home/", Astro.site)} />
+    <meta property="og:url" content={Astro.site} />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   </head>
   <body>
     <header class="nav">
-      <a class="wordmark" href="/home/">
+      <a class="wordmark" href="/">
         <Image src={logo} alt="ManaBrew" width={64} height={64} />
       </a>
       <nav>
-        <a href="/docs/">Docs</a>
+        <a href="https://docs.manabrew.app/">Docs</a>
         <a href={DISCORD}>Discord</a>
         <a href={GITHUB}>GitHub</a>
       </nav>
@@ -68,9 +68,9 @@ const mana = preset.gameColors;
             its rules engine ported to Rust, running in your browser or on your desk.
           </p>
           <div class="cta-row reveal">
-            <a class="btn btn-primary" href="https://manabrew.app">Play in your browser</a>
+            <a class="btn btn-primary" href="https://play.manabrew.app">Play in your browser</a>
             <a class="btn btn-ghost" href={RELEASES}>Download for desktop</a>
-            <a class="btn btn-bare" href="/docs/">Read the docs →</a>
+            <a class="btn btn-bare" href="https://docs.manabrew.app/">Read the docs →</a>
           </div>
         </div>
       </section>
@@ -131,7 +131,7 @@ const mana = preset.gameColors;
       <section class="last-call">
         <h2>The cauldron is on.</h2>
         <p>No install, no account — the web client is one click away.</p>
-        <a class="btn btn-primary" href="https://manabrew.app">Open ManaBrew</a>
+        <a class="btn btn-primary" href="https://play.manabrew.app">Open ManaBrew</a>
       </section>
     </main>
 
@@ -144,7 +144,7 @@ const mana = preset.gameColors;
       </p>
       <p class="foot-links">
         <a href={GITHUB}>GitHub</a> · <a href={DISCORD}>Discord</a> ·
-        <a href="/docs/">Documentation</a> ·
+        <a href="https://docs.manabrew.app/">Documentation</a> ·
         <a href={`${GITHUB}/blob/main/LICENSE.md`}>GPL-3.0-or-later</a>
       </p>
     </footer>

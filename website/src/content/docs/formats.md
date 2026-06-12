@@ -30,12 +30,12 @@ What that means in practice:
   behavior with identical seeds and choices, and locked in by a regression
   suite.
 - The engine is swappable: rooms hosted on the original Java Forge engine via
-  a [self-hosted node](/docs/self-hosting/) are fully supported and give you
+  a [self-hosted node](/self-hosting/) are fully supported and give you
   Forge's complete card coverage today.
 
 ## Web vs desktop
 
-|                  | Web (manabrew.app)                      | Desktop (Tauri)                                          |
+|                  | Web (play.manabrew.app)                 | Desktop (Tauri)                                          |
 | ---------------- | --------------------------------------- | -------------------------------------------------------- |
 | Rules engine     | Rust engine compiled to WASM            | Same Rust engine, native                                 |
 | Java Forge games | Join rooms hosted by a self-hosted node | Same                                                     |
@@ -43,11 +43,11 @@ What that means in practice:
 | Install          | None                                    | `.dmg` / `.exe` from releases                            |
 
 The web client additionally requires a cross-origin-isolated host (see
-[hosting the web client](/docs/self-hosting/#hosting-the-web-client)) — this
-is handled for you on manabrew.app.
+[hosting the web client](/self-hosting/#hosting-the-web-client)) — this
+is handled for you on play.manabrew.app.
 
 ## Reporting a gap
 
 If a card behaves differently than it would in paper, that's exactly the bug
-report this project runs on — see the [FAQ](/docs/faq/#a-card-did-the-wrong-thing)
+report this project runs on — see the [FAQ](/faq/#a-card-did-the-wrong-thing)
 for what to include.

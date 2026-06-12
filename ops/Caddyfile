@@ -1,4 +1,33 @@
+# manabrew.app        → landing page  (/srv/landing, built from website/ src-landing)
+# play.manabrew.app   → wasm app      (/srv/manabrew, built by the Vite stage)
+# docs.manabrew.app   → docs site     (/srv/docs, built from website/ src)
 manabrew.app {
+    root * /srv/landing
+
+    encode zstd gzip
+
+    @static path /_astro/*
+    handle @static {
+        header Cache-Control "public, immutable, max-age=31536000"
+        file_server
+    }
+
+    # Pre-split URLs: the app lived at /, the landing at /home, docs at /docs.
+    handle /home* {
+        redir * / permanent
+    }
+
+    handle_path /docs* {
+        redir * https://docs.manabrew.app{uri} permanent
+    }
+
+    handle {
+        try_files {path} {path}/
+        file_server
+    }
+}
+
+play.manabrew.app {
     root * /srv/manabrew
 
     encode zstd gzip
@@ -14,7 +43,7 @@ manabrew.app {
         file_server
     }
 
-    @static path /assets/* /wasm/* /_astro/*
+    @static path /assets/* /wasm/*
     handle @static {
         header {
             Cache-Control "public, immutable, max-age=31536000"
@@ -51,19 +80,6 @@ manabrew.app {
         header Cross-Origin-Resource-Policy "same-origin"
     }
 
-    # Static site built from website/ (Astro + Starlight), copied into
-    # /srv/manabrew next to the app bundle. Must match before the SPA
-    # fallback below or /home and /docs get swallowed by index.html.
-    handle /home* {
-        try_files {path} {path}/
-        file_server
-    }
-
-    handle /docs* {
-        try_files {path} {path}/ /404.html
-        file_server
-    }
-
     handle {
         header {
             Cross-Origin-Opener-Policy "same-origin"
@@ -71,6 +87,23 @@ manabrew.app {
             Cross-Origin-Resource-Policy "same-origin"
         }
         try_files {path} /index.html
+        file_server
+    }
+}
+
+docs.manabrew.app {
+    root * /srv/docs
+
+    encode zstd gzip
+
+    @static path /_astro/*
+    handle @static {
+        header Cache-Control "public, immutable, max-age=31536000"
+        file_server
+    }
+
+    handle {
+        try_files {path} {path}/ /404.html
         file_server
     }
 }

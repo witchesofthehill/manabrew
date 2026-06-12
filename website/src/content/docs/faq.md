@@ -7,10 +7,10 @@ description: Common questions and what to do when something breaks.
 
 The web engine needs `SharedArrayBuffer`, which requires cross-origin
 isolation. The app shows a toast and a console error when the host is
-misconfigured. On [manabrew.app](https://manabrew.app) this should never
+misconfigured. On [manabrew.app](https://play.manabrew.app) this should never
 happen — report it on [Discord](https://discord.gg/NqrKpbhtcd). If you're
 hosting the client yourself, see
-[hosting the web client](/docs/self-hosting/#hosting-the-web-client).
+[hosting the web client](/self-hosting/#hosting-the-web-client).
 
 ## Card images don't load
 
@@ -34,20 +34,20 @@ lifeblood. Post on [Discord](https://discord.gg/NqrKpbhtcd) or open a
 
 The Rust engine doesn't implement everything that card's script needs yet.
 The deck still saves; the card just won't behave correctly in-game. See
-[Formats & limitations](/docs/formats/).
+[Formats & limitations](/formats/).
 
 ## Can I play offline?
 
 On desktop, the engine runs locally but card images still need internet. The
 web client is not offline-capable. See the
-[web vs desktop comparison](/docs/formats/#web-vs-desktop).
+[web vs desktop comparison](/formats/#web-vs-desktop).
 
 ## I closed my tab mid-game — is the game lost?
 
 Reopen the app within the room's reconnection window (30–90 seconds, set by
 the host) and you'll be put back in your seat. If the host disconnects, the
 game ends and the room returns to the lobby. See
-[multiplayer](/docs/playing/#multiplayer).
+[multiplayer](/playing/#multiplayer).
 
 ## Where are my decks stored?
 

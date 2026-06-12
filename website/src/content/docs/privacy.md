@@ -16,7 +16,7 @@ site/app data deletes your decks, so export the ones you care about.
 ## What the relay sees
 
 Multiplayer goes through a relay server (the public one, or
-[your own](/docs/self-hosting/#hosting-your-own-relay)). While you play, the
+[your own](/self-hosting/#hosting-your-own-relay)). While you play, the
 relay handles your chosen username, the room name, and the game messages it
 forwards between players. It keeps the current game state in memory so
 disconnected players can rejoin. All of it is in-memory only — when the room

@@ -51,7 +51,7 @@ clients and engines can implement it without license entanglement.
 
 - Join the [Discord](https://discord.gg/NqrKpbhtcd) and say hi.
 - Browse [open issues](https://github.com/witchesofthehill/manabrew/issues).
-- Play a game at [manabrew.app](https://manabrew.app) and report anything that
+- Play a game at [manabrew.app](https://play.manabrew.app) and report anything that
   behaves differently from paper Magic.
 
 ## Community standards

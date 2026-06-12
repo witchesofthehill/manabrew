@@ -6,7 +6,7 @@ description: Play ManaBrew in the browser, install the desktop app, or build fro
 ## Play in the browser
 
 The fastest way to try ManaBrew is the web client at
-[manabrew.app](https://manabrew.app). It runs the Rust engine compiled to
+[manabrew.app](https://play.manabrew.app). It runs the Rust engine compiled to
 WebAssembly — nothing to install.
 
 ## Desktop app

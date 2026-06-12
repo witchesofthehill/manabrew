@@ -78,7 +78,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/build/target,sharing=locked \
     yarn build:web
 
-# --- Website: landing page (/home) + docs (/docs), Astro + Starlight ---
+# --- Website: landing page (manabrew.app) + docs (docs.manabrew.app),
+# Astro + Starlight, two builds out of one package ---
 FROM node:20-slim AS website
 
 # The site imports assets and theme data via relative paths that escape
@@ -100,6 +101,7 @@ RUN npm run build
 FROM caddy:2-alpine
 
 COPY --from=builder /build/dist/ /srv/manabrew/
-COPY --from=website /repo/website/dist/ /srv/manabrew/
+COPY --from=website /repo/website/dist/landing/ /srv/landing/
+COPY --from=website /repo/website/dist/docs/ /srv/docs/
 
 EXPOSE 80 443

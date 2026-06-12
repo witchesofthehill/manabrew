@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "dev:docs": "astro dev --config astro.config.docs.mjs",
+    "build": "astro build && astro build --config astro.config.docs.mjs",
     "preview": "astro preview"
   },
   "dependencies": {

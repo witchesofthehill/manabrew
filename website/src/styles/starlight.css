@@ -1,20 +1,22 @@
-/* Keep in sync with the palette in src/pages/home.astro */
-:root {
-  --sl-color-accent-low: #2e2008;
-  --sl-color-accent: #b97e24;
-  --sl-color-accent-high: #ecc476;
-  --sl-color-bg: #15100a;
-  --sl-color-bg-nav: #1b140c;
-  --sl-color-bg-sidebar: #181109;
-  --sl-color-hairline: #32271a;
-  --sl-color-hairline-light: #3c2f1f;
+/* Maps the app's default theme preset (injected as --mb-* custom
+   properties by src/components/Head.astro from src/themes/default.ts)
+   onto Starlight's color tokens. The --mb-* values swap with
+   [data-theme], so one mapping covers both modes. */
+:root,
+:root[data-theme="light"] {
+  --sl-font: "Alegreya Sans", system-ui, sans-serif;
+  --sl-color-accent-low: var(--mb-secondary);
+  --sl-color-accent: var(--mb-primary);
+  --sl-color-accent-high: var(--mb-foreground);
+  --sl-color-bg: var(--mb-background);
+  --sl-color-bg-nav: var(--mb-card);
+  --sl-color-bg-sidebar: var(--mb-card);
+  --sl-color-hairline: var(--mb-border);
+  --sl-color-hairline-light: var(--mb-input);
 }
 
-:root[data-theme="light"] {
-  --sl-color-accent-low: #f3e3c2;
-  --sl-color-accent: #9a6716;
-  --sl-color-accent-high: #5c3c08;
-  --sl-color-bg: #faf5ea;
-  --sl-color-bg-nav: #f4ecdc;
-  --sl-color-bg-sidebar: #f7f0e1;
+/* Same display face as the landing page headings */
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6),
+h1#_top {
+  font-family: "Cormorant Garamond", georgia, serif;
 }

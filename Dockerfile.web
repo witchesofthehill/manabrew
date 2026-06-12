@@ -81,13 +81,15 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 # --- Website: landing page (/home) + docs (/docs), Astro + Starlight ---
 FROM node:20-slim AS website
 
-# home.astro imports hero/screenshot images via relative paths that escape
-# website/ (../images, ../public) — keep the same directory layout here.
+# The site imports assets and theme data via relative paths that escape
+# website/ (../images, ../public, ../src) — keep the same directory layout here.
 WORKDIR /repo/website
 COPY website/package.json website/package-lock.json ./
 RUN npm ci
 COPY images/ /repo/images/
 COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
+COPY src/themes/ /repo/src/themes/
+COPY src/assets/manaBrew.png /repo/src/assets/manaBrew.png
 COPY website/ ./
 RUN npm run build
 

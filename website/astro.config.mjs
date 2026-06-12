@@ -32,12 +32,28 @@ export default defineConfig({
       ],
       sidebar: [
         { label: "Start here", items: ["docs", "docs/getting-started"] },
-        { label: "Project", items: ["docs/contributing"] },
+        { label: "Playing", items: ["docs/playing", "docs/formats", "docs/faq"] },
+        { label: "Hosting", items: ["docs/self-hosting"] },
+        {
+          label: "Project",
+          items: ["docs/contributing", "docs/releases", "docs/privacy"],
+        },
       ],
       editLink: {
         baseUrl: "https://github.com/witchesofthehill/manabrew/edit/main/website/",
       },
-      customCss: ["./src/styles/starlight.css"],
+      components: {
+        Head: "./src/components/Head.astro",
+        SiteTitle: "./src/components/SiteTitle.astro",
+      },
+      customCss: [
+        "@fontsource/cormorant-garamond/600.css",
+        "@fontsource/cormorant-garamond/700.css",
+        "@fontsource/alegreya-sans/400.css",
+        "@fontsource/alegreya-sans/500.css",
+        "@fontsource/alegreya-sans/700.css",
+        "./src/styles/starlight.css",
+      ],
     }),
   ],
 });

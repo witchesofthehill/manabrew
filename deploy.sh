@@ -127,7 +127,7 @@ while IFS= read -r file; do
             CARDDATA_CHANGED=true ;;
     esac
     case "$file" in
-        src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html)
+        src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html|website/*)
             WEB_CHANGED=true ;;
         forge-engine/crates/forge-wasm/*)
             WEB_CHANGED=true ;;

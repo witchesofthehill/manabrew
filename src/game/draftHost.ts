@@ -101,6 +101,12 @@ export async function startDraftAsHost(args: {
       return { ok: false, error: "draft config has no pool source (set or cube)" };
     }
   } catch (err) {
+    if (config.setCode && String(err).includes("unknown set")) {
+      return {
+        ok: false,
+        error: `your game data doesn't include set ${config.setCode.toUpperCase()} — update the app to draft it`,
+      };
+    }
     const source = config.cubeId ? `cube ${config.cubeId}` : `set ${config.setCode}`;
     return { ok: false, error: `failed to load ${source}: ${String(err)}` };
   }
@@ -158,20 +164,28 @@ export async function startDraftAsHost(args: {
   return { ok: true, sessionId: initialState.sessionId, seats };
 }
 
-function enqueuePick(seat: number, cardName: string): Promise<void> {
+function enqueuePick(
+  seat: number,
+  cardName: string,
+  round?: number,
+  pickNumber?: number,
+): Promise<void> {
   if (!active) return Promise.resolve();
   const next = active.pendingChain
     .catch((err) => {
       console.error("[draftHost] pick chain swallowed error:", err);
     })
-    .then(() => applyPick(seat, cardName));
+    .then(() => applyPick(seat, cardName, round, pickNumber));
   active.pendingChain = next;
   return next;
 }
 
 export async function submitHostPick(cardName: string): Promise<void> {
   if (!active) return;
-  await enqueuePick(active.mySeat, cardName);
+  const store = useMultiplayerDraftStore.getState();
+  if (store.pickPending) return;
+  store.setPickPending(true);
+  await enqueuePick(active.mySeat, cardName, store.state?.round, store.state?.pickNumber);
 }
 
 async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope }): Promise<void> {
@@ -186,32 +200,55 @@ async function onRelay(payload: { from_player: string; state: RoomRelayEnvelope 
     console.warn("[draftHost] pick from unknown player", payload.from_player);
     return;
   }
-  await enqueuePick(seat.seat, pick.cardName);
+  await enqueuePick(seat.seat, pick.cardName, pick.round, pick.pickNumber);
 }
 
-async function applyPick(seat: number, cardName: string): Promise<void> {
+async function applyPick(
+  seat: number,
+  cardName: string,
+  round?: number,
+  pickNumber?: number,
+): Promise<void> {
   if (!active) return;
+  const session = active;
   const platform = getPlatform();
+  if (round !== undefined && pickNumber !== undefined) {
+    const current = await fetchSeatState(session.sessionId, seat);
+    if (current && (current.round !== round || current.pickNumber !== pickNumber)) {
+      console.warn(
+        `[draftHost] dropping stale pick "${cardName}" from seat ${seat} — sent at round ${round} pick ${pickNumber}, seat is now at round ${current.round} pick ${current.pickNumber}`,
+      );
+      if (seat === session.mySeat) useMultiplayerDraftStore.getState().setPickPending(false);
+      return;
+    }
+  }
   let nextState: DraftState;
   try {
     nextState = await platform.invoke<DraftState>("limited_submit_pick", {
-      sessionId: active.sessionId,
+      sessionId: session.sessionId,
       seatIdx: seat,
       cardName,
     });
   } catch (err) {
     useMultiplayerDraftStore.getState().setError(`pick failed: ${String(err)}`);
+    if (seat === session.mySeat) useMultiplayerDraftStore.getState().setPickPending(false);
+    await broadcastPerSeatStates(
+      session.seats,
+      session.sessionId,
+      session.hostSlot,
+      session.roomId,
+    );
     return;
   }
 
-  if (seat === active.mySeat) {
+  if (seat === session.mySeat) {
     useMultiplayerDraftStore.getState().setLocalState(nextState);
   } else {
-    const hostState = await fetchSeatState(active.sessionId, active.mySeat);
+    const hostState = await fetchSeatState(session.sessionId, session.mySeat);
     if (hostState) useMultiplayerDraftStore.getState().setLocalState(hostState);
   }
 
-  await broadcastPerSeatStates(active.seats, active.sessionId, active.hostSlot, active.roomId);
+  await broadcastPerSeatStates(session.seats, session.sessionId, session.hostSlot, session.roomId);
 
   if (nextState.isComplete) {
     await finishDraft();
@@ -264,10 +301,11 @@ async function fetchSeatState(sessionId: string, seat: number): Promise<DraftSta
 
 async function finishDraft(): Promise<void> {
   if (!active) return;
+  const session = active;
   const server = getPlatform().server;
   const pools = await Promise.all(
-    active.seats.map(async (s) => {
-      const state = await fetchSeatState(active!.sessionId, s.seat);
+    session.seats.map(async (s) => {
+      const state = await fetchSeatState(session.sessionId, s.seat);
       return {
         seat: s.seat,
         playerSlot: s.playerSlot,
@@ -280,14 +318,14 @@ async function finishDraft(): Promise<void> {
   useMultiplayerDraftStore.getState().complete(pools);
   const msg: DraftCompleteMessage = {
     type: "complete",
-    sessionId: active.sessionId,
+    sessionId: session.sessionId,
     picks: pools,
   };
   if (server) {
     await server.sendRoomMessage(
       makeDraftRelay(msg, {
-        fromPlayer: active.hostSlot,
-        roomId: active.roomId,
+        fromPlayer: session.hostSlot,
+        roomId: session.roomId,
       }),
     );
   }
@@ -302,7 +340,13 @@ async function finishDraft(): Promise<void> {
 export function teardownHost(signalEnd = false): void {
   if (!active) return;
   active.unsubscribe();
+  const { sessionId } = active;
   active = null;
+  void getPlatform()
+    .invoke("limited_drop_session", { kind: "draft", sessionId })
+    .catch((err) => {
+      console.warn("[draftHost] limited_drop_session failed:", err);
+    });
   if (signalEnd) {
     void useServerStore
       .getState()

@@ -78,6 +78,22 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,target=/build/target,sharing=locked \
     yarn build:web
 
+# --- Website: landing page (manabrew.app) + docs (docs.manabrew.app),
+# Astro + Starlight, two builds out of one package ---
+FROM node:20-slim AS website
+
+# The site imports assets and theme data via relative paths that escape
+# website/ (../images, ../public, ../src) — keep the same directory layout here.
+WORKDIR /repo/website
+COPY website/package.json website/package-lock.json ./
+RUN npm ci
+COPY images/ /repo/images/
+COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
+COPY src/themes/ /repo/src/themes/
+COPY src/assets/manaBrew.png /repo/src/assets/manaBrew.png
+COPY website/ ./
+RUN npm run build
+
 # --- Runtime: Caddy serves the built dist directly, reverse-proxies the
 # relay + parity hostnames, and terminates Let's Encrypt TLS for all
 # three. ops/Caddyfile is mounted in via compose so config changes don't
@@ -85,5 +101,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
 FROM caddy:2-alpine
 
 COPY --from=builder /build/dist/ /srv/manabrew/
+COPY --from=website /repo/website/dist/landing/ /srv/landing/
+COPY --from=website /repo/website/dist/docs/ /srv/docs/
 
 EXPOSE 80 443

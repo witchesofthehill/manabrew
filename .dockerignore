@@ -33,3 +33,8 @@ forge/forge-gui-android/
 forge/forge-installer/
 forge/forge-lda/
 forge/adventure-editor/
+
+# Website (built in its own Docker stage)
+website/node_modules/
+website/dist/
+website/.astro/

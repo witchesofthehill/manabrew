@@ -21,6 +21,12 @@ members = [
     "forge-engine/crates/forge-limited",
     "forge-engine/crates/forge-bot",
 ]
+exclude = [
+    "packages/core",
+    "packages/install",
+    "packages/manabrew",
+    "packages/protocol",
+]
 
 [workspace.package]
 license = "GPL-3.0-or-later"

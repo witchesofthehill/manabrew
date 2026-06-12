@@ -36,18 +36,19 @@ The project is large; every line is a long-term liability. Before adding code:
 
 Sub-AGENTS.md files are not auto-discovered by Codex or by Claude Code's parent-directory scan. **Consult this table at the start of any task** and read every file whose scope your change touches.
 
-| File                                                             | Read it before                                                              |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `src/AGENTS.md`                                                  | Any change under `src/`                                                     |
-| `src/components/game/AGENTS.md`                                  | Any change under `src/components/game/` (game board, modals, panels, zones) |
-| `src/components/companion/AGENTS.md`                             | Any change under `src/components/companion/` (paper-play life tracker)      |
-| `src-tauri/AGENTS.md`                                            | Any change under `src-tauri/`                                               |
-| `forge-engine/AGENTS.md`                                         | Any Rust engine work — workspace map and engine module map                  |
-| `forge-engine/crates/forge-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                      |
-| `forge-engine/crates/forge-parity/AGENTS.md`                     | Investigating a parity divergence or editing `regression.json`              |
-| `forge/AGENTS.md`                                                | Anything under `forge/` (read-only warning)                                 |
-| `forge-harness/src/main/java/forge/harness/AGENTS.md`            | Any change under `forge-harness/` (parity/host/common package boundaries)   |
-| `scripts/AGENTS.md`                                              | Adding or running a build/parity script                                     |
+| File                                                             | Read it before                                                                   |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `src/AGENTS.md`                                                  | Any change under `src/`                                                          |
+| `src/components/game/AGENTS.md`                                  | Any change under `src/components/game/` (game board, modals, panels, zones)      |
+| `src/components/companion/AGENTS.md`                             | Any change under `src/components/companion/` (paper-play life tracker)           |
+| `src-tauri/AGENTS.md`                                            | Any change under `src-tauri/`                                                    |
+| `forge-engine/AGENTS.md`                                         | Any Rust engine work — workspace map and engine module map                       |
+| `forge-engine/crates/forge-engine/src/ability/effects/AGENTS.md` | Adding or modifying a `*_effect.rs` (most parity work)                           |
+| `forge-engine/crates/forge-parity/AGENTS.md`                     | Investigating a parity divergence or editing `regression.json`                   |
+| `forge/AGENTS.md`                                                | Anything under `forge/` (read-only warning)                                      |
+| `forge-harness/src/main/java/forge/harness/AGENTS.md`            | Any change under `forge-harness/` (parity/host/common package boundaries)        |
+| `scripts/AGENTS.md`                                              | Adding or running a build/parity script                                          |
+| `website/AGENTS.md`                                              | Any change under `website/` (landing at manabrew.app, docs at docs.manabrew.app) |
 
 Topic spinoffs (cross-cut multiple folders):
 

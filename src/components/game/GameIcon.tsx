@@ -23,8 +23,6 @@ export type GameIconName =
   | "book-cover"
   | "book-aura"
   | "overlord-helm"
-  | "beer-stein"
-  | "anvil"
   | "muscle-up"
   | "skull-crack"
   | "shiny-omega"
@@ -39,7 +37,9 @@ export type GameIconName =
   | "mining"
   | "brick-wall"
   | "battery-pack-alt"
-  | "scroll-unfurled";
+  | "scroll-unfurled"
+  | "anvil"
+  | "beer-stein";
 
 interface GameIconProps {
   name: GameIconName;

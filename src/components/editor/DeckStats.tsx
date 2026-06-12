@@ -1,71 +1,57 @@
+import { useState } from "react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
-import { computeCmc, isLand, countColorPips, countGenericMana } from "@/lib/mana";
+import { isLand, countColorPips, countGenericMana } from "@/lib/mana";
 import type { ManaColor } from "@/lib/mana";
 import type { DeckCard } from "@/types/manabrew";
-import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { MANA_LETTERS } from "@/themes/gameTheme";
+import { MANA_LETTERS, MANA_BG_CLASS } from "@/themes/gameTheme";
+import { CMC_BUCKET_LABELS, cmcBucketIndex } from "./deckBuilder.utils";
 
-// CMC 1–7+ buckets — cool→warm progression using theme counter / signal
+// CMC 1–7+ bucket bars — cool→warm progression using theme counter / signal
 // tokens so the curve retones with the active preset.
-const BUCKETS = [
-  { label: "1", bar: "bg-pt-buffed" }, // +1 growth green
-  { label: "2", bar: "bg-counter-storage" }, // teal
-  { label: "3", bar: "bg-counter-study" }, // cyan
-  { label: "4", bar: "bg-counter-charge" }, // purple
-  { label: "5", bar: "bg-warning" }, // amber
-  { label: "6", bar: "bg-counter-level" }, // orange
-  { label: "7+", bar: "bg-pt-lethal" }, // red
+const BUCKET_BARS = [
+  "bg-pt-buffed", // green
+  "bg-counter-storage", // teal
+  "bg-counter-study", // cyan
+  "bg-counter-charge", // purple
+  "bg-warning", // amber
+  "bg-counter-level", // orange
+  "bg-pt-lethal", // red
 ];
 
-const BAR_MAX_PX = 72;
-
-const COLOR_ROWS: { color: ManaColor; label: string; bar: string }[] = [
-  { color: "W", label: "W", bar: "bg-mana-w" },
-  { color: "U", label: "U", bar: "bg-mana-u" },
-  { color: "B", label: "B", bar: "bg-mana-b" },
-  { color: "R", label: "R", bar: "bg-mana-r" },
-  { color: "G", label: "G", bar: "bg-mana-g" },
-  { color: "C", label: "C", bar: "bg-mana-c" },
-];
-
-/** Resolve CMC for a card. Returns undefined when genuinely unknown. */
-function resolveCmc(card: DeckCard): number | undefined {
-  if (card.cmc !== undefined && card.cmc !== null) return card.cmc;
-  if (card.manaCost) return computeCmc(card.manaCost);
-  return undefined;
-}
+const BAR_MAX_PX = 140;
+const TOOLTIP_MAX_NAMES = 10;
 
 interface DeckStatsProps {
-  cards?: DeckCard[];
+  activeBucket?: number | null;
+  onBucketClick?: (bucket: number | null) => void;
 }
 
-export function DeckStats({ cards: propCards }: DeckStatsProps) {
+export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps) {
   const { currentDeck } = useDeckStore();
-  const cards = propCards ?? currentDeck.cards;
-  const [collapsed, setCollapsed] = useState(true);
+  const cards = currentDeck.cards;
+  const [hoveredBucket, setHoveredBucket] = useState<number | null>(null);
 
   const lands: DeckCard[] = [];
   const unknown: DeckCard[] = [];
-  const spells: { card: DeckCard; cmc: number }[] = [];
+  const spells: { card: DeckCard; bucket: number }[] = [];
 
   for (const card of cards) {
     if (isLand(card.types)) {
       lands.push(card);
       continue;
     }
-    const cmc = resolveCmc(card);
-    if (cmc === undefined) unknown.push(card);
-    else spells.push({ card, cmc });
+    const bucket = cmcBucketIndex(card);
+    if (bucket === null) unknown.push(card);
+    else spells.push({ card, bucket });
   }
 
-  const counts = Array<number>(7).fill(0);
-  for (const { cmc } of spells) {
-    const idx = Math.min(Math.max(Math.round(cmc) - 1, 0), 6);
-    counts[idx]++;
+  const bucketCards: Map<string, number>[] = Array.from({ length: 7 }, () => new Map());
+  for (const { card, bucket } of spells) {
+    bucketCards[bucket].set(card.name, (bucketCards[bucket].get(card.name) ?? 0) + 1);
   }
+  const counts = bucketCards.map((m) => [...m.values()].reduce((a, b) => a + b, 0));
 
   const max = Math.max(...counts, 1);
   const hasAnything = spells.length > 0;
@@ -80,161 +66,192 @@ export function DeckStats({ cards: propCards }: DeckStatsProps) {
   }
   const totalPips = Object.values(pipTotals).reduce((a, b) => a + b, 0);
   const totalAll = totalPips + genericTotal;
-  const activeColors = COLOR_ROWS.filter((r) => pipTotals[r.color] > 0);
-
-  // Mini inline curve preview shown in the collapsed header
-  const curvePreview = hasAnything ? counts : null;
+  const activeColors = MANA_LETTERS.filter((c) => pipTotals[c as ManaColor] > 0);
 
   return (
-    <div className="border-t shrink-0">
-      <div
-        role="button"
-        tabIndex={0}
-        className="flex items-center gap-1.5 w-full px-3 py-2 hover:bg-muted/30 transition-colors text-left cursor-pointer"
-        onClick={() => setCollapsed((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setCollapsed((v) => !v);
-          }
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-        )}
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Mana Curve
+    <section className="rounded-xl border bg-card/40 p-6">
+      <div className="mb-5 flex items-baseline gap-2.5">
+        <h3 className="text-base font-semibold">Mana Curve</h3>
+        <span className="text-xs text-muted-foreground/70">
+          {spells.length} spells &middot; {lands.length} lands
         </span>
-
-        {/* Summary pills — always visible */}
-        <div className="flex gap-1.5 ml-1 text-xs text-muted-foreground/70">
-          {spells.length > 0 && <span>{spells.length} spells</span>}
-          {lands.length > 0 && <span>{lands.length} lands</span>}
-          {unknown.length > 0 && (
-            <span className="text-warning" title="CMC unknown">
-              {unknown.length} ?
-            </span>
-          )}
-        </div>
-
-        {/* Mini sparkline curve when collapsed */}
-        {collapsed && curvePreview && (
-          <div className="ml-auto flex items-end gap-px h-4 shrink-0">
-            {curvePreview.map((count, i) => (
-              <div
-                key={i}
-                className={cn("w-2 rounded-t-sm", BUCKETS[i].bar, count === 0 && "opacity-20")}
-                style={{ height: count > 0 ? `${Math.max((count / max) * 16, 2)}px` : "2px" }}
-              />
-            ))}
-          </div>
+        {unknown.length > 0 && (
+          <span className="text-xs text-warning" title="CMC unknown">
+            {unknown.length} ?
+          </span>
         )}
       </div>
 
-      {/* ── Expandable content ── */}
-      {!collapsed && (
-        <div className="px-3 pb-3">
-          {hasAnything ? (
-            <>
-              {/* Count labels */}
-              <div className="flex gap-1 mb-0.5">
-                {counts.map((count, i) => (
-                  <div key={i} className="flex-1 text-center">
-                    <span
-                      className={cn(
-                        "text-xs font-mono tabular-nums leading-none",
-                        count > 0 ? "text-foreground" : "text-transparent select-none",
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </div>
-                ))}
+      {hasAnything ? (
+        <>
+          {/* Count labels */}
+          <div className="flex gap-1.5 mb-1">
+            {counts.map((count, i) => (
+              <div key={i} className="flex-1 text-center">
+                <span
+                  className={cn(
+                    "text-sm font-mono tabular-nums leading-none transition-colors",
+                    count === 0 && "text-transparent select-none",
+                    count > 0 && (hoveredBucket === i ? "text-foreground" : "text-foreground/80"),
+                  )}
+                >
+                  {count}
+                </span>
               </div>
+            ))}
+          </div>
 
-              {/* Bar chart */}
-              <div className="flex items-end gap-1" style={{ height: BAR_MAX_PX }}>
-                {counts.map((count, i) => (
+          {/* Bar chart — hover for the card list, click to filter the deck */}
+          <div className="flex items-end gap-1.5" style={{ height: BAR_MAX_PX }}>
+            {counts.map((count, i) => {
+              const entries = [...bucketCards[i].entries()].sort(
+                (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+              );
+              const isActive = activeBucket === i;
+              const isDimmed =
+                count > 0 &&
+                !isActive &&
+                ((hoveredBucket !== null && hoveredBucket !== i) ||
+                  (hoveredBucket === null && activeBucket !== null));
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "relative flex h-full flex-1 items-end",
+                    onBucketClick && count > 0 && "cursor-pointer",
+                  )}
+                  onMouseEnter={() => setHoveredBucket(count > 0 ? i : null)}
+                  onMouseLeave={() => setHoveredBucket(null)}
+                  onClick={() => {
+                    if (count > 0) onBucketClick?.(isActive ? null : i);
+                  }}
+                >
                   <div
-                    key={i}
                     className={cn(
-                      "flex-1 rounded-t-sm transition-all duration-300",
-                      BUCKETS[i].bar,
+                      "w-full rounded-t-md transition-all duration-200",
+                      BUCKET_BARS[i],
                       count === 0 && "opacity-15",
+                      isDimmed && "opacity-40",
+                      hoveredBucket === i && "brightness-110",
+                      isActive && "ring-2 ring-primary ring-offset-2 ring-offset-card",
                     )}
                     style={{
-                      height: count > 0 ? `${Math.max((count / max) * BAR_MAX_PX, 3)}px` : "3px",
+                      height: count > 0 ? `${Math.max((count / max) * BAR_MAX_PX, 4)}px` : "4px",
                     }}
                   />
-                ))}
-              </div>
-
-              {/* CMC labels */}
-              <div className="flex gap-1 mt-1">
-                {BUCKETS.map((b, i) => (
-                  <div key={i} className="flex-1 text-center">
-                    <span className="text-xs text-muted-foreground">{b.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Colour distribution */}
-              {(activeColors.length > 0 || genericTotal > 0) && (
-                <div className="mt-3 space-y-1">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Colour Distribution
-                  </span>
-                  <div className="mt-1.5 space-y-1">
-                    {genericTotal > 0 && (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3.5 h-3.5 rounded-sm shrink-0 border border-border bg-muted-foreground/40"
-                          title="Generic"
-                        />
-                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-300 bg-muted-foreground/60"
-                            style={{
-                              width: `${totalAll > 0 ? (genericTotal / totalAll) * 100 : 0}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs font-mono tabular-nums text-muted-foreground w-8 text-right shrink-0">
-                          {Math.round(totalAll > 0 ? (genericTotal / totalAll) * 100 : 0)}%
-                        </span>
-                      </div>
-                    )}
-                    {activeColors.map(({ color, bar }) => {
-                      const pips = pipTotals[color];
-                      const pct = totalAll > 0 ? (pips / totalAll) * 100 : 0;
-                      return (
-                        <div key={color} className="flex items-center gap-2">
-                          <ManaSymbols cost={`{${color}}`} size="sm" />
-                          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className={cn("h-full rounded-full transition-all duration-300", bar)}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-mono tabular-nums text-muted-foreground w-8 text-right shrink-0">
-                            {Math.round(pct)}%
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {hoveredBucket === i && (
+                    <div className="absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-60 -translate-x-1/2 rounded-md border bg-popover p-3 shadow-xl">
+                      <p className="mb-1.5 text-xs font-semibold">
+                        {count} card{count === 1 ? "" : "s"} at {CMC_BUCKET_LABELS[i]} mana
+                      </p>
+                      <ul className="space-y-0.5">
+                        {entries.slice(0, TOOLTIP_MAX_NAMES).map(([name, n]) => (
+                          <li
+                            key={name}
+                            className="flex items-baseline gap-1.5 text-xs text-muted-foreground"
+                          >
+                            <span className="w-3 shrink-0 text-right font-mono tabular-nums">
+                              {n}
+                            </span>
+                            <span className="truncate">{name}</span>
+                          </li>
+                        ))}
+                        {entries.length > TOOLTIP_MAX_NAMES && (
+                          <li className="pt-0.5 text-[10px] text-muted-foreground/60">
+                            +{entries.length - TOOLTIP_MAX_NAMES} more
+                          </li>
+                        )}
+                      </ul>
+                      {onBucketClick && (
+                        <p className="mt-1.5 border-t border-border/40 pt-1.5 text-[10px] text-muted-foreground/60">
+                          {isActive ? "Click to clear the filter" : "Click to filter the deck"}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground italic text-center py-3">
-              {cards.length === 0 ? "No cards in deck." : "Add non-land cards to see the curve."}
-            </p>
+              );
+            })}
+          </div>
+
+          {/* CMC labels */}
+          <div className="mt-1.5 flex gap-1.5">
+            {CMC_BUCKET_LABELS.map((label, i) => (
+              <div key={i} className="flex-1 text-center">
+                <span
+                  className={cn(
+                    "text-xs transition-colors",
+                    hoveredBucket === i || activeBucket === i
+                      ? "text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Colour distribution */}
+          {(activeColors.length > 0 || genericTotal > 0) && (
+            <div className="mt-7">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Colour Distribution
+              </span>
+              <div className="mt-2.5 space-y-2">
+                {genericTotal > 0 && (
+                  <div
+                    className="flex items-center gap-2.5"
+                    title={`${genericTotal} generic mana across ${spells.length} spells`}
+                  >
+                    <span className="inline-block w-3.5 h-3.5 rounded-sm shrink-0 border border-border bg-muted-foreground/40" />
+                    <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-300 bg-muted-foreground/60"
+                        style={{
+                          width: `${totalAll > 0 ? (genericTotal / totalAll) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs font-mono tabular-nums text-muted-foreground w-8 text-right shrink-0">
+                      {Math.round(totalAll > 0 ? (genericTotal / totalAll) * 100 : 0)}%
+                    </span>
+                  </div>
+                )}
+                {activeColors.map((color) => {
+                  const pips = pipTotals[color as ManaColor];
+                  const pct = totalAll > 0 ? (pips / totalAll) * 100 : 0;
+                  return (
+                    <div
+                      key={color}
+                      className="flex items-center gap-2.5"
+                      title={`${pips} ${color} pip${pips === 1 ? "" : "s"}`}
+                    >
+                      <ManaSymbols cost={`{${color}}`} size="sm" />
+                      <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-300",
+                            MANA_BG_CLASS[color],
+                          )}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono tabular-nums text-muted-foreground w-8 text-right shrink-0">
+                        {Math.round(pct)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
-        </div>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground italic text-center py-6">
+          {cards.length === 0 ? "No cards in deck." : "Add non-land cards to see the curve."}
+        </p>
       )}
-    </div>
+    </section>
   );
 }

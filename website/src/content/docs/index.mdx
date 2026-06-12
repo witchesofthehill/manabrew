@@ -1,0 +1,70 @@
+---
+title: What is ManaBrew?
+description: An open-source Magic, The Gathering client and rules engine, built around Forge compatibility.
+---
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+ManaBrew is an open-source **Magic: The Gathering** client and rules engine. It
+uses [Forge](https://github.com/Card-Forge/forge) as the rules reference instead
+of defining a new interpretation of the game, and ports Forge's engine to Rust
+so it can run anywhere — including directly in your browser via WebAssembly.
+
+<CardGrid>
+  <Card title="Play in the browser" icon="rocket">
+    The full client runs as a static site at [manabrew.app](https://play.manabrew.app) — no install
+    required.
+  </Card>
+  <Card title="Desktop client" icon="laptop">
+    A native Tauri app for macOS and Windows, with installers published on [GitHub
+    releases](https://github.com/witchesofthehill/manabrew/releases).
+  </Card>
+  <Card title="Swappable engine" icon="setting">
+    A Rust port of Forge's game engine, verified card-by-card against Java Forge — or swap in the
+    original Java Forge engine itself and play with full rules coverage today.
+  </Card>
+  <Card title="Multiplayer" icon="seti:pipeline">
+    A relay server powers online lobbies, with reconnection support for in-progress games.
+  </Card>
+</CardGrid>
+
+:::note
+ManaBrew is unofficial fan software. It is not affiliated with, endorsed by, or
+sponsored by Wizards of the Coast LLC or by the Forge project. Card images are
+not shipped by this project.
+:::
+
+## Project status
+
+ManaBrew is pre-release software, and its game engine is **swappable**. Two
+backends drive the same client today:
+
+- **Rust engine** — the Forge port that runs everywhere, including in your
+  browser. It plays a growing set of matchups, with card coverage expanding
+  through parity testing against Java Forge.
+- **Java Forge engine** — fully supported as a first-class way to play. Rooms
+  hosted on a [self-hosted node](/self-hosting/) run games on the
+  original, battle-tested Forge rules engine with its complete card coverage.
+
+## Next steps
+
+<LinkCard
+  title="Getting started"
+  description="Play in the browser, install the desktop app, or build from source."
+  href="/getting-started/"
+/>
+<LinkCard
+  title="Playing ManaBrew"
+  description="Deck building and import, AI games, multiplayer rooms, drafts, and the paper-play companion."
+  href="/playing/"
+/>
+<LinkCard
+  title="Self-hosting a Java room"
+  description="Run your own game room on the Java Forge engine, or host a full relay."
+  href="/self-hosting/"
+/>
+<LinkCard
+  title="Contributing"
+  description="How the project is organized and where to start helping."
+  href="/contributing/"
+/>

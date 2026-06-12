@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Sparkles, Trophy, Plus, Layers, Loader2 } from "lucide-react";
+import { ChevronRight, Sparkles, Trophy, Plus, Layers, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { normalizeCardName } from "@/lib/gameChangers";
@@ -40,7 +41,7 @@ function ComboRow({
   addLabel?: string;
 }) {
   return (
-    <div className="group flex w-full items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10">
+    <div className="group flex w-full min-w-0 items-center gap-2 rounded-md border border-border/40 bg-muted/20 px-2 py-1.5 transition-colors hover:border-counter-charge/40 hover:bg-counter-charge/10">
       <button
         type="button"
         className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -84,7 +85,6 @@ function ComboRow({
 }
 
 export function CombosPanel() {
-  const [collapsed, setCollapsed] = useState(true);
   const [openCombo, setOpenCombo] = useState<SpellbookCombo | null>(null);
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const addToMain = useDeckStore((s) => s.addToMain);
@@ -129,41 +129,23 @@ export function CombosPanel() {
 
   return (
     <>
-      <div className="border-t shrink-0">
-        <div
-          role="button"
-          tabIndex={0}
-          className="flex items-center gap-1.5 w-full px-3 py-2 hover:bg-muted/30 transition-colors text-left cursor-pointer"
-          onClick={() => setCollapsed((v) => !v)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setCollapsed((v) => !v);
-            }
-          }}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-          )}
-          <Sparkles className="h-3.5 w-3.5 text-counter-charge shrink-0" />
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Combos
-          </span>
+      <section className="rounded-xl border bg-card/40 p-6">
+        <div className="flex items-center gap-2.5">
+          <Sparkles className="h-4 w-4 text-counter-charge shrink-0" />
+          <h3 className="text-base font-semibold">Combos</h3>
           <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground/70">
             {loading && <Loader2 className="h-3 w-3 animate-spin" />}
             {included.length > 0 && <span>{included.length} in deck</span>}
           </div>
         </div>
 
-        {!collapsed && (
-          <div className="px-3 pb-3 space-y-3">
-            {winCombos.length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-warning/80">
-                  Win lines
-                </span>
+        <div className="mt-5 space-y-5">
+          {winCombos.length > 0 && (
+            <div className="space-y-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-warning/80">
+                Win lines
+              </span>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {winCombos.map((combo) => (
                   <ComboRow
                     key={combo.id}
@@ -175,56 +157,73 @@ export function CombosPanel() {
                   />
                 ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {otherCombos.length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-counter-charge/80">
-                  In your deck
-                </span>
-                {otherCombos.map((combo) => (
-                  <ComboRow
-                    key={combo.id}
-                    combo={combo}
-                    onOpen={setOpenCombo}
-                    icon={<Sparkles className="h-3.5 w-3.5" />}
-                    title={producesLabel(combo)}
-                    subtitle={combo.uses.map((u) => u.card.name).join(" + ")}
-                  />
-                ))}
-              </div>
-            )}
+          {winCombos.length > 0 && (otherCombos.length > 0 || suggestions.length > 0) && (
+            <div className="border-t border-border/40" />
+          )}
 
-            {suggestions.length > 0 && (
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                  One card away
-                </span>
-                {suggestions.map(({ combo, missing }) => (
-                  <ComboRow
-                    key={combo.id}
-                    combo={combo}
-                    onOpen={setOpenCombo}
-                    icon={<Sparkles className="h-3.5 w-3.5" />}
-                    title={producesLabel(combo)}
-                    subtitle={`Needs ${missing[0]}`}
-                    onAdd={() => handleAdd(missing[0])}
-                    addLabel={`Add ${missing[0]} to deck`}
-                  />
-                ))}
-              </div>
-            )}
+          {(otherCombos.length > 0 || suggestions.length > 0) && (
+            <div
+              className={cn(
+                "grid grid-cols-1 items-start gap-6",
+                otherCombos.length > 0 && suggestions.length > 0 && "md:grid-cols-2",
+              )}
+            >
+              {otherCombos.length > 0 && (
+                <div className="min-w-0 space-y-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-counter-charge/80">
+                    In your deck
+                  </span>
+                  <div className="space-y-2">
+                    {otherCombos.map((combo) => (
+                      <ComboRow
+                        key={combo.id}
+                        combo={combo}
+                        onOpen={setOpenCombo}
+                        icon={<Sparkles className="h-3.5 w-3.5" />}
+                        title={producesLabel(combo)}
+                        subtitle={combo.uses.map((u) => u.card.name).join(" + ")}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {!loading && included.length === 0 && suggestions.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">No combos detected yet.</p>
-            )}
+              {suggestions.length > 0 && (
+                <div className="min-w-0 space-y-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    One card away
+                  </span>
+                  <div className="space-y-2">
+                    {suggestions.map(({ combo, missing }) => (
+                      <ComboRow
+                        key={combo.id}
+                        combo={combo}
+                        onOpen={setOpenCombo}
+                        icon={<Sparkles className="h-3.5 w-3.5" />}
+                        title={producesLabel(combo)}
+                        subtitle={`Needs ${missing[0]}`}
+                        onAdd={() => handleAdd(missing[0])}
+                        addLabel={`Add ${missing[0]} to deck`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-            <p className="text-[10px] text-muted-foreground/50">
-              Combo data from Commander Spellbook.
-            </p>
-          </div>
-        )}
-      </div>
+          {!loading && included.length === 0 && suggestions.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">No combos detected yet.</p>
+          )}
+
+          <p className="text-[10px] text-muted-foreground/50">
+            Combo data from Commander Spellbook.
+          </p>
+        </div>
+      </section>
       {openCombo && <ComboDetailModal combo={openCombo} onClose={() => setOpenCombo(null)} />}
     </>
   );

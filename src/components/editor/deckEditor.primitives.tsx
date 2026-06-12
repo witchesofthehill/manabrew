@@ -4,7 +4,7 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Sparkles, Gem } from "lucide-react";
+import { Sparkles, Gem } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
@@ -123,43 +123,24 @@ export function CardHoverOverlay({
   );
 }
 
-// ─── Collapsible Section Header ──────────────────────────────────────────────
+// ─── Section Header ──────────────────────────────────────────────────────────
 
-export function CollapsibleHeader({
+export function SectionHeader({
   label,
   count,
-  collapsed,
-  onToggle,
   extraContent,
 }: {
   label: string;
   count: number;
-  collapsed: boolean;
-  onToggle: () => void;
   extraContent?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-1 mb-1.5">
-      <div
-        role="button"
-        tabIndex={0}
-        className="flex items-center gap-1 flex-1 text-left hover:text-foreground text-muted-foreground cursor-pointer"
-        onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onToggle();
-          }
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-3 w-3 shrink-0" />
-        ) : (
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        )}
-        <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>
-        <span className="text-xs text-muted-foreground/60 ml-1">({count})</span>
-      </div>
+    <div className="flex items-center gap-1.5 mb-1.5 border-b border-border/40 pb-1">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span className="text-xs text-muted-foreground/60">({count})</span>
+      <div className="flex-1" />
       {extraContent}
     </div>
   );

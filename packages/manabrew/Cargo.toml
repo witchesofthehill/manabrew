@@ -1,0 +1,8 @@
+[package]
+name = "manabrew"
+version = "0.0.1"
+edition = "2021"
+description = "Reserved crate name for ManaBrew, a Magic: The Gathering client. See https://github.com/witchesofthehill/manabrew"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/witchesofthehill/manabrew"
+include = ["src/**", "Cargo.toml"]

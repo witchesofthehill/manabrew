@@ -159,8 +159,13 @@ export function CardDetailModal({
         <Modal.Body className="p-0">
           <ScrollArea className="h-full">
             <div className="p-4 space-y-4">
-              <div className="flex gap-6">
-                <div className={cn("shrink-0", isHorizontalActiveFace ? "w-96" : "w-64")}>
+              <div className="flex flex-col gap-6 sm:flex-row">
+                <div
+                  className={cn(
+                    "mx-auto w-full shrink-0 sm:mx-0",
+                    isHorizontalActiveFace ? "max-w-96 sm:w-96" : "max-w-64 sm:w-64",
+                  )}
+                >
                   {imageUrl ? (
                     isHorizontalActiveFace ? (
                       <HorizontalCardImage
@@ -244,7 +249,7 @@ export function CardDetailModal({
                     </div>
                   )}
 
-                  <div className="flex gap-4 text-sm">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold text-muted-foreground">Set: </span>
                       {setLookup.get(card.set)?.icon_svg_uri && (
@@ -282,7 +287,7 @@ export function CardDetailModal({
 
                   <div>
                     <div className="text-sm font-semibold text-muted-foreground mb-1">Prices</div>
-                    <div className="flex gap-3 text-sm">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                       {card.prices.usd && <span>USD ${card.prices.usd}</span>}
                       {card.prices.usd_foil && <span>Foil ${card.prices.usd_foil}</span>}
                       {card.prices.eur && <span>EUR €{card.prices.eur}</span>}
@@ -297,7 +302,7 @@ export function CardDetailModal({
 
               <div>
                 <div className="text-sm font-semibold text-muted-foreground mb-1">Legalities</div>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                   {Object.entries(FORMAT_DISPLAY).map(([key, label]) => {
                     const status = card.legalities[key] ?? "not_legal";
                     return (
@@ -347,7 +352,7 @@ export function CardDetailModal({
         </Modal.Body>
 
         <Modal.Footer>
-          <div className="flex gap-2 w-full justify-between">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
             {deckEditorActions ? (
               <div className="flex items-center gap-1">
                 {/* +/- stepper */}

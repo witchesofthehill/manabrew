@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import LimitedDeckBuilder from "@/components/limited/LimitedDeckBuilder";
 import { DraftCardTile } from "@/components/limited/DraftCardTile";
-import { LimitedHoverPreviewPane } from "@/components/limited/LimitedHoverPreviewPane";
+import { DraftPodButton } from "@/components/limited/DraftPodButton";
+import { HoverCardPreview } from "@/components/game/HoverCardPreview";
+import { PreviewRail } from "@/components/editor/PreviewRail";
 import { LimitedModeToggle, type LimitedDraftMode } from "@/components/limited/LimitedModeToggle";
 import { RaritySetBadge } from "@/components/limited/RaritySetBadge";
 import { useCardPreview } from "@/hooks/useCardPreview";
@@ -13,6 +15,9 @@ import { useLimitedStore } from "@/stores/useLimitedStore";
 import type { DraftCard } from "@/types/limited";
 
 type DraftMode = LimitedDraftMode;
+
+const RAIL_DEFAULT_WIDTH = 360;
+const RAIL_FITS_AT_ROW_WIDTH = 1120;
 
 export default function Draft() {
   const { draftId } = useParams<{ draftId: string }>();
@@ -26,6 +31,8 @@ export default function Draft() {
   const lastError = useLimitedStore((s) => s.lastError);
 
   const [userMode, setUserMode] = useState<DraftMode>("drafting");
+  const [picking, setPicking] = useState(false);
+  const pickingRef = useRef(false);
 
   useEffect(() => {
     if (!draftId) return;
@@ -58,11 +65,16 @@ export default function Draft() {
   }
 
   const handlePick = async (card: DraftCard) => {
-    if (!draftId || !activeDraft.awaitingHuman) return;
+    if (!draftId || !activeDraft.awaitingHuman || pickingRef.current) return;
+    pickingRef.current = true;
+    setPicking(true);
     try {
       await pick(draftId, card.name);
     } catch {
       /* surfaced via lastError */
+    } finally {
+      pickingRef.current = false;
+      setPicking(false);
     }
   };
 
@@ -105,6 +117,7 @@ export default function Draft() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <DraftPodButton seats={activeDraft.seatSummaries} />
           {canBuild && !activeDraft.isComplete && (
             <Button
               size="sm"
@@ -144,6 +157,7 @@ export default function Draft() {
           onJumpToBuild={() => setUserMode("building")}
           canBuild={canBuild}
           conspiracyHooks={conspiracyHooks}
+          pickPending={picking}
         />
       )}
 
@@ -162,6 +176,7 @@ export interface DraftingViewProps {
   onJumpToBuild?: () => void;
   canBuild?: boolean;
   conspiracyHooks: ReturnType<typeof useLimitedStore.getState>["conspiracyHooks"];
+  pickPending?: boolean;
 }
 
 export function DraftingView({
@@ -170,11 +185,38 @@ export function DraftingView({
   onJumpToBuild,
   canBuild = false,
   conspiracyHooks,
+  pickPending = false,
 }: DraftingViewProps) {
-  const preview = useCardPreview();
+  const preview = useCardPreview([activeDraft.round, activeDraft.pickNumber]);
+  const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
+  const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem("draft.previewRailCollapsed") === "true",
+  );
+  function togglePreview() {
+    setPreviewCollapsed((v) => {
+      const next = !v;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("draft.previewRailCollapsed", String(next));
+      }
+      return next;
+    });
+  }
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [railFits, setRailFits] = useState(false);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      setRailFits(el.clientWidth >= RAIL_FITS_AT_ROW_WIDTH);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className="grid flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-[1fr_minmax(0,340px)]">
-      <div className="overflow-y-auto rounded-md border border-border/70 p-4">
+    <div ref={rowRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-border/70 p-4">
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Current Pack ({activeDraft.currentPack.length})
         </h2>
@@ -188,7 +230,7 @@ export function DraftingView({
                 card={c}
                 index={i}
                 onClick={() => onPick(c)}
-                disabled={!activeDraft.awaitingHuman}
+                disabled={!activeDraft.awaitingHuman || pickPending}
                 preview={preview}
                 overlay={<RaritySetBadge card={c} />}
               />
@@ -197,8 +239,7 @@ export function DraftingView({
         )}
       </div>
 
-      <aside className="flex min-h-0 flex-col gap-4">
-        <LimitedHoverPreviewPane preview={preview} className="hidden lg:block" />
+      <aside className="flex min-h-0 flex-col gap-4 lg:w-[380px] lg:shrink-0">
         {activeDraft.humanConspiracies && activeDraft.humanConspiracies.length > 0 && (
           <section className="rounded-md border border-purple-500/40 bg-purple-500/10 p-3 text-xs">
             <h2 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-purple-200">
@@ -255,25 +296,24 @@ export function DraftingView({
             )}
           </div>
         </section>
-
-        <section className="shrink-0 rounded-md border border-border/70 p-4">
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Pod
-          </h2>
-          <ul className="space-y-1 text-sm">
-            {activeDraft.seatSummaries.map((s) => (
-              <li key={s.seat} className="flex items-center justify-between">
-                <span className={s.isHuman ? "font-semibold" : ""}>
-                  {s.seat}. {s.name}
-                </span>
-                <span className="text-muted-foreground">
-                  {s.picksMade} pick{s.picksMade === 1 ? "" : "s"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
       </aside>
+
+      {railFits && (
+        <div className="flex min-h-0 overflow-hidden rounded-md">
+          <PreviewRail
+            setSlot={setPreviewSlot}
+            collapsed={previewCollapsed}
+            onCollapse={togglePreview}
+            defaultWidth={RAIL_DEFAULT_WIDTH}
+          />
+        </div>
+      )}
+
+      {railFits ? (
+        <HoverCardPreview preview={preview} slot={previewSlot} pinned imageSize="normal" />
+      ) : (
+        <HoverCardPreview preview={preview} />
+      )}
     </div>
   );
 }

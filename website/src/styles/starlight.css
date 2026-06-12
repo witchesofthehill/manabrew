@@ -1,0 +1,22 @@
+/* Maps the app's default theme preset (injected as --mb-* custom
+   properties by src/components/Head.astro from src/themes/default.ts)
+   onto Starlight's color tokens. The --mb-* values swap with
+   [data-theme], so one mapping covers both modes. */
+:root,
+:root[data-theme="light"] {
+  --sl-font: "Alegreya Sans", system-ui, sans-serif;
+  --sl-color-accent-low: var(--mb-secondary);
+  --sl-color-accent: var(--mb-primary);
+  --sl-color-accent-high: var(--mb-foreground);
+  --sl-color-bg: var(--mb-background);
+  --sl-color-bg-nav: var(--mb-card);
+  --sl-color-bg-sidebar: var(--mb-card);
+  --sl-color-hairline: var(--mb-border);
+  --sl-color-hairline-light: var(--mb-input);
+}
+
+/* Same display face as the landing page headings */
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6),
+h1#_top {
+  font-family: "Cormorant Garamond", georgia, serif;
+}

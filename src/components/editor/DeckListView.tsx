@@ -17,8 +17,6 @@ import {
   X,
   Minus,
   Plus,
-  Download,
-  Upload,
   Tag,
   GripVertical,
   ArrowUpToLine,
@@ -47,7 +45,7 @@ import {
   CardThumbnail,
   CardHoverOverlay,
   CardAnalysisBadges,
-  CollapsibleHeader,
+  SectionHeader,
   EmptyDropZone,
 } from "./deckEditor.primitives";
 import { buildCardActions, handleCardClick } from "./deckEditor.utils";
@@ -55,6 +53,13 @@ import { useIsUnsupported } from "@/stores/useCardSupportStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 
 type CardLocation = "main" | "side" | "maybe";
+
+// Persisted in deck stackPositions — values must stay stable.
+const STACK_SECTION_COMMANDER = "__commander__";
+const STACK_SECTION_SIDEBOARD = "__sideboard__";
+const STACK_SECTION_MAYBEBOARD = "__maybeboard__";
+const STACK_SECTION_TAG_PREFIX = "__tag__";
+const STACK_SECTION_SPECIAL_PREFIX = "__special__";
 
 interface CardContextActions {
   onAddOne?: () => void;
@@ -70,6 +75,13 @@ interface CardContextActions {
   onPickPrint?: () => void;
   onToggleFoil?: () => void;
   isFoil?: boolean;
+  isCommander?: boolean;
+  onSetCommander?: () => void;
+  onRemoveCommander?: () => void;
+  isCover?: boolean;
+  onSetCover?: () => void;
+  isCoverBack?: boolean;
+  onSetCoverBack?: () => void;
   customTags?: string[];
   appliedTags?: string[];
   onApplyTag?: (tag: string) => void;
@@ -227,6 +239,13 @@ function CardContextMenu({
   onPickPrint,
   onToggleFoil,
   isFoil,
+  isCommander,
+  onSetCommander,
+  onRemoveCommander,
+  isCover,
+  onSetCover,
+  isCoverBack,
+  onSetCoverBack,
   customTags,
   appliedTags,
   onApplyTag,
@@ -234,6 +253,7 @@ function CardContextMenu({
   onCreateTag,
 }: CardContextMenuProps) {
   const showTagSubmenu = !!onApplyTag && ((customTags && customTags.length > 0) || !!onCreateTag);
+  const commanderHandler = isCommander ? onRemoveCommander : onSetCommander;
   const showAll = count > 1;
   const hasMoveActions =
     (location !== "main" && (onMoveOneToMain || onMoveAllToMain)) ||
@@ -293,6 +313,29 @@ function CardContextMenu({
             onMoveOne={onMoveOneToMaybe}
             onMoveAll={onMoveAllToMaybe}
           />
+        )}
+        {(commanderHandler || onSetCover || onSetCoverBack) && <ContextMenuSeparator />}
+        {commanderHandler && (
+          <ContextMenuItem onSelect={commanderHandler}>
+            <GameIcon name="overlord-helm" className="mr-2 h-3.5 w-3.5" />
+            {isCommander ? "Remove commander" : "Set as commander"}
+          </ContextMenuItem>
+        )}
+        {onSetCover && (
+          <ContextMenuItem onSelect={onSetCover}>
+            <GameIcon name="book-cover" className="mr-2 h-3.5 w-3.5" />
+            {isCover ? "Remove deck cover" : "Set as deck cover"}
+          </ContextMenuItem>
+        )}
+        {onSetCoverBack && (
+          <ContextMenuItem onSelect={onSetCoverBack}>
+            <GameIcon
+              name="book-cover"
+              className="mr-2 h-3.5 w-3.5"
+              style={{ transform: "scaleX(-1)" }}
+            />
+            {isCoverBack ? "Remove back face cover" : "Set back face as cover"}
+          </ContextMenuItem>
         )}
         {showTagSubmenu && (
           <>
@@ -415,6 +458,37 @@ function DraggableStackCard({
 
 interface DragHandleProps {
   onMouseDown: (e: React.MouseEvent) => void;
+}
+
+// ─── Empty Stack Board Placeholder ───────────────────────────────────────────
+
+function EmptyStackBoard({
+  label,
+  cardWidth,
+  dragHandleProps,
+}: {
+  label: string;
+  cardWidth: number;
+  dragHandleProps: DragHandleProps;
+}) {
+  return (
+    <div className="flex flex-col" style={{ width: cardWidth }}>
+      <div className="flex items-center gap-1 mb-2">
+        <div
+          className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+          onMouseDown={dragHandleProps.onMouseDown}
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {label}
+        </span>
+      </div>
+      <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
+        <p className="text-[10px] text-muted-foreground/40">Drop here</p>
+      </div>
+    </div>
+  );
 }
 
 // ─── Stack Column Component ───────────────────────────────────────────────────
@@ -708,43 +782,18 @@ function DraggableMiniRow({
 interface CardRowProps {
   group: CardGroup;
   dragId: string;
-  isCommander: boolean;
-  showCommander: boolean;
-  onAddOne: () => void;
-  onRemoveOne: () => void;
-  onRemoveAll: () => void;
-  onSetCommander: () => void;
-  onRemoveCommander: () => void;
-  onMoveOneToSide: () => void;
-  onPickPrint: () => void;
   isSelected?: boolean;
   onSelect?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: () => void;
-  isCover?: boolean;
-  isCoverBack?: boolean;
-  onSetCover?: () => void;
-  onSetCoverBack?: () => void;
   contextActions?: CardContextActions;
 }
 
 function CardRow({
   group,
   dragId,
-  isCommander,
-  showCommander,
-  onAddOne,
-  onRemoveOne,
-  onRemoveAll,
-  onSetCommander,
-  onRemoveCommander,
-  onMoveOneToSide,
   isSelected,
   onSelect,
   onShowInfo,
-  isCover,
-  isCoverBack,
-  onSetCover,
-  onSetCoverBack,
   contextActions,
 }: CardRowProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -825,113 +874,6 @@ function CardRow({
           {group.card.power}/{group.card.toughness}
         </span>
       )}
-      <div className="flex gap-0.5 shrink-0">
-        {showCommander && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className={
-              isCommander
-                ? "h-5 w-5 text-commander"
-                : "h-5 w-5 text-muted-foreground/40 hover:text-commander transition-colors"
-            }
-            title={isCommander ? "Remove commander" : "Set as commander"}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isCommander) onRemoveCommander();
-              else onSetCommander();
-            }}
-          >
-            <GameIcon name="overlord-helm" className="h-3 w-3" />
-          </Button>
-        )}
-        {onSetCover && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className={
-              isCover
-                ? "h-5 w-5 text-primary"
-                : "h-5 w-5 text-muted-foreground/40 hover:text-primary transition-colors"
-            }
-            title={isCover ? "Remove as deck art cover" : "Set as deck art cover"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetCover();
-            }}
-          >
-            <GameIcon name="book-cover" className="h-3 w-3" />
-          </Button>
-        )}
-        {onSetCoverBack && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className={
-              isCoverBack
-                ? "h-5 w-5 text-primary"
-                : "h-5 w-5 text-muted-foreground/40 hover:text-primary transition-colors"
-            }
-            title={
-              isCoverBack ? "Remove back face as deck art cover" : "Set back face as deck art cover"
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetCoverBack();
-            }}
-          >
-            <GameIcon name="book-cover" className="h-3 w-3" style={{ transform: "scaleX(-1)" }} />
-          </Button>
-        )}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5"
-          title="Add one"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddOne();
-          }}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5"
-          title="Remove one"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemoveOne();
-          }}
-        >
-          <Minus className="h-3 w-3" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5 text-muted-foreground"
-          title="Move 1 to sideboard"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveOneToSide();
-          }}
-        >
-          <Download className="h-3 w-3" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-5 w-5 text-destructive"
-          title="Remove all"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemoveAll();
-          }}
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      </div>
     </div>
   );
 
@@ -1017,7 +959,6 @@ function CardSection({
   onCreateAndApplyTag,
   onRemoveCustomTag,
 }: CardSectionProps) {
-  const [collapsed, setCollapsed] = useState(false);
   const isTagSection = !!tag;
   const { setNodeRef, isOver } = useDroppable({
     id: isTagSection ? `${DROP_ZONE.TAG_PREFIX}${tag}` : `section-${sectionId}`,
@@ -1051,113 +992,24 @@ function CardSection({
         isOver && "bg-primary/10",
       )}
     >
-      <CollapsibleHeader
-        label={label}
-        count={count}
-        collapsed={collapsed}
-        onToggle={() => setCollapsed((v) => !v)}
-        extraContent={headerExtra}
-      />
+      <SectionHeader label={label} count={count} extraContent={headerExtra} />
 
-      {!collapsed &&
-        (groups.length === 0 ? (
-          <EmptyDropZone message="Drag cards here" />
-        ) : viewMode === "list" ? (
-          <div className="space-y-0.5">
-            {groups.map((g) => (
-              <div
-                key={g.card.name}
-                className={cn("flex items-center gap-1", isTagSection && "group/tag")}
-              >
-                <div className="flex-1 min-w-0">
-                  <CardRow
-                    group={g}
-                    dragId={`${dragPrefix}-${g.card.name}`}
-                    isCommander={commanderNames?.has(g.card.name) ?? false}
-                    showCommander={deckFormat === "commander"}
-                    onAddOne={() => onAddOne(g)}
-                    onRemoveOne={() => effectiveRemoveOne(g.card.name)}
-                    onRemoveAll={() => onRemoveAll(g.card.name)}
-                    onSetCommander={() => onSetCommander(g.card)}
-                    onRemoveCommander={onRemoveCommander}
-                    onMoveOneToSide={() => onMoveOneToSide(g.card.name)}
-                    onPickPrint={() => onPickPrint(g.card.name)}
-                    isSelected={selectedCards?.has(g.card.name.toLowerCase())}
-                    onSelect={onSelectCard}
-                    onShowInfo={onShowInfo ? () => onShowInfo(g.card.name) : undefined}
-                    isCover={coverCardName === g.card.name && (coverCardFace ?? 0) === 0}
-                    isCoverBack={coverCardName === g.card.name && coverCardFace === 1}
-                    onSetCover={onSetCover ? () => onSetCover(g.card) : undefined}
-                    onSetCoverBack={
-                      g.card.isDoubleFaced && onSetCoverBack
-                        ? () => onSetCoverBack(g.card)
-                        : undefined
-                    }
-                    contextActions={{
-                      onAddOne: () => onAddOne(g),
-                      onRemoveOne: () => effectiveRemoveOne(g.card.name),
-                      onRemoveAll: () => onRemoveAll(g.card.name),
-                      onMoveOneToSide: () => onMoveOneToSide(g.card.name),
-                      onMoveAllToSide: () => onMoveAllToSide(g.card.name),
-                      onMoveOneToMaybe: () => onMoveOneToMaybe(g.card.name),
-                      onMoveAllToMaybe: () => onMoveAllToMaybe(g.card.name),
-                      onShowInfo: onShowInfo ? () => onShowInfo(g.card.name) : undefined,
-                      onPickPrint: () => onPickPrint(g.card.name),
-                      onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.name) : undefined,
-                      isFoil: !!g.card.foil,
-                      customTags,
-                      appliedTags: cardTagsByName?.[g.card.name.toLowerCase()],
-                      onApplyTag: onApplyCardTag
-                        ? (t) => onApplyCardTag(g.card.name, t)
-                        : undefined,
-                      onRemoveCustomTag,
-                      onCreateTag: onCreateAndApplyTag
-                        ? (t) => onCreateAndApplyTag(g.card.name, t)
-                        : undefined,
-                    }}
-                  />
-                </div>
-                {isTagSection && onUntagCard && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 transition-opacity shrink-0"
-                    title="Remove from this tag"
-                    onClick={() => onUntagCard(g.card.name)}
-                  >
-                    <Tag className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {groups.map((g) => (
-              <div key={g.card.name} className="shrink-0" style={{ width: cardWidth }}>
-                <CardVisual
+      {groups.length === 0 ? (
+        <EmptyDropZone message="Drag cards here" />
+      ) : viewMode === "list" ? (
+        <div className="space-y-0.5">
+          {groups.map((g) => (
+            <div
+              key={g.card.name}
+              className={cn("flex items-center gap-1", isTagSection && "group/tag")}
+            >
+              <div className="flex-1 min-w-0">
+                <CardRow
                   group={g}
                   dragId={`${dragPrefix}-${g.card.name}`}
-                  onAddOne={() => onAddOne(g)}
-                  onRemoveOne={() => effectiveRemoveOne(g.card.name)}
-                  onUntag={isTagSection && onUntagCard ? () => onUntagCard(g.card.name) : undefined}
-                  onPickPrint={() => onPickPrint(g.card.name)}
                   isSelected={selectedCards?.has(g.card.name.toLowerCase())}
                   onSelect={onSelectCard}
                   onShowInfo={onShowInfo ? () => onShowInfo(g.card.name) : undefined}
-                  isCommander={commanderNames?.has(g.card.name) ?? false}
-                  showCommander={deckFormat === "commander"}
-                  onSetCommander={() => onSetCommander(g.card)}
-                  onRemoveCommander={onRemoveCommander}
-                  isCover={coverCardName === g.card.name && (coverCardFace ?? 0) === 0}
-                  isCoverBack={coverCardName === g.card.name && coverCardFace === 1}
-                  onSetCover={onSetCover ? () => onSetCover(g.card) : undefined}
-                  onSetCoverBack={
-                    g.card.isDoubleFaced && onSetCoverBack
-                      ? () => onSetCoverBack(g.card)
-                      : undefined
-                  }
-                  contextLocation="main"
                   contextActions={{
                     onAddOne: () => onAddOne(g),
                     onRemoveOne: () => effectiveRemoveOne(g.card.name),
@@ -1170,6 +1022,18 @@ function CardSection({
                     onPickPrint: () => onPickPrint(g.card.name),
                     onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.name) : undefined,
                     isFoil: !!g.card.foil,
+                    isCommander: commanderNames?.has(g.card.name) ?? false,
+                    onSetCommander:
+                      deckFormat === "commander" ? () => onSetCommander(g.card) : undefined,
+                    onRemoveCommander:
+                      deckFormat === "commander" ? () => onRemoveCommander(g.card) : undefined,
+                    isCover: coverCardName === g.card.name && (coverCardFace ?? 0) === 0,
+                    onSetCover: onSetCover ? () => onSetCover(g.card) : undefined,
+                    isCoverBack: coverCardName === g.card.name && coverCardFace === 1,
+                    onSetCoverBack:
+                      g.card.isDoubleFaced && onSetCoverBack
+                        ? () => onSetCoverBack(g.card)
+                        : undefined,
                     customTags,
                     appliedTags: cardTagsByName?.[g.card.name.toLowerCase()],
                     onApplyTag: onApplyCardTag ? (t) => onApplyCardTag(g.card.name, t) : undefined,
@@ -1180,9 +1044,70 @@ function CardSection({
                   }}
                 />
               </div>
-            ))}
-          </div>
-        ))}
+              {isTagSection && onUntagCard && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-5 w-5 text-muted-foreground/40 opacity-0 group-hover/tag:opacity-100 transition-opacity shrink-0"
+                  title="Remove from this tag"
+                  onClick={() => onUntagCard(g.card.name)}
+                >
+                  <Tag className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {groups.map((g) => (
+            <div key={g.card.name} className="shrink-0" style={{ width: cardWidth }}>
+              <CardVisual
+                group={g}
+                dragId={`${dragPrefix}-${g.card.name}`}
+                onAddOne={() => onAddOne(g)}
+                onRemoveOne={() => effectiveRemoveOne(g.card.name)}
+                onUntag={isTagSection && onUntagCard ? () => onUntagCard(g.card.name) : undefined}
+                onPickPrint={() => onPickPrint(g.card.name)}
+                isSelected={selectedCards?.has(g.card.name.toLowerCase())}
+                onSelect={onSelectCard}
+                onShowInfo={onShowInfo ? () => onShowInfo(g.card.name) : undefined}
+                isCommander={commanderNames?.has(g.card.name) ?? false}
+                showCommander={deckFormat === "commander"}
+                onSetCommander={() => onSetCommander(g.card)}
+                onRemoveCommander={onRemoveCommander}
+                isCover={coverCardName === g.card.name && (coverCardFace ?? 0) === 0}
+                isCoverBack={coverCardName === g.card.name && coverCardFace === 1}
+                onSetCover={onSetCover ? () => onSetCover(g.card) : undefined}
+                onSetCoverBack={
+                  g.card.isDoubleFaced && onSetCoverBack ? () => onSetCoverBack(g.card) : undefined
+                }
+                contextLocation="main"
+                contextActions={{
+                  onAddOne: () => onAddOne(g),
+                  onRemoveOne: () => effectiveRemoveOne(g.card.name),
+                  onRemoveAll: () => onRemoveAll(g.card.name),
+                  onMoveOneToSide: () => onMoveOneToSide(g.card.name),
+                  onMoveAllToSide: () => onMoveAllToSide(g.card.name),
+                  onMoveOneToMaybe: () => onMoveOneToMaybe(g.card.name),
+                  onMoveAllToMaybe: () => onMoveAllToMaybe(g.card.name),
+                  onShowInfo: onShowInfo ? () => onShowInfo(g.card.name) : undefined,
+                  onPickPrint: () => onPickPrint(g.card.name),
+                  onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.name) : undefined,
+                  isFoil: !!g.card.foil,
+                  customTags,
+                  appliedTags: cardTagsByName?.[g.card.name.toLowerCase()],
+                  onApplyTag: onApplyCardTag ? (t) => onApplyCardTag(g.card.name, t) : undefined,
+                  onRemoveCustomTag,
+                  onCreateTag: onCreateAndApplyTag
+                    ? (t) => onCreateAndApplyTag(g.card.name, t)
+                    : undefined,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1445,24 +1370,32 @@ export function DeckListView({
 
   const COLUMN_MIN_PX = 18 * 16;
   const COLUMNS_PADDING_PX = 24;
-  const [listColumnCount, setListColumnCount] = useState(1);
-  const computeColumnCount = useCallback(() => {
+  const GAP = 20;
+  const [containerWidth, setContainerWidth] = useState(0);
+  const measureContainer = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    const w = el.clientWidth - COLUMNS_PADDING_PX;
-    const n = Math.max(1, Math.floor(w / COLUMN_MIN_PX));
-    setListColumnCount((prev) => (prev === n ? prev : n));
-  }, [COLUMN_MIN_PX, COLUMNS_PADDING_PX]);
+    const w = el.clientWidth;
+    setContainerWidth((prev) => (prev === w ? prev : w));
+  }, []);
   useLayoutEffect(() => {
-    computeColumnCount();
+    measureContainer();
   });
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(computeColumnCount);
+    const ro = new ResizeObserver(measureContainer);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [computeColumnCount]);
+  }, [measureContainer]);
+  const listColumnCount = Math.max(
+    1,
+    Math.floor((containerWidth - COLUMNS_PADDING_PX) / COLUMN_MIN_PX),
+  );
+  const stackColumnCount = Math.max(
+    1,
+    Math.floor((containerWidth - COLUMNS_PADDING_PX + GAP) / (cardWidth + GAP)),
+  );
 
   const handleMarqueeComplete = useCallback(
     (rect: { left: number; top: number; width: number; height: number }, additive: boolean) => {
@@ -1580,163 +1513,105 @@ export function DeckListView({
   // Build natural section IDs
   const naturalSectionIds = useMemo(() => {
     const ids: string[] = [];
-    if (commanders.length > 0) ids.push("__commander__");
+    if (commanders.length > 0) ids.push(STACK_SECTION_COMMANDER);
     for (const col of stackColumns) ids.push(col.id);
     if (customTags && allMainCards) {
-      for (const tag of customTags) ids.push(`__tag__${tag}`);
+      for (const tag of customTags) ids.push(`${STACK_SECTION_TAG_PREFIX}${tag}`);
     }
-    ids.push("__sideboard__");
-    ids.push("__maybeboard__");
-    for (const s of specialSections) ids.push(`__special__${s.id}`);
+    ids.push(STACK_SECTION_SIDEBOARD);
+    ids.push(STACK_SECTION_MAYBEBOARD);
+    for (const s of specialSections) ids.push(`${STACK_SECTION_SPECIAL_PREFIX}${s.id}`);
     return ids;
   }, [commanders.length, stackColumns, customTags, allMainCards, specialSections]);
 
-  // ─── Free-position layout: each section has an {x, y} pixel position ────────
-  // Snapped to an invisible grid for alignment. Rendered with absolute positioning.
-  const GAP = 20;
-  const SNAP_W = cardWidth + GAP; // horizontal snap unit
-  const SNAP_H = 40; // vertical snap unit (fine-grained)
+  // ─── Order-based layout: sections flow into CSS columns; drag reorders. ─────
+  // Persisted through stackPositions as {x: index, y: 0}; legacy free-position
+  // saves migrate by sorting (y, x).
+  const orderRef = useRef<string[]>([]);
+  const [orderVersion, setOrderVersion] = useState(0);
 
-  const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-  const [posVersion, setPosVersion] = useState(0);
-
-  const prevCardWidthRef = useRef(cardWidth);
-  if (prevCardWidthRef.current !== cardWidth) {
-    const oldSnap = prevCardWidthRef.current + GAP;
-    const newSnap = cardWidth + GAP;
-    if (positionsRef.current.size > 0 && oldSnap > 0) {
-      for (const [id, pos] of positionsRef.current) {
-        const col = Math.round(pos.x / oldSnap);
-        positionsRef.current.set(id, { x: col * newSnap, y: pos.y });
-      }
-      setPosVersion((v) => v + 1);
-    }
-    prevCardWidthRef.current = cardWidth;
-  }
-
-  // Sync positions when natural IDs change.
   const prevNaturalRef = useRef<string[]>([]);
   const naturalKey = naturalSectionIds.join(",");
   if (naturalKey !== prevNaturalRef.current.join(",")) {
     prevNaturalRef.current = naturalSectionIds;
-    const positions = positionsRef.current;
-
-    // On first load, seed from saved positions if available.
-    if (positions.size === 0 && savedStackPositions) {
-      for (const [id, pos] of Object.entries(savedStackPositions)) {
-        if (naturalSectionIds.includes(id)) {
-          positions.set(id, { ...pos });
-        }
-      }
+    let order = orderRef.current;
+    if (order.length === 0 && savedStackPositions) {
+      order = Object.entries(savedStackPositions)
+        .filter(([id]) => naturalSectionIds.includes(id))
+        .sort(([, a], [, b]) => a.y - b.y || a.x - b.x)
+        .map(([id]) => id);
     }
-
-    // Remove stale.
-    for (const id of positions.keys()) {
-      if (!naturalSectionIds.includes(id)) positions.delete(id);
-    }
-    // Place new sections in a row at y=0.
-    let nextX = 0;
-    for (const pos of positions.values()) {
-      nextX = Math.max(nextX, pos.x + SNAP_W);
-    }
+    order = order.filter((id) => naturalSectionIds.includes(id));
     for (const id of naturalSectionIds) {
-      if (!positions.has(id)) {
-        positions.set(id, { x: nextX, y: 0 });
-        nextX += SNAP_W;
-      }
+      if (!order.includes(id)) order.push(id);
     }
-    // First load with no saved positions: lay out all in a single row.
-    if (
-      !savedStackPositions &&
-      positions.size === naturalSectionIds.length &&
-      ![...positions.values()].some((p) => p.y > 0)
-    ) {
-      naturalSectionIds.forEach((id, i) => positions.set(id, { x: i * SNAP_W, y: 0 }));
-    }
-    setPosVersion((v) => v + 1);
+    orderRef.current = order;
+    setOrderVersion((v) => v + 1);
   }
 
-  // Track section DOM elements and heights via refs (not state) to avoid
-  // re-render loops with the ResizeObserver.
-  const sectionElRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const stackContainerRef = useRef<HTMLDivElement>(null);
+  const orderedSectionIds = useMemo(
+    () => [...orderRef.current],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderVersion],
+  );
 
   // Drag state
   const [dragSection, setDragSection] = useState<string | null>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
-  const [dropSnap, setDropSnap] = useState<{ x: number; y: number } | null>(null);
-  const dropSnapRef = useRef<{ x: number; y: number } | null>(null);
-  const [justSnapped, setJustSnapped] = useState(false);
-
-  const snapToGrid = useCallback(
-    (px: number, py: number) => ({
-      x: Math.max(0, Math.round(px / SNAP_W) * SNAP_W),
-      y: Math.max(0, Math.round(py / SNAP_H) * SNAP_H),
-    }),
-    [SNAP_W],
-  );
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const dropTargetRef = useRef<string | null>(null);
 
   const handleGripPointerDown = useCallback(
     (sectionId: string, e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const container = stackContainerRef.current;
-      if (!container) return;
 
       setDragSection(sectionId);
       setDragPos({ x: e.clientX, y: e.clientY });
-      setJustSnapped(false);
 
       const handleMouseMove = (ev: MouseEvent) => {
         ev.preventDefault();
         setDragPos({ x: ev.clientX, y: ev.clientY });
-
-        const cRect = container.getBoundingClientRect();
-        const relX = ev.clientX - cRect.left + container.scrollLeft - 12; // padding offset
-        const relY = ev.clientY - cRect.top + container.scrollTop - 12;
-        const snapped = snapToGrid(relX, relY);
-        dropSnapRef.current = snapped;
-        setDropSnap(snapped);
+        const el = document
+          .elementFromPoint(ev.clientX, ev.clientY)
+          ?.closest("[data-stack-id]") as HTMLElement | null;
+        const target = el?.getAttribute("data-stack-id") ?? null;
+        const next = target !== sectionId ? target : null;
+        dropTargetRef.current = next;
+        setDropTarget(next);
       };
 
       const handleMouseUp = () => {
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
 
-        const snap = dropSnapRef.current;
-        if (snap) {
-          const positions = positionsRef.current;
-          // If another section occupies the snap position, swap with the dragged one.
-          const srcPos = positions.get(sectionId);
-          for (const [id, pos] of positions) {
-            if (id !== sectionId && pos.x === snap.x && pos.y === snap.y && srcPos) {
-              positions.set(id, { ...srcPos });
-              break;
-            }
-          }
-          positions.set(sectionId, { x: snap.x, y: snap.y });
-          setPosVersion((v) => v + 1);
-          setJustSnapped(true);
-          setTimeout(() => setJustSnapped(false), 300);
-
-          // Persist to deck store.
-          if (onStackPositionsChange) {
-            const record: Record<string, { x: number; y: number }> = {};
-            for (const [id, pos] of positions) record[id] = pos;
-            onStackPositionsChange(record);
+        const target = dropTargetRef.current;
+        if (target && target !== sectionId) {
+          const current = orderRef.current;
+          const fromIdx = current.indexOf(sectionId);
+          const toIdx = current.indexOf(target);
+          if (fromIdx !== -1 && toIdx !== -1) {
+            const order = current.filter((id) => id !== sectionId);
+            const insertAt = order.indexOf(target) + (fromIdx < toIdx ? 1 : 0);
+            order.splice(insertAt, 0, sectionId);
+            orderRef.current = order;
+            setOrderVersion((v) => v + 1);
+            onStackPositionsChange?.(
+              Object.fromEntries(order.map((id, i) => [id, { x: i, y: 0 }])),
+            );
           }
         }
 
         setDragSection(null);
-        dropSnapRef.current = null;
-        setDropSnap(null);
+        dropTargetRef.current = null;
+        setDropTarget(null);
         setDragPos(null);
       };
 
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [snapToGrid, onStackPositionsChange],
+    [onStackPositionsChange],
   );
 
   const makeDragHandleProps = useCallback(
@@ -1748,25 +1623,19 @@ export function DeckListView({
 
   // ─── Render a single stack section by ID ──────────────────────────────────
 
-  function renderStackSection(
-    id: string,
-    refCallback: (el: HTMLElement | null) => void,
-    posStyle?: React.CSSProperties,
-  ) {
+  function renderStackSection(id: string) {
     const dhProps = makeDragHandleProps(id);
     const isDragging = dragSection === id;
 
     const wrapperClass = cn(
-      "transition-all duration-200 ease-out",
+      "break-inside-avoid mb-5 transition-all duration-200 ease-out",
       isDragging && "opacity-30 scale-95 ring-2 ring-selection/50 rounded-lg",
-      justSnapped &&
-        !isDragging &&
-        "transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+      dropTarget === id && !isDragging && "ring-2 ring-selection rounded-lg",
     );
 
-    if (id === "__commander__") {
+    if (id === STACK_SECTION_COMMANDER) {
       return (
-        <div key={id} ref={refCallback} className={wrapperClass} style={posStyle}>
+        <div key={id} data-stack-id={id} className={wrapperClass}>
           <StackColumn
             label="Commander"
             sectionId="commander"
@@ -1783,20 +1652,19 @@ export function DeckListView({
       );
     }
 
-    if (id === "__sideboard__") {
+    if (id === STACK_SECTION_SIDEBOARD) {
       return (
         <div
           key={id}
+          data-stack-id={id}
           ref={(el) => {
-            refCallback(el);
             if (el) setSideDropRef(el);
           }}
           className={cn(
             wrapperClass,
-            "shrink-0 rounded-lg transition-colors p-2 -m-1 min-h-[100px]",
+            "rounded-lg transition-colors p-2 -m-1 min-h-[100px]",
             isOverSide && "bg-primary/10 border-2 border-dashed border-primary/40",
           )}
-          style={{ minWidth: cardWidth + 8, ...posStyle }}
         >
           {sideboardGroups.length > 0 ? (
             <StackColumn
@@ -1809,41 +1677,25 @@ export function DeckListView({
               dragHandleProps={dhProps}
             />
           ) : (
-            <div className="flex flex-col" style={{ width: cardWidth }}>
-              <div className="flex items-center gap-1 mb-2">
-                <div
-                  className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors "
-                  onMouseDown={dhProps.onMouseDown}
-                >
-                  <GripVertical className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sideboard
-                </span>
-              </div>
-              <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-                <p className="text-[10px] text-muted-foreground/40">Drop here</p>
-              </div>
-            </div>
+            <EmptyStackBoard label="Sideboard" cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
         </div>
       );
     }
 
-    if (id === "__maybeboard__") {
+    if (id === STACK_SECTION_MAYBEBOARD) {
       return (
         <div
           key={id}
+          data-stack-id={id}
           ref={(el) => {
-            refCallback(el);
             if (el) setMaybeDropRef(el);
           }}
           className={cn(
             wrapperClass,
-            "shrink-0 rounded-lg transition-colors p-2 -m-1 min-h-[100px]",
+            "rounded-lg transition-colors p-2 -m-1 min-h-[100px]",
             isOverMaybe && "bg-primary/10 border-2 border-dashed border-primary/40",
           )}
-          style={{ minWidth: cardWidth + 8, ...posStyle }}
         >
           {maybeboardGroups.length > 0 ? (
             <StackColumn
@@ -1856,32 +1708,17 @@ export function DeckListView({
               dragHandleProps={dhProps}
             />
           ) : (
-            <div className="flex flex-col" style={{ width: cardWidth }}>
-              <div className="flex items-center gap-1 mb-2">
-                <div
-                  className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors "
-                  onMouseDown={dhProps.onMouseDown}
-                >
-                  <GripVertical className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Maybeboard
-                </span>
-              </div>
-              <div className="border-2 border-dashed border-border/40 rounded-lg py-4 flex items-center justify-center">
-                <p className="text-[10px] text-muted-foreground/40">Drop here</p>
-              </div>
-            </div>
+            <EmptyStackBoard label="Maybeboard" cardWidth={cardWidth} dragHandleProps={dhProps} />
           )}
         </div>
       );
     }
 
-    if (id.startsWith("__tag__")) {
-      const tag = id.slice("__tag__".length);
+    if (id.startsWith(STACK_SECTION_TAG_PREFIX)) {
+      const tag = id.slice(STACK_SECTION_TAG_PREFIX.length);
       const tagGroups = allMainCards ? getTaggedGroups(tag, allMainCards, cardTags) : [];
       return (
-        <div key={id} ref={refCallback} className={wrapperClass} style={posStyle}>
+        <div key={id} data-stack-id={id} className={wrapperClass}>
           <DroppableStackTag
             tag={tag}
             groups={tagGroups}
@@ -1898,12 +1735,12 @@ export function DeckListView({
       );
     }
 
-    if (id.startsWith("__special__")) {
-      const specialId = id.slice("__special__".length);
+    if (id.startsWith(STACK_SECTION_SPECIAL_PREFIX)) {
+      const specialId = id.slice(STACK_SECTION_SPECIAL_PREFIX.length);
       const section = specialSections.find((s) => s.id === specialId);
       if (!section) return null;
       return (
-        <div key={id} ref={refCallback} className={wrapperClass} style={posStyle}>
+        <div key={id} data-stack-id={id} className={wrapperClass}>
           <StackColumn
             label={section.label}
             sectionId={section.id}
@@ -1921,7 +1758,7 @@ export function DeckListView({
     const col = stackColumns.find((c) => c.id === id);
     if (!col) return null;
     return (
-      <div key={id} ref={refCallback} className={wrapperClass} style={posStyle}>
+      <div key={id} data-stack-id={id} className={wrapperClass}>
         <StackColumn
           label={col.label}
           sectionId={col.id}
@@ -1938,105 +1775,42 @@ export function DeckListView({
     );
   }
 
-  // Compute total size needed for the absolute container.
-  const containerSize = useMemo(() => {
-    let maxX = 0,
-      maxY = 0;
-    for (const pos of positionsRef.current.values()) {
-      maxX = Math.max(maxX, pos.x + SNAP_W);
-    }
-    // Estimate max Y from positions + a generous section height.
-    for (const [id, pos] of positionsRef.current) {
-      const el = sectionElRefs.current.get(id);
-      const h = el ? el.offsetHeight : 300;
-      maxY = Math.max(maxY, pos.y + h + GAP);
-    }
-    return { width: maxX + GAP, height: maxY + GAP };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posVersion, SNAP_W]);
-
   if (viewMode === "stack") {
-    const positions = positionsRef.current;
-    const allPlacements = naturalSectionIds.filter((id) => positions.has(id));
-
     return (
-      <div
-        ref={(el) => {
-          containerRef.current = el;
-          stackContainerRef.current = el;
-        }}
-        className={cn(
-          "h-full overflow-auto relative",
-          dragSection && "cursor-grabbing select-none",
-        )}
-        onMouseDown={wrappedHandleMouseDown}
-        onPointerOver={handleContainerPointerOver}
-        onPointerOut={handleContainerPointerOut}
-      >
+      <div className="relative">
         {selectionBadge}
+        {marqueeOverlay}
         <div
-          className="relative p-3"
-          style={{ minWidth: containerSize.width, minHeight: containerSize.height }}
+          ref={containerRef}
+          className={cn("px-4 py-3 relative", dragSection && "cursor-grabbing select-none")}
+          onMouseDown={wrappedHandleMouseDown}
+          onPointerOver={handleContainerPointerOver}
+          onPointerOut={handleContainerPointerOut}
         >
-          {allPlacements.map((id) => {
-            const pos = positions.get(id)!;
-            return renderStackSection(
-              id,
-              (el) => {
-                if (el) sectionElRefs.current.set(id, el);
-                else sectionElRefs.current.delete(id);
-              },
-              {
-                position: "absolute",
-                left: pos.x,
-                top: pos.y,
-                width: cardWidth,
-                transition:
-                  justSnapped && dragSection !== id
-                    ? "all 300ms cubic-bezier(0.34,1.56,0.64,1)"
-                    : undefined,
-              },
-            );
-          })}
+          <div style={{ columnCount: stackColumnCount, columnGap: GAP }}>
+            {orderedSectionIds.map((id) => renderStackSection(id))}
+          </div>
 
-          {/* Drop indicator — ghost outline at snap position */}
-          {dropSnap && dragSection && (
+          {/* Drag ghost following cursor */}
+          {dragSection && dragPos && (
             <div
-              className="absolute z-[100] pointer-events-none rounded-lg border-2 border-dashed border-selection"
+              className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-xs font-semibold"
               style={{
-                left: dropSnap.x,
-                top: dropSnap.y,
-                width: cardWidth,
-                height: sectionElRefs.current.get(dragSection)?.offsetHeight ?? 100,
-                transition: "left 150ms ease-out, top 150ms ease-out",
-                boxShadow:
-                  "0 0 14px color-mix(in srgb, var(--selection) 50%, transparent), inset 0 0 14px color-mix(in srgb, var(--selection) 10%, transparent)",
+                left: dragPos.x + 12,
+                top: dragPos.y - 8,
+                boxShadow: "0 4px 16px color-mix(in srgb, var(--selection) 40%, transparent)",
               }}
-            />
+            >
+              Moving…
+            </div>
           )}
         </div>
-
-        {/* Drag ghost following cursor */}
-        {dragSection && dragPos && (
-          <div
-            className="fixed z-[200] pointer-events-none bg-selection text-selection-foreground rounded-md px-2.5 py-1 text-xs font-semibold"
-            style={{
-              left: dragPos.x + 12,
-              top: dragPos.y - 8,
-              boxShadow: "0 4px 16px color-mix(in srgb, var(--selection) 40%, transparent)",
-            }}
-          >
-            Moving…
-          </div>
-        )}
-
-        {marqueeOverlay}
       </div>
     );
   }
 
   return (
-    <div className="h-full relative">
+    <div className="relative">
       {selectionBadge}
       {marqueeRect && (
         <div
@@ -2051,7 +1825,7 @@ export function DeckListView({
       )}
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto overflow-x-hidden px-3 py-2 relative"
+        className="px-4 py-3 relative"
         onMouseDown={wrappedHandleMouseDown}
         onPointerOver={handleContainerPointerOver}
         onPointerOut={handleContainerPointerOut}
@@ -2075,9 +1849,18 @@ export function DeckListView({
                     onPickPrint={() => onPickPrint(cmd.name)}
                     onToggleFoil={onToggleFoil ? () => onToggleFoil(cmd.name) : undefined}
                     isFoil={!!cmd.foil}
+                    isCommander
+                    onRemoveCommander={() => onRemoveCommander(cmd)}
+                    isCover={coverCardName === cmd.name && (coverCardFace ?? 0) === 0}
+                    onSetCover={onSetCover ? () => onSetCover(cmd) : undefined}
+                    isCoverBack={coverCardName === cmd.name && coverCardFace === 1}
+                    onSetCoverBack={
+                      cmd.isDoubleFaced && onSetCoverBack ? () => onSetCoverBack(cmd) : undefined
+                    }
                   >
                     <div
                       className="flex items-center gap-1 group hover:bg-muted/40 rounded px-1 py-0.5 cursor-pointer"
+                      data-card-name={cmd.name}
                       onClick={() => onShowInfo?.(cmd.name)}
                     >
                       <GameIcon name="overlord-helm" className="h-3 w-3 text-commander shrink-0" />
@@ -2085,65 +1868,6 @@ export function DeckListView({
                       {cmd.manaCost && (
                         <ManaSymbols cost={cmd.manaCost} size="sm" className="shrink-0" />
                       )}
-                      {onSetCover && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={
-                            coverCardName === cmd.name
-                              ? "h-5 w-5 text-primary"
-                              : "h-5 w-5 text-muted-foreground/40 hover:text-primary transition-colors"
-                          }
-                          title={
-                            coverCardName === cmd.name
-                              ? "Remove as deck art cover"
-                              : "Set as deck art cover"
-                          }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSetCover(cmd);
-                          }}
-                        >
-                          <GameIcon name="book-cover" className="h-3 w-3" />
-                        </Button>
-                      )}
-                      {cmd.isDoubleFaced && onSetCoverBack && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={
-                            coverCardName === cmd.name && coverCardFace === 1
-                              ? "h-5 w-5 text-primary"
-                              : "h-5 w-5 text-muted-foreground/40 hover:text-primary transition-colors"
-                          }
-                          title={
-                            coverCardName === cmd.name && coverCardFace === 1
-                              ? "Remove back face as deck art cover"
-                              : "Set back face as deck art cover"
-                          }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSetCoverBack(cmd);
-                          }}
-                        >
-                          <GameIcon
-                            name="book-cover"
-                            className="h-3 w-3"
-                            style={{ transform: "scaleX(-1)" }}
-                          />
-                        </Button>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-5 w-5 text-destructive shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveCommander(cmd);
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
                     </div>
                   </CardContextMenu>
                 ))}
@@ -2340,26 +2064,6 @@ export function DeckListView({
                       {g.card.manaCost && (
                         <ManaSymbols cost={g.card.manaCost} size="sm" className="shrink-0" />
                       )}
-                      <div className="flex gap-0.5 shrink-0">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-muted-foreground"
-                          title="Move 1 to main"
-                          onClick={() => onMoveOneFromSideToMain(g.card.name)}
-                        >
-                          <Upload className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-destructive"
-                          title="Remove"
-                          onClick={() => onRemoveFromSide(g.card.name)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
                     </DraggableMiniRow>
                   </CardContextMenu>
                 ))}
@@ -2462,26 +2166,6 @@ export function DeckListView({
                           className="shrink-0 opacity-60"
                         />
                       )}
-                      <div className="flex gap-0.5 shrink-0">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-muted-foreground"
-                          title="Move 1 to main"
-                          onClick={() => onMoveOneFromMaybeToMain(g.card.name)}
-                        >
-                          <Upload className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-5 w-5 text-destructive"
-                          title="Remove"
-                          onClick={() => onRemoveFromMaybe(g.card.name)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
                     </DraggableMiniRow>
                   </CardContextMenu>
                 ))}

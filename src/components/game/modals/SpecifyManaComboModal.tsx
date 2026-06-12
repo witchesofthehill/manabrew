@@ -4,6 +4,7 @@ import { useState } from "react";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
+import { MANA_BG_CLASS } from "@/themes/gameTheme";
 
 interface SpecifyManaComboModalProps {
   availableColors: string[];
@@ -12,15 +13,13 @@ interface SpecifyManaComboModalProps {
   onConfirm: (chosenColors: string[]) => void;
 }
 
-/** Per-colour row tint — uses `mana-<letter>` theme tokens so the
- *  picker retones with the active preset. */
 const LETTER_INFO: Record<string, { label: string; bg: string }> = {
-  W: { label: "White", bg: "bg-mana-w" },
-  U: { label: "Blue", bg: "bg-mana-u" },
-  B: { label: "Black", bg: "bg-mana-b" },
-  R: { label: "Red", bg: "bg-mana-r" },
-  G: { label: "Green", bg: "bg-mana-g" },
-  C: { label: "Colorless", bg: "bg-mana-c" },
+  W: { label: "White", bg: MANA_BG_CLASS.W },
+  U: { label: "Blue", bg: MANA_BG_CLASS.U },
+  B: { label: "Black", bg: MANA_BG_CLASS.B },
+  R: { label: "Red", bg: MANA_BG_CLASS.R },
+  G: { label: "Green", bg: MANA_BG_CLASS.G },
+  C: { label: "Colorless", bg: MANA_BG_CLASS.C },
 };
 
 export function SpecifyManaComboModal({

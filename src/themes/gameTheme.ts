@@ -21,6 +21,16 @@ export type ManaLetter = "W" | "U" | "B" | "R" | "G" | "C";
 /** Canonical ordered list of all mana letters (WUBRGC). */
 export const MANA_LETTERS: readonly ManaLetter[] = ["W", "U", "B", "R", "G", "C"] as const;
 
+/** Tailwind background utility for each mana letter. */
+export const MANA_BG_CLASS: Record<ManaLetter, string> = {
+  W: "bg-mana-w",
+  U: "bg-mana-u",
+  B: "bg-mana-b",
+  R: "bg-mana-r",
+  G: "bg-mana-g",
+  C: "bg-mana-c",
+};
+
 export interface GameThemeColors {
   activeAction: {
     priority: string;

@@ -1,0 +1,9 @@
+---
+import Default from "@astrojs/starlight/components/Head.astro";
+import preset, { cssVars } from "../theme";
+
+const css = `:root{${cssVars(preset.dark)}} :root[data-theme="light"]{${cssVars(preset.light)}}`;
+---
+
+<Default><slot /></Default>
+<Fragment set:html={`<style>${css}</style>`} />

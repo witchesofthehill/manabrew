@@ -5,7 +5,9 @@
 </p>
 
 <p align="center">
-  <a href="https://manabrew.app"><img alt="Open app" src="https://img.shields.io/badge/Open%20app-manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
+  <a href="https://play.manabrew.app"><img alt="Open app" src="https://img.shields.io/badge/Open%20app-play.manabrew.app-7c3aed?style=for-the-badge&logo=tauri&logoColor=white"></a>
+  &nbsp;
+  <a href="https://docs.manabrew.app"><img alt="Docs" src="https://img.shields.io/badge/Docs-docs.manabrew.app-b97e24?style=for-the-badge&logo=astro&logoColor=white"></a>
   &nbsp;
   <a href="https://discord.gg/NqrKpbhtcd"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
   &nbsp;
@@ -42,7 +44,8 @@
 
 ## Community
 
-- **App** — try the current build at <https://manabrew.app>.
+- **App** — play the current build at <https://play.manabrew.app>.
+- **Website & docs** — <https://manabrew.app> and <https://docs.manabrew.app>.
 - **Discord** — ask questions, share decks, report rough edges, and follow
   development at <https://discord.gg/NqrKpbhtcd>.
 

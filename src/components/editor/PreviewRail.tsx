@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
+import { PreviewCardInfo, type PreviewCard } from "./PreviewCardInfo";
 
 const RAIL_CHROME_PX = 25;
 const MIN_WIDTH = FLASH_CARD_SIZE.w + RAIL_CHROME_PX;
@@ -16,10 +17,18 @@ interface PreviewRailProps {
   setSlot: (el: HTMLDivElement | null) => void;
   collapsed: boolean;
   onCollapse: () => void;
+  previewCard?: PreviewCard | null;
+  defaultWidth?: number;
 }
 
-export function PreviewRail({ setSlot, collapsed, onCollapse }: PreviewRailProps) {
-  const [width, setWidth] = useState<number>(DEFAULT_WIDTH);
+export function PreviewRail({
+  setSlot,
+  collapsed,
+  onCollapse,
+  previewCard,
+  defaultWidth = DEFAULT_WIDTH,
+}: PreviewRailProps) {
+  const [width, setWidth] = useState<number>(() => clampWidth(defaultWidth));
 
   const onDragStart = useCallback(
     (e: React.MouseEvent) => {
@@ -97,7 +106,8 @@ export function PreviewRail({ setSlot, collapsed, onCollapse }: PreviewRailProps
         </div>
         <div
           ref={setSlot}
-          className="relative flex-1 flex items-start justify-center overflow-hidden [&:has([data-card-preview])_[data-preview-skeleton]]:opacity-0"
+          className="relative shrink-0 flex items-start justify-center overflow-hidden [&:has([data-card-preview])_[data-preview-skeleton]]:opacity-0"
+          style={{ height: Math.min(FLASH_CARD_SIZE.h, (width - 24) * 1.4) + 8 }}
         >
           <div
             data-preview-skeleton
@@ -115,6 +125,7 @@ export function PreviewRail({ setSlot, collapsed, onCollapse }: PreviewRailProps
             <span className="text-xs text-muted-foreground/70">Hover a card to preview</span>
           </div>
         </div>
+        {previewCard && <PreviewCardInfo card={previewCard} />}
       </div>
     </div>
   );

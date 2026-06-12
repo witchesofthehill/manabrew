@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { ChevronDown, ChevronRight, Gauge, Loader2 } from "lucide-react";
+import { Gauge, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDeckAnalysisStore } from "@/stores/useDeckAnalysisStore";
 import { BRACKET_INFO, bracketAdvice, type Bracket } from "@/lib/brackets";
@@ -13,7 +12,6 @@ const BRACKET_STYLE: Record<Bracket, { badge: string; text: string }> = {
 };
 
 export function DeckBracketPanel() {
-  const [collapsed, setCollapsed] = useState(true);
   const bracket = useDeckAnalysisStore((s) => s.bracket);
   const loading = useDeckAnalysisStore((s) => s.loading);
 
@@ -24,28 +22,10 @@ export function DeckBracketPanel() {
   const advice = bracket ? bracketAdvice(bracket) : null;
 
   return (
-    <div className="border-t shrink-0">
-      <div
-        role="button"
-        tabIndex={0}
-        className="flex items-center gap-1.5 w-full px-3 py-2 hover:bg-muted/30 transition-colors text-left cursor-pointer"
-        onClick={() => setCollapsed((v) => !v)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setCollapsed((v) => !v);
-          }
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-        )}
-        <Gauge className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Bracket
-        </span>
+    <section className="rounded-xl border bg-card/40 p-6">
+      <div className="mb-4 flex items-center gap-2.5">
+        <Gauge className="h-4 w-4 text-muted-foreground shrink-0" />
+        <h3 className="text-base font-semibold">Bracket</h3>
         <div className="ml-auto flex items-center gap-2">
           {loading && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
           {bracket && info && style && (
@@ -55,17 +35,17 @@ export function DeckBracketPanel() {
                 style.badge,
               )}
             >
-              {bracket.bracket} · {info.name}
+              {bracket.bracket} &middot; {info.name}
             </span>
           )}
         </div>
       </div>
 
-      {!collapsed && bracket && info && (
-        <div className="px-3 pb-3 space-y-2">
-          <p className="text-xs text-muted-foreground">{info.blurb}</p>
+      {bracket && info && (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{info.blurb}</p>
 
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {bracket.reasons.map((reason, i) => (
               <li key={i} className="text-xs text-muted-foreground/80 flex items-start gap-1.5">
                 <span className="shrink-0 mt-0.5">&#x2022;</span>
@@ -75,11 +55,11 @@ export function DeckBracketPanel() {
           </ul>
 
           {bracket.gameChangers.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-pt-lethal/70">
                 Game Changers ({bracket.gameChangers.length})
               </span>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {bracket.gameChangers.map((name) => (
                   <span
                     key={name}
@@ -93,11 +73,11 @@ export function DeckBracketPanel() {
           )}
 
           {advice && advice.actions.length > 0 && (
-            <div className="space-y-1 rounded-md border border-border/40 bg-muted/20 p-2">
+            <div className="space-y-1.5 rounded-md border border-border/40 bg-muted/20 p-3">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                 To reach Bracket {advice.target}
               </span>
-              <ul className="space-y-0.5">
+              <ul className="space-y-1">
                 {advice.actions.map((action, i) => (
                   <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                     <span className="shrink-0 mt-0.5">&#x2022;</span>
@@ -113,6 +93,6 @@ export function DeckBracketPanel() {
           </p>
         </div>
       )}
-    </div>
+    </section>
   );
 }

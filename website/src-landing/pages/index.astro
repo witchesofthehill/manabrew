@@ -1,0 +1,504 @@
+---
+import { Image } from "astro:assets";
+import "@fontsource/cormorant-garamond/600.css";
+import "@fontsource/cormorant-garamond/700.css";
+import "@fontsource/alegreya-sans/400.css";
+import "@fontsource/alegreya-sans/500.css";
+import "@fontsource/alegreya-sans/700.css";
+import preset from "../../src/theme";
+import logo from "../../../src/assets/manaBrew.png";
+import brewery from "../../../public/manabrew_brewery_1.png";
+import battleground from "../../../images/battleground.png";
+import deckEdit from "../../../images/deckEdit.jpeg";
+import vsSelection from "../../../images/vsSelection.jpeg";
+
+const GITHUB = "https://github.com/witchesofthehill/manabrew";
+const DISCORD = "https://discord.gg/NqrKpbhtcd";
+const RELEASES = `${GITHUB}/releases`;
+const DESCRIPTION =
+  "An open-source Magic: The Gathering client and rules engine, built around Forge compatibility. Play in your browser or on the desktop.";
+
+const t = preset.dark;
+const mana = preset.gameColors;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ManaBrew — Magic, brewed in Rust</title>
+    <meta name="description" content={DESCRIPTION} />
+    <meta property="og:title" content="ManaBrew" />
+    <meta property="og:description" content={DESCRIPTION} />
+    <meta property="og:image" content={new URL(brewery.src, Astro.site)} />
+    <meta property="og:url" content={Astro.site} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="wordmark" href="/">
+        <Image src={logo} alt="ManaBrew" width={64} height={64} />
+      </a>
+      <nav>
+        <a href="https://docs.manabrew.app/">Docs</a>
+        <a href={DISCORD}>Discord</a>
+        <a href={GITHUB}>GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <Image
+          class="hero-art"
+          src={brewery}
+          alt=""
+          widths={[640, 1280, 1920]}
+          sizes="100vw"
+          loading="eager"
+        />
+        <div class="hero-veil"></div>
+        <div class="hero-inner">
+          <p class="kicker reveal">Open-source MTG client · Rust rules engine</p>
+          <h1 class="reveal">Magic, brewed in&nbsp;Rust.</h1>
+          <p class="lede reveal">
+            ManaBrew is an open-source Magic: The Gathering client built around
+            <a href="https://github.com/Card-Forge/forge">Forge</a> compatibility —
+            its rules engine ported to Rust, running in your browser or on your desk.
+          </p>
+          <div class="cta-row reveal">
+            <a class="btn btn-primary" href="https://play.manabrew.app">Play in your browser</a>
+            <a class="btn btn-ghost" href={RELEASES}>Download for desktop</a>
+            <a class="btn btn-bare" href="https://docs.manabrew.app/">Read the docs →</a>
+          </div>
+        </div>
+      </section>
+
+      <div class="mana-rule" aria-hidden="true">
+        <i class="w"></i><i class="u"></i><i class="b"></i><i class="r"></i><i class="g"></i>
+      </div>
+
+      <section class="features">
+        <article>
+          <h2>Forge-faithful rules</h2>
+          <p>
+            The engine is a Rust port of Forge, not a reinterpretation — and it's
+            swappable: games can run on the original Java Forge engine itself,
+            with full rules coverage, through the same client.
+          </p>
+        </article>
+        <article>
+          <h2>Runs anywhere</h2>
+          <p>
+            One codebase ships as a WebAssembly site and a native Tauri app for
+            macOS and Windows. Same decks, same engine, no account required.
+          </p>
+        </article>
+        <article>
+          <h2>Play together</h2>
+          <p>
+            A multiplayer relay hosts online lobbies and lets you reconnect to
+            games in progress. Solo, there are AI opponents and preset decks.
+          </p>
+        </article>
+        <article>
+          <h2>Free as in tavern</h2>
+          <p>
+            GPL-3.0+ and developed in the open. Read the code, file an issue,
+            port a card — every contribution is brewed in public.
+          </p>
+        </article>
+      </section>
+
+      <section class="gallery">
+        <figure class="shot-wide">
+          <Image src={battleground} alt="A game in progress on the ManaBrew battlefield" widths={[640, 1280, 1920]} sizes="(max-width: 900px) 100vw, 1080px" />
+          <figcaption>The battlefield</figcaption>
+        </figure>
+        <div class="shot-pair">
+          <figure>
+            <Image src={deckEdit} alt="The ManaBrew deck editor" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
+            <figcaption>Deck editor</figcaption>
+          </figure>
+          <figure>
+            <Image src={vsSelection} alt="Choosing decks and opponents before a game" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
+            <figcaption>Versus selection</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="last-call">
+        <h2>The cauldron is on.</h2>
+        <p>No install, no account — the web client is one click away.</p>
+        <a class="btn btn-primary" href="https://play.manabrew.app">Open ManaBrew</a>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        ManaBrew is unofficial fan software, not affiliated with, endorsed by, or
+        sponsored by Wizards of the Coast LLC or the Forge project. Magic: The
+        Gathering and related marks are property of Wizards of the Coast LLC.
+        Card images are not shipped by this project.
+      </p>
+      <p class="foot-links">
+        <a href={GITHUB}>GitHub</a> · <a href={DISCORD}>Discord</a> ·
+        <a href="https://docs.manabrew.app/">Documentation</a> ·
+        <a href={`${GITHUB}/blob/main/LICENSE.md`}>GPL-3.0-or-later</a>
+      </p>
+    </footer>
+  </body>
+</html>
+
+<style
+  define:vars={{
+    background: t.background,
+    card: t.card,
+    accent: t.accent,
+    border: t.border,
+    foreground: t.foreground,
+    "muted-foreground": t["muted-foreground"],
+    primary: t.primary,
+    "primary-foreground": t["primary-foreground"],
+    ring: t.ring,
+    "mana-w": mana["mana.W"],
+    "mana-u": mana["mana.U"],
+    "mana-b": mana["mana.B"],
+    "mana-r": mana["mana.R"],
+    "mana-g": mana["mana.G"],
+  }}
+>
+  :root {
+    --font-display: "Cormorant Garamond", georgia, serif;
+    --font-body: "Alegreya Sans", system-ui, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--primary);
+  }
+
+  .nav {
+    position: absolute;
+    inset: 0 0 auto 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 1.1rem clamp(1rem, 4vw, 3rem);
+  }
+
+  .wordmark {
+    display: flex;
+    align-items: center;
+  }
+
+  .wordmark img {
+    height: 3rem;
+    width: auto;
+  }
+
+  .nav nav {
+    display: flex;
+    gap: clamp(0.9rem, 3vw, 1.8rem);
+  }
+
+  .nav nav a {
+    color: var(--foreground);
+    text-decoration: none;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  }
+
+  .nav nav a:hover {
+    color: var(--primary);
+  }
+
+  .hero {
+    position: relative;
+    min-height: clamp(540px, 92svh, 860px);
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+  }
+
+  .hero-art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    /* Same haze as the app's welcome screen (AppInitGate: opacity-50 blur-md) */
+    opacity: 0.5;
+    filter: blur(12px);
+  }
+
+  .hero-veil {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--background) 55%, transparent) 0%,
+        color-mix(in srgb, var(--background) 15%, transparent) 35%,
+        color-mix(in srgb, var(--background) 82%, transparent) 75%,
+        var(--background) 100%
+      ),
+      radial-gradient(120% 60% at 50% 100%, color-mix(in srgb, var(--background) 75%, transparent) 0%, transparent 60%);
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 1;
+    width: min(64rem, 100%);
+    margin-inline: auto;
+    padding: 0 clamp(1rem, 4vw, 3rem) clamp(2.5rem, 7vh, 5rem);
+  }
+
+  .kicker {
+    margin: 0 0 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.4rem, 8vw, 5.2rem);
+    line-height: 1.02;
+    letter-spacing: 0.01em;
+    text-shadow: 0 2px 30px rgba(0, 0, 0, 0.85);
+  }
+
+  .lede {
+    max-width: 36rem;
+    margin: 1.1rem 0 1.8rem;
+    font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+    color: var(--foreground);
+    text-shadow: 0 1px 14px rgba(0, 0, 0, 0.9);
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem 1rem;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.78rem 1.5rem;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    transition:
+      transform 140ms ease,
+      box-shadow 140ms ease,
+      background-color 140ms ease;
+  }
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--primary), var(--ring));
+    color: var(--primary-foreground);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 34px color-mix(in srgb, var(--primary) 55%, transparent);
+  }
+
+  .btn-ghost {
+    border: 1px solid var(--ring);
+    color: var(--foreground);
+    background: color-mix(in srgb, var(--background) 45%, transparent);
+  }
+
+  .btn-ghost:hover {
+    background: color-mix(in srgb, var(--border) 60%, transparent);
+  }
+
+  .btn-bare {
+    padding-inline: 0.3rem;
+    color: var(--muted-foreground);
+  }
+
+  .btn-bare:hover {
+    color: var(--primary);
+  }
+
+  .mana-rule {
+    display: flex;
+    justify-content: center;
+    gap: 1.6rem;
+    padding: clamp(2rem, 5vh, 3rem) 1rem;
+  }
+
+  .mana-rule i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    animation: simmer 3.2s ease-in-out infinite;
+  }
+
+  .mana-rule .w { background: var(--mana-w); box-shadow: 0 0 12px var(--mana-w); }
+  .mana-rule .u { background: var(--mana-u); box-shadow: 0 0 12px var(--mana-u); animation-delay: 0.3s; }
+  .mana-rule .b { background: var(--mana-b); box-shadow: 0 0 12px var(--mana-b); animation-delay: 0.6s; }
+  .mana-rule .r { background: var(--mana-r); box-shadow: 0 0 12px var(--mana-r); animation-delay: 0.9s; }
+  .mana-rule .g { background: var(--mana-g); box-shadow: 0 0 12px var(--mana-g); animation-delay: 1.2s; }
+
+  .features {
+    width: min(70rem, 100%);
+    margin-inline: auto;
+    padding: 0 clamp(1rem, 4vw, 3rem) clamp(2.5rem, 6vh, 4.5rem);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1rem;
+  }
+
+  .features article {
+    background: linear-gradient(160deg, var(--card), var(--accent));
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.4rem 1.4rem 1.2rem;
+  }
+
+  .features h2 {
+    margin: 0 0 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.45rem;
+    color: var(--primary);
+  }
+
+  .features p {
+    margin: 0;
+    color: var(--muted-foreground);
+  }
+
+  .gallery {
+    width: min(70rem, 100%);
+    margin-inline: auto;
+    padding: 0 clamp(1rem, 4vw, 3rem);
+    display: grid;
+    gap: 1rem;
+  }
+
+  .gallery figure {
+    margin: 0;
+  }
+
+  .gallery img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .gallery figcaption {
+    padding-top: 0.45rem;
+    font-size: 0.82rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  .shot-pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1rem;
+  }
+
+  .last-call {
+    text-align: center;
+    padding: clamp(3.5rem, 10vh, 6.5rem) 1.5rem;
+    background: radial-gradient(60% 90% at 50% 100%, color-mix(in srgb, var(--ring) 18%, transparent) 0%, transparent 70%);
+  }
+
+  .last-call h2 {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 6vw, 3.2rem);
+  }
+
+  .last-call p {
+    margin: 0 0 1.6rem;
+    color: var(--muted-foreground);
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem clamp(1rem, 4vw, 3rem) 2.6rem;
+    text-align: center;
+  }
+
+  footer p {
+    max-width: 46rem;
+    margin: 0 auto 1rem;
+    font-size: 0.85rem;
+    color: var(--muted-foreground);
+  }
+
+  .foot-links a {
+    color: var(--foreground);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+
+    .reveal:nth-child(2) { animation-delay: 90ms; }
+    .reveal:nth-child(3) { animation-delay: 180ms; }
+    .reveal:nth-child(4) { animation-delay: 280ms; }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes simmer {
+    0%, 100% { transform: translateY(0); opacity: 0.75; }
+    50% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mana-rule i {
+      animation: none;
+    }
+  }
+</style>

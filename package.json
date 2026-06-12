@@ -40,6 +40,8 @@
     "test:forge-engine": "cargo test --release -p forge-engine-core --lib --test cards",
     "build:wasm": "node scripts/build-wasm.mjs",
     "dev:web": "yarn ensure:wasm && vite",
+    "website:dev": "npm --prefix website run dev",
+    "website:build": "npm --prefix website run build",
     "build:web": "yarn build:wasm && tsc -b && vite build",
     "prepare": "husky",
     "test": "vitest run",

@@ -14,7 +14,7 @@ manabrew.app {
         file_server
     }
 
-    @static path /assets/* /wasm/*
+    @static path /assets/* /wasm/* /_astro/*
     handle @static {
         header {
             Cache-Control "public, immutable, max-age=31536000"
@@ -49,6 +49,19 @@ manabrew.app {
             header_down -Access-Control-Allow-Origin
         }
         header Cross-Origin-Resource-Policy "same-origin"
+    }
+
+    # Static site built from website/ (Astro + Starlight), copied into
+    # /srv/manabrew next to the app bundle. Must match before the SPA
+    # fallback below or /home and /docs get swallowed by index.html.
+    handle /home* {
+        try_files {path} {path}/
+        file_server
+    }
+
+    handle /docs* {
+        try_files {path} {path}/ /404.html
+        file_server
     }
 
     handle {

@@ -1,0 +1,20 @@
+/* Keep in sync with the palette in src/pages/home.astro */
+:root {
+  --sl-color-accent-low: #2e2008;
+  --sl-color-accent: #b97e24;
+  --sl-color-accent-high: #ecc476;
+  --sl-color-bg: #15100a;
+  --sl-color-bg-nav: #1b140c;
+  --sl-color-bg-sidebar: #181109;
+  --sl-color-hairline: #32271a;
+  --sl-color-hairline-light: #3c2f1f;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #f3e3c2;
+  --sl-color-accent: #9a6716;
+  --sl-color-accent-high: #5c3c08;
+  --sl-color-bg: #faf5ea;
+  --sl-color-bg-nav: #f4ecdc;
+  --sl-color-bg-sidebar: #f7f0e1;
+}

@@ -84,7 +84,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         this.game = game;
         this.session = session;
         this.costPlumbing = new HarnessCostPlumbing(this, player);
-        this.autoPay = new AutoPay(player, costPlumbing);
+        this.autoPay = new AutoPay(player, costPlumbing, true);
         this.playPlumbing = new HarnessPlayPlumbing(this, player, costPlumbing);
     }
 
@@ -97,12 +97,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public void markFailedPaymentCard(final Card card) {
         // Interactive play re-prompts naturally; no per-turn skip list.
-    }
-
-    @Override
-    public boolean confirmPlayEffectOptional() {
-        return session.awaitBooleanChoice(
-                "confirm_action", me(), "Play this spell or ability?", null, "play_effect_optional", null, null);
     }
 
     @Override
@@ -192,9 +186,15 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean playChosenSpellAbility(final SpellAbility sa) {
+        final Integer staleX = sa.getXManaCostPaid();
+        sa.setXManaCostPaid(null);
         session.beginCast(sa);
         try {
-            return playPlumbing.handlePlayingSpellAbility(player, sa, getGame());
+            final boolean played = playPlumbing.handlePlayingSpellAbility(player, sa, getGame());
+            if (!played) {
+                sa.setXManaCostPaid(staleX);
+            }
+            return played;
         } finally {
             session.endCast();
         }

@@ -486,6 +486,8 @@ pub struct SpellAbilityIr {
     pub condition_description_text: Option<String>,
     pub after_description_text: Option<String>,
     pub announce_text: Option<String>,
+    pub x_max_limit_text: Option<String>,
+    pub announce_max_text: Option<String>,
     pub optional_ability_prompt: Option<String>,
     pub svar_name_text: Option<String>,
     pub svar_type_text: Option<String>,
@@ -1008,6 +1010,8 @@ impl SpellAbilityIr {
             condition_description_text: params.get("ConditionDescription").map(str::to_string),
             after_description_text: params.get("AfterDescription").map(str::to_string),
             announce_text: params.get("Announce").map(str::to_string),
+            x_max_limit_text: params.get("XMaxLimit").map(str::to_string),
+            announce_max_text: params.get("AnnounceMax").map(str::to_string),
             optional_ability_prompt: params
                 .get(keys::OPTIONAL_ABILITY_PROMPT)
                 .map(str::to_string),

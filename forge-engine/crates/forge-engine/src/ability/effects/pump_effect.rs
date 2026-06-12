@@ -189,8 +189,14 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     targets.sort_unstable_by_key(|cid| cid.0);
     targets.dedup();
 
+    let tgt_zones = sa
+        .target_restrictions
+        .as_ref()
+        .map(|tr| tr.tgt_zone.clone())
+        .filter(|zones| !zones.is_empty())
+        .unwrap_or_else(|| vec![ZoneType::Battlefield]);
     for target_card in targets {
-        if ctx.game.card(target_card).zone != ZoneType::Battlefield {
+        if !tgt_zones.contains(&ctx.game.card(target_card).zone) {
             continue;
         }
         let target = ctx.game.card(target_card);
@@ -206,6 +212,32 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             resolve_ts,
         );
         pumped_targets.push(target_card);
+    }
+
+    if pumped_targets.is_empty() && !keywords.is_empty() {
+        let pumped_players: Vec<crate::ids::PlayerId> =
+            if let Some(tp) = sa.target_chosen.target_player {
+                vec![tp]
+            } else if let Some(d) = sa.defined() {
+                crate::ability::ability_utils::resolve_defined_players_with_sa(
+                    d,
+                    sa,
+                    sa.activating_player,
+                    ctx.game,
+                )
+            } else {
+                Vec::new()
+            };
+        for player in pumped_players {
+            for kw in &keywords {
+                crate::player::add_pump_keyword_with_duration(
+                    ctx.game,
+                    player,
+                    kw.clone(),
+                    sa.ir.duration.as_ref(),
+                );
+            }
+        }
     }
 
     // `AtEOT$ <action>` — register an end-of-turn delayed trigger that performs

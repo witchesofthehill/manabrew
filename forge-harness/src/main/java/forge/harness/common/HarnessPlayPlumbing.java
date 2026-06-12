@@ -463,11 +463,7 @@ public final class HarnessPlayPlumbing {
     }
 
     public boolean playSaFromPlayEffect(SpellAbility tgtSA, final Game game) {
-        final boolean optional = !tgtSA.getPayCosts().isMandatory();
         if (tgtSA instanceof Spell) {
-            if (optional && !hooks.confirmPlayEffectOptional()) {
-                return false;
-            }
             return handlePlayingSpellAbility(payer, tgtSA, game);
         }
         return true;

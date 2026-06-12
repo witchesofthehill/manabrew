@@ -857,6 +857,20 @@ pub(super) fn choose_number<T: Responder>(
     }
 }
 
+pub(super) fn announce_requirements<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    _player: PlayerId,
+    min: i32,
+    max: i32,
+    source: Option<CardId>,
+) -> Option<i32> {
+    agent.send_prompt(AgentPromptInner::ChooseNumber { min, max }, source);
+    match agent.recv_action() {
+        PlayerAction::NumberDecision { chosen_number } => chosen_number,
+        _ => Some(min),
+    }
+}
+
 pub(super) fn choose_discard<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,

@@ -866,6 +866,21 @@ pub trait PlayerAgent {
         max_x
     }
 
+    /// Announce the value of a variable (`announce`, e.g. "X") in a spell's
+    /// cost before payment, within `[min, max]`.
+    /// Mirrors Java's `PlayerController.announceRequirements`.
+    /// Returns None to cancel the cast.
+    fn announce_requirements(
+        &mut self,
+        _player: PlayerId,
+        _announce: &str,
+        min: i32,
+        _max: i32,
+        _source: Option<CardId>,
+    ) -> Option<i32> {
+        Some(min)
+    }
+
     /// Choose whether to pay life instead of mana for a Phyrexian mana shard.
     /// Returns true to pay 2 life, false to pay the color.
     /// Default: always pay color (never pay life).

@@ -78,18 +78,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             }
         });
 
-        if abilities.is_empty() {
-            if let Some(fallback_name) = sa.ir.fallback_ability.as_deref() {
-                if let Some(fallback_text) = svars.get(fallback_name) {
-                    let mut fallback_sa =
-                        build_spell_ability(ctx.game, source_id, fallback_text, player);
-                    fallback_sa.source = Some(source_id);
-                    super::resolve_effect(ctx, &fallback_sa);
-                }
-            }
-            continue;
-        }
-
         let mut chosen_sas: Vec<SpellAbility>;
 
         if sa.ir.at_random {
@@ -127,7 +115,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     }
                 }
             }
-        } else {
+        } else if !abilities.is_empty() {
             ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
             let chosen_indices = ctx.agents[chooser.index()]
                 .choose_spell_abilities_for_effect(chooser, &abilities, amount);
@@ -136,6 +124,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                 .into_iter()
                 .filter_map(|i| abilities.get(i).cloned())
                 .collect();
+        } else {
+            chosen_sas = Vec::new();
         }
 
         // Mirrors Java's ChooseGenericEffect: TempRemember$ Chooser swaps

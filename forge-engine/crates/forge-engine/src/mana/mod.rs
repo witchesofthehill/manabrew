@@ -1204,6 +1204,23 @@ fn apply_produce_mana_replacements_for_availability(
     }
 }
 
+fn atoms_mask_to_letters(mask: u16) -> String {
+    let mut letters: Vec<&str> = Vec::new();
+    for atom in [
+        ManaAtom::WHITE,
+        ManaAtom::BLUE,
+        ManaAtom::BLACK,
+        ManaAtom::RED,
+        ManaAtom::GREEN,
+        ManaAtom::COLORLESS,
+    ] {
+        if mask & atom != 0 {
+            letters.push(ManaPool::atom_to_letter(atom));
+        }
+    }
+    letters.join(" ")
+}
+
 fn add_taps_for_mana_trigger_mana_for_availability(
     available: &mut ManaPool,
     source_count: &mut i32,
@@ -1211,11 +1228,13 @@ fn add_taps_for_mana_trigger_mana_for_availability(
     game: &GameState,
     player: PlayerId,
     tapped_card_id: CardId,
+    produced_letters: &str,
 ) {
     let params = crate::event::RunParams {
         card: Some(tapped_card_id),
         player: Some(player),
         activator: Some(player),
+        produced: Some(produced_letters.to_string()),
         ..Default::default()
     };
 
@@ -1445,6 +1464,7 @@ fn calculate_available_mana_excluding_with_reserved_impl(
                         game,
                         player,
                         card_id,
+                        &atoms_mask_to_letters(src_mask),
                     );
                 } else if let Some(atom) = basic_land_mana_atom(card) {
                     let adjusted_atoms =
@@ -1465,6 +1485,7 @@ fn calculate_available_mana_excluding_with_reserved_impl(
                         game,
                         player,
                         card_id,
+                        &atoms_mask_to_letters(src_mask),
                     );
                 }
             }
@@ -1683,11 +1704,8 @@ fn calculate_available_mana_excluding_with_reserved_impl(
             source_count += 1;
             source_colors.push(src_mask);
         }
-        if added_any
-            && mana_abilities
-                .iter()
-                .any(|ab| ab.cost.parts.iter().any(|p| matches!(p, CostPart::Tap)))
-        {
+        if added_any {
+            let combined_mask = added_atoms.iter().fold(src_mask, |mask, atom| mask | atom);
             add_taps_for_mana_trigger_mana_for_availability(
                 &mut available,
                 &mut source_count,
@@ -1695,6 +1713,7 @@ fn calculate_available_mana_excluding_with_reserved_impl(
                 game,
                 player,
                 card_id,
+                &atoms_mask_to_letters(combined_mask),
             );
         }
     }
@@ -1757,7 +1776,7 @@ fn calculate_available_mana_excluding_with_reserved_impl(
 /// Returns how many mana the ability produces per activation (default 1).
 /// Handles SVar references like `Amount$ IncubationAmount` where the SVar
 /// resolves to a Count$Compare expression.
-fn resolve_mana_ability_amount(
+pub(crate) fn resolve_mana_ability_amount(
     game: &GameState,
     card_id: CardId,
     player: PlayerId,

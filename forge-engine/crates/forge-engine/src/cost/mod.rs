@@ -613,8 +613,37 @@ pub fn apply_text_change_effects(cost: &mut Cost, game: &GameState, host: CardId
 pub fn has_x_in_any_cost_part(cost: &Cost) -> bool {
     cost.parts.iter().any(|p| match p {
         CostPart::Mana { cost, .. } => cost.count_x() > 0,
-        _ => false,
+        _ => cost_part::convert_amount(p).is_some_and(AmountSpec::is_x),
     })
+}
+
+pub fn get_max_for_non_mana_x(
+    cost: &Cost,
+    game: &GameState,
+    ability: &SpellAbility,
+    payer: PlayerId,
+    effect: bool,
+) -> Option<i32> {
+    let mut val: Option<i32> = None;
+    for p in &cost.parts {
+        if !cost_part::convert_amount(p).is_some_and(AmountSpec::is_x) {
+            continue;
+        }
+        let part_max = cost_part::get_max_amount_x(game, ability, payer, p, effect);
+        val = match (val, part_max) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+    }
+    if let Some(v) = val {
+        if v <= 0
+            && cost.has_mana_cost()
+            && cost.parts.iter().any(|p| cost_part_mana::get_x_min(p) > 0)
+        {
+            return None;
+        }
+    }
+    val
 }
 
 pub fn to_simple_string(cost: &Cost) -> String {

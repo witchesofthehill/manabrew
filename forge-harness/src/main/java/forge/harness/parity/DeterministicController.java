@@ -248,11 +248,6 @@ public class DeterministicController extends PlayerController implements Harness
         }
     }
 
-    @Override
-    public boolean confirmPlayEffectOptional() {
-        return chooseDeterministicBoolean("play_effect_optional", "DECLINE", "ACCEPT");
-    }
-
     private List<SpellAbility> filterFailedPaymentActions(final List<SpellAbility> actions) {
         if (failedPaymentCardsThisTurn.isEmpty()) {
             return actions;
@@ -352,6 +347,8 @@ public class DeterministicController extends PlayerController implements Harness
 
     @Override
     public boolean playChosenSpellAbility(SpellAbility sa) {
+        final Integer staleX = sa.getXManaCostPaid();
+        sa.setXManaCostPaid(null);
         // Force X to max available mana — matches Rust's choose_x_value default.
         Cost payCosts = sa.getPayCosts();
         if (payCosts != null) {
@@ -362,7 +359,11 @@ public class DeterministicController extends PlayerController implements Harness
             }
         }
 
-        return playPlumbing.handlePlayingSpellAbility(player, sa, getGame());
+        final boolean played = playPlumbing.handlePlayingSpellAbility(player, sa, getGame());
+        if (!played) {
+            sa.setXManaCostPaid(staleX);
+        }
+        return played;
     }
 
     @Override

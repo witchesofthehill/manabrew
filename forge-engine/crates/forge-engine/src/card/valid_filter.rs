@@ -883,6 +883,7 @@ fn matches_relation_predicate(
                 card.card_name.eq_ignore_ascii_case(&target.card_name)
             })
         }
+
         RelationPredicate::SharesCardTypeWith(target) => {
             relation_target_card_any(target, card, context, |target| {
                 card.shares_card_type_with(target)

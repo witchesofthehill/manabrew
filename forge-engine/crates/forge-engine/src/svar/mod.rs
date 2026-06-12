@@ -1338,6 +1338,13 @@ fn evaluate_cost_amount_count_expr(
 ) -> i32 {
     use crate::card::Card;
     use forge_foundation::ZoneType;
+    if expr == "Count$xPaid" || expr == "Count$XPaid" {
+        return source
+            .svars
+            .get("XPaid")
+            .and_then(|s| s.parse::<i32>().ok())
+            .unwrap_or(0);
+    }
     if let Some(counter_name) = expr.strip_prefix("Count$CardCounters.") {
         let counter_type = crate::ability::ability_utils::parse_counter_type(counter_name);
         return source.counter_count(&counter_type);
@@ -1429,6 +1436,18 @@ pub fn resolve_count_svar_for_sa(
         let operators = operators.strip_prefix('/').unwrap_or(operators);
         return do_x_math(
             game.player(controller).life,
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
+    }
+
+    if let Some(operators) = expr.strip_prefix("Count$YouDrewThisTurn") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        return do_x_math(
+            game.player(controller).drawn_this_turn,
             operators,
             game,
             source_id,
@@ -1538,6 +1557,7 @@ pub fn resolve_count_svar_for_sa(
         let mut parts = rest.trim_start().splitn(2, ' ');
         let zone_part = parts.next().unwrap_or("").trim();
         let restrictions = parts.next().unwrap_or("").trim();
+        let (restrictions, aggregator) = restrictions.split_once('$').unwrap_or((restrictions, ""));
         if !restrictions.is_empty() {
             let zones: Vec<ZoneType> = if zone_part.is_empty() {
                 vec![ZoneType::Battlefield]
@@ -1559,7 +1579,7 @@ pub fn resolve_count_svar_for_sa(
                     .with_game(game)
                     .with_targets(&targeted_cards, &targeted_players)
                     .with_spell_ability(sa);
-                let count = game
+                let matches: Vec<&crate::card::Card> = game
                     .cards
                     .iter()
                     .filter(|card| {
@@ -1568,7 +1588,14 @@ pub fn resolve_count_svar_for_sa(
                                 &selector, card, ctx,
                             )
                     })
-                    .count() as i32;
+                    .collect();
+                let count = match aggregator {
+                    "" | "Amount" => matches.len() as i32,
+                    "GreatestCardManaCost" => {
+                        matches.iter().map(|c| c.mana_cost.cmc()).max().unwrap_or(0)
+                    }
+                    _ => 0,
+                };
                 return do_x_math(count, operators, game, source_id, controller, sa);
             }
         }
@@ -1732,6 +1759,14 @@ pub fn resolve_count_svar_for_sa(
                 return if result { if_true } else { if_false };
             }
         }
+    }
+
+    if let Some(operators) = expr.strip_prefix("Count$ColorsColorIdentity") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        let count = game
+            .player_commander_color_identity(game.card(source_id).controller)
+            .len() as i32;
+        return do_x_math(count, operators, game, source_id, controller, sa);
     }
 
     // Count$CardPower — power of the source card

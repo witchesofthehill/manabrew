@@ -38,6 +38,134 @@ impl GameLoop {
         None
     }
 
+    fn announce_values_like_x(
+        &mut self,
+        game: &mut GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        player: PlayerId,
+        sa: &mut SpellAbility,
+        cost: Option<&crate::cost::Cost>,
+        need_x: &mut bool,
+    ) -> bool {
+        let Some(card_id) = sa.source else {
+            return true;
+        };
+
+        if *need_x {
+            if let Some(announce) = sa.ir.announce_text.clone() {
+                for var_name in announce.split(',').map(str::trim) {
+                    let Some(value) =
+                        self.announce_requirements(game, agents, player, sa, cost, var_name)
+                    else {
+                        return false;
+                    };
+                    if var_name.eq_ignore_ascii_case("X") {
+                        *need_x = false;
+                        sa.x_mana_cost_paid = value.max(0) as u32;
+                        game.card_mut(card_id)
+                            .svars
+                            .insert("XPaid".to_string(), value.to_string());
+                    } else {
+                        sa.add_announce_var(var_name, value);
+                        game.card_mut(card_id)
+                            .svars
+                            .insert(var_name.to_string(), value.to_string());
+                    }
+                }
+            }
+        }
+
+        if *need_x {
+            if let Some(cost) = cost.filter(|c| crate::cost::has_x_in_any_cost_part(c)) {
+                let svar = game
+                    .card(card_id)
+                    .get_s_var("X")
+                    .map(str::to_string)
+                    .unwrap_or_default();
+                if svar == "Count$xPaid" || svar.is_empty() {
+                    let Some(value) =
+                        self.announce_requirements(game, agents, player, sa, Some(cost), "X")
+                    else {
+                        return false;
+                    };
+                    *need_x = false;
+                    sa.x_mana_cost_paid = value.max(0) as u32;
+                    game.card_mut(card_id)
+                        .svars
+                        .insert("XPaid".to_string(), value.to_string());
+                }
+            }
+        }
+        true
+    }
+
+    fn announce_requirements(
+        &mut self,
+        game: &GameState,
+        agents: &mut [Box<dyn PlayerAgent>],
+        player: PlayerId,
+        sa: &SpellAbility,
+        cost: Option<&crate::cost::Cost>,
+        announce: &str,
+    ) -> Option<i32> {
+        let (min, max) = Self::announce_bounds(game, player, sa, cost, announce)?;
+        agents[player.index()].snapshot_state(game, &self.mana_pools);
+        agents[player.index()].announce_requirements(player, announce, min, max, sa.source)
+    }
+
+    fn announce_bounds(
+        game: &GameState,
+        player: PlayerId,
+        sa: &SpellAbility,
+        cost: Option<&crate::cost::Cost>,
+        announce: &str,
+    ) -> Option<(i32, i32)> {
+        let mut max = i32::MAX;
+        let mut min = 0;
+
+        if announce == "X" {
+            if let Some(limit) = sa.ir.x_max_limit_text.as_deref() {
+                max = max.min(crate::svar::resolve_numeric_value(game, sa, limit, 0));
+            }
+            if let Some(cost) = cost {
+                if let Some(cost_x) =
+                    crate::cost::get_max_for_non_mana_x(cost, game, sa, player, false)
+                {
+                    max = max.min(cost_x);
+                }
+                if cost.has_mana_cost() {
+                    min = cost
+                        .parts
+                        .iter()
+                        .map(crate::cost::cost_part_mana::get_x_min)
+                        .max()
+                        .unwrap_or(0);
+                }
+            }
+        }
+
+        if let Some(announce_max) = sa.ir.announce_max_text.as_deref() {
+            max = max.min(crate::svar::resolve_numeric_value(
+                game,
+                sa,
+                announce_max,
+                0,
+            ));
+        }
+
+        if let Some(tr) = sa.target_restrictions.as_ref() {
+            if announce == tr.min_targets {
+                max = max
+                    .min(crate::card::card_util::get_valid_cards_to_target(game, sa).len() as i32);
+            }
+        }
+
+        if min > max {
+            return None;
+        }
+        Some((min, max))
+    }
+
     pub(crate) fn play_land(
         &mut self,
         game: &mut GameState,
@@ -324,14 +452,16 @@ impl GameLoop {
                 .run_trigger(TriggerType::Elementalbend, bend_params, false);
         }
 
-        self.emit_becomes_target_triggers(
-            game,
-            player,
-            trigger_ctx.source_card,
-            Some(sa_for_trigger),
-            sa_for_trigger.target_chosen.target_card,
-            sa_for_trigger.target_chosen.target_player,
-        );
+        if trigger_ctx.cast_trigger != TriggerType::AbilityCast {
+            self.emit_becomes_target_triggers(
+                game,
+                player,
+                trigger_ctx.source_card,
+                Some(sa_for_trigger),
+                sa_for_trigger.target_chosen.target_card,
+                sa_for_trigger.target_chosen.target_player,
+            );
+        }
     }
 
     /// Orchestrates the full non-land SpellAbility entrypoint after the action
@@ -1041,7 +1171,40 @@ impl GameLoop {
 
         // ── X mana cost handling ──────────────────────────────────
         let original_mana_cost = mana_cost.clone();
-        let spell_cost = Self::parse_spell_cost(&abilities_for_spell);
+        let mut spell_cost = Self::parse_spell_cost(&abilities_for_spell);
+
+        if let Some(alt_additional) = game
+            .card(card_id)
+            .get_keyword_cost("AlternateAdditionalCost")
+        {
+            let mut variant_costs: Vec<crate::cost::Cost> = Vec::new();
+            let mut variant_sas: Vec<SpellAbility> = Vec::new();
+            for segment in alt_additional.split(':') {
+                let cost = parse_cost(segment);
+                if crate::cost::can_pay_ignoring_mana_for_spell(&cost, game, card_id, player) {
+                    let mut variant_sa = sa.clone();
+                    variant_sa.pay_costs = Some(cost.clone());
+                    variant_costs.push(cost);
+                    variant_sas.push(variant_sa);
+                }
+            }
+            if variant_costs.is_empty() {
+                return None;
+            }
+            let chosen_idx = agents[player.index()]
+                .get_ability_to_play(player, &variant_sas)
+                .unwrap_or(0)
+                .min(variant_costs.len() - 1);
+            let chosen = variant_costs.swap_remove(chosen_idx);
+            spell_cost = Some(match spell_cost {
+                Some(mut existing) => {
+                    existing.parts.extend(chosen.parts);
+                    existing
+                }
+                None => chosen,
+            });
+        }
+        let spell_cost = spell_cost;
         let x_count = mana_cost.count_x();
         let mut x_value = 0u32;
         let mana_cost = if x_count > 0 {
@@ -1178,6 +1341,16 @@ impl GameLoop {
             } else {
                 None
             };
+
+        let mut need_x = x_count == 0;
+        let announce_cost = if sa.alt_cost.is_some() {
+            None
+        } else {
+            spell_cost.as_ref()
+        };
+        if !self.announce_values_like_x(game, agents, player, &mut sa, announce_cost, &mut need_x) {
+            rollback_cast!();
+        }
 
         if !sa.overloaded {
             if !sa.setup_targets(game, agents, &self.mana_pools) {
@@ -1397,7 +1570,8 @@ impl GameLoop {
         let pool_size_before = self.pool(player).total_mana();
         let colors_spent_to_cast = std::cell::Cell::new(0u16);
         let paying_mana_to_cast = std::cell::RefCell::new(Vec::new());
-        let preserve_auto_failure_taps = std::cell::Cell::new(false);
+        let failed_non_undoable_choices: std::cell::RefCell<Vec<(CardId, usize)>> =
+            std::cell::RefCell::new(Vec::new());
 
         // Unified mana payment loop. Agents decide whether to pay manually or
         // auto-pay through their `pay_mana_cost()` implementation; the engine
@@ -1479,26 +1653,25 @@ impl GameLoop {
                             })
                             .collect();
                         if result.cancelled {
-                            preserve_auto_failure_taps.set(result.choices.iter().any(|choice| {
-                                choice
-                                    .mana_ability_index
-                                    .and_then(|idx| {
-                                        game.card(choice.card_id).activated_abilities.get(idx)
-                                    })
-                                    .is_some_and(|ab| {
-                                        ab.cost.parts.iter().any(|part| {
-                                            !matches!(
-                                                part,
-                                                crate::cost::CostPart::Tap
-                                                    | crate::cost::CostPart::Mana { .. }
-                                            )
-                                        })
-                                    })
-                            }));
-                            // Partial-tap-then-fail mirrors Java's
-                            // `payManaCostWithTrace` flow: lands stay tapped,
-                            // pool drains the partial mana, and the session
-                            // emits `[TapLand …, AttemptedAndFailed]`.
+                            failed_non_undoable_choices.borrow_mut().extend(
+                                result.choices.iter().filter_map(|choice| {
+                                    let idx = choice.mana_ability_index?;
+                                    let non_undoable = game
+                                        .card(choice.card_id)
+                                        .activated_abilities
+                                        .get(idx)
+                                        .is_some_and(|ab| {
+                                            ab.cost.parts.iter().any(|part| {
+                                                !matches!(
+                                                    part,
+                                                    crate::cost::CostPart::Tap
+                                                        | crate::cost::CostPart::Mana { .. }
+                                                )
+                                            })
+                                        });
+                                    non_undoable.then_some((choice.card_id, idx))
+                                }),
+                            );
                             // Append the explicit failure here so the
                             // session-generic loop sees a terminal failed trace
                             // rather than a paid one.
@@ -1569,7 +1742,7 @@ impl GameLoop {
                 },
             );
             if !mana_payment.paid {
-                if mana_payment.preserve_taps_on_failure || preserve_auto_failure_taps.get() {
+                if mana_payment.preserve_taps_on_failure {
                     let tapped_after_failed_mana_payment: Vec<CardId> = game
                         .cards
                         .iter()
@@ -1578,7 +1751,18 @@ impl GameLoop {
                         .collect();
                     rollback_cast_preserving_taps!(tapped_after_failed_mana_payment);
                 }
-                rollback_cast!();
+                let non_undoable = std::mem::take(&mut *failed_non_undoable_choices.borrow_mut());
+                self.restore_snapshot(game, &cast_rollback_snapshot);
+                for (source_id, ability_index) in non_undoable {
+                    crate::mana::computer_util_mana::reapply_non_undoable_payment_ability(
+                        game,
+                        self.pool_mut(player),
+                        player,
+                        source_id,
+                        ability_index,
+                    );
+                }
+                return None;
             }
         }
 
@@ -2321,53 +2505,62 @@ impl GameLoop {
 
                 // Snapshot before targeting so the UI shows current game state
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
-                sa.setup_targets(game, agents, &self.mana_pools);
-
-                let entry = StackEntry {
-                    id: 0,
-                    spell_ability: sa,
-                    is_pending_cast: false,
-                    is_creature_spell: is_creature,
-                    is_permanent_spell: is_permanent,
-                    cast_from_zone: Some(ZoneType::Exile),
-                    optional_trigger_decider: None,
-                    optional_trigger_description: None,
-                    optional_trigger_source_name: None,
-                };
-                game.stack.push(entry);
-                self.log_stack_push(&card_name, &game.player(player).name);
-                crate::agent::notify_all_agents(
-                    agents,
-                    crate::agent::GameLogEvent::stack(format!("Cascade cast: {}", card_name))
-                        .with_player(player)
-                        .with_card(cascade_card_id),
-                );
-                self.move_card_with_runtime(game, cascade_card_id, ZoneType::Stack, player, agents);
-
-                // Cascade spell counts as being cast
-                {
-                    game.player_record_spell_cast(player, cascade_card_id);
-                }
-                game.stack.record_spell_cast(cascade_card_id);
-                self.trigger_handler.run_trigger(
-                    TriggerType::SpellCast,
-                    RunParams {
-                        spell_card: Some(cascade_card_id),
-                        spell_controller: Some(player),
-                        ..Default::default()
-                    },
-                    false,
-                );
-                if let Some(sa_for_target) = game.stack.peek().map(|top| top.spell_ability.clone())
-                {
-                    self.emit_becomes_target_triggers(
-                        game,
-                        player,
-                        cascade_card_id,
-                        Some(&sa_for_target),
-                        sa_for_target.target_chosen.target_card,
-                        sa_for_target.target_chosen.target_player,
+                if !sa.setup_targets(game, agents, &self.mana_pools) {
+                    exiled_ids.push(cascade_card_id);
+                } else {
+                    let entry = StackEntry {
+                        id: 0,
+                        spell_ability: sa,
+                        is_pending_cast: false,
+                        is_creature_spell: is_creature,
+                        is_permanent_spell: is_permanent,
+                        cast_from_zone: Some(ZoneType::Exile),
+                        optional_trigger_decider: None,
+                        optional_trigger_description: None,
+                        optional_trigger_source_name: None,
+                    };
+                    game.stack.push(entry);
+                    self.log_stack_push(&card_name, &game.player(player).name);
+                    crate::agent::notify_all_agents(
+                        agents,
+                        crate::agent::GameLogEvent::stack(format!("Cascade cast: {}", card_name))
+                            .with_player(player)
+                            .with_card(cascade_card_id),
                     );
+                    self.move_card_with_runtime(
+                        game,
+                        cascade_card_id,
+                        ZoneType::Stack,
+                        player,
+                        agents,
+                    );
+
+                    // Cascade spell counts as being cast
+                    {
+                        game.player_record_spell_cast(player, cascade_card_id);
+                    }
+                    game.stack.record_spell_cast(cascade_card_id);
+                    self.trigger_handler.run_trigger(
+                        TriggerType::SpellCast,
+                        RunParams {
+                            spell_card: Some(cascade_card_id),
+                            spell_controller: Some(player),
+                            ..Default::default()
+                        },
+                        false,
+                    );
+                    if let Some(sa_for_target) =
+                        game.stack.peek().map(|top| top.spell_ability.clone())
+                    {
+                        self.emit_becomes_target_triggers(
+                            game,
+                            player,
+                            cascade_card_id,
+                            Some(&sa_for_target),
+                            sa_for_target.target_chosen.target_card,
+                            sa_for_target.target_chosen.target_player,
+                        );
+                    }
                 }
             } else {
                 // Player declined — found card goes to bottom with the rest

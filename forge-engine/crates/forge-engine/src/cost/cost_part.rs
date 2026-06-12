@@ -132,11 +132,12 @@ pub fn copy(part: &CostPart) -> CostPart {
 /// Mirrors Java's `CostPart.getMaxAmountX(...)`.
 pub fn get_max_amount_x(
     game: &GameState,
-    source: CardId,
+    ability: &crate::spellability::SpellAbility,
     player: PlayerId,
     part: &CostPart,
     _effect: bool,
 ) -> Option<i32> {
+    let source = ability.source?;
     match part {
         CostPart::PayEnergy(_) => Some(game.player(player).energy_counters),
         CostPart::PayShards(_) => Some(game.player(player).mana_shards),
@@ -149,8 +150,118 @@ pub fn get_max_amount_x(
             let current = game.card(source).counter_count(counter_type);
             Some(current.min(amount.resolve(game, source, player)))
         }
+        CostPart::Sacrifice { type_filter, .. } => {
+            let (type_filter, different_names) =
+                if let Some(stripped) = strip_with_different_names(type_filter) {
+                    (stripped, true)
+                } else {
+                    (type_filter.clone(), false)
+                };
+            let type_list = if type_filter.contains('X') {
+                let static_sources = crate::cost::static_ability_source_cards(game);
+                game.cards_in_zone(forge_foundation::ZoneType::Battlefield, player)
+                    .iter()
+                    .copied()
+                    .filter(|&cid| {
+                        !crate::staticability::static_ability_cant_sacrifice::cant_sacrifice(
+                            &static_sources,
+                            game.card(cid),
+                            Some(ability),
+                            true,
+                        )
+                    })
+                    .collect()
+            } else {
+                crate::cost::get_sacrifice_targets_for_cost(
+                    game,
+                    player,
+                    &type_filter,
+                    Some(ability),
+                )
+            };
+            if different_names {
+                Some(different_names_count(game, &type_list))
+            } else {
+                Some(type_list.len() as i32)
+            }
+        }
+        CostPart::Discard { type_filter, .. } => {
+            let (type_filter, different_names) =
+                if let Some(stripped) = strip_with_different_names(type_filter) {
+                    (stripped, true)
+                } else {
+                    (type_filter.clone(), false)
+                };
+            let hand_list: Vec<CardId> = game
+                .cards_in_zone(forge_foundation::ZoneType::Hand, player)
+                .iter()
+                .copied()
+                .filter(|&cid| {
+                    type_filter == "Random"
+                        || crate::ability::effects::matches_change_type(
+                            game.card(cid),
+                            &type_filter,
+                            &[],
+                        )
+                })
+                .collect();
+            if different_names {
+                Some(different_names_count(game, &hand_list))
+            } else {
+                Some(hand_list.len() as i32)
+            }
+        }
+        CostPart::Return { type_filter, .. } => {
+            Some(crate::cost::get_sacrifice_targets(game, player, type_filter).len() as i32)
+        }
+        CostPart::TapType { type_filter, .. } => {
+            Some(crate::cost::get_tap_type_targets(game, player, type_filter, source).len() as i32)
+        }
+        CostPart::Reveal {
+            type_filter, from, ..
+        } => {
+            let zone = match from {
+                crate::cost::RevealFrom::Hand
+                | crate::cost::RevealFrom::HandOrBattlefield
+                | crate::cost::RevealFrom::All => forge_foundation::ZoneType::Hand,
+                crate::cost::RevealFrom::Exile => forge_foundation::ZoneType::Exile,
+            };
+            let list: Vec<CardId> = game
+                .cards_in_zone(zone, player)
+                .iter()
+                .copied()
+                .filter(|&cid| {
+                    !(ability.is_spell && cid == source)
+                        && (type_filter == "Card"
+                            || type_filter.is_empty()
+                            || crate::ability::effects::matches_change_type(
+                                game.card(cid),
+                                type_filter,
+                                &[],
+                            ))
+                })
+                .collect();
+            Some(list.len() as i32)
+        }
+        CostPart::Exile {
+            type_filter, from, ..
+        } => Some(crate::cost::get_zone_targets(game, player, *from, type_filter).len() as i32),
         _ => None,
     }
+}
+
+fn strip_with_different_names(type_filter: &str) -> Option<String> {
+    type_filter
+        .contains("+WithDifferentNames")
+        .then(|| type_filter.replace("+WithDifferentNames", ""))
+}
+
+fn different_names_count(game: &GameState, cards: &[CardId]) -> i32 {
+    cards
+        .iter()
+        .map(|&cid| game.card(cid).card_name.as_str())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len() as i32
 }
 
 /// Mirrors Java's `CostPart.getAbilityAmount(SpellAbility)`.

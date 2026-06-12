@@ -20,97 +20,116 @@ use crate::trigger::TriggerType;
 fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     let num = resolve_mill_amount(ctx, sa).max(0) as usize;
 
-    // Determine target player: targeted (ValidTgts$) takes priority, then Defined$.
-    let target = sa
-        .target_chosen
-        .target_player
-        .or_else(|| {
-            sa.defined()
-                .and_then(|d| resolve_defined_player(d, sa.activating_player, ctx.game))
-        })
-        .unwrap_or(sa.activating_player);
-
-    // Run Mill replacement effects before milling.
-    let mut event = ReplacementEvent::Mill {
-        player: target,
-        count: num as i32,
-    };
-    let result = apply_replacements(ctx.game, &mut event);
-    if result == ReplacementResult::Skipped || result == ReplacementResult::Replaced {
-        return;
-    }
-    let num = if let ReplacementEvent::Mill { count, .. } = event {
-        count.max(0) as usize
-    } else {
-        num
-    };
-
-    if num == 0 {
-        return;
-    }
-
-    let lib = ctx.game.cards_in_zone(ZoneType::Library, target);
-    let mut milled_cards: Vec<crate::ids::CardId> = lib.iter().rev().take(num).copied().collect();
-    if milled_cards.len() > 1 {
-        ctx.agents[target.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        ctx.agents[target.index()].on_library_peek(ctx.game, &milled_cards);
-        let reordered = ctx.agents[target.index()].choose_reorder_library(target, &milled_cards);
-        if reordered.len() == milled_cards.len()
-            && milled_cards.iter().all(|id| reordered.contains(id))
-        {
-            milled_cards = reordered;
+    let millers: Vec<crate::ids::PlayerId> = if let Some(tp) = sa.target_chosen.target_player {
+        vec![tp]
+    } else if let Some(d) = sa.defined() {
+        let players = crate::ability::ability_utils::resolve_defined_players_with_sa(
+            d,
+            sa,
+            sa.activating_player,
+            ctx.game,
+        );
+        if players.is_empty() {
+            resolve_defined_player(d, sa.activating_player, ctx.game)
+                .map(|pid| vec![pid])
+                .unwrap_or_else(|| vec![sa.activating_player])
+        } else {
+            players
         }
-    }
+    } else {
+        vec![sa.activating_player]
+    };
 
-    for &card_id in &milled_cards {
-        ctx.move_card(card_id, ZoneType::Graveyard, target);
-        emit_zone_trigger(
-            ctx.trigger_handler,
-            card_id,
-            ZoneType::Library,
-            ZoneType::Graveyard,
-        );
-        // Fire Milled trigger per card
-        ctx.trigger_handler.run_trigger(
-            TriggerType::Milled,
-            RunParams {
-                card: Some(card_id),
-                player: Some(target),
-                ..Default::default()
-            },
-            false,
-        );
+    let mut all_milled: Vec<crate::ids::CardId> = Vec::new();
+    for target in millers {
+        // Run Mill replacement effects before milling.
+        let mut event = ReplacementEvent::Mill {
+            player: target,
+            count: num as i32,
+        };
+        let result = apply_replacements(ctx.game, &mut event);
+        if result == ReplacementResult::Skipped || result == ReplacementResult::Replaced {
+            continue;
+        }
+        let num = if let ReplacementEvent::Mill { count, .. } = event {
+            count.max(0) as usize
+        } else {
+            num
+        };
+
+        if num == 0 {
+            continue;
+        }
+
+        let lib = ctx.game.cards_in_zone(ZoneType::Library, target);
+        let mut milled_cards: Vec<crate::ids::CardId> =
+            lib.iter().rev().take(num).copied().collect();
+        if milled_cards.len() > 1 {
+            ctx.agents[target.index()].snapshot_state(ctx.game, ctx.mana_pools);
+            ctx.agents[target.index()].on_library_peek(ctx.game, &milled_cards);
+            let reordered =
+                ctx.agents[target.index()].choose_reorder_library(target, &milled_cards);
+            if reordered.len() == milled_cards.len()
+                && milled_cards.iter().all(|id| reordered.contains(id))
+            {
+                milled_cards = reordered;
+            }
+        }
+
+        for &card_id in &milled_cards {
+            ctx.move_card(card_id, ZoneType::Graveyard, target);
+            emit_zone_trigger(
+                ctx.trigger_handler,
+                card_id,
+                ZoneType::Library,
+                ZoneType::Graveyard,
+            );
+            // Fire Milled trigger per card
+            ctx.trigger_handler.run_trigger(
+                TriggerType::Milled,
+                RunParams {
+                    card: Some(card_id),
+                    player: Some(target),
+                    ..Default::default()
+                },
+                false,
+            );
+        }
+
+        if !milled_cards.is_empty() {
+            ctx.trigger_handler.run_trigger(
+                TriggerType::MilledOnce,
+                RunParams {
+                    player: Some(target),
+                    cards: Some(milled_cards.clone()),
+                    ..Default::default()
+                },
+                false,
+            );
+        }
+        all_milled.extend(milled_cards);
     }
 
     if sa.ir.remember_milled {
         if let Some(source_id) = sa.source {
             ctx.game
                 .card_mut(source_id)
-                .add_remembered_cards(milled_cards.iter().copied());
+                .add_remembered_cards(all_milled.iter().copied());
         }
     }
     if sa.ir.imprint {
         if let Some(source_id) = sa.source {
             ctx.game
                 .card_mut(source_id)
-                .add_imprinted_cards(milled_cards.iter().copied());
+                .add_imprinted_cards(all_milled.iter().copied());
         }
     }
 
-    if !milled_cards.is_empty() {
-        ctx.trigger_handler.run_trigger(
-            TriggerType::MilledOnce,
-            RunParams {
-                player: Some(target),
-                cards: Some(milled_cards.clone()),
-                ..Default::default()
-            },
-            false,
-        );
+    if !all_milled.is_empty() {
         ctx.trigger_handler.run_trigger(
             TriggerType::MilledAll,
             RunParams {
-                cards: Some(milled_cards),
+                cards: Some(all_milled),
                 ..Default::default()
             },
             false,

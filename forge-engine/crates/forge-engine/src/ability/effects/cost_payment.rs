@@ -911,7 +911,7 @@ pub(crate) fn try_pay_echo(
 
 /// Mirrors Java's `DeterministicCostPlumbing.isSpellPaymentContext()`.
 /// Returns true if the SA represents a spell being cast (not a trigger/activated ability).
-fn is_spell_payment_context(sa: &SpellAbility, game: &GameState) -> bool {
+pub(crate) fn is_spell_payment_context(sa: &SpellAbility, game: &GameState) -> bool {
     if sa.is_spell {
         return true;
     }

@@ -10,6 +10,4 @@ import forge.game.card.Card;
  */
 public interface HarnessPlayHooks {
     void markFailedPaymentCard(Card card);
-
-    boolean confirmPlayEffectOptional();
 }

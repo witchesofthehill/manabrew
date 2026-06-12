@@ -22,7 +22,7 @@ fn rng_log(name: &str, choices: Option<usize>, outcome: String, rng: &JavaRandom
 pub fn pick_int_in_range(min: i32, max: i32, rng: &mut JavaRandom) -> i32 {
     if max <= min {
         rng_log(
-            &format!("pick_int_in_range [{min}-{max}]"),
+            &format!("pick_int_in_range[{min} to {max}]"),
             None,
             min.to_string(),
             rng,
@@ -37,7 +37,7 @@ pub fn pick_int_in_range(min: i32, max: i32, rng: &mut JavaRandom) -> i32 {
             candidate.min(max as i64) as i32
         };
         rng_log(
-            &format!("pick_int_in_range [{min}-{max}]"),
+            &format!("pick_int_in_range [{min} to {max}]"),
             None,
             val.to_string(),
             rng,

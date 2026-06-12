@@ -391,6 +391,27 @@ impl CapturingAgent {
             return action_space.clone();
         }
         let mut filtered = action_space.clone();
+        if std::env::var("FORGE_FAIL_TRACE").is_ok() {
+            let names: Vec<String> = action_space
+                .activatable
+                .iter()
+                .map(|(cid, idx)| {
+                    let name = self
+                        .last_game_state
+                        .as_ref()
+                        .map(|g| {
+                            let c = g.card(*cid);
+                            format!("{} zone={:?}", c.card_name, c.zone)
+                        })
+                        .unwrap_or_default();
+                    format!("({cid:?},{idx},{name})")
+                })
+                .collect();
+            eprintln!(
+                "[fail-rust] T{} {} filter set={:?} activatable={:?}",
+                self.current_turn, self.current_phase, self.failed_payment_cards_this_turn, names
+            );
+        }
         filtered
             .playable
             .retain(|play| !self.failed_payment_cards_this_turn.contains(&play.card_id));
@@ -571,6 +592,12 @@ impl PlayerAgent for CapturingAgent {
                 player, card_id, ..
             } => {
                 if *player == self.player_id {
+                    if std::env::var("FORGE_FAIL_TRACE").is_ok() {
+                        eprintln!(
+                            "[fail-rust] T{} {} insert failed card_id={:?}",
+                            self.current_turn, self.current_phase, card_id
+                        );
+                    }
                     self.failed_payment_cards_this_turn.insert(*card_id);
                 }
             }
@@ -621,6 +648,20 @@ impl PlayerAgent for CapturingAgent {
             action_space.map(|action_space| self.filter_failed_payment_actions(action_space));
         let action_space = filtered_action_space.as_ref();
         self.save_snapshot("choose_action");
+        if std::env::var("FORGE_BF_TRACE").is_ok() && self.current_turn == 20 {
+            if let Some(ref g) = self.last_game_state {
+                let bf: Vec<String> = g
+                    .cards
+                    .iter()
+                    .filter(|c| c.zone == forge_foundation::ZoneType::Battlefield)
+                    .map(|c| format!("{}({:?})", c.card_name, c.controller))
+                    .collect();
+                eprintln!(
+                    "[bf-rust] T{} {} {:?}",
+                    self.current_turn, self.current_phase, bf
+                );
+            }
+        }
         if let Some(action_space) = action_space {
             if let Some(action_space_log) = self.inner.format_action_space_for_log(action_space) {
                 self.parity_observer.on_callback(
@@ -800,6 +841,7 @@ impl PlayerAgent for CapturingAgent {
         fn choose_single_entity_for_effect(&mut self, player: PlayerId, valid: &[GameEntity], is_optional: bool) -> Option<GameEntity> => "choose_single_entity_for_effect";
         fn get_ability_to_play(&mut self, player: PlayerId, abilities: &[forge_engine_core::spellability::SpellAbility]) -> Option<usize> => "get_ability_to_play";
         fn choose_x_value(&mut self, player: PlayerId, max_x: u32, source: Option<CardId>) -> u32 => "choose_x_value";
+        fn announce_requirements(&mut self, player: PlayerId, announce: &str, min: i32, max: i32, source: Option<CardId>) -> Option<i32> => "announce_requirements";
         fn choose_optional_trigger(&mut self, player: PlayerId, description: &str, source: Option<CardId>, api: Option<forge_engine_core::ability::api_type::ApiType>) -> bool => "choose_optional_trigger";
         fn choose_land_or_spell(&mut self, player: PlayerId) -> Option<bool> => "choose_land_or_spell";
         fn confirm_action(&mut self, player: PlayerId, mode: Option<&str>, message: &str, options: &[String], source: Option<CardId>, api: Option<forge_engine_core::ability::api_type::ApiType>) -> bool => "confirm_action";

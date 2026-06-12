@@ -149,9 +149,14 @@ impl Card {
         self.get_keyword_cost("Ward")
     }
 
-    /// Get Flashback cost (e.g. "Flashback:2 R" → Some("2 R")).
     pub fn get_flashback_cost(&self) -> Option<String> {
-        self.get_keyword_cost("Flashback")
+        if let Some(cost) = self.get_keyword_cost("Flashback") {
+            return Some(cost);
+        }
+        if self.has_keyword("Flashback") && !self.mana_cost.is_no_cost() {
+            return Some(mana_cost_script_string(&self.mana_cost));
+        }
+        None
     }
 
     /// Get Harmonize cost (e.g. "Harmonize:X G G" → Some("X G G")).
@@ -163,4 +168,22 @@ impl Card {
     pub fn get_kicker_cost(&self) -> Option<String> {
         self.get_keyword_cost("Kicker")
     }
+}
+
+fn mana_cost_script_string(mc: &forge_foundation::ManaCost) -> String {
+    let mut tokens: Vec<String> = Vec::new();
+    for shard in mc.shards() {
+        if *shard == forge_foundation::ManaCostShard::X {
+            tokens.push("X".to_string());
+        }
+    }
+    if mc.generic_cost() > 0 {
+        tokens.push(mc.generic_cost().to_string());
+    }
+    for shard in mc.shards() {
+        if *shard != forge_foundation::ManaCostShard::X {
+            tokens.push(shard.short_string().to_string());
+        }
+    }
+    tokens.join(" ")
 }

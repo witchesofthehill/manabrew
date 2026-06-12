@@ -354,10 +354,34 @@ impl GameState {
         owner: PlayerId,
         card: CardId,
     ) -> bool {
+        if std::env::var("FORGE_ZONE_TRACE").is_ok()
+            && self.cards[card.index()].card_name == "Mind Stone"
+        {
+            eprintln!(
+                "[zone-rust] T{} remove {:?} {} from {:?} owner={:?}",
+                self.turn.turn_number,
+                card,
+                self.cards[card.index()].card_name,
+                zone_type,
+                owner
+            );
+        }
         self.zones.remove_card(zone_type, owner, card)
     }
 
     pub(crate) fn add_card_to_zone(&mut self, zone_type: ZoneType, owner: PlayerId, card: CardId) {
+        if std::env::var("FORGE_ZONE_TRACE").is_ok()
+            && self.cards[card.index()].card_name == "Mind Stone"
+        {
+            eprintln!(
+                "[zone-rust] T{} add {:?} {} -> {:?} owner={:?}",
+                self.turn.turn_number,
+                card,
+                self.cards[card.index()].card_name,
+                zone_type,
+                owner
+            );
+        }
         self.zones.add_card_to_top(zone_type, owner, card);
     }
 

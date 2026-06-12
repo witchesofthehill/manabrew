@@ -297,7 +297,9 @@ impl GameState {
 
         // Assign a zone timestamp so same-player triggers are ordered by
         // zone entry order (matching Java's Zone.cardList insertion order).
-        self.assign_zone_timestamp(card_id);
+        if dest_zone != ZoneType::Stack {
+            self.assign_zone_timestamp(card_id);
+        }
 
         // Track LKI: record which zone this card came from on the destination zone.
         self.save_zone_lki(dest_zone, dest_owner, card_id, src_zone);
@@ -349,8 +351,15 @@ impl GameState {
                                     .get("XPaid")
                                     .and_then(|v| v.parse::<i32>().ok())
                                     .unwrap_or(0)
+                            } else if let Ok(n) = svar_expr.parse::<i32>() {
+                                n
                             } else {
-                                svar_expr.parse::<i32>().unwrap_or(0)
+                                crate::svar::resolve_count_svar(
+                                    svar_expr,
+                                    self,
+                                    card_id,
+                                    card.controller,
+                                )
                             }
                         } else {
                             0
@@ -799,6 +808,9 @@ impl GameState {
         if crate::staticability::static_ability_cant_gain_lose_pay_life::cant_lose_life(
             self, target,
         ) {
+            return 0;
+        }
+        if crate::player::has_keyword(self, target, "Protection from everything") {
             return 0;
         }
         let mut event = ReplacementEvent::DamageToPlayer {

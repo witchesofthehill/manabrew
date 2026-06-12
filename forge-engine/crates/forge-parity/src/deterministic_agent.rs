@@ -1676,6 +1676,21 @@ impl PlayerAgent for DeterministicAgent {
         max_x
     }
 
+    fn announce_requirements(
+        &mut self,
+        _player: PlayerId,
+        _announce: &str,
+        min: i32,
+        max: i32,
+        _source: Option<CardId>,
+    ) -> Option<i32> {
+        Some(gui_repro::pick_int_in_range(
+            min,
+            max,
+            &mut self.rng.borrow_mut(),
+        ))
+    }
+
     /// Always pay life for phyrexian mana — matches Java's
     /// ComputerUtilMana.payManaCost() which auto-pays phyrexian
     /// shards with life when no colored mana source is available.

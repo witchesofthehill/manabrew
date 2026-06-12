@@ -31,10 +31,17 @@ import java.util.Set;
 public final class AutoPay {
     private final Player payer;
     private final HarnessCostPlumbing costPlumbing;
+    private final boolean useManaCostManaAbilities;
 
     public AutoPay(final Player payer, final HarnessCostPlumbing costPlumbing) {
+        this(payer, costPlumbing, false);
+    }
+
+    public AutoPay(
+            final Player payer, final HarnessCostPlumbing costPlumbing, final boolean useManaCostManaAbilities) {
         this.payer = payer;
         this.costPlumbing = costPlumbing;
+        this.useManaCostManaAbilities = useManaCostManaAbilities;
     }
 
     public PayManaCostResult payManaCostWithTrace(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
@@ -323,6 +330,11 @@ public final class AutoPay {
                     continue;
                 }
                 if (manaAbility.getManaPart() == null) {
+                    continue;
+                }
+                if (!useManaCostManaAbilities
+                        && manaAbility.getPayCosts() != null
+                        && manaAbility.getPayCosts().hasManaCost()) {
                     continue;
                 }
                 if (!manaAbility.getManaPart().meetsManaRestrictions(saBeingPaid)) {

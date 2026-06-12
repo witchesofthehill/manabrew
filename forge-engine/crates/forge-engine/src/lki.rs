@@ -271,5 +271,19 @@ pub fn resolve_triggered_card_lki_property(
             .map(|trigger_src| resolve_lki_counter_count(game, trigger_src, &counter_type));
     }
 
+    if let Some(filter) = property.strip_prefix("Valid ") {
+        let card_id = trigger_card_object(sa, "Card").or(sa.trigger_source)?;
+        let source_id = sa.source?;
+        let selector = crate::parsing::cached_compiled_selector(filter);
+        let matched = crate::card::valid_filter::matches_valid_card_selector_with_context(
+            &selector,
+            game.card(card_id),
+            crate::card::valid_filter::MatchContext::from_source(game.card(source_id))
+                .with_game(game)
+                .with_spell_ability(sa),
+        );
+        return Some(i32::from(matched));
+    }
+
     None
 }

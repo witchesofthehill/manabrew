@@ -41,7 +41,7 @@ function slideStyle(offset: number): React.CSSProperties {
   return { transform: "translate(-50%, -50%) scale(0.5)", opacity: 0, zIndex: 0 };
 }
 
-export function ScreenshotCarousel({ className }: { className?: string }) {
+export function ScreenshotCarousel() {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
@@ -68,12 +68,7 @@ export function ScreenshotCarousel({ className }: { className?: string }) {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div
-        className={cn(
-          "relative w-full overflow-hidden",
-          className ?? "h-[clamp(180px,32dvh,480px)]",
-        )}
-      >
+      <div className="relative w-full overflow-hidden h-[clamp(180px,32dvh,480px)]">
         {SCREENSHOTS.map((shot, i) => {
           const offset = offsetOf(i);
           return (

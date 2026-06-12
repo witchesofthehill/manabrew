@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
@@ -18,7 +17,6 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AboutDialog } from "@/components/AboutDialog";
 import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 
@@ -28,7 +26,6 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
   const isGameActive = useGameStore((s) => s.isGameActive);
-  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <div
@@ -166,18 +163,20 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 )}
               </NavLink>
             )}
-            <Button
-              variant="ghost"
-              className="w-full justify-start whitespace-nowrap"
-              onClick={() => setAboutOpen(true)}
-            >
-              <Info className="mr-2 h-4 w-4 shrink-0" />
-              About ManaBrew
-            </Button>
+            <NavLink to="/about" onClick={onNavigate}>
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-start whitespace-nowrap"
+                >
+                  <Info className="mr-2 h-4 w-4 shrink-0" />
+                  About ManaBrew
+                </Button>
+              )}
+            </NavLink>
           </div>
         </div>
       </div>
-      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <div className="mt-auto flex w-max items-center gap-3 overflow-visible px-7 py-4 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-muted-foreground">
           Get in touch

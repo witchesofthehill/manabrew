@@ -16,6 +16,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 | `components/companion/` | Paper-play life tracker — has its own AGENTS.md.                                                                        |
 | `components/layout/`    | App shell, sidebar, logo. Visible everywhere — change with care.                                                        |
 | `components/dev/`       | Dev-only panels, gated behind a flag. Don't import in production paths.                                                 |
+| `components/icons/`     | Hand-rolled SVG icon components for brands lucide lacks (Discord). Stateless.                                           |
 | `views/`                | Page-level views routed by `router.tsx`. Compose components; no heavy logic.                                            |
 | `stores/`               | Zustand stores. One per concern. Types in `*.types.ts` siblings, constants in `*.constants.ts`.                         |
 | `hooks/`                | App-wide hooks. Component-specific hooks co-locate with the component.                                                  |

@@ -1,0 +1,20 @@
+{
+  "rustc": 17575471286409424799,
+  "features": "[]",
+  "declared_features": "[]",
+  "target": 18201119583187578178,
+  "profile": 2330448797067240312,
+  "path": 10763286916239946207,
+  "deps": [],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/manabrew-install-0f71bec1bc8999f6/dep-lib-manabrew_install",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

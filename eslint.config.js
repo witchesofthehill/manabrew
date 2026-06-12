@@ -15,6 +15,8 @@ export default defineConfig([
     "src-tauri/resources",
     "forge",
     "forge-engine",
+    "website/dist",
+    "website/.astro",
   ]),
   {
     files: ["**/*.{ts,tsx}"],

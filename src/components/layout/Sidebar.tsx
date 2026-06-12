@@ -4,6 +4,7 @@ import { FEATURES } from "@/lib/features";
 import { useGameStore } from "@/stores/useGameStore";
 import {
   Github,
+  Globe,
   HeartPulse,
   Home,
   Gamepad2,
@@ -187,6 +188,13 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
             <a href="https://github.com/witchesofthehill/manabrew" target="_blank" rel="noreferrer">
               <Github className="h-4 w-4" />
               <span className="sr-only">GitHub</span>
+            </a>
+          </Button>
+          <span className="shrink-0 text-muted-foreground">|</span>
+          <Button asChild variant="ghost" size="icon" className="shrink-0" title="Website">
+            <a href="https://manabrew.app" target="_blank" rel="noreferrer">
+              <Globe className="h-4 w-4" />
+              <span className="sr-only">Website</span>
             </a>
           </Button>
         </div>

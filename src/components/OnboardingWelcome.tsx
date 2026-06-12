@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { AboutContent } from "@/components/AboutContent";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export const ONBOARDING_GUIDE_VERSION = "1.0";
@@ -32,7 +32,7 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
         </p>
       </div>
 
-      <OnboardingGuide />
+      <AboutContent fullBleedCarousel />
 
       <div className="space-y-2">
         <label

@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { AboutContent } from "@/components/AboutContent";
 
 export function AboutDialog({
   open,
@@ -23,7 +23,7 @@ export function AboutDialog({
             A fan-made, non-commercial client for Magic: The Gathering — free and open source.
           </DialogDescription>
         </DialogHeader>
-        <OnboardingGuide />
+        <AboutContent />
       </DialogContent>
     </Dialog>
   );

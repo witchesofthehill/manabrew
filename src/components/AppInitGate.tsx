@@ -170,7 +170,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     <>
       {childWrapper}
       <div
-        className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-background text-foreground"
+        className="fixed inset-0 z-50 overflow-hidden bg-background text-foreground"
         style={
           exiting
             ? {
@@ -182,102 +182,108 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       >
         <BreweryBackdrop />
 
-        <div className="relative z-10 flex w-full max-w-2xl flex-col items-center gap-10 px-8 drop-shadow-2xl">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
-              Welcome to
-            </p>
-            <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
-              Manabrew
-            </h1>
-            <div
-              aria-hidden
-              className="mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent"
-            />
-          </div>
-
-          {showTerms ? (
-            <div className="w-full space-y-5">
-              <div className="space-y-1 text-center">
-                <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                  {TERMS_AND_CONDITIONS.title}
+        <div className="absolute inset-0 z-10 overflow-y-auto">
+          <div className="flex min-h-full w-full flex-col items-center justify-center gap-10 px-8 py-10">
+            <div className="flex w-full max-w-2xl flex-col items-center gap-10 drop-shadow-2xl">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <p className="font-mono text-[0.65rem] uppercase tracking-[0.55em] text-muted-foreground">
+                  Welcome to
                 </p>
-                <p className="text-sm text-muted-foreground">{TERMS_AND_CONDITIONS.intro}</p>
-              </div>
-
-              <ScrollArea className="h-[38vh] max-h-[360px]">
-                <div className="space-y-4 pr-4 text-sm leading-relaxed">
-                  {TERMS_AND_CONDITIONS.sections.map((section) => (
-                    <section key={section.heading} className="space-y-1.5">
-                      <h3 className="text-sm font-semibold text-foreground">{section.heading}</h3>
-                      <p className="text-sm text-muted-foreground">{section.body}</p>
-                    </section>
-                  ))}
-                </div>
-              </ScrollArea>
-
-              <label className="flex cursor-pointer select-none items-start justify-center gap-2.5 text-sm">
-                <Checkbox
-                  checked={consent}
-                  onCheckedChange={(value) => setConsent(value === true)}
-                  className="mt-0.5"
-                />
-                <span className="text-foreground">I have read and agree to these terms</span>
-              </label>
-
-              <div className="flex flex-col items-center gap-3">
-                <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
-                  Accept and continue
-                </Button>
-                <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
-                  Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
-                  {TERMS_AND_CONDITIONS.lastUpdated}
-                </p>
-              </div>
-            </div>
-          ) : showOnboarding ? (
-            <OnboardingWelcome onComplete={completeOnboarding} />
-          ) : (
-            <div className="w-full space-y-5">
-              <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">
-                <span className="truncate text-foreground/80">{title}</span>
-                <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
-              </div>
-
-              {/* The bar itself: thick track, gradient fill, shimmering overlay,
-                and a soft glow at the leading edge. */}
-              <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
-                <div
-                  className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
-                  style={{ width: `${target}%` }}
-                >
-                  <div
-                    aria-hidden
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/45 to-transparent"
-                    style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
-                  />
-                </div>
-                {/* Trailing glow that follows the leading edge of the fill. */}
+                <h1 className="font-serif text-5xl font-light tracking-[0.08em] text-foreground md:text-6xl">
+                  Manabrew
+                </h1>
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
-                  style={{ left: `calc(${target}% - 0.5rem)` }}
+                  className="mt-2 h-px w-24 bg-gradient-to-r from-transparent via-foreground/50 to-transparent"
                 />
               </div>
 
-              {/* Tech line — bytes during download, otherwise a quiet note
+              {showTerms ? (
+                <div className="w-full space-y-5">
+                  <div className="space-y-1 text-center">
+                    <p className="font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                      {TERMS_AND_CONDITIONS.title}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{TERMS_AND_CONDITIONS.intro}</p>
+                  </div>
+
+                  <ScrollArea className="h-[38vh] max-h-[360px]">
+                    <div className="space-y-4 pr-4 text-sm leading-relaxed">
+                      {TERMS_AND_CONDITIONS.sections.map((section) => (
+                        <section key={section.heading} className="space-y-1.5">
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {section.heading}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">{section.body}</p>
+                        </section>
+                      ))}
+                    </div>
+                  </ScrollArea>
+
+                  <label className="flex cursor-pointer select-none items-start justify-center gap-2.5 text-sm">
+                    <Checkbox
+                      checked={consent}
+                      onCheckedChange={(value) => setConsent(value === true)}
+                      className="mt-0.5"
+                    />
+                    <span className="text-foreground">I have read and agree to these terms</span>
+                  </label>
+
+                  <div className="flex flex-col items-center gap-3">
+                    <Button disabled={!consent} onClick={acceptTerms} className="min-w-[200px]">
+                      Accept and continue
+                    </Button>
+                    <p className="font-mono text-[0.55rem] uppercase tracking-[0.4em] text-muted-foreground/70">
+                      Version {TERMS_AND_CONDITIONS.version} · Updated{" "}
+                      {TERMS_AND_CONDITIONS.lastUpdated}
+                    </p>
+                  </div>
+                </div>
+              ) : showOnboarding ? (
+                <OnboardingWelcome onComplete={completeOnboarding} />
+              ) : (
+                <div className="w-full space-y-5">
+                  <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">
+                    <span className="truncate text-foreground/80">{title}</span>
+                    <span className="tabular-nums">{pct.toString().padStart(3, "0")}%</span>
+                  </div>
+
+                  {/* The bar itself: thick track, gradient fill, shimmering overlay,
+                and a soft glow at the leading edge. */}
+                  <div className="relative h-3.5 w-full overflow-hidden rounded-full border border-border/80 bg-muted/40">
+                    <div
+                      className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-primary/70 via-primary to-primary/70 shadow-[inset_0_0_8px] shadow-primary/40 transition-[width] duration-200 ease-out"
+                      style={{ width: `${target}%` }}
+                    >
+                      <div
+                        aria-hidden
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/45 to-transparent"
+                        style={{ animation: "manabrew-shimmer 2.2s linear infinite" }}
+                      />
+                    </div>
+                    {/* Trailing glow that follows the leading edge of the fill. */}
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 rounded-full bg-primary blur-md transition-[left] duration-200 ease-out"
+                      style={{ left: `calc(${target}% - 0.5rem)` }}
+                    />
+                  </div>
+
+                  {/* Tech line — bytes during download, otherwise a quiet note
                 about caching. No flavor copy. */}
-              <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
-                {stage === "downloading" && showBytes ? (
-                  <>
-                    {formatBytes(loaded)} / {formatBytes(total)}
-                  </>
-                ) : (
-                  <>Connecting</>
-                )}
-              </p>
+                  <p className="text-center font-mono text-[0.6rem] uppercase tracking-[0.45em] text-muted-foreground/80">
+                    {stage === "downloading" && showBytes ? (
+                      <>
+                        {formatBytes(loaded)} / {formatBytes(total)}
+                      </>
+                    ) : (
+                      <>Connecting</>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Inline keyframes scoped by a manabrew-* prefix. */}

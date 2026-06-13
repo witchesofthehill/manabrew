@@ -332,26 +332,16 @@ pub trait PlayerAgent {
         valid.first().copied()
     }
 
-    /// Mirrors Java's `PlayerController.arrangeForScry`: returns `(to_top, to_bottom)`.
-    /// `cards` and the returned `to_top` are in top-to-bottom order (index 0 = top).
-    /// Default: keep all on top in the original order.
-    fn arrange_for_scry(
-        &mut self,
-        _player: PlayerId,
-        cards: &[CardId],
-    ) -> (Vec<CardId>, Vec<CardId>) {
-        (cards.to_vec(), vec![])
+    /// Choose which of the top `cards` (from Scry) to put on the bottom of the library.
+    /// The rest will stay on top. Default: keep all on top (no cards sent to bottom).
+    fn choose_scry(&mut self, _player: PlayerId, _cards: &[CardId]) -> Vec<CardId> {
+        vec![]
     }
 
-    /// Mirrors Java's `PlayerController.arrangeForSurveil`: returns `(to_top, to_graveyard)`.
-    /// `cards` and the returned `to_top` are in top-to-bottom order (index 0 = top).
-    /// Default: keep all on top in the original order.
-    fn arrange_for_surveil(
-        &mut self,
-        _player: PlayerId,
-        cards: &[CardId],
-    ) -> (Vec<CardId>, Vec<CardId>) {
-        (cards.to_vec(), vec![])
+    /// Choose which of the top `cards` (from Surveil) to put into the graveyard.
+    /// The rest will go on top. Default: keep all on top (nothing milled).
+    fn choose_surveil(&mut self, _player: PlayerId, _cards: &[CardId]) -> Vec<CardId> {
+        vec![]
     }
 
     /// Choose up to `max` cards from `valid` to move to the destination zone (Dig effect).

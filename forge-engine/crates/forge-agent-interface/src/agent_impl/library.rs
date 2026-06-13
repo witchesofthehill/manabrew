@@ -18,98 +18,49 @@ pub(super) fn on_library_peek<T: Responder>(
         .collect();
 }
 
-pub(super) fn arrange_for_scry<T: Responder>(
+pub(super) fn choose_scry<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cards: &[CardId],
-) -> (Vec<CardId>, Vec<CardId>) {
+) -> Vec<CardId> {
     let card_ids = PromptAgent::<T>::card_ids(cards);
     let peeked = std::mem::take(&mut agent.peeked_library_cards);
     agent.send_prompt(
         AgentPromptInner::Scry {
             card_ids,
-            cards: peeked.clone(),
+            cards: peeked,
         },
         None,
     );
-    let bottom: Vec<CardId> = match agent.recv_action() {
+    match agent.recv_action() {
         PlayerAction::ScryDecision { bottom_card_ids } => bottom_card_ids
             .iter()
             .filter_map(|id| parse_card_id(id))
             .collect(),
         _ => vec![],
-    };
-    let top = arrange_to_top(agent, peeked, cards, &bottom);
-    (top, bottom)
+    }
 }
 
-pub(super) fn arrange_for_surveil<T: Responder>(
+pub(super) fn choose_surveil<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     cards: &[CardId],
-) -> (Vec<CardId>, Vec<CardId>) {
+) -> Vec<CardId> {
     let card_ids = PromptAgent::<T>::card_ids(cards);
     let peeked = std::mem::take(&mut agent.peeked_library_cards);
     agent.send_prompt(
         AgentPromptInner::Surveil {
             card_ids,
-            cards: peeked.clone(),
+            cards: peeked,
         },
         None,
     );
-    let graveyard: Vec<CardId> = match agent.recv_action() {
+    match agent.recv_action() {
         PlayerAction::SurveilDecision { graveyard_card_ids } => graveyard_card_ids
             .iter()
             .filter_map(|id| parse_card_id(id))
             .collect(),
         _ => vec![],
-    };
-    let top = arrange_to_top(agent, peeked, cards, &graveyard);
-    (top, graveyard)
-}
-
-fn arrange_to_top<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    peeked: Vec<CardDto>,
-    cards: &[CardId],
-    removed: &[CardId],
-) -> Vec<CardId> {
-    let kept: Vec<CardId> = cards
-        .iter()
-        .copied()
-        .filter(|id| !removed.contains(id))
-        .collect();
-    if kept.len() <= 1 {
-        return kept;
-    }
-    let card_ids = PromptAgent::<T>::card_ids(&kept);
-    let kept_dtos: Vec<CardDto> = peeked
-        .into_iter()
-        .filter(|dto| card_ids.contains(&dto.id))
-        .collect();
-    agent.send_prompt(
-        AgentPromptInner::ReorderLibrary {
-            card_ids,
-            cards: kept_dtos,
-            destination: None,
-            top_of_deck: true,
-        },
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
-            let mut parsed: Vec<CardId> = ordered_card_ids
-                .iter()
-                .filter_map(|s| parse_card_id(s))
-                .collect();
-            if parsed.len() == kept.len() && kept.iter().all(|id| parsed.contains(id)) {
-                parsed.reverse();
-                parsed
-            } else {
-                kept
-            }
-        }
-        _ => kept,
     }
 }
 

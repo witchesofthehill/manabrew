@@ -139,14 +139,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
                     .with_card(card_id),
             );
         }
-        ctx.game.reveal_in_zone(
-            ctx.agents,
-            &top_n,
-            ZoneType::Library,
-            dig_player,
-            false,
-            None,
-        );
     }
 
     // Ask the chooser (activating player) which cards to take.
@@ -171,19 +163,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         .filter(|id| valid.contains(id))
         .take(max_take)
         .collect();
-
-    if !change_valid.is_empty() && !sa.is_exile_face_down() && !sa.ir.no_reveal {
-        let chooser_name = ctx.game.player(sa.activating_player).name.clone();
-        ctx.game.reveal_in_zone(
-            ctx.agents,
-            &chosen,
-            ZoneType::Library,
-            sa.activating_player,
-            true,
-            Some(&format!("{chooser_name} picked card(s) from")),
-        );
-    }
-
     // Java reverses moved cards before moving them so the final destination
     // order matches the chooser's intended top-first order.
     chosen.reverse();

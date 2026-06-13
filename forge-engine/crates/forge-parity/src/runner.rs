@@ -732,18 +732,6 @@ impl PlayerAgent for CapturingAgent {
                 None => "null".to_string(),
             }
         };
-        fn arrange_for_scry(&mut self, player: PlayerId, cards: &[CardId]) -> (Vec<CardId>, Vec<CardId>) => "choose_scry", format_with |result: &(Vec<CardId>, Vec<CardId>), fmt: Option<FmtCtx<'_>>| {
-            match fmt {
-                Some(ctx) => result.1.parity_fmt(&ctx),
-                None => format!("{:?}", result.1),
-            }
-        };
-        fn arrange_for_surveil(&mut self, player: PlayerId, cards: &[CardId]) -> (Vec<CardId>, Vec<CardId>) => "choose_surveil", format_with |result: &(Vec<CardId>, Vec<CardId>), fmt: Option<FmtCtx<'_>>| {
-            match fmt {
-                Some(ctx) => result.1.parity_fmt(&ctx),
-                None => format!("{:?}", result.1),
-            }
-        };
     }
 
     parity_agent_callback! {
@@ -837,6 +825,8 @@ impl PlayerAgent for CapturingAgent {
         fn choose_legend_keep(&mut self, player: PlayerId, duplicates: &[CardId]) -> CardId => "choose_legend_keep";
         fn choose_sacrifice(&mut self, player: PlayerId, valid: &[CardId], source: Option<CardId>) -> Option<CardId> => "choose_sacrifice";
         fn choose_type(&mut self, player: PlayerId, type_category: &str, valid_types: &[String]) -> Option<String> => "choose_type";
+        fn choose_scry(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_scry";
+        fn choose_surveil(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_surveil";
         fn choose_dig(&mut self, player: PlayerId, valid: &[CardId], max: usize, optional: bool) -> Vec<CardId> => "choose_dig";
         fn choose_reorder_library(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_reorder_library";
         fn choose_discard(&mut self, player: PlayerId, hand: &[CardId], num: usize) -> Vec<CardId> => "choose_discard";

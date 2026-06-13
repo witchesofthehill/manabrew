@@ -80,49 +80,6 @@ impl GameState {
         self.move_card_internal(card_id, dest_zone, dest_owner, None, None, false, false);
     }
 
-    pub fn reveal(
-        &self,
-        agents: &mut [Box<dyn PlayerAgent>],
-        cards: &[CardId],
-        card_owner: PlayerId,
-        dont_reveal_to_owner: bool,
-        message_prefix: Option<&str>,
-    ) {
-        let Some(&first) = cards.first() else {
-            return;
-        };
-        let zone = self.card_zone(first).unwrap_or(self.card(first).zone);
-        self.reveal_in_zone(
-            agents,
-            cards,
-            zone,
-            card_owner,
-            dont_reveal_to_owner,
-            message_prefix,
-        );
-    }
-
-    pub fn reveal_in_zone(
-        &self,
-        agents: &mut [Box<dyn PlayerAgent>],
-        cards: &[CardId],
-        zone: ZoneType,
-        card_owner: PlayerId,
-        dont_reveal_to_owner: bool,
-        message_prefix: Option<&str>,
-    ) {
-        if cards.is_empty() {
-            return;
-        }
-        for (index, agent) in agents.iter_mut().enumerate() {
-            let player = PlayerId(index as u32);
-            if dont_reveal_to_owner && card_owner == player {
-                continue;
-            }
-            agent.reveal_cards(self, player, cards, zone, card_owner, message_prefix);
-        }
-    }
-
     /// Discard a card. Mirrors Java's `Player.discard()`.
     ///
     /// Records the discard, marks the card, and moves it to graveyard through
@@ -133,11 +90,10 @@ impl GameState {
         card_id: CardId,
         discard_player: PlayerId,
         sa: Option<&crate::spellability::SpellAbility>,
-        mut agents: Option<&mut [Box<dyn PlayerAgent>]>,
+        agents: Option<&mut [Box<dyn PlayerAgent>]>,
         trigger_handler: &mut TriggerHandler,
     ) {
         let owner = self.card(card_id).owner;
-        let card_name = self.card(card_id).card_name.clone();
         self.player_record_discard(discard_player, 1);
         self.card_mut(card_id).set_discarded(true);
 
@@ -147,20 +103,11 @@ impl GameState {
             card_id,
             ZoneType::Graveyard,
             owner,
-            agents.as_deref_mut(),
+            agents,
             Some(trigger_handler),
             true,
             true, // is_discard
         );
-
-        if let Some(agents) = agents {
-            crate::agent::notify_all_agents(
-                agents,
-                crate::agent::GameLogEvent::action(format!("Discarded: {}", card_name))
-                    .with_player(discard_player)
-                    .with_card(card_id),
-            );
-        }
 
         // RememberDiscarded
         if let Some(sa) = sa {

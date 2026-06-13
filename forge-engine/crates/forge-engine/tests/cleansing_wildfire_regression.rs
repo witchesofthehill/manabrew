@@ -136,7 +136,7 @@ impl PlayerAgent for AcceptSearchAgent {
         _: Option<&str>,
         _: &str,
         _: &[String],
-        _: Option<CardId>,
+        _: Option<&str>,
         _: Option<forge_engine_core::ability::api_type::ApiType>,
     ) -> bool {
         true

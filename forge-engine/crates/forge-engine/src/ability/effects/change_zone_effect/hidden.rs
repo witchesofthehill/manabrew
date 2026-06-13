@@ -181,10 +181,6 @@ pub(super) fn resolve_hidden_origin(
                 controller,
                 controller,
             );
-            if sa.ir.reveal_true && !ordered.is_empty() && !sa.ir.no_reveal {
-                ctx.game
-                    .reveal(ctx.agents, &ordered, controller, true, None);
-            }
         }
         // For known defined types (Remembered, Imprinted, etc.), always return
         // even if empty — do NOT fall through to a full zone search.
@@ -341,16 +337,6 @@ pub(super) fn resolve_hidden_origin(
                 affected_player,
                 affected_player,
             );
-            if ((dest_zone != ZoneType::Battlefield
-                && !change_type.is_empty()
-                && defined.is_empty()
-                && change_type != "Card")
-                || (sa.ir.reveal_true && !cards_to_move.is_empty()))
-                && !sa.ir.no_reveal
-            {
-                ctx.game
-                    .reveal(ctx.agents, &cards_to_move, affected_player, true, None);
-            }
         }
         return;
     }
@@ -503,6 +489,17 @@ pub(super) fn resolve_hidden_origin(
         return;
     }
 
+    // Reveal chosen cards (NoLooking$ suppresses)
+    if !sa.ir.no_looking
+        && sa.is_reveal()
+        && !cards_to_move.is_empty()
+        && origin_zone == ZoneType::Library
+    {
+        for agent in ctx.agents.iter_mut() {
+            agent.on_library_peek(ctx.game, &cards_to_move);
+        }
+    }
+
     // RememberLKI$
     if sa.ir.remember_lki_flag {
         if let Some(sid) = sa.source {
@@ -522,17 +519,6 @@ pub(super) fn resolve_hidden_origin(
         controller,
         search_player,
     );
-
-    if ((dest_zone != ZoneType::Battlefield
-        && !change_type.is_empty()
-        && defined.is_empty()
-        && change_type != "Card")
-        || (sa.ir.reveal_true && !cards_to_move.is_empty()))
-        && !sa.ir.no_reveal
-    {
-        ctx.game
-            .reveal(ctx.agents, &cards_to_move, search_player, true, None);
-    }
 }
 
 fn collect_search_zone_cards(

@@ -53,19 +53,15 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Let UI agents pre-build card info for the revealed cards.
     ctx.agents[target.index()].on_library_peek(ctx.game, &top_n);
 
-    let (top_ids, gy_ids) = ctx.agents[target.index()].arrange_for_surveil(target, &top_n);
+    // Ask the agent which cards to send to the graveyard.
+    let gy_ids = ctx.agents[target.index()].choose_surveil(target, &top_n);
 
     let graveyard: Vec<_> = gy_ids.into_iter().filter(|id| top_n.contains(id)).collect();
-    let kept: Vec<_> = top_n
+    let keep_top: Vec<_> = top_n
         .iter()
         .copied()
         .filter(|id| !graveyard.contains(id))
         .collect();
-    let to_top = if top_ids.len() == kept.len() && kept.iter().all(|id| top_ids.contains(id)) {
-        top_ids
-    } else {
-        kept
-    };
 
     // Move chosen cards to graveyard.
     for &id in &graveyard {
@@ -78,10 +74,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         );
     }
 
-    // `to_top` is in top-to-bottom order (index 0 = top), so iterate in reverse
-    // so the last push lands on top — mirrors Java's `Collections.reverse(toTop)`
-    // followed by `moveToLibrary` per card.
-    for &id in to_top.iter().rev() {
+    // `keep_top` is in top-to-bottom order, so iterate in reverse to restore
+    // the correct library order when appending to our bottom-to-top vec.
+    for &id in keep_top.iter().rev() {
         ctx.game.add_card_to_zone(ZoneType::Library, target, id);
     }
 
@@ -191,12 +186,8 @@ mod tests {
         fn choose_land_or_spell(&mut self, _: PlayerId) -> Option<bool> {
             None
         }
-        fn arrange_for_surveil(
-            &mut self,
-            _player: PlayerId,
-            cards: &[CardId],
-        ) -> (Vec<CardId>, Vec<CardId>) {
-            (vec![], cards.to_vec())
+        fn choose_surveil(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+            cards.to_vec() // send all to graveyard
         }
         fn choose_targets_for(
             &mut self,

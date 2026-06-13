@@ -1909,44 +1909,26 @@ impl PlayerAgent for DeterministicAgent {
         Some(idx)
     }
 
-    fn arrange_for_scry(
-        &mut self,
-        _player: PlayerId,
-        cards: &[CardId],
-    ) -> (Vec<CardId>, Vec<CardId>) {
-        let mut bottom = Vec::new();
+    fn choose_scry(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+        let mut out = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
             if gui_repro::pick_bool(&mut rng) {
-                bottom.push(cid);
+                out.push(cid);
             }
         }
-        let top: Vec<CardId> = cards
-            .iter()
-            .copied()
-            .filter(|cid| !bottom.contains(cid))
-            .collect();
-        (top, bottom)
+        out
     }
 
-    fn arrange_for_surveil(
-        &mut self,
-        _player: PlayerId,
-        cards: &[CardId],
-    ) -> (Vec<CardId>, Vec<CardId>) {
-        let mut gy = Vec::new();
+    fn choose_surveil(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+        let mut out = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
             if gui_repro::pick_bool(&mut rng) {
-                gy.push(cid);
+                out.push(cid);
             }
         }
-        let top: Vec<CardId> = cards
-            .iter()
-            .copied()
-            .filter(|cid| !gy.contains(cid))
-            .collect();
-        (top, gy)
+        out
     }
 
     fn choose_reorder_library(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {

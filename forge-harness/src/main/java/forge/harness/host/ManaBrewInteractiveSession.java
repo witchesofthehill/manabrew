@@ -446,9 +446,11 @@ public final class ManaBrewInteractiveSession {
             JsonObject option = new JsonObject();
             option.addProperty("cardId", cardId);
             option.addProperty("abilityIndex", host.getManaAbilities().indexOf(sa));
-            option.addProperty("description", host.getName());
             if (sa.getManaPart() != null) {
-                option.addProperty("cost", sa.getManaPart().mana(sa));
+                option.addProperty("description", manaAbilityDescription(sa));
+                option.addProperty("producedMana", producedManaScript(sa));
+            } else {
+                option.addProperty("description", host.getName());
             }
             options.add(option);
         }
@@ -1469,7 +1471,8 @@ public final class ManaBrewInteractiveSession {
                 option.addProperty("cardId", SnapshotExtractor.javaCardId(host));
             }
             if (sa.isManaAbility() && sa.getManaPart() != null) {
-                option.addProperty("cost", sa.getManaPart().mana(sa));
+                option.addProperty("description", manaAbilityDescription(sa));
+                option.addProperty("producedMana", producedManaScript(sa));
             }
             options.add(option);
         }
@@ -2141,6 +2144,33 @@ public final class ManaBrewInteractiveSession {
             }
         }
         return null;
+    }
+
+    private static String manaAbilityDescription(final SpellAbility ability) {
+        final String description = ability.getDescription();
+        if (description != null && !description.isBlank()) {
+            return description;
+        }
+        final String stackDescription = ability.getStackDescription();
+        if (stackDescription != null && !stackDescription.isBlank()) {
+            return stackDescription;
+        }
+        return ability.getHostCard() != null ? ability.getHostCard().getName() : "";
+    }
+
+    private static String producedManaScript(final SpellAbility ability) {
+        final String produced = ability.getManaPart().getOrigProduced();
+        if (produced == null) {
+            return null;
+        }
+        if (!produced.contains("Chosen")) {
+            return produced;
+        }
+        final String resolved = ability.getManaPart().mana(ability);
+        if (resolved == null || resolved.isBlank()) {
+            return produced;
+        }
+        return produced.startsWith("Combo") ? "Combo " + resolved : resolved;
     }
 
     private static Card findCardByPublishedId(final List<Card> cards, final String cardId) {

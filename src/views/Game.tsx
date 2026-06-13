@@ -21,7 +21,7 @@ import { PixiArrowsCanvas } from "@/pixi/PixiArrowsCanvas";
 import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { buildPointerSpecs } from "@/components/game/pointerSpecs";
-import { getExpandedManaAbilities } from "@/components/game/manaUtils";
+import { getExpandedManaAbilities, manaColorChoiceFromAction } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -269,6 +269,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     description: string;
     isManaAbility: boolean;
     cost?: string;
+    producedMana?: string;
   }): HandActionOption => ({
     kind: "ability" as const,
     cardId: a.cardId,
@@ -276,11 +277,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     label: a.description,
     isManaAbility: a.isManaAbility,
     cost: a.cost,
+    producedMana: a.producedMana,
   });
 
   const manaColorFromAction = (action: HandActionOption): string | null => {
-    const matches = action.label.match(/\{([WUBRGC])\}/);
-    return matches ? matches[1] : null;
+    return manaColorChoiceFromAction(action);
   };
 
   const castOptionsByCardId = useMemo(() => {
@@ -632,6 +633,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         label: ability.description,
         isManaAbility: ability.isManaAbility,
         cost: ability.cost,
+        producedMana: ability.producedMana,
       }));
     const manaAbilities = getExpandedManaAbilities(
       card.id,

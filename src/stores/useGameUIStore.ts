@@ -12,6 +12,7 @@ export interface HandActionOption {
   abilityIndex?: number;
   isManaAbility?: boolean;
   cost?: string;
+  producedMana?: string;
   toZoneId?: string;
   tapped?: boolean;
 }

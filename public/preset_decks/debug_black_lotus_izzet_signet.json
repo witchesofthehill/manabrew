@@ -1,0 +1,83 @@
+{
+  "label": "Debug: Lotus, Signet, and Golem",
+  "desc": "Artifact mana regression deck for choice, fixed two-mana, and fixed WUBRG source rendering.",
+  "color": "text-blue-400",
+  "format": "vintage",
+  "opponent": "debug_black_lotus_izzet_signet",
+  "ai_eligible": false,
+  "order": 4,
+  "cards": [
+    {
+      "name": "Black Lotus",
+      "count": 30,
+      "set": "vma",
+      "cardNumber": "4",
+      "manaCost": "{0}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": [],
+      "supertypes": [],
+      "text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "normal": "https://cards.scryfall.io/normal/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "large": "https://cards.scryfall.io/large/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "png": "https://cards.scryfall.io/png/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.png?1614638838",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Izzet Signet",
+      "count": 30,
+      "set": "mm3",
+      "cardNumber": "223",
+      "manaCost": "{2}",
+      "colors": [],
+      "colorIdentity": ["R", "U"],
+      "cmc": 2,
+      "types": ["Artifact"],
+      "subtypes": [],
+      "supertypes": [],
+      "text": "{1}, {T}: Add {U}{R}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/d/8/d8a005a2-3eb8-4d8f-8608-2cbf5cf7887e.jpg?1593814921",
+        "normal": "https://cards.scryfall.io/normal/front/d/8/d8a005a2-3eb8-4d8f-8608-2cbf5cf7887e.jpg?1593814921",
+        "large": "https://cards.scryfall.io/large/front/d/8/d8a005a2-3eb8-4d8f-8608-2cbf5cf7887e.jpg?1593814921",
+        "png": "https://cards.scryfall.io/png/front/d/8/d8a005a2-3eb8-4d8f-8608-2cbf5cf7887e.png?1593814921",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/d/8/d8a005a2-3eb8-4d8f-8608-2cbf5cf7887e.jpg?1593814921",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/d/8/d8a005a2-3eb8-4d8f-8608-2cbf5cf7887e.jpg?1593814921"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Composite Golem",
+      "count": 30,
+      "set": "10e",
+      "cardNumber": "318",
+      "manaCost": "{6}",
+      "colors": [],
+      "colorIdentity": ["B", "G", "R", "U", "W"],
+      "cmc": 6,
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Golem"],
+      "supertypes": [],
+      "text": "Sacrifice this creature: Add {W}{U}{B}{R}{G}.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/a/a/aafd4637-737d-4913-80e3-ab4bf3428680.jpg?1562553234",
+        "normal": "https://cards.scryfall.io/normal/front/a/a/aafd4637-737d-4913-80e3-ab4bf3428680.jpg?1562553234",
+        "large": "https://cards.scryfall.io/large/front/a/a/aafd4637-737d-4913-80e3-ab4bf3428680.jpg?1562553234",
+        "png": "https://cards.scryfall.io/png/front/a/a/aafd4637-737d-4913-80e3-ab4bf3428680.png?1562553234",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/a/a/aafd4637-737d-4913-80e3-ab4bf3428680.jpg?1562553234",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/a/a/aafd4637-737d-4913-80e3-ab4bf3428680.jpg?1562553234"
+      },
+      "allParts": []
+    }
+  ]
+}

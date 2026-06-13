@@ -1,8 +1,8 @@
 import { Texture, ImageSource } from "pixi.js";
 import { platformFetch } from "@/lib/platformFetch";
+import { getPlatformType } from "@/platform";
 
-const SCRYFALL_SYMBOL_BASE =
-  import.meta.env.VITE_SCRYFALL_SYMBOL_BASE || "https://svgs.scryfall.io/card-symbols/";
+const DEFAULT_SCRYFALL_SYMBOL_BASE = "https://svgs.scryfall.io/card-symbols/";
 // Rasterize SVGs into a fixed-size canvas so Pixi gets a concrete texture
 // (SVGs decoded into HTMLImageElement can have zero intrinsic dimensions).
 const SYMBOL_RASTER_SIZE = 96;
@@ -11,7 +11,12 @@ const textures = new Map<string, Texture>();
 const loading = new Map<string, Promise<Texture>>();
 
 async function fetchSvgText(symbol: string): Promise<string> {
-  const url = `${SCRYFALL_SYMBOL_BASE}${encodeURIComponent(symbol)}.svg`;
+  const base =
+    import.meta.env.VITE_SCRYFALL_SYMBOL_BASE ||
+    (import.meta.env.DEV && getPlatformType() !== "tauri"
+      ? "/scryfall-symbols/"
+      : DEFAULT_SCRYFALL_SYMBOL_BASE);
+  const url = `${base}${encodeURIComponent(symbol)}.svg`;
   const response = await platformFetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
   return await response.text();

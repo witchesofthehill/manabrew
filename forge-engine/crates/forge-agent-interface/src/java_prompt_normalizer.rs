@@ -609,6 +609,8 @@ struct NormalizedAction {
     card_id: Option<String>,
     kind: Option<&'static str>,
     cost: Option<String>,
+    description: Option<String>,
+    produced_mana: Option<String>,
 }
 
 fn build_choose_action(
@@ -634,12 +636,23 @@ fn build_choose_action(
                 if !tappable_land_ids.contains(&card_id) {
                     tappable_land_ids.push(card_id.clone());
                 }
+                let produced_mana = action.produced_mana.clone().or_else(|| action.cost.clone());
+                let description = action
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| action.label.clone());
+                let cost = if action.produced_mana.is_some() {
+                    action.cost.clone()
+                } else {
+                    None
+                };
                 mana_ability_options.push(ActivatableAbilityInfo {
                     card_id,
                     ability_index: action.index,
-                    description: action.label.clone(),
+                    description,
                     is_mana_ability: true,
-                    cost: action.cost.clone(),
+                    cost,
+                    produced_mana,
                 });
             }
             Some("ability") => {
@@ -649,6 +662,7 @@ fn build_choose_action(
                     description: action.label.clone(),
                     is_mana_ability: false,
                     cost: None,
+                    produced_mana: None,
                 });
             }
             _ => {
@@ -947,12 +961,19 @@ fn to_stack_object(entry: &JavaRawStackEntry, index: usize, controller_id: &str)
 }
 
 fn to_mana_ability_info(option: &JavaRawManaOption) -> ActivatableAbilityInfo {
+    let produced_mana = option.produced_mana.clone().or_else(|| option.cost.clone());
+    let cost = if option.produced_mana.is_some() {
+        option.cost.clone()
+    } else {
+        None
+    };
     ActivatableAbilityInfo {
         card_id: option.card_id.clone().unwrap_or_default(),
         ability_index: option.ability_index.unwrap_or(0),
         description: option.description.clone().unwrap_or_default(),
         is_mana_ability: true,
-        cost: option.cost.clone(),
+        cost,
+        produced_mana,
     }
 }
 
@@ -987,6 +1008,8 @@ fn to_actions(actions: &[JavaRawAction]) -> Vec<NormalizedAction> {
                 card_id: action.card_id.clone(),
                 kind: java_action_kind(action.kind.as_deref()),
                 cost: action.cost.clone(),
+                description: action.description.clone(),
+                produced_mana: action.produced_mana.clone(),
             })
         })
         .collect()

@@ -135,6 +135,7 @@ pub struct ManaAbilityOption {
     pub card_id: CardId,
     pub ability_index: usize,
     pub description: String,
+    pub produced_mana: Option<String>,
 }
 
 /// Java-parity binary choice kinds (`PlayerController.BinaryChoiceType`).

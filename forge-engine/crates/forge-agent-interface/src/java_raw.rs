@@ -306,6 +306,8 @@ pub struct JavaRawManaOption {
     pub ability_index: Option<usize>,
     pub description: Option<String>,
     pub cost: Option<String>,
+    #[serde(rename = "producedMana")]
+    pub produced_mana: Option<String>,
 }
 
 fn one() -> usize {
@@ -366,6 +368,9 @@ pub struct JavaRawAction {
     pub card_id: Option<String>,
     pub kind: Option<String>,
     pub cost: Option<String>,
+    pub description: Option<String>,
+    #[serde(rename = "producedMana")]
+    pub produced_mana: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

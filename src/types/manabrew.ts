@@ -249,6 +249,7 @@ export interface ActivatableAbilityInfo {
   description: string;
   isManaAbility: boolean;
   cost?: string;
+  producedMana?: string;
 }
 
 export interface ClientCallback {

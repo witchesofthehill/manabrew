@@ -152,6 +152,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
                     description: opt.description.clone(),
                     is_mana_ability: true,
                     cost: None,
+                    produced_mana: opt.produced_mana.clone(),
                 })
                 .collect(),
             tappable_land_ids,

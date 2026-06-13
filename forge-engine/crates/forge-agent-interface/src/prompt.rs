@@ -582,6 +582,8 @@ pub struct ActivatableAbilityInfo {
     /// Human-readable cost string, e.g. "{T}", "{2}{W}", "Pay 3 life"
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cost: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub produced_mana: Option<String>,
 }
 
 /// Sent from frontend to game thread: the human player's response.

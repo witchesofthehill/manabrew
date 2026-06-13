@@ -2297,10 +2297,21 @@ pub fn collect_mana_payment_sources(
             if !is_payable_mana_ability(game, player, card_id, ab, reserved_sacrifices, None) {
                 continue;
             }
+            let description = ab
+                .spell_description
+                .as_deref()
+                .or(ab.precost_desc.as_deref())
+                .or(ab.description.as_deref())
+                .unwrap_or(&ab.ability_text)
+                .replace("CARDNAME", &card.card_name);
             mana_ability_options.push(ManaAbilityOption {
                 card_id,
                 ability_index: ab.ability_index,
-                description: ab.ability_text.clone(),
+                description,
+                produced_mana: ab
+                    .produced_ir
+                    .as_ref()
+                    .map(|produced| produced_mana_text(produced, &card.chosen_colors)),
             });
         }
     }
@@ -2308,6 +2319,22 @@ pub fn collect_mana_payment_sources(
     ManaPaymentSources {
         source_cards,
         mana_ability_options,
+    }
+}
+
+fn produced_mana_text(produced: &crate::ability::ProducedMana, chosen_colors: &[String]) -> String {
+    let text = produced.as_script_text();
+    if !text.contains("Chosen") {
+        return text.into_owned();
+    }
+    let resolved = chosen_colors_to_atoms(chosen_colors)
+        .iter()
+        .map(|&atom| atom_short(atom))
+        .collect::<Vec<_>>();
+    if resolved.is_empty() {
+        text.into_owned()
+    } else {
+        text.replace("Chosen", &resolved.join(" "))
     }
 }
 

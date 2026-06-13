@@ -1693,7 +1693,7 @@ export class PixiGameScene {
     if (kind.isTappable && expandedMana.length > 1) {
       this.drawManaAbilityGrid(overlay, card, expandedMana);
     } else {
-      this.drawSingleActionButton(overlay, card, state, kind);
+      this.drawSingleActionButton(overlay, card, state, kind, expandedMana[0]);
     }
 
     overlay.visible = true;
@@ -1777,6 +1777,7 @@ export class PixiGameScene {
     card: GameCard,
     state: BattlefieldState,
     kind: ActionKind,
+    manaAbility?: ReturnType<typeof getExpandedManaAbilities>[number],
   ): void {
     const ring = hexToNum(this.theme.gameTheme.cardRing);
     let label = OVERLAY_LABEL_SELECT;
@@ -1807,9 +1808,16 @@ export class PixiGameScene {
     paintBtn(false);
     overlay.addChild(btn);
 
-    // Prefer the MTG card symbol (T / Q) when we have one — falls back to
-    // the text label for generic SELECT or while the SVG is loading.
-    const centerIcon = symbol ? this.createManaIcon(symbol, 14, 18) : this.createLabelIcon(label);
+    const manaLetters =
+      kind.isTappable && manaAbility
+        ? [...new Set(extractManaLetters(manaAbility.description))]
+        : [];
+    const centerIcon =
+      manaLetters.length > 0
+        ? this.createManaIconGroup(manaLetters)
+        : symbol
+          ? this.createManaIcon(symbol, 14, 18)
+          : this.createLabelIcon(label);
     centerIcon.x = CARD_W / 2;
     centerIcon.y = CARD_H / 2;
     overlay.addChild(centerIcon);
@@ -1832,6 +1840,21 @@ export class PixiGameScene {
     txt.anchor.set(0.5);
     icon.addChild(txt);
     return icon;
+  }
+
+  private createManaIconGroup(letters: string[]): Container {
+    const group = new Container();
+    group.eventMode = "none";
+    const radius = letters.length > 2 ? 9 : 12;
+    const fontSize = letters.length > 2 ? 9 : 11;
+    const spacing = radius * 1.45;
+    const width = (letters.length - 1) * spacing;
+    letters.forEach((letter, index) => {
+      const icon = this.createManaIcon(letter, fontSize, radius);
+      icon.x = index * spacing - width / 2;
+      group.addChild(icon);
+    });
+    return group;
   }
 
   /**

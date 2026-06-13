@@ -1,9 +1,8 @@
 export type GameLogEntryType = "info" | "action" | "stack" | "priority" | "rule" | "warning";
 
 // Keep in sync with the GameLogEvent messages emitted by forge-engine
-// (action.rs discard_card, cast_spell.rs ForetellExile).
-export const DISCARD_LOG_PREFIX = "Discarded: ";
-export const FORETELL_LOG_MESSAGE = "Foretold a card";
+// (cast_spell.rs ForetellExile -> "Foretold: {name}").
+export const FORETELL_LOG_PREFIX = "Foretold: ";
 
 export interface GameLogEntry {
   message: string;

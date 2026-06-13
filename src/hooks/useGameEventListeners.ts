@@ -4,12 +4,7 @@ import { getPlatform } from "@/platform";
 import { getSelectedGameRuntime } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
 import { clearActiveGameSession } from "@/lib/activeGameSession";
-import {
-  DISCARD_LOG_PREFIX,
-  FORETELL_LOG_MESSAGE,
-  normalizeGameLogPayload,
-  type GameLogEntry,
-} from "@/types/gameLog";
+import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate } from "@/protocol";
@@ -33,9 +28,7 @@ function toastOpponentPublicAction(entry: GameLogEntry) {
     players[0];
   if (!me || entry.playerId === me.id) return;
   const actor = players.find((p) => p.id === entry.playerId)?.name ?? "Opponent";
-  if (entry.message.startsWith(DISCARD_LOG_PREFIX)) {
-    toast.info(`${actor} discarded ${entry.message.slice(DISCARD_LOG_PREFIX.length)}`);
-  } else if (entry.message === FORETELL_LOG_MESSAGE) {
+  if (entry.message.startsWith(FORETELL_LOG_PREFIX)) {
     toast.info(`${actor} foretold a card`);
   }
 }

@@ -1,4 +1,5 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { Button } from "@/components/ui/button";
 import { PrintPickerModal } from "./PrintPickerModal";
 import { Input } from "@/components/ui/input";
@@ -316,17 +317,12 @@ export function DeckBuilder({
   const filterInputRef = useRef<HTMLInputElement>(null);
   const enrichedNamesRef = useRef(new Set<string>());
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        filterInputRef.current?.focus();
-        filterInputRef.current?.select();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useKeybindings({
+    "deck-editor-focus-filter": () => {
+      filterInputRef.current?.focus();
+      filterInputRef.current?.select();
+    },
+  });
 
   const supplementaryCards = useMemo(
     () => [

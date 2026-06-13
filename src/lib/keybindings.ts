@@ -1,5 +1,7 @@
 export interface KeyCombo {
   key: string;
+  // Primary command modifier: Cmd on Apple, Ctrl elsewhere.
+  mod?: boolean;
   meta?: boolean;
   ctrl?: boolean;
   alt?: boolean;
@@ -20,10 +22,34 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Navigation",
     defaultCombo: { key: "b", meta: true },
   },
+  {
+    id: "nav-prev-page",
+    label: "Previous page",
+    category: "Navigation",
+    defaultCombo: { key: "arrowup", alt: true },
+  },
+  {
+    id: "nav-next-page",
+    label: "Next page",
+    category: "Navigation",
+    defaultCombo: { key: "arrowdown", alt: true },
+  },
+  {
+    id: "deck-editor-focus-filter",
+    label: "Focus the card filter",
+    category: "Deck editor",
+    defaultCombo: { key: "f", mod: true },
+  },
 ];
 
 export const IS_APPLE =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+
+// Resolve the platform-agnostic `mod` flag to a concrete modifier.
+export function normalizeCombo(c: KeyCombo): KeyCombo {
+  if (!c.mod) return c;
+  return IS_APPLE ? { ...c, mod: undefined, meta: true } : { ...c, mod: undefined, ctrl: true };
+}
 
 export function comboFromEvent(e: KeyboardEvent): KeyCombo | null {
   const key = e.key.toLowerCase();
@@ -32,21 +58,39 @@ export function comboFromEvent(e: KeyboardEvent): KeyCombo | null {
 }
 
 export function combosMatch(a: KeyCombo, b: KeyCombo): boolean {
+  const na = normalizeCombo(a);
+  const nb = normalizeCombo(b);
   return (
-    a.key === b.key &&
-    !!a.meta === !!b.meta &&
-    !!a.ctrl === !!b.ctrl &&
-    !!a.alt === !!b.alt &&
-    !!a.shift === !!b.shift
+    na.key === nb.key &&
+    !!na.meta === !!nb.meta &&
+    !!na.ctrl === !!nb.ctrl &&
+    !!na.alt === !!nb.alt &&
+    !!na.shift === !!nb.shift
   );
 }
 
+const KEY_LABELS: Record<string, string> = {
+  arrowup: "↑",
+  arrowdown: "↓",
+  arrowleft: "←",
+  arrowright: "→",
+  " ": "Space",
+  escape: "Esc",
+  enter: "↵",
+};
+
+function keyLabel(key: string): string {
+  if (KEY_LABELS[key]) return KEY_LABELS[key];
+  if (key.length === 1) return key.toUpperCase();
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 export function formatCombo(combo: KeyCombo): string {
+  const c = normalizeCombo(combo);
   const mods: string[] = [];
-  if (combo.ctrl) mods.push(IS_APPLE ? "⌃" : "Ctrl");
-  if (combo.alt) mods.push(IS_APPLE ? "⌥" : "Alt");
-  if (combo.shift) mods.push(IS_APPLE ? "⇧" : "Shift");
-  if (combo.meta) mods.push(IS_APPLE ? "⌘" : "Super");
-  const key = combo.key.length === 1 ? combo.key.toUpperCase() : combo.key;
-  return [...mods, key].join(IS_APPLE ? " " : "+");
+  if (c.ctrl) mods.push(IS_APPLE ? "⌃" : "Ctrl");
+  if (c.alt) mods.push(IS_APPLE ? "⌥" : "Alt");
+  if (c.shift) mods.push(IS_APPLE ? "⇧" : "Shift");
+  if (c.meta) mods.push(IS_APPLE ? "⌘" : "Super");
+  return [...mods, keyLabel(c.key)].join(IS_APPLE ? " " : "+");
 }

@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -16,6 +16,17 @@ import { ManaBrewLogo } from "./ManaBrewLogo";
 // like `md:hidden` / `hidden md:flex` so the JS gate matches the CSS.
 export const DESKTOP_QUERY = "(min-width: 768px)";
 
+// Order mirrors the primary nav in Sidebar; drives prev/next page shortcuts.
+const NAV_ROUTES = [
+  "/play",
+  "/lobby",
+  "/search",
+  "/deck-editor",
+  "/companion",
+  "/limited",
+  "/matches",
+];
+
 export function AppShell() {
   // Render only the active layout branch. Previously both <Outlet /> trees
   // were mounted and CSS hid one — every Pixi canvas inside (game scene,
@@ -27,6 +38,7 @@ export function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const setupListeners = useServerStore((s) => s.setupListeners);
   const location = useLocation();
+  const navigate = useNavigate();
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isTabletopRoute = location.pathname.startsWith("/tabletop");
   const isGameRoute = location.pathname.startsWith("/game") || isGameActive;
@@ -46,7 +58,19 @@ export function AppShell() {
     setSidebarCollapsed((v) => !v);
   }
 
-  useKeybindings({ "toggle-sidebar": toggleSidebar });
+  function goToAdjacentPage(delta: number) {
+    if (hideNavChrome) return;
+    const current = NAV_ROUTES.findIndex((r) => location.pathname.startsWith(r));
+    const base = current === -1 ? 0 : current;
+    const next = (base + delta + NAV_ROUTES.length) % NAV_ROUTES.length;
+    navigate(NAV_ROUTES[next]);
+  }
+
+  useKeybindings({
+    "toggle-sidebar": toggleSidebar,
+    "nav-prev-page": () => goToAdjacentPage(-1),
+    "nav-next-page": () => goToAdjacentPage(1),
+  });
 
   // Close mobile nav on route change.
   const [prevPathname, setPrevPathname] = useState(location.pathname);
@@ -106,7 +130,7 @@ export function AppShell() {
           <div
             className={cn(
               "h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out",
-              sidebarCollapsed ? "w-0" : "w-72 lg:w-80",
+              sidebarCollapsed ? "w-0" : "w-56 lg:w-60",
             )}
           >
             <Sidebar />

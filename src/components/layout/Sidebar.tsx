@@ -178,8 +178,8 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </div>
       </div>
-      <div className="mt-auto flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-4 py-4 shadow-lg">
-        <p className="text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-muted-foreground">
+      <div className="mt-auto flex w-full flex-col gap-1.5 px-4 py-4 shadow-lg">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Get in touch
         </p>
         <div className="flex items-center gap-1">

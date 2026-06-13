@@ -178,7 +178,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </div>
       </div>
-      <div className="mt-auto flex w-max items-center gap-3 overflow-visible px-7 py-4 shadow-lg">
+      <div className="mt-auto flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-4 py-4 shadow-lg">
         <p className="text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-muted-foreground">
           Get in touch
         </p>

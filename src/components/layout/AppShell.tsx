@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useEffectEvent, useState } from "react";
-import { usePanelRef } from "react-resizable-panels";
+import { useEffect, useEffectEvent, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { useServerStore } from "@/stores/useServerStore";
@@ -7,10 +6,9 @@ import { useGameStore } from "@/stores/useGameStore";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDragToggle } from "@/hooks/useDragToggle";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 
@@ -25,7 +23,6 @@ export function AppShell() {
   // doubled the WebGL context count, eventually blowing past the
   // browser's per-tab cap.
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const sidebarRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const setupListeners = useServerStore((s) => s.setupListeners);
@@ -46,34 +43,10 @@ export function AppShell() {
   useGameSessionResume();
 
   function toggleSidebar() {
-    const panel = sidebarRef.current;
-    if (!panel) return;
-    if (panel.isCollapsed()) {
-      panel.expand();
-      setSidebarCollapsed(false);
-    } else {
-      panel.collapse();
-      setSidebarCollapsed(true);
-    }
+    setSidebarCollapsed((v) => !v);
   }
 
-  const expandSidebar = useCallback(() => {
-    const panel = sidebarRef.current;
-    if (panel?.isCollapsed()) {
-      panel.expand();
-      setSidebarCollapsed(false);
-    }
-  }, [sidebarRef]);
-
-  const collapseSidebar = useCallback(() => {
-    const panel = sidebarRef.current;
-    if (panel && !panel.isCollapsed()) {
-      panel.collapse();
-      setSidebarCollapsed(true);
-    }
-  }, [sidebarRef]);
-
-  const onDragMouseDown = useDragToggle(expandSidebar, collapseSidebar, "right");
+  useKeybindings({ "toggle-sidebar": toggleSidebar });
 
   // Close mobile nav on route change.
   const [prevPathname, setPrevPathname] = useState(location.pathname);
@@ -87,8 +60,7 @@ export function AppShell() {
   // store flag is more reliable than the pathname alone.
   const shouldCollapseSidebar = isGameActive || location.pathname.startsWith("/game");
   const syncSidebar = useEffectEvent((collapse: boolean) => {
-    if (collapse) collapseSidebar();
-    else expandSidebar();
+    setSidebarCollapsed(collapse);
   });
   useEffect(() => {
     syncSidebar(shouldCollapseSidebar);
@@ -131,51 +103,45 @@ export function AppShell() {
 
       {isDesktop && (
         <div className="flex flex-1 min-h-0">
-          <ResizablePanelGroup orientation="horizontal" className="relative h-full">
-            <ResizablePanel
-              panelRef={sidebarRef}
-              defaultSize={260}
-              minSize={14}
-              maxSize={300}
-              collapsible
-              collapsedSize={0}
+          <div
+            className={cn(
+              "h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out",
+              sidebarCollapsed ? "w-0" : "w-72 lg:w-80",
+            )}
+          >
+            <Sidebar />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <div
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 z-30 group",
+                hideNavChrome && "hidden",
+              )}
             >
-              <Sidebar />
-            </ResizablePanel>
-            <ResizableHandle withHandle className={cn(hideNavChrome && "hidden")} />
-            <ResizablePanel minSize={40} className="relative">
-              <div
+              <Button
+                size="icon"
+                variant="ghost"
                 className={cn(
-                  "absolute left-0 top-1/2 -translate-y-1/2 z-30 group",
-                  hideNavChrome && "hidden",
+                  "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
+                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
+                  "hover:bg-card",
                 )}
+                onClick={toggleSidebar}
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className={cn(
-                    "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
-                    "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
-                    "hover:bg-card",
-                  )}
-                  onClick={toggleSidebar}
-                  onMouseDown={onDragMouseDown}
-                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                  {sidebarCollapsed ? (
-                    <ChevronRight className="h-3 w-3" />
-                  ) : (
-                    <ChevronLeft className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
-              <main
-                className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}
-              >
-                <Outlet />
-              </main>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+                {sidebarCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronLeft className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+            <main
+              className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}
+            >
+              <Outlet />
+            </main>
+          </div>
         </div>
       )}
     </div>

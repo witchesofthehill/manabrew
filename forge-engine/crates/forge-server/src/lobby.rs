@@ -178,7 +178,12 @@ pub fn leave_room_sync(state: &Arc<ServerState>, player_id: &str) -> Result<(), 
             .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
 
         room.remove_participant(player_id);
-        (room.is_empty(), room.connected_player_ids().is_empty())
+        let empty = room.is_empty();
+        let no_connected = room.connected_player_ids().is_empty();
+        if !empty && !no_connected && room.players.is_empty() {
+            room.reset_lobby_settings();
+        }
+        (empty, no_connected)
     };
 
     if room_empty || no_connected_players {
@@ -481,10 +486,7 @@ pub fn reset_room_to_lobby(
         room.status = RoomStatus::Lobby;
         room.replay = None;
         room.players.clear();
-        if room.draft_config.is_none() && room.sealed_config.is_none() {
-            room.format = GameFormat::Any;
-            room.max_players = 4;
-        }
+        room.reset_lobby_settings();
         (room.to_room_info(), cleared)
     };
 

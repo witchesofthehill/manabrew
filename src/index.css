@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Alegreya Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -473,6 +476,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;

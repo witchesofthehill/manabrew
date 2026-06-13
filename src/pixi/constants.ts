@@ -62,8 +62,7 @@ export const PIXI_MAX_FPS = 60;
 
 // ── Animation ──────────────────────────────────────────────────────────────
 export const BATTLEFIELD_LERP = 0.15;
-export const HAND_TWEEN_DURATION_MS = 166;
-export const HAND_SWITCH_SHRINK_TWEEN_DURATION_MS = 83;
+export const HAND_LERP = 0.18;
 export const HOVER_SCALE_LERP = 0.2;
 export const ROTATION_LERP = 0.22;
 export const OVERLAY_FADE_LERP = 0.2;
@@ -72,6 +71,7 @@ export const SNAP_PX = 0.5;
 export const SNAP_SCALE = 0.001;
 export const SNAP_ROT = 0.001;
 export const SNAP_ALPHA = 0.01;
+export const SNAP_HAND_SCALE = 0.002;
 
 // ── zIndex layers ──────────────────────────────────────────────────────────
 export const Z_PLACEMENT_GHOST = 500;

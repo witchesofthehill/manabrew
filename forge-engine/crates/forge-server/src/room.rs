@@ -120,6 +120,13 @@ impl Room {
         ) && (self.draft_config.is_some() || self.sealed_config.is_some())
     }
 
+    pub fn reset_lobby_settings(&mut self) {
+        if self.draft_config.is_none() && self.sealed_config.is_none() {
+            self.format = GameFormat::Any;
+            self.max_players = 4;
+        }
+    }
+
     pub fn all_ready(&self) -> bool {
         let min_players = if self.is_limited_session() { 1 } else { 2 };
         self.players.len() >= min_players && self.players.iter().all(|p| p.ready)

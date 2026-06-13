@@ -40,10 +40,21 @@ function consumeIntentForSpell(
   return intent.id;
 }
 
+function canFinishTargeting(input: {
+  minTargets: number;
+  maxTargets: number;
+  chosenTargets: number;
+}): boolean {
+  return input.maxTargets > input.minTargets && input.chosenTargets >= input.minTargets;
+}
+
 export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetCardFromZone"> = (
   prompt,
   ctx,
 ) => {
+  if (prompt.input.type === "chooseTargetCard" && canFinishTargeting(prompt.input)) {
+    return { kind: "force-show" };
+  }
   const preselected = consumeIntentForCard(prompt, ctx);
   if (preselected) {
     return {
@@ -62,6 +73,7 @@ export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetC
 };
 
 export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, ctx) => {
+  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
   const preselected = consumeIntentForPlayer(prompt, ctx);
   if (preselected) {
     return {
@@ -80,6 +92,7 @@ export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, 
 };
 
 export const singleLegalSpell: PromptResolver<"chooseTargetSpell"> = (prompt, ctx) => {
+  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
   const preselected = consumeIntentForSpell(prompt, ctx);
   if (preselected) {
     return {
@@ -204,6 +217,7 @@ export const singleAssigneeDamage: PromptResolver<"chooseCombatDamageAssignment"
 };
 
 export const singleLegalAny: PromptResolver<"chooseTargetAny"> = (prompt, ctx) => {
+  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
   const preCard = consumeIntentForCard(prompt, ctx);
   if (preCard) {
     return {

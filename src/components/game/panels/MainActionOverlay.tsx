@@ -30,6 +30,8 @@ export function MainActionOverlay({
   blockAssignments,
   onDeclareBlockers,
   onOpenStack,
+  targetCompletionLabel,
+  onCompleteTargets,
   onConcede,
   resolveCardName,
   resolveCard,
@@ -100,6 +102,8 @@ export function MainActionOverlay({
               blockAssignments={blockAssignments}
               onDeclareBlockers={onDeclareBlockers}
               onOpenStack={onOpenStack}
+              targetCompletionLabel={targetCompletionLabel}
+              onCompleteTargets={onCompleteTargets}
               buttonLayout={buttonLayout}
               payManaCostInfo={payManaCostInfo}
               onPayManaCost={onPayManaCost}

@@ -64,6 +64,8 @@ interface PromptActionControllerProps {
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   onOpenStack: () => void;
+  targetCompletionLabel?: string | null;
+  onCompleteTargets?: (() => void) | null;
   buttonLayout?: PromptButtonLayout;
   // Pay mana cost
   payManaCostInfo?: {
@@ -105,6 +107,8 @@ export function PromptActionController({
   blockAssignments,
   onDeclareBlockers,
   onOpenStack,
+  targetCompletionLabel,
+  onCompleteTargets,
   buttonLayout = "full",
   payManaCostInfo,
   onPayManaCost,
@@ -158,6 +162,8 @@ export function PromptActionController({
         buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         onOpenStack={onOpenStack}
+        completionLabel={targetCompletionLabel ?? undefined}
+        onCompleteTargets={onCompleteTargets ?? undefined}
       />
     ),
     payManaCost: () => (
@@ -197,6 +203,9 @@ export function PromptActionController({
         <PromptLabel
           buttonLayout={buttonLayout}
           label={(promptType && labels[promptType]) || "Waiting..."}
+          isWaitingForResponse={isWaitingForResponse}
+          completionLabel={targetCompletionLabel ?? undefined}
+          onCompleteTargets={onCompleteTargets ?? undefined}
         />
       );
     },

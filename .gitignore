@@ -70,3 +70,7 @@ forge-harness/target/
 .claude/scheduled_tasks.lock
 
 .claude/worktrees/
+
+
+.zed/
+.vscode/

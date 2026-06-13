@@ -11,8 +11,11 @@ WebAssembly — nothing to install.
 
 ## Desktop app
 
-Native installers for macOS (`.dmg`) and Windows (`.exe`) are published on the
-[GitHub releases page](https://github.com/witchesofthehill/manabrew/releases).
+Native installers are published on GitHub releases. Follow the platform
+instructions:
+
+- [Download for Windows](/download-windows/)
+- [Download for macOS](/download-macos/)
 
 ## Card images
 

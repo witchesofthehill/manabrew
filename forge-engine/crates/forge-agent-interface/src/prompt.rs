@@ -138,6 +138,12 @@ pub enum AgentPromptInner {
         /// Semantic classification used by the UI to pick a pointer icon / glow color.
         #[serde(default = "default_intent")]
         intent: TargetingIntent,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     ChooseTargetCard {
         #[serde(rename = "validCardIds")]
@@ -162,6 +168,12 @@ pub enum AgentPromptInner {
         hostile: bool,
         #[serde(default = "default_intent")]
         intent: TargetingIntent,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     ChooseTargetCardFromZone {
         #[serde(rename = "validCardIds")]
@@ -228,6 +240,12 @@ pub enum AgentPromptInner {
         valid_spell_ids: Vec<String>,
         #[serde(default = "default_intent")]
         intent: TargetingIntent,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     /// Choose whether an optional triggered ability fires.
     ChooseOptionalTrigger {

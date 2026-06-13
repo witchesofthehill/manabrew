@@ -108,6 +108,8 @@ export interface MainActionOverlayProps {
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   onOpenStack: () => void;
+  targetCompletionLabel?: string | null;
+  onCompleteTargets?: (() => void) | null;
   onConcede: () => void;
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => GameCard | undefined;

@@ -37,7 +37,6 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   EllipsisVertical,
-  ArrowLeft,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -842,27 +841,9 @@ export function DeckBuilder({
       )}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-          <DeckHero />
+          <DeckHero onBack={onBack} />
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
-            {onBack && (
-              <div
-                role="button"
-                tabIndex={0}
-                className="h-7 w-7 shrink-0 rounded-md inline-flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="Back to My Decks"
-                onClick={onBack}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onBack();
-                  }
-                }}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </div>
-            )}
-
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, Pencil } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,7 +17,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
 import type { DeckFormatId } from "@/types/manabrew";
 
-export function DeckHero() {
+export function DeckHero({ onBack }: { onBack?: () => void }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
@@ -57,6 +57,17 @@ export function DeckHero() {
             : "bg-muted/20",
         )}
       />
+
+      {onBack && (
+        <button
+          type="button"
+          className="absolute left-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background/60 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
+          title="Back to My Decks"
+          onClick={onBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      )}
 
       <div className="relative flex flex-col gap-1.5 px-5 pt-10 pb-4">
         <div className="flex flex-wrap items-center gap-1.5">

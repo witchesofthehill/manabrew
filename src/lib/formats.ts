@@ -62,7 +62,7 @@ export function copyLimitFromText(oracleText: string | undefined): number | null
 }
 
 export function isBasicLand(card: DeckCard): boolean {
-  return card.supertypes.includes("Basic") && card.types.includes("Land");
+  return (card.supertypes?.includes("Basic") ?? false) && (card.types?.includes("Land") ?? false);
 }
 
 /** Mirrors Forge's DeckFormat.canHaveAnyNumberOf. */

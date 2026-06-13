@@ -100,7 +100,18 @@ export function normalizeCombo(c: KeyCombo): KeyCombo {
 }
 
 export function comboFromEvent(e: KeyboardEvent): KeyCombo | null {
-  const key = e.key.toLowerCase();
+  // Derive the key from the physical `code` for letters/digits so it stays
+  // stable when Option/Alt produces a different character on macOS
+  // (Option+P → "π"). Fall back to `key` for everything else (arrows,
+  // punctuation, space, enter).
+  let key: string;
+  if (/^Key[A-Z]$/.test(e.code)) {
+    key = e.code.slice(3).toLowerCase();
+  } else if (/^Digit[0-9]$/.test(e.code)) {
+    key = e.code.slice(5);
+  } else {
+    key = e.key.toLowerCase();
+  }
   if (key === "control" || key === "meta" || key === "alt" || key === "shift") return null;
   return { key, meta: e.metaKey, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey };
 }

@@ -53,6 +53,12 @@ export const KEYBINDINGS: KeybindingDef[] = [
     defaultCombo: { key: "s", alt: true },
   },
   {
+    id: "deck-editor-toggle-preview",
+    label: "Toggle preview panel",
+    category: "Deck editor",
+    defaultCombo: { key: "p", alt: true },
+  },
+  {
     id: "deck-editor-save",
     label: "Save deck",
     category: "Deck editor",

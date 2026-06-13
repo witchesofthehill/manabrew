@@ -279,25 +279,36 @@ export function GameBoard({
     .map((card) => card.id);
   const graveyardPlayableIds = graveyard.filter((card) => card.isPlayable).map((card) => card.id);
   const exilePlayableIds = exile.filter((card) => card.isPlayable).map((card) => card.id);
-  const selectableBattlefieldCardIds =
-    promptType === "chooseAttackers"
-      ? [
-          ...(chooseAttackersPrompt?.input.availableAttackerIds ?? []),
-          ...(pendingAttackers.length > 0
-            ? (chooseAttackersPrompt?.input.possibleDefenderIds.map((defender) => defender.id) ??
-              [])
-            : []),
-        ]
-      : promptType === "chooseBlockers"
-        ? chooseBlockersPrompt?.input.availableBlockerIds
-        : promptType === "chooseTargetCard"
-          ? chooseTargetCardPrompt?.input.validCardIds
-          : promptType === "chooseTargetAny"
-            ? chooseTargetAnyPrompt?.input.validCardIds
-            : promptType === "chooseTargetCardFromZone" &&
-                chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
-              ? chooseTargetCardFromZonePrompt.input.validCardIds
-              : undefined;
+  const selectableBattlefieldCardIds = useMemo(
+    () =>
+      promptType === "chooseAttackers"
+        ? [
+            ...(chooseAttackersPrompt?.input.availableAttackerIds ?? []),
+            ...(pendingAttackers.length > 0
+              ? (chooseAttackersPrompt?.input.possibleDefenderIds.map((defender) => defender.id) ??
+                [])
+              : []),
+          ]
+        : promptType === "chooseBlockers"
+          ? chooseBlockersPrompt?.input.availableBlockerIds
+          : promptType === "chooseTargetCard"
+            ? chooseTargetCardPrompt?.input.validCardIds
+            : promptType === "chooseTargetAny"
+              ? chooseTargetAnyPrompt?.input.validCardIds
+              : promptType === "chooseTargetCardFromZone" &&
+                  chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
+                ? chooseTargetCardFromZonePrompt.input.validCardIds
+                : undefined,
+    [
+      promptType,
+      chooseAttackersPrompt,
+      pendingAttackers,
+      chooseBlockersPrompt,
+      chooseTargetCardPrompt,
+      chooseTargetAnyPrompt,
+      chooseTargetCardFromZonePrompt,
+    ],
+  );
   const pixiBattlefield = useMemo(
     (): BattlefieldState => ({
       cards: myPermanents,

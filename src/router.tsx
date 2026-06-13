@@ -16,6 +16,7 @@ import Sealed from "@/views/Sealed";
 import Winston from "@/views/Winston";
 import Gauntlet from "@/views/Gauntlet";
 import Settings from "@/views/Settings";
+import About from "@/views/About";
 import Search from "@/views/Search";
 
 export const router = createBrowserRouter([
@@ -167,6 +168,14 @@ export const router = createBrowserRouter([
         element: (
           <ErrorBoundary context="Settings">
             <Settings />
+          </ErrorBoundary>
+        ),
+      },
+      {
+        path: "about",
+        element: (
+          <ErrorBoundary context="About">
+            <About />
           </ErrorBoundary>
         ),
       },

@@ -1,19 +1,58 @@
+import { useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Image as ImageIcon, GripVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { FLASH_CARD_SIZE } from "@/components/game/game.styles";
 import { PreviewCardInfo, type PreviewCard } from "./PreviewCardInfo";
 
 const RAIL_CHROME_PX = 25;
 const MIN_WIDTH = FLASH_CARD_SIZE.w + RAIL_CHROME_PX;
-const WIDTH = Math.max(MIN_WIDTH + 80, 360);
+const MAX_WIDTH = 600;
+const DEFAULT_WIDTH = Math.max(MIN_WIDTH + 80, 360);
+
+function clampWidth(n: number): number {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, n));
+}
 
 interface PreviewRailProps {
   setSlot: (el: HTMLDivElement | null) => void;
   collapsed: boolean;
   onCollapse: () => void;
   previewCard?: PreviewCard | null;
+  defaultWidth?: number;
 }
 
-export function PreviewRail({ setSlot, collapsed, onCollapse, previewCard }: PreviewRailProps) {
+export function PreviewRail({
+  setSlot,
+  collapsed,
+  onCollapse,
+  previewCard,
+  defaultWidth = DEFAULT_WIDTH,
+}: PreviewRailProps) {
+  const [width, setWidth] = useState<number>(() => clampWidth(defaultWidth));
+
+  const onDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = width;
+      function move(ev: MouseEvent) {
+        const next = clampWidth(startW + (startX - ev.clientX));
+        setWidth(next);
+      }
+      function up() {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      }
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+    },
+    [width],
+  );
+
   if (collapsed) {
     return (
       <button
@@ -34,20 +73,22 @@ export function PreviewRail({ setSlot, collapsed, onCollapse, previewCard }: Pre
   return (
     <div
       className="shrink-0 h-full border-l bg-muted/20 flex relative"
-      style={{ width: WIDTH }}
+      style={{ width }}
       aria-label="Card preview"
     >
-      <button
-        type="button"
-        className="absolute left-0 top-0 h-full w-1.5 cursor-pointer z-20 hover:bg-primary/30 active:bg-primary/40 transition-colors group/handle"
-        onClick={onCollapse}
-        title="Hide preview"
-        aria-label="Hide preview"
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        className={cn(
+          "absolute left-0 top-0 h-full w-1.5 cursor-col-resize z-20",
+          "hover:bg-primary/30 active:bg-primary/40 transition-colors group/handle",
+        )}
+        onMouseDown={onDragStart}
       >
         <div className="absolute top-1/2 -translate-y-1/2 left-full -translate-x-1/2 opacity-0 group-hover/handle:opacity-100 rounded border bg-card text-muted-foreground p-0.5 shadow">
           <GripVertical className="h-3 w-3" />
         </div>
-      </button>
+      </div>
 
       <div className="flex-1 flex flex-col p-3 overflow-hidden">
         <div className="flex items-center justify-between mb-2 shrink-0">
@@ -66,7 +107,7 @@ export function PreviewRail({ setSlot, collapsed, onCollapse, previewCard }: Pre
         <div
           ref={setSlot}
           className="relative shrink-0 flex items-start justify-center overflow-hidden [&:has([data-card-preview])_[data-preview-skeleton]]:opacity-0"
-          style={{ height: Math.min(FLASH_CARD_SIZE.h, (WIDTH - 24) * 1.4) + 8 }}
+          style={{ height: Math.min(FLASH_CARD_SIZE.h, (width - 24) * 1.4) + 8 }}
         >
           <div
             data-preview-skeleton
@@ -75,8 +116,8 @@ export function PreviewRail({ setSlot, collapsed, onCollapse, previewCard }: Pre
             <div
               className="rounded-xl border-2 border-dashed border-border/60 flex items-center justify-center bg-background/30"
               style={{
-                width: Math.min(FLASH_CARD_SIZE.w, WIDTH - 24),
-                height: Math.min(FLASH_CARD_SIZE.h, (WIDTH - 24) * 1.4),
+                width: Math.min(FLASH_CARD_SIZE.w, width - 24),
+                height: Math.min(FLASH_CARD_SIZE.h, (width - 24) * 1.4),
               }}
             >
               <ImageIcon className="h-10 w-10 text-muted-foreground/40" />

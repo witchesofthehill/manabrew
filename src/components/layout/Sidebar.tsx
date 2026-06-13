@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { FEATURES } from "@/lib/features";
+import { DISCORD_INVITE_URL, GITHUB_REPO_URL } from "@/lib/constants";
 import { useGameStore } from "@/stores/useGameStore";
 import {
   Github,
@@ -9,6 +10,7 @@ import {
   Home,
   Gamepad2,
   Hand,
+  Info,
   Layers,
   Package,
   Settings,
@@ -16,18 +18,11 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DiscordIcon } from "@/components/icons/DiscordIcon";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   onNavigate?: () => void;
-}
-
-function DiscordIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M20.32 4.37A19.8 19.8 0 0 0 15.36 2.84a13.8 13.8 0 0 0-.64 1.32 18.43 18.43 0 0 0-5.44 0 12.69 12.69 0 0 0-.65-1.32A19.74 19.74 0 0 0 3.68 4.38C.55 9.02-.3 13.54.12 18a19.9 19.9 0 0 0 6.07 3.07 14.56 14.56 0 0 0 1.3-2.11 12.88 12.88 0 0 1-2.05-.98c.17-.12.34-.25.5-.38a14.12 14.12 0 0 0 12.12 0c.16.13.33.26.5.38-.65.39-1.33.72-2.05.98.38.74.82 1.45 1.3 2.1A19.84 19.84 0 0 0 23.88 18c.5-5.18-.85-9.65-3.56-13.63ZM8.02 15.26c-1.18 0-2.16-1.1-2.16-2.45 0-1.35.96-2.45 2.16-2.45 1.2 0 2.18 1.1 2.16 2.45 0 1.35-.96 2.45-2.16 2.45Zm7.96 0c-1.18 0-2.16-1.1-2.16-2.45 0-1.35.96-2.45 2.16-2.45 1.2 0 2.18 1.1 2.16 2.45 0 1.35-.96 2.45-2.16 2.45Z" />
-    </svg>
-  );
 }
 
 export function Sidebar({ className, onNavigate }: SidebarProps) {
@@ -169,6 +164,17 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                 )}
               </NavLink>
             )}
+            <NavLink to="/about" onClick={onNavigate}>
+              {({ isActive }) => (
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className="w-full justify-start whitespace-nowrap"
+                >
+                  <Info className="mr-2 h-4 w-4 shrink-0" />
+                  About ManaBrew
+                </Button>
+              )}
+            </NavLink>
           </div>
         </div>
       </div>
@@ -178,14 +184,14 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
         </p>
         <div className="flex items-center gap-1">
           <Button asChild variant="ghost" size="icon" className="shrink-0" title="Discord">
-            <a href="https://discord.gg/NqrKpbhtcd" target="_blank" rel="noreferrer">
+            <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
               <DiscordIcon className="h-4 w-4" />
               <span className="sr-only">Discord</span>
             </a>
           </Button>
           <span className="shrink-0 text-muted-foreground">|</span>
           <Button asChild variant="ghost" size="icon" className="shrink-0" title="GitHub">
-            <a href="https://github.com/witchesofthehill/manabrew" target="_blank" rel="noreferrer">
+            <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
               <Github className="h-4 w-4" />
               <span className="sr-only">GitHub</span>
             </a>

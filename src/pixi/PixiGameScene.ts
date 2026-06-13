@@ -800,8 +800,6 @@ export class PixiGameScene {
     this.dragHandler.setHandExclusion(this.collectHandBlockers()[0] ?? null);
 
     const dims = this.computeHandDimensions();
-    // Hit-testing runs against the resting fan (no hover lift/push/scale), so
-    // hovering a card never moves the zones out from under the cursor.
     const baseLayout = computeBaseLayout(
       state.cards.length,
       dims.cardW,
@@ -1992,9 +1990,6 @@ export class PixiGameScene {
       return;
     }
 
-    // A hand-card cast drag is tracked via `draggingCardId` on the hand state,
-    // not the pixi dragHandler — block (and relax) hand hover for either so a
-    // drag never re-triggers the fan animation.
     const dragging =
       this.dragHandler.draggingCardIds.size > 0 || !!this.lastHandState?.draggingCardId;
     if (!dragging) {
@@ -2411,8 +2406,6 @@ export class PixiGameScene {
     this.callbacks.onHoverHandCard?.(hit.card, screenBounds);
   }
 
-  // Immediate, non-deferred unhover used when a drag begins — the fan must
-  // relax now, not after the action-menu hold window.
   private resetHandHover(): void {
     this.cancelHandHoverHoldTimer();
     this.callbacks.onHoverCard?.(null);
@@ -2427,16 +2420,11 @@ export class PixiGameScene {
     const idx = this.hoveredHandIndex;
     if (idx === null) return;
     if (this.pendingHandHoverLeaveIndex === idx && this.handHoverHoldTimer !== null) return;
-    // Hide the big preview immediately, but defer the actual hand-sprite
-    // unhover so the HTML action menu can cancel the clear if the cursor
-    // moves onto it.
     this.callbacks.onHoverCard?.(null);
     this.callbacks.onHoverHandCard?.(null);
     this.scheduleHandHoverCommit(idx);
   }
 
-  // Resting fan rectangles; nearest by centre-x wins where they overlap, with
-  // the frontmost card breaking ties so the top of the fan is reachable.
   private handHitAt(x: number, y: number): HandHitZone | null {
     let best: HandHitZone | null = null;
     let bestDistance = Infinity;

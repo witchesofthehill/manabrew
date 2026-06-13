@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAcknowledgement } from "@/hooks/useAcknowledgement";
+import { OnboardingWelcome, ONBOARDING_GUIDE_VERSION } from "@/components/OnboardingWelcome";
+import { BreweryBackdrop } from "@/components/BreweryBackdrop";
 import { TERMS_AND_CONDITIONS } from "@/lib/termsContent";
 
 const TERMS_STORAGE_KEY = "manabrew.termsAcceptance";
+const ONBOARDING_STORAGE_KEY = "manabrew.onboarding";
 
 const BAR_FILL_MS = 200;
 // Minimum dwell at the initial `idle` stage. Without it, a cache hit can
@@ -62,6 +65,10 @@ export function AppInitGate({ children }: { children: ReactNode }) {
     TERMS_STORAGE_KEY,
     TERMS_AND_CONDITIONS.version,
   );
+  const { accepted: onboardingDone, accept: completeOnboarding } = useAcknowledgement(
+    ONBOARDING_STORAGE_KEY,
+    ONBOARDING_GUIDE_VERSION,
+  );
   const [consent, setConsent] = useState(false);
 
   const [minHoldPassed, setMinHoldPassed] = useState(hasReleasedOnce);
@@ -97,7 +104,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (phase === "done") return;
     if (stage !== "ready") return;
-    if (!termsAccepted) return;
+    if (!termsAccepted || !onboardingDone) return;
     const release = window.setTimeout(() => setPhase("releasing"), RELEASE_DELAY_MS);
     const done = window.setTimeout(() => {
       setPhase("done");
@@ -107,7 +114,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
       window.clearTimeout(release);
       window.clearTimeout(done);
     };
-  }, [stage, phase, termsAccepted, RELEASE_DELAY_MS, EXIT_MS]);
+  }, [stage, phase, termsAccepted, onboardingDone, RELEASE_DELAY_MS, EXIT_MS]);
 
   // The companion is pure UI with no engine dependency, so never block it behind
   // the worker boot — which can't initialise without cross-origin isolation
@@ -138,6 +145,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
   const pct = Math.round(target);
   const showBytes = total > 0;
   const showTerms = stage === "ready" && !termsAccepted;
+  const showOnboarding = stage === "ready" && termsAccepted && !onboardingDone;
 
   const exiting = phase === "releasing";
   const showChildren = phase !== "gating";
@@ -172,37 +180,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
             : undefined
         }
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-card/40 to-background"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-transparent via-border to-transparent"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[28%] size-[60vw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[60%] size-[45vw] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl"
-        />
-
-        {/* Brewery scene as a full-viewport backdrop. 16:9 source covers
-          any viewport via `object-cover`. Blur is `blur-xl` here so the
-          scene reads as a recognizable place behind the haze, not a pure
-          color wash.
-          NOTE: when swapping back to a logo / wordmark source (square,
-          high-contrast graphic), `blur-3xl` looked right — graphic shapes
-          need heavier blur to dissolve into atmosphere. */}
-        <img
-          aria-hidden
-          src="/manabrew_brewery_1.png"
-          alt=""
-          draggable={false}
-          className="pointer-events-none absolute inset-0 size-full select-none object-cover opacity-50 blur-md"
-        />
+        <BreweryBackdrop />
 
         <div className="relative z-10 flex w-full max-w-2xl flex-col items-center gap-10 px-8 drop-shadow-2xl">
           <div className="flex flex-col items-center gap-2 text-center">
@@ -257,6 +235,8 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                 </p>
               </div>
             </div>
+          ) : showOnboarding ? (
+            <OnboardingWelcome onComplete={completeOnboarding} />
           ) : (
             <div className="w-full space-y-5">
               <div className="flex items-baseline justify-between font-mono text-[0.65rem] uppercase tracking-[0.4em] text-muted-foreground">

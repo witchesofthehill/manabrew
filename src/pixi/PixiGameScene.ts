@@ -1917,6 +1917,12 @@ export class PixiGameScene {
     // Opponent / read-only canvases never start a drag — the pointertap
     // handler on the sprite still fires and drives click-to-target.
     if (!this.allowDrag) return;
+    if (this.lastState?.selectableCardIds?.includes(sprite.card.id) && this.callbacks.onClickCard) {
+      this.selectedCardIds.clear();
+      this.drawSelectionBadge();
+      this.refreshSelectionRings();
+      return;
+    }
     this.callbacks.onHoverCard?.(null);
     const local = this.root.toLocal(e.global);
     this.selectedCardIds = this.dragHandler.start(

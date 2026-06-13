@@ -1336,6 +1336,10 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const targetingCursorActive =
     casting.showArrow && !casting.targetId && !intentPrefersArrow(casting.arrowIntent);
+  const castingPointerActive =
+    casting.showArrow &&
+    !!casting.castingCardId &&
+    (intentPrefersArrow(casting.arrowIntent) || !!casting.targetId);
 
   return (
     <div
@@ -1369,7 +1373,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         arrowSpecs={arrowSpecs}
         pointerSpecs={pointerSpecs}
         castingArrow={
-          casting.showArrow && casting.castingCardId && intentPrefersArrow(casting.arrowIntent)
+          castingPointerActive && casting.castingCardId
             ? {
                 castingCardId: casting.castingCardId,
                 targetId: casting.targetId,

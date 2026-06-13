@@ -74,6 +74,17 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
   const isTargeting =
     (promptType?.startsWith("chooseTarget") ?? false) && promptType !== "chooseTargetCardFromZone";
 
+  const promptId = currentPrompt?.promptId ?? null;
+  const [prevPromptId, setPrevPromptId] = useState(promptId);
+  if (prevPromptId !== promptId) {
+    setPrevPromptId(promptId);
+    if (isTargeting) {
+      setTargetId(null);
+      setTargetHostile(false);
+      setTargetIntent(TargetingIntent.Hostile);
+    }
+  }
+
   // Arrow hostility: use locked value if target chosen, else prompt value
   const arrowHostile = targetId ? targetHostile : promptHostile;
   const arrowIntent: TargetingIntent = targetId ? targetIntent : promptIntent;

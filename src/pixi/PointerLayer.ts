@@ -3,7 +3,7 @@
  *
  * A "pointer" is the non-arrow counterpart to `ArrowLayer`: a floating
  * icon anchored to the cursor (or to a locked target) with an animated
- * glow on the source card and the target card. The icon, colour, and
+ * glow on the target card. The icon, colour, and
  * glow derive from the `TargetingIntent` carried by each spec.
  *
  * Inputs:
@@ -108,6 +108,133 @@ const GLOW_BASE_RADIUS = 22; // glow ring under the icon
 const GLOW_MAX_RADIUS = 30; // outer radius when fully pulsed
 const GLOW_BASE_ALPHA = 0.45;
 const GLOW_PULSE_ALPHA = 0.25;
+const LINK_BOW = 0.3;
+const LINK_TAIL_SHORTEN = 26;
+const LINK_TIP_SHORTEN = 28;
+const LINK_UNDER_WIDTH = 5;
+const LINK_UNDER_ALPHA = 0.28;
+const LINK_CORE_WIDTH = 2;
+const LINK_CORE_ALPHA = 0.8;
+const LINK_HEAD_LEN = 12;
+const LINK_HEAD_WIDTH = 13;
+const LINK_HEAD_STROKE = 2;
+const TARGET_CLUSTER_RADIUS = 26;
+const TARGET_CLUSTER_KEY_PX = 4;
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface CubicCurve {
+  p0: Point;
+  c1: Point;
+  c2: Point;
+  p1: Point;
+}
+
+function unit(dx: number, dy: number): { ux: number; uy: number; len: number } {
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return { ux: 0, uy: 0, len: 0 };
+  return { ux: dx / len, uy: dy / len, len };
+}
+
+function cubicCurve(x1: number, y1: number, x2: number, y2: number, bow: number): CubicCurve {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const { len } = unit(dx, dy);
+  if (len === 0) {
+    const p = { x: x1, y: y1 };
+    return { p0: p, c1: p, c2: p, p1: p };
+  }
+  const nx = -dy / len;
+  const ny = dx / len;
+  const offset = len * bow * 0.4;
+  return {
+    p0: { x: x1, y: y1 },
+    c1: { x: x1 + dx * 0.25 + nx * offset, y: y1 + dy * 0.25 + ny * offset },
+    c2: { x: x1 + dx * 0.75 + nx * offset, y: y1 + dy * 0.75 + ny * offset },
+    p1: { x: x2, y: y2 },
+  };
+}
+
+function cubicTangent(curve: CubicCurve, t: number): { ux: number; uy: number } {
+  const u = 1 - t;
+  const dx =
+    3 * u * u * (curve.c1.x - curve.p0.x) +
+    6 * u * t * (curve.c2.x - curve.c1.x) +
+    3 * t * t * (curve.p1.x - curve.c2.x);
+  const dy =
+    3 * u * u * (curve.c1.y - curve.p0.y) +
+    6 * u * t * (curve.c2.y - curve.c1.y) +
+    3 * t * t * (curve.p1.y - curve.c2.y);
+  const { ux, uy } = unit(dx, dy);
+  return { ux, uy };
+}
+
+function shortenEndpoints(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): { ax1: number; ay1: number; ax2: number; ay2: number } {
+  const { ux, uy, len } = unit(x2 - x1, y2 - y1);
+  if (len === 0) return { ax1: x1, ay1: y1, ax2: x2, ay2: y2 };
+  return {
+    ax1: x1 + ux * LINK_TAIL_SHORTEN,
+    ay1: y1 + uy * LINK_TAIL_SHORTEN,
+    ax2: x2 - ux * LINK_TIP_SHORTEN,
+    ay2: y2 - uy * LINK_TIP_SHORTEN,
+  };
+}
+
+function targetClusterKey(p: ResolvedPointer): string {
+  return `${Math.round(p.toX / TARGET_CLUSTER_KEY_PX)}:${Math.round(p.toY / TARGET_CLUSTER_KEY_PX)}`;
+}
+
+function targetClusterOffset(index: number, count: number): Point {
+  if (count <= 1) return { x: 0, y: 0 };
+  if (count === 2) {
+    return {
+      x: (index === 0 ? -1 : 1) * TARGET_CLUSTER_RADIUS,
+      y: 0,
+    };
+  }
+  const angle = -Math.PI / 2 + (index * Math.PI * 2) / count;
+  return {
+    x: Math.cos(angle) * TARGET_CLUSTER_RADIUS,
+    y: Math.sin(angle) * TARGET_CLUSTER_RADIUS,
+  };
+}
+
+function layoutPointerTargets(pointers: ResolvedPointer[]): ResolvedPointer[] {
+  const groups = new Map<string, number[]>();
+  for (let i = 0; i < pointers.length; i += 1) {
+    const pointer = pointers[i]!;
+    if (!pointer.locked) continue;
+    const key = targetClusterKey(pointer);
+    const group = groups.get(key);
+    if (group) group.push(i);
+    else groups.set(key, [i]);
+  }
+
+  let next: ResolvedPointer[] | null = null;
+  for (const indexes of groups.values()) {
+    if (indexes.length <= 1) continue;
+    if (!next) next = pointers.slice();
+    indexes.forEach((pointerIndex, groupIndex) => {
+      const pointer = pointers[pointerIndex]!;
+      const offset = targetClusterOffset(groupIndex, indexes.length);
+      next![pointerIndex] = {
+        ...pointer,
+        toX: pointer.toX + offset.x,
+        toY: pointer.toY + offset.y,
+      };
+    });
+  }
+
+  return next ?? pointers;
+}
 
 // ── Spec types ─────────────────────────────────────────────────────────────
 export interface ResolvedPointer {
@@ -123,23 +250,11 @@ export interface ResolvedPointer {
   locked: boolean;
 }
 
-// ── Source-card glow tuning ───────────────────────────────────────────────
-// The source card (spell on the stack) gets a wider, softer halo ring —
-// slightly different visual language from the target glow so the two read
-// as "this is acting on that".
-const SOURCE_GLOW_BASE_RADIUS = 38;
-const SOURCE_GLOW_MAX_RADIUS = 52;
-const SOURCE_GLOW_BASE_ALPHA = 0.3;
-const SOURCE_GLOW_PULSE_ALPHA = 0.18;
-// Phase the source glow's pulse so it never peaks in sync with the target —
-// the two alternating creates a back-and-forth "tethered" feel.
-const SOURCE_PULSE_PHASE_OFFSET = Math.PI;
-
 // ── Internal state ─────────────────────────────────────────────────────────
 interface IconEntry {
+  link: Graphics;
   sprite: Sprite;
   glow: Graphics;
-  sourceGlow: Graphics;
 }
 
 export class PointerLayer {
@@ -199,22 +314,23 @@ export class PointerLayer {
   update(pointers: ResolvedPointer[], deltaMs: number): void {
     if (pointers.length === 0 && this.clear) return;
     this.elapsedMs += deltaMs;
-    this.ensurePool(pointers.length);
+    const laidOutPointers = layoutPointerTargets(pointers);
+    this.ensurePool(laidOutPointers.length);
 
     for (let i = 0; i < this.pool.length; i += 1) {
       const entry = this.pool[i]!;
-      if (i < pointers.length) {
-        this.renderPointer(entry, pointers[i]!);
+      if (i < laidOutPointers.length) {
+        this.renderPointer(entry, laidOutPointers[i]!);
+        entry.link.visible = true;
         entry.sprite.visible = true;
         entry.glow.visible = true;
-        entry.sourceGlow.visible = true;
       } else {
+        entry.link.visible = false;
         entry.sprite.visible = false;
         entry.glow.visible = false;
-        entry.sourceGlow.visible = false;
       }
     }
-    this.clear = pointers.length === 0;
+    this.clear = laidOutPointers.length === 0;
   }
 
   get isClear(): boolean {
@@ -223,17 +339,16 @@ export class PointerLayer {
 
   private ensurePool(count: number): void {
     while (this.pool.length < count) {
-      const sourceGlow = new Graphics();
+      const link = new Graphics();
       const glow = new Graphics();
       const sprite = new Sprite();
       sprite.anchor.set(0.5);
       sprite.width = ICON_SIZE;
       sprite.height = ICON_SIZE;
-      // Order: source glow (behind source card) → target glow → icon.
-      this.root.addChild(sourceGlow);
+      this.root.addChild(link);
       this.root.addChild(glow);
       this.root.addChild(sprite);
-      this.pool.push({ sprite, glow, sourceGlow });
+      this.pool.push({ link, sprite, glow });
     }
   }
 
@@ -244,6 +359,11 @@ export class PointerLayer {
     const bob =
       Math.sin((this.elapsedMs / ICON_FLOAT_PERIOD_MS) * Math.PI * 2) * ICON_FLOAT_AMPLITUDE;
     const anchorY = p.toY + (p.locked ? 0 : ICON_CURSOR_OFFSET_Y) + bob;
+
+    entry.link.clear();
+    if (p.locked) {
+      this.drawLink(entry.link, p.fromX, p.fromY, p.toX, anchorY, color, alpha);
+    }
 
     // ── Target glow (under the icon) ───────────────────────────────────
     const pulse = 0.5 + 0.5 * Math.sin((this.elapsedMs / ICON_PULSE_PERIOD_MS) * Math.PI * 2);
@@ -257,26 +377,68 @@ export class PointerLayer {
     entry.glow.circle(p.toX, anchorY, radius * 0.7);
     entry.glow.fill({ color, alpha: glowAlpha });
 
-    // ── Source-card glow (counter-phased pulse around the source) ─────
-    const sourcePhase =
-      (this.elapsedMs / ICON_PULSE_PERIOD_MS) * Math.PI * 2 + SOURCE_PULSE_PHASE_OFFSET;
-    const sourcePulse = 0.5 + 0.5 * Math.sin(sourcePhase);
-    const sourceRadius =
-      SOURCE_GLOW_BASE_RADIUS + sourcePulse * (SOURCE_GLOW_MAX_RADIUS - SOURCE_GLOW_BASE_RADIUS);
-    const sourceAlpha = alpha * (SOURCE_GLOW_BASE_ALPHA + sourcePulse * SOURCE_GLOW_PULSE_ALPHA);
-
-    entry.sourceGlow.clear();
-    entry.sourceGlow.circle(p.fromX, p.fromY, sourceRadius);
-    entry.sourceGlow.fill({ color, alpha: sourceAlpha * 0.3 });
-    entry.sourceGlow.circle(p.fromX, p.fromY, sourceRadius * 0.75);
-    entry.sourceGlow.fill({ color, alpha: sourceAlpha });
-
     // ── Icon (monochrome — no tint so the glyph stays neutral white) ──
     const texture = this.textures[p.intent];
     entry.sprite.texture = texture ?? Texture.EMPTY;
     entry.sprite.x = p.toX;
     entry.sprite.y = anchorY;
     entry.sprite.alpha = alpha;
+  }
+
+  private drawLink(
+    gfx: Graphics,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    color: number,
+    alpha: number,
+  ): void {
+    const { ax1, ay1, ax2, ay2 } = shortenEndpoints(fromX, fromY, toX, toY);
+    const curve = cubicCurve(ax1, ay1, ax2, ay2, LINK_BOW);
+    gfx
+      .moveTo(curve.p0.x, curve.p0.y)
+      .bezierCurveTo(curve.c1.x, curve.c1.y, curve.c2.x, curve.c2.y, curve.p1.x, curve.p1.y)
+      .stroke({
+        color,
+        width: LINK_UNDER_WIDTH,
+        alpha: alpha * LINK_UNDER_ALPHA,
+        cap: "round",
+        join: "round",
+      });
+    gfx
+      .moveTo(curve.p0.x, curve.p0.y)
+      .bezierCurveTo(curve.c1.x, curve.c1.y, curve.c2.x, curve.c2.y, curve.p1.x, curve.p1.y)
+      .stroke({
+        color,
+        width: LINK_CORE_WIDTH,
+        alpha: alpha * LINK_CORE_ALPHA,
+        cap: "round",
+        join: "round",
+      });
+    this.drawLinkHead(gfx, curve, color, alpha);
+  }
+
+  private drawLinkHead(gfx: Graphics, curve: CubicCurve, color: number, alpha: number): void {
+    const tan = cubicTangent(curve, 1);
+    if (tan.ux === 0 && tan.uy === 0) return;
+    const tip = curve.p1;
+    const px = -tan.uy;
+    const py = tan.ux;
+    const baseX = tip.x - tan.ux * LINK_HEAD_LEN;
+    const baseY = tip.y - tan.uy * LINK_HEAD_LEN;
+    const halfW = LINK_HEAD_WIDTH / 2;
+    gfx
+      .moveTo(baseX + px * halfW, baseY + py * halfW)
+      .lineTo(tip.x, tip.y)
+      .lineTo(baseX - px * halfW, baseY - py * halfW)
+      .stroke({
+        color,
+        width: LINK_HEAD_STROKE,
+        alpha: alpha * LINK_CORE_ALPHA,
+        cap: "round",
+        join: "round",
+      });
   }
 
   private colorFor(intent: TargetingIntent): { color: number; alpha: number } {
@@ -289,10 +451,10 @@ export class PointerLayer {
   }
 
   destroy(): void {
-    for (const { sprite, glow, sourceGlow } of this.pool) {
+    for (const { link, sprite, glow } of this.pool) {
+      link.destroy();
       sprite.destroy();
       glow.destroy();
-      sourceGlow.destroy();
     }
     this.pool = [];
     this.root.destroy({ children: true });

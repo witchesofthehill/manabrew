@@ -113,6 +113,14 @@ function QuickCardSearch({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useKeybindings({
+    "deck-editor-focus-quick-add": () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    },
+  });
 
   const doSearch = useCallback((q: string) => {
     if (q.trim().length < 2) {
@@ -154,6 +162,7 @@ function QuickCardSearch({
       <div className="relative">
         <Plus className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
+          ref={inputRef}
           className="h-7 text-xs pl-6 pr-6"
           placeholder="Quick add card…"
           value={query}
@@ -322,6 +331,7 @@ export function DeckBuilder({
       filterInputRef.current?.focus();
       filterInputRef.current?.select();
     },
+    "deck-editor-toggle-search": () => onToggleSearch?.(),
   });
 
   const supplementaryCards = useMemo(

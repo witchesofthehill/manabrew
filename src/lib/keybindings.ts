@@ -26,19 +26,31 @@ export const KEYBINDINGS: KeybindingDef[] = [
     id: "nav-prev-page",
     label: "Previous page",
     category: "Navigation",
-    defaultCombo: { key: "arrowup", alt: true },
+    defaultCombo: { key: "arrowleft", alt: true },
   },
   {
     id: "nav-next-page",
     label: "Next page",
     category: "Navigation",
-    defaultCombo: { key: "arrowdown", alt: true },
+    defaultCombo: { key: "arrowright", alt: true },
   },
   {
     id: "deck-editor-focus-filter",
     label: "Focus the card filter",
     category: "Deck editor",
     defaultCombo: { key: "f", mod: true },
+  },
+  {
+    id: "deck-editor-focus-quick-add",
+    label: "Focus quick-add card",
+    category: "Deck editor",
+    defaultCombo: { key: "a", alt: true },
+  },
+  {
+    id: "deck-editor-toggle-search",
+    label: "Toggle card search",
+    category: "Deck editor",
+    defaultCombo: { key: "s", alt: true },
   },
 ];
 

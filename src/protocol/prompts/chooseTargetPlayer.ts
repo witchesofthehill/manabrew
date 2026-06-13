@@ -6,5 +6,8 @@ export type Input = {
   validPlayerIds: string[];
   hostile?: boolean;
   intent: TargetingIntent;
+  minTargets: number;
+  maxTargets: number;
+  chosenTargets: number;
 };
 export type Output = { type: "targetPlayer"; playerId: string | null };

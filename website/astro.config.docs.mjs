@@ -33,7 +33,12 @@ export default defineConfig({
       sidebar: [
         {
           label: "Start here",
-          items: [{ label: "What is ManaBrew?", link: "/" }, "getting-started"],
+          items: [
+            { label: "What is ManaBrew?", link: "/" },
+            "getting-started",
+            "download-windows",
+            "download-macos",
+          ],
         },
         { label: "Playing", items: ["playing", "formats", "faq"] },
         { label: "Hosting", items: ["self-hosting"] },

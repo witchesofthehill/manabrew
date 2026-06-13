@@ -722,7 +722,7 @@ impl ReplacementEffectIr {
             dredge_amount: params.get("DredgeAmount").and_then(|s| s.parse().ok()),
             skip: params.has(keys::SKIP),
             prevent: parsed_true(params.get(keys::PREVENT)),
-            optional: parsed_true(params.get(keys::OPTIONAL)),
+            optional: params.has(keys::OPTIONAL),
             effect_only: parsed_true(params.get("EffectOnly")),
             discard: parsed_bool(params.get("Discard")),
             flashback_cast: parsed_bool(params.get("FlashbackCast")),

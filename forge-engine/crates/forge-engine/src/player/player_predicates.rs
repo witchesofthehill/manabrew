@@ -56,6 +56,18 @@ pub fn can_be_attached(game: &GameState, player: PlayerId) -> bool {
     is_alive(game, player)
 }
 
+pub fn has_urza_lands(game: &GameState, player: PlayerId) -> bool {
+    let controls = |subtype: &str| {
+        game.cards_in_zone(forge_foundation::ZoneType::Battlefield, player)
+            .iter()
+            .any(|&cid| {
+                let card = game.card(cid);
+                card.type_line.has_subtype("Urza's") && card.type_line.has_subtype(subtype)
+            })
+    };
+    controls("Mine") && controls("Power-Plant") && controls("Tower")
+}
+
 pub fn restriction(game: &GameState, player: PlayerId, restriction: &str) -> bool {
     if restriction.trim().is_empty() {
         return true;

@@ -208,9 +208,7 @@ impl WrappedAbility {
     /// Sets an SVar on the source card.
     pub fn set_s_var(&self, game: &mut GameState, name: &str, value: &str) {
         if let Some(cid) = self.wrapped.source {
-            game.card_mut(cid)
-                .svars
-                .insert(name.to_string(), value.to_string());
+            game.card_mut(cid).set_s_var(name, value);
         }
     }
 

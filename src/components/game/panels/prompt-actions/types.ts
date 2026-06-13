@@ -41,6 +41,8 @@ export interface ChooseBlockersProps extends PromptActionLayoutProps {
 
 export interface ChooseTargetSpellProps extends PromptActionLayoutProps {
   onOpenStack: () => void;
+  completionLabel?: string;
+  onCompleteTargets?: () => void;
 }
 
 export interface PayManaCostProps extends PromptActionLayoutProps {

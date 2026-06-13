@@ -9,6 +9,11 @@ export const ROUTES = {
   SETTINGS: "/settings",
 } as const;
 
+// ─── External Links ──────────────────────────────────────────────────────────
+
+export const GITHUB_REPO_URL = "https://github.com/witchesofthehill/manabrew";
+export const DISCORD_INVITE_URL = "https://discord.gg/NqrKpbhtcd";
+
 // ─── Storage Keys ────────────────────────────────────────────────────────────
 
 export const STORAGE_KEYS = {

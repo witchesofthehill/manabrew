@@ -73,9 +73,13 @@ pub(super) fn resolve_stack_removal(
 
     // Counters
     if let Some(ct) = sa.with_counters_type_enum() {
-        ctx.game
-            .card_mut(card_id)
-            .add_counter(ct, sa.with_counters_amount().unwrap_or(1));
+        let amount = crate::svar::resolve_numeric_svar(
+            ctx.game,
+            sa,
+            crate::parsing::keys::WITH_COUNTERS_AMOUNT,
+            1,
+        );
+        ctx.game.card_mut(card_id).add_counter(ct, amount);
     }
 
     // Remember/Imprint

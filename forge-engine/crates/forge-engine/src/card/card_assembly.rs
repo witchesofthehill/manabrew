@@ -14,7 +14,7 @@ use forge_carddb::CardRules;
 use forge_foundation::CardStateName;
 
 use crate::ids::{CardId, PlayerId};
-use crate::parsing::parse_or_warn;
+use crate::parsing::parse_classified_or_warn;
 use crate::replacement::{parse_replacement_effect, ReplacementEffect};
 use crate::staticability::{parse_static_ability, StaticAbility};
 use crate::trigger::{parse_trigger, Trigger};
@@ -65,7 +65,9 @@ pub(crate) fn parse_card_components(face: &forge_carddb::CardFace) -> ParsedComp
     let mut spell_cast_or_copy_raw = Vec::new();
 
     for raw in &face.triggers {
-        if let Some(trig) = parse_trigger(raw, &mut next_trigger_id) {
+        if let Some(trig) =
+            parse_classified_or_warn(parse_trigger(raw, &mut next_trigger_id), "Trigger", raw)
+        {
             triggers.push(trig);
             if raw.contains("Mode$ SpellCastOrCopy") {
                 spell_cast_or_copy_raw.push(raw.clone());
@@ -77,7 +79,9 @@ pub(crate) fn parse_card_components(face: &forge_carddb::CardFace) -> ParsedComp
     let mut static_abilities = Vec::new();
     for raw in &face.static_abilities {
         let prefixed = format!("S$ {}", raw);
-        if let Some(sa) = parse_static_ability(&prefixed) {
+        if let Some(sa) =
+            parse_classified_or_warn(parse_static_ability(&prefixed), "StaticAbility", raw)
+        {
             static_abilities.push(sa);
         }
     }
@@ -88,7 +92,7 @@ pub(crate) fn parse_card_components(face: &forge_carddb::CardFace) -> ParsedComp
         .iter()
         .filter_map(|raw| {
             let prefixed = format!("R$ {}", raw);
-            parse_or_warn(
+            parse_classified_or_warn(
                 parse_replacement_effect(&prefixed),
                 "ReplacementEffect",
                 raw,
@@ -195,7 +199,6 @@ pub(crate) fn assemble_card(
     for (k, v) in &face.svars {
         card.svars.entry(k.clone()).or_insert_with(|| v.clone());
     }
-    card.refresh_action_specs();
 
     // Java parity: convert ETBReplacement keywords into intrinsic
     // Event$ Moved replacement effects after SVars are available.
@@ -258,7 +261,11 @@ pub(crate) fn assemble_card(
                 .triggers
                 .iter()
                 .filter_map(|raw| {
-                    parse_or_warn(parse_trigger(raw, &mut next_trigger_id), "Trigger", raw)
+                    parse_classified_or_warn(
+                        parse_trigger(raw, &mut next_trigger_id),
+                        "Trigger",
+                        raw,
+                    )
                 })
                 .collect();
             mark_triggers_card_state(&mut other_triggers, &card, CardStateName::RightSplit);
@@ -276,21 +283,31 @@ pub(crate) fn assemble_card(
                 .triggers
                 .iter()
                 .filter_map(|raw| {
-                    parse_or_warn(parse_trigger(raw, &mut back_trigger_id), "Trigger", raw)
+                    parse_classified_or_warn(
+                        parse_trigger(raw, &mut back_trigger_id),
+                        "Trigger",
+                        raw,
+                    )
                 })
                 .collect();
 
             let back_static_abilities: Vec<StaticAbility> = back_face
                 .static_abilities
                 .iter()
-                .filter_map(|raw| parse_static_ability(&format!("S$ {}", raw)))
+                .filter_map(|raw| {
+                    parse_classified_or_warn(
+                        parse_static_ability(&format!("S$ {}", raw)),
+                        "StaticAbility",
+                        raw,
+                    )
+                })
                 .collect();
 
             let back_replacement_effects: Vec<ReplacementEffect> = back_face
                 .replacements
                 .iter()
                 .filter_map(|raw| {
-                    parse_or_warn(
+                    parse_classified_or_warn(
                         parse_replacement_effect(&format!("R$ {}", raw)),
                         "ReplacementEffect",
                         raw,
@@ -320,6 +337,7 @@ pub(crate) fn assemble_card(
     // Parsed triggers and any constructor-time synthetic abilities/triggers have
     // now all been attached. Refresh the base counts so continuous-layer reset
     // logic does not strip real printed abilities from hidden-zone cards.
+    card.refresh_action_specs();
     card.base_ability_count = card.activated_abilities.len();
     card.base_trigger_count = card.triggers.len();
 

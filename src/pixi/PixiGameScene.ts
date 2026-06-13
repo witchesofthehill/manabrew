@@ -42,7 +42,7 @@ import {
   type GridCell,
   type GridLayoutInfo,
 } from "./GridLayout";
-import { computeHandLayout, SIZE_PARAMS } from "./HandLayout";
+import { computeBaseLayout, computeHandLayout, SIZE_PARAMS } from "./HandLayout";
 import { ArrowLayer, type ArrowDef } from "./ArrowLayer";
 import { HAND_CARD_BASES } from "@/components/game/game.styles";
 import { extractManaLetters, getExpandedManaAbilities } from "@/components/game/manaUtils";
@@ -135,8 +135,18 @@ interface HandTarget {
   x: number;
   y: number;
   rot: number;
-  scale: number;
+  scaleX: number;
+  scaleY: number;
   zIndex: number;
+}
+
+interface HandHitZone {
+  index: number;
+  card: GameCard;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 const HAND_SELECTION_DROP_PX = 30;
@@ -273,6 +283,7 @@ export class PixiGameScene {
   private handContainer: Container;
   private handSprites = new Map<string, CardSprite>();
   private handTargets = new Map<string, HandTarget>();
+  private handHitZones: HandHitZone[] = [];
   private hoveredHandIndex: number | null = null;
   private handHoverHoldTimer: number | null = null;
   private pendingHandHoverLeaveIndex: number | null = null;
@@ -296,6 +307,7 @@ export class PixiGameScene {
   private cursorViewportX = 0;
   private cursorViewportY = 0;
   private cursorListener: ((e: MouseEvent) => void) | null = null;
+  private canvasLeaveListener: ((e: PointerEvent) => void) | null = null;
   private devOverridesUnsub: (() => void) | null = null;
   private placementGhostGfx: Graphics | null = null;
   private placementGhostText: Text | null = null;
@@ -376,6 +388,8 @@ export class PixiGameScene {
       this.cursorViewportY = e.clientY;
     };
     window.addEventListener("mousemove", this.cursorListener);
+    this.canvasLeaveListener = () => this.clearHandHover();
+    this.app.canvas.addEventListener("pointerleave", this.canvasLeaveListener);
     prewarmManaSymbols();
 
     this.devOverridesUnsub = useGameDevStore.subscribe((state, prev) => {
@@ -774,12 +788,25 @@ export class PixiGameScene {
     if (this.destroyed || !state || !Array.isArray(state.cards)) return;
     // Opponent canvases never show a hand fan — just silently absorb the
     // state update so callers don't need to guard against the mode.
-    if (!this.showHand) return;
+    if (!this.showHand) {
+      this.handHitZones = [];
+      return;
+    }
     this.lastHandState = state;
+    if (this.hoveredHandIndex !== null && this.hoveredHandIndex >= state.cards.length) {
+      this.hoveredHandIndex = null;
+    }
     this.pruneRemovedHandSprites(new Set(state.cards.map((c) => c.id)));
     this.dragHandler.setHandExclusion(this.collectHandBlockers()[0] ?? null);
 
     const dims = this.computeHandDimensions();
+    const baseLayout = computeBaseLayout(
+      state.cards.length,
+      dims.cardW,
+      dims.maxSpread,
+      dims.minSpread,
+      dims.spreadWidth,
+    );
     const layout = computeHandLayout(
       state.cards.length,
       dims.cardW,
@@ -795,13 +822,16 @@ export class PixiGameScene {
     const zone = this.getPlayZone();
     const centerX = zone.x + zone.width / 2;
     const bottomY = this.handBottomY();
+    const hitZones: HandHitZone[] = [];
 
     for (let i = 0; i < state.cards.length; i++) {
       const card = state.cards[i]!;
       const l = layout[i]!;
+      const base = baseLayout[i]!;
       const isHovered = this.hoveredHandIndex === i;
       const selectionMode = state.selectionMode === true;
       const isSelected = selectionMode && (state.selectedIds?.has(card.id) ?? false);
+      const selectedDrop = isSelected ? Math.round(HAND_SELECTION_DROP_PX * this.vScale) : 0;
 
       let sprite = this.handSprites.get(card.id);
       if (!sprite) {
@@ -821,23 +851,26 @@ export class PixiGameScene {
       sprite.alpha = isHidden ? 0 : 1;
       sprite.cursor = selectionMode ? "pointer" : card.isPlayable ? "grab" : "default";
 
-      const scaleX = l.scaleW / CARD_W;
-      const scaleY = l.scaleH / CARD_H;
       this.handTargets.set(card.id, {
         x: centerX + l.x,
-        y:
-          bottomY +
-          l.y -
-          l.scaleH / 2 +
-          (isSelected ? Math.round(HAND_SELECTION_DROP_PX * this.vScale) : 0),
+        y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
         rot: isSelected ? 0 : (l.rotation * Math.PI) / 180,
-        scale: scaleX,
+        scaleX: l.scaleW / CARD_W,
+        scaleY: l.scaleH / CARD_H,
         zIndex: isHovered ? Z_HAND_HOVERED : i + 1,
       });
-      sprite.scale.set(scaleX, scaleY);
+      hitZones.push({
+        index: i,
+        card,
+        x: centerX + base.x,
+        y: bottomY + base.drop - dims.cardH / 2 + selectedDrop,
+        width: dims.cardW,
+        height: dims.cardH,
+      });
 
       this.applyHandCardHighlight(sprite, card, isHovered, selectionMode, isSelected);
     }
+    this.handHitZones = hitZones;
   }
 
   destroy(): void {
@@ -848,6 +881,10 @@ export class PixiGameScene {
     if (this.cursorListener) {
       window.removeEventListener("mousemove", this.cursorListener);
       this.cursorListener = null;
+    }
+    if (this.canvasLeaveListener) {
+      this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
+      this.canvasLeaveListener = null;
     }
     if (this.devOverridesUnsub) {
       this.devOverridesUnsub();
@@ -868,6 +905,7 @@ export class PixiGameScene {
       console.warn("[pixi] handler teardown threw:", err);
     }
     this.handSprites.clear();
+    this.handHitZones = [];
     this.entries.clear();
     // Leave the Pixi display tree to `app.destroy(true)` (called right
     // after scene.destroy in PixiGameCanvas). Our previous attempt to
@@ -1958,6 +1996,14 @@ export class PixiGameScene {
       return;
     }
 
+    const dragging =
+      this.dragHandler.draggingCardIds.size > 0 || !!this.lastHandState?.draggingCardId;
+    if (!dragging) {
+      this.updateHandHoverAt(local.x, local.y);
+    } else if (this.hoveredHandIndex !== null || this.pendingHandHoverLeaveIndex !== null) {
+      this.resetHandHover();
+    }
+
     const newPositions = this.dragHandler.move(local.x, local.y);
     if (!newPositions) return;
     // Active drag just crossed the move threshold — kill any hover preview
@@ -2319,8 +2365,6 @@ export class PixiGameScene {
     sprite.eventMode = "static";
     sprite.cursor = card.isPlayable ? "grab" : "default";
 
-    sprite.on("pointerenter", () => this.onHandCardEnter(sprite));
-    sprite.on("pointerleave", () => this.onHandCardLeave(sprite));
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();
       if (this.lastHandState?.selectionMode) {
@@ -2342,50 +2386,90 @@ export class PixiGameScene {
     return sprite;
   }
 
-  private onHandCardEnter(sprite: CardSprite): void {
-    const idx = this.handIndexOf(sprite.card.id);
-    if (idx < 0) return;
+  private updateHandHoverAt(x: number, y: number): void {
+    const hit = this.handHitAt(x, y);
+    if (!hit) {
+      this.clearHandHover();
+      return;
+    }
+    this.setHandHovered(hit);
+  }
+
+  private setHandHovered(hit: HandHitZone): void {
+    const changed = this.hoveredHandIndex !== hit.index;
+    const wasPending = this.pendingHandHoverLeaveIndex !== null;
     this.cancelHandHoverHoldTimer();
-    this.hoveredHandIndex = idx;
-    this.recalcHandTargets();
+    if (!changed && !wasPending) return;
+    this.hoveredHandIndex = hit.index;
+    if (changed) this.recalcHandTargets();
+    const sprite = this.handSprites.get(hit.card.id);
+    if (!sprite) return;
     const screenBounds = this.hoveredHandSpriteBounds(sprite);
-    this.callbacks.onHoverCard?.(sprite.card, screenBounds, {
+    this.callbacks.onHoverCard?.(hit.card, screenBounds, {
       useAnchor: true,
       placement: "top-center",
     });
-    this.callbacks.onHoverHandCard?.(sprite.card, screenBounds);
+    this.callbacks.onHoverHandCard?.(hit.card, screenBounds);
+  }
+
+  private resetHandHover(): void {
+    this.cancelHandHoverHoldTimer();
+    this.callbacks.onHoverCard?.(null);
+    this.callbacks.onHoverHandCard?.(null);
+    if (this.hoveredHandIndex !== null) {
+      this.hoveredHandIndex = null;
+      this.recalcHandTargets();
+    }
+  }
+
+  private clearHandHover(): void {
+    const idx = this.hoveredHandIndex;
+    if (idx === null) return;
+    if (this.pendingHandHoverLeaveIndex === idx && this.handHoverHoldTimer !== null) return;
+    this.callbacks.onHoverCard?.(null);
+    this.callbacks.onHoverHandCard?.(null);
+    this.scheduleHandHoverCommit(idx);
+  }
+
+  private handHitAt(x: number, y: number): HandHitZone | null {
+    let best: HandHitZone | null = null;
+    let bestDistance = Infinity;
+    for (const zone of this.handHitZones) {
+      const left = zone.x - zone.width / 2;
+      const right = zone.x + zone.width / 2;
+      const top = zone.y - zone.height / 2;
+      const bottom = zone.y + zone.height / 2;
+      if (x < left || x > right || y < top || y > bottom) continue;
+      const distance = Math.abs(x - zone.x);
+      if (
+        distance < bestDistance ||
+        (distance === bestDistance && best && zone.index > best.index)
+      ) {
+        best = zone;
+        bestDistance = distance;
+      }
+    }
+    return best;
   }
 
   /**
    * Analytical bounds for the hovered hand sprite in canvas coordinates.
-   * `sprite.getBounds()` would use the pre-lerp position — the scale is set
-   * synchronously in `updateHand`, but the position is animated, so using
-   * raw bounds momentarily anchors overlays to the un-lifted location.
+   * The position and scale are both animated, so reading the target instead of
+   * the live sprite anchors overlays to the settled hover pose, not the
+   * mid-lerp one.
    */
   private hoveredHandSpriteBounds(sprite: CardSprite): ScreenBounds {
     const target = this.handTargets.get(sprite.card.id);
     const centerX = target?.x ?? sprite.x;
     const centerY = target?.y ?? sprite.y;
-    const width = CARD_W * sprite.scale.x;
-    const height = CARD_H * sprite.scale.y;
+    const width = CARD_W * (target?.scaleX ?? sprite.scale.x);
+    const height = CARD_H * (target?.scaleY ?? sprite.scale.y);
     return {
       x: centerX - width / 2,
       y: centerY - height / 2,
       width,
       height,
     };
-  }
-
-  private onHandCardLeave(sprite: CardSprite): void {
-    const idx = this.handIndexOf(sprite.card.id);
-    if (this.hoveredHandIndex !== idx) return;
-
-    // Hide the big preview immediately, but defer the actual hand-sprite
-    // unhover so the HTML action menu can cancel the clear if the cursor
-    // moves onto it.
-    this.callbacks.onHoverCard?.(null);
-    this.callbacks.onHoverHandCard?.(null);
-    this.scheduleHandHoverCommit(idx);
   }
 
   private scheduleHandHoverCommit(idx: number): void {
@@ -2423,10 +2507,6 @@ export class PixiGameScene {
   releaseHandHover(): void {
     if (this.hoveredHandIndex === null) return;
     this.scheduleHandHoverCommit(this.hoveredHandIndex);
-  }
-
-  private handIndexOf(cardId: string): number {
-    return this.lastHandState?.cards.findIndex((c) => c.id === cardId) ?? -1;
   }
 
   private applyHandCardHighlight(
@@ -2646,13 +2726,10 @@ export class PixiGameScene {
     sprite.x = lerp(sprite.x, target.x, HAND_LERP, SNAP_PX);
     sprite.y = lerp(sprite.y, target.y, HAND_LERP, SNAP_PX);
     sprite.rotation = lerp(sprite.rotation, target.rot, HAND_LERP, SNAP_ROT);
-
-    const dsx = target.scale - sprite.scale.x;
-    if (Math.abs(dsx) > SNAP_HAND_SCALE) {
-      const s = sprite.scale.x + dsx * HAND_LERP;
-      sprite.scale.set(s, s * (CARD_H / CARD_W));
-    }
-
+    sprite.scale.set(
+      lerp(sprite.scale.x, target.scaleX, HAND_LERP, SNAP_HAND_SCALE),
+      lerp(sprite.scale.y, target.scaleY, HAND_LERP, SNAP_HAND_SCALE),
+    );
     sprite.zIndex = target.zIndex;
   }
 }

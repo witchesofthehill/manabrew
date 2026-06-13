@@ -44,7 +44,9 @@ yarn parity:test -- --deck1 <d1> --deck2 <d2> --seed <N> --max-turns 30 -v
 
 Trace flags: `FORGE_RNG_TRACE=1`, `FORGE_TRIGGER_TRACE=1`, `FORGE_LIFE_TRACE=1`. See `docs/PARITY_TESTING.md` for the full env-var list.
 
-The parity binary mmaps `src-tauri/resources/cardset.rkyv` at startup. `yarn parity` ensures it's present, but direct invocations (`cargo run -p forge-parity …`, manual `./target/release/forge-parity …`, custom CI jobs) need to materialise it first — see `forge-engine/AGENTS.md` § "Cardset archive". A bare `cargo build` of this crate doesn't build it.
+The parity binary mmaps `src-tauri/resources/cardset.rkyv` at startup. `yarn parity` ensures it's present, but direct invocations (`cargo run -p forge-parity …`, manual `./target/parity/forge-parity …`, custom CI jobs) need to materialise it first — see `forge-engine/AGENTS.md` § "Cardset archive". A bare `cargo build` of this crate doesn't build it.
+
+Parity workflows build with `--profile parity` (release + `debug-assertions`), output dir `target/parity/`, so the dual-evaluation drift guards in the engine stay active during parity runs. Compiled-vs-legacy selector drift is reported as `[selector-drift]` lines (once per selector); set `FORGE_SELECTOR_ASSERT=1` to make it panic at the divergence site instead.
 
 ### Add a regression entry
 

@@ -1499,11 +1499,8 @@ fn lower_selector_comparison(value: &str) -> Option<SelectorPredicate> {
 
 fn lower_counter_comparison(value: &str) -> Option<SelectorPredicate> {
     let rest = value.strip_prefix("counters_")?;
-    if rest.len() < 3 {
-        return None;
-    }
-    let operator = parse_selector_operator(&rest[..2])?;
-    let after_op = &rest[2..];
+    let operator = parse_selector_operator(rest.get(..2)?)?;
+    let after_op = rest.get(2..)?;
     let split = after_op.find('_')?;
     let value = parse_selector_operand(&after_op[..split])?;
     let counter_type = after_op[split + 1..].to_string();
@@ -1601,6 +1598,17 @@ fn legacy_parse_params(raw: &str) -> BTreeMap<String, String> {
 /// ```ignore
 /// .filter_map(|raw| parse_or_warn(parse_static_ability(raw), "StaticAbility", raw))
 /// ```
+/// Like [`parse_or_warn`], but for lines the card parser already classified
+/// (`T:`/`S:`/`R:` records, stored prefix-stripped on the face): a `None`
+/// here silently drops a known rule, so it always warns.
+pub fn parse_classified_or_warn<T>(result: Option<T>, kind: &str, raw: &str) -> Option<T> {
+    if result.is_none() {
+        let preview: String = raw.trim().chars().take(100).collect();
+        eprintln!("[parse] failed to parse {kind} from: {preview}");
+    }
+    result
+}
+
 pub fn parse_or_warn<T>(result: Option<T>, kind: &str, raw: &str) -> Option<T> {
     if result.is_none() {
         let trimmed = raw.trim();

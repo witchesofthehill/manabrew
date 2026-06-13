@@ -156,6 +156,7 @@ pub struct SpellAbilityIr {
     pub shuffle: bool,
     pub optional: bool,
     pub gain_control: bool,
+    pub gain_control_text: Option<String>,
     pub forget_changed: bool,
     pub adds_no_counter: bool,
     pub no_regen: bool,
@@ -200,7 +201,6 @@ pub struct SpellAbilityIr {
     pub keyword_text: Option<String>,
     pub with_counters_type_text: Option<String>,
     pub with_counters_type: Option<CounterType>,
-    pub with_counters_amount: Option<i32>,
     pub with_counters_amount_text: Option<String>,
     pub change_num: usize,
     pub hidden: bool,
@@ -217,6 +217,7 @@ pub struct SpellAbilityIr {
     pub at_random: bool,
     pub reveal: bool,
     pub reveal_true: bool,
+    pub reveal_text: Option<String>,
     pub remember_drawn: bool,
     pub remember_removed_cards: bool,
     pub remember_destroyed: bool,
@@ -269,8 +270,9 @@ pub struct SpellAbilityIr {
     pub replace_dying_zone_text: Option<String>,
     pub replace_dying_zone: Option<ZoneType>,
     pub remember_objects: Option<String>,
-    /// `RememberObjects$ Remembered` — lowered from the CSV at IR build so
-    /// runtime sites read a bool instead of re-splitting the raw string.
+    /// `RememberObjects$ Remembered` — lowered from the `" & "`-separated list
+    /// (Java splits on `" & "`) so runtime sites read a bool instead of
+    /// re-splitting the raw string.
     pub remember_objects_remembered: bool,
     /// `RememberObjects$ RememberedController` (Arcane Denial, Sudden
     /// Substitution).
@@ -652,11 +654,12 @@ impl SpellAbilityIr {
             skip_untap: params.has(keys::SKIP_UNTAP),
             tapped: parsed_true(params.get(keys::TAPPED)),
             shuffle: parsed_true(params.get(keys::SHUFFLE)),
-            optional: parsed_true(params.get(keys::OPTIONAL)),
-            gain_control: parsed_true(params.get(keys::GAIN_CONTROL)),
+            optional: params.has(keys::OPTIONAL),
+            gain_control: params.has(keys::GAIN_CONTROL),
+            gain_control_text: params.get(keys::GAIN_CONTROL).map(str::to_string),
             forget_changed: parsed_true(params.get(keys::FORGET_CHANGED)),
             adds_no_counter: parsed_true(params.get(keys::ADDS_NO_COUNTER)),
-            no_regen: parsed_true(params.get("NoRegen")),
+            no_regen: params.has("NoRegen"),
             damage_map: params.has(keys::DAMAGE_MAP),
             remember_damaged_creature: parsed_true(params.get(keys::REMEMBER_DAMAGED_CREATURE)),
             num_dmg_present: params.has(keys::NUM_DMG),
@@ -702,7 +705,6 @@ impl SpellAbilityIr {
             keyword_text: params.get("Keyword").map(str::to_string),
             with_counters_type_text: params.get(keys::WITH_COUNTERS_TYPE).map(str::to_string),
             with_counters_type: params.get(keys::WITH_COUNTERS_TYPE).map(parse_counter_type),
-            with_counters_amount: parsed_i32(params.get(keys::WITH_COUNTERS_AMOUNT)),
             with_counters_amount_text: params.get(keys::WITH_COUNTERS_AMOUNT).map(str::to_string),
             change_num: parsed_usize(params.get(keys::CHANGE_NUM)).unwrap_or(1),
             hidden: parsed_true(params.get(keys::HIDDEN)),
@@ -710,16 +712,17 @@ impl SpellAbilityIr {
             secretly: parsed_true(params.get(keys::SECRETLY)),
             random_chosen: parsed_true(params.get(keys::RANDOM_CHOSEN)),
             forget_other_remembered: parsed_true(params.get(keys::FORGET_OTHER_REMEMBERED)),
-            remember_changed: parsed_true(params.get(keys::REMEMBER_CHANGED)),
+            remember_changed: params.has(keys::REMEMBER_CHANGED),
             imprint: parsed_true(params.get(keys::IMPRINT)),
-            face_down: parsed_true(params.get(keys::FACE_DOWN)),
+            face_down: params.has(keys::FACE_DOWN),
             exile_face_down: parsed_true(params.get(keys::EXILE_FACE_DOWN)),
             transformed: parsed_true(params.get(keys::TRANSFORMED)),
             at_random_text: params.get(keys::AT_RANDOM).map(str::to_string),
-            at_random: parsed_true(params.get(keys::AT_RANDOM)),
+            at_random: params.has(keys::AT_RANDOM),
             reveal: !parsed_true(params.get(keys::NO_REVEAL)),
             reveal_true: parsed_true(params.get(keys::REVEAL)),
-            remember_drawn: parsed_true(params.get("RememberDrawn")),
+            reveal_text: params.get(keys::REVEAL).map(str::to_string),
+            remember_drawn: params.has("RememberDrawn"),
             remember_removed_cards: parsed_true(params.get(keys::REMEMBER_REMOVED_CARDS)),
             remember_destroyed: parsed_true(params.get("RememberDestroyed")),
             remember_abandoned: params.get("RememberAbandoned").is_some(),
@@ -728,7 +731,7 @@ impl SpellAbilityIr {
             alter_attribute_activate: parsed_bool_default(params.get(keys::ACTIVATE), true),
             alter_attribute_attributes: split_param_list_value(params.get(keys::ATTRIBUTES), ","),
             remember_amass: parsed_true(params.get(keys::REMEMBER_AMASS)),
-            remember_flag: parsed_true(params.get(keys::REMEMBER)),
+            remember_flag: params.has(keys::REMEMBER),
             remember_chosen: parsed_true(params.get(keys::REMEMBER_CHOSEN)),
             imprint_chosen: parsed_true(params.get(keys::IMPRINT_CHOSEN)),
             remember_clasher: parsed_true(params.get(keys::REMEMBER_CLASHER)),
@@ -797,7 +800,7 @@ impl SpellAbilityIr {
                 params,
                 "TriggeredAttackerLKICopy",
             ),
-            remember_number: parsed_true(params.get(keys::REMEMBER_NUMBER)),
+            remember_number: params.has(keys::REMEMBER_NUMBER),
             remember_svar_amount: params.get(keys::REMEMBER_SVAR_AMOUNT).map(str::to_string),
             remember_exiled: params.has("RememberExiled"),
             delayed_trigger_defined_player: params
@@ -941,7 +944,7 @@ impl SpellAbilityIr {
             remember_searched: parsed_true(params.get(keys::REMEMBER_SEARCHED)),
             ninjutsu: parsed_true(params.get(keys::NINJUTSU)),
             unearth: parsed_true(params.get(keys::UNEARTH)),
-            attacking: parsed_true(params.get(keys::ATTACKING)),
+            attacking: params.has(keys::ATTACKING),
             cant_fizzle: params.has(keys::CANT_FIZZLE),
             cant_be_countered: parsed_true(params.get("CantBeCountered")),
             unpayable: parsed_true(params.get("Unpayable")),
@@ -1355,7 +1358,7 @@ fn parsed_true(value: Option<&str>) -> bool {
 fn has_remember_objects_token(params: &ParsedParams<'_>, token: &str) -> bool {
     params
         .get(keys::REMEMBER_OBJECTS)
-        .is_some_and(|raw| raw.split(',').any(|t| t.trim() == token))
+        .is_some_and(|raw| raw.split(" & ").any(|t| t.trim() == token))
 }
 
 #[cfg(test)]

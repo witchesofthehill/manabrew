@@ -11,5 +11,8 @@ export type Input = {
   validCardIds: string[];
   hostile?: boolean;
   intent: TargetingIntent;
+  minTargets: number;
+  maxTargets: number;
+  chosenTargets: number;
 };
 export type Output = { type: "targetAny"; target: TargetChoice };

@@ -261,7 +261,11 @@ pub fn mark_disconnected(state: &Arc<ServerState>, player_id: &str, our_generati
                 let room_empty = {
                     if let Some(mut room) = state.rooms.get_mut(rid) {
                         room.remove_participant(player_id);
-                        room.is_empty()
+                        let empty = room.is_empty();
+                        if !empty && room.players.is_empty() {
+                            room.reset_lobby_settings();
+                        }
+                        empty
                     } else {
                         false
                     }

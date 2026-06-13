@@ -60,6 +60,8 @@ pub fn copy_copiable_characteristics(copy_from: &Card, to: &mut Card) {
     to.abilities = copy_from.abilities.clone();
     to.triggers = copy_from.triggers.clone();
     to.svars = copy_from.svars.clone();
+    to.parsed_svar_cache.clear();
+    to.refresh_action_specs();
 }
 
 fn copiable_type_line(copy_from: &Card) -> forge_foundation::CardTypeLine {

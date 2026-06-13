@@ -257,8 +257,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             }
         }
 
-        // Handle Shuffle$ True (e.g. Nihil Spellbomb shuffles the target player's library).
-        if sa.ir.shuffle {
+        // Handle Shuffle$ (e.g. Nihil Spellbomb shuffles the target player's library).
+        if sa.ir.shuffle_raw.is_some() {
             for &pid in &player_ids {
                 ctx.game.shuffle_zone_cards(ZoneType::Library, pid, ctx.rng);
             }

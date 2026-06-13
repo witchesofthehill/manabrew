@@ -69,7 +69,7 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
         </button>
       )}
 
-      <div className="relative flex flex-col gap-1.5 px-5 pt-10 pb-4">
+      <div className={cn("relative flex flex-col gap-1.5 px-5 pb-4", onBack ? "pt-16" : "pt-10")}>
         <div className="flex flex-wrap items-center gap-1.5">
           {isReadOnly ? (
             <FormatBadge formatId={currentDeck.format ?? "standard"} />

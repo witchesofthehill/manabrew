@@ -16,7 +16,6 @@ import type { DraftCard } from "@/types/limited";
 
 type DraftMode = LimitedDraftMode;
 
-const RAIL_DEFAULT_WIDTH = 360;
 const RAIL_FITS_AT_ROW_WIDTH = 1120;
 
 export default function Draft() {
@@ -304,7 +303,6 @@ export function DraftingView({
             setSlot={setPreviewSlot}
             collapsed={previewCollapsed}
             onCollapse={togglePreview}
-            defaultWidth={RAIL_DEFAULT_WIDTH}
           />
         </div>
       )}

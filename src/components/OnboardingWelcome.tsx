@@ -32,7 +32,7 @@ export function OnboardingWelcome({ onComplete }: { onComplete: () => void }) {
         </p>
       </div>
 
-      <AboutContent fullBleedCarousel />
+      <AboutContent />
 
       <div className="space-y-2">
         <label

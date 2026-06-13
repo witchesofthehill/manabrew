@@ -32,6 +32,6 @@ if (!entry) {
   process.exit(1);
 }
 
-const cmd = `cargo run --release -p forge-parity --bin forge-parity -- --java-jar "${javaJar}" ${entry.args}${extraArgs ? " " + extraArgs : ""}`;
+const cmd = `cargo run --profile parity -p forge-parity --bin forge-parity -- --java-jar "${javaJar}" ${entry.args}${extraArgs ? " " + extraArgs : ""}`;
 console.log(`> ${cmd}\n`);
 execSync(cmd, { stdio: "inherit", cwd: root });

@@ -141,6 +141,47 @@ impl PhaseType {
         }
         None
     }
+
+    pub fn parse_range(values: &str) -> Vec<Self> {
+        let mut result: Vec<Self> = Vec::new();
+        let mut push = |phase: PhaseType, result: &mut Vec<Self>| {
+            if !result.contains(&phase) {
+                result.push(phase);
+            }
+        };
+        for s in values.split(',') {
+            let s = s.trim();
+            if let Some(idx) = s.find("->") {
+                let from = Self::from_script_name(&s[..idx]);
+                let to_str = s[idx + 2..].trim();
+                let to = if to_str.is_empty() {
+                    Some(PhaseType::Cleanup)
+                } else {
+                    Self::from_script_name(to_str)
+                };
+                if let (Some(from), Some(to)) = (from, to) {
+                    let mut in_range = false;
+                    for &phase in &Self::TURN_ORDER {
+                        if phase == from {
+                            in_range = true;
+                        }
+                        if in_range {
+                            push(phase, &mut result);
+                        }
+                        if phase == to {
+                            break;
+                        }
+                    }
+                }
+            } else if s.eq_ignore_ascii_case("Main") {
+                push(PhaseType::Main1, &mut result);
+                push(PhaseType::Main2, &mut result);
+            } else if let Some(phase) = Self::from_script_name(s) {
+                push(phase, &mut result);
+            }
+        }
+        result
+    }
 }
 
 impl std::fmt::Display for PhaseType {

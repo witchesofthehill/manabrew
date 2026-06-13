@@ -292,6 +292,7 @@ impl GameLoop {
         api: Option<crate::ability::api_type::ApiType>,
         mandatory: bool,
         _context: &CostPaymentContext,
+        sa: Option<&SpellAbility>,
     ) -> bool {
         let source_is_planeswalker = game.card(source).type_line.is_planeswalker();
         if !Self::should_confirm_payment(part, source_is_planeswalker, mandatory) {
@@ -301,6 +302,11 @@ impl GameLoop {
         // returns true without consuming RNG or emitting a callback). Mirror
         // that by returning true directly instead of asking the agent.
         if matches!(part, CostPart::Mana { .. }) {
+            return true;
+        }
+        if sa.is_some_and(|sa| {
+            crate::ability::effects::cost_payment::is_spell_payment_context(sa, game)
+        }) {
             return true;
         }
         let card_name = game.card(source).card_name.clone();
@@ -355,7 +361,15 @@ impl GameLoop {
                 } => {
                     if type_filter != "CARDNAME" {
                         if !self.confirm_cost_part_payment(
-                            game, agents, player, card_id, &part, api, mandatory, &context,
+                            game,
+                            agents,
+                            player,
+                            card_id,
+                            &part,
+                            api,
+                            mandatory,
+                            &context,
+                            sa.as_deref(),
                         ) {
                             payment_ok = false;
                             break;
@@ -401,7 +415,15 @@ impl GameLoop {
                         reserved_sacrifices.push(card_id);
                     }
                     if !self.confirm_cost_part_payment(
-                        game, agents, player, card_id, &part, api, mandatory, &context,
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        &part,
+                        api,
+                        mandatory,
+                        &context,
+                        sa.as_deref(),
                     ) {
                         payment_ok = false;
                         break;
@@ -445,7 +467,15 @@ impl GameLoop {
                 _ => {
                     // Confirm decisions for parts that need them
                     if !self.confirm_cost_part_payment(
-                        game, agents, player, card_id, &part, api, mandatory, &context,
+                        game,
+                        agents,
+                        player,
+                        card_id,
+                        &part,
+                        api,
+                        mandatory,
+                        &context,
+                        sa.as_deref(),
                     ) {
                         payment_ok = false;
                         break;
@@ -540,17 +570,13 @@ impl GameLoop {
                                     session.player,
                                     session.card_id,
                                 );
-                                // For SPELLS being cast, the card is on the
-                                // stack and cannot be tapped for its own mana.
-                                // For ACTIVATED abilities of a permanent, the
-                                // source IS on the battlefield and may tap
-                                // itself for the cost (Java parity:
-                                // `ComputerUtilMana` does not exclude the
-                                // source for activated-ability payments).
-                                let exclude_source = if session.is_activated_ability {
-                                    None
-                                } else {
+                                let exclude_source = if matches!(
+                                    context,
+                                    CostPaymentContext::ManaAbility
+                                ) {
                                     Some(session.card_id)
+                                } else {
+                                    None
                                 };
                                 mana::auto_tap_lands_allow_reserved_source_reuse_trace_with_callbacks_and_reserved_sacrifices(
                                     game,

@@ -1110,7 +1110,9 @@ impl Card {
     }
 
     pub fn add_spell_ability(&mut self, sa: &SpellAbility) -> bool {
-        crate::card::card_state::add_spell_ability(self, sa)
+        let added = crate::card::card_state::add_spell_ability(self, sa);
+        self.refresh_action_specs();
+        added
     }
 
     pub fn has_trigger(&self, trigger_id: u32) -> bool {
@@ -1182,18 +1184,23 @@ impl Card {
     pub fn remove_s_var(&mut self, key: &str) {
         crate::card::card_state::remove_s_var(self, key);
         self.parsed_svar_cache.remove(key);
+        self.refresh_action_specs_after_svar_change();
     }
 
     pub fn set_s_var(&mut self, key: impl Into<String>, value: impl Into<String>) {
         let key = key.into();
         self.parsed_svar_cache.remove(&key);
         self.svars.insert(key, value.into());
+        self.refresh_action_specs_after_svar_change();
     }
 
     pub fn set_s_var_if_absent(&mut self, key: impl Into<String>, value: impl Into<String>) {
-        // No cache invalidation needed: when the key is already present we keep the
-        // existing (still-valid) parse; when it's absent the cache has no entry yet.
-        self.svars.entry(key.into()).or_insert_with(|| value.into());
+        let key = key.into();
+        if self.svars.contains_key(&key) {
+            return;
+        }
+        self.svars.insert(key, value.into());
+        self.refresh_action_specs_after_svar_change();
     }
 
     pub fn set_svars_map(&mut self, svars: BTreeMap<String, String>) {
@@ -2303,6 +2310,8 @@ impl Card {
         self.replacement_effects = state.original_replacement_effects;
         self.base_ability_count = state.original_base_ability_count;
         self.base_trigger_count = state.original_base_trigger_count;
+        self.parsed_svar_cache.clear();
+        self.refresh_action_specs();
         self.ensure_crew_activated_ability();
         self.remove_clone_state();
     }
@@ -2642,11 +2651,11 @@ impl Card {
     }
 
     pub fn copy_changed_s_vars_from(&mut self, other: &Card) {
-        self.svars = other.svars.clone();
+        self.set_svars_map(other.svars.clone());
     }
 
     pub fn add_changed_s_vars(&mut self, key: &str, value: &str) {
-        self.svars.insert(key.to_string(), value.to_string());
+        self.set_s_var(key, value);
     }
 
     pub fn remove_changed_s_vars(&mut self, key: &str) {
@@ -2758,6 +2767,13 @@ impl Card {
         self.action_spell_cost = spell_cost;
         self.ai_phyrexian_payment = ai_phyrexian_payment;
         self.spree_min_mode_cost = spree_min_mode_cost;
+    }
+
+    fn refresh_action_specs_after_svar_change(&mut self) {
+        if self.action_spell_specs.is_empty() {
+            return;
+        }
+        self.refresh_action_specs();
     }
 
     fn collect_action_target_chain(&self, ability_text: &str) -> Vec<CardActionTargetSpec> {
@@ -3621,6 +3637,8 @@ impl Card {
                 .collect();
             self.base_ability_count = self.activated_abilities.len();
             self.base_trigger_count = self.triggers.len();
+            self.parsed_svar_cache.clear();
+            self.refresh_action_specs();
 
             // Re-bind replacement hosts so SVar lookups hit the active face.
             let mut res = std::mem::take(&mut self.replacement_effects);
@@ -3888,8 +3906,7 @@ impl HasSVars for Card {
     }
 
     fn set_svars(&mut self, new_svars: std::collections::HashMap<String, String>) {
-        self.svars = new_svars.into_iter().collect();
-        self.parsed_svar_cache.clear();
+        self.set_svars_map(new_svars.into_iter().collect());
     }
 
     fn get_svars(&self) -> &std::collections::HashMap<String, String> {

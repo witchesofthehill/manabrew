@@ -599,10 +599,23 @@ impl Trigger {
         card_id: CardId,
         game: &GameState,
     ) -> bool {
-        self.matches_compiled_valid(
-            &MatchValidTarget::Card(game.card(card_id)),
+        let src = self.base.card_trait_base.host_card(game);
+        let player = self.resolve_source_player(src);
+        let trigger_remembered_cards = self
+            .trigger_remembered
+            .iter()
+            .filter_map(|value| match value {
+                AbilityValue::Card(card_id) => Some(*card_id),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        valid_filter::matches_valid_card_selector_with_context(
             filter,
-            Some(self.base.card_trait_base.host_card(game)),
+            game.card(card_id),
+            valid_filter::MatchContext::from_source(src)
+                .with_game(game)
+                .with_source_controller(player)
+                .with_trigger_remembered_cards(&trigger_remembered_cards),
         )
     }
 

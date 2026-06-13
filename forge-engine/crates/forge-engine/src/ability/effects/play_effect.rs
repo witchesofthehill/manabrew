@@ -71,26 +71,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         None => return,
     };
 
-    let play_effect_optional = spell_sa
-        .pay_costs
-        .as_ref()
-        .map(|cost| !cost.mandatory)
-        .unwrap_or(false);
-    if play_effect_optional {
-        let card_name = ctx.game.card(card_id).card_name.clone();
-        let accepted = ctx.agents[controller.index()].confirm_action(
-            controller,
-            Some("PlayEffectOptional"),
-            "play_effect_optional",
-            &[],
-            Some(card_id),
-            Some(crate::ability::api_type::ApiType::Play),
-        );
-        if !accepted {
-            return;
-        }
-    }
-
     // ── Step 3: Cost replacement ────────────────────────────────────
     if without_mana_cost {
         if let Some(ref mut cost) = spell_sa.pay_costs {
@@ -116,7 +96,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Remove zone restriction — allow casting from exile/library/etc.
     spell_sa.ir.cast_from_play_effect = true;
 
-    spell_sa.setup_targets(ctx.game, ctx.agents, ctx.mana_pools);
+    if !spell_sa.setup_targets(ctx.game, ctx.agents, ctx.mana_pools) {
+        return;
+    }
 
     // ── Step 6: Pay mana ────────────────────────────────────────────
     if !without_mana_cost {

@@ -22,6 +22,7 @@ impl GameLoop {
 
         // Fire TurnBegin trigger at the start of each turn.
         let active = game.active_player();
+        crate::player::expire_until_your_next_turn_keywords(game, active);
         self.trigger_handler
             .handle_player_defined_del_triggers(active);
         self.trigger_handler.run_trigger(
@@ -662,6 +663,7 @@ impl GameLoop {
         let player_ids = game.player_order.clone();
         for player in player_ids {
             game.player_cleanup_turn_state(player);
+            crate::player::expire_end_of_turn_keywords(game, player);
         }
 
         for i in 0..game.cards.len() {
@@ -723,6 +725,10 @@ impl GameLoop {
                 // every battlefield card, not just creatures. Without this,
                 // an artifact like Lightning Greaves keeps Heroic
                 // Intervention's hexproof past the turn it was cast.
+                game.cards[i].cant_have_keywords.clear();
+                game.cards[i].clear_pump_keywords();
+                game.cards[i].clear_pump_triggers();
+            } else {
                 game.cards[i].cant_have_keywords.clear();
                 game.cards[i].clear_pump_keywords();
                 game.cards[i].clear_pump_triggers();

@@ -10,18 +10,19 @@ use super::trigger::TriggerBehavior;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TriggerPhase {
-    pub phase: Option<forge_foundation::PhaseType>,
+    pub phases: Vec<forge_foundation::PhaseType>,
     pub valid_player: Option<crate::parsing::CompiledSelector>,
 }
 
 impl TriggerPhase {
     pub fn parse(params: &Params) -> Box<dyn TriggerBehavior> {
-        let phase = params
+        let phases = params
             .get(keys::PHASE)
-            .and_then(forge_foundation::PhaseType::from_script_name);
+            .map(forge_foundation::PhaseType::parse_range)
+            .unwrap_or_default();
         let valid_player = params.selector_cloned(keys::VALID_PLAYER);
         Box::new(Self {
-            phase,
+            phases,
             valid_player,
         })
     }
@@ -40,8 +41,11 @@ impl TriggerBehavior for TriggerPhase {
         game: &GameState,
     ) -> bool {
         let _host_controller = trigger.base.card_trait_base.host_controller(game);
-        if let Some(expected_phase) = self.phase {
-            if params.phase != Some(expected_phase) {
+        if !self.phases.is_empty() {
+            let matches = params
+                .phase
+                .is_some_and(|phase| self.phases.contains(&phase));
+            if !matches {
                 return false;
             }
         }

@@ -137,6 +137,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             cards,
             min,
             max,
+            optional,
             source_card_name,
             description: _,
         } => AgentPromptInner::ChooseCardsForEffect {
@@ -145,6 +146,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             min_choices: min,
             max_choices: max,
             source_card_name,
+            optional,
         },
         JavaRawPromptBody::ChooseMode {
             options,
@@ -257,10 +259,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         },
         JavaRawPromptBody::ReorderLibrary {
             cards,
+            destination,
+            top_of_deck,
             source_card_name: _,
         } => AgentPromptInner::ReorderLibrary {
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
+            destination,
+            top_of_deck,
         },
         JavaRawPromptBody::ChooseTargetPlayer {
             players,
@@ -529,6 +535,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             card_id: card_id.clone(),
         },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
+        PlayerAction::PayLife => JavaAction::PayLife,
         PlayerAction::CancelManaCost => JavaAction::CancelMana,
         PlayerAction::Pass { until_phase } => JavaAction::Pass {
             until_phase: until_phase.clone(),
@@ -564,6 +571,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::RestoreSnapshot { .. } => "restoreSnapshot",
         PlayerAction::ManaComboDecision { .. } => "manaComboDecision",
         PlayerAction::PayManaCost { .. } => "payManaCost",
+        PlayerAction::PayLife => "payLife",
         PlayerAction::CancelManaCost => "cancelManaCost",
         PlayerAction::DiceRolledAcknowledged => "diceRolledAcknowledged",
         PlayerAction::FirstPlayerRollAcknowledged => "firstPlayerRollAcknowledged",

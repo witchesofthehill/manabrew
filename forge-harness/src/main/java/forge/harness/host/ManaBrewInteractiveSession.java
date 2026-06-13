@@ -25,11 +25,13 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -222,7 +224,7 @@ public final class ManaBrewInteractiveSession {
         return new PriorityChoice(PriorityActionKind.PASS, null, null);
     }
 
-    enum ManaPaymentKind { TAP, UNTAP, PAY, CANCEL }
+    enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL }
 
     static final class ManaPaymentChoice {
         private final ManaPaymentKind kind;
@@ -273,10 +275,15 @@ public final class ManaBrewInteractiveSession {
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
             final int poolTotal,
-            final boolean canConfirm
+            final boolean canConfirm,
+            final boolean canCancel,
+            final boolean canPayLife,
+            final int lifeToPay
     ) {
         requireAttached();
-        publishManaPaymentPrompt(playerId, payingFor, remainingCost, tappableSources, untappableCards, poolTotal, canConfirm);
+        publishManaPaymentPrompt(
+                playerId, payingFor, remainingCost, tappableSources, untappableCards,
+                poolTotal, canConfirm, canCancel, canPayLife, lifeToPay);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
@@ -305,6 +312,8 @@ public final class ManaBrewInteractiveSession {
                     final boolean auto = action.has("auto") && action.get("auto").getAsBoolean();
                     return new ManaPaymentChoice(ManaPaymentKind.PAY, null, null, null, auto);
                 }
+                case "pay_life":
+                    return new ManaPaymentChoice(ManaPaymentKind.PAY_LIFE, null, null, null, false);
                 case "cancel_mana":
                 case "pass":
                 case "pass_priority":
@@ -393,7 +402,10 @@ public final class ManaBrewInteractiveSession {
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
             final int poolTotal,
-            final boolean canConfirm
+            final boolean canConfirm,
+            final boolean canCancel,
+            final boolean canPayLife,
+            final int lifeToPay
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "pay_mana_cost");
@@ -408,6 +420,9 @@ public final class ManaBrewInteractiveSession {
         }
         prompt.addProperty("manaPoolTotal", poolTotal);
         prompt.addProperty("canConfirmFromPool", canConfirm);
+        prompt.addProperty("canCancel", canCancel);
+        prompt.addProperty("canPayLife", canPayLife);
+        prompt.addProperty("lifeToPay", lifeToPay);
 
         final com.google.gson.JsonArray options = new com.google.gson.JsonArray();
         final java.util.LinkedHashSet<String> tappableIds = new java.util.LinkedHashSet<>();
@@ -524,8 +539,9 @@ public final class ManaBrewInteractiveSession {
             return new CardCollection();
         }
         final List<Card> cards = new ArrayList<Card>(hand);
-        publishCardChoicePrompt("mulligan_put_back", playerId, cards, count, count, count);
-        return awaitCardsFromPublishedPrompt(cards, count, count);
+        final int clampedCount = Math.min(count, cards.size());
+        publishCardChoicePrompt("mulligan_put_back", playerId, cards, clampedCount, clampedCount, clampedCount);
+        return awaitCardsFromPublishedPrompt(cards, clampedCount, clampedCount);
     }
 
     CardCollection awaitAttackers(
@@ -619,10 +635,11 @@ public final class ManaBrewInteractiveSession {
             final int playerId,
             final List<Card> attackers,
             final List<Card> availableBlockers,
-            final Map<Card, List<Card>> validBlockersByAttacker
+            final Map<Card, List<Card>> validBlockersByAttacker,
+            final String error
     ) {
         requireAttached();
-        publishBlockersPrompt(playerId, attackers, availableBlockers, validBlockersByAttacker);
+        publishBlockersPrompt(playerId, attackers, availableBlockers, validBlockersByAttacker, error);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -669,8 +686,10 @@ public final class ManaBrewInteractiveSession {
     ) {
         requireAttached();
         final List<Card> cards = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(validCards));
-        publishCardChoicePrompt(kind, playerId, cards, min, max);
-        return awaitCardsFromPublishedPrompt(cards, min, max);
+        final int clampedMin = Math.min(min, cards.size());
+        final int clampedMax = Math.min(max, cards.size());
+        publishCardChoicePrompt(kind, playerId, cards, clampedMin, clampedMax);
+        return awaitCardsFromPublishedPrompt(cards, clampedMin, clampedMax);
     }
 
     CardCollection awaitCardChoice(
@@ -682,10 +701,39 @@ public final class ManaBrewInteractiveSession {
             final String sourceName,
             final String description
     ) {
+        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, description, false);
+    }
+
+    CardCollection awaitCardChoice(
+            final String kind,
+            final int playerId,
+            final CardCollectionView validCards,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final boolean optionalDecline
+    ) {
+        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, description, optionalDecline, null);
+    }
+
+    CardCollection awaitCardChoice(
+            final String kind,
+            final int playerId,
+            final CardCollectionView validCards,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final boolean optionalDecline,
+            final String error
+    ) {
         requireAttached();
         final List<Card> cards = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(validCards));
-        publishCardChoicePrompt(kind, playerId, cards, min, max, sourceName, description);
-        return awaitCardsFromPublishedPrompt(cards, min, max);
+        final int clampedMin = Math.min(min, cards.size());
+        final int clampedMax = Math.min(max, cards.size());
+        publishCardChoicePrompt(kind, playerId, cards, clampedMin, clampedMax, sourceName, description, optionalDecline, error);
+        return awaitCardsFromPublishedPrompt(cards, clampedMin, clampedMax, optionalDecline);
     }
 
     void awaitRevealCards(
@@ -700,6 +748,12 @@ public final class ManaBrewInteractiveSession {
                 ? new ArrayList<Card>()
                 : new ArrayList<Card>(cardsForPrompt);
         publishRevealCardsPrompt(playerId, cards, zone, owner, messagePrefix);
+        awaitRevealAcknowledgement();
+    }
+
+    void awaitNotifyAcknowledgement(final int playerId, final String message) {
+        requireAttached();
+        publishRevealCardsPrompt(playerId, new ArrayList<Card>(), null, null, message);
         awaitRevealAcknowledgement();
     }
 
@@ -725,16 +779,32 @@ public final class ManaBrewInteractiveSession {
             final int max,
             final String sourceName
     ) {
+        return awaitModeChoice(playerId, options, min, max, sourceName, false);
+    }
+
+    List<Integer> awaitModeChoice(
+            final int playerId,
+            final List<String> options,
+            final int min,
+            final int max,
+            final String sourceName,
+            final boolean allowRepeat
+    ) {
         requireAttached();
-        publishOptionPrompt("choose_mode", playerId, options, min, max, sourceName, null);
+        if (options.isEmpty() && min > 0) {
+            throw new IllegalArgumentException("unsatisfiable mode prompt: min " + min + " with no options");
+        }
+        final int clampedMin = allowRepeat ? min : Math.min(min, options.size());
+        final int clampedMax = allowRepeat ? max : Math.min(max, options.size());
+        publishOptionPrompt("choose_mode", playerId, options, clampedMin, clampedMax, sourceName, null);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
-                return new ArrayList<>();
+                return defaultModeIndices(options, clampedMin);
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return new ArrayList<>();
+                return defaultModeIndices(options, clampedMin);
             }
             if (!"mode_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
@@ -745,9 +815,34 @@ public final class ManaBrewInteractiveSession {
                     selected.add(element.getAsInt());
                 }
             }
+            validateModeIndices(selected, options.size(), clampedMin, clampedMax, allowRepeat);
             return selected;
         }
-        return new ArrayList<>();
+        return defaultModeIndices(options, clampedMin);
+    }
+
+    private static List<Integer> defaultModeIndices(final List<String> options, final int min) {
+        final List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < min && !options.isEmpty(); i++) {
+            indices.add(Math.min(i, options.size() - 1));
+        }
+        return indices;
+    }
+
+    private static void validateModeIndices(
+            final List<Integer> selected, final int optionCount, final int min, final int max, final boolean allowRepeat) {
+        if (selected.size() < min || selected.size() > max) {
+            throw new IllegalArgumentException("selected option count out of range: " + selected.size());
+        }
+        final Set<Integer> seen = new HashSet<>();
+        for (final Integer index : selected) {
+            if (index == null || index < 0 || index >= optionCount) {
+                throw new IllegalArgumentException("option index out of range: " + index);
+            }
+            if (!allowRepeat && !seen.add(index)) {
+                throw new IllegalArgumentException("duplicate option index: " + index);
+            }
+        }
     }
 
     boolean awaitBooleanChoice(
@@ -759,23 +854,38 @@ public final class ManaBrewInteractiveSession {
             final String mode,
             final String api
     ) {
+        return awaitBooleanChoice(kind, playerId, description, sourceName, promptKind, mode, api, null, null);
+    }
+
+    boolean awaitBooleanChoice(
+            final String kind,
+            final int playerId,
+            final String description,
+            final String sourceName,
+            final String promptKind,
+            final String mode,
+            final String api,
+            final List<String> optionLabels,
+            final Boolean passDefault
+    ) {
         requireAttached();
-        publishBooleanPrompt(kind, playerId, description, sourceName, promptKind, mode, api);
+        publishBooleanPrompt(kind, playerId, description, sourceName, promptKind, mode, api, optionLabels);
+        final boolean onPass = passDefault != null && passDefault;
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
-                return false;
+                return onPass;
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return false;
+                return onPass;
             }
             if (!"boolean_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
             return action.has("accept") && action.get("accept").getAsBoolean();
         }
-        return false;
+        return onPass;
     }
 
     int awaitNumberChoice(
@@ -785,11 +895,35 @@ public final class ManaBrewInteractiveSession {
             final String sourceName,
             final String description
     ) {
+        return awaitNumberChoice(playerId, min, max, sourceName, description, false);
+    }
+
+    Integer awaitCancellableNumberChoice(
+            final int playerId,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description
+    ) {
+        return awaitNumberChoice(playerId, min, max, sourceName, description, true);
+    }
+
+    private Integer awaitNumberChoice(
+            final int playerId,
+            final int min,
+            final int max,
+            final String sourceName,
+            final String description,
+            final boolean canCancel
+    ) {
         requireAttached();
-        if (min >= max) {
+        if (min > max) {
+            throw new IllegalArgumentException("unsatisfiable number prompt: min " + min + " > max " + max);
+        }
+        if (min == max) {
             return min;
         }
-        publishNumberPrompt(playerId, min, max, sourceName, description);
+        publishNumberPrompt(playerId, min, max, sourceName, description, canCancel);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -798,6 +932,9 @@ public final class ManaBrewInteractiveSession {
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
                 return min;
+            }
+            if (canCancel && "cancel_number".equals(actionKind)) {
+                return null;
             }
             if (!"number_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
@@ -829,12 +966,16 @@ public final class ManaBrewInteractiveSession {
             if (!"string_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
-            return action.has("value") ? action.get("value").getAsString() : "";
+            final String value = action.has("value") ? action.get("value").getAsString() : "";
+            if (!options.contains(value)) {
+                throw new IllegalArgumentException("string choice not among offered options: " + value);
+            }
+            return value;
         }
         return options.isEmpty() ? "" : options.get(0);
     }
 
-    CardCollection awaitCardIdListChoice(
+    Pair<CardCollection, CardCollection> awaitCardIdListChoice(
             final String promptKind,
             final String responseKind,
             final String responseField,
@@ -848,11 +989,11 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
-                return new CardCollection();
+                return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return new CardCollection();
+                return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
             }
             if (!responseKind.equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
@@ -866,21 +1007,41 @@ public final class ManaBrewInteractiveSession {
                     }
                 }
             }
-            return selected;
+            final CardCollection top = new CardCollection();
+            for (final Card card : cards) {
+                if (!selected.contains(card)) {
+                    top.add(card);
+                }
+            }
+            if (action.has("top_card_ids") && action.get("top_card_ids").isJsonArray()) {
+                final CardCollection orderedTop = new CardCollection();
+                for (JsonElement element : action.getAsJsonArray("top_card_ids")) {
+                    final Card card = findCardByPublishedId(cards, element.getAsString());
+                    if (card != null && !orderedTop.contains(card)) {
+                        orderedTop.add(card);
+                    }
+                }
+                if (orderedTop.size() == top.size() && orderedTop.containsAll(top)) {
+                    return ImmutablePair.of(selected, orderedTop);
+                }
+            }
+            return ImmutablePair.of(selected, top);
         }
-        return new CardCollection();
+        return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
     }
 
     CardCollection awaitDigChoice(
             final int playerId,
             final CardCollectionView cardsForPrompt,
+            final int min,
             final int max,
-            final boolean optional,
             final String sourceName
     ) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(cardsForPrompt);
-        publishDigPrompt(playerId, cards, max, optional, sourceName);
+        final int clampedMin = Math.min(min, cards.size());
+        final int clampedMax = Math.min(max, cards.size());
+        publishDigPrompt(playerId, cards, clampedMin, clampedMax, sourceName);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -888,7 +1049,7 @@ public final class ManaBrewInteractiveSession {
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return new CardCollection();
+                return new CardCollection(cards.subList(0, clampedMin));
             }
             if (!"dig_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
@@ -902,19 +1063,24 @@ public final class ManaBrewInteractiveSession {
                     }
                 }
             }
+            if (selected.size() < clampedMin || selected.size() > clampedMax) {
+                throw new IllegalArgumentException("selected card count out of range: " + selected.size());
+            }
             return selected;
         }
         return new CardCollection();
     }
 
-    CardCollection awaitReorderLibrary(
+    CardCollection awaitReorderZone(
             final int playerId,
             final CardCollectionView cardsForPrompt,
+            final ZoneType destination,
+            final boolean topOfDeck,
             final String sourceName
     ) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(cardsForPrompt);
-        publishLibraryPrompt("reorder_library", playerId, cards, sourceName);
+        publishReorderZonePrompt(playerId, cards, destination, topOfDeck, sourceName);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -986,11 +1152,13 @@ public final class ManaBrewInteractiveSession {
             final Card attacker,
             final CardCollectionView blockers,
             final int damageDealt,
-            final GameEntity defender
+            final GameEntity defender,
+            final boolean defenderAssignable,
+            final boolean maySkip
     ) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(blockers);
-        publishCombatDamageAssignmentPrompt(playerId, attacker, cards, damageDealt, defender);
+        publishCombatDamageAssignmentPrompt(playerId, attacker, cards, damageDealt, defender, defenderAssignable, maySkip);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1002,6 +1170,12 @@ public final class ManaBrewInteractiveSession {
             }
             if (!"combat_damage_assignment_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+            }
+            if (action.has("skip") && !action.get("skip").isJsonNull() && action.get("skip").getAsBoolean()) {
+                if (!maySkip) {
+                    throw new IllegalArgumentException("combat damage assignment cannot be skipped here");
+                }
+                return null;
             }
             final Map<Card, Integer> selected = new LinkedHashMap<Card, Integer>();
             if (action.has("assignments") && action.get("assignments").isJsonArray()) {
@@ -1018,13 +1192,17 @@ public final class ManaBrewInteractiveSession {
                         continue;
                     }
                     if (defender != null && defenderId(defender).equals(assigneeId)) {
+                        if (!defenderAssignable) {
+                            throw new IllegalArgumentException("combat damage assigned to defender is not allowed here");
+                        }
                         selected.put(null, damage);
                         continue;
                     }
                     final Card card = findCardByPublishedId(cards, assigneeId);
-                    if (card != null) {
-                        selected.put(card, selected.getOrDefault(card, 0) + damage);
+                    if (card == null) {
+                        throw new IllegalArgumentException("combat damage assigned to unknown blocker: " + assigneeId);
                     }
+                    selected.put(card, selected.getOrDefault(card, 0) + damage);
                 }
             }
             return selected;
@@ -1035,10 +1213,11 @@ public final class ManaBrewInteractiveSession {
     Pair<GameEntity, forge.game.GameObject> awaitTargetChoice(
             final int playerId,
             final SpellAbility ability,
-            final List<Pair<GameEntity, forge.game.GameObject>> candidates
+            final List<Pair<GameEntity, forge.game.GameObject>> candidates,
+            final boolean mandatory
     ) {
         requireAttached();
-        publishTargetPrompt(playerId, ability, candidates);
+        publishTargetPrompt(playerId, ability, candidates, mandatory);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1046,6 +1225,9 @@ public final class ManaBrewInteractiveSession {
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                if (mandatory) {
+                    continue;
+                }
                 return null;
             }
             if (!"target_choice".equals(actionKind)) {
@@ -1076,6 +1258,10 @@ public final class ManaBrewInteractiveSession {
             final int amount
     ) {
         requireAttached();
+        if (targets.isEmpty() || amount < targets.size()) {
+            throw new IllegalArgumentException(
+                    "unsatisfiable divided allocation: " + amount + " among " + targets.size() + " targets");
+        }
         publishDividedAllocationPrompt(playerId, ability, targets, amount);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -1097,6 +1283,10 @@ public final class ManaBrewInteractiveSession {
             for (final GameEntity target : targets) {
                 final String key = dividedTargetId(target);
                 final int value = map != null && map.has(key) ? map.get(key).getAsInt() : 0;
+                if (value < 1) {
+                    throw new IllegalArgumentException(
+                            "divided allocation must assign at least 1 to each target, got " + value + " for " + key);
+                }
                 result.put(target, value);
                 total += value;
             }
@@ -1165,6 +1355,15 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max
     ) {
+        return awaitCardsFromPublishedPrompt(cards, min, max, false);
+    }
+
+    private CardCollection awaitCardsFromPublishedPrompt(
+            final List<Card> cards,
+            final int min,
+            final int max,
+            final boolean allowEmpty
+    ) {
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
@@ -1175,6 +1374,9 @@ public final class ManaBrewInteractiveSession {
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                if (allowEmpty) {
+                    return new CardCollection();
+                }
                 return new CardCollection(cards.subList(0, Math.min(min, cards.size())));
             }
             if (!"choose_cards".equals(actionKind)) {
@@ -1189,6 +1391,9 @@ public final class ManaBrewInteractiveSession {
                         selected.add(selectedCard);
                     }
                 }
+            }
+            if (allowEmpty && selected.isEmpty()) {
+                return selected;
             }
             if (selected.size() < min || selected.size() > max) {
                 throw new IllegalArgumentException("selected card count out of range: " + selected.size());
@@ -1309,7 +1514,9 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
-            final String description
+            final String description,
+            final boolean optionalDecline,
+            final String error
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", kind);
@@ -1317,6 +1524,10 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("player", playerId);
         prompt.addProperty("min", min);
         prompt.addProperty("max", max);
+        prompt.addProperty("optional", optionalDecline);
+        if (error != null) {
+            prompt.addProperty("error", error);
+        }
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
         }
@@ -1372,7 +1583,8 @@ public final class ManaBrewInteractiveSession {
             final String sourceName,
             final String promptKind,
             final String mode,
-            final String api
+            final String api,
+            final List<String> optionLabels
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", kind);
@@ -1391,8 +1603,13 @@ public final class ManaBrewInteractiveSession {
         }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray labels = new com.google.gson.JsonArray();
-        labels.add("Decline");
-        labels.add("Accept");
+        if (optionLabels != null && optionLabels.size() == 2) {
+            labels.add(optionLabels.get(1));
+            labels.add(optionLabels.get(0));
+        } else {
+            labels.add("Decline");
+            labels.add("Accept");
+        }
         prompt.add("optionLabels", labels);
         latestPromptJson = prompt.toString();
     }
@@ -1464,7 +1681,8 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
-            final String description
+            final String description,
+            final boolean canCancel
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "choose_number");
@@ -1472,6 +1690,7 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("player", playerId);
         prompt.addProperty("min", min);
         prompt.addProperty("max", max);
+        prompt.addProperty("canCancel", canCancel);
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
         }
@@ -1479,6 +1698,34 @@ public final class ManaBrewInteractiveSession {
             prompt.addProperty("description", description);
         }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        latestPromptJson = prompt.toString();
+    }
+
+    private void publishReorderZonePrompt(
+            final int playerId,
+            final List<Card> cards,
+            final ZoneType destination,
+            final boolean topOfDeck,
+            final String sourceName
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "reorder_library");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("destination", destination.name());
+        prompt.addProperty("topOfDeck", topOfDeck);
+        if (sourceName != null) {
+            prompt.addProperty("sourceCardName", sourceName);
+        }
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        com.google.gson.JsonArray options = new com.google.gson.JsonArray();
+        for (int i = 0; i < cards.size(); i++) {
+            JsonObject option = new JsonObject();
+            option.addProperty("index", i);
+            addCardOption(option, cards.get(i));
+            options.add(option);
+        }
+        prompt.add("cards", options);
         latestPromptJson = prompt.toString();
     }
 
@@ -1510,16 +1757,17 @@ public final class ManaBrewInteractiveSession {
     private void publishDigPrompt(
             final int playerId,
             final List<Card> cards,
+            final int min,
             final int max,
-            final boolean optional,
             final String sourceName
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "choose_dig");
         prompt.addProperty("sessionId", sessionId);
         prompt.addProperty("player", playerId);
+        prompt.addProperty("min", min);
         prompt.addProperty("max", max);
-        prompt.addProperty("optional", optional);
+        prompt.addProperty("optional", min == 0);
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
         }
@@ -1603,12 +1851,16 @@ public final class ManaBrewInteractiveSession {
             final int playerId,
             final List<Card> attackers,
             final List<Card> availableBlockers,
-            final Map<Card, List<Card>> validBlockersByAttacker
+            final Map<Card, List<Card>> validBlockersByAttacker,
+            final String error
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "choose_blockers");
         prompt.addProperty("sessionId", sessionId);
         prompt.addProperty("player", playerId);
+        if (error != null) {
+            prompt.addProperty("error", error);
+        }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray attackerOptions = new com.google.gson.JsonArray();
         for (int i = 0; i < attackers.size(); i++) {
@@ -1668,19 +1920,22 @@ public final class ManaBrewInteractiveSession {
             final Card attacker,
             final List<Card> blockers,
             final int damageDealt,
-            final GameEntity defender
+            final GameEntity defender,
+            final boolean defenderAssignable,
+            final boolean maySkip
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "choose_combat_damage_assignment");
         prompt.addProperty("sessionId", sessionId);
         prompt.addProperty("player", playerId);
+        prompt.addProperty("maySkip", maySkip);
         if (attacker != null) {
             prompt.addProperty("attackerId", SnapshotExtractor.javaCardId(attacker));
             prompt.addProperty("attackerHasDeathtouch", attacker.hasKeyword("Deathtouch"));
         } else {
             prompt.addProperty("attackerHasDeathtouch", false);
         }
-        if (defender != null && attacker != null && attacker.hasKeyword("Trample")) {
+        if (defender != null && defenderAssignable) {
             prompt.addProperty("defenderId", defenderId(defender));
         }
         prompt.addProperty("totalDamage", damageDealt);
@@ -1700,12 +1955,14 @@ public final class ManaBrewInteractiveSession {
     private void publishTargetPrompt(
             final int playerId,
             final SpellAbility ability,
-            final List<Pair<GameEntity, forge.game.GameObject>> candidates
+            final List<Pair<GameEntity, forge.game.GameObject>> candidates,
+            final boolean mandatory
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", targetPromptKind(candidates));
         prompt.addProperty("sessionId", sessionId);
         prompt.addProperty("player", playerId);
+        prompt.addProperty("optional", !mandatory);
         final Card source = ability == null ? null : ability.getHostCard();
         if (source != null) {
             prompt.addProperty("sourceCardId", SnapshotExtractor.javaCardId(source));

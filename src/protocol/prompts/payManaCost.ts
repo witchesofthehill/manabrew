@@ -14,6 +14,7 @@ export type Input = {
 };
 export type Output =
   | { type: "payManaCost"; auto: boolean }
+  | { type: "payLife" }
   | { type: "cancelManaCost" }
   | { type: "tapLand"; cardId: string; abilityIndex?: number | null; color?: string | null }
   | { type: "untapLand"; cardId: string };

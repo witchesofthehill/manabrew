@@ -798,7 +798,7 @@ pub fn register_at_eot(
     trigger_handler.register_delayed_trigger(crate::trigger::handler::DelayedTrigger {
         mode: crate::trigger::TriggerType::Phase,
         trigger_mode: Box::new(crate::trigger::trigger_phase::TriggerPhase {
-            phase: Some(forge_foundation::PhaseType::EndOfTurn),
+            phases: vec![forge_foundation::PhaseType::EndOfTurn],
             valid_player: None,
         }) as Box<dyn crate::trigger::TriggerBehavior>,
         params: crate::parsing::Params::default(),

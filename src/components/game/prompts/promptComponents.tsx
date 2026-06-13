@@ -199,6 +199,8 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <ReorderLibraryModal
       cards={prompt.input.cards}
       sourceCard={ctx.sourceDeckCard}
+      destination={prompt.input.destination}
+      topOfDeck={prompt.input.topOfDeck ?? true}
       onConfirm={(orderedCardIds) => respond({ type: "reorderLibraryDecision", orderedCardIds })}
     />
   ),
@@ -403,6 +405,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       minChoices={prompt.input.minChoices}
       maxChoices={prompt.input.maxChoices}
       sourceCardName={prompt.input.sourceCardName ?? ctx.sourceDeckCard?.name}
+      optional={prompt.input.optional ?? false}
       onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
     />
   ),

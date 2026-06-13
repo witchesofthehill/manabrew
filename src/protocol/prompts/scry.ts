@@ -6,4 +6,8 @@ export type Input = {
   cardIds: string[];
   cards: GameCard[];
 };
-export type Output = { type: "scryDecision"; bottomCardIds: string[] };
+export type Output = {
+  type: "scryDecision";
+  bottomCardIds: string[];
+  topCardIds?: string[];
+};

@@ -40,5 +40,9 @@ deunicode = "1"
 opt-level = "z"
 lto = true
 
+[profile.parity]
+inherits = "release"
+debug-assertions = true
+
 [profile.release.package.forge-wasm]
 opt-level = 3

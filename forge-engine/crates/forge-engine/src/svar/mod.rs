@@ -71,7 +71,7 @@ fn apply_simple_operator_chain(num: i32, operators: &str) -> i32 {
             value = (value + 1) / 2;
         } else if let Some(arg) = op.strip_prefix("HalfDown") {
             let _ = arg;
-            value /= 2;
+            value = ((value as f64) / 2.0).floor() as i32;
         }
     }
     value
@@ -117,6 +117,8 @@ fn do_x_math(
         -num
     } else if op.contains("Times") {
         num * secondary
+    } else if op.contains("Pow") {
+        (num as f64).powf(secondary as f64) as i32
     } else if op.contains("DivideEvenlyUp") {
         if secondary == 0 {
             0
@@ -129,6 +131,8 @@ fn do_x_math(
         } else {
             num / secondary
         }
+    } else if op.contains("Mod") {
+        num % secondary
     } else if op.contains("Abs") {
         num.abs()
     } else if op.contains("LimitMax") {
@@ -274,6 +278,22 @@ fn resolve_card_list_property(
     if cards.is_empty() {
         return None;
     }
+    if let Some(rest) = property.strip_prefix("Valid ") {
+        let (valid, operators) = rest.split_once('/').unwrap_or((rest, ""));
+        let num = cards
+            .into_iter()
+            .filter(|&cid| {
+                crate::ability::ability_utils::matches_valid_cards_for_sa(
+                    game,
+                    sa,
+                    game.card(cid),
+                    None,
+                    valid,
+                )
+            })
+            .count() as i32;
+        return Some(do_x_math(num, operators, game, source_id, controller, sa));
+    }
     Some(
         cards
             .into_iter()
@@ -394,7 +414,17 @@ fn resolve_lowered_svar_expression(
 ) -> Option<i32> {
     match expression {
         ScriptSVarNumericExpression::Number(value) => {
-            Some(value.trim().parse::<i32>().unwrap_or(0))
+            let mut parts = value.split('/');
+            let number = parts.next().unwrap_or("");
+            let operators = parts.next().unwrap_or("");
+            Some(do_x_math(
+                number.trim().parse::<i32>().unwrap_or(0),
+                operators,
+                game,
+                source_id,
+                controller,
+                sa,
+            ))
         }
         ScriptSVarNumericExpression::Count(raw) => Some(resolve_count_svar_for_sa(
             raw, game, source_id, controller, sa,
@@ -402,7 +432,9 @@ fn resolve_lowered_svar_expression(
         ScriptSVarNumericExpression::PlayerCount(raw) => Some(resolve_player_count_svar(
             raw, game, source_id, controller, sa,
         )),
-        ScriptSVarNumericExpression::TriggerCount(raw) => Some(evaluate_svar(raw, sa)),
+        ScriptSVarNumericExpression::TriggerCount(raw) => Some(resolve_trigger_count_svar(
+            raw, game, source_id, controller, sa,
+        )),
         ScriptSVarNumericExpression::SVarReference { name, operators } => {
             let raw = game.card(source_id).get_s_var(name)?;
             let value = resolve_svar_expression(raw, game, source_id, controller, sa);
@@ -432,7 +464,16 @@ fn resolve_lowered_svar_expression(
                 Some(sacrificed_card_property_value(game, sa, property))
             }
             ScriptSVarObjectRef::TriggeredCard => {
-                crate::lki::resolve_triggered_card_lki_property(game, sa, property)
+                crate::lki::resolve_triggered_card_lki_property(game, sa, property).or_else(|| {
+                    resolve_card_list_property(
+                        "TriggeredCard",
+                        property,
+                        game,
+                        source_id,
+                        controller,
+                        sa,
+                    )
+                })
             }
             ScriptSVarObjectRef::CardList(defined) => {
                 resolve_card_list_property(defined, property, game, source_id, controller, sa)
@@ -478,7 +519,51 @@ fn resolve_discarded_valid_svar(
     0
 }
 
+fn resolve_trigger_count_svar(
+    expr: &str,
+    game: &GameState,
+    source_id: CardId,
+    controller: PlayerId,
+    sa: &SpellAbility,
+) -> i32 {
+    let (prefix, rest) = expr.split_once('$').unwrap_or((expr, ""));
+    let mut parts = rest.split('/');
+    let key = parts.next().unwrap_or("");
+    let operators = parts.next().unwrap_or("");
+    let values = parse_trigger_int_values(sa, key.trim());
+    let count = if prefix.ends_with("Max") {
+        values.into_iter().max().unwrap_or(0)
+    } else {
+        values.into_iter().sum()
+    };
+    do_x_math(count, operators, game, source_id, controller, sa)
+}
+
+const MAX_SVAR_RESOLUTION_DEPTH: usize = 50;
+
+thread_local! {
+    static SVAR_RESOLUTION_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub(crate) fn resolve_svar_expression(
+    expr: &str,
+    game: &GameState,
+    source_id: CardId,
+    controller: PlayerId,
+    sa: &SpellAbility,
+) -> i32 {
+    let depth = SVAR_RESOLUTION_DEPTH.with(|d| d.get());
+    if depth >= MAX_SVAR_RESOLUTION_DEPTH {
+        eprintln!("SVar resolution exceeded depth limit, returning 0 for: {expr}");
+        return 0;
+    }
+    SVAR_RESOLUTION_DEPTH.with(|d| d.set(depth + 1));
+    let value = resolve_svar_expression_inner(expr, game, source_id, controller, sa);
+    SVAR_RESOLUTION_DEPTH.with(|d| d.set(depth));
+    value
+}
+
+fn resolve_svar_expression_inner(
     expr: &str,
     game: &GameState,
     source_id: CardId,
@@ -497,7 +582,7 @@ pub(crate) fn resolve_svar_expression(
         }
     }
     if expr.starts_with("TriggerCount$") || expr.starts_with("TriggerCountMax$") {
-        return evaluate_svar(expr, sa);
+        return resolve_trigger_count_svar(expr, game, source_id, controller, sa);
     }
     if expr.starts_with("Count$") {
         return resolve_count_svar_for_sa(expr, game, source_id, controller, sa);
@@ -523,17 +608,23 @@ pub(crate) fn resolve_svar_expression(
             sa,
         );
     }
+    if let Some(value) = resolve_paid_hash_expr(expr, game, source_id, sa) {
+        return value;
+    }
     if let Some(value) = resolve_spell_ability_expr(expr, game, sa) {
+        return value;
+    }
+    if let Some(value) = resolve_card_list_expr(expr, game, source_id, controller, sa) {
+        return value;
+    }
+    if let Some(value) = crate::lki::resolve_triggered_card_lki_svar(game, sa, expr) {
         return value;
     }
     if let Some(value) = resolve_direct_player_expr(expr, game, source_id, controller, sa) {
         return value;
     }
     if let Some(svar_expr) = game.card(source_id).get_s_var(expr) {
-        if svar_expr.starts_with("Count$") || svar_expr.starts_with("PlayerCount") {
-            return resolve_svar_expression(svar_expr, game, source_id, controller, sa);
-        }
-        return evaluate_svar(svar_expr, sa);
+        return resolve_svar_expression(svar_expr, game, source_id, controller, sa);
     }
     0
 }
@@ -774,7 +865,10 @@ fn resolve_player_count_svar(
     let players: Vec<PlayerId> = if kind.is_empty() || kind == "Players" {
         game.alive_players()
     } else if kind == "Opponents" {
-        vec![game.opponent_of(controller)]
+        game.alive_players()
+            .into_iter()
+            .filter(|&pid| crate::player::player_predicates::is_opponent_of(game, controller, pid))
+            .collect()
     } else if kind == "Remembered" {
         game.card(source_id).remembered_players.clone()
     } else if kind.starts_with("PropertyYou") {
@@ -947,7 +1041,7 @@ fn resolve_player_count_svar(
 /// - `"NumDmg" -> "X"` → returns `sa.x_mana_cost_paid` or evaluates the "X" SVar
 /// - `"NumDmg" -> "AFLifeLost"` → looks up SVar "AFLifeLost" and evaluates it
 ///
-/// **param_name**: The key in `sa.params` (e.g. "NumDmg", "LifeAmount")
+/// **param_name**: The param key on the ability IR (e.g. "NumDmg", "LifeAmount")
 /// **default**: The value to return if the param is missing or empty
 pub fn resolve_numeric_svar(
     game: &GameState,
@@ -1065,7 +1159,14 @@ pub fn resolve_numeric_value(
                 if svar_expr.starts_with("TriggerCount$")
                     || svar_expr.starts_with("TriggerCountMax$")
                 {
-                    return sign * evaluate_svar(svar_expr, sa);
+                    return sign
+                        * resolve_trigger_count_svar(
+                            svar_expr,
+                            game,
+                            source_id,
+                            sa.activating_player,
+                            sa,
+                        );
                 }
                 if let Some(expression) = parse_script_svar_numeric_expression(svar_expr) {
                     if let Some(value) = resolve_lowered_svar_expression(
@@ -1224,8 +1325,12 @@ fn resolve_paid_hash_property(
 /// and `Count$KickedCount` (returns the multikicker count).
 pub fn evaluate_svar(expr: &str, sa: &SpellAbility) -> i32 {
     // X mana cost — return the value of X paid when casting
-    if expr == "Count$xPaid" || expr == "Count$XPaid" {
-        return sa.x_mana_cost_paid as i32;
+    if let Some(rest) = expr
+        .strip_prefix("Count$xPaid")
+        .or_else(|| expr.strip_prefix("Count$XPaid"))
+    {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        return apply_simple_operator_chain(sa.x_mana_cost_paid as i32, operators);
     }
     // Converge/Sunburst — handled in resolve_numeric_svar (needs GameState)
     if expr == "Count$Converge" || expr == "Count$Sunburst" {
@@ -1338,6 +1443,13 @@ fn evaluate_cost_amount_count_expr(
 ) -> i32 {
     use crate::card::Card;
     use forge_foundation::ZoneType;
+    if expr == "Count$xPaid" || expr == "Count$XPaid" {
+        return source
+            .svars
+            .get("XPaid")
+            .and_then(|s| s.parse::<i32>().ok())
+            .unwrap_or(0);
+    }
     if let Some(counter_name) = expr.strip_prefix("Count$CardCounters.") {
         let counter_type = crate::ability::ability_utils::parse_counter_type(counter_name);
         return source.counter_count(&counter_type);
@@ -1389,8 +1501,19 @@ pub fn resolve_count_svar_for_sa(
 ) -> i32 {
     use forge_foundation::ZoneType;
 
-    if expr == "Count$xPaid" || expr == "Count$XPaid" {
-        return sa.x_mana_cost_paid as i32;
+    if let Some(rest) = expr
+        .strip_prefix("Count$xPaid")
+        .or_else(|| expr.strip_prefix("Count$XPaid"))
+    {
+        let operators = rest.strip_prefix('/').unwrap_or(rest);
+        return do_x_math(
+            sa.x_mana_cost_paid as i32,
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
     }
     if let Some(operators) = expr.strip_prefix("Count$CastTotalManaSpent") {
         let operators = operators.strip_prefix('/').unwrap_or(operators);
@@ -1429,6 +1552,18 @@ pub fn resolve_count_svar_for_sa(
         let operators = operators.strip_prefix('/').unwrap_or(operators);
         return do_x_math(
             game.player(controller).life,
+            operators,
+            game,
+            source_id,
+            controller,
+            sa,
+        );
+    }
+
+    if let Some(operators) = expr.strip_prefix("Count$YouDrewThisTurn") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        return do_x_math(
+            game.player(controller).drawn_this_turn,
             operators,
             game,
             source_id,
@@ -1507,6 +1642,31 @@ pub fn resolve_count_svar_for_sa(
         }
     }
 
+    if expr == "Count$KickedCount" {
+        return sa.kick_count as i32;
+    }
+    if let Some(rest) = expr.strip_prefix("Count$Kicked.") {
+        let parts: Vec<&str> = rest.splitn(2, '.').collect();
+        if parts.len() == 2 {
+            let chosen = if sa.kicked { parts[0] } else { parts[1] };
+            return resolve_svar_expression(chosen, game, source_id, controller, sa);
+        }
+    }
+
+    // Count$UrzaLands.A.B — return A when the controller has all three Urza
+    // lands, else B.
+    if let Some(rest) = expr.strip_prefix("Count$UrzaLands.") {
+        let parts: Vec<&str> = rest.splitn(2, '.').collect();
+        if parts.len() == 2 {
+            let chosen = if crate::player::player_predicates::has_urza_lands(game, controller) {
+                parts[0]
+            } else {
+                parts[1]
+            };
+            return resolve_svar_expression(chosen, game, source_id, controller, sa);
+        }
+    }
+
     // Count$PromisedGift.A.B — return A when gift promised, else B.
     if let Some(rest) = expr.strip_prefix("Count$PromisedGift.") {
         let parts: Vec<&str> = rest.splitn(2, '.').collect();
@@ -1538,6 +1698,7 @@ pub fn resolve_count_svar_for_sa(
         let mut parts = rest.trim_start().splitn(2, ' ');
         let zone_part = parts.next().unwrap_or("").trim();
         let restrictions = parts.next().unwrap_or("").trim();
+        let (restrictions, aggregator) = restrictions.split_once('$').unwrap_or((restrictions, ""));
         if !restrictions.is_empty() {
             let zones: Vec<ZoneType> = if zone_part.is_empty() {
                 vec![ZoneType::Battlefield]
@@ -1559,7 +1720,7 @@ pub fn resolve_count_svar_for_sa(
                     .with_game(game)
                     .with_targets(&targeted_cards, &targeted_players)
                     .with_spell_ability(sa);
-                let count = game
+                let matches: Vec<&crate::card::Card> = game
                     .cards
                     .iter()
                     .filter(|card| {
@@ -1568,7 +1729,14 @@ pub fn resolve_count_svar_for_sa(
                                 &selector, card, ctx,
                             )
                     })
-                    .count() as i32;
+                    .collect();
+                let count = match aggregator {
+                    "" | "Amount" => matches.len() as i32,
+                    "GreatestCardManaCost" => {
+                        matches.iter().map(|c| c.mana_cost.cmc()).max().unwrap_or(0)
+                    }
+                    _ => 0,
+                };
                 return do_x_math(count, operators, game, source_id, controller, sa);
             }
         }
@@ -1734,6 +1902,14 @@ pub fn resolve_count_svar_for_sa(
         }
     }
 
+    if let Some(operators) = expr.strip_prefix("Count$ColorsColorIdentity") {
+        let operators = operators.strip_prefix('/').unwrap_or(operators);
+        let count = game
+            .player_commander_color_identity(game.card(source_id).controller)
+            .len() as i32;
+        return do_x_math(count, operators, game, source_id, controller, sa);
+    }
+
     // Count$CardPower — power of the source card
     if expr == "Count$CardPower" {
         return game.card(source_id).power();
@@ -1795,8 +1971,10 @@ pub fn resolve_count_svar_for_sa(
         return do_x_math(count as i32, operators, game, source_id, controller, sa);
     }
 
-    // Fallback
-    expr.parse::<i32>().unwrap_or(1)
+    expr.parse::<i32>().unwrap_or_else(|_| {
+        eprintln!("Unrecognized Count expression, returning 0 for: {expr}");
+        0
+    })
 }
 
 /// Check if a card matches a validity filter string like "Forest.YouCtrl".

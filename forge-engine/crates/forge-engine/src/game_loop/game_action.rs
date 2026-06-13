@@ -750,6 +750,40 @@ impl GameLoop {
         // Build full SpellAbility chain (including SubAbility$ links) and choose targets.
         let mut sa = crate::spellability::build_spell_ability(game, card_id, &ability_text, player);
         sa.is_activated = true;
+        let mut activation_cost = ab.cost.clone();
+        if let Some(alternate) = ab.params.get(crate::parsing::keys::ALTERNATE_COST) {
+            let mut abilities: Vec<crate::spellability::SpellAbility> = Vec::new();
+            let mut new_sa = sa.clone();
+            new_sa.pay_costs = Some(ab.cost.clone());
+            if crate::cost::can_pay_ignoring_mana_with_ability(
+                &ab.cost, game, card_id, player, &new_sa,
+            ) {
+                abilities.push(new_sa);
+            }
+            let alternate_cost = crate::cost::parse_cost(alternate);
+            let mut new_sa2 = sa.clone();
+            new_sa2.pay_costs = Some(alternate_cost.clone());
+            if crate::cost::can_pay_ignoring_mana_with_ability(
+                &alternate_cost,
+                game,
+                card_id,
+                player,
+                &new_sa2,
+            ) {
+                abilities.push(new_sa2);
+            }
+            let chosen = match agents[player.index()].get_ability_to_play(player, &abilities) {
+                Some(idx) => abilities.into_iter().nth(idx),
+                None => None,
+            };
+            sa = match chosen {
+                Some(chosen) => chosen,
+                None => return false,
+            };
+            if let Some(cost) = sa.pay_costs.clone() {
+                activation_cost = cost;
+            }
+        }
         if sa.api == Some(crate::ability::api_type::ApiType::Charm)
             && !crate::ability::effects::charm_effect::make_choices_precast(game, agents, &mut sa)
         {
@@ -767,7 +801,7 @@ impl GameLoop {
 
         // PowerUp: reduce cost by card's mana cost if it entered the battlefield this turn
         let adjusted_cost = if ab.power_up && game.card(card_id).entered_battlefield_this_turn {
-            let mut cost = ab.cost.clone();
+            let mut cost = activation_cost;
             // Subtract the card's mana cost from the ability's mana cost
             let card_mc = game.card(card_id).mana_cost.clone();
             for part in &mut cost.parts {
@@ -781,7 +815,7 @@ impl GameLoop {
             }
             cost
         } else {
-            ab.cost.clone()
+            activation_cost
         };
         self.finish_activated_ability_on_stack(game, agents, player, card_id, ab, sa, adjusted_cost)
     }
@@ -811,6 +845,35 @@ impl GameLoop {
         );
         let adjusted_cost = sa.pay_costs.clone().unwrap_or_else(|| ab.cost.clone());
         self.finish_activated_ability_on_stack(game, agents, player, card_id, ab, sa, adjusted_cost)
+    }
+
+    fn rollback_ability_host(&mut self, game: &mut GameState, card_id: CardId) -> CardId {
+        let host = game.card(card_id);
+        if host.zone != ZoneType::Battlefield || !host.is_token {
+            return card_id;
+        }
+        let Some(original_id) = host.copied_permanent else {
+            return card_id;
+        };
+        if original_id == card_id || original_id.index() >= game.cards.len() {
+            return card_id;
+        }
+        let controller = host.controller;
+        game.remove_card_from_zone(ZoneType::Battlefield, controller, card_id);
+        game.card_mut(card_id).zone = ZoneType::None;
+        let original = game.card(original_id);
+        let (orig_zone, orig_owner) = (original.zone, original.controller);
+        if orig_zone != ZoneType::Battlefield {
+            if orig_zone != ZoneType::None {
+                game.remove_card_from_zone(orig_zone, orig_owner, original_id);
+            }
+            game.card_mut(original_id).cast_sa = None;
+            game.card_mut(original_id).cast_from = None;
+            game.card_mut(original_id).zone = ZoneType::Battlefield;
+            game.card_mut(original_id).controller = controller;
+            game.add_card_to_zone(ZoneType::Battlefield, controller, original_id);
+        }
+        original_id
     }
 
     fn finish_activated_ability_on_stack(
@@ -861,10 +924,11 @@ impl GameLoop {
             CostPaymentContext::ActivatedAbility,
             Some(&mut sa),
         ) {
+            let rolled_back_host = self.rollback_ability_host(game, card_id);
             let notification =
                 crate::agent::notification::GameNotification::ActivatedAbilityPaymentFailed {
                     player,
-                    card_id,
+                    card_id: rolled_back_host,
                     ability_index: ab.ability_index,
                 };
             for agent in agents.iter_mut() {

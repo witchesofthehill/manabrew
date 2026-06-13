@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SetPicker } from "@/components/limited/SetPicker";
 import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
-import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
 import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { CubeImportResult } from "@/types/limited";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
-import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
+import type { DraftConfig, GameFormat, SealedConfig } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
   Boxes,
@@ -23,10 +22,11 @@ import {
   Shield,
   Sparkles,
   Swords,
+  TriangleAlert,
   Users,
   Wand2,
 } from "lucide-react";
-import { GameIcon, type GameIconName } from "@/components/game/GameIcon";
+import { GameIcon } from "@/components/game/GameIcon";
 
 const CommanderIcon = ({ className }: { className?: string }) => (
   <GameIcon name="overlord-helm" className={className} />
@@ -151,7 +151,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [matchPlayersOverride, setMatchPlayersOverride] = useState<number | null>(null);
   const [limitedPlayers, setLimitedPlayers] = useState(8);
   const [format, setFormat] = useState<GameFormat>("Standard");
-  const [engine, setEngine] = useState<EngineKind>("Wasm");
   const [reconnectTimeoutS, setReconnectTimeoutS] = useState<number>(DEFAULT_RECONNECT_TIMEOUT_S);
 
   const [draftSet, setDraftSet] = useState<string>("");
@@ -176,7 +175,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [creating, setCreating] = useState(false);
 
   const defaultName = `${username ?? "Player"}'s Room`;
-  const hostedAvailable = isHostedEngineAvailable();
   const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
   const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
@@ -251,7 +249,6 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setRoomName("");
     setMatchPlayersOverride(null);
     setFormat("Standard");
-    setEngine("Wasm");
     setReconnectTimeoutS(DEFAULT_RECONNECT_TIMEOUT_S);
     setDraftSet("");
     setDraftRounds(3);
@@ -324,7 +321,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         roomName.trim() || defaultName,
         maxPlayers,
         submittedFormat,
-        engine,
+        "Wasm",
         draftConfig,
         sealedConfig,
         reconnectTimeoutS,
@@ -417,31 +414,55 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               />
             </div>
 
-            {/* Engine */}
+            {/* Engine — rooms created here always run the ManaBrew engine. Forge
+                rooms come from self-hosted nodes and are joined from the list, but
+                nodes only host constructed matches, not limited (draft/sealed). */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Engine</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <EngineCard
-                  selected={engine === "Wasm"}
-                  onClick={() => setEngine("Wasm")}
-                  icon="beer-stein"
-                  label="ManaBrew"
-                  badge="in-browser"
-                  description="ManaBrew's own engine, running locally. Instant, no network."
-                />
-                <EngineCard
-                  selected={engine === "Java"}
-                  onClick={() => setEngine("Java")}
-                  icon="anvil"
-                  label="Forge"
-                  badge={hostedAvailable ? "hosted" : "coming soon"}
-                  description={
-                    hostedAvailable
-                      ? "The Forge engine on a ManaBrew-hosted node. Full card support."
-                      : "Hosted Forge matches need a node-side host that isn't wired yet."
-                  }
-                  disabled={!hostedAvailable}
-                />
+              <div className={cn("grid gap-2", kind === "match" ? "grid-cols-2" : "grid-cols-1")}>
+                <div className="flex flex-col items-start gap-0.5 rounded-lg border border-primary bg-primary/5 p-2 text-left">
+                  <div className="flex items-center gap-1.5">
+                    <GameIcon name="beer-stein" className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-medium">ManaBrew</span>
+                    <Badge variant="outline" className="text-[9px]">
+                      in-browser
+                    </Badge>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    ManaBrew's own engine, running locally. Instant, no network.
+                  </span>
+                </div>
+                {kind === "match" && (
+                  <div className="flex flex-col items-start gap-0.5 rounded-lg border border-border p-2 text-left">
+                    <div className="flex items-center gap-1.5">
+                      <GameIcon name="anvil" className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium">Forge</span>
+                      <Badge variant="outline" className="text-[9px]">
+                        node-hosted
+                      </Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground leading-tight">
+                      Full card support, on self-hosted nodes. Join a Forge room from the list, or{" "}
+                      <a
+                        href="https://docs.manabrew.app/self-hosting/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline underline-offset-2"
+                      >
+                        host your own
+                      </a>
+                      .
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <p>
+                  {kind === "match"
+                    ? "The ManaBrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
+                    : "Limited runs on the ManaBrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."}
+                </p>
               </div>
             </div>
 
@@ -807,53 +828,6 @@ function LimitedKindCard({
         )}
       </div>
       <span className="text-[11px] text-muted-foreground leading-snug">{meta.description}</span>
-    </button>
-  );
-}
-
-interface EngineCardProps {
-  selected: boolean;
-  onClick: () => void;
-  icon: GameIconName;
-  label: string;
-  badge: string;
-  description: string;
-  disabled?: boolean;
-}
-
-function EngineCard({
-  selected,
-  onClick,
-  icon,
-  label,
-  badge,
-  description,
-  disabled,
-}: EngineCardProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
-        selected
-          ? "border-primary bg-primary/5"
-          : "border-border enabled:hover:border-primary/30 enabled:hover:bg-muted/30",
-        disabled && "opacity-50 cursor-not-allowed",
-      )}
-    >
-      <div className="flex items-center gap-1.5">
-        <GameIcon
-          name={icon}
-          className={cn("h-3.5 w-3.5", selected ? "text-primary" : "text-muted-foreground")}
-        />
-        <span className="text-xs font-medium">{label}</span>
-        <Badge variant="outline" className="text-[9px]">
-          {badge}
-        </Badge>
-      </div>
-      <span className="text-[10px] text-muted-foreground leading-tight">{description}</span>
     </button>
   );
 }

@@ -118,6 +118,10 @@ pub struct PlayerState {
     pub tapped_land_for_mana_this_turn: bool,
     pub committed_crime_this_turn: i32,
     pub changed_keywords: Vec<String>,
+    #[serde(default)]
+    pub keywords_until_my_next_turn: Vec<String>,
+    #[serde(default)]
+    pub keywords_until_end_of_turn: Vec<String>,
     pub maingame_card_mapping: HashMap<CardId, CardId>,
     pub controlled_while_searching: BTreeSet<PlayerId>,
     pub avatar_index: i32,
@@ -233,6 +237,8 @@ impl PlayerState {
             tapped_land_for_mana_this_turn: false,
             committed_crime_this_turn: 0,
             changed_keywords: Vec::new(),
+            keywords_until_my_next_turn: Vec::new(),
+            keywords_until_end_of_turn: Vec::new(),
             maingame_card_mapping: HashMap::new(),
             controlled_while_searching: BTreeSet::new(),
             avatar_index: 0,

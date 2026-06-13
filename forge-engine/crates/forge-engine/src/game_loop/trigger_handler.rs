@@ -19,8 +19,12 @@ impl GameLoop {
             self.log_stack_push(&log.source_name, &log.player_name);
             if std::env::var("FORGE_TRIGGER_TRACE").is_ok() {
                 eprintln!(
-                    "[trigger-trace] PUSHED trigger to stack: {} optional={} api={}",
-                    log.source_name, log.optional, log.trigger_api
+                    "[trigger-trace] T{} {:?} PUSHED trigger to stack: {} optional={} api={}",
+                    game.turn.turn_number,
+                    game.turn.phase,
+                    log.source_name,
+                    log.optional,
+                    log.trigger_api
                 );
             }
         }

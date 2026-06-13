@@ -84,6 +84,7 @@ pub const DELAYED_TRIGGER_DEFINED_PLAYER: &str = "DelayedTriggerDefinedPlayer";
 // ── Cost params ────────────────────────────────────────────────────────
 
 pub const COST: &str = "Cost";
+pub const ALTERNATE_COST: &str = "AlternateCost";
 pub const PLAY_COST: &str = "PlayCost";
 pub const FOR_COST: &str = "ForCost";
 pub const UNLESS_COST: &str = "UnlessCost";

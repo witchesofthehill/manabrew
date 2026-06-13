@@ -362,6 +362,7 @@ impl GameLoop {
                         }
                     }
 
+                    let origin_zone = game.card_current_zone(play.card_id);
                     let played =
                         self.with_shared_state_mutation(game, agents, |this, game, agents| {
                             let card_name = game.card(play.card_id).card_name.clone();
@@ -422,6 +423,17 @@ impl GameLoop {
                         // Mirrors Java's MagicStack.addAndUnfreeze() which runs waiting
                         // triggers right after the spell is placed on the stack.
                         self.with_shared_state_mutation(game, agents, |this, game, agents| {
+                            let current_zone = game.card_current_zone(played_id);
+                            if current_zone != origin_zone {
+                                let mut trigger_list =
+                                    crate::card::card_zone_table::CardZoneTable::default();
+                                trigger_list.put(Some(origin_zone), Some(current_zone), played_id);
+                                trigger_list.trigger_changes_zone_all(
+                                    &mut this.trigger_handler,
+                                    game,
+                                    None,
+                                );
+                            }
                             this.process_triggers(game, agents);
                         });
                         passed_count = 0;

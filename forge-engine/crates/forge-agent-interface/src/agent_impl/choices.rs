@@ -857,6 +857,20 @@ pub(super) fn choose_number<T: Responder>(
     }
 }
 
+pub(super) fn announce_requirements<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    _player: PlayerId,
+    min: i32,
+    max: i32,
+    source: Option<CardId>,
+) -> Option<i32> {
+    agent.send_prompt(AgentPromptInner::ChooseNumber { min, max }, source);
+    match agent.recv_action() {
+        PlayerAction::NumberDecision { chosen_number } => chosen_number,
+        _ => Some(min),
+    }
+}
+
 pub(super) fn choose_discard<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
@@ -925,6 +939,7 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
             min_choices: min,
             max_choices: max,
             source_card_name: None,
+            optional: false,
         },
         None,
     );
@@ -972,6 +987,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
             min_choices,
             max_choices: 1,
             source_card_name: Some(select_prompt.to_string()),
+            optional: is_optional,
         },
         None,
     );
@@ -1023,6 +1039,7 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
             min_choices: min,
             max_choices: max,
             source_card_name: Some(select_prompt.to_string()),
+            optional: false,
         },
         None,
     );

@@ -98,6 +98,8 @@ pub enum JavaRawPromptBody {
         min: usize,
         #[serde(default = "one")]
         max: usize,
+        #[serde(default)]
+        optional: bool,
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
         description: Option<String>,
@@ -202,6 +204,10 @@ pub enum JavaRawPromptBody {
     ReorderLibrary {
         #[serde(default)]
         cards: Vec<JavaRawCardOption>,
+        #[serde(default)]
+        destination: Option<String>,
+        #[serde(rename = "topOfDeck", default = "top")]
+        top_of_deck: bool,
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
     },
@@ -286,6 +292,10 @@ pub struct JavaRawManaOption {
 
 fn one() -> usize {
     1
+}
+
+fn top() -> bool {
+    true
 }
 
 impl JavaRawPromptBody {
@@ -644,6 +654,7 @@ pub enum JavaAction {
     PayMana {
         auto: bool,
     },
+    PayLife,
     CancelMana,
 }
 

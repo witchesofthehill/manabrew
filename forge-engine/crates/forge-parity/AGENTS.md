@@ -12,7 +12,7 @@ Read first: `/AGENTS.md`, `docs/agents/ENGINE_BUGFIX_WORKFLOW.md`, `docs/PARITY_
 | `parity_ignore.json`                                                | Known-divergent matchups to skip, with a written reason.                                                                                         |
 | `src/runner.rs`, `src/scheduler.rs`                                 | Top-level orchestration.                                                                                                                         |
 | `src/deterministic_agent.rs`                                        | The reproducible agent both engines drive. Same logic, same RNG, same decisions.                                                                 |
-| `src/java_bridge.rs`, `src/java_cache.rs`, `src/java_random.rs`     | Java harness FFI — calls into `forge-harness/`.                                                                                            |
+| `src/java_bridge.rs`, `src/java_cache.rs`, `src/java_random.rs`     | Java harness FFI — calls into `forge-harness/`.                                                                                                  |
 | `src/runtime.rs`                                                    | Shared Rust/Java matchup runtime. CLI, CI/server mode, and debugger tooling should use this instead of growing separate engine scheduling logic. |
 | `src/comparator.rs`, `src/snapshot.rs`                              | Trace comparison and per-phase snapshots.                                                                                                        |
 | `src/parity_log.rs`, `src/log_buffer.rs`, `src/callback_fmt.rs`     | Divergence reporting.                                                                                                                            |
@@ -44,7 +44,9 @@ yarn parity:test -- --deck1 <d1> --deck2 <d2> --seed <N> --max-turns 30 -v
 
 Trace flags: `FORGE_RNG_TRACE=1`, `FORGE_TRIGGER_TRACE=1`, `FORGE_LIFE_TRACE=1`. See `docs/PARITY_TESTING.md` for the full env-var list.
 
-The parity binary mmaps `src-tauri/resources/cardset.rkyv` at startup. `yarn parity` ensures it's present, but direct invocations (`cargo run -p forge-parity …`, manual `./target/release/forge-parity …`, custom CI jobs) need to materialise it first — see `forge-engine/AGENTS.md` § "Cardset archive". A bare `cargo build` of this crate doesn't build it.
+The parity binary mmaps `src-tauri/resources/cardset.rkyv` at startup. `yarn parity` ensures it's present, but direct invocations (`cargo run -p forge-parity …`, manual `./target/parity/forge-parity …`, custom CI jobs) need to materialise it first — see `forge-engine/AGENTS.md` § "Cardset archive". A bare `cargo build` of this crate doesn't build it.
+
+Parity workflows build with `--profile parity` (release + `debug-assertions`), output dir `target/parity/`, so the dual-evaluation drift guards in the engine stay active during parity runs. Compiled-vs-legacy selector drift is reported as `[selector-drift]` lines (once per selector); set `FORGE_SELECTOR_ASSERT=1` to make it panic at the divergence site instead.
 
 ### Add a regression entry
 

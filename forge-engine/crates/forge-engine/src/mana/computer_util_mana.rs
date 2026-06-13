@@ -871,9 +871,19 @@ fn add_taps_for_mana_trigger_mana(
     sa_payment: &ManaAbilityRef,
     produced: &str,
 ) -> Vec<u16> {
+    add_taps_for_mana_trigger_mana_impl(game, pool, player, sa_payment, produced, true)
+}
+
+fn add_taps_for_mana_trigger_mana_impl(
+    game: &GameState,
+    pool: &mut ManaPool,
+    player: PlayerId,
+    sa_payment: &ManaAbilityRef,
+    produced: &str,
+    require_tap: bool,
+) -> Vec<u16> {
     // TapsForMana fires only when the mana ability has a Tap cost
     // (`AbilityManaPart.tapsForMana`). Implicit basic-land taps have no parsed
-    // ability index and always pass.
     let mut produced_atoms: Vec<u16> = Vec::new();
     let tapped_source = sa_payment.card_id;
     let pays_with_tap = match sa_payment.ability_index {
@@ -889,7 +899,7 @@ fn add_taps_for_mana_trigger_mana(
             }),
         None => true,
     };
-    if !pays_with_tap {
+    if require_tap && !pays_with_tap {
         return produced_atoms;
     }
     let params = RunParams {
@@ -1430,6 +1440,45 @@ fn can_pay_non_tap_mana_ability_costs(
         }
     }
     true
+}
+
+pub(crate) fn reapply_non_undoable_payment_ability(
+    game: &mut GameState,
+    pool: &mut ManaPool,
+    player: PlayerId,
+    card_id: CardId,
+    ability_index: usize,
+) {
+    let Some(ab) = game.card(card_id).activated_abilities.get(ability_index) else {
+        return;
+    };
+    let atoms = ab
+        .produced_ir
+        .as_ref()
+        .map(|ir| {
+            ir.fixed_atoms()
+                .unwrap_or_else(|| ir.to_atoms(&game.card(card_id).chosen_colors))
+        })
+        .unwrap_or_default();
+    let amount = super::resolve_mana_ability_amount(game, card_id, player, ab);
+    let has_tap_cost = ab.cost.parts.iter().any(|p| matches!(p, CostPart::Tap));
+    let ma = ManaAbilityRef {
+        card_id,
+        ability_index: Some(ability_index),
+        atoms: atoms.clone(),
+        amount,
+        mana_text: String::new(),
+        produced_ir: ab.produced_ir.clone(),
+        source_order: 0,
+    };
+    if pay_non_tap_mana_ability_costs(game, player, &ma, None, false, &[], &mut None) {
+        if has_tap_cost {
+            game.tap(card_id);
+        }
+        for &atom in &atoms {
+            pool.add(atom, amount.max(1));
+        }
+    }
 }
 
 fn pay_non_tap_mana_ability_costs(
@@ -2516,7 +2565,14 @@ pub fn can_pay_spell_mana_cost_for_action_space(
             add_produced_mana_to_pool(&mut simulated_pool, &mana_string, &params);
             mana_string
         };
-        add_taps_for_mana_trigger_mana(game, &mut simulated_pool, player, &sa_payment, &produced);
+        add_taps_for_mana_trigger_mana_impl(
+            game,
+            &mut simulated_pool,
+            player,
+            &sa_payment,
+            &produced,
+            false,
+        );
         simulated_pool.pay_unpaid_for_spell_incremental(&mut unpaid, payment_ctx, false);
 
         used_sources.insert(sa_payment.card_id);

@@ -1,6 +1,8 @@
 package forge.harness.common;
 
 import forge.ai.ComputerUtilCost;
+import forge.card.CardStateName;
+import forge.card.CardType;
 import forge.game.Game;
 import forge.game.GameActionUtil;
 import forge.game.ability.AbilityKey;
@@ -11,15 +13,17 @@ import forge.game.card.Card;
 import forge.game.cost.Cost;
 import forge.game.cost.CostPayment;
 import forge.game.player.Player;
+import forge.game.player.PlayerController;
+import forge.game.spellability.OptionalCostValue;
 import forge.game.spellability.Spell;
 import forge.game.spellability.SpellAbility;
-import forge.game.spellability.TargetChoices;
 import forge.game.trigger.Trigger;
 import forge.game.trigger.TriggerHandler;
 import forge.game.trigger.TriggerType;
 import forge.game.trigger.TriggerWaiting;
 import forge.game.zone.Zone;
 import forge.game.zone.ZoneType;
+import forge.util.Localizer;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -31,11 +35,16 @@ import java.util.Map;
  * Source references mirrored with minimal changes:
  * - forge/forge-ai/src/main/java/forge/ai/ComputerUtil.java (playNoStack/playStack)
  * - forge/forge-ai/src/main/java/forge/ai/PlayerControllerAi.java
+ * - forge/forge-gui/src/main/java/forge/player/HumanPlay.java
+ *   (playSpellAbility/chooseOptionalAdditionalCosts)
+ * - forge/forge-gui/src/main/java/forge/player/HumanPlaySpellAbility.java
+ *   (playAbility/announceType/announceValuesLikeX)
  */
 public final class HarnessPlayPlumbing {
     private final HarnessPlayHooks hooks;
     private final Player payer;
     private final HarnessCostPlumbing costPlumbing;
+    private boolean needX = true;
 
     public HarnessPlayPlumbing(
             final HarnessPlayHooks hooks,
@@ -103,11 +112,26 @@ public final class HarnessPlayPlumbing {
     }
 
     public boolean handlePlayingSpellAbility(final Player ai, SpellAbility sa, final Game game) {
+        sa = chooseOptionalAdditionalCosts(ai, sa);
+        if (sa == null) {
+            return false;
+        }
+
         final Card source = sa.getHostCard();
         final Card host = sa.getHostCard();
         final Zone hz = host.isCopiedSpell() ? null : host.getZone();
         final int zonePosition = hz != null ? hz.getCards().indexOf(host) : 0;
+        final CardStateName oldState = source.getCurrentStateName();
         source.setSplitStateToPlayAbility(sa);
+
+        if (sa.isSpell() && !sa.canPlay()) {
+            if (source.getCurrentStateName() != oldState) {
+                source.setState(oldState, true);
+            }
+            return false;
+        }
+
+        needX = true;
 
         if (sa.isSpell() && !source.isCopiedSpell()) {
             sa = AbilityUtils.addSpliceEffects(sa);
@@ -125,8 +149,16 @@ public final class HarnessPlayPlumbing {
             clearPaymentState(sa);
         }
 
-        if (sa.getApi() == ApiType.Charm && !CharmEffect.makeChoices(sa)) {
-            return false;
+        if (sa.getApi() == ApiType.Charm) {
+            if (sa.isAnnouncing("X")) {
+                needX = sa.getPayCosts().hasXInAnyCostPart();
+                if (!announceValuesLikeX(sa)) {
+                    return false;
+                }
+            }
+            if (!CharmEffect.makeChoices(sa)) {
+                return false;
+            }
         }
 
         if (sa.isSpell() && !source.isCopiedSpell()) {
@@ -135,7 +167,7 @@ public final class HarnessPlayPlumbing {
 
         sa = GameActionUtil.addExtraKeywordCost(sa);
 
-        if (!sa.setupTargets()) {
+        if (!announceType(sa) || !announceValuesLikeX(sa) || !sa.setupTargets()) {
             if (sa.isSpell() && !source.isCopiedSpell() && hz != null) {
                 GameActionUtil.rollbackAbility(sa, hz, zonePosition,
                         new CostPayment(sa.getPayCosts(), sa), host);
@@ -191,6 +223,98 @@ public final class HarnessPlayPlumbing {
         // primaryAbility doesn't match the new ability.
         game.getStack().unfreezeStack();
         return false;
+    }
+
+    private static SpellAbility chooseOptionalAdditionalCosts(Player p, final SpellAbility original) {
+        PlayerController c = p.getController();
+
+        final List<SpellAbility> abilities = GameActionUtil.getAdditionalCostSpell(original);
+
+        final SpellAbility choosen = c.getAbilityToPlay(original.getHostCard(), abilities);
+
+        List<OptionalCostValue> list = GameActionUtil.getOptionalCostValues(choosen);
+        if (!list.isEmpty()) {
+            list = c.chooseOptionalCosts(choosen, list);
+        }
+
+        return GameActionUtil.addOptionalCosts(choosen, list);
+    }
+
+    private boolean announceValuesLikeX(final SpellAbility ability) {
+        if (ability.isCopied() || ability.isWrapper()) { return true; }
+
+        if (ability.getXManaCostPaid() != null) {
+            needX = false;
+        }
+
+        final PlayerController controller = ability.getActivatingPlayer().getController();
+        final Cost cost = ability.getPayCosts();
+        final Card card = ability.getHostCard();
+
+        final String announce = ability.getParam("Announce");
+        if (announce != null && needX) {
+            for (final String aVar : announce.split(",")) {
+                final String varName = aVar.trim();
+
+                final Integer value = controller.announceRequirements(ability, varName);
+                if (value == null) {
+                    return false;
+                }
+
+                if ("X".equalsIgnoreCase(varName)) {
+                    needX = false;
+                    ability.setXManaCostPaid(value);
+                } else {
+                    ability.setSVar(varName, value.toString());
+                    card.setSVar(varName, value.toString());
+                }
+            }
+        }
+
+        if (needX) {
+            if (cost.hasXInAnyCostPart()) {
+                final String sVar = ability.getParamOrDefault("XAlternative", ability.getSVar("X"));
+                boolean replacedXshard = ability.isSpell() && ability.getHostCard().getManaCost().countX() > 0 && !cost.hasXInAnyCostPart();
+                if (("Count$xPaid".equals(sVar) && !replacedXshard) || sVar.isEmpty()) {
+                    final Integer value = controller.announceRequirements(ability, "X");
+                    if (value == null) {
+                        return false;
+                    }
+                    ability.setXManaCostPaid(value);
+                }
+            } else {
+                ability.setXManaCostPaid(null);
+            }
+        }
+        return true;
+    }
+
+    private boolean announceType(final SpellAbility ability) {
+        if (ability.isCopied()) { return true; }
+
+        final String announce = ability.getParam("AnnounceType");
+        final PlayerController pc = ability.getActivatingPlayer().getController();
+        if (announce != null) {
+            for (final String aVar : announce.split(",")) {
+                final String varName = aVar.trim();
+                if ("CreatureType".equals(varName)) {
+                    final String choice = pc.chooseSomeType("Creature", ability, CardType.getAllCreatureTypes());
+                    ability.getHostCard().setChosenType(choice);
+                }
+                if ("ChooseNumber".equals(varName)) {
+                    final int min = Integer.parseInt(ability.getParam("Min"));
+                    final int max = Integer.parseInt(ability.getParam("Max"));
+                    final int i = ability.getActivatingPlayer().getController().chooseNumber(ability,
+                            Localizer.getInstance().getMessage("lblChooseNumber"), min, max);
+                    ability.getHostCard().setChosenNumber(i);
+                }
+                if ("Opponent".equals(varName)) {
+                    Player opp = ability.getActivatingPlayer().getController().chooseSingleEntityForEffect(ability.getActivatingPlayer().getOpponents(), ability, Localizer.getInstance().getMessage("lblChooseAnOpponent"), null);
+                    ability.getHostCard().setChosenPlayer(opp);
+                }
+            }
+        }
+        return true;
     }
 
     private static void clearPaymentState(final SpellAbility sa) {
@@ -330,10 +454,7 @@ public final class HarnessPlayPlumbing {
                     }
 
                     if (sa.isMayChooseNewTargets()) {
-                        final TargetChoices tc = sa.getTargets();
-                        if (!sa.setupTargets()) {
-                            sa.setTargets(tc);
-                        }
+                        sa.setupNewTargets(payer);
                     }
                 }
                 game.getStack().add(sa);
@@ -342,11 +463,7 @@ public final class HarnessPlayPlumbing {
     }
 
     public boolean playSaFromPlayEffect(SpellAbility tgtSA, final Game game) {
-        final boolean optional = !tgtSA.getPayCosts().isMandatory();
         if (tgtSA instanceof Spell) {
-            if (optional && !hooks.confirmPlayEffectOptional()) {
-                return false;
-            }
             return handlePlayingSpellAbility(payer, tgtSA, game);
         }
         return true;

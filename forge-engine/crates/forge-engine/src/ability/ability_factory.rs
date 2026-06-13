@@ -157,6 +157,12 @@ pub const ADDITIONAL_ABILITY_KEYS: &[&str] = &[
     "VoteTiedAbility",
 ];
 
+const MAX_SUB_ABILITY_CHAIN_DEPTH: usize = 50;
+
+thread_local! {
+    static SUB_ABILITY_CHAIN_DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 const RESTRICTION_KEYS: &[&str] = &[
     "Activation",
     "ActivationZone",
@@ -475,9 +481,23 @@ fn build_spell_ability_of_type_with_params(
 
     // Recursively build sub-ability chain from SVars
     let sub_ability = if let Some(sub_svar_name) = parsed.get(keys::SUB_ABILITY) {
-        host.get_s_var(sub_svar_name)
-            .map(str::to_string)
-            .map(|sub_text| Box::new(build_spell_ability_from_host_card(host, &sub_text, player)))
+        let depth = SUB_ABILITY_CHAIN_DEPTH.with(|d| d.get());
+        if depth >= MAX_SUB_ABILITY_CHAIN_DEPTH {
+            eprintln!(
+                "SubAbility chain exceeded depth limit on {}, stopping at: {sub_svar_name}",
+                host.card_name
+            );
+            None
+        } else {
+            host.get_s_var(sub_svar_name)
+                .map(str::to_string)
+                .map(|sub_text| {
+                    SUB_ABILITY_CHAIN_DEPTH.with(|d| d.set(depth + 1));
+                    let sub = Box::new(build_spell_ability_from_host_card(host, &sub_text, player));
+                    SUB_ABILITY_CHAIN_DEPTH.with(|d| d.set(depth));
+                    sub
+                })
+        }
     } else {
         None
     };

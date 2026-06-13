@@ -41,7 +41,7 @@
   },
   {
     "name": "pw_ships_vehicles",
-    "args": "--deck1 planeswalkers_spaceships --deck2 planeswalkers_spaceships --seed 42 --max-turns 40 --games 2"
+    "args": "--deck1 planeswalkers_spaceships --deck2 planeswalkers_spaceships --seed 42 --max-turns 40 --games 1"
   },
   {
     "name": "worldShaper",

@@ -763,6 +763,46 @@ pub fn clear_counters(game: &mut GameState, player: PlayerId) {
     game.player_set_radiation(player, 0);
 }
 
+pub fn add_pump_keyword_with_duration(
+    game: &mut GameState,
+    player: PlayerId,
+    keyword: String,
+    duration: Option<&crate::spellability::AbilityDuration>,
+) {
+    match duration {
+        Some(crate::spellability::AbilityDuration::UntilYourNextTurn) => {
+            game.player_mut(player)
+                .keywords_until_my_next_turn
+                .push(keyword.clone());
+        }
+        Some(crate::spellability::AbilityDuration::Permanent)
+        | Some(crate::spellability::AbilityDuration::Perpetual) => {}
+        _ => {
+            game.player_mut(player)
+                .keywords_until_end_of_turn
+                .push(keyword.clone());
+        }
+    }
+    add_changed_keywords(game, player, keyword);
+    update_keyword_card_ability_text(game, player);
+}
+
+pub fn expire_until_your_next_turn_keywords(game: &mut GameState, player: PlayerId) {
+    let expired = std::mem::take(&mut game.player_mut(player).keywords_until_my_next_turn);
+    for keyword in expired {
+        remove_changed_keywords(game, player, &keyword);
+    }
+    update_keyword_card_ability_text(game, player);
+}
+
+pub fn expire_end_of_turn_keywords(game: &mut GameState, player: PlayerId) {
+    let expired = std::mem::take(&mut game.player_mut(player).keywords_until_end_of_turn);
+    for keyword in expired {
+        remove_changed_keywords(game, player, &keyword);
+    }
+    update_keyword_card_ability_text(game, player);
+}
+
 pub fn add_changed_keywords(game: &mut GameState, player: PlayerId, keyword: String) {
     if !game.player(player).changed_keywords.contains(&keyword) {
         game.player_mut(player).changed_keywords.push(keyword);

@@ -1,0 +1,174 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Tauri: dev (yarn)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "yarn dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Tauri: debug Rust backend",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "--manifest-path", "${workspaceFolder}/src-tauri/Cargo.toml"],
+        "filter": {
+          "name": "manabrew",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      },
+      "preLaunchTask": "tauri:setup-dev"
+    },
+    {
+      "name": "Tauri: debug Java Forge backend",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": [
+          "build",
+          "--manifest-path",
+          "${workspaceFolder}/src-tauri/Cargo.toml",
+          "--features",
+          "java-forge"
+        ],
+        "filter": {
+          "name": "manabrew",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "MANA_BREW_ENGINE_BACKEND": "java-forge",
+        "RUST_BACKTRACE": "1"
+      },
+      "preLaunchTask": "tauri:setup-dev"
+    },
+    {
+      "name": "Web: debug in Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:1420",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "preLaunchTask": "web:setup-dev"
+    },
+    {
+      "name": "Web: hosted Forge (full stack)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:1420",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "preLaunchTask": "web:hosted-forge:setup",
+      "postDebugTask": "web:hosted-forge:stop"
+    },
+    {
+      "name": "Web: dev server (yarn)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "yarn dev:web",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Relay server: debug",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "-p", "forge-server"],
+        "filter": {
+          "name": "forge-server",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    },
+    {
+      "name": "Self-hosted node: debug Java Forge",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "-p", "self-hosted-node", "--features", "java-forge"],
+        "filter": {
+          "name": "self-hosted-node",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1",
+        "RUST_LOG": "self_hosted_node=info",
+        "SELF_HOSTED_NODE_ENGINE_BACKEND": "java-forge",
+        "SELF_HOSTED_NODE_ENGINE_ENABLED": "true",
+        "SELF_HOSTED_NODE_FORGE_ASSETS_DIR": "${workspaceFolder}/forge/forge-gui",
+        "SELF_HOSTED_NODE_FORGE_HARNESS_JAR": "${workspaceFolder}/forge-harness/target/forge-harness-jar-with-dependencies.jar",
+        "SELF_HOSTED_NODE_HOST_PLAYS": "false",
+        "SELF_HOSTED_NODE_MAX_GAMES": "1",
+        "SELF_HOSTED_NODE_MAX_PLAYERS": "4",
+        "SELF_HOSTED_NODE_RELAY_URL": "ws://127.0.0.1:9443",
+        "SELF_HOSTED_NODE_ROOM_NAME": "Local Hosted Forge",
+        "SELF_HOSTED_NODE_SERVER_KEY": "forge"
+      },
+      "preLaunchTask": "ensure:harness"
+    },
+    {
+      "name": "Parity GUI: debug",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "-p", "forge-engine-debugger"],
+        "filter": {
+          "name": "forge-engine-debugger",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      },
+      "preLaunchTask": "parity:setup"
+    },
+    {
+      "name": "Parity CLI: debug sample",
+      "type": "lldb",
+      "request": "launch",
+      "cargo": {
+        "args": ["build", "-p", "forge-parity", "--bin", "forge-parity"],
+        "filter": {
+          "name": "forge-parity",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "--java-jar",
+        "forge-harness/target/forge-harness-jar-with-dependencies.jar",
+        "--deck1",
+        "red_burn",
+        "--deck2",
+        "green_stompy",
+        "--seed",
+        "42",
+        "--max-turns",
+        "20"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      },
+      "preLaunchTask": "parity:setup"
+    }
+  ]
+}

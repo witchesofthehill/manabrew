@@ -91,6 +91,8 @@ fn arrange_to_top<T: Responder>(
         AgentPromptInner::ReorderLibrary {
             card_ids,
             cards: kept_dtos,
+            destination: None,
+            top_of_deck: true,
         },
         None,
     );
@@ -158,6 +160,8 @@ pub(super) fn choose_reorder_library<T: Responder>(
         AgentPromptInner::ReorderLibrary {
             card_ids,
             cards: prompt_cards,
+            destination: None,
+            top_of_deck: true,
         },
         None,
     );

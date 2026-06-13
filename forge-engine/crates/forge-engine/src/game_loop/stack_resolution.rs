@@ -99,9 +99,10 @@ impl GameLoop {
         if entry.spell_ability.is_copy {
             let should_create_token_copy = (entry.is_creature_spell || entry.is_permanent_spell)
                 && entry.spell_ability.source.is_some();
-            self.resolve_spell_effect(game, agents, &entry);
             if should_create_token_copy {
                 self.resolve_copied_permanent_as_token(game, agents, &entry);
+            } else {
+                self.resolve_spell_effect(game, agents, &entry);
             }
             crate::perf::increment(crate::perf::Metric::SpellAbilityClones, 3);
             self.trigger_handler.run_trigger(
@@ -221,10 +222,11 @@ impl GameLoop {
                     let player = entry.spell_ability.activating_player;
                     let source = entry.spell_ability.source.unwrap_or(CardId(0));
                     let api = entry.spell_ability.api;
-                    let available = crate::mana::calculate_available_mana(
+                    let available = crate::mana::calculate_available_mana_excluding(
                         &self.mana_pools[player.index()],
                         game,
                         player,
+                        Some(source),
                     );
                     if !crate::cost::can_pay_with_ability(
                         &cost,
@@ -358,7 +360,15 @@ impl GameLoop {
                     false,
                 );
 
-                self.move_card_with_runtime(game, card_id, ZoneType::Battlefield, player, agents);
+                if origin != ZoneType::Battlefield {
+                    self.move_card_with_runtime(
+                        game,
+                        card_id,
+                        ZoneType::Battlefield,
+                        player,
+                        agents,
+                    );
+                }
 
                 // Attach aura to its chosen target.
                 // Mirrors Java's GameAction.changeZone (line 373-389) which detects
@@ -491,41 +501,12 @@ impl GameLoop {
                 if alt_cost == Some(crate::spellability::AlternativeCost::Evoke) {
                     let evoke_keyword_count =
                         (entry.spell_ability.evoke_keyword_count as usize).max(1);
-                    // Mirror Java trigger-ID ordering: intrinsic Evoke's sac
-                    // trigger has a lower ID than the card's T: ETB triggers
-                    // (keywords are parsed first), so it pushes BELOW the ETB
-                    // on the stack and resolves last. Granted Evoke triggers
-                    // (e.g. Ashling, the Limitless's `AddKeyword$ Evoke:4`)
-                    // are assigned IDs after the card's intrinsic triggers, so
-                    // they push ABOVE the ETB and resolve FIRST — causing the
-                    // sacrifice to fire before the ETB bounce, which lets
-                    // Ashling's `Sacrificed` trigger spawn a token copy.
-                    for i in 0..evoke_keyword_count {
-                        self.trigger_handler.register_delayed_trigger(
-                            crate::trigger::handler::DelayedTrigger {
-                                mode: TriggerType::ChangesZone,
-                                trigger_mode: Box::new(
-                                    crate::trigger::trigger_changes_zone::TriggerChangesZone,
-                                )
-                                    as Box<dyn crate::trigger::TriggerBehavior>,
-                                params: crate::parsing::Params::from_raw(
-                                    "Mode$ ChangesZone | Destination$ Battlefield | ValidCard$ Card.Self",
-                                ),
-                                execute_svar: "DB$ Sacrifice".to_string(),
-                                controller: player,
-                                source_card: card_id,
-                                created_turn: game.turn.turn_number,
-                                created_phase: game.turn.phase,
-                                target_card: Some(card_id),
-                                remembered_amount: 0,
-                                remembered_cards: Vec::new(),
-                                remembered_players: Vec::new(),
-                                remembered_lki_cards: Vec::new(),
-                                sort_after_active: i > 0,
-                trigger_order: None,
-                            },
-                        );
-                    }
+                    self.register_evoke_sacrifice_triggers(
+                        game,
+                        card_id,
+                        player,
+                        evoke_keyword_count,
+                    );
                 }
 
                 // Register triggers for the new permanent
@@ -569,7 +550,7 @@ impl GameLoop {
                         crate::trigger::handler::DelayedTrigger {
                             mode: TriggerType::Phase,
                             trigger_mode: Box::new(crate::trigger::trigger_phase::TriggerPhase {
-                                phase: Some(forge_foundation::PhaseType::EndOfTurn),
+                                phases: vec![forge_foundation::PhaseType::EndOfTurn],
                                 valid_player: None,
                             }) as Box<dyn crate::trigger::TriggerBehavior>,
                             params: crate::parsing::Params::default(),
@@ -602,7 +583,7 @@ impl GameLoop {
                         crate::trigger::handler::DelayedTrigger {
                             mode: TriggerType::Phase,
                             trigger_mode: Box::new(crate::trigger::trigger_phase::TriggerPhase {
-                                phase: Some(forge_foundation::PhaseType::EndOfTurn),
+                                phases: vec![forge_foundation::PhaseType::EndOfTurn],
                                 valid_player: None,
                             }) as Box<dyn crate::trigger::TriggerBehavior>,
                             params: crate::parsing::Params::default(),
@@ -696,7 +677,7 @@ impl GameLoop {
                         crate::trigger::handler::DelayedTrigger {
                             mode: TriggerType::Phase,
                             trigger_mode: Box::new(crate::trigger::trigger_phase::TriggerPhase {
-                                phase: Some(forge_foundation::PhaseType::EndOfTurn),
+                                phases: vec![forge_foundation::PhaseType::EndOfTurn],
                                 valid_player: None,
                             })
                                 as Box<dyn crate::trigger::TriggerBehavior>,
@@ -760,7 +741,7 @@ impl GameLoop {
                                 mode: TriggerType::Phase,
                                 trigger_mode: Box::new(
                                     crate::trigger::trigger_phase::TriggerPhase {
-                                        phase: Some(forge_foundation::PhaseType::Upkeep),
+                                        phases: vec![forge_foundation::PhaseType::Upkeep],
                                         valid_player: Some(
                                             crate::parsing::cached_compiled_selector("You"),
                                         ),
@@ -808,7 +789,7 @@ impl GameLoop {
         game.copy_last_state();
 
         // Java parity: triggers fired during resolution are queued now and only
-        // moved onto the stack when the next priority cycle checks SBAs.
+        self.trigger_handler.flush_waiting_triggers(game);
     }
 
     pub(crate) fn resolve_spell_effect(
@@ -1104,6 +1085,39 @@ impl GameLoop {
     }
 
     /// CR 707.10 / 111.11 — copy of a permanent spell becomes a token.
+    fn register_evoke_sacrifice_triggers(
+        &mut self,
+        game: &GameState,
+        card_id: CardId,
+        player: PlayerId,
+        evoke_keyword_count: usize,
+    ) {
+        for i in 0..evoke_keyword_count {
+            self.trigger_handler.register_delayed_trigger(
+                crate::trigger::handler::DelayedTrigger {
+                    mode: TriggerType::ChangesZone,
+                    trigger_mode: Box::new(crate::trigger::trigger_changes_zone::TriggerChangesZone)
+                        as Box<dyn crate::trigger::TriggerBehavior>,
+                    params: crate::parsing::Params::from_raw(
+                        "Mode$ ChangesZone | Destination$ Battlefield | ValidCard$ Card.Self",
+                    ),
+                    execute_svar: "DB$ Sacrifice".to_string(),
+                    controller: player,
+                    source_card: card_id,
+                    created_turn: game.turn.turn_number,
+                    created_phase: game.turn.phase,
+                    target_card: Some(card_id),
+                    remembered_amount: 0,
+                    remembered_cards: Vec::new(),
+                    remembered_players: Vec::new(),
+                    remembered_lki_cards: Vec::new(),
+                    sort_after_active: i > 0,
+                    trigger_order: None,
+                },
+            );
+        }
+    }
+
     fn resolve_copied_permanent_as_token(
         &mut self,
         game: &mut GameState,
@@ -1116,11 +1130,12 @@ impl GameLoop {
         };
         let player = entry.spell_ability.activating_player;
         let original = game.card(original_id).clone();
-        let proto = crate::ability::effects::copy_permanent_effect::get_proto_type(
+        let mut proto = crate::ability::effects::copy_permanent_effect::get_proto_type(
             &entry.spell_ability,
             &original,
             player,
         );
+        proto.copied_permanent = Some(original_id);
         let mut token_table = TokenCreateTable::default();
         token_table.put(player, proto, 1);
         let mut trigger_list = crate::card::card_zone_table::CardZoneTable::default();
@@ -1137,13 +1152,20 @@ impl GameLoop {
             parent_target_card: None,
             rng: &mut *self.game_rng,
         };
-        crate::ability::effects::token_effect_base::TOKEN_EFFECT_BASE.make_token_table(
-            &mut ctx,
-            token_table,
-            true,
-            &mut trigger_list,
-            &entry.spell_ability,
-        );
+        let created = crate::ability::effects::token_effect_base::TOKEN_EFFECT_BASE
+            .make_token_table(
+                &mut ctx,
+                token_table,
+                true,
+                &mut trigger_list,
+                &entry.spell_ability,
+            );
+        if entry.spell_ability.alt_cost == Some(crate::spellability::AlternativeCost::Evoke) {
+            let evoke_keyword_count = (entry.spell_ability.evoke_keyword_count as usize).max(1);
+            for &token_id in &created.created {
+                self.register_evoke_sacrifice_triggers(game, token_id, player, evoke_keyword_count);
+            }
+        }
         trigger_list.trigger_changes_zone_all(
             &mut self.trigger_handler,
             game,

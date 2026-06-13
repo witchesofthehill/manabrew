@@ -217,7 +217,7 @@ jobs:
         run: mvn -pl forge-harness -am -DskipTests package
 
       - name: Build forge-parity
-        run: cargo build -p forge-parity --features serve --release
+        run: cargo build -p forge-parity --features serve --profile parity
 
       - name: Build cardset archive
         run: |
@@ -227,7 +227,7 @@ jobs:
       - name: Start parity server
         run: |
           (
-            ./target/release/forge-parity \
+            ./target/parity/forge-parity \
               --ci --serve --port 8080 --verbose \
               --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar \
               --db-path parity-ci.db \
@@ -238,12 +238,12 @@ jobs:
           echo "Server PID: $(cat server.pid)"
 
       - name: Wait for server health
-        run: ./target/release/forge-parity ci-client health --server http://localhost:8080
+        run: ./target/parity/forge-parity ci-client health --server http://localhost:8080
 
       - name: Submit regression jobs
         id: submit
         run: |
-          BATCH_ID=$(./target/release/forge-parity ci-client submit \
+          BATCH_ID=$(./target/parity/forge-parity ci-client submit \
             --server http://localhost:8080 \
             --file java-entries.json)
           echo "batch_id=$BATCH_ID" >> "$GITHUB_OUTPUT"
@@ -252,7 +252,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./target/release/forge-parity ci-client poll \
+          ./target/parity/forge-parity ci-client poll \
             --server http://localhost:8080 \
             --batch-id ${{ steps.submit.outputs.batch_id }} \
             --repo ${{ github.repository }} \

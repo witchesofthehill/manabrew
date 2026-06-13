@@ -247,25 +247,9 @@ impl GameLoop {
                 .collect();
             if !possible_exerters.is_empty() {
                 let chosen = agents[active.index()].exert_attackers(active, &possible_exerters);
-                let mut exert_failures: Vec<CardId> = Vec::new();
                 for attacker in chosen {
-                    // Java parity: the exert cost goes through checkPropagandaEffects →
-                    // payCombatCost → DeterministicCostDecision.confirm(). For CostExert
-                    // with CARDNAME, shouldAsk=true, so confirmPayment is called. If
-                    // declined, the cost payment returns false and the creature is
-                    // removed from combat entirely (PhaseHandler line 584).
-                    let card_name = game.card(attacker).card_name.clone();
-                    let confirmed = agents[active.index()].confirm_payment(
-                        active,
-                        "Exert",
-                        &format!("Pay Exert cost for {}?", card_name),
-                        Some(attacker),
-                        None,
-                    );
-                    if !confirmed {
-                        exert_failures.push(attacker);
-                        continue;
-                    }
+                    // Exert is paid unconditionally once chosen via exert_attackers
+                    // (mirrors HumanPlay.payCostDuringAbilityResolve's CostExert case).
                     if let Some(parts) = optional_exert_by_attacker.get(&attacker).cloned() {
                         for (resolved, type_filter) in parts {
                             if resolved > 0 {
@@ -281,9 +265,6 @@ impl GameLoop {
                         }
                     }
                 }
-                // Remove creatures whose exert cost was declined from attackers
-                // (mirrors Java's checkPropagandaEffects → removeFromCombat).
-                chosen_attackers.retain(|(id, _)| !exert_failures.contains(id));
             }
 
             // Re-check enlist targets AFTER exert loop — exerting taps creatures,
@@ -948,10 +929,6 @@ impl GameLoop {
             // Mirrors Java's Game.copyLastState() called before damage resolution.
             game.copy_last_state();
 
-            // Java parity: consume RNG for replacement effect choices during combat.
-            // TODO: remove once agents are threaded through deal_damage_to_card/player.
-            self.consume_replacement_effect_rng_for_combat(game, agents, true);
-
             let fs_unblocked_choices = self.choose_assign_as_unblocked(game, agents, true);
             let fs_events =
                 self.combat
@@ -999,10 +976,6 @@ impl GameLoop {
             // LKI: Snapshot battlefield state before combat damage.
             // Mirrors Java's Game.copyLastState() called before damage resolution.
             game.copy_last_state();
-
-            // Java parity: consume RNG for replacement effect choices during combat.
-            // TODO: remove once agents are threaded through deal_damage_to_card/player.
-            self.consume_replacement_effect_rng_for_combat(game, agents, false);
 
             let unblocked_choices = self.choose_assign_as_unblocked(game, agents, false);
             let dmg_events =
@@ -1109,108 +1082,5 @@ impl GameLoop {
             }
         }
         choices
-    }
-
-    /// Consume RNG calls matching Java's `ReplacementHandler.runReplaceDamage()`.
-    /// TODO: Remove once agents are threaded through deal_damage_to_card/player
-    /// so ReplacementHandler::run() with agents handles this naturally.
-    fn consume_replacement_effect_rng_for_combat(
-        &self,
-        game: &crate::game::GameState,
-        agents: &mut [Box<dyn crate::agent::PlayerAgent>],
-        first_strike_only: bool,
-    ) {
-        use forge_foundation::ZoneType;
-
-        // Java fires one ReplacementHandler prompt per damage point hitting a
-        // target with prevention shields. Each prompt offers the full list of
-        // remaining prevention effects on that target; once the chosen
-        // 1-shield effect consumes its damage, the next damage point sees one
-        // fewer effect. So for a target with `S` shields taking `D` damage,
-        // Java emits `min(S, D)` prompts of sizes S, S-1, …, S-min(S,D)+1.
-        //
-        // Per-target rather than per-player: the candidate list is built from
-        // shields on a single target, and the prompt is fired against that
-        // target's controller.
-        let mut tasks: Vec<(crate::ids::CardId, usize, usize)> = Vec::new();
-
-        for &(attacker_id, _defender) in &self.combat.attackers {
-            let attacker = &game.cards[attacker_id.index()];
-            if attacker.zone != ZoneType::Battlefield {
-                continue;
-            }
-            let has_first_strike = attacker.has_first_strike();
-            let has_double_strike = attacker.has_double_strike();
-            if first_strike_only && !has_first_strike && !has_double_strike {
-                continue;
-            }
-            if !first_strike_only && has_first_strike && !has_double_strike {
-                continue;
-            }
-
-            let attacker_power = attacker.power().max(0) as usize;
-            let blocker_ids = self.combat.get_blockers_for(attacker_id);
-            for &blocker_id in &blocker_ids {
-                let blocker = &game.cards[blocker_id.index()];
-                if blocker.zone != ZoneType::Battlefield {
-                    continue;
-                }
-                let shield_count = self.count_damage_prevention_effects(game, blocker_id);
-                let damage_count = shield_count.min(attacker_power);
-                if damage_count > 0 {
-                    tasks.push((blocker_id, shield_count, damage_count));
-                }
-            }
-            if !blocker_ids.is_empty() {
-                let total_blocker_power: usize = blocker_ids
-                    .iter()
-                    .map(|b| game.cards[b.index()].power().max(0) as usize)
-                    .sum();
-                let shield_count = self.count_damage_prevention_effects(game, attacker_id);
-                let damage_count = shield_count.min(total_blocker_power);
-                if damage_count > 0 {
-                    tasks.push((attacker_id, shield_count, damage_count));
-                }
-            }
-        }
-
-        for (target_id, shield_count, damage_count) in tasks {
-            let controller = game.cards[target_id.index()].controller;
-            for i in 0..damage_count {
-                let list_size = shield_count - i;
-                let descs: Vec<String> = (0..list_size)
-                    .map(|j| format!("Prevention shield {}", j))
-                    .collect();
-                agents[controller.index()].choose_single_replacement_effect(controller, &descs);
-            }
-        }
-    }
-
-    fn count_damage_prevention_effects(
-        &self,
-        game: &crate::game::GameState,
-        target_id: crate::ids::CardId,
-    ) -> usize {
-        use crate::replacement::ReplacementType;
-        use forge_foundation::ZoneType;
-
-        let mut count = 0;
-        for card in &game.cards {
-            if card.zone != ZoneType::Command {
-                continue;
-            }
-            if !card.remembered_cards.contains(&target_id) {
-                continue;
-            }
-            for re in &card.replacement_effects {
-                if re.event == ReplacementType::DamageDone && re.ir.prevent {
-                    count += 1;
-                }
-            }
-        }
-        if count == 0 {
-            count = game.cards[target_id.index()].damage_prevention as usize;
-        }
-        count
     }
 }

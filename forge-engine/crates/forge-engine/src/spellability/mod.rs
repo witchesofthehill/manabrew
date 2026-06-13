@@ -118,9 +118,9 @@ pub struct SpellAbility {
     /// Java parity: AB/SP/ST/DB record kind used to distinguish sub-abilities.
     #[serde(default)]
     pub record_type: AbilityRecordType,
-    /// Incrementally compiled Forge script IR. This is currently metadata for
-    /// parser migration and diagnostics; resolution still follows Java-parity
-    /// params until each API is explicitly wired.
+    /// Compiled Forge script IR; resolution reads typed fields from here.
+    /// Skipped on serde: a deserialized `SpellAbility` must rebuild it from
+    /// `ability_text` before use or every typed param reads as absent.
     #[serde(skip)]
     pub ir: SpellAbilityIr,
     /// Targeting restrictions parsed from `ValidTgts$`.
@@ -459,7 +459,7 @@ impl SpellAbility {
             keys::NAME => self.ir.name_text.as_deref(),
             keys::NAMES => self.ir.names_text.as_deref(),
             keys::CHOOSE_FROM_LIST => self.ir.choose_from_list_text.as_deref(),
-            keys::GAIN_CONTROL => self.ir.gain_control.then_some("True"),
+            keys::GAIN_CONTROL => self.ir.gain_control_text.as_deref(),
             keys::SPELLBOOK => self.ir.spellbook_text.as_deref(),
             keys::VOTE_MESSAGE => self.ir.vote_message_text.as_deref(),
             keys::DEFINED_MAGNET => self.ir.defined_magnet_text.as_deref(),

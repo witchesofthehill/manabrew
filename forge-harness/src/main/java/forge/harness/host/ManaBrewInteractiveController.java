@@ -51,6 +51,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -975,7 +976,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "choose_scry", "scry_decision", "bottom_card_ids", me(), topN, sourceName(null));
         final CardCollection top = new CardCollection(topN);
         top.removeAll(bottom);
-        return ImmutablePair.of(top, bottom);
+        return ImmutablePair.of(orderForTop(top), bottom);
     }
 
     @Override
@@ -984,7 +985,17 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "choose_surveil", "surveil_decision", "graveyard_card_ids", me(), topN, sourceName(null));
         final CardCollection top = new CardCollection(topN);
         top.removeAll(graveyard);
-        return ImmutablePair.of(top, graveyard);
+        return ImmutablePair.of(orderForTop(top), graveyard);
+    }
+
+    // The reorder prompt answers in last-on-top order; toTop expects index 0 on top.
+    private CardCollection orderForTop(final CardCollection top) {
+        if (top.size() <= 1) {
+            return top;
+        }
+        final CardCollection ordered = new CardCollection(session.awaitReorderLibrary(me(), top, sourceName(null)));
+        Collections.reverse(ordered);
+        return ordered;
     }
 
     @Override

@@ -29,6 +29,46 @@ export function isLethalDamage(card: GameCard, queuedDamage = 0): boolean {
 
 export type ScryfallImageSize = "small" | "normal" | "large" | "png" | "border_crop" | "art_crop";
 
+export const FACE_DOWN_CARD_NAME = "Face-down card";
+
+export function isHiddenFaceDownCard(card: GameCard): boolean {
+  return !!card.isFaceDown && card.name === FACE_DOWN_CARD_NAME;
+}
+
+export function maskFaceDownCards(cards: GameCard[]): GameCard[] {
+  if (!cards.some((c) => c.isFaceDown)) return cards;
+  return cards.map((card) =>
+    card.isFaceDown
+      ? {
+          ...card,
+          name: FACE_DOWN_CARD_NAME,
+          setCode: "",
+          cardNumber: "",
+          color: "",
+          colorIdentity: [],
+          manaCost: "",
+          cmc: 0,
+          types: [],
+          subtypes: [],
+          supertypes: [],
+          keywords: [],
+          power: undefined,
+          toughness: undefined,
+          basePower: undefined,
+          baseToughness: undefined,
+          text: "",
+          layout: undefined,
+          isDoubleFaced: undefined,
+          effectiveManaCost: undefined,
+          flashbackCost: undefined,
+          kickerCost: undefined,
+          madnessCost: undefined,
+          foil: undefined,
+        }
+      : card,
+  );
+}
+
 /** GameCard view of a stack-resident source for rendering. Owner/controller
  *  come from the StackObject; printing identity comes from the wire so
  *  `asDeckCard` can resolve the image. */

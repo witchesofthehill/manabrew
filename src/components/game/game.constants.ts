@@ -76,6 +76,7 @@ export const PROMPT_LABELS: Record<string, string> = {
 export const CARD_BADGES = {
   exerted: { label: "EXERTED", style: "bg-card-status-exerted/90 text-text-on-tinted" },
   morph: { label: "MORPH", style: "bg-card-status-morph/90 text-text-on-tinted" },
+  faceDown: { label: "FACE-DOWN", style: "bg-card-status-morph/90 text-text-on-tinted" },
   bestow: { label: "BESTOW", style: "bg-card-status-bestow/90 text-text-on-tinted" },
   token: { label: "TOKEN", style: "bg-card-status-token/90 text-text-on-tinted" },
   transformed: { label: "TRANSFORMED", style: "bg-card-status-transformed/90 text-text-on-tinted" },

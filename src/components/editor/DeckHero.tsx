@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Pencil } from "lucide-react";
+import { Check, ChevronDown, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,7 +12,7 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { GAME_FORMATS } from "@/lib/formats";
+import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
 import type { DeckFormatId } from "@/types/manabrew";
@@ -65,8 +65,16 @@ export function DeckHero() {
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="cursor-pointer" title="Change format">
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-xs backdrop-blur-sm transition-colors hover:bg-background/80"
+                  title="Change format"
+                >
                   <FormatBadge formatId={currentDeck.format ?? "standard"} />
+                  <span className="font-medium">
+                    {getFormat(currentDeck.format ?? "standard")?.name}
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">

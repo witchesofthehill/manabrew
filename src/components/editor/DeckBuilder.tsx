@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils";
 import {
   getFormat,
   validateDeckSections,
-  BASIC_LAND_NAMES,
+  canHaveAnyNumberOf,
   isCommanderEligible,
   canBePartners,
   hasPartner,
@@ -738,12 +738,12 @@ export function DeckBuilder({
   }
 
   function isAtCopyLimit(cardName: string): boolean {
-    if (BASIC_LAND_NAMES.has(cardName)) return false;
     const format = getFormat(currentDeck.format ?? "standard");
     if (!format) return false;
     const copies = currentDeck.cards.filter((c) => c.name === cardName);
-    const limit =
-      (copies.length > 0 ? copyLimitFromText(copies[0].text) : null) ?? format.deckRules.maxCopies;
+    if (copies.length === 0) return false;
+    if (canHaveAnyNumberOf(copies[0])) return false;
+    const limit = copyLimitFromText(copies[0].text) ?? format.deckRules.maxCopies;
     return copies.length >= limit;
   }
 

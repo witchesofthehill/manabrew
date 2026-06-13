@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { LibraryZoneTile } from "@/components/game/zones";
 import { CommandZoneTile } from "@/components/game/panels/CommandZoneTile";
 import { Card as CardComponent } from "@/components/game/Card";
+import { isHiddenFaceDownCard } from "@/components/game/game.utils";
 import type { GameCard } from "@/types/manabrew";
 import type { ZonePanelItem } from "@/stores/usePreferencesStore";
 
@@ -115,7 +116,9 @@ function ZoneCardTile({
   return (
     <div
       className="flex flex-col items-center gap-0.5"
-      onMouseEnter={onHoverCard ? (e) => onHoverCard(topCard, e) : undefined}
+      onMouseEnter={
+        onHoverCard && !isHiddenFaceDownCard(topCard) ? (e) => onHoverCard(topCard, e) : undefined
+      }
       onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
     >
       <div

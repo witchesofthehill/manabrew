@@ -564,8 +564,7 @@ export class PixiGameScene {
     if (this.destroyed) return;
     this.app.renderer.resize(width, height);
     this.drawTableBackground();
-    this.emptyText.x = this.zoneCenterX();
-    this.emptyText.y = this.zoneCenterY();
+    this.layoutEmptyText();
     // dragHandler clamps into the play-zone rect when one is set; otherwise
     // the full canvas.
     this.recomputeAutoFitScale();
@@ -611,8 +610,7 @@ export class PixiGameScene {
     this.drawTableBackground();
     if (this.lastState) this.updateBattlefield(this.lastState);
     if (this.lastHandState) this.updateHand(this.lastHandState);
-    this.emptyText.x = this.zoneCenterX();
-    this.emptyText.y = this.zoneCenterY();
+    this.layoutEmptyText();
   }
 
   /** Current play-zone rectangle in canvas-local coords. Falls back to the
@@ -622,6 +620,17 @@ export class PixiGameScene {
     const { width, height } = this.app.renderer;
     const inset = this.topReserveInset();
     return { x: 0, y: inset, width, height: height - inset };
+  }
+
+  private layoutEmptyText(): void {
+    const zone = this.getPlayZone();
+    this.emptyText.scale.set(1);
+    const maxWidth = zone.width - 16;
+    if (maxWidth > 0 && this.emptyText.width > maxWidth) {
+      this.emptyText.scale.set(maxWidth / this.emptyText.width);
+    }
+    this.emptyText.x = this.zoneCenterX();
+    this.emptyText.y = this.zoneCenterY();
   }
 
   private zoneCenterX(): number {

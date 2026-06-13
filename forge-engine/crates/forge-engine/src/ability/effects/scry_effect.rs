@@ -72,32 +72,35 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Let UI agents pre-build card info for the revealed cards.
     ctx.agents[target.index()].on_library_peek(ctx.game, &top_n);
 
-    // Ask the agent which to put on the bottom.
-    let bottom_ids = ctx.agents[target.index()].choose_scry(target, &top_n);
+    let (top_ids, bottom_ids) = ctx.agents[target.index()].arrange_for_scry(target, &top_n);
 
-    // Validate: only cards that were actually in top_n are accepted.
     let bottom: Vec<_> = bottom_ids
         .into_iter()
         .filter(|id| top_n.contains(id))
         .collect();
-    let top: Vec<_> = top_n
+    let kept: Vec<_> = top_n
         .iter()
         .copied()
         .filter(|id| !bottom.contains(id))
         .collect();
+    let top = if top_ids.len() == kept.len() && kept.iter().all(|id| top_ids.contains(id)) {
+        top_ids
+    } else {
+        kept
+    };
 
+    // `top` is in top-to-bottom order (index 0 = top), so iterate in reverse so
+    // the last push lands on top — mirrors Java's `Collections.reverse(toTop)`
+    // followed by `moveToLibrary` per card.
+    for &id in top.iter().rev() {
+        ctx.game.add_card_to_zone(ZoneType::Library, target, id);
+    }
     // Insert bottom cards at the front (index 0 = bottom in our representation).
     // Java moves `toBottom` cards one-by-one in the order returned by the
     // controller; each subsequent move becomes the new bottom card.
     for &id in &bottom {
         ctx.game
             .add_card_to_zone_bottom(ZoneType::Library, target, id);
-    }
-    // Put remaining top cards back on top (append to end).
-    // `top` is in top-to-bottom order (from the reversed top_n), so iterate
-    // in reverse to restore original library order (last push = actual top).
-    for &id in top.iter().rev() {
-        ctx.game.add_card_to_zone(ZoneType::Library, target, id);
     }
 
     // Fire Scry trigger
@@ -206,8 +209,12 @@ mod tests {
         fn choose_land_or_spell(&mut self, _: PlayerId) -> Option<bool> {
             None
         }
-        fn choose_scry(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-            cards.to_vec() // put all on bottom
+        fn arrange_for_scry(
+            &mut self,
+            _player: PlayerId,
+            cards: &[CardId],
+        ) -> (Vec<CardId>, Vec<CardId>) {
+            (vec![], cards.to_vec())
         }
         fn choose_targets_for(
             &mut self,

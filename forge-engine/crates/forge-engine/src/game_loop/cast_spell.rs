@@ -498,9 +498,7 @@ impl GameLoop {
                     );
                     crate::agent::notify_all_agents(
                         agents,
-                        crate::agent::GameLogEvent::rule(format!("Foretold: {}", card_name))
-                            .with_player(player)
-                            .with_card(card_id),
+                        crate::agent::GameLogEvent::action("Foretold a card").with_player(player),
                     );
                     return Some(Some((card_id, card_name)));
                 }

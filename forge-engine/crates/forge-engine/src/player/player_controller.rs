@@ -469,12 +469,12 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         self.agent.choose_card_name(self.player, valid_names)
     }
 
-    pub fn choose_scry(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_scry(self.player, cards)
+    pub fn arrange_for_scry(&mut self, cards: &[CardId]) -> (Vec<CardId>, Vec<CardId>) {
+        self.agent.arrange_for_scry(self.player, cards)
     }
 
-    pub fn choose_surveil(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_surveil(self.player, cards)
+    pub fn arrange_for_surveil(&mut self, cards: &[CardId]) -> (Vec<CardId>, Vec<CardId>) {
+        self.agent.arrange_for_surveil(self.player, cards)
     }
 
     pub fn choose_reorder_library(&mut self, cards: &[CardId]) -> Vec<CardId> {

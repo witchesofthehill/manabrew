@@ -747,12 +747,20 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         choices::reveal_cards(self, game, cards, zone, owner, message_prefix)
     }
 
-    fn choose_scry(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-        library::choose_scry(self, player, cards)
+    fn arrange_for_scry(
+        &mut self,
+        player: PlayerId,
+        cards: &[CardId],
+    ) -> (Vec<CardId>, Vec<CardId>) {
+        library::arrange_for_scry(self, player, cards)
     }
 
-    fn choose_surveil(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-        library::choose_surveil(self, player, cards)
+    fn arrange_for_surveil(
+        &mut self,
+        player: PlayerId,
+        cards: &[CardId],
+    ) -> (Vec<CardId>, Vec<CardId>) {
+        library::arrange_for_surveil(self, player, cards)
     }
 
     fn choose_dig(

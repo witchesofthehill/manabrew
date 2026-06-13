@@ -6,9 +6,14 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import { isCreature, isLethalDamage, type ScryfallImageSize } from "./game.utils";
+import {
+  isCreature,
+  isHiddenFaceDownCard,
+  isLethalDamage,
+  type ScryfallImageSize,
+} from "./game.utils";
 import { isHorizontalCard } from "@/lib/cardLayout";
-import { CARD_BADGES } from "./game.constants";
+import { CARD_BACK_IMAGE_URL, CARD_BADGES } from "./game.constants";
 import { CARD_BANNER_CONTAINER, CARD_BANNER_TEXT } from "./game.styles";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
@@ -59,9 +64,9 @@ function CardComponent({
 }: CardProps) {
   const [hasError, setHasError] = useState(false);
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
-  const deckCard = asDeckCard(deck, card);
+  const hiddenFaceDown = isHiddenFaceDownCard(card);
 
-  const imageUrl = deckCard.uris[resolution];
+  const imageUrl = hiddenFaceDown ? CARD_BACK_IMAGE_URL : asDeckCard(deck, card).uris[resolution];
   const displayName = card.name;
   const themeColors = useTheme().gameTheme;
 
@@ -142,7 +147,7 @@ function CardComponent({
           {card.exerted ? (
             <CardBadge {...CARD_BADGES.exerted} />
           ) : card.isFaceDown ? (
-            <CardBadge {...CARD_BADGES.morph} />
+            <CardBadge {...(onBattlefield ? CARD_BADGES.morph : CARD_BADGES.faceDown)} />
           ) : card.isBestowed ? (
             <CardBadge {...CARD_BADGES.bestow} />
           ) : card.isTransformed ? (

@@ -540,7 +540,14 @@ export default function Game({ exitTo }: GameProps = {}) {
   const targetCompletion = useMemo(() => {
     if (!activePrompt) return null;
     const input = activePrompt.input;
-    if (input.type !== "chooseTargetAny" && input.type !== "chooseTargetCard") return null;
+    if (
+      input.type !== "chooseTargetAny" &&
+      input.type !== "chooseTargetCard" &&
+      input.type !== "chooseTargetPlayer" &&
+      input.type !== "chooseTargetSpell"
+    ) {
+      return null;
+    }
     if (input.maxTargets <= input.minTargets || input.chosenTargets < input.minTargets) {
       return null;
     }
@@ -549,9 +556,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       onComplete:
         input.type === "chooseTargetAny"
           ? () => wrappedTargetAny({ kind: "none" })
-          : () => wrappedTargetCard(null),
+          : input.type === "chooseTargetCard"
+            ? () => wrappedTargetCard(null)
+            : input.type === "chooseTargetPlayer"
+              ? () => respond({ type: "targetPlayer", playerId: null })
+              : () => respond({ type: "targetSpell", spellId: null }),
     };
-  }, [activePrompt, wrappedTargetAny, wrappedTargetCard]);
+  }, [activePrompt, respond, wrappedTargetAny, wrappedTargetCard]);
 
   // Zone viewer helpers (wrap store actions)
   function openZone(

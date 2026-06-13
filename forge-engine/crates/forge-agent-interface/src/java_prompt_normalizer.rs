@@ -274,6 +274,9 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
+            min_targets,
+            max_targets,
+            chosen_targets,
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
@@ -281,6 +284,9 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 valid_player_ids: target_ids(&players),
                 hostile: intent.is_hostile(),
                 intent,
+                min_targets,
+                max_targets,
+                chosen_targets,
             }
         }
         JavaRawPromptBody::ChooseTargetCard {
@@ -345,11 +351,17 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
+            min_targets,
+            max_targets,
+            chosen_targets,
         } => {
             source_card_id = source;
             AgentPromptInner::ChooseTargetSpell {
                 valid_spell_ids: target_ids(&spells),
                 intent: intent_from_api(&api, &destination, &counter_type),
+                min_targets,
+                max_targets,
+                chosen_targets,
             }
         }
         JavaRawPromptBody::PayManaCost {

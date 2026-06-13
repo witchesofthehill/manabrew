@@ -73,6 +73,7 @@ export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetC
 };
 
 export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, ctx) => {
+  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
   const preselected = consumeIntentForPlayer(prompt, ctx);
   if (preselected) {
     return {
@@ -91,6 +92,7 @@ export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, 
 };
 
 export const singleLegalSpell: PromptResolver<"chooseTargetSpell"> = (prompt, ctx) => {
+  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
   const preselected = consumeIntentForSpell(prompt, ctx);
   if (preselected) {
     return {

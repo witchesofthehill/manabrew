@@ -162,6 +162,8 @@ export function PromptActionController({
         buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         onOpenStack={onOpenStack}
+        completionLabel={targetCompletionLabel ?? undefined}
+        onCompleteTargets={onCompleteTargets ?? undefined}
       />
     ),
     payManaCost: () => (

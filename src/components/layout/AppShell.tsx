@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 
@@ -36,6 +37,7 @@ export function AppShell() {
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const setupListeners = useServerStore((s) => s.setupListeners);
   const location = useLocation();
   const navigate = useNavigate();
@@ -70,6 +72,10 @@ export function AppShell() {
     "toggle-sidebar": toggleSidebar,
     "nav-prev-page": () => goToAdjacentPage(-1),
     "nav-next-page": () => goToAdjacentPage(1),
+    "open-settings": () => {
+      if (!isGameActive) navigate("/settings");
+    },
+    "show-shortcuts": () => setShortcutsOpen((v) => !v),
   });
 
   // Close mobile nav on route change.
@@ -92,6 +98,7 @@ export function AppShell() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col">
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {!isDesktop && (
         <>
           <header

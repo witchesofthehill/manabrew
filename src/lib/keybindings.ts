@@ -52,6 +52,36 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Deck editor",
     defaultCombo: { key: "s", alt: true },
   },
+  {
+    id: "deck-editor-save",
+    label: "Save deck",
+    category: "Deck editor",
+    defaultCombo: { key: "s", mod: true },
+  },
+  {
+    id: "deck-editor-export",
+    label: "Export deck",
+    category: "Deck editor",
+    defaultCombo: { key: "e", mod: true },
+  },
+  {
+    id: "open-settings",
+    label: "Open preferences",
+    category: "Navigation",
+    defaultCombo: { key: ",", mod: true },
+  },
+  {
+    id: "show-shortcuts",
+    label: "Show keyboard shortcuts",
+    category: "Help",
+    defaultCombo: { key: "?", shift: true },
+  },
+  {
+    id: "card-search-focus",
+    label: "Focus search",
+    category: "Card search",
+    defaultCombo: { key: "/" },
+  },
 ];
 
 export const IS_APPLE =

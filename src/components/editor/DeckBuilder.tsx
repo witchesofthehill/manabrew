@@ -332,6 +332,8 @@ export function DeckBuilder({
       filterInputRef.current?.select();
     },
     "deck-editor-toggle-search": () => onToggleSearch?.(),
+    "deck-editor-save": () => handleSave(),
+    "deck-editor-export": () => handleExport(),
   });
 
   const supplementaryCards = useMemo(

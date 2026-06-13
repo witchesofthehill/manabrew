@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useCardSearch } from "@/hooks/useCards";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { Input } from "@/components/ui/input";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -522,6 +523,14 @@ export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps
   const hasActiveFilters = basicCount > 0 || advCount > 0;
 
   const observerTarget = useRef(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useKeybindings({
+    "card-search-focus": () => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    },
+  });
 
   const effectiveQuery = buildScryfallQuery(
     debouncedText,
@@ -604,6 +613,7 @@ export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps
             </Button>
           )}
           <Input
+            ref={searchInputRef}
             placeholder="Search cards…"
             value={text}
             onChange={(e) => setText(e.target.value)}

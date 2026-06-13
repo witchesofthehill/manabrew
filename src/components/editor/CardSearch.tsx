@@ -504,9 +504,11 @@ interface CardSearchProps {
   /** Shared rail slot — when provided, the hover preview portals into it
    *  (pinned). When absent, the search panel renders no preview of its own. */
   previewSlot?: HTMLElement | null;
+  /** Bump to focus the search box (used by the deck editor's `/` shortcut). */
+  focusSignal?: number;
 }
 
-export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps) {
+export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
   const preview = useCardPreview();
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
@@ -525,12 +527,19 @@ export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps
   const observerTarget = useRef(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useKeybindings({
-    "card-search-focus": () => {
-      searchInputRef.current?.focus();
-      searchInputRef.current?.select();
-    },
-  });
+  const focusSearchInput = () => {
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  };
+
+  // On the standalone search page CardSearch owns the `/` shortcut. As the
+  // deck-editor panel the editor owns it (so it can open the panel first)
+  // and drives focus through `focusSignal`.
+  useKeybindings(standalone ? { "card-search-focus": focusSearchInput } : {});
+
+  useEffect(() => {
+    if (focusSignal) focusSearchInput();
+  }, [focusSignal]);
 
   const effectiveQuery = buildScryfallQuery(
     debouncedText,

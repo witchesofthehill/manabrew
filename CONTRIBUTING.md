@@ -1,6 +1,6 @@
 # Contributing to ManaBrew
 
-Thanks for helping. The easiest contributions to review are small,
+First things first, thanks so much for helping. The easiest contributions to review are small,
 issue-backed, reproducible, and checked locally before the PR is opened.
 
 ## Contribution flow
@@ -8,7 +8,7 @@ issue-backed, reproducible, and checked locally before the PR is opened.
 Use this path for most contributions:
 
 1. **Pick up an issue.** Start from an existing issue, or open one before doing
-   larger work.
+   larger work. Make sure you assign the issue to yourself, and put it as "InProgress" so other people don't pick up the same issue as you
 2. **Fork the repository.** Create your own fork and make changes on a branch in
    that fork.
 3. **Implement the change.** Keep the patch focused on the issue. Avoid
@@ -23,8 +23,6 @@ Use this path for most contributions:
 ## Start with an issue
 
 For anything larger than a typo, start from an existing issue or open one first.
-Comment on the issue if you plan to work on it, so maintainers and other
-contributors can avoid duplicate effort.
 
 Good issue reports include:
 

@@ -123,6 +123,9 @@ pub(super) fn choose_target_any<T: Responder>(
             valid_card_ids,
             hostile,
             intent,
+            min_targets: 1,
+            max_targets: 1,
+            chosen_targets: 0,
         },
         source,
     );

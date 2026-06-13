@@ -536,6 +536,22 @@ export default function Game({ exitTo }: GameProps = {}) {
   const selectedAttackDefender = chooseAttackersInput?.possibleDefenderIds.find(
     (defender) => defender.id === attackDefenderId,
   );
+  const { wrappedTargetAny, wrappedTargetCard } = casting;
+  const targetCompletion = useMemo(() => {
+    if (!activePrompt) return null;
+    const input = activePrompt.input;
+    if (input.type !== "chooseTargetAny" && input.type !== "chooseTargetCard") return null;
+    if (input.maxTargets <= input.minTargets || input.chosenTargets < input.minTargets) {
+      return null;
+    }
+    return {
+      label: input.chosenTargets === 0 ? "Skip" : "Done",
+      onComplete:
+        input.type === "chooseTargetAny"
+          ? () => wrappedTargetAny({ kind: "none" })
+          : () => wrappedTargetCard(null),
+    };
+  }, [activePrompt, wrappedTargetAny, wrappedTargetCard]);
 
   // Zone viewer helpers (wrap store actions)
   function openZone(
@@ -1541,6 +1557,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
           onOpenStack={() => setSpellStackModalOpen(true)}
+          targetCompletionLabel={targetCompletion?.label}
+          onCompleteTargets={targetCompletion?.onComplete}
           onConcede={concede}
           resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
           resolveCard={(cardId) => visibleCardsById.get(cardId)}

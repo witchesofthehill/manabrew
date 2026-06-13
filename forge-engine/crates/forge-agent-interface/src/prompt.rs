@@ -162,6 +162,12 @@ pub enum AgentPromptInner {
         hostile: bool,
         #[serde(default = "default_intent")]
         intent: TargetingIntent,
+        #[serde(rename = "minTargets", default)]
+        min_targets: i32,
+        #[serde(rename = "maxTargets", default)]
+        max_targets: i32,
+        #[serde(rename = "chosenTargets", default)]
+        chosen_targets: i32,
     },
     ChooseTargetCardFromZone {
         #[serde(rename = "validCardIds")]

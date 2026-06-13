@@ -58,6 +58,9 @@ fn main() {
             valid_card_ids: vec![],
             hostile: false,
             intent: TargetingIntent::default(),
+            min_targets: 0,
+            max_targets: 3,
+            chosen_targets: 1,
         },
         ChooseTargetCardFromZone {
             valid_card_ids: vec![],

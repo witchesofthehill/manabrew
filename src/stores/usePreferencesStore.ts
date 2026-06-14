@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
+import type { BoardArrangement } from "@/pixi/board/boardLayout";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
@@ -28,6 +29,11 @@ interface PreferencesState {
   /** Battlefield zone column order */
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
+
+  /** Multiplayer board arrangement (opponents across the top vs wrapped
+   *  around). Only changes the 4-player layout. */
+  boardArrangement: BoardArrangement;
+  setBoardArrangement: (arrangement: BoardArrangement) => void;
 
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
@@ -59,6 +65,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "zonePanelOrder",
+  "boardArrangement",
   "battlefieldCardScale",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -109,6 +116,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),
+
+          boardArrangement: "row",
+          setBoardArrangement: (boardArrangement) => set({ boardArrangement }),
 
           battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>

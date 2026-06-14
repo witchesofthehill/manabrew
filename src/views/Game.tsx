@@ -134,6 +134,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const handSize = usePreferencesStore((s) => s.handSize);
+  const showTargetingArrows = usePreferencesStore((s) => s.showTargetingArrows);
   const vScale = useHandScale();
   const ghostCardW = Math.round(HAND_CARD_BASES[handSize].cardW * vScale);
   const ghostCardH = Math.round(HAND_CARD_BASES[handSize].cardH * vScale);
@@ -1399,6 +1400,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         opponentSceneRefs={opponentSceneRefsRef.current}
         arrowSpecs={arrowSpecs}
         pointerSpecs={pointerSpecs}
+        showTargetingArrows={showTargetingArrows}
         castingArrow={
           castingPointerActive && casting.castingCardId
             ? {

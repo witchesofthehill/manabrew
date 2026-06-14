@@ -10,6 +10,7 @@ import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useTheme as useColorMode } from "next-themes";
 import { Navigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
@@ -644,6 +645,23 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Controls the size of cards (and the grid they snap into) on the battlefield.
               </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="show-targeting-arrows"
+                  checked={prefs.showTargetingArrows}
+                  onCheckedChange={(checked) => prefs.setShowTargetingArrows(checked === true)}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="show-targeting-arrows">Show targeting arrows</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Displays connector arrows from the source to each target instead of source-side
+                    glyphs.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">

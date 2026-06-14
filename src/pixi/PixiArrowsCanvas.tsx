@@ -18,6 +18,7 @@ interface PixiArrowsCanvasProps {
   arrowSpecs?: ArrowSpec[];
   pointerSpecs?: PointerSpec[];
   castingArrow?: CastingArrowSpec | null;
+  showTargetingArrows?: boolean;
   /** Ref to the main `PixiGameScene` (the player's own canvas). Drives
    *  the placement-ghost lookup and is the first scene searched for
    *  card endpoints. */
@@ -49,6 +50,7 @@ export function PixiArrowsCanvas({
   arrowSpecs,
   pointerSpecs,
   castingArrow,
+  showTargetingArrows = true,
   mainSceneRef,
   opponentSceneRefs,
   className,
@@ -70,6 +72,7 @@ export function PixiArrowsCanvas({
   const arrowSpecsRef = useRef<ArrowSpec[]>([]);
   const pointerSpecsRef = useRef<PointerSpec[]>([]);
   const castingArrowRef = useRef<CastingArrowSpec | null>(null);
+  const showTargetingArrowsRef = useRef(true);
   // Last-known canvas-local position per endpoint, used as a fallback when
   // the live resolver returns null (one-frame race between a sprite zone
   // change and the next Pixi tick, opponent scene mounting late, DOM node
@@ -85,6 +88,9 @@ export function PixiArrowsCanvas({
   useEffect(() => {
     castingArrowRef.current = castingArrow ?? null;
   }, [castingArrow]);
+  useEffect(() => {
+    showTargetingArrowsRef.current = showTargetingArrows;
+  }, [showTargetingArrows]);
 
   const cursorViewportRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -159,7 +165,10 @@ export function PixiArrowsCanvas({
         endpointCacheRef.current,
       );
       arrowLayer.update(arrows, ticker.deltaMS);
-      pointerLayer?.update(pointers, ticker.deltaMS);
+      pointerLayer?.update(pointers, ticker.deltaMS, {
+        showLinks: showTargetingArrowsRef.current,
+        showSourceGlyphs: !showTargetingArrowsRef.current,
+      });
     });
 
     // Initial resize since we no longer use resizeTo. Renderer may have

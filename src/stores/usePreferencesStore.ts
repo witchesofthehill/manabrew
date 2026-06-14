@@ -38,6 +38,9 @@ interface PreferencesState {
   battlefieldCardScale: number;
   setBattlefieldCardScale: (scale: number) => void;
 
+  showTargetingArrows: boolean;
+  setShowTargetingArrows: (enabled: boolean) => void;
+
   /** Card preview trigger mode */
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
@@ -67,6 +70,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "zonePanelOrder",
   "handSize",
   "battlefieldCardScale",
+  "showTargetingArrows",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -123,6 +127,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldCardScale: 1.15,
           setBattlefieldCardScale: (battlefieldCardScale) =>
             set({ battlefieldCardScale: Math.max(0.8, Math.min(1.8, battlefieldCardScale)) }),
+
+          showTargetingArrows: true,
+          setShowTargetingArrows: (showTargetingArrows) => set({ showTargetingArrows }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

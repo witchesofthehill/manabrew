@@ -1,6 +1,7 @@
-import { Application, Container, type FederatedPointerEvent } from "pixi.js";
+import { Application, Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite, setCardSpriteTheme } from "../CardSprite";
+import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import type { ArrowDef } from "../ArrowLayer";
@@ -14,7 +15,12 @@ import { DragHandler } from "../DragHandler";
 import { cellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
-import { BATTLEFIELD_HOVER_HOLD_MS, STACK_SEED_TTL_MS } from "../constants";
+import {
+  BATTLEFIELD_HOVER_HOLD_MS,
+  BG_ALPHA_IDLE,
+  STACK_SEED_TTL_MS,
+  TABLE_RADIUS,
+} from "../constants";
 import type {
   ArrowEndpoint,
   ArrowSpec,
@@ -79,6 +85,8 @@ export class BoardScene {
   private dragHandler: DragHandler;
   private arrowLayer: ArrowLayer;
   private phaseStrip: PhaseStripLayer;
+  private stripBackgroundGfx: Graphics;
+  private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: CastingArrowSpec | null = null;
@@ -111,6 +119,11 @@ export class BoardScene {
     app.stage.eventMode = "static";
 
     this.dragHandler = new DragHandler();
+
+    this.stripBackgroundGfx = new Graphics();
+    this.stripBackgroundGfx.eventMode = "none";
+    this.stripBackgroundGfx.zIndex = 5;
+    this.root.addChild(this.stripBackgroundGfx);
 
     this.arrowLayer = new ArrowLayer();
     this.arrowLayer.graphics.zIndex = 8000;
@@ -207,8 +220,20 @@ export class BoardScene {
   }
 
   private positionPhaseStrip(layout: BoardLayout): void {
+    this.lastLayout = layout;
     this.phaseStrip.container.y = layout.dividerY - STRIP_BAND_PX / 2;
     this.phaseStrip.resize(this.app.renderer.width, STRIP_BAND_PX);
+    this.drawStripBackground(layout);
+  }
+
+  /** Fill the center strip band with the same felt as the battlefield
+   *  regions so the divider reads as part of the board. */
+  private drawStripBackground(layout: BoardLayout): void {
+    const g = this.stripBackgroundGfx;
+    g.clear();
+    const y = layout.dividerY - STRIP_BAND_PX / 2;
+    g.roundRect(0, y, this.app.renderer.width, STRIP_BAND_PX, TABLE_RADIUS);
+    g.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: BG_ALPHA_IDLE });
   }
 
   private localRegion(): BoardRegion | null {
@@ -282,6 +307,7 @@ export class BoardScene {
     setCardSpriteTheme(theme);
     this.arrowLayer.setTheme(theme);
     this.phaseStrip.setTheme(theme);
+    if (this.lastLayout) this.drawStripBackground(this.lastLayout);
     for (const rec of this.regions.values()) rec.region.redrawTheme();
   }
 

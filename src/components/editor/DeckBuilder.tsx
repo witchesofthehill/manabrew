@@ -1,4 +1,5 @@
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { Button } from "@/components/ui/button";
 import { PrintPickerModal } from "./PrintPickerModal";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,6 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   EllipsisVertical,
-  ArrowLeft,
 } from "lucide-react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils";
 import {
   getFormat,
   validateDeckSections,
-  BASIC_LAND_NAMES,
+  canHaveAnyNumberOf,
   isCommanderEligible,
   canBePartners,
   hasPartner,
@@ -113,6 +113,14 @@ function QuickCardSearch({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useKeybindings({
+    "deck-editor-focus-quick-add": () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    },
+  });
 
   const doSearch = useCallback((q: string) => {
     if (q.trim().length < 2) {
@@ -154,6 +162,7 @@ function QuickCardSearch({
       <div className="relative">
         <Plus className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
         <Input
+          ref={inputRef}
           className="h-7 text-xs pl-6 pr-6"
           placeholder="Quick add card…"
           value={query}
@@ -317,17 +326,15 @@ export function DeckBuilder({
   const filterInputRef = useRef<HTMLInputElement>(null);
   const enrichedNamesRef = useRef(new Set<string>());
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        filterInputRef.current?.focus();
-        filterInputRef.current?.select();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useKeybindings({
+    "deck-editor-focus-filter": () => {
+      filterInputRef.current?.focus();
+      filterInputRef.current?.select();
+    },
+    "deck-editor-toggle-search": () => onToggleSearch?.(),
+    "deck-editor-save": () => handleSave(),
+    "deck-editor-export": () => handleExport(),
+  });
 
   const supplementaryCards = useMemo(
     () => [
@@ -738,12 +745,12 @@ export function DeckBuilder({
   }
 
   function isAtCopyLimit(cardName: string): boolean {
-    if (BASIC_LAND_NAMES.has(cardName)) return false;
     const format = getFormat(currentDeck.format ?? "standard");
     if (!format) return false;
     const copies = currentDeck.cards.filter((c) => c.name === cardName);
-    const limit =
-      (copies.length > 0 ? copyLimitFromText(copies[0].text) : null) ?? format.deckRules.maxCopies;
+    if (copies.length === 0) return false;
+    if (canHaveAnyNumberOf(copies[0])) return false;
+    const limit = copyLimitFromText(copies[0].text) ?? format.deckRules.maxCopies;
     return copies.length >= limit;
   }
 
@@ -842,27 +849,9 @@ export function DeckBuilder({
       )}
       <div className="flex flex-1 min-h-0">
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden">
-          <DeckHero />
+          <DeckHero onBack={onBack} />
 
           <div className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b bg-background/85 px-3 py-2 backdrop-blur-md">
-            {onBack && (
-              <div
-                role="button"
-                tabIndex={0}
-                className="h-7 w-7 shrink-0 rounded-md inline-flex items-center justify-center cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                title="Back to My Decks"
-                onClick={onBack}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onBack();
-                  }
-                }}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </div>
-            )}
-
             <div className="relative shrink-0 w-32">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
               <Input

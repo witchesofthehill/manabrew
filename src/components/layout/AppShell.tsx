@@ -1,22 +1,32 @@
-import { useCallback, useEffect, useEffectEvent, useState } from "react";
-import { usePanelRef } from "react-resizable-panels";
-import { Outlet, useLocation } from "react-router-dom";
+import { useEffect, useEffectEvent, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDragToggle } from "@/hooks/useDragToggle";
 import { useGameSessionResume } from "@/hooks/useGameSessionResume";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { useKeybindings } from "@/hooks/useKeybindings";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { ManaBrewLogo } from "./ManaBrewLogo";
 
 // Tailwind's default `md` breakpoint. Kept in sync with utility classes
 // like `md:hidden` / `hidden md:flex` so the JS gate matches the CSS.
 export const DESKTOP_QUERY = "(min-width: 768px)";
+
+// Order mirrors the primary nav in Sidebar; drives prev/next page shortcuts.
+const NAV_ROUTES = [
+  "/play",
+  "/lobby",
+  "/search",
+  "/deck-editor",
+  "/companion",
+  "/limited",
+  "/matches",
+];
 
 export function AppShell() {
   // Render only the active layout branch. Previously both <Outlet /> trees
@@ -25,11 +35,12 @@ export function AppShell() {
   // doubled the WebGL context count, eventually blowing past the
   // browser's per-tab cap.
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const sidebarRef = usePanelRef();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const setupListeners = useServerStore((s) => s.setupListeners);
   const location = useLocation();
+  const navigate = useNavigate();
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isTabletopRoute = location.pathname.startsWith("/tabletop");
   const isGameRoute = location.pathname.startsWith("/game") || isGameActive;
@@ -46,34 +57,26 @@ export function AppShell() {
   useGameSessionResume();
 
   function toggleSidebar() {
-    const panel = sidebarRef.current;
-    if (!panel) return;
-    if (panel.isCollapsed()) {
-      panel.expand();
-      setSidebarCollapsed(false);
-    } else {
-      panel.collapse();
-      setSidebarCollapsed(true);
-    }
+    setSidebarCollapsed((v) => !v);
   }
 
-  const expandSidebar = useCallback(() => {
-    const panel = sidebarRef.current;
-    if (panel?.isCollapsed()) {
-      panel.expand();
-      setSidebarCollapsed(false);
-    }
-  }, [sidebarRef]);
+  function goToAdjacentPage(delta: number) {
+    if (hideNavChrome) return;
+    const current = NAV_ROUTES.findIndex((r) => location.pathname.startsWith(r));
+    const base = current === -1 ? 0 : current;
+    const next = (base + delta + NAV_ROUTES.length) % NAV_ROUTES.length;
+    navigate(NAV_ROUTES[next]);
+  }
 
-  const collapseSidebar = useCallback(() => {
-    const panel = sidebarRef.current;
-    if (panel && !panel.isCollapsed()) {
-      panel.collapse();
-      setSidebarCollapsed(true);
-    }
-  }, [sidebarRef]);
-
-  const onDragMouseDown = useDragToggle(expandSidebar, collapseSidebar, "right");
+  useKeybindings({
+    "toggle-sidebar": toggleSidebar,
+    "nav-prev-page": () => goToAdjacentPage(-1),
+    "nav-next-page": () => goToAdjacentPage(1),
+    "open-settings": () => {
+      if (!isGameActive) navigate("/settings");
+    },
+    "show-shortcuts": () => setShortcutsOpen((v) => !v),
+  });
 
   // Close mobile nav on route change.
   const [prevPathname, setPrevPathname] = useState(location.pathname);
@@ -87,8 +90,7 @@ export function AppShell() {
   // store flag is more reliable than the pathname alone.
   const shouldCollapseSidebar = isGameActive || location.pathname.startsWith("/game");
   const syncSidebar = useEffectEvent((collapse: boolean) => {
-    if (collapse) collapseSidebar();
-    else expandSidebar();
+    setSidebarCollapsed(collapse);
   });
   useEffect(() => {
     syncSidebar(shouldCollapseSidebar);
@@ -96,6 +98,7 @@ export function AppShell() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col">
+      <KeyboardShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {!isDesktop && (
         <>
           <header
@@ -131,51 +134,45 @@ export function AppShell() {
 
       {isDesktop && (
         <div className="flex flex-1 min-h-0">
-          <ResizablePanelGroup orientation="horizontal" className="relative h-full">
-            <ResizablePanel
-              panelRef={sidebarRef}
-              defaultSize={260}
-              minSize={14}
-              maxSize={300}
-              collapsible
-              collapsedSize={0}
+          <div
+            className={cn(
+              "h-full shrink-0 overflow-hidden transition-[width] duration-200 ease-out",
+              sidebarCollapsed ? "w-0" : "w-56 lg:w-60",
+            )}
+          >
+            <Sidebar />
+          </div>
+          <div className="relative flex-1 min-w-0">
+            <div
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 z-30 group",
+                hideNavChrome && "hidden",
+              )}
             >
-              <Sidebar />
-            </ResizablePanel>
-            <ResizableHandle withHandle className={cn(hideNavChrome && "hidden")} />
-            <ResizablePanel minSize={40} className="relative">
-              <div
+              <Button
+                size="icon"
+                variant="ghost"
                 className={cn(
-                  "absolute left-0 top-1/2 -translate-y-1/2 z-30 group",
-                  hideNavChrome && "hidden",
+                  "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
+                  "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
+                  "hover:bg-card",
                 )}
+                onClick={toggleSidebar}
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className={cn(
-                    "h-24 w-4 rounded-r-md rounded-l-none border border-l-0 border-border bg-card/90 px-0",
-                    "translate-x-[-9px] group-hover:translate-x-0 group-hover:w-6 group-hover:h-28 transition-all duration-150",
-                    "hover:bg-card",
-                  )}
-                  onClick={toggleSidebar}
-                  onMouseDown={onDragMouseDown}
-                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                  {sidebarCollapsed ? (
-                    <ChevronRight className="h-3 w-3" />
-                  ) : (
-                    <ChevronLeft className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
-              <main
-                className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}
-              >
-                <Outlet />
-              </main>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+                {sidebarCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronLeft className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+            <main
+              className={cn("h-full overflow-auto", isImmersiveRoute && "!p-0 !overflow-hidden")}
+            >
+              <Outlet />
+            </main>
+          </div>
         </div>
       )}
     </div>

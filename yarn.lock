@@ -715,6 +715,16 @@
   resolved "https://registry.npmjs.org/@floating-ui/utils/-/utils-0.2.10.tgz"
   integrity sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==
 
+"@fontsource/alegreya-sans@^5.2.5":
+  version "5.2.8"
+  resolved "https://registry.yarnpkg.com/@fontsource/alegreya-sans/-/alegreya-sans-5.2.8.tgz#209c5119c3b37612e4a794e2244d5228c7bc37f8"
+  integrity sha512-kXUTR1S6dsWa7rBxaDJ3P05HodmYmxfY20aQtQ4SYVmrEYrWtaw5A1n+h+wcCF0nAMwf+CQ4M435dNuWD1YfMg==
+
+"@fontsource/cormorant-garamond@^5.2.5":
+  version "5.2.11"
+  resolved "https://registry.yarnpkg.com/@fontsource/cormorant-garamond/-/cormorant-garamond-5.2.11.tgz#7e2f4580b56346f710f0dd016578688138feaf1d"
+  integrity sha512-5JjpN023lhA5soijgVT0BdRGzmlijm402ppjccMd6h+vRE0mX2lJnE+41UPfnlidrkV9/rCo1mf58WZlHnB0CA==
+
 "@hookform/resolvers@^5.2.2":
   version "5.2.2"
   resolved "https://registry.npmjs.org/@hookform/resolvers/-/resolvers-5.2.2.tgz"

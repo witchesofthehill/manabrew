@@ -272,12 +272,22 @@ function CardContextMenu({
           </>
         )}
         {onAddOne && (
-          <ContextMenuItem onSelect={onAddOne}>
+          <ContextMenuItem
+            onSelect={(e: Event) => {
+              e.preventDefault();
+              onAddOne();
+            }}
+          >
             <Plus className="mr-2 h-3.5 w-3.5" /> Add 1
           </ContextMenuItem>
         )}
         {onRemoveOne && (
-          <ContextMenuItem onSelect={onRemoveOne}>
+          <ContextMenuItem
+            onSelect={(e: Event) => {
+              e.preventDefault();
+              onRemoveOne();
+            }}
+          >
             <Minus className="mr-2 h-3.5 w-3.5" /> Remove 1
           </ContextMenuItem>
         )}

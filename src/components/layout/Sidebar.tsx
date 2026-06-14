@@ -178,11 +178,11 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
           </div>
         </div>
       </div>
-      <div className="mt-auto flex w-max items-center gap-3 overflow-visible px-7 py-4 shadow-lg">
-        <p className="text-xs font-semibold uppercase tracking-wide whitespace-nowrap text-muted-foreground">
+      <div className="mt-auto flex w-full flex-col gap-1.5 px-4 py-4 shadow-lg">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Get in touch
         </p>
-        <div className="flex items-center gap-1">
+        <div className="-ml-2.5 flex items-center gap-1">
           <Button asChild variant="ghost" size="icon" className="shrink-0" title="Discord">
             <a href={DISCORD_INVITE_URL} target="_blank" rel="noreferrer">
               <DiscordIcon className="h-4 w-4" />

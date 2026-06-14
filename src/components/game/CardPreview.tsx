@@ -161,7 +161,7 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
         <div
           className={cn(
             "absolute bottom-1 left-1 z-10 max-w-[70%]",
-            "flex flex-wrap gap-0.5 pointer-events-auto",
+            "flex flex-wrap gap-0.5 pointer-events-none",
             showPT ? "pr-12" : "right-1",
           )}
         >
@@ -327,19 +327,39 @@ export function CardPreview({
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   } else {
     // Use anchorRect if available, otherwise fallback to mouse coordinates
-    const anchorX = anchorRect ? anchorRect.right : mouseX;
-    const anchorY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
+    const anchorLeft = anchorRect ? anchorRect.left : mouseX;
+    const anchorRight = anchorRect ? anchorRect.right : mouseX;
+    const anchorTop = anchorRect ? anchorRect.top : mouseY;
+    const anchorBottom = anchorRect ? anchorRect.bottom : mouseY;
+    const anchorMidY = anchorRect ? anchorRect.top + anchorRect.height / 2 : mouseY;
 
-    const spaceRight = window.innerWidth - anchorX;
-    cardLeft =
-      spaceRight > cardWidth + 24
-        ? anchorX + 16
-        : (anchorRect ? anchorRect.left : mouseX) - cardWidth - 16;
+    const fitsRight = anchorRight + 16 + cardWidth <= window.innerWidth - 8;
+    const fitsLeft = anchorLeft - 16 - cardWidth >= 8;
+
+    if (fitsRight) {
+      cardLeft = anchorRight + 16;
+    } else if (fitsLeft) {
+      cardLeft = anchorLeft - cardWidth - 16;
+    } else {
+      cardLeft = Math.max(
+        8,
+        Math.min((anchorLeft + anchorRight) / 2 - cardWidth / 2, window.innerWidth - cardWidth - 8),
+      );
+    }
+
+    if (fitsRight || fitsLeft) {
+      top = Math.min(Math.max(anchorMidY - cardHeight / 2, 8), window.innerHeight - cardHeight - 8);
+    } else {
+      const spaceAbove = anchorTop - 16;
+      const spaceBelow = window.innerHeight - anchorBottom - 16;
+      top =
+        spaceBelow >= spaceAbove
+          ? Math.min(anchorBottom + 12, window.innerHeight - cardHeight - 8)
+          : Math.max(8, anchorTop - cardHeight - 12);
+    }
 
     const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
-
-    top = Math.min(Math.max(anchorY - cardHeight / 2, 8), window.innerHeight - cardHeight - 8);
   }
 
   const hasDoubleFace = !!doubleFacedData;
@@ -363,7 +383,9 @@ export function CardPreview({
             ? "relative w-full h-full flex items-start justify-center pointer-events-none"
             : cn(
                 "fixed z-[9999]",
-                placement === "pinned" ? "pointer-events-none" : "pointer-events-auto",
+                hasActions && placement !== "pinned"
+                  ? "pointer-events-auto"
+                  : "pointer-events-none",
               ),
         )}
         style={slot ? undefined : { left: cardLeft, top }}

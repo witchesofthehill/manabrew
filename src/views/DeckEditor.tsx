@@ -4,6 +4,7 @@ import {
   revertDeckToLastSaved,
 } from "@/components/editor/deckBuilder.unsavedChanges";
 import { CardSearch } from "@/components/editor/CardSearch";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import {
   DndContext,
   DragOverlay,
@@ -80,7 +81,17 @@ export default function DeckEditor() {
   }));
   const [draggedCard, setDraggedCard] = useState<DeckCard | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchFocusSignal, setSearchFocusSignal] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+  useKeybindings({
+    "card-search-focus": () => {
+      setShowSearch(true);
+      setSearchFocusSignal((n) => n + 1);
+    },
+    "deck-editor-toggle-preview": () => togglePreview(),
+    "go-back": () => handleBack(),
+  });
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(
     () =>
@@ -590,7 +601,11 @@ export default function DeckEditor() {
           </div>
           {showSearch && (
             <div className="flex-1 min-w-0 h-full border-l overflow-hidden">
-              <CardSearch onClose={() => setShowSearch(false)} previewSlot={previewSlot} />
+              <CardSearch
+                onClose={() => setShowSearch(false)}
+                previewSlot={previewSlot}
+                focusSignal={searchFocusSignal}
+              />
             </div>
           )}
         </div>

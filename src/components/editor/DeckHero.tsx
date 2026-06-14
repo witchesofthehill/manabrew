@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Pencil } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,12 +12,12 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
-import { GAME_FORMATS } from "@/lib/formats";
+import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
 import type { DeckFormatId } from "@/types/manabrew";
 
-export function DeckHero() {
+export function DeckHero({ onBack }: { onBack?: () => void }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
@@ -58,15 +58,34 @@ export function DeckHero() {
         )}
       />
 
-      <div className="relative flex flex-col gap-1.5 px-5 pt-10 pb-4">
+      {onBack && (
+        <button
+          type="button"
+          className="absolute left-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background/60 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
+          title="Back to My Decks"
+          onClick={onBack}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+      )}
+
+      <div className={cn("relative flex flex-col gap-1.5 px-5 pb-4", onBack ? "pt-16" : "pt-10")}>
         <div className="flex flex-wrap items-center gap-1.5">
           {isReadOnly ? (
             <FormatBadge formatId={currentDeck.format ?? "standard"} />
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="cursor-pointer" title="Change format">
+                <button
+                  type="button"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-background/60 px-2 py-0.5 text-xs backdrop-blur-sm transition-colors hover:bg-background/80"
+                  title="Change format"
+                >
                   <FormatBadge formatId={currentDeck.format ?? "standard"} />
+                  <span className="font-medium">
+                    {getFormat(currentDeck.format ?? "standard")?.name}
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">

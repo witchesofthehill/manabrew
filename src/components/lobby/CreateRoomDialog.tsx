@@ -88,6 +88,8 @@ const FORMATS: {
 
 const PLAYER_OPTIONS_MATCH = [2, 3, 4] as const;
 const PLAYER_OPTIONS_LIMITED = [2, 4, 6, 8] as const;
+
+const defaultMatchPlayers = (format: GameFormat) => (format === "Commander" ? 4 : 2);
 // Capped at 90s: the engine auto-passes a silent seat after 120s
 const RECONNECT_TIMEOUT_OPTIONS = [30, 60, 90] as const;
 
@@ -146,7 +148,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   const [kind, setKind] = useState<RoomKind>("match");
   const [limitedKind, setLimitedKind] = useState<LimitedKind>("draft");
   const [roomName, setRoomName] = useState("");
-  const [matchPlayers, setMatchPlayers] = useState(4);
+  const [matchPlayersOverride, setMatchPlayersOverride] = useState<number | null>(null);
   const [limitedPlayers, setLimitedPlayers] = useState(8);
   const [format, setFormat] = useState<GameFormat>("Standard");
   const [reconnectTimeoutS, setReconnectTimeoutS] = useState<number>(DEFAULT_RECONNECT_TIMEOUT_S);
@@ -174,8 +176,9 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
 
   const defaultName = `${username ?? "Player"}'s Room`;
   const playerOptions = kind === "limited" ? PLAYER_OPTIONS_LIMITED : PLAYER_OPTIONS_MATCH;
+  const matchPlayers = matchPlayersOverride ?? defaultMatchPlayers(format);
   const maxPlayers = kind === "limited" ? limitedPlayers : matchPlayers;
-  const setMaxPlayers = kind === "limited" ? setLimitedPlayers : setMatchPlayers;
+  const setMaxPlayers = kind === "limited" ? setLimitedPlayers : setMatchPlayersOverride;
 
   const draftableSets = useMemo(
     () =>
@@ -244,6 +247,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setKind("match");
     setLimitedKind("draft");
     setRoomName("");
+    setMatchPlayersOverride(null);
     setFormat("Standard");
     setReconnectTimeoutS(DEFAULT_RECONNECT_TIMEOUT_S);
     setDraftSet("");

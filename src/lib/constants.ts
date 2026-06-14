@@ -13,6 +13,8 @@ export const ROUTES = {
 
 export const GITHUB_REPO_URL = "https://github.com/witchesofthehill/manabrew";
 export const DISCORD_INVITE_URL = "https://discord.gg/NqrKpbhtcd";
+export const WEBSITE_URL = "https://manabrew.app";
+export const DOCS_URL = "https://docs.manabrew.app";
 
 // ─── Storage Keys ────────────────────────────────────────────────────────────
 
@@ -21,6 +23,7 @@ export const STORAGE_KEYS = {
   PREFERRED_PRINTS: "manabrew-preferred-prints",
   PREFERENCES: "manabrew-preferences",
   COMPANION: "manabrew-companion",
+  KEYBINDINGS: "manabrew-keybindings",
 } as const;
 
 // ─── Deck Defaults ───────────────────────────────────────────────────────────

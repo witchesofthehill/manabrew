@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Alegreya Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -473,6 +476,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    /* Alegreya Sans has a smaller x-height than the system font it replaced,
+       so equal font-sizes read smaller. Normalize the x-height to roughly the
+       system font's ratio so apparent text size is unchanged. */
+    font-size-adjust: 0.52;
     overflow: hidden;
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;

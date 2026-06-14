@@ -22,7 +22,7 @@ export interface GameFormat {
   bannedCards: string[];
 }
 
-/** Basic land names are exempt from the max-copies rule. */
+/** Name-only fallback for callers without card data; prefer canHaveAnyNumberOf. */
 export const BASIC_LAND_NAMES = new Set(["Plains", "Island", "Swamp", "Mountain", "Forest"]);
 
 /**
@@ -59,6 +59,15 @@ export function copyLimitFromText(oracleText: string | undefined): number | null
     if (Number.isFinite(n) && n > 0) return n;
   }
   return null;
+}
+
+export function isBasicLand(card: DeckCard): boolean {
+  return (card.supertypes?.includes("Basic") ?? false) && (card.types?.includes("Land") ?? false);
+}
+
+/** Mirrors Forge's DeckFormat.canHaveAnyNumberOf. */
+export function canHaveAnyNumberOf(card: DeckCard): boolean {
+  return isBasicLand(card) || copyLimitFromText(card.text) === Infinity;
 }
 
 export const GAME_FORMATS: GameFormat[] = [
@@ -429,6 +438,10 @@ export function validateDeckSections(
 
   const copyLimits = new Map<string, number>();
   for (const c of availableCards) {
+    if (canHaveAnyNumberOf(c)) {
+      copyLimits.set(c.name, Infinity);
+      continue;
+    }
     const limit = copyLimitFromText(c.text);
     if (limit !== null) copyLimits.set(c.name, limit);
   }
@@ -509,7 +522,7 @@ export function looksLikeCommanderDeck(deck: Deck): boolean {
   if (total < 90) return false;
   const counts = new Map<string, number>();
   for (const card of deck.cards) {
-    if (BASIC_LAND_NAMES.has(card.name)) continue;
+    if (canHaveAnyNumberOf(card)) continue;
     counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
   }
   return [...counts.values()].every((n) => n === 1);

@@ -58,7 +58,7 @@ const CELL_H = 30;
 const CELL_GAP = 5;
 const CELL_R = 4;
 const COMBAT_ICON_SIZE = 16;
-const FONT = "system-ui, -apple-system, sans-serif";
+const FONT = "Alegreya Sans, system-ui, -apple-system, sans-serif";
 
 const FLASH_DURATION_MS = 800;
 const FLASH_MAX_EXPAND = 8;

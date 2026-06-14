@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useCardSearch } from "@/hooks/useCards";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { Input } from "@/components/ui/input";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -503,9 +504,11 @@ interface CardSearchProps {
   /** Shared rail slot — when provided, the hover preview portals into it
    *  (pinned). When absent, the search panel renders no preview of its own. */
   previewSlot?: HTMLElement | null;
+  /** Bump to focus the search box (used by the deck editor's `/` shortcut). */
+  focusSignal?: number;
 }
 
-export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps) {
+export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
   const preview = useCardPreview();
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
@@ -522,6 +525,21 @@ export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps
   const hasActiveFilters = basicCount > 0 || advCount > 0;
 
   const observerTarget = useRef(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const focusSearchInput = () => {
+    searchInputRef.current?.focus();
+    searchInputRef.current?.select();
+  };
+
+  // On the standalone search page CardSearch owns the `/` shortcut. As the
+  // deck-editor panel the editor owns it (so it can open the panel first)
+  // and drives focus through `focusSignal`.
+  useKeybindings(standalone ? { "card-search-focus": focusSearchInput } : {});
+
+  useEffect(() => {
+    if (focusSignal) focusSearchInput();
+  }, [focusSignal]);
 
   const effectiveQuery = buildScryfallQuery(
     debouncedText,
@@ -604,6 +622,7 @@ export function CardSearch({ standalone, onClose, previewSlot }: CardSearchProps
             </Button>
           )}
           <Input
+            ref={searchInputRef}
             placeholder="Search cards…"
             value={text}
             onChange={(e) => setText(e.target.value)}

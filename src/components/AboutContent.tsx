@@ -1,19 +1,27 @@
-import { cn } from "@/lib/utils";
+import { BookOpen, Globe } from "lucide-react";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
-import { ScreenshotCarousel } from "@/components/ScreenshotCarousel";
 import { DiscordCallout } from "@/components/DiscordCallout";
+import { LinkCallout } from "@/components/LinkCallout";
+import { DOCS_URL, WEBSITE_URL } from "@/lib/constants";
 
-export function AboutContent({ fullBleedCarousel = false }: { fullBleedCarousel?: boolean }) {
+export function AboutContent() {
   return (
-    <div className="space-y-6">
-      <div
-        className={cn(fullBleedCarousel ? "relative left-1/2 w-dvw -translate-x-1/2" : "w-full")}
-      >
-        <ScreenshotCarousel />
-      </div>
-      <div className="mx-auto w-full max-w-2xl space-y-6">
-        <OnboardingGuide />
+    <div className="mx-auto w-full max-w-2xl space-y-6">
+      <OnboardingGuide />
+      <div className="space-y-3">
         <DiscordCallout />
+        <LinkCallout
+          href={WEBSITE_URL}
+          icon={<Globe className="size-5" />}
+          title="Visit the website"
+          description="News, downloads, and everything ManaBrew at manabrew.app."
+        />
+        <LinkCallout
+          href={DOCS_URL}
+          icon={<BookOpen className="size-5" />}
+          title="Read the docs"
+          description="Guides, formats, and self-hosting at docs.manabrew.app."
+        />
       </div>
     </div>
   );

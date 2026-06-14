@@ -4,7 +4,7 @@ import { getPlatform } from "@/platform";
 import { getSelectedGameRuntime } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
 import { clearActiveGameSession } from "@/lib/activeGameSession";
-import { normalizeGameLogPayload } from "@/types/gameLog";
+import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
 import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate } from "@/protocol";
@@ -18,6 +18,20 @@ function normalizeEnginePrompt(prompt: unknown): Prompt | null {
 }
 
 const { setState, getState } = useGameStore;
+
+function toastOpponentPublicAction(entry: GameLogEntry) {
+  if (!entry.playerId) return;
+  const players = getState().gameView?.players ?? [];
+  const me =
+    players.find((p) => p.id === getState().myPlayerSlot) ??
+    players.find((p) => p.isHuman) ??
+    players[0];
+  if (!me || entry.playerId === me.id) return;
+  const actor = players.find((p) => p.id === entry.playerId)?.name ?? "Opponent";
+  if (entry.message.startsWith(FORETELL_LOG_PREFIX)) {
+    toast.info(`${actor} foretold a card`);
+  }
+}
 
 /**
  * Sets up platform event listeners for the three engine→UI message families:
@@ -77,6 +91,7 @@ export function useGameEventListeners() {
           setState((state) => ({
             gameLog: [...state.gameLog.slice(-199), entry],
           }));
+          toastOpponentPublicAction(entry);
         }),
       );
 

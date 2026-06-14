@@ -4,6 +4,7 @@ import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { PromptPreferencesPanel } from "@/components/game/prompts/PromptPreferencesPanel";
+import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
@@ -349,9 +350,9 @@ export default function Settings() {
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
-  const [activeTab, setActiveTab] = useState<"server" | "preferences" | "theme" | "prompts">(
-    "preferences",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "server" | "preferences" | "theme" | "prompts" | "keybindings"
+  >("preferences");
   const [presetOpen, setPresetOpen] = useState(false);
   const [editingThemeColorPath, setEditingThemeColorPath] = useState<string | null>(null);
   const [editingThemeColorValue, setEditingThemeColorValue] = useState("");
@@ -468,8 +469,22 @@ export default function Settings() {
           >
             Server
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("keybindings")}
+            className={
+              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              (activeTab === "keybindings"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground")
+            }
+          >
+            Shortcuts
+          </button>
         </div>
       </section>
+
+      {activeTab === "keybindings" && <KeybindingsPanel />}
 
       {activeTab === "prompts" && <PromptPreferencesPanel />}
 

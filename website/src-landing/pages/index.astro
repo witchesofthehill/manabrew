@@ -8,9 +8,9 @@ import "@fontsource/alegreya-sans/700.css";
 import preset from "../../src/theme";
 import logo from "../../../src/assets/manaBrew.png";
 import brewery from "../../../public/manabrew_brewery_1.png";
-import battleground from "../../../images/battleground.png";
-import deckEdit from "../../../images/deckEdit.jpeg";
-import vsSelection from "../../../images/vsSelection.jpeg";
+import deckLibrary from "../../../images/screenshots/my-decks.png";
+import deckEditor from "../../../images/screenshots/deck-editor.png";
+import formatSelect from "../../../images/screenshots/format-select.png";
 
 const GITHUB = "https://github.com/witchesofthehill/manabrew";
 const DISCORD = "https://discord.gg/NqrKpbhtcd";
@@ -129,17 +129,17 @@ const mana = preset.gameColors;
 
       <section class="gallery">
         <figure class="shot-wide">
-          <Image src={battleground} alt="A game in progress on the ManaBrew battlefield" widths={[640, 1280, 1920]} sizes="(max-width: 900px) 100vw, 1080px" />
-          <figcaption>The battlefield</figcaption>
+          <Image src={deckLibrary} alt="Browsing your deck library in ManaBrew" widths={[640, 1280, 1920]} sizes="(max-width: 900px) 100vw, 1080px" />
+          <figcaption>Your deck library</figcaption>
         </figure>
         <div class="shot-pair">
           <figure>
-            <Image src={deckEdit} alt="The ManaBrew deck editor" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
+            <Image src={deckEditor} alt="The ManaBrew deck editor" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
             <figcaption>Deck editor</figcaption>
           </figure>
           <figure>
-            <Image src={vsSelection} alt="Choosing decks and opponents before a game" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
-            <figcaption>Versus selection</figcaption>
+            <Image src={formatSelect} alt="Choosing a format in ManaBrew" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
+            <figcaption>Choose a format</figcaption>
           </figure>
         </div>
       </section>

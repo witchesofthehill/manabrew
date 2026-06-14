@@ -1288,7 +1288,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (!gameView?.gameOver) return;
     const pending = tryConsumeGauntletMatch();
     if (!pending) return;
-    const humanWon = (gameView.winnerId ?? "").toLowerCase().includes("0");
+    const humanWon = gameView.winnerId != null && gameView.winnerId === myPlayerSlot;
     void useLimitedStore
       .getState()
       .recordGauntletOutcome(pending.gauntletId, humanWon, true, humanWon)
@@ -1298,7 +1298,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       .finally(() => {
         navigate(`/gauntlet/${pending.gauntletId}`);
       });
-  }, [gameView?.gameOver, gameView?.winnerId, navigate]);
+  }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate]);
 
   if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
 

@@ -24,6 +24,13 @@ import { TargetingIntent, intentIsHostile } from "@/types/promptType";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum, colorAlpha } from "./colorUtils";
+import {
+  cubicCurve,
+  cubicTangent,
+  shortenSegmentEndpoints,
+  type CubicCurve,
+  type Point,
+} from "./curveGeometry";
 import { INTENT_GLYPH_SVG as POINTER_ICON_SVGS } from "./pointerGlyphs";
 
 /** Rewrite a Game-Icons SVG so its paths render as opaque white pixels
@@ -126,62 +133,11 @@ interface PointerLayerRenderOptions {
   showSourceGlyphs: boolean;
 }
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface CubicCurve {
-  p0: Point;
-  c1: Point;
-  c2: Point;
-  p1: Point;
-}
-
 interface LaidOutPointer extends ResolvedPointer {
   targetX: number;
   targetY: number;
   sourceGlyphX: number;
   sourceGlyphY: number;
-}
-
-function unit(dx: number, dy: number): { ux: number; uy: number; len: number } {
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < 1) return { ux: 0, uy: 0, len: 0 };
-  return { ux: dx / len, uy: dy / len, len };
-}
-
-function cubicCurve(x1: number, y1: number, x2: number, y2: number, bow: number): CubicCurve {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const { len } = unit(dx, dy);
-  if (len === 0) {
-    const p = { x: x1, y: y1 };
-    return { p0: p, c1: p, c2: p, p1: p };
-  }
-  const nx = -dy / len;
-  const ny = dx / len;
-  const offset = len * bow * 0.4;
-  return {
-    p0: { x: x1, y: y1 },
-    c1: { x: x1 + dx * 0.25 + nx * offset, y: y1 + dy * 0.25 + ny * offset },
-    c2: { x: x1 + dx * 0.75 + nx * offset, y: y1 + dy * 0.75 + ny * offset },
-    p1: { x: x2, y: y2 },
-  };
-}
-
-function cubicTangent(curve: CubicCurve, t: number): { ux: number; uy: number } {
-  const u = 1 - t;
-  const dx =
-    3 * u * u * (curve.c1.x - curve.p0.x) +
-    6 * u * t * (curve.c2.x - curve.c1.x) +
-    3 * t * t * (curve.p1.x - curve.c2.x);
-  const dy =
-    3 * u * u * (curve.c1.y - curve.p0.y) +
-    6 * u * t * (curve.c2.y - curve.c1.y) +
-    3 * t * t * (curve.p1.y - curve.c2.y);
-  const { ux, uy } = unit(dx, dy);
-  return { ux, uy };
 }
 
 function shortenEndpoints(
@@ -190,14 +146,7 @@ function shortenEndpoints(
   x2: number,
   y2: number,
 ): { ax1: number; ay1: number; ax2: number; ay2: number } {
-  const { ux, uy, len } = unit(x2 - x1, y2 - y1);
-  if (len === 0) return { ax1: x1, ay1: y1, ax2: x2, ay2: y2 };
-  return {
-    ax1: x1 + ux * LINK_TAIL_SHORTEN,
-    ay1: y1 + uy * LINK_TAIL_SHORTEN,
-    ax2: x2 - ux * LINK_TIP_SHORTEN,
-    ay2: y2 - uy * LINK_TIP_SHORTEN,
-  };
+  return shortenSegmentEndpoints(x1, y1, x2, y2, LINK_TAIL_SHORTEN, LINK_TIP_SHORTEN);
 }
 
 function pointClusterKey(x: number, y: number): string {

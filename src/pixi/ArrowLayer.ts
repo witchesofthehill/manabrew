@@ -2,6 +2,14 @@ import { Container, FillGradient, Graphics } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
+import {
+  cubicAt,
+  cubicCurve,
+  cubicTangent,
+  sampleCubic,
+  shortenSegmentEndpoints,
+  type CubicCurve,
+} from "./curveGeometry";
 import type { ArrowType } from "./types";
 
 // Re-export so existing callers still import ArrowType from this module.
@@ -69,96 +77,13 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface CubicCurve {
-  p0: Point;
-  c1: Point;
-  c2: Point;
-  p1: Point;
-}
-
-function unit(dx: number, dy: number): { ux: number; uy: number; len: number } {
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < 1) return { ux: 0, uy: 0, len: 0 };
-  return { ux: dx / len, uy: dy / len, len };
-}
-
-/**
- * Cubic Bezier with a perpendicular bow — control points sit at 25% / 75%
- * of the line, offset perpendicular by `bow * length * 0.4`. Mirrors the
- * geometry from the design spec so the curve shape matches across variants.
- */
-function cubicCurve(x1: number, y1: number, x2: number, y2: number, bow: number): CubicCurve {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const { len } = unit(dx, dy);
-  if (len === 0) {
-    const p = { x: x1, y: y1 };
-    return { p0: p, c1: p, c2: p, p1: p };
-  }
-  const nx = -dy / len;
-  const ny = dx / len;
-  const offset = len * bow * 0.4;
-  return {
-    p0: { x: x1, y: y1 },
-    c1: { x: x1 + dx * 0.25 + nx * offset, y: y1 + dy * 0.25 + ny * offset },
-    c2: { x: x1 + dx * 0.75 + nx * offset, y: y1 + dy * 0.75 + ny * offset },
-    p1: { x: x2, y: y2 },
-  };
-}
-
 function shortenEndpoints(
   x1: number,
   y1: number,
   x2: number,
   y2: number,
 ): { ax1: number; ay1: number; ax2: number; ay2: number } {
-  const { ux, uy, len } = unit(x2 - x1, y2 - y1);
-  if (len === 0) return { ax1: x1, ay1: y1, ax2: x2, ay2: y2 };
-  return {
-    ax1: x1 + ux * TAIL_SHORTEN,
-    ay1: y1 + uy * TAIL_SHORTEN,
-    ax2: x2 - ux * TIP_SHORTEN,
-    ay2: y2 - uy * TIP_SHORTEN,
-  };
-}
-
-function cubicAt(curve: CubicCurve, t: number): Point {
-  const u = 1 - t;
-  const uu = u * u;
-  const tt = t * t;
-  return {
-    x:
-      uu * u * curve.p0.x + 3 * uu * t * curve.c1.x + 3 * u * tt * curve.c2.x + tt * t * curve.p1.x,
-    y:
-      uu * u * curve.p0.y + 3 * uu * t * curve.c1.y + 3 * u * tt * curve.c2.y + tt * t * curve.p1.y,
-  };
-}
-
-function cubicTangent(curve: CubicCurve, t: number): { ux: number; uy: number } {
-  const u = 1 - t;
-  // Derivative of cubic Bezier: 3(1-t)²(C1-P0) + 6(1-t)t(C2-C1) + 3t²(P1-C2)
-  const dx =
-    3 * u * u * (curve.c1.x - curve.p0.x) +
-    6 * u * t * (curve.c2.x - curve.c1.x) +
-    3 * t * t * (curve.p1.x - curve.c2.x);
-  const dy =
-    3 * u * u * (curve.c1.y - curve.p0.y) +
-    6 * u * t * (curve.c2.y - curve.c1.y) +
-    3 * t * t * (curve.p1.y - curve.c2.y);
-  const { ux, uy } = unit(dx, dy);
-  return { ux, uy };
-}
-
-function sampleCubic(curve: CubicCurve, steps: number): Point[] {
-  const points: Point[] = [];
-  for (let i = 0; i <= steps; i++) points.push(cubicAt(curve, i / steps));
-  return points;
+  return shortenSegmentEndpoints(x1, y1, x2, y2, TAIL_SHORTEN, TIP_SHORTEN);
 }
 
 /**

@@ -62,6 +62,16 @@ export interface OverlayHost {
   scheduleHoverClear(cardId: string): void;
 }
 
+/** Narrow seam the `SelectionController` uses to read battlefield sprites
+ *  and re-apply the base (non-selected) ring colour. */
+export interface SelectionHost {
+  getPlayZone(): PlayZoneRect;
+  getTheme(): Theme;
+  getEntries(): ReadonlyMap<string, SpriteEntry>;
+  applyRing(sprite: CardSprite): void;
+  canRefreshRings(): boolean;
+}
+
 /** Narrow seam the `HandController` uses to read scene geometry/state and
  *  feed the drag-exclusion band, without owning the scene. */
 export interface HandHost {

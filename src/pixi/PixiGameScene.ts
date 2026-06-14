@@ -21,10 +21,16 @@ import {
 import { CardSprite, setCardSpriteTheme } from "./CardSprite";
 import { BattlefieldOverlay } from "./board/BattlefieldOverlay";
 import { HandController } from "./board/HandController";
+import { SelectionController } from "./board/SelectionController";
 import { lerp, safeDestroy } from "./board/pixiHelpers";
-import type { BlockingRect, HandHost, OverlayHost, SpriteEntry } from "./board/types";
+import type {
+  BlockingRect,
+  HandHost,
+  OverlayHost,
+  SelectionHost,
+  SpriteEntry,
+} from "./board/types";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
-import { MarqueeHandler } from "./MarqueeHandler";
 import { DragHandler } from "./DragHandler";
 import {
   computeGridLayout,
@@ -73,9 +79,8 @@ import {
   Z_OVERLAY_OFFSET,
   Z_PLACEMENT_GHOST,
   Z_PLACEMENT_GHOST_TEXT,
-  Z_SELECTION_BADGE,
 } from "./constants";
-import { EMPTY_LABEL_STYLE, GHOST_LABEL_STYLE, SELECTION_BADGE_STYLE } from "./textStyles";
+import { EMPTY_LABEL_STYLE, GHOST_LABEL_STYLE } from "./textStyles";
 
 // ───── Shared types ─────
 type Point = ScreenPos;
@@ -161,10 +166,9 @@ export class PixiGameScene {
   /** Grid cell the user was hovering when they dropped a card from hand.
    *  The next new card entering the battlefield gets this slot. */
   private pendingDropSlot: { col: number; row: number } | null = null;
-  private selectedCardIds = new Set<string>();
-  private marquee: MarqueeHandler;
   private dragHandler: DragHandler;
   private battlefieldOverlay: BattlefieldOverlay;
+  private selectionController: SelectionController;
   /** User-assigned grid slot per top-level battlefield card. Survives re-renders
    *  so a card stays put once the user drops it on a cell. Pruned when the
    *  card leaves the battlefield. */
@@ -195,7 +199,6 @@ export class PixiGameScene {
   private cardScale = BATTLEFIELD_CARD_SCALE_DEFAULT;
   private lastState: BattlefieldState | null = null;
   private emptyText: Text;
-  private selectionBadge: Text;
 
   private handController: HandController;
   private arrowLayer: ArrowLayer;
@@ -254,8 +257,16 @@ export class PixiGameScene {
     this.emptyText.visible = false;
     this.root.addChild(this.emptyText);
 
-    this.marquee = new MarqueeHandler();
-    this.root.addChild(this.marquee.graphics);
+    const selectionHost: SelectionHost = {
+      getPlayZone: () => this.getPlayZone(),
+      getTheme: () => this.theme,
+      getEntries: () => this.entries,
+      applyRing: (sprite) => {
+        if (this.lastState) this.applyBattlefieldRing(sprite, this.lastState);
+      },
+      canRefreshRings: () => this.lastState !== null,
+    };
+    this.selectionController = new SelectionController(selectionHost, this.root);
 
     this.dragHandler = new DragHandler();
     this.dragHandler.setCardScale(this.cardScale);
@@ -264,7 +275,7 @@ export class PixiGameScene {
       getTheme: () => this.theme,
       getCallbacks: () => this.callbacks,
       getContainer: () => this.myBattlefieldContainer,
-      getSelectedCardIds: () => this.selectedCardIds,
+      getSelectedCardIds: () => this.selectionController.getSelected(),
       getLastState: () => this.lastState,
       getEntries: () => this.entries,
       isJustDragged: (id) => this.dragHandler.justDraggedCardIds.has(id),
@@ -280,11 +291,6 @@ export class PixiGameScene {
     this.gridSkeletonGfx.visible = false;
     this.gridSkeletonGfx.zIndex = Z_GRID_SKELETON;
     this.myBattlefieldContainer.addChild(this.gridSkeletonGfx);
-
-    this.selectionBadge = new Text({ text: "", style: SELECTION_BADGE_STYLE });
-    this.selectionBadge.visible = false;
-    this.selectionBadge.zIndex = Z_SELECTION_BADGE;
-    this.root.addChild(this.selectionBadge);
 
     const handHost: HandHost = {
       getPlayZone: () => this.getPlayZone(),
@@ -810,7 +816,7 @@ export class PixiGameScene {
     this.app.stage.off("pointerup");
     this.app.stage.off("pointerupoutside");
     try {
-      this.marquee.destroy();
+      this.selectionController.destroy();
       this.dragHandler.destroy();
       this.arrowLayer.destroy();
     } catch (err) {
@@ -1490,7 +1496,7 @@ export class PixiGameScene {
     // any subsequent updateBattlefield (triggered by hover → React
     // re-render → prop change) overwrites the marquee selection glow
     // even though `selectedCardIds` is still populated.
-    if (this.selectedCardIds.has(sprite.card.id)) {
+    if (this.selectionController.has(sprite.card.id)) {
       sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
       return;
     }
@@ -1531,16 +1537,17 @@ export class PixiGameScene {
     if (!this.allowDrag) return;
     this.callbacks.onHoverCard?.(null);
     const local = this.root.toLocal(e.global);
-    this.selectedCardIds = this.dragHandler.start(
-      sprite.card.id,
-      local.x,
-      local.y,
-      this.selectedCardIds,
-      this.snapshotCurrentPositions(),
-      e.shiftKey,
+    this.selectionController.setSelected(
+      this.dragHandler.start(
+        sprite.card.id,
+        local.x,
+        local.y,
+        this.selectionController.getSelected(),
+        this.snapshotCurrentPositions(),
+        e.shiftKey,
+      ),
     );
-    this.drawSelectionBadge();
-    this.refreshSelectionRings();
+    this.selectionController.refresh();
   }
 
   private onBackgroundDown(e: FederatedPointerEvent): void {
@@ -1549,18 +1556,17 @@ export class PixiGameScene {
     if (!this.allowDrag) return;
     const local = this.root.toLocal(e.global);
     if (!e.shiftKey) {
-      this.selectedCardIds.clear();
-      this.drawSelectionBadge();
-      this.refreshSelectionRings();
+      this.selectionController.clear();
+      this.selectionController.refresh();
     }
-    this.marquee.start(local.x, local.y, e.shiftKey);
+    this.selectionController.startMarquee(local.x, local.y, e.shiftKey);
   }
 
   private onGlobalMove(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
     const local = this.root.toLocal(e.global);
-    if (this.marquee.isActive) {
-      this.marquee.move(local.x, local.y);
+    if (this.selectionController.isMarqueeActive()) {
+      this.selectionController.moveMarquee(local.x, local.y);
       return;
     }
 
@@ -1625,13 +1631,8 @@ export class PixiGameScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
-    if (this.marquee.isActive) {
-      this.selectedCardIds = this.marquee.end(
-        this.snapshotCurrentPositions(),
-        this.selectedCardIds,
-      );
-      this.drawSelectionBadge();
-      this.refreshSelectionRings();
+    if (this.selectionController.isMarqueeActive()) {
+      this.selectionController.endMarquee(this.snapshotCurrentPositions());
       return;
     }
 
@@ -1838,29 +1839,6 @@ export class PixiGameScene {
       positions.set(id, { x: entry.sprite.x, y: entry.sprite.y });
     }
     return positions;
-  }
-
-  private drawSelectionBadge(): void {
-    if (this.selectedCardIds.size === 0) {
-      this.selectionBadge.visible = false;
-      return;
-    }
-    this.selectionBadge.text = `${this.selectedCardIds.size} selected`;
-    this.selectionBadge.visible = true;
-    const zone = this.getPlayZone();
-    this.selectionBadge.x = zone.x + zone.width - this.selectionBadge.width - 8;
-    this.selectionBadge.y = zone.y + 6;
-  }
-
-  private refreshSelectionRings(): void {
-    if (!this.lastState) return;
-    for (const entry of this.entries.values()) {
-      if (this.selectedCardIds.has(entry.sprite.card.id)) {
-        entry.sprite.setRing(hexToNum(this.theme.gameTheme.cardRing));
-      } else {
-        this.applyBattlefieldRing(entry.sprite, this.lastState);
-      }
-    }
   }
 
   // ═══════════════════════════════════════════════════════════════

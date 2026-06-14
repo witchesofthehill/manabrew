@@ -1092,6 +1092,10 @@ fn spawn_game_over_forwarder(
     });
 }
 
+// Java game over is an ordered sequence: final state updates and the
+// gameOver prompt must reach clients before EndGame resets the room.
+// This forwarder receives the sequence as one bundle so EndGame cannot
+// overtake the final engine messages on outbound_tx.
 fn spawn_java_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
     game_over_rx: std_mpsc::Receiver<java_backend::HostedGameOver>,

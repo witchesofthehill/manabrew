@@ -5,6 +5,7 @@ import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
+import { SELF_HEIGHT_FRACTION } from "@/pixi/board/boardLayout";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -491,6 +492,25 @@ export function GameBoard({
   const boardArrangement = usePreferencesStore((s) => s.boardArrangement);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const unifiedSceneRef = useRef<BoardScene | null>(null);
+  const [unifiedSplit, setUnifiedSplit] = useState(SELF_HEIGHT_FRACTION);
+
+  const onUnifiedGripDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const el = boardRef.current;
+    if (!el) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const onMove = (ev: PointerEvent) => {
+      const rect = el.getBoundingClientRect();
+      const selfFrac = (rect.height - (ev.clientY - rect.top)) / rect.height;
+      setUnifiedSplit(Math.max(0.2, Math.min(0.8, selfFrac)));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, []);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const oppState = (cards: GameCard[]): BattlefieldState => ({
@@ -635,6 +655,7 @@ export function GameBoard({
             phaseStrip={pixiPhaseStrip}
             phaseStripCallbacks={pixiPhaseStripCallbacks}
             arrangement={boardArrangement}
+            selfHeightFraction={unifiedSplit}
             callbacks={pixiCallbacks}
             externalBlockers={pixiExternalBlockers}
             isDropActive={isOverBattlefield}
@@ -690,6 +711,15 @@ export function GameBoard({
         <div className="absolute inset-0 z-40 pointer-events-none">
           <BoardArrowsCanvas sceneRef={unifiedSceneRef} />
         </div>
+        {unifiedLayout?.self && (
+          <div
+            className="absolute left-0 right-0 z-50 h-3 cursor-row-resize flex items-center justify-center group"
+            style={{ top: unifiedLayout.self.y - 6 }}
+            onPointerDown={onUnifiedGripDown}
+          >
+            <div className="h-[3px] w-16 rounded-full bg-white/20 group-hover:bg-white/40" />
+          </div>
+        )}
       </div>
     );
   }

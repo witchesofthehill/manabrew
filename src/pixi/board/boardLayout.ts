@@ -33,11 +33,13 @@ export function computeBoardLayout(
   height: number,
   opponentCount: number,
   arrangement: BoardArrangement = "row",
+  selfHeightFraction: number = SELF_HEIGHT_FRACTION,
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const band = Math.min(STRIP_BAND_PX, Math.max(0, height - 2));
   const usable = Math.max(0, height - band);
-  const selfHeight = Math.round(usable * SELF_HEIGHT_FRACTION);
+  const fraction = Math.min(0.8, Math.max(0.2, selfHeightFraction));
+  const selfHeight = Math.round(usable * fraction);
   const topHeight = usable - selfHeight;
   const dividerY = topHeight + band / 2;
 

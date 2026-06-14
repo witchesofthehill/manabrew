@@ -184,6 +184,20 @@ export class BoardRegion {
     return entry ? { x: entry.targetX, y: entry.targetY } : null;
   }
 
+  getLastState(): BattlefieldState | null {
+    return this.lastState;
+  }
+
+  hasLastState(): boolean {
+    return this.lastState !== null;
+  }
+
+  /** Re-apply the base (non-selection) ring for one sprite — used by the
+   *  SelectionController when selection changes. */
+  applyBaseRing(sprite: CardSprite): void {
+    if (this.lastState) this.applyBattlefieldRing(sprite, this.lastState);
+  }
+
   // ── Combat staging ─────────────────────────────────────────────────
 
   setCombatStaging(staging: SceneCombatStaging | null): void {

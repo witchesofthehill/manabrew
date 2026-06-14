@@ -39,7 +39,7 @@ export type ArrowEndpoint =
  *  Aura targeting), and the placement preview (`placement`, dashed
  *  marching-ants) when casting a permanent spell. Every other targeting
  *  interaction renders as a `PointerSpec` instead. */
-export type ArrowType = "attack" | "block" | "attach" | "placement";
+export type ArrowType = "attack" | "block" | "attach" | "placement" | "cast";
 
 export interface ArrowSpec {
   from: ArrowEndpoint;
@@ -114,6 +114,7 @@ export interface BattlefieldState {
 export interface HandState {
   cards: GameCard[];
   draggingCardId?: string;
+  draggingIsPermanent?: boolean;
   castingCardId?: string | null;
   selectionMode?: boolean;
   selectedIds?: Set<string>;

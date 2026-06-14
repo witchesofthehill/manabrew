@@ -1,6 +1,10 @@
 import type { CardRulesSummary, GameCard, StackObject } from "@/types/manabrew";
 import { PROMPT_LABELS } from "./game.constants";
 
+export function isPermanentSpellCard(card: Pick<GameCard, "types">): boolean {
+  return !card.types.includes("Instant") && !card.types.includes("Sorcery");
+}
+
 export function getInitials(name: string): string {
   return name
     .split(" ")

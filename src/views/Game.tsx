@@ -2,12 +2,11 @@ import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useCastDragStore } from "@/stores/useCastDragStore";
 import { useAutoResolvePrompt } from "@/components/game/prompts/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { ActivatableAbilityInfo, GameCard, Player, StackObject } from "@/types/manabrew";
-import { Card } from "@/components/game/Card";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
@@ -38,7 +37,6 @@ import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { GameBoard } from "@/components/game/GameBoard";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import { cn } from "@/lib/utils";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { useLimitedStore } from "@/stores/useLimitedStore";
@@ -50,7 +48,10 @@ import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
-import { stackObjectToCardStub } from "@/components/game/game.utils";
+import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
+import { createPortal } from "react-dom";
+import { Card } from "@/components/game/Card";
+import { cn } from "@/lib/utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { PlacementGhost } from "@/components/game/game.types";
@@ -134,8 +135,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const vScale = useHandScale();
-  const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
-  const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
   const devExtraOpponents =
@@ -828,6 +827,15 @@ export default function Game({ exitTo }: GameProps = {}) {
     dismissHover: preview.dismiss,
   });
 
+  const setCastDragActive = useCastDragStore((s) => s.setActive);
+  useEffect(() => {
+    setCastDragActive(!!draggingHandCard);
+  }, [draggingHandCard, setCastDragActive]);
+
+  const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
+  const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
+  const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
+
   const hoveredCardActions = preview.hoveredCard ? getCardActions(preview.hoveredCard) : [];
 
   /** Handle an action selected from the hover preview. */
@@ -1424,6 +1432,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           isOverBattlefield={isOverBattlefield}
           battlefieldContainerRef={battlefieldContainerRef}
           draggingCardId={draggingHandCard?.id}
+          draggingIsPermanent={draggingIsPermanent}
           castingCardId={casting.castingCardId}
           onHandCardDragStart={handleHandCardDragStart}
           onHandCardClick={handleHandCardAction}
@@ -1724,8 +1733,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         hostile={casting.arrowHostile}
       />
 
-      {/* ── Ghost card while dragging from hand ───────────── */}
       {draggingHandCard &&
+        !draggingIsPermanent &&
         createPortal(
           <div
             className="fixed pointer-events-none z-[9999]"

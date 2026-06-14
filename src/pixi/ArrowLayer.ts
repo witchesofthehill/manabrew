@@ -69,6 +69,24 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
+const CAST_STROKE_WIDTH = 5;
+const CAST_ALPHA = 0.9;
+const CAST_DASH = 15;
+const CAST_GAP = 10;
+const CAST_HEAD_LEN = 22;
+const CAST_HEAD_WIDTH = 18;
+
+interface DashedArrowStyle {
+  color: number;
+  strokeWidth: number;
+  alpha: number;
+  dash: number;
+  gap: number;
+  headLen: number;
+  headWidth: number;
+  dashOffset: number;
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 interface Point {
   x: number;
@@ -292,7 +310,28 @@ export class ArrowLayer {
         this.drawRune(entry, arrow);
         return;
       case "placement":
-        this.drawPlacement(entry, arrow);
+        this.drawPlacement(entry, arrow, {
+          color: hexToNum(this.theme.gameTheme.activeAction.active),
+          strokeWidth: PLACEMENT_STROKE_WIDTH,
+          alpha: PLACEMENT_ALPHA,
+          dash: PLACEMENT_DASH,
+          gap: PLACEMENT_GAP,
+          headLen: PLACEMENT_HEAD_LEN,
+          headWidth: PLACEMENT_HEAD_WIDTH,
+          dashOffset: this.placementDashOffset,
+        });
+        return;
+      case "cast":
+        this.drawPlacement(entry, arrow, {
+          color: hexToNum(this.theme.gameTheme.arrow.friendlyTarget),
+          strokeWidth: CAST_STROKE_WIDTH,
+          alpha: CAST_ALPHA,
+          dash: CAST_DASH,
+          gap: CAST_GAP,
+          headLen: CAST_HEAD_LEN,
+          headWidth: CAST_HEAD_WIDTH,
+          dashOffset: 0,
+        });
         return;
     }
   }
@@ -473,17 +512,26 @@ export class ArrowLayer {
   }
 
   // ── Placement (drop-here marching-ants — unchanged from original) ────────
-  private drawPlacement(entry: ArrowEntry, arrow: ArrowDef): void {
+  private drawPlacement(entry: ArrowEntry, arrow: ArrowDef, style: DashedArrowStyle): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PLACEMENT);
-    const color = hexToNum(this.theme.gameTheme.activeAction.active);
+    const color = style.color;
     const points = sampleCubic(curve, PLACEMENT_BEZIER_STEPS);
 
-    const cycle = PLACEMENT_DASH + PLACEMENT_GAP;
-    let drawing = this.placementDashOffset % cycle < PLACEMENT_DASH;
+    const cycle = style.dash + style.gap;
+    let drawing = style.dashOffset % cycle < style.dash;
     let remaining = drawing
-      ? PLACEMENT_DASH - (this.placementDashOffset % cycle)
-      : cycle - (this.placementDashOffset % cycle);
+      ? style.dash - (style.dashOffset % cycle)
+      : cycle - (style.dashOffset % cycle);
+
+    const stroke = () =>
+      entry.coreGfx.stroke({
+        color,
+        width: style.strokeWidth,
+        alpha: style.alpha,
+        cap: "round",
+        join: "round",
+      });
 
     let prev = points[0]!;
     if (drawing) entry.coreGfx.moveTo(prev.x, prev.y);
@@ -497,50 +545,41 @@ export class ArrowLayer {
       } else {
         if (drawing) {
           entry.coreGfx.lineTo(cur.x, cur.y);
-          entry.coreGfx.stroke({
-            color,
-            width: PLACEMENT_STROKE_WIDTH,
-            alpha: PLACEMENT_ALPHA,
-            cap: "round",
-            join: "round",
-          });
+          stroke();
         }
         drawing = !drawing;
-        remaining = drawing ? PLACEMENT_DASH : PLACEMENT_GAP;
+        remaining = drawing ? style.dash : style.gap;
         if (drawing) entry.coreGfx.moveTo(cur.x, cur.y);
       }
       prev = cur;
     }
-    if (drawing) {
-      entry.coreGfx.stroke({
-        color,
-        width: PLACEMENT_STROKE_WIDTH,
-        alpha: PLACEMENT_ALPHA,
-        cap: "round",
-        join: "round",
-      });
-    }
+    if (drawing) stroke();
 
-    this.drawPlacementHead(entry.headGfx, curve, color);
+    this.drawPlacementHead(entry.headGfx, curve, color, style);
   }
 
-  private drawPlacementHead(gfx: Graphics, curve: CubicCurve, color: number): void {
+  private drawPlacementHead(
+    gfx: Graphics,
+    curve: CubicCurve,
+    color: number,
+    style: DashedArrowStyle,
+  ): void {
     const tan = cubicTangent(curve, 1);
     if (tan.ux === 0 && tan.uy === 0) return;
     const tip = curve.p1;
     const px = -tan.uy;
     const py = tan.ux;
-    const baseX = tip.x - tan.ux * PLACEMENT_HEAD_LEN;
-    const baseY = tip.y - tan.uy * PLACEMENT_HEAD_LEN;
-    const halfW = PLACEMENT_HEAD_WIDTH / 2;
-    const notchX = baseX + tan.ux * (PLACEMENT_HEAD_LEN * 0.45);
-    const notchY = baseY + tan.uy * (PLACEMENT_HEAD_LEN * 0.45);
+    const baseX = tip.x - tan.ux * style.headLen;
+    const baseY = tip.y - tan.uy * style.headLen;
+    const halfW = style.headWidth / 2;
+    const notchX = baseX + tan.ux * (style.headLen * 0.45);
+    const notchY = baseY + tan.uy * (style.headLen * 0.45);
     gfx
       .moveTo(tip.x, tip.y)
       .lineTo(baseX + px * halfW, baseY + py * halfW)
       .lineTo(notchX, notchY)
       .lineTo(baseX - px * halfW, baseY - py * halfW)
       .closePath();
-    gfx.fill({ color, alpha: PLACEMENT_ALPHA });
+    gfx.fill({ color, alpha: style.alpha });
   }
 }

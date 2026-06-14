@@ -4,6 +4,8 @@ import type { Prompt } from "@/protocol";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
+import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
+import type { BoardScene } from "@/pixi/board/BoardScene";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { PixiPhaseStripCanvas } from "@/pixi/PixiPhaseStripCanvas";
@@ -488,6 +490,7 @@ export function GameBoard({
   const unifiedBoard = useGameDevStore((s) => s.unifiedBoard);
   const boardArrangement = usePreferencesStore((s) => s.boardArrangement);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
+  const unifiedSceneRef = useRef<BoardScene | null>(null);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const oppState = (cards: GameCard[]): BattlefieldState => ({
@@ -635,6 +638,7 @@ export function GameBoard({
             callbacks={pixiCallbacks}
             externalBlockers={pixiExternalBlockers}
             isDropActive={isOverBattlefield}
+            sceneRef={unifiedSceneRef}
             getHandActions={getHandActions}
             onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
             onLayout={setUnifiedLayout}
@@ -683,6 +687,9 @@ export function GameBoard({
             </div>
           );
         })}
+        <div className="absolute inset-0 z-40 pointer-events-none">
+          <BoardArrowsCanvas sceneRef={unifiedSceneRef} />
+        </div>
       </div>
     );
   }

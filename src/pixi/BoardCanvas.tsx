@@ -58,6 +58,7 @@ interface BoardCanvasProps {
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
   isDropActive?: boolean;
+  sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: GameCard) => HandActionOption[];
   onSelectHandAction?: (card: GameCard, action: HandActionOption) => void;
   onLayout?: (layout: BoardCanvasLayout) => void;
@@ -80,6 +81,7 @@ export function BoardCanvas({
   callbacks,
   externalBlockers,
   isDropActive,
+  sceneRef: externalSceneRef,
   getHandActions,
   onSelectHandAction,
   onLayout,
@@ -113,7 +115,8 @@ export function BoardCanvas({
 
   useEffect(() => {
     sceneRef.current = scene;
-  }, [scene]);
+    if (externalSceneRef) externalSceneRef.current = scene;
+  }, [scene, externalSceneRef]);
   useEffect(() => {
     callbacksRef.current = callbacks;
   }, [callbacks]);

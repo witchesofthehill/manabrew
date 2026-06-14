@@ -5,7 +5,6 @@ import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import type { ArrowDef } from "../ArrowLayer";
-import { ArrowLayer } from "../ArrowLayer";
 import {
   PhaseStripLayer,
   type PhaseStripCallbacks,
@@ -25,7 +24,6 @@ import type {
   ArrowEndpoint,
   ArrowSpec,
   BattlefieldState,
-  CastingArrowSpec,
   GameCanvasCallbacks,
   HandState,
   PlayZoneRect,
@@ -84,13 +82,11 @@ export class BoardScene {
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
   private dragHandler: DragHandler;
-  private arrowLayer: ArrowLayer;
   private phaseStrip: PhaseStripLayer;
   private stripBackgroundGfx: Graphics;
   private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
-  private castingArrow: CastingArrowSpec | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
   private externalBlockers: BlockingRect[] = [];
 
@@ -125,10 +121,6 @@ export class BoardScene {
     this.stripBackgroundGfx.eventMode = "none";
     this.stripBackgroundGfx.zIndex = 5;
     this.root.addChild(this.stripBackgroundGfx);
-
-    this.arrowLayer = new ArrowLayer();
-    this.arrowLayer.graphics.zIndex = 8000;
-    this.root.addChild(this.arrowLayer.graphics);
 
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
@@ -352,10 +344,6 @@ export class BoardScene {
     this.arrowSpecs = specs;
   }
 
-  setCastingArrow(spec: CastingArrowSpec | null): void {
-    this.castingArrow = spec;
-  }
-
   setPhaseStripState(state: PhaseStripState): void {
     this.phaseStrip.update(state);
   }
@@ -384,7 +372,6 @@ export class BoardScene {
     if (this.destroyed) return;
     this.theme = theme;
     setCardSpriteTheme(theme);
-    this.arrowLayer.setTheme(theme);
     this.phaseStrip.setTheme(theme);
     if (this.lastLayout) this.drawStripBackground(this.lastLayout);
     for (const rec of this.regions.values()) rec.region.redrawTheme();
@@ -668,7 +655,6 @@ export class BoardScene {
     this.hand?.animate();
     this.phaseStrip.tick();
     this.captureStackSeeds();
-    this.resolveAndDrawArrows();
     if (this.dropActive) {
       const local = this.localRegion();
       const canvasRect = this.app.canvas.getBoundingClientRect();
@@ -700,12 +686,10 @@ export class BoardScene {
     }
   }
 
-  private resolveAndDrawArrows(): void {
-    const hasAny = this.arrowSpecs.length > 0 || this.castingArrow !== null;
-    if (!hasAny) {
-      if (!this.arrowLayer.isClear) this.arrowLayer.update([], this.app.ticker.deltaMS);
-      return;
-    }
+  /** Resolve the current arrow specs to canvas-local ArrowDefs. Drawn by the
+   *  separate overlay canvas (above the React panels), not in this canvas. */
+  getArrowDefs(): ArrowDef[] {
+    if (this.destroyed || this.arrowSpecs.length === 0) return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
     for (const spec of this.arrowSpecs) {
@@ -714,7 +698,7 @@ export class BoardScene {
       if (!from || !to) continue;
       resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
     }
-    this.arrowLayer.update(resolved, this.app.ticker.deltaMS);
+    return resolved;
   }
 
   private resolveArrowEndpoint(ep: ArrowEndpoint, canvasRect: DOMRect): ScreenPos | null {
@@ -767,7 +751,6 @@ export class BoardScene {
     this.app.stage.off("pointerupoutside");
     try {
       this.dragHandler.destroy();
-      this.arrowLayer.destroy();
       this.phaseStrip.destroy();
       this.hand?.destroy();
       this.selection?.destroy();

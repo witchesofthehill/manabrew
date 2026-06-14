@@ -3,6 +3,12 @@ name = "tree-sitter-forge-card-script"
 version = "0.1.0"
 edition = "2021"
 build = "bindings/rust/build.rs"
+description = "Tree-sitter grammar for the Forge card-script DSL used by Magic: The Gathering rules engines"
+license = "MIT"
+repository.workspace = true
+readme = "README.md"
+keywords = ["tree-sitter", "mtg", "magic", "forge", "parser"]
+categories = ["parser-implementations"]
 
 [lib]
 path = "bindings/rust/lib.rs"

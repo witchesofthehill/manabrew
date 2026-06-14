@@ -1060,16 +1060,21 @@ fn java_action_kind(kind: Option<&str>) -> Option<&'static str> {
 
 fn format_action_label(label: &str) -> String {
     let normalized = strip_action_suffix(label);
-    let Some((kind, card_name)) = normalized.split_once(':') else {
+    let Some((kind, rest)) = normalized.split_once(':') else {
         return normalized;
     };
+    let (card_name, alt_cost) = match rest.split_once('#') {
+        Some((name, alt)) => (name, Some(alt)),
+        None => (rest, None),
+    };
     let display_name = action_display_name(card_name);
+    let alt_suffix = alt_cost.map(|alt| format!(" ({alt})")).unwrap_or_default();
     match kind {
-        "LAND" => format!("Play {display_name}"),
-        "SPELL" => format!("Cast {display_name}"),
-        "CYCLE" => format!("Cycle {display_name}"),
-        "MANA" => format!("Activate mana: {display_name}"),
-        "AB" => format!("Activate {display_name}"),
+        "LAND" => format!("Play {display_name}{alt_suffix}"),
+        "SPELL" => format!("Cast {display_name}{alt_suffix}"),
+        "CYCLE" => format!("Cycle {display_name}{alt_suffix}"),
+        "MANA" => format!("Activate mana: {display_name}{alt_suffix}"),
+        "AB" => format!("Activate {display_name}{alt_suffix}"),
         _ => normalized,
     }
 }

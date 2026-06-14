@@ -1,0 +1,272 @@
+import { useRef, useEffect, useCallback, useState } from "react";
+import { Application } from "pixi.js";
+import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
+
+// Runtime workarounds for Pixi v8 bugs — must run before any `Application`.
+installPixiPatches();
+
+import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
+import { computeBoardLayout, type BoardArrangement } from "./board/boardLayout";
+import { battlefieldScaleForFraction } from "./GridLayout";
+import { setPixiTextStyleTheme } from "./textStyles";
+import { getTheme } from "@/hooks/useTheme";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { registerPixiApp } from "./visibility";
+import { PIXI_MAX_FPS } from "./constants";
+import type {
+  ArrowSpec,
+  BattlefieldState,
+  GameCanvasCallbacks,
+  HandState,
+  PlayZoneRect,
+} from "./types";
+import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
+import type { BlockingRect, SceneCombatStaging } from "./board/types";
+
+/** One player's battlefield input for the unified canvas. Ordered: local
+ *  first, then opponents left → right. */
+export interface BoardCanvasRegion {
+  playerId: string;
+  isLocal: boolean;
+  state: BattlefieldState;
+}
+
+/** Region rectangles (canvas-local px == CSS px) reported so the parent can
+ *  anchor React panels to each player's region. */
+export interface BoardCanvasLayout {
+  self: PlayZoneRect | null;
+  opponents: { playerId: string; rect: PlayZoneRect }[];
+}
+
+interface BoardCanvasProps {
+  regions: BoardCanvasRegion[];
+  hand: HandState;
+  arrowSpecs: ArrowSpec[];
+  combatStaging?: { playerId: string; staging: SceneCombatStaging | null }[];
+  phaseStrip: PhaseStripState;
+  phaseStripCallbacks?: PhaseStripCallbacks;
+  arrangement: BoardArrangement;
+  callbacks: GameCanvasCallbacks;
+  externalBlockers?: BlockingRect[];
+  isDropActive?: boolean;
+  onLayout?: (layout: BoardCanvasLayout) => void;
+  className?: string;
+}
+
+export function BoardCanvas({
+  regions,
+  hand,
+  arrowSpecs,
+  combatStaging,
+  phaseStrip,
+  phaseStripCallbacks,
+  arrangement,
+  callbacks,
+  externalBlockers,
+  isDropActive,
+  onLayout,
+  className,
+}: BoardCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const appRef = useRef<Application | null>(null);
+  const unregisterVisibilityRef = useRef<(() => void) | null>(null);
+  const [scene, setScene] = useState<BoardScene | null>(null);
+  const sceneRef = useRef<BoardScene | null>(null);
+  const callbacksRef = useRef(callbacks);
+  const onLayoutRef = useRef(onLayout);
+
+  const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
+
+  useEffect(() => {
+    sceneRef.current = scene;
+  }, [scene]);
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
+  useEffect(() => {
+    onLayoutRef.current = onLayout;
+  }, [onLayout]);
+
+  const initApp = useCallback(async () => {
+    if (!canvasRef.current || appRef.current) return;
+    const app = new Application();
+    appRef.current = app;
+    try {
+      await app.init({
+        canvas: canvasRef.current,
+        preference: "webgl",
+        backgroundAlpha: 0,
+        antialias: true,
+        autoDensity: true,
+        resolution: Math.max(3, window.devicePixelRatio || 1),
+      });
+    } catch (err) {
+      console.error("[pixi] BoardCanvas init failed:", err);
+      appRef.current = null;
+      return;
+    }
+    if (!app.renderer) {
+      appRef.current = null;
+      return;
+    }
+    app.ticker.maxFPS = PIXI_MAX_FPS;
+    unregisterVisibilityRef.current = registerPixiApp(app);
+
+    const newScene = new BoardScene(app, {
+      onClickCard: (...a) => callbacksRef.current.onClickCard?.(...a),
+      onHoverCard: (...a) => callbacksRef.current.onHoverCard?.(...a),
+      onClickAnyCard: (...a) => callbacksRef.current.onClickAnyCard?.(...a),
+      onFlipCard: () => callbacksRef.current.onFlipCard?.(),
+      onTapLand: (...a) => callbacksRef.current.onTapLand?.(...a),
+      onTapLands: (...a) => callbacksRef.current.onTapLands?.(...a),
+      onUntapLand: (...a) => callbacksRef.current.onUntapLand?.(...a),
+      onUntapLands: (...a) => callbacksRef.current.onUntapLands?.(...a),
+      onTapLandAbility: (...a) => callbacksRef.current.onTapLandAbility?.(...a),
+      onAttackerClick: (...a) => callbacksRef.current.onAttackerClick?.(...a),
+      onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
+      onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
+      onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
+      onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
+      onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
+      onHoverHandCard: (...a) => callbacksRef.current.onHoverHandCard?.(...a),
+    });
+
+    const theme = getTheme();
+    setPixiTextStyleTheme(theme);
+    newScene.setTheme(theme);
+
+    const parent = canvasRef.current.parentElement;
+    if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
+    setScene(newScene);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    initApp().then(() => {
+      if (!active) {
+        sceneRef.current?.destroy();
+        sceneRef.current = null;
+        unregisterVisibilityRef.current?.();
+        unregisterVisibilityRef.current = null;
+        destroyPixiApp(appRef.current);
+        appRef.current = null;
+        setScene(null);
+      }
+    });
+    return () => {
+      active = false;
+      sceneRef.current?.destroy();
+      sceneRef.current = null;
+      unregisterVisibilityRef.current?.();
+      unregisterVisibilityRef.current = null;
+      destroyPixiApp(appRef.current);
+      appRef.current = null;
+      setScene(null);
+    };
+  }, [initApp]);
+
+  // Configure regions + layout on size / player-set / arrangement / scale change.
+  const players: BoardPlayerSpec[] = regions.map((r) => ({
+    playerId: r.playerId,
+    isLocal: r.isLocal,
+  }));
+  const playersKey = players.map((p) => `${p.playerId}:${p.isLocal ? 1 : 0}`).join(",");
+  const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
+
+  const reconfigure = useCallback(() => {
+    const app = appRef.current;
+    const s = sceneRef.current;
+    if (!app?.renderer || !s) return;
+    const w = app.renderer.width;
+    const h = app.renderer.height;
+    const opponentCount = opponentIds.length;
+    const layout = computeBoardLayout(w, h, opponentCount, arrangement);
+    const minHeight = Math.min(layout.self.height, ...layout.opponents.map((o) => o.height));
+    const cardScale = battlefieldScaleForFraction(minHeight, fraction);
+    s.configure(players, layout, cardScale);
+    onLayoutRef.current?.({
+      self: layout.self,
+      opponents: opponentIds.map((id, i) => ({
+        playerId: id,
+        rect: layout.opponents[i] ?? layout.self,
+      })),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playersKey, arrangement, fraction]);
+
+  useEffect(() => {
+    reconfigure();
+  }, [reconfigure, scene]);
+
+  // Track container resize → resize renderer + reconfigure.
+  useEffect(() => {
+    const parent = canvasRef.current?.parentElement;
+    if (!parent || !scene) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          scene.resize(width, height);
+          reconfigure();
+        }
+      }
+    });
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [scene, reconfigure]);
+
+  // Per-region battlefield state.
+  useEffect(() => {
+    if (!scene) return;
+    for (const r of regions) scene.updateRegionState(r.playerId, r.state);
+  }, [scene, regions]);
+
+  useEffect(() => {
+    scene?.updateHand(hand);
+  }, [scene, hand]);
+
+  useEffect(() => {
+    scene?.setArrowSpecs(arrowSpecs);
+  }, [scene, arrowSpecs]);
+
+  useEffect(() => {
+    if (!scene) return;
+    for (const { playerId, staging } of combatStaging ?? []) {
+      scene.setCombatStaging(playerId, staging);
+    }
+  }, [scene, combatStaging]);
+
+  useEffect(() => {
+    scene?.setPhaseStripState(phaseStrip);
+  }, [scene, phaseStrip]);
+
+  useEffect(() => {
+    if (phaseStripCallbacks) scene?.setPhaseStripCallbacks(phaseStripCallbacks);
+  }, [scene, phaseStripCallbacks]);
+
+  useEffect(() => {
+    scene?.setExternalBlockers(externalBlockers ?? []);
+  }, [scene, externalBlockers]);
+
+  useEffect(() => {
+    scene?.setDropActive(isDropActive ?? false);
+  }, [scene, isDropActive]);
+
+  // Re-apply theme when the preset / overrides change.
+  useEffect(() => {
+    if (!scene) return;
+    return usePreferencesStore.subscribe(() => {
+      const theme = getTheme();
+      setPixiTextStyleTheme(theme);
+      scene.setTheme(theme);
+    });
+  }, [scene]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={className}
+      style={{ width: "100%", height: "100%", display: "block" }}
+    />
+  );
+}

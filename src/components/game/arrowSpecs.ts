@@ -32,6 +32,10 @@ export interface BuildArrowSpecsOptions {
   /** If set, treat this stack object as the "active" source for the
    *  placement arrow (usually the hovered one) instead of the top-of-stack. */
   activeStackObjectId?: string | null;
+  /** When true, block relationships are conveyed by MTGA-style spatial
+   *  staging (blockers line up under their attacker) instead of arrows, so
+   *  no `block` arrows are emitted. Attack arrows are unaffected. */
+  stageBlockers?: boolean;
 }
 
 function getActiveStackObject(
@@ -55,6 +59,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     battlefieldAttachments,
     stack,
     activeStackObjectId,
+    stageBlockers,
   } = opts;
 
   const specs: ArrowSpec[] = [];
@@ -79,25 +84,29 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     });
   }
 
-  // Mid-selection block assignments while ChooseBlockers is active.
-  if (promptType === "chooseBlockers") {
-    for (const { blockerId, attackerId } of blockAssignments) {
+  // Block relationships are shown by spatial staging, not arrows, when
+  // `stageBlockers` is on (blockers line up beneath their attacker).
+  if (!stageBlockers) {
+    // Mid-selection block assignments while ChooseBlockers is active.
+    if (promptType === "chooseBlockers") {
+      for (const { blockerId, attackerId } of blockAssignments) {
+        specs.push({
+          from: { kind: "card", id: blockerId },
+          to: { kind: "card", id: attackerId },
+          type: "block",
+        });
+      }
+    }
+
+    // Locked-in block assignments from the engine combat state (persist
+    // through damage assignment / end of combat).
+    for (const { blockerId, attackerId } of combatAssignments) {
       specs.push({
         from: { kind: "card", id: blockerId },
         to: { kind: "card", id: attackerId },
         type: "block",
       });
     }
-  }
-
-  // Locked-in block assignments from the engine combat state (persist
-  // through damage assignment / end of combat).
-  for (const { blockerId, attackerId } of combatAssignments) {
-    specs.push({
-      from: { kind: "card", id: blockerId },
-      to: { kind: "card", id: attackerId },
-      type: "block",
-    });
   }
 
   // Placement ghost preview stays as an arrow (dashed marching-ants) — it

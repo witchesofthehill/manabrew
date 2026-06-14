@@ -47,6 +47,7 @@ export function OpponentHalf({
   pixiSceneRef,
   isMonarch,
   hasInitiative,
+  combatShiftPx,
 }: OpponentHalfProps) {
   const themeColors = useTheme().gameTheme;
 
@@ -176,7 +177,13 @@ export function OpponentHalf({
               zonePanelOrder={zonePanelOrder}
             />
           </div>
-          <div className="absolute inset-0 z-10 rounded-lg overflow-hidden">
+          <div
+            className="absolute inset-0 z-10 rounded-lg overflow-hidden"
+            style={{
+              transform: combatShiftPx ? `translateY(${combatShiftPx}px)` : undefined,
+              transition: "transform 250ms ease",
+            }}
+          >
             <PixiGameCanvas
               boardId={player.id}
               battlefield={pixiBattlefield}

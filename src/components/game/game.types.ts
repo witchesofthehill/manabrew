@@ -71,6 +71,10 @@ export interface OpponentHalfProps {
    *  layer can resolve sprite positions for opponent permanents
    *  without round-tripping through DOM queries. */
   pixiSceneRef?: React.MutableRefObject<PixiGameScene | null>;
+  /** Px to slide this battlefield canvas downward during combat staging,
+   *  so staged attackers descend over the center seam to meet the blockers
+   *  facing them. 0/undefined when not staging. */
+  combatShiftPx?: number;
 }
 
 export interface RightActionPanelProps {

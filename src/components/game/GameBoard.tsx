@@ -12,6 +12,7 @@ import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
 import type { PlacementGhost } from "@/components/game/game.types";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { COMBAT_STAGE_OPPONENT_SHIFT } from "@/components/game/game.constants";
 import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -66,6 +67,10 @@ interface GameBoardProps {
   pendingAttacker: string | null;
   selectedAttackDefenderId?: string | null;
   blockAssignments: { blockerId: string; attackerId: string }[];
+  /** True while MTGA-style combat staging is on (declare-blockers step or
+   *  any locked-in blocks). Fades the center phase strip so the staged
+   *  attacker/blocker columns aren't bisected by it. */
+  combatStagingActive?: boolean;
   playerIsTargetable: (playerId: string) => boolean;
 
   // Per-player game-wide flags
@@ -163,6 +168,7 @@ export function GameBoard({
   pendingAttacker,
   selectedAttackDefenderId,
   blockAssignments,
+  combatStagingActive,
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
@@ -510,6 +516,7 @@ export function GameBoard({
             hostileTargeting={hostileTargeting}
             manaAbilityOptions={manaAbilityOptions}
             pixiSceneRef={getOpponentPixiSceneRef?.(opponents[0]!.id)}
+            combatShiftPx={combatStagingActive ? COMBAT_STAGE_OPPONENT_SHIFT : 0}
           />
         ) : (
           <ResizablePanelGroup orientation="horizontal">
@@ -548,6 +555,7 @@ export function GameBoard({
                     hostileTargeting={hostileTargeting}
                     manaAbilityOptions={manaAbilityOptions}
                     pixiSceneRef={getOpponentPixiSceneRef?.(op.id)}
+                    combatShiftPx={combatStagingActive ? COMBAT_STAGE_OPPONENT_SHIFT : 0}
                   />
                 </ResizablePanel>
               </Fragment>
@@ -569,8 +577,14 @@ export function GameBoard({
             <div className="w-4 h-[2px] rounded-full bg-white/25" />
           </div>
         </div>
-        {/* Phase strip — full width, centered */}
-        <div className="absolute inset-0">
+        {/* Phase strip — full width, centered. Faded during combat staging
+            so it doesn't bisect the attacker/blocker columns. */}
+        <div
+          className={cn(
+            "absolute inset-0 transition-opacity duration-300",
+            combatStagingActive && "opacity-10 pointer-events-none",
+          )}
+        >
           <PixiPhaseStripCanvas state={pixiPhaseStrip} callbacks={pixiPhaseStripCallbacks} />
         </div>
       </div>

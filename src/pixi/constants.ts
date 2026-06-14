@@ -72,7 +72,17 @@ export const SNAP_ROT = 0.001;
 export const SNAP_ALPHA = 0.01;
 export const SNAP_HAND_SCALE = 0.002;
 
+// ── Combat staging (MTGA-style blocker/attacker line-up) ────────────────────
+// Side-by-side spacing of multiple blockers sharing one attacker, as a
+// fraction of card width.
+export const COMBAT_STAGE_FAN_FRAC = 0.7;
+// Gap from the canvas edge facing the divider to a staged card's edge —
+// pulls attackers/blockers flush against the center line so the two halves
+// read as one combat lane.
+export const COMBAT_STAGE_EDGE_INSET = 6;
+
 // ── zIndex layers ──────────────────────────────────────────────────────────
+export const Z_COMBAT_STAGED = 400;
 export const Z_PLACEMENT_GHOST = 500;
 export const Z_PLACEMENT_GHOST_TEXT = 501;
 export const Z_HAND_CONTAINER = 5000;

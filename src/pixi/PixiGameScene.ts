@@ -1,12 +1,4 @@
-import {
-  Application,
-  Container,
-  Graphics,
-  Text,
-  FederatedPointerEvent,
-  Sprite,
-  type Texture,
-} from "pixi.js";
+import { Application, Container, Graphics, Text, FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import type {
   ArrowSpec,
@@ -28,6 +20,8 @@ import {
   DEBUG_KEYWORD_CARD_ID,
 } from "@/stores/useGameDevStore";
 import { CardSprite, setCardSpriteTheme } from "./CardSprite";
+import { BattlefieldOverlay } from "./board/BattlefieldOverlay";
+import type { OverlayHost, SpriteEntry } from "./board/types";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { MarqueeHandler } from "./MarqueeHandler";
 import { DragHandler } from "./DragHandler";
@@ -43,13 +37,7 @@ import {
 import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "./HandLayout";
 import { ArrowLayer, type ArrowDef } from "./ArrowLayer";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { extractManaLetters, getExpandedManaAbilities } from "@/components/game/manaUtils";
-import {
-  getManaSymbolTextureSync,
-  loadManaSymbolTexture,
-  prewarmManaSymbols,
-} from "./manaSymbolCache";
-import { manaColorFor } from "./manaColors";
+import { prewarmManaSymbols } from "./manaSymbolCache";
 import {
   ATTACH_OFFSET_Y,
   BATTLEFIELD_CARD_SCALE_DEFAULT,
@@ -59,6 +47,8 @@ import {
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
   CARD_RADIUS,
+  COMBAT_STAGE_EDGE_INSET,
+  COMBAT_STAGE_FAN_FRAC,
   GAP,
   GHOST_FILL_ALPHA,
   GHOST_STROKE_ALPHA,
@@ -71,27 +61,12 @@ import {
   HAND_LERP,
   HOVER_SCALE,
   HOVER_SCALE_LERP,
-  ICON_BG_ALPHA,
-  ICON_HOVER_SCALE,
-  MANA_BUTTON_ALPHA,
-  MANA_BUTTON_HOVER_ALPHA,
-  MANA_BUTTON_STROKE_ALPHA,
-  MANA_BUTTON_STROKE_HOVER_ALPHA,
   MAX_GRID_SLOTS,
   MAX_LAND_SLOTS,
   OVERLAY_FADE_LERP,
-  OVERLAY_LABEL_SELECT,
-  OVERLAY_LABEL_TAP,
-  OVERLAY_LABEL_UNTAP,
-  SYMBOL_TAP,
-  SYMBOL_UNTAP,
   PLAYABLE_HIGHLIGHT_ALPHA,
   PLAYABLE_RING_ALPHA,
   ROTATION_LERP,
-  ACTION_BUTTON_ALPHA,
-  ACTION_BUTTON_HOVER_ALPHA,
-  SELECT_BUTTON_ALPHA,
-  SELECT_BUTTON_HOVER_ALPHA,
   SNAP_ALPHA,
   SNAP_HAND_SCALE,
   SNAP_PX,
@@ -99,6 +74,7 @@ import {
   SNAP_SCALE,
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
+  Z_COMBAT_STAGED,
   Z_GRID_SKELETON,
   Z_HAND_CONTAINER,
   Z_HAND_HOVERED,
@@ -107,24 +83,29 @@ import {
   Z_PLACEMENT_GHOST_TEXT,
   Z_SELECTION_BADGE,
 } from "./constants";
-import {
-  EMPTY_LABEL_STYLE,
-  GHOST_LABEL_STYLE,
-  OVERLAY_LABEL_STYLE,
-  SELECTION_BADGE_STYLE,
-} from "./textStyles";
+import { EMPTY_LABEL_STYLE, GHOST_LABEL_STYLE, SELECTION_BADGE_STYLE } from "./textStyles";
 
 // ───── Shared types ─────
 type Point = ScreenPos;
 
-interface SpriteEntry {
-  sprite: CardSprite;
-  targetX: number;
-  targetY: number;
-  targetZIndex: number;
-  targetRotation: number;
-  etbGlowAlpha: number;
-  overlay: Container | null;
+/** One combatant blocker the scene must pull to its front edge, aligned
+ *  beneath the attacker it blocks. `laneScreenX` is the attacker's
+ *  on-screen x (absolute viewport px); the scene converts it to its own
+ *  canvas-local x. Multiple blockers on one attacker fan out by index. */
+export interface StagedBlocker {
+  id: string;
+  laneScreenX: number;
+  indexInLane: number;
+  laneCount: number;
+}
+
+/** MTGA-style combat layout for the cards owned by a single scene.
+ *  Attackers slide forward keeping their x; blockers slide to their
+ *  attacker's lane. Set null to release (cards lerp home). */
+export interface SceneCombatStaging {
+  attackerIds: Set<string>;
+  blockers: StagedBlocker[];
+  blockerIds: Set<string>;
 }
 
 interface HandTarget {
@@ -146,12 +127,6 @@ interface HandHitZone {
 }
 
 const HAND_SELECTION_DROP_PX = 30;
-
-interface ActionKind {
-  isTappable: boolean;
-  isUntappable: boolean;
-  isSelectable: boolean;
-}
 
 // ───── Pure helpers ─────
 /**
@@ -248,6 +223,7 @@ export class PixiGameScene {
   private selectedCardIds = new Set<string>();
   private marquee: MarqueeHandler;
   private dragHandler: DragHandler;
+  private battlefieldOverlay: BattlefieldOverlay;
   /** User-assigned grid slot per top-level battlefield card. Survives re-renders
    *  so a card stays put once the user drops it on a cell. Pruned when the
    *  card leaves the battlefield. */
@@ -258,6 +234,10 @@ export class PixiGameScene {
   private stackCounts = new Map<string, number>();
   private nameGroupChildren = new Set<string>();
   private userPlacedCards = new Set<string>();
+  /** MTGA-style combat line-up for this scene's cards, or null. Computed by
+   *  the cross-scene coordinator (`useCombatStaging`) and applied as a
+   *  target override after the normal grid layout. */
+  private combatStaging: SceneCombatStaging | null = null;
   /** Latest grid layout — cached per frame so drag/stack hit-tests and the
    *  skeleton overlay share the same cell geometry. */
   private gridInfo: GridLayoutInfo | null = null;
@@ -347,6 +327,21 @@ export class PixiGameScene {
     this.dragHandler = new DragHandler();
     this.dragHandler.setCardScale(this.cardScale);
 
+    const overlayHost: OverlayHost = {
+      getTheme: () => this.theme,
+      getCallbacks: () => this.callbacks,
+      getContainer: () => this.myBattlefieldContainer,
+      getSelectedCardIds: () => this.selectedCardIds,
+      getLastState: () => this.lastState,
+      getEntries: () => this.entries,
+      isJustDragged: (id) => this.dragHandler.justDraggedCardIds.has(id),
+      startCardDrag: (sprite, e) => this.onBattlefieldCardDown(sprite, e),
+      cancelHoverClear: () => this.cancelBattlefieldHoverClear(),
+      setCardHovered: (sprite) => this.setBattlefieldCardHovered(sprite),
+      scheduleHoverClear: (id) => this.scheduleBattlefieldHoverClear(id),
+    };
+    this.battlefieldOverlay = new BattlefieldOverlay(overlayHost);
+
     this.gridSkeletonGfx = new Graphics();
     this.gridSkeletonGfx.eventMode = "none";
     this.gridSkeletonGfx.visible = false;
@@ -428,6 +423,31 @@ export class PixiGameScene {
     return target ? { x: target.x, y: target.y } : { x: handSprite.x, y: handSprite.y };
   }
 
+  /** Absolute viewport x of a battlefield card's resting target, or null
+   *  if it isn't in this scene. The combat coordinator reads attacker
+   *  lanes through this so blockers in another scene can line up beneath. */
+  getCardTargetScreenX(cardId: string): number | null {
+    const entry = this.entries.get(cardId);
+    if (!entry) return null;
+    return entry.targetX + this.canvasElement.getBoundingClientRect().left;
+  }
+
+  /** Inverse of `getCardTargetScreenX` — viewport x → this scene's
+   *  canvas-local x. Both map 1:1 (the canvas is not CSS-scaled), matching
+   *  the arrow overlay's cross-canvas translation. */
+  private screenXToLocalX(screenX: number): number {
+    return screenX - this.canvasElement.getBoundingClientRect().left;
+  }
+
+  /** Canvas-local y of the front edge facing the center divider — row 0
+   *  for the local player (top), the bottom row for the mirrored opponent
+   *  view. Mirrors the creature anchor used in auto-placement. */
+  private frontEdgeY(): number {
+    const zone = this.getPlayZone();
+    const half = (CARD_H * this.cardScale) / 2 + COMBAT_STAGE_EDGE_INSET;
+    return this.mirrored ? zone.y + zone.height - half : zone.y + half;
+  }
+
   /** Canvas-local center of the next free battlefield slot (placement
    *  ghost position). Used by overlay arrows for permanent-spell casts. */
   getPlacementGhostCenter(): ScreenPos {
@@ -461,6 +481,16 @@ export class PixiGameScene {
     if (this.destroyed) return;
     this.externalBlockers = rects;
     this.syncDragBlockers();
+    if (this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  /** Apply (or clear, with null) the MTGA-style combat line-up for this
+   *  scene's cards. Re-lays the battlefield so staged cards animate to the
+   *  front edge — and back home when cleared. */
+  setCombatStaging(staging: SceneCombatStaging | null): void {
+    if (this.destroyed) return;
+    if (staging === null && this.combatStaging === null) return;
+    this.combatStaging = staging;
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
@@ -781,7 +811,39 @@ export class PixiGameScene {
       );
     }
 
+    this.applyCombatStaging();
+
     this.emptyText.visible = state.cards.length === 0;
+  }
+
+  /**
+   * Override target positions for combat-staged cards: attackers slide
+   * forward to the front edge keeping their x; each blocker slides to the
+   * front edge beneath the attacker it blocks, fanned out when several
+   * blockers share one attacker. Targets only — the lerp animates the move
+   * (and the return home once staging clears).
+   */
+  private applyCombatStaging(): void {
+    const staging = this.combatStaging;
+    if (!staging) return;
+    const frontY = this.frontEdgeY();
+    const fanStep = CARD_W * this.cardScale * COMBAT_STAGE_FAN_FRAC;
+
+    for (const id of staging.attackerIds) {
+      const entry = this.entries.get(id);
+      if (!entry) continue;
+      entry.targetY = frontY;
+      entry.targetZIndex = Z_COMBAT_STAGED;
+    }
+
+    for (const b of staging.blockers) {
+      const entry = this.entries.get(b.id);
+      if (!entry) continue;
+      const offset = (b.indexInLane - (b.laneCount - 1) / 2) * fanStep;
+      entry.targetX = this.screenXToLocalX(b.laneScreenX) + offset;
+      entry.targetY = frontY;
+      entry.targetZIndex = Z_COMBAT_STAGED + 1;
+    }
   }
 
   updateHand(state: HandState): void {
@@ -1098,6 +1160,7 @@ export class PixiGameScene {
 
     const isStackable = (c: GameCard): boolean =>
       !c.isAttacking &&
+      !this.combatStaging?.blockerIds.has(c.id) &&
       !c.attachedTo &&
       !c.isBestowed &&
       !c.isFaceDown &&
@@ -1494,7 +1557,7 @@ export class PixiGameScene {
     entry.sprite.setStackCount(this.stackCounts.get(card.id) ?? 1);
     entry.targetRotation = overriddenCard.tapped ? (this.mirrored ? -Math.PI / 2 : Math.PI / 2) : 0;
     this.applyBattlefieldRing(entry.sprite, state);
-    this.rebuildBattlefieldOverlay(entry, state);
+    this.battlefieldOverlay.rebuild(entry, state);
   }
 
   private ensureBattlefieldEntry(card: GameCard): void {
@@ -1598,36 +1661,7 @@ export class PixiGameScene {
 
   private onBattlefieldCardTap(card: GameCard): void {
     if (this.destroyed) return;
-    const state = this.lastState;
-    if (!state) {
-      this.callbacks.onClickCard?.(card);
-      return;
-    }
-
-    const kind: ActionKind = {
-      isTappable: state.tappableLandIds?.includes(card.id) ?? false,
-      isUntappable: state.untappableLandIds?.includes(card.id) ?? false,
-      isSelectable: state.selectableCardIds?.includes(card.id) ?? false,
-    };
-
-    if (kind.isTappable) {
-      const expandedMana = state.manaAbilityOptions
-        ? getExpandedManaAbilities(card.id, state.manaAbilityOptions)
-        : [];
-      if (expandedMana.length > 1) {
-        this.callbacks.onClickCard?.(card);
-        return;
-      }
-      this.dispatchBattlefieldAction(card, state, kind);
-      return;
-    }
-
-    if (kind.isUntappable) {
-      this.dispatchBattlefieldAction(card, state, kind);
-      return;
-    }
-
-    this.callbacks.onClickCard?.(card);
+    this.battlefieldOverlay.handleCardTap(card);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1667,283 +1701,6 @@ export class PixiGameScene {
 
   private isCreatureCard(card: GameCard): boolean {
     return card.types?.some((t) => t.toLowerCase() === "creature") ?? false;
-  }
-
-  private rebuildBattlefieldOverlay(entry: SpriteEntry, state: BattlefieldState): void {
-    const card = entry.sprite.card;
-    const kind: ActionKind = {
-      isTappable: state.tappableLandIds?.includes(card.id) ?? false,
-      isUntappable: state.untappableLandIds?.includes(card.id) ?? false,
-      isSelectable: !!(state.selectableCardIds?.includes(card.id) && this.callbacks.onClickCard),
-    };
-
-    if (!kind.isTappable && !kind.isUntappable && !kind.isSelectable) {
-      if (entry.overlay) entry.overlay.visible = false;
-      return;
-    }
-
-    const overlay = this.ensureOverlayContainer(entry);
-    overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
-
-    const expandedMana =
-      kind.isTappable && state.manaAbilityOptions
-        ? getExpandedManaAbilities(card.id, state.manaAbilityOptions)
-        : [];
-
-    if (kind.isTappable && expandedMana.length > 1) {
-      this.drawManaAbilityGrid(overlay, card, expandedMana);
-    } else {
-      this.drawSingleActionButton(overlay, card, state, kind);
-    }
-
-    overlay.visible = true;
-  }
-
-  private ensureOverlayContainer(entry: SpriteEntry): Container {
-    if (entry.overlay) return entry.overlay;
-    const overlay = new Container();
-    // "passive" — the overlay container itself isn't hit-tested, but child
-    // buttons with eventMode "static" can receive pointer events. "none"
-    // would disable hit testing for the entire subtree.
-    overlay.eventMode = "passive";
-    overlay.alpha = 0;
-    overlay.pivot.set(CARD_W / 2, CARD_H / 2);
-    this.myBattlefieldContainer.addChild(overlay);
-    entry.overlay = overlay;
-    return overlay;
-  }
-
-  private drawManaAbilityGrid(
-    overlay: Container,
-    card: GameCard,
-    abilities: ReturnType<typeof getExpandedManaAbilities>,
-  ): void {
-    const cols = abilities.length > 2 ? 2 : abilities.length;
-    const rows = Math.ceil(abilities.length / cols);
-    const btnW = CARD_W / cols;
-    const btnH = CARD_H / rows;
-    const isOddLast = abilities.length % 2 !== 0;
-
-    abilities.forEach((ab, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const shouldSpan = cols === 2 && i === abilities.length - 1 && isOddLast;
-      const currentW = shouldSpan ? CARD_W : btnW;
-
-      const letters = extractManaLetters(ab.description);
-      const letter = letters[0];
-      const color = manaColorFor(letter, this.theme, hexToNum(this.theme.gameTheme.canvas.shadow));
-
-      const btn = new Graphics();
-      const paintBtn = (highlighted: boolean) => {
-        btn.clear();
-        btn.roundRect(col * btnW, row * btnH, currentW, btnH, CARD_RADIUS);
-        btn.fill({
-          color,
-          alpha: highlighted ? MANA_BUTTON_HOVER_ALPHA : MANA_BUTTON_ALPHA,
-        });
-        btn.stroke({
-          color: hexToNum(this.theme.gameTheme.canvas.neutral),
-          width: 1,
-          alpha: highlighted ? MANA_BUTTON_STROKE_HOVER_ALPHA : MANA_BUTTON_STROKE_ALPHA,
-        });
-      };
-      paintBtn(false);
-      overlay.addChild(btn);
-
-      const icon = this.createManaIcon(
-        letter ?? OVERLAY_LABEL_TAP,
-        cols === 2 ? 10 : 12,
-        cols === 2 ? 10 : 14,
-      );
-      icon.x = col * btnW + currentW / 2;
-      icon.y = row * btnH + btnH / 2;
-      overlay.addChild(icon);
-
-      this.wireOverlayButton(
-        btn,
-        card.id,
-        () => this.callbacks.onTapLandAbility?.(card.id, ab.abilityIndex, letter),
-        (highlighted) => {
-          paintBtn(highlighted);
-          icon.scale.set(highlighted ? ICON_HOVER_SCALE : 1);
-        },
-      );
-    });
-  }
-
-  private drawSingleActionButton(
-    overlay: Container,
-    card: GameCard,
-    state: BattlefieldState,
-    kind: ActionKind,
-  ): void {
-    const ring = hexToNum(this.theme.gameTheme.cardRing);
-    let label = OVERLAY_LABEL_SELECT;
-    let symbol: string | null = null;
-    let color = ring;
-    let idleAlpha = SELECT_BUTTON_ALPHA;
-    let hoverAlpha = SELECT_BUTTON_HOVER_ALPHA;
-
-    if (kind.isTappable) {
-      label = OVERLAY_LABEL_TAP;
-      symbol = SYMBOL_TAP;
-      idleAlpha = ACTION_BUTTON_ALPHA;
-      hoverAlpha = ACTION_BUTTON_HOVER_ALPHA;
-    } else if (kind.isUntappable) {
-      label = OVERLAY_LABEL_UNTAP;
-      symbol = SYMBOL_UNTAP;
-      color = hexToNum(this.theme.gameTheme.promptAction.cancel);
-      idleAlpha = ACTION_BUTTON_ALPHA;
-      hoverAlpha = ACTION_BUTTON_HOVER_ALPHA;
-    }
-
-    const btn = new Graphics();
-    const paintBtn = (highlighted: boolean) => {
-      btn.clear();
-      btn.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
-      btn.fill({ color, alpha: highlighted ? hoverAlpha : idleAlpha });
-    };
-    paintBtn(false);
-    overlay.addChild(btn);
-
-    // Prefer the MTG card symbol (T / Q) when we have one — falls back to
-    // the text label for generic SELECT or while the SVG is loading.
-    const centerIcon = symbol ? this.createManaIcon(symbol, 14, 18) : this.createLabelIcon(label);
-    centerIcon.x = CARD_W / 2;
-    centerIcon.y = CARD_H / 2;
-    overlay.addChild(centerIcon);
-
-    this.wireOverlayButton(
-      btn,
-      card.id,
-      () => this.dispatchBattlefieldAction(card, state, kind),
-      (highlighted) => {
-        paintBtn(highlighted);
-        centerIcon.scale.set(highlighted ? ICON_HOVER_SCALE : 1);
-      },
-    );
-  }
-
-  private createLabelIcon(label: string): Container {
-    const icon = new Container();
-    icon.eventMode = "none";
-    const txt = new Text({ text: label, style: OVERLAY_LABEL_STYLE });
-    txt.anchor.set(0.5);
-    icon.addChild(txt);
-    return icon;
-  }
-
-  /**
-   * Wires an overlay button's pointer events — tap (with drag-guard), hover
-   * feedback, plus keeping the parent card's hover state alive while the
-   * cursor is over the button (so the overlay doesn't fade out when the
-   * cursor leaves the sprite's hit area to interact with the overlay).
-   *
-   * The button also forwards `pointerdown` to the sprite's drag-start
-   * handler — without this, overlay buttons (which sit above the sprite
-   * in the display tree) would swallow the press and the user could
-   * never drag an actionable card. If the press turns into a
-   * real drag, `pointertap` bails out via `justDraggedCardIds`.
-   */
-  private wireOverlayButton(
-    btn: Graphics,
-    cardId: string,
-    onTap: () => void,
-    onHoverChange?: (highlighted: boolean) => void,
-  ): void {
-    btn.eventMode = "static";
-    btn.cursor = "pointer";
-    btn.on("pointerover", () => {
-      this.cancelBattlefieldHoverClear();
-      const entry = this.entries.get(cardId);
-      if (entry) this.setBattlefieldCardHovered(entry.sprite);
-      onHoverChange?.(true);
-    });
-    btn.on("pointerout", () => {
-      onHoverChange?.(false);
-      this.scheduleBattlefieldHoverClear(cardId);
-    });
-    btn.on("pointerdown", (e: FederatedPointerEvent) => {
-      e.stopPropagation();
-      const entry = this.entries.get(cardId);
-      if (entry) this.onBattlefieldCardDown(entry.sprite, e);
-    });
-    btn.on("pointertap", (e: FederatedPointerEvent) => {
-      e.stopPropagation();
-      if (this.dragHandler.justDraggedCardIds.has(cardId)) return;
-      onTap();
-    });
-  }
-
-  private createManaIcon(label: string, fontSize: number, radius: number): Container {
-    const icon = new Container();
-    // Let pointer events pass through to the button graphic underneath.
-    icon.eventMode = "none";
-    const circle = new Graphics();
-    circle.circle(0, 0, radius);
-    circle.fill({ color: hexToNum(this.theme.gameTheme.canvas.shadow), alpha: ICON_BG_ALPHA });
-    icon.addChild(circle);
-
-    const tex = getManaSymbolTextureSync(label);
-    if (tex) {
-      icon.addChild(this.createManaSprite(tex, radius));
-    } else {
-      const style = OVERLAY_LABEL_STYLE.clone();
-      style.fontSize = fontSize;
-      const txt = new Text({ text: label, style });
-      txt.anchor.set(0.5);
-      icon.addChild(txt);
-
-      if (label.length === 1 && /^[WUBRGCXTQ]$/.test(label)) {
-        // Kick off load; next overlay rebuild will pick up the cached texture.
-        loadManaSymbolTexture(label)
-          .then(() => this.refreshBattlefieldOverlays())
-          .catch(() => {});
-      }
-    }
-    return icon;
-  }
-
-  private createManaSprite(texture: Texture, radius: number): Sprite {
-    const sprite = new Sprite(texture);
-    sprite.anchor.set(0.5);
-    const size = radius * 1.6;
-    sprite.width = size;
-    sprite.height = size;
-    return sprite;
-  }
-
-  private refreshBattlefieldOverlays(): void {
-    if (!this.lastState) return;
-    for (const entry of this.entries.values()) {
-      if (entry.overlay?.visible) {
-        this.rebuildBattlefieldOverlay(entry, this.lastState);
-      }
-    }
-  }
-
-  private dispatchBattlefieldAction(
-    card: GameCard,
-    state: BattlefieldState,
-    kind: ActionKind,
-  ): void {
-    if (kind.isTappable) {
-      const batch = this.selectedBatch(state.tappableLandIds, card.id);
-      if (batch.length > 1) this.callbacks.onTapLands?.(batch);
-      else this.callbacks.onTapLand?.(card);
-    } else if (kind.isUntappable) {
-      const batch = this.selectedBatch(state.untappableLandIds, card.id);
-      if (batch.length > 1) this.callbacks.onUntapLands?.(batch);
-      else this.callbacks.onUntapLand?.(card);
-    } else if (kind.isSelectable) {
-      this.callbacks.onClickCard?.(card);
-    }
-  }
-
-  private selectedBatch(eligibleIds: string[] | undefined, cardId: string): string[] {
-    if (!this.selectedCardIds.has(cardId) || this.selectedCardIds.size <= 1) return [];
-    return [...this.selectedCardIds].filter((id) => eligibleIds?.includes(id));
   }
 
   // ═══════════════════════════════════════════════════════════════

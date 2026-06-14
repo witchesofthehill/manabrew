@@ -32,6 +32,7 @@ import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { usePromptEffects } from "@/hooks/usePromptEffects";
 import { useCombatState } from "@/hooks/useCombatState";
+import { useCombatStaging } from "@/hooks/useCombatStaging";
 import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
@@ -1004,6 +1005,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         battlefieldAttachments,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
+        stageBlockers: true,
       }),
     [
       promptType,
@@ -1032,6 +1034,18 @@ export default function Game({ exitTo }: GameProps = {}) {
       },
     ];
   }, [liveArrowSpecs, debugArrowType, me?.id, opponent?.id]);
+
+  // MTGA-style combat line-up: pull blockers to their attacker's lane
+  // instead of drawing block arrows (which `stageBlockers` suppresses).
+  useCombatStaging({
+    promptType,
+    combatAssignments,
+    blockAssignments,
+    battlefield: gameView?.battlefield ?? [],
+    localPlayerId: me?.id,
+    mainSceneRef: pixiSceneRef,
+    opponentSceneRefs: opponentSceneRefsRef.current,
+  });
 
   const livePointerSpecs = useMemo(
     () =>
@@ -1417,6 +1431,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           pendingAttacker={pendingAttacker}
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
+          combatStagingActive={promptType === "chooseBlockers" || combatAssignments.length > 0}
           playerIsTargetable={playerIsTargetable}
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}

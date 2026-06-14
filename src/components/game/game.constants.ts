@@ -90,6 +90,12 @@ export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;
 
+/** Downward slide (px) applied to the opponent battlefield canvas during
+ *  combat staging so staged attackers descend over the center seam and sit
+ *  just on top of the blockers facing them (MTGA-style). Roughly the phase
+ *  strip height (80px) plus the staged edge insets, with a little overlap. */
+export const COMBAT_STAGE_OPPONENT_SHIFT = 100;
+
 export const RING_ABILITIES: readonly string[] = [
   "Your Ring-bearer is legendary and can't be blocked by creatures with greater power.",
   "Whenever your Ring-bearer attacks, draw a card, then discard a card.",

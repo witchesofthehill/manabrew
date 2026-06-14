@@ -23,7 +23,7 @@ import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { buildPointerSpecs } from "@/components/game/pointerSpecs";
 import { ANY_COLOR_LETTERS } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
-import { HAND_CARD_BASES } from "@/components/game/game.styles";
+import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag } from "@/hooks/useHandDrag";
@@ -133,10 +133,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
-  const handSize = usePreferencesStore((s) => s.handSize);
   const vScale = useHandScale();
-  const ghostCardW = Math.round(HAND_CARD_BASES[handSize].cardW * vScale);
-  const ghostCardH = Math.round(HAND_CARD_BASES[handSize].cardH * vScale);
+  const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
+  const ghostCardH = Math.round(HAND_CARD_BASE.cardH * vScale);
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
   const devExtraOpponents =
@@ -835,7 +834,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag } = useHandDrag({
     battlefieldContainerRef,
-    handDropExclusionPx: Math.round(HAND_CARD_BASES[handSize].containerH * vScale * 0.35),
+    handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
     onCastSpell: handleCastSpell,
     dismissHover: preview.dismiss,
   });

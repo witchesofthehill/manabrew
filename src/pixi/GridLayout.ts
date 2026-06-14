@@ -6,7 +6,12 @@
  */
 
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
-import { GAP } from "./constants";
+import {
+  GAP,
+  BATTLEFIELD_MIN_ROWS,
+  BATTLEFIELD_MAX_ROWS,
+  BATTLEFIELD_CARD_SCALE_FLOOR,
+} from "./constants";
 import type { PlayZoneRect } from "./types";
 
 export interface GridBlocker {
@@ -50,6 +55,17 @@ export const cellKey = (col: number, row: number): string => `${col},${row}`;
 export const maxScaleForRows = (usableH: number, rows: number): number => {
   const cellH = (usableH + GAP) / rows - 0.5;
   return (cellH - GAP) / (CARD_H * (1 + CELL_BREATHING_FRAC));
+};
+
+export const battlefieldScaleForFraction = (usableH: number, fraction: number): number => {
+  const f = Math.min(1, Math.max(0, fraction));
+  const floor = BATTLEFIELD_CARD_SCALE_FLOOR;
+  const maxScale = Math.max(floor, maxScaleForRows(usableH, BATTLEFIELD_MIN_ROWS));
+  const minScale = Math.max(
+    floor,
+    Math.min(maxScale, maxScaleForRows(usableH, BATTLEFIELD_MAX_ROWS)),
+  );
+  return minScale + f * (maxScale - minScale);
 };
 
 /**

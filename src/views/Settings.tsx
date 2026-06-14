@@ -7,6 +7,7 @@ import { PromptPreferencesPanel } from "@/components/game/prompts/PromptPreferen
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";
 import { getDefaultGameThemeColorMap } from "@/hooks/useTheme";
+import { useBattlefieldCardScale } from "@/hooks/useBattlefieldCardScale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -343,6 +344,8 @@ const HOVER_DELAY_STEP = 50;
 export default function Settings() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const prefs = usePreferencesStore();
+  const { fraction: battlefieldSizeFraction, setFraction: setBattlefieldSizeFraction } =
+    useBattlefieldCardScale();
   const { flashDurationMs, setFlashDurationMs } = prefs;
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
@@ -578,71 +581,30 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Hand Card Size</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={prefs.handSize === "small" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setHandSize("small")}
-                >
-                  Small
-                </Button>
-                <Button
-                  variant={prefs.handSize === "medium" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setHandSize("medium")}
-                >
-                  Medium
-                </Button>
-                <Button
-                  variant={prefs.handSize === "large" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setHandSize("large")}
-                >
-                  Large
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Controls the size of cards displayed in your hand.
-              </p>
-            </div>
-
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Battlefield Card Size ({Math.round(prefs.battlefieldCardScale * 100)}%)</Label>
+              <Label>Battlefield Card Size ({Math.round(battlefieldSizeFraction * 100)}%)</Label>
               <input
                 type="range"
-                min={80}
-                max={180}
+                min={0}
+                max={100}
                 step={5}
-                value={Math.round(prefs.battlefieldCardScale * 100)}
-                onChange={(e) => prefs.setBattlefieldCardScale(Number(e.target.value) / 100)}
+                value={Math.round(battlefieldSizeFraction * 100)}
+                onChange={(e) => setBattlefieldSizeFraction(Number(e.target.value) / 100)}
                 className="w-full accent-primary"
               />
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => prefs.setBattlefieldCardScale(1.0)}
-                >
-                  100%
+                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(0)}>
+                  Smallest
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => prefs.setBattlefieldCardScale(1.15)}
-                >
+                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(0.5)}>
                   Default
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => prefs.setBattlefieldCardScale(1.4)}
-                >
-                  Large
+                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(1)}>
+                  Largest
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Controls the size of cards (and the grid they snap into) on the battlefield.
+                Controls the size of cards on the battlefield. The largest setting still keeps at
+                least 3 rows visible on any display.
               </p>
             </div>
 

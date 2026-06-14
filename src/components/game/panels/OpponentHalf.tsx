@@ -14,7 +14,6 @@ const OPPONENT_SCENE_OPTIONS = {
 } as const;
 
 const OPPONENT_PANEL_SCALE = 0.72;
-const OPPONENT_MIN_ROWS = 3;
 const PANEL_EDGE_OFFSET_PX = 8;
 const PANEL_GAP_PX = 8;
 const PANEL_BOX_FALLBACK = { width: 260, height: 120 } as const;
@@ -179,11 +178,11 @@ export function OpponentHalf({
           </div>
           <div className="absolute inset-0 z-10 rounded-lg overflow-hidden">
             <PixiGameCanvas
+              boardId={player.id}
               battlefield={pixiBattlefield}
               sceneRef={pixiSceneRef}
               callbacks={pixiCallbacks}
               topLeftReserved={panelBox}
-              minRows={OPPONENT_MIN_ROWS}
               bottomReserved={0}
               externalBlockers={[]}
               sceneOptions={OPPONENT_SCENE_OPTIONS}

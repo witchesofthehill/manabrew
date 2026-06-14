@@ -15,7 +15,6 @@ import type {
   GameCanvasCallbacks,
   BattlefieldState,
   HandState,
-  HandSize,
   PlayZoneRect,
   ScreenPos,
   ScreenBounds,
@@ -38,13 +37,12 @@ import {
   cellFromPoint,
   cellsByDistance,
   cellKey,
-  maxScaleForRows,
   type GridCell,
   type GridLayoutInfo,
 } from "./GridLayout";
-import { computeBaseLayout, computeHandLayout, SIZE_PARAMS } from "./HandLayout";
+import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "./HandLayout";
 import { ArrowLayer, type ArrowDef } from "./ArrowLayer";
-import { HAND_CARD_BASES } from "@/components/game/game.styles";
+import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { extractManaLetters, getExpandedManaAbilities } from "@/components/game/manaUtils";
 import {
   getManaSymbolTextureSync,
@@ -54,9 +52,7 @@ import {
 import { manaColorFor } from "./manaColors";
 import {
   ATTACH_OFFSET_Y,
-  BATTLEFIELD_CARD_SCALE_AUTOFIT_MIN,
   BATTLEFIELD_CARD_SCALE_DEFAULT,
-  BATTLEFIELD_CARD_SCALE_MAX,
   OPPONENT_PANEL_FULLWIDTH_FRAC,
   BATTLEFIELD_HOVER_HOLD_MS,
   BATTLEFIELD_LERP,
@@ -238,7 +234,7 @@ export class PixiGameScene {
    *  panel's footprint is reserved, so the lands row still fills the rest of
    *  the top edge. */
   private topLeftReserved: { width: number; height: number } | null = null;
-  private minRows: number | null = null;
+  private lastReportedHeight = 0;
   /**
    * Set in `destroy()` so any late-firing effects (React unmount races) that
    * still hold a reference to this instance short-circuit instead of touching
@@ -288,7 +284,6 @@ export class PixiGameScene {
   private handHoverHoldTimer: number | null = null;
   private pendingHandHoverLeaveIndex: number | null = null;
   private lastHandState: HandState | null = null;
-  private handSize: HandSize = "medium";
   private vScale = 1;
   private arrowLayer: ArrowLayer;
   /** Current arrow specs. Resolved to canvas-local ArrowDefs every tick so
@@ -476,6 +471,7 @@ export class PixiGameScene {
   setBottomRightReserved(size: { width: number; height: number } | null): void {
     if (this.destroyed) return;
     this.bottomRightReserved = size;
+    this.reportUsableHeight();
     this.syncDragBlockers();
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
@@ -487,6 +483,7 @@ export class PixiGameScene {
   setBottomLeftReserved(size: { width: number; height: number } | null): void {
     if (this.destroyed) return;
     this.bottomLeftReserved = size;
+    this.reportUsableHeight();
     this.syncDragBlockers();
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
@@ -494,7 +491,7 @@ export class PixiGameScene {
   setTopLeftReserved(size: { width: number; height: number } | null): void {
     if (this.destroyed) return;
     this.topLeftReserved = size;
-    this.recomputeAutoFitScale();
+    this.reportUsableHeight();
     this.syncDragBlockers();
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
@@ -508,24 +505,6 @@ export class PixiGameScene {
 
   private topReserveInset(): number {
     return this.topReserveIsFullWidth() ? this.topLeftReserved!.height : 0;
-  }
-
-  setMinRows(rows: number | null): void {
-    if (this.destroyed) return;
-    if (rows === this.minRows) return;
-    this.minRows = rows;
-    this.recomputeAutoFitScale();
-    if (this.lastState) this.updateBattlefield(this.lastState);
-  }
-
-  private recomputeAutoFitScale(): void {
-    if (this.minRows == null) return;
-    const fit = maxScaleForRows(this.getPlayZone().height, this.minRows);
-    this.cardScale = Math.max(
-      BATTLEFIELD_CARD_SCALE_AUTOFIT_MIN,
-      Math.min(BATTLEFIELD_CARD_SCALE_MAX, fit),
-    );
-    this.dragHandler.setCardScale(this.cardScale);
   }
 
   private syncDragBlockers(): void {
@@ -552,26 +531,38 @@ export class PixiGameScene {
     return rects;
   }
 
-  setHandPreferences(size: HandSize, scale: number): void {
+  setHandScale(scale: number): void {
     if (this.destroyed) return;
-    this.handSize = size;
     this.vScale = scale;
+    this.reportUsableHeight();
   }
 
-  /**
-   * Resize all battlefield cards (and the grid cells they snap to). Accepts
-   * a uniform multiplier; the caller is responsible for clamping to a sane
-   * range. Triggers a relayout so existing sprites reflow into the resized
-   * grid immediately.
-   */
-  setBattlefieldCardScale(scale: number): void {
-    if (this.destroyed) return;
-    if (this.minRows != null) return;
-    if (!Number.isFinite(scale) || scale <= 0) return;
+  setCardScale(scale: number): void {
+    if (this.destroyed || !Number.isFinite(scale) || scale <= 0) return;
     if (scale === this.cardScale) return;
     this.cardScale = scale;
     this.dragHandler.setCardScale(scale);
     if (this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  private reportUsableHeight(): void {
+    const height = this.usableGridHeight();
+    if (height === this.lastReportedHeight) return;
+    this.lastReportedHeight = height;
+    this.callbacks.onUsableHeightChange?.(height);
+  }
+
+  private usableGridHeight(): number {
+    const zone = this.getPlayZone();
+    const handBlockerTop = this.showHand
+      ? this.handBottomY() - this.computeHandDimensions().cardH - GAP
+      : zone.y + zone.height;
+    const panelStrip = Math.max(
+      this.bottomLeftReserved?.height ?? 0,
+      this.bottomRightReserved?.height ?? 0,
+    );
+    const usableBottom = Math.min(handBlockerTop, zone.y + zone.height - panelStrip);
+    return Math.max(CARD_H, usableBottom - zone.y);
   }
 
   resize(width: number, height: number): void {
@@ -582,7 +573,7 @@ export class PixiGameScene {
     this.emptyText.y = this.zoneCenterY();
     // dragHandler clamps into the play-zone rect when one is set; otherwise
     // the full canvas.
-    this.recomputeAutoFitScale();
+    this.reportUsableHeight();
     const zone = this.getPlayZone();
     this.dragHandler.setContainerSize(zone.width, zone.height);
     // Bottom-right reserved rect is anchored to canvas size — re-resolve
@@ -2338,19 +2329,21 @@ export class PixiGameScene {
   }
 
   private computeHandDimensions() {
-    const base = HAND_CARD_BASES[this.handSize];
-    const params = SIZE_PARAMS[this.handSize];
+    const base = HAND_CARD_BASE;
+    const params = HAND_FAN_PARAMS;
     // `vScale` comes from the `useHandScale` hook. Using it directly
     // keeps the Pixi hand consistent across mulligan and normal play.
     const scale = this.vScale;
+    const cardW = Math.round(base.cardW * scale);
+    const available = Math.max(cardW, this.getPlayZone().width - cardW);
     return {
-      cardW: Math.round(base.cardW * scale),
+      cardW,
       cardH: Math.round(base.cardH * scale),
       hoverLift: Math.round(params.hoverLift * scale),
       neighborPush: Math.round(params.neighborPush * scale),
       maxSpread: Math.round(params.maxSpread * scale),
       minSpread: Math.round(params.minSpread * scale),
-      spreadWidth: Math.round(params.spreadWidth * scale),
+      spreadWidth: Math.min(Math.round(params.spreadWidth * scale), available),
     };
   }
 

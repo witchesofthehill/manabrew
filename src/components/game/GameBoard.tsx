@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useMemo, useRef, useState } from "react";
 import type { GameCard, Player } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
-import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
 import { PixiPhaseStripCanvas } from "@/pixi/PixiPhaseStripCanvas";
 import type { BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
@@ -11,8 +11,8 @@ import type { PromptType } from "@/protocol";
 import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
 import type { PlacementGhost } from "@/components/game/game.types";
 import { useHandScale } from "@/hooks/useHandScale";
-import { HAND_CARD_BASES } from "@/components/game/game.styles";
-import { computeBaseLayout, SIZE_PARAMS } from "@/pixi/HandLayout";
+import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
@@ -203,29 +203,26 @@ export function GameBoard({
   const selfStops = usePhaseStopStore((s) => s.selfStops);
   const toggleSelfStop = usePhaseStopStore((s) => s.toggleSelfStop);
 
-  const handSize = usePreferencesStore((s) => s.handSize);
   const vScale = useHandScale();
   // Reserve the visible portion of the hand for drag clamping. The hand
   // now sits lower (45% of card clipped below zone), so the reserved
   // strip is thinner — roughly 35% of the container height.
-  const handBottomReserved = Math.round(HAND_CARD_BASES[handSize].containerH * vScale * 0.35);
+  const handBottomReserved = Math.round(HAND_CARD_BASE.containerH * vScale * 0.35);
 
   const handWidth = useMemo(() => {
     if (myHand.length === 0) return 0;
-    const base = HAND_CARD_BASES[handSize];
-    const params = SIZE_PARAMS[handSize];
-    const cardW = Math.round(base.cardW * vScale);
+    const cardW = Math.round(HAND_CARD_BASE.cardW * vScale);
     const layout = computeBaseLayout(
       myHand.length,
       cardW,
-      Math.round(params.maxSpread * vScale),
-      Math.round(params.minSpread * vScale),
-      Math.round(params.spreadWidth * vScale),
+      Math.round(HAND_FAN_PARAMS.maxSpread * vScale),
+      Math.round(HAND_FAN_PARAMS.minSpread * vScale),
+      Math.round(HAND_FAN_PARAMS.spreadWidth * vScale),
     );
     if (layout.length === 0) return 0;
     const xs = layout.map((slot) => slot.x);
     return Math.max(...xs) - Math.min(...xs) + cardW;
-  }, [handSize, myHand.length, vScale]);
+  }, [myHand.length, vScale]);
 
   const CLUSTER_GAP_FROM_HAND_PX = 12;
   const CLUSTER_MIN_WIDTH_PX = 120;
@@ -361,35 +358,9 @@ export function GameBoard({
           ? onBattlefieldClick
           : undefined,
       onHoverCard: (card, bounds) => {
-        if (!card) {
-          onHoverCard(null);
-          return;
-        }
-        if (bounds) {
-          const syntheticEvent = {
-            clientX: bounds.x + bounds.width / 2,
-            clientY: bounds.y,
-            buttons: 0,
-            currentTarget: document.createElement("div"),
-            shiftKey: false,
-            altKey: false,
-            ctrlKey: false,
-            metaKey: false,
-          } as unknown as React.MouseEvent;
-          onHoverCard(card, syntheticEvent, {
-            useAnchor: true,
-            anchorOverride: {
-              left: bounds.x,
-              right: bounds.x + bounds.width,
-              top: bounds.y,
-              bottom: bounds.y + bounds.height,
-              width: bounds.width,
-              height: bounds.height,
-              x: bounds.x,
-              y: bounds.y,
-              toJSON: () => ({}),
-            } as DOMRect,
-          });
+        if (card && bounds) {
+          const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
+          onHoverCard(card, undefined, { useAnchor: true, anchorOverride: rect });
         } else {
           onHoverCard(null);
         }
@@ -711,6 +682,7 @@ export function GameBoard({
               </div>
               <div className="absolute inset-0 z-10 overflow-hidden">
                 <PixiGameCanvas
+                  boardId="self"
                   battlefield={pixiBattlefield}
                   hand={pixiHand}
                   sceneRef={pixiSceneRef}

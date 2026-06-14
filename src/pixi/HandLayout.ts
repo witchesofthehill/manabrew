@@ -3,28 +3,12 @@ const MAX_ARC_DEG = 30;
 
 export const HOVER_SCALE = 1.8;
 
-export const SIZE_PARAMS = {
-  small: {
-    hoverLift: 40,
-    neighborPush: 30,
-    maxSpread: 56,
-    minSpread: 24,
-    spreadWidth: 560,
-  },
-  medium: {
-    hoverLift: 70,
-    neighborPush: 48,
-    maxSpread: 90,
-    minSpread: 38,
-    spreadWidth: 900,
-  },
-  large: {
-    hoverLift: 90,
-    neighborPush: 62,
-    maxSpread: 118,
-    minSpread: 50,
-    spreadWidth: 1180,
-  },
+export const HAND_FAN_PARAMS = {
+  hoverLift: 70,
+  neighborPush: 78,
+  maxSpread: 90,
+  minSpread: 38,
+  spreadWidth: 900,
 } as const;
 
 export interface BaseCardLayout {

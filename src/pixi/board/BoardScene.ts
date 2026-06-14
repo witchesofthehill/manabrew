@@ -261,6 +261,16 @@ export class BoardScene {
     this.hand?.updateHand(state);
   }
 
+  /** Keep the hand-hover preview alive while the cursor is over the HTML
+   *  action menu (and release it on leave). */
+  holdHandHover(): void {
+    this.hand?.holdHover();
+  }
+
+  releaseHandHover(): void {
+    this.hand?.releaseHover();
+  }
+
   setHandScale(scale: number): void {
     this.hand?.setScale(scale);
     this.hand?.relayout();

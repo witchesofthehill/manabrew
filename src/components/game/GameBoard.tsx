@@ -635,6 +635,8 @@ export function GameBoard({
             callbacks={pixiCallbacks}
             externalBlockers={pixiExternalBlockers}
             isDropActive={isOverBattlefield}
+            getHandActions={getHandActions}
+            onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
             onLayout={setUnifiedLayout}
           />
         </div>

@@ -12,13 +12,22 @@ import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
-import { PIXI_MAX_FPS } from "./constants";
+import {
+  HAND_ACTIONS_CLEAR_DELAY_MS,
+  HAND_ACTIONS_GAP_PX,
+  PIXI_MAX_FPS,
+  Z_HAND_ACTIONS_MENU,
+} from "./constants";
+import { HandCardActions } from "@/components/game/zones/HandCardActions";
+import type { HandActionOption } from "@/stores/useGameUIStore";
+import type { GameCard } from "@/types/manabrew";
 import type {
   ArrowSpec,
   BattlefieldState,
   GameCanvasCallbacks,
   HandState,
   PlayZoneRect,
+  ScreenBounds,
 } from "./types";
 import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
 import type { BlockingRect } from "./board/types";
@@ -49,8 +58,15 @@ interface BoardCanvasProps {
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
   isDropActive?: boolean;
+  getHandActions?: (card: GameCard) => HandActionOption[];
+  onSelectHandAction?: (card: GameCard, action: HandActionOption) => void;
   onLayout?: (layout: BoardCanvasLayout) => void;
   className?: string;
+}
+
+interface HandHoverState {
+  card: GameCard;
+  bounds: ScreenBounds;
 }
 
 export function BoardCanvas({
@@ -64,6 +80,8 @@ export function BoardCanvas({
   callbacks,
   externalBlockers,
   isDropActive,
+  getHandActions,
+  onSelectHandAction,
   onLayout,
   className,
 }: BoardCanvasProps) {
@@ -76,6 +94,22 @@ export function BoardCanvas({
   const onLayoutRef = useRef(onLayout);
 
   const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
+
+  const [handHover, setHandHover] = useState<HandHoverState | null>(null);
+  const clearTimerRef = useRef<number | null>(null);
+  const cancelHandHoverClear = useCallback(() => {
+    if (clearTimerRef.current != null) {
+      window.clearTimeout(clearTimerRef.current);
+      clearTimerRef.current = null;
+    }
+  }, []);
+  const scheduleHandHoverClear = useCallback(() => {
+    cancelHandHoverClear();
+    clearTimerRef.current = window.setTimeout(() => {
+      setHandHover(null);
+      clearTimerRef.current = null;
+    }, HAND_ACTIONS_CLEAR_DELAY_MS);
+  }, [cancelHandHoverClear]);
 
   useEffect(() => {
     sceneRef.current = scene;
@@ -128,7 +162,14 @@ export function BoardCanvas({
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
       onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
       onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
-      onHoverHandCard: (...a) => callbacksRef.current.onHoverHandCard?.(...a),
+      onHoverHandCard: (card, bounds) => {
+        if (card && bounds) {
+          cancelHandHoverClear();
+          setHandHover({ card, bounds });
+        } else {
+          scheduleHandHoverClear();
+        }
+      },
     });
 
     const theme = getTheme();
@@ -138,7 +179,7 @@ export function BoardCanvas({
     const parent = canvasRef.current.parentElement;
     if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
     setScene(newScene);
-  }, []);
+  }, [cancelHandHoverClear, scheduleHandHoverClear]);
 
   useEffect(() => {
     let active = true;
@@ -259,11 +300,40 @@ export function BoardCanvas({
     });
   }, [scene]);
 
+  const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
+  const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
+
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{ width: "100%", height: "100%", display: "block" }}
-    />
+    <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+      {showActionPanel && (
+        <div
+          style={{
+            position: "absolute",
+            left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+            top: handHover.bounds.y,
+            zIndex: Z_HAND_ACTIONS_MENU,
+          }}
+          onMouseEnter={() => {
+            cancelHandHoverClear();
+            sceneRef.current?.holdHandHover();
+          }}
+          onMouseLeave={() => {
+            scheduleHandHoverClear();
+            sceneRef.current?.releaseHandHover();
+          }}
+        >
+          <HandCardActions
+            actions={handActions}
+            onSelectAction={(action) => {
+              cancelHandHoverClear();
+              sceneRef.current?.releaseHandHover();
+              setHandHover(null);
+              onSelectHandAction?.(handHover.card, action);
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 }

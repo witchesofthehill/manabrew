@@ -25,8 +25,14 @@ import {
   BATTLEFIELD_LERP,
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
+  CARD_RADIUS,
   COMBAT_STAGE_EDGE_INSET,
   COMBAT_STAGE_FAN_FRAC,
+  GRID_SKELETON_FILL_ALPHA,
+  GRID_SKELETON_HOVER_ALPHA,
+  GRID_SKELETON_STACK_ALPHA,
+  GRID_SKELETON_STACK_FILL_ALPHA,
+  GRID_SKELETON_STROKE_ALPHA,
   HOVER_SCALE,
   HOVER_SCALE_LERP,
   MAX_GRID_SLOTS,
@@ -39,6 +45,7 @@ import {
   SNAP_SCALE,
   TABLE_RADIUS,
   Z_COMBAT_STAGED,
+  Z_GRID_SKELETON,
   Z_OVERLAY_OFFSET,
 } from "../constants";
 import type { RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
@@ -67,6 +74,7 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private gridSkeletonGfx: Graphics;
   private emptyText: Text;
 
   private entries = new Map<string, SpriteEntry>();
@@ -101,11 +109,19 @@ export class BoardRegion {
     parent.addChild(this.container);
 
     this.backgroundGfx = new Graphics();
+    this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
+
+    this.gridSkeletonGfx = new Graphics();
+    this.gridSkeletonGfx.eventMode = "none";
+    this.gridSkeletonGfx.visible = false;
+    this.gridSkeletonGfx.zIndex = Z_GRID_SKELETON;
+    this.container.addChild(this.gridSkeletonGfx);
 
     this.emptyText = new Text({ text: "No permanents", style: EMPTY_LABEL_STYLE });
     this.emptyText.anchor.set(0.5);
     this.emptyText.visible = false;
+    this.emptyText.zIndex = 0;
     this.container.addChild(this.emptyText);
 
     this.drawBackground();
@@ -735,6 +751,223 @@ export class BoardRegion {
 
   redrawTheme(): void {
     this.drawBackground();
+  }
+
+  // ── Drag-commit + grid skeleton (driven by the host's drag gesture) ─
+
+  getEffectiveChildren(parentId: string): string[] {
+    const parent = this.lastState?.cards.find((c) => c.id === parentId);
+    const result: string[] = [];
+    const seen = new Set<string>();
+    if (parent?.attachmentIds) {
+      for (const id of parent.attachmentIds) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+        result.push(id);
+      }
+    }
+    for (const [childId, pId] of this.uiParent) {
+      if (pId !== parentId) continue;
+      if (seen.has(childId)) continue;
+      seen.add(childId);
+      result.push(childId);
+    }
+    return result;
+  }
+
+  followAttachmentsDuringDrag(parentId: string, parentCenter: Point): void {
+    const children = this.getEffectiveChildren(parentId);
+    if (children.length === 0) return;
+    const cardH = CARD_H * this.cardScale;
+    const totalOffset = children.length * ATTACH_OFFSET_Y;
+    const topLeftY = parentCenter.y - totalOffset - cardH / 2;
+    const parentEntry = this.entries.get(parentId);
+    if (parentEntry) {
+      const parentCy = topLeftY + totalOffset + cardH / 2;
+      parentEntry.targetY = parentCy;
+      parentEntry.sprite.y = parentCy;
+      if (parentEntry.overlay?.visible) parentEntry.overlay.y = parentCy;
+    }
+    for (let i = 0; i < children.length; i++) {
+      const childId = children[i]!;
+      const child = this.entries.get(childId);
+      if (!child) continue;
+      const cy = topLeftY + totalOffset - (children.length - i) * ATTACH_OFFSET_Y + cardH / 2;
+      child.targetX = parentCenter.x;
+      child.targetY = cy;
+      child.sprite.x = parentCenter.x;
+      child.sprite.y = cy;
+      if (child.overlay?.visible) {
+        child.overlay.x = parentCenter.x;
+        child.overlay.y = cy;
+      }
+    }
+  }
+
+  findStackTargetAt(cell: GridCell, exclude: Set<string>): string | null {
+    if (!this.gridInfo) return null;
+    for (const [id, pos] of this.gridTargets) {
+      if (exclude.has(id)) continue;
+      const c = cellFromPoint(this.gridInfo, pos.x, pos.y);
+      if (c && c.col === cell.col && c.row === cell.row) return id;
+    }
+    return null;
+  }
+
+  commitCellDrop(draggedIds: string[], target: GridCell, primaryId: string | null): void {
+    if (!this.gridInfo || draggedIds.length === 0) return;
+    const grid = this.gridInfo;
+
+    const sourceCell = new Map<string, GridCell>();
+    for (const id of draggedIds) {
+      const pos = this.gridTargets.get(id);
+      if (!pos) continue;
+      const cell = cellFromPoint(grid, pos.x, pos.y);
+      if (cell) sourceCell.set(id, cell);
+    }
+
+    const primary = primaryId && sourceCell.has(primaryId) ? primaryId : draggedIds[0]!;
+    const primarySrc = sourceCell.get(primary);
+    const dCol = primarySrc ? target.col - primarySrc.col : 0;
+    const dRow = primarySrc ? target.row - primarySrc.row : 0;
+
+    const draggedSet = new Set(draggedIds);
+    const reserved = new Set<string>();
+    for (const [id, pos] of this.gridTargets) {
+      if (draggedSet.has(id)) continue;
+      const c = cellFromPoint(grid, pos.x, pos.y);
+      if (c) reserved.add(cellKey(c.col, c.row));
+    }
+
+    for (const id of draggedIds) {
+      this.uiParent.delete(id);
+      const src = sourceCell.get(id);
+      const wantCol = (src?.col ?? target.col) + dCol;
+      const wantRow = (src?.row ?? target.row) + dRow;
+
+      let placed: GridCell | null = null;
+      const wantCell = cellAt(grid, wantCol, wantRow);
+      if (wantCell && !wantCell.blocked && !reserved.has(cellKey(wantCell.col, wantCell.row))) {
+        placed = wantCell;
+      } else {
+        const anchorX = wantCell?.cx ?? target.cx + dCol * grid.cellW;
+        const anchorY = wantCell?.cy ?? target.cy + dRow * grid.cellH;
+        for (const cell of cellsByDistance(grid, anchorX, anchorY)) {
+          if (cell.blocked) continue;
+          if (reserved.has(cellKey(cell.col, cell.row))) continue;
+          placed = cell;
+          break;
+        }
+      }
+
+      if (placed) {
+        reserved.add(cellKey(placed.col, placed.row));
+        this.userSlots.set(id, { col: placed.col, row: placed.row });
+        this.userPlacedCards.add(id);
+      }
+    }
+  }
+
+  commitStackDrop(draggedIds: string[], targetId: string): void {
+    for (const id of draggedIds) {
+      if (id === targetId) continue;
+      if (this.uiParent.get(targetId) === id) this.uiParent.delete(targetId);
+      this.uiParent.set(id, targetId);
+      this.userSlots.delete(id);
+      this.userPlacedCards.delete(id);
+    }
+  }
+
+  snapshotCurrentPositions(): Map<string, Point> {
+    const positions = new Map<string, Point>();
+    for (const [id, entry] of this.entries) {
+      positions.set(id, { x: entry.sprite.x, y: entry.sprite.y });
+    }
+    return positions;
+  }
+
+  hideGridSkeleton(): void {
+    this.gridSkeletonGfx.visible = false;
+    this.gridSkeletonGfx.clear();
+  }
+
+  drawGridSkeleton(
+    draggingIds: Set<string>,
+    hoveredCell: GridCell | null,
+    stackTargetId: string | null,
+  ): void {
+    const gfx = this.gridSkeletonGfx;
+    gfx.clear();
+    if (!this.gridInfo || draggingIds.size === 0) {
+      gfx.visible = false;
+      return;
+    }
+    const grid = this.gridInfo;
+    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
+    const occupied = new Map<string, string>();
+    for (const [id, pos] of this.gridTargets) {
+      if (draggingIds.has(id)) continue;
+      const c = cellFromPoint(grid, pos.x, pos.y);
+      if (c) occupied.set(cellKey(c.col, c.row), id);
+    }
+    const hoveredKey = hoveredCell ? cellKey(hoveredCell.col, hoveredCell.row) : null;
+    let stackKey: string | null = null;
+    if (stackTargetId !== null) {
+      const pos = this.gridTargets.get(stackTargetId);
+      const c = pos ? cellFromPoint(grid, pos.x, pos.y) : null;
+      stackKey = c ? cellKey(c.col, c.row) : null;
+    }
+
+    for (const cell of grid.cells) {
+      if (cell.blocked) continue;
+      const key = cellKey(cell.col, cell.row);
+      const isStack = key === stackKey;
+      const isHover = key === hoveredKey && !isStack;
+      const isOccupied = occupied.has(key) && !isStack;
+      const strokeAlpha = isStack
+        ? GRID_SKELETON_STACK_ALPHA
+        : isHover
+          ? GRID_SKELETON_HOVER_ALPHA
+          : GRID_SKELETON_STROKE_ALPHA;
+      const fillAlpha = isStack
+        ? GRID_SKELETON_STACK_FILL_ALPHA
+        : isHover
+          ? GRID_SKELETON_FILL_ALPHA * 4
+          : isOccupied
+            ? 0
+            : GRID_SKELETON_FILL_ALPHA;
+      gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
+      if (fillAlpha > 0) gfx.fill({ color, alpha: fillAlpha });
+      gfx.stroke({ color, width: isStack || isHover ? 2 : 1, alpha: strokeAlpha });
+    }
+    gfx.visible = true;
+  }
+
+  /** Faint grid overlay shown while a hand card is dragged over this region;
+   *  the cell under (localX, localY) brightens. */
+  drawDropGrid(localX: number, localY: number): void {
+    const grid = computeGridLayout(this.zone, 0, this.host.collectBlockers(), this.cardScale);
+    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
+    const gfx = this.gridSkeletonGfx;
+    gfx.clear();
+
+    const hoveredCell = cellFromPoint(grid, localX, localY);
+    const hoveredKey =
+      hoveredCell && !hoveredCell.blocked ? cellKey(hoveredCell.col, hoveredCell.row) : null;
+
+    for (const cell of grid.cells) {
+      if (cell.blocked) continue;
+      const key = cellKey(cell.col, cell.row);
+      const isHover = key === hoveredKey;
+      gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
+      gfx.fill({ color, alpha: isHover ? GRID_SKELETON_FILL_ALPHA * 5 : GRID_SKELETON_FILL_ALPHA });
+      gfx.stroke({
+        color,
+        width: isHover ? 2 : 1,
+        alpha: isHover ? GRID_SKELETON_HOVER_ALPHA : GRID_SKELETON_STROKE_ALPHA,
+      });
+    }
+    gfx.visible = true;
   }
 
   destroy(): void {

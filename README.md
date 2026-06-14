@@ -105,10 +105,35 @@ To get started visit our [landing page](https://manabrew.app)
 ### Prerequisites
 
 - Node.js 22.12+ recommended
-- Yarn v1
+- Yarn (Berry, v4+ — the repo pins it via `.yarnrc.yml`)
 - Rust stable
 - Java 18 and Maven for Java Forge parity runs
 - Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
+
+### Get the source
+
+Since the Rust engine builds its card and rules data from
+[Forge](https://github.com/Card-Forge/forge/) itself, its source code is
+imported as the `forge` git submodule.
+You **must** initialize it, or the build will fail to compile with a
+`cardsfolder does not exist: forge/forge-gui/res/cardsfolder` error.
+
+```bash
+git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
+```
+
+If you've already cloned ManaBrew without `--recurse-submodules`, pull the submodule in:
+
+```bash
+git submodule update --init --recursive
+```
+
+You will need to run the same command after pulling changes that bump the submodule.
+
+> [!NOTE]
+> On Debian, the Yarn binary name is `yarnpkg`, not `yarn`. Please
+> replace the command name below accordingly.
+
 
 ### Install
 

@@ -2262,7 +2262,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (name == null) {
             return prompt;
         }
-        return prompt.replace("CARDNAME", name).replace("NICKNAME", name);
+        return prompt.replace("CARDNAME", name).replace("NICKNAME", Lang.getInstance().getNickName(name));
     }
 
     private static <T extends GameEntity> CardCollection cardOptions(final FCollectionView<T> optionList) {

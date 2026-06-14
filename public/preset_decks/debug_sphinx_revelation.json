@@ -1,0 +1,59 @@
+{
+  "label": "Debug: Sphinx's Revelation",
+  "desc": "Forge-hosted X-spell regression deck with dense Sphinx's Revelation and Black Lotus openers.",
+  "color": "text-blue-400",
+  "format": "vintage",
+  "opponent": "debug_torment_hailfire",
+  "ai_eligible": false,
+  "order": 1,
+  "cards": [
+    {
+      "name": "Sphinx's Revelation",
+      "count": 20,
+      "set": "plst",
+      "cardNumber": "RVR-228",
+      "manaCost": "{X}{W}{U}{U}",
+      "colors": ["U", "W"],
+      "colorIdentity": ["U", "W"],
+      "cmc": 3,
+      "types": ["Instant"],
+      "subtypes": [],
+      "supertypes": [],
+      "text": "You gain X life and draw X cards.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/6/3/6350b216-4a11-4e33-89ac-ffaf6315ab7d.jpg?1733170332",
+        "normal": "https://cards.scryfall.io/normal/front/6/3/6350b216-4a11-4e33-89ac-ffaf6315ab7d.jpg?1733170332",
+        "large": "https://cards.scryfall.io/large/front/6/3/6350b216-4a11-4e33-89ac-ffaf6315ab7d.jpg?1733170332",
+        "png": "https://cards.scryfall.io/png/front/6/3/6350b216-4a11-4e33-89ac-ffaf6315ab7d.png?1733170332",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/6/3/6350b216-4a11-4e33-89ac-ffaf6315ab7d.jpg?1733170332",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/6/3/6350b216-4a11-4e33-89ac-ffaf6315ab7d.jpg?1733170332"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Black Lotus",
+      "count": 40,
+      "set": "vma",
+      "cardNumber": "4",
+      "manaCost": "{0}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": [],
+      "supertypes": [],
+      "text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "normal": "https://cards.scryfall.io/normal/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "large": "https://cards.scryfall.io/large/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "png": "https://cards.scryfall.io/png/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.png?1614638838",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838"
+      },
+      "allParts": []
+    }
+  ]
+}

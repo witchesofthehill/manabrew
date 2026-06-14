@@ -1,0 +1,98 @@
+{
+  "label": "Debug: Jaya's Inferno",
+  "desc": "Forge-hosted legendary X-spell regression deck with dense Jaya's Immolating Inferno, Ragavan, and Black Lotus openers.",
+  "color": "text-red-400",
+  "format": "vintage",
+  "opponent": "debug_jaya_immolating_inferno",
+  "ai_eligible": false,
+  "order": 4,
+  "cards": [
+    {
+      "name": "Jaya's Immolating Inferno",
+      "count": 20,
+      "set": "dom",
+      "cardNumber": "133",
+      "manaCost": "{X}{R}{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 2,
+      "types": ["Sorcery"],
+      "subtypes": [],
+      "supertypes": ["Legendary"],
+      "text": "(You may cast a legendary sorcery only if you control a legendary creature or planeswalker.)\nJaya's Immolating Inferno deals X damage to each of up to three targets.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/4/8/48268bb8-1326-451b-9fae-de6605eb6cfd.jpg?1562735063",
+        "normal": "https://cards.scryfall.io/normal/front/4/8/48268bb8-1326-451b-9fae-de6605eb6cfd.jpg?1562735063",
+        "large": "https://cards.scryfall.io/large/front/4/8/48268bb8-1326-451b-9fae-de6605eb6cfd.jpg?1562735063",
+        "png": "https://cards.scryfall.io/png/front/4/8/48268bb8-1326-451b-9fae-de6605eb6cfd.png?1562735063",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/4/8/48268bb8-1326-451b-9fae-de6605eb6cfd.jpg?1562735063",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/4/8/48268bb8-1326-451b-9fae-de6605eb6cfd.jpg?1562735063"
+      },
+      "allParts": []
+    },
+    {
+      "name": "Ragavan, Nimble Pilferer",
+      "count": 20,
+      "set": "mul",
+      "cardNumber": "21",
+      "manaCost": "{R}",
+      "colors": ["R"],
+      "colorIdentity": ["R"],
+      "cmc": 1,
+      "types": ["Creature"],
+      "subtypes": ["Monkey", "Pirate"],
+      "supertypes": ["Legendary"],
+      "text": "Whenever Ragavan deals combat damage to a player, create a Treasure token and exile the top card of that player's library. Until end of turn, you may cast that card.\nDash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)",
+      "layout": "normal",
+      "power": "2",
+      "toughness": "1",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/f/c/fc898fec-4cc6-4587-b556-c5a8d38ccbd0.jpg?1682347338",
+        "normal": "https://cards.scryfall.io/normal/front/f/c/fc898fec-4cc6-4587-b556-c5a8d38ccbd0.jpg?1682347338",
+        "large": "https://cards.scryfall.io/large/front/f/c/fc898fec-4cc6-4587-b556-c5a8d38ccbd0.jpg?1682347338",
+        "png": "https://cards.scryfall.io/png/front/f/c/fc898fec-4cc6-4587-b556-c5a8d38ccbd0.png?1682347338",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/f/c/fc898fec-4cc6-4587-b556-c5a8d38ccbd0.jpg?1682347338",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/f/c/fc898fec-4cc6-4587-b556-c5a8d38ccbd0.jpg?1682347338"
+      },
+      "allParts": [
+        {
+          "name": "Ragavan, Nimble Pilferer",
+          "component": "combo_piece"
+        },
+        {
+          "name": "Treasure",
+          "component": "token"
+        },
+        {
+          "name": "Kari Zev, Crew of Two",
+          "component": "combo_piece"
+        }
+      ]
+    },
+    {
+      "name": "Black Lotus",
+      "count": 20,
+      "set": "vma",
+      "cardNumber": "4",
+      "manaCost": "{0}",
+      "colors": [],
+      "colorIdentity": [],
+      "cmc": 0,
+      "types": ["Artifact"],
+      "subtypes": [],
+      "supertypes": [],
+      "text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
+      "layout": "normal",
+      "uris": {
+        "small": "https://cards.scryfall.io/small/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "normal": "https://cards.scryfall.io/normal/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "large": "https://cards.scryfall.io/large/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "png": "https://cards.scryfall.io/png/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.png?1614638838",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/b/d/bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd.jpg?1614638838"
+      },
+      "allParts": []
+    }
+  ]
+}

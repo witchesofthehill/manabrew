@@ -167,6 +167,10 @@ interface GameDevState {
   debugBattlefieldKeywords: string[];
   debugCardEnabled: boolean;
   debugCardName: string;
+  /** Render the experimental unified single-canvas board instead of the
+   *  per-player canvases. Opt-in while the cutover is verified. */
+  unifiedBoard: boolean;
+  setUnifiedBoard: (value: boolean) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
   setDevToolsEnabled: (value: boolean) => void;
   clearPromptActionOverride: () => void;
@@ -202,6 +206,8 @@ export const useGameDevStore = create<GameDevState>()(
       debugBattlefieldKeywords: [],
       debugCardEnabled: false,
       debugCardName: "Raging Goblin",
+      unifiedBoard: false,
+      setUnifiedBoard: (value) => set({ unifiedBoard: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
       setDevToolsEnabled: (value) => set({ devToolsEnabled: value }),
       clearPromptActionOverride: () => set({ promptActionOverride: null }),

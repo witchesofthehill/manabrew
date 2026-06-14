@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -345,6 +346,8 @@ const HOVER_DELAY_STEP = 50;
 export default function Settings() {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const prefs = usePreferencesStore();
+  const unifiedBoard = useGameDevStore((s) => s.unifiedBoard);
+  const setUnifiedBoard = useGameDevStore((s) => s.setUnifiedBoard);
   const { fraction: battlefieldSizeFraction, setFraction: setBattlefieldSizeFraction } =
     useBattlefieldCardScale();
   const { flashDurationMs, setFlashDurationMs } = prefs;
@@ -683,6 +686,30 @@ export default function Settings() {
                 How opponents are placed in multiplayer games. "Row" lines them up across the top;
                 "Wrapped around" seats them to your left, across, and right. Only affects 4-player
                 games.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Unified Board (experimental)</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={unifiedBoard ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUnifiedBoard(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!unifiedBoard ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setUnifiedBoard(false)}
+                >
+                  Off
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Renders the whole table on a single canvas so cards can move across the center line
+                (MTGA-style combat). In testing — the per-player panels are still being re-anchored.
               </p>
             </div>
 

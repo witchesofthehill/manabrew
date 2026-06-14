@@ -3,6 +3,9 @@ import type { GameCard, Player } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
+import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
+import { useGameDevStore } from "@/stores/useGameDevStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { PixiPhaseStripCanvas } from "@/pixi/PixiPhaseStripCanvas";
 import type { BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
@@ -472,6 +475,86 @@ export function GameBoard({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }, []);
+
+  // ── Experimental unified single-canvas board (dev toggle) ──
+  const unifiedBoard = useGameDevStore((s) => s.unifiedBoard);
+  const boardArrangement = usePreferencesStore((s) => s.boardArrangement);
+  const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
+
+  const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
+    const oppState = (cards: GameCard[]): BattlefieldState => ({
+      cards,
+      attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
+      selectableCardIds: selectableBattlefieldCardIds,
+      hostileTargeting,
+    });
+    return [
+      { playerId: me.id, isLocal: true, state: pixiBattlefield },
+      ...opponents.map((op) => ({
+        playerId: op.id,
+        isLocal: false,
+        state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
+      })),
+    ];
+  }, [
+    me.id,
+    opponents,
+    opponentPermanentsByPlayer,
+    pixiBattlefield,
+    promptType,
+    promptAttackerIds,
+    selectableBattlefieldCardIds,
+    hostileTargeting,
+  ]);
+
+  if (unifiedBoard) {
+    return (
+      <div
+        ref={boardRef}
+        className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
+      >
+        <div className="absolute inset-0 z-10 overflow-hidden">
+          <BoardCanvas
+            regions={unifiedRegions}
+            hand={pixiHand}
+            arrowSpecs={[]}
+            phaseStrip={pixiPhaseStrip}
+            phaseStripCallbacks={pixiPhaseStripCallbacks}
+            arrangement={boardArrangement}
+            callbacks={pixiCallbacks}
+            externalBlockers={pixiExternalBlockers}
+            isDropActive={isOverBattlefield}
+            onLayout={setUnifiedLayout}
+          />
+        </div>
+        {unifiedLayout?.self && (
+          <div
+            className="absolute z-30 text-xs text-foreground bg-card/80 rounded px-2 py-0.5 pointer-events-none"
+            style={{ left: unifiedLayout.self.x + 8, top: unifiedLayout.self.y + 8 }}
+            data-player-id={me.id}
+          >
+            {me.name} · {me.life}
+          </div>
+        )}
+        {unifiedLayout?.opponents.map(({ playerId, rect }) => {
+          const op = opponents.find((o) => o.id === playerId);
+          if (!op) return null;
+          return (
+            <button
+              key={playerId}
+              type="button"
+              className="absolute z-30 text-xs text-foreground bg-card/80 rounded px-2 py-0.5"
+              style={{ left: rect.x + 8, top: rect.y + 8 }}
+              data-player-id={playerId}
+              onClick={() => onTargetPlayer(playerId)}
+            >
+              {op.name} · {op.life}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div

@@ -80,6 +80,21 @@ export function useFlashQueue(flashDurationMs: number) {
     }
   }
 
+  // The store's `isFlashing` flag and the deferred queue are drained ONLY by
+  // this hook. If it unmounts mid-flash (leaving the game), the store would be
+  // left `isFlashing: true` / queue non-empty with no drainer, wedging the
+  // next game's first state on the loading screen. Tie that store state to
+  // this hook's lifetime: clear it on unmount so it can never outlive its
+  // drainer.
+  useEffect(() => {
+    return () => {
+      isFlashingRef.current = false;
+      flashQueueRef.current = [];
+      deferredStateRef.current = null;
+      useGameStore.setState({ isFlashing: false, deferredQueue: [] });
+    };
+  }, []);
+
   // Watch the deferred queue — when entries arrive and we're idle, start processing.
   useEffect(() => {
     if (deferredQueue.length > 0 && !isFlashingRef.current) {

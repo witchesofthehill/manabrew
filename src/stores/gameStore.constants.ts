@@ -35,26 +35,6 @@ function route(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
-  // The first state of a game has nothing to animate over and MUST land
-  // immediately. Without this, a stale `isFlashing` flag or a leftover
-  // `deferredQueue` from a prior game (the flash queue is only drained by
-  // `useFlashQueue`, mounted inside Game) would strand the first gameView
-  // in the queue — leaving isGameActive=true with gameView=null forever
-  // ("Waiting for game state…"). Apply it now and clear any stale anim state.
-  if (snapshot.gameView && get().gameView === null) {
-    const updates: Partial<GameState> = {
-      debugInfo: source,
-      gameView: snapshot.gameView,
-      deferredQueue: [],
-      isFlashing: false,
-    };
-    if (snapshot.prompt) {
-      updates.currentPrompt = snapshot.prompt;
-      updates.isWaitingForResponse = false;
-    }
-    set(updates);
-    return;
-  }
   const queueLen = get().deferredQueue.length;
   if (snapshot.displayEvents.length > 0 || queueLen > 0 || get().isFlashing) {
     set({

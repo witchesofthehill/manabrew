@@ -58,6 +58,9 @@ interface BoardCanvasProps {
   /** Fraction of usable height for the local player's bottom region (resize
    *  grip). Defaults to the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
+  /** Per-opponent column width fractions (row arrangement resize grips).
+   *  Equal split when omitted. */
+  opponentFractions?: number[];
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
   isDropActive?: boolean;
@@ -82,6 +85,7 @@ export function BoardCanvas({
   phaseStripCallbacks,
   arrangement,
   selfHeightFraction,
+  opponentFractions,
   callbacks,
   externalBlockers,
   isDropActive,
@@ -228,7 +232,14 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(w, h, opponentCount, arrangement, selfHeightFraction);
+    const layout = computeBoardLayout(
+      w,
+      h,
+      opponentCount,
+      arrangement,
+      selfHeightFraction,
+      opponentFractions,
+    );
     const minHeight = Math.min(layout.self.height, ...layout.opponents.map((o) => o.height));
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
     s.configure(players, layout, cardScale);
@@ -240,7 +251,7 @@ export function BoardCanvas({
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, arrangement, fraction, selfHeightFraction]);
+  }, [playersKey, arrangement, fraction, selfHeightFraction, opponentFractions]);
 
   useEffect(() => {
     reconfigure();

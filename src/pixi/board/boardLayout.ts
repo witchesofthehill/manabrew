@@ -34,6 +34,7 @@ export function computeBoardLayout(
   opponentCount: number,
   arrangement: BoardArrangement = "row",
   selfHeightFraction: number = SELF_HEIGHT_FRACTION,
+  opponentFractions?: number[],
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const band = Math.min(STRIP_BAND_PX, Math.max(0, height - 2));
@@ -60,15 +61,24 @@ export function computeBoardLayout(
     };
   }
 
-  const colWidth = width / count;
+  // Column widths default to equal; an explicit per-opponent fraction set
+  // (from the resize grips) overrides, normalized + floored so a column
+  // can't collapse.
+  let fractions: number[];
+  if (opponentFractions && opponentFractions.length === count) {
+    const floored = opponentFractions.map((f) => Math.max(0.1, f));
+    const sum = floored.reduce((a, b) => a + b, 0);
+    fractions = floored.map((f) => f / sum);
+  } else {
+    fractions = Array.from({ length: count }, () => 1 / count);
+  }
+
   const opponents: PlayZoneRect[] = [];
+  let acc = 0;
   for (let i = 0; i < count; i++) {
-    opponents.push({
-      x: Math.round(i * colWidth),
-      y: 0,
-      width: Math.round((i + 1) * colWidth) - Math.round(i * colWidth),
-      height: topHeight,
-    });
+    const x = Math.round(acc * width);
+    acc += fractions[i]!;
+    opponents.push({ x, y: 0, width: Math.round(acc * width) - x, height: topHeight });
   }
 
   return {

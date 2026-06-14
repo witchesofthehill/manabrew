@@ -512,6 +512,44 @@ export function GameBoard({
     window.addEventListener("pointerup", onUp);
   }, []);
 
+  // Per-opponent column widths (row arrangement resize grips). Equal split
+  // until the user drags a boundary; reset implicitly when the count changes
+  // (length mismatch → BoardCanvas falls back to equal).
+  const [opponentSplits, setOpponentSplits] = useState<number[]>([]);
+  const opponentFractions = opponentSplits.length === opponents.length ? opponentSplits : undefined;
+
+  const onOpponentGripDown = useCallback(
+    (boundary: number) => (e: React.PointerEvent) => {
+      e.preventDefault();
+      const el = boardRef.current;
+      if (!el) return;
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      const count = opponents.length;
+      const start =
+        opponentSplits.length === count
+          ? [...opponentSplits]
+          : Array.from({ length: count }, () => 1 / count);
+      const pairSum = start[boundary]! + start[boundary + 1]!;
+      const before = start.slice(0, boundary).reduce((a, b) => a + b, 0);
+      const onMove = (ev: PointerEvent) => {
+        const rect = el.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) / rect.width;
+        const left = Math.max(0.1, Math.min(pairSum - 0.1, x - before));
+        const next = [...start];
+        next[boundary] = left;
+        next[boundary + 1] = pairSum - left;
+        setOpponentSplits(next);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [opponents.length, opponentSplits],
+  );
+
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const oppState = (cards: GameCard[]): BattlefieldState => ({
       cards,
@@ -661,6 +699,7 @@ export function GameBoard({
             phaseStripCallbacks={pixiPhaseStripCallbacks}
             arrangement={boardArrangement}
             selfHeightFraction={unifiedSplit}
+            opponentFractions={opponentFractions}
             callbacks={pixiCallbacks}
             externalBlockers={pixiExternalBlockers}
             isDropActive={isOverBattlefield}
@@ -716,13 +755,27 @@ export function GameBoard({
         <div className="absolute inset-0 z-40 pointer-events-none">
           <BoardArrowsCanvas sceneRef={unifiedSceneRef} />
         </div>
+        {boardArrangement === "row" &&
+          unifiedLayout &&
+          unifiedLayout.opponents.slice(1).map(({ playerId, rect }) => (
+            <div
+              key={`oppgrip-${playerId}`}
+              className="absolute z-50 w-3 cursor-col-resize flex items-center justify-center group"
+              style={{ left: rect.x - 6, top: 0, height: rect.height }}
+              onPointerDown={onOpponentGripDown(
+                unifiedLayout.opponents.findIndex((o) => o.playerId === playerId) - 1,
+              )}
+            >
+              <div className="w-[3px] h-16 rounded-full bg-white/25 group-hover:bg-white/50" />
+            </div>
+          ))}
         {unifiedLayout?.self && (
           <div
-            className="absolute left-0 right-0 z-50 h-3 cursor-row-resize flex items-center justify-center group"
-            style={{ top: unifiedLayout.self.y - 6 }}
+            className="absolute left-0 right-0 z-50 h-4 cursor-row-resize flex items-center justify-center group"
+            style={{ top: unifiedLayout.self.y - 8 }}
             onPointerDown={onUnifiedGripDown}
           >
-            <div className="h-[3px] w-16 rounded-full bg-white/20 group-hover:bg-white/40" />
+            <div className="h-1 w-24 rounded-full bg-white/30 group-hover:bg-white/60" />
           </div>
         )}
       </div>

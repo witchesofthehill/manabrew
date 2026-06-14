@@ -22,11 +22,7 @@ export const BATTLEFIELD_CARD = "w-[70px] h-[98px] shrink-0" as const;
 export const HAND_CARD = "w-[80px] h-[112px]" as const;
 
 /** Base hand card sizes at 1920px reference width (scaled at runtime by useHandScale). */
-export const HAND_CARD_BASES = {
-  small: { cardW: 80, cardH: 112, containerH: 140 },
-  medium: { cardW: 130, cardH: 182, containerH: 220 },
-  large: { cardW: 170, cardH: 238, containerH: 280 },
-} as const;
+export const HAND_CARD_BASE = { cardW: 130, cardH: 182, containerH: 220 } as const;
 /** Cards inside modal grids (e.g., LibraryPeekModal, SpellStackModal, ZoneTargetSelector) */
 export const MODAL_CARD_SIZE = "w-[100px] h-[140px]" as const;
 /** Large preview card (e.g., CardPreview floating overlay) */

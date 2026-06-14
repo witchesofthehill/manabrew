@@ -91,15 +91,15 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
 
       if (e) {
         setMousePos({ x: e.clientX, y: e.clientY });
-        if (options.anchorOverride) {
-          setAnchorRect(options.anchorOverride);
-        } else if (options.useAnchor) {
-          setAnchorRect((e.currentTarget as HTMLElement).getBoundingClientRect());
-        } else {
-          setAnchorRect(null);
-        }
-        setPlacement(options.placement ?? "auto");
       }
+      if (options.anchorOverride) {
+        setAnchorRect(options.anchorOverride);
+      } else if (options.useAnchor && e) {
+        setAnchorRect((e.currentTarget as HTMLElement).getBoundingClientRect());
+      } else {
+        setAnchorRect(null);
+      }
+      setPlacement(options.placement ?? "auto");
 
       const delay = options.useDelay ? cardHoverDelayMs : 0;
 

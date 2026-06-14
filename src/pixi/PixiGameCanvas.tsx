@@ -17,6 +17,8 @@ import type {
   PlayZoneRect,
 } from "./types";
 import { useHandScale } from "@/hooks/useHandScale";
+import { useResolvedBattlefieldScale } from "@/hooks/useBattlefieldCardScale";
+import { useBattlefieldScaleStore } from "@/stores/useBattlefieldScaleStore";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
@@ -53,8 +55,9 @@ interface PixiGameCanvasProps {
   leftReserved?: number;
   /** Keep-out box at the top-left for the opponent panel cluster. */
   topLeftReserved?: { width: number; height: number } | null;
-  /** Auto-fit the card scale so at least this many rows always render. */
-  minRows?: number;
+  /** Unique id for this board, used to report its usable height into the
+   *  shared cross-board scale calculation. */
+  boardId: string;
   /** Keep-out size anchored to the bottom-left of the canvas — the player
    *  panel cluster (avatar + zones + mana). */
   bottomLeftReserved?: { width: number; height: number } | null;
@@ -93,7 +96,7 @@ export function PixiGameCanvas({
   bottomReserved = 0,
   leftReserved = 0,
   topLeftReserved,
-  minRows,
+  boardId,
   bottomLeftReserved,
   externalBlockers,
   bottomRightReserved,
@@ -108,6 +111,7 @@ export function PixiGameCanvas({
   const [scene, setScene] = useState<PixiGameScene | null>(null);
   const sceneRef = useRef<PixiGameScene | null>(null);
   const callbacksRef = useRef(callbacks);
+  const reportUsableHeightRef = useRef<(height: number) => void>(() => {});
   // Scene construction options are read once when the scene is built.
   // Store them in a ref so the init callback's dependency list stays
   // stable (the `initApp` useCallback would otherwise rebuild the scene
@@ -126,6 +130,13 @@ export function PixiGameCanvas({
   useEffect(() => {
     callbacksRef.current = callbacks;
   }, [callbacks]);
+
+  const reportUsableHeight = useBattlefieldScaleStore((s) => s.reportUsableHeight);
+  const clearBoard = useBattlefieldScaleStore((s) => s.clearBoard);
+  useEffect(() => {
+    reportUsableHeightRef.current = (height: number) => reportUsableHeight(boardId, height);
+  }, [reportUsableHeight, boardId]);
+  useEffect(() => () => clearBoard(boardId), [clearBoard, boardId]);
 
   const cancelHandHoverClear = useCallback(() => {
     if (clearTimerRef.current != null) {
@@ -197,6 +208,7 @@ export function PixiGameCanvas({
         onClickCard_Hand: (...args) => callbacksRef.current.onClickCard_Hand?.(...args),
         onCastSpell: (...args) => callbacksRef.current.onCastSpell?.(...args),
         onDismissHoverPreview: () => callbacksRef.current.onDismissHoverPreview?.(),
+        onUsableHeightChange: (height) => reportUsableHeightRef.current(height),
         onHoverHandCard: (card, bounds) => {
           if (card && bounds) {
             cancelHandHoverClear();
@@ -273,39 +285,29 @@ export function PixiGameCanvas({
     return unsub;
   }, [scene]);
 
-  const handSize = usePreferencesStore((s) => s.handSize);
-  const battlefieldCardScale = usePreferencesStore((s) => s.battlefieldCardScale);
+  const resolvedCardScale = useResolvedBattlefieldScale();
   const vScale = useHandScale();
 
   useEffect(() => {
     if (!scene) return;
-    scene.setBattlefieldCardScale(battlefieldCardScale);
-  }, [scene, battlefieldCardScale]);
+    scene.setCardScale(resolvedCardScale);
+  }, [scene, resolvedCardScale]);
 
   useEffect(() => {
     if (!scene) return;
     scene.setReserved(bottomReserved, leftReserved);
     scene.setBottomLeftReserved(bottomLeftReserved ?? null);
     scene.setTopLeftReserved(topLeftReserved ?? null);
-    scene.setMinRows(minRows ?? null);
     scene.updateBattlefield(battlefield);
-  }, [
-    scene,
-    battlefield,
-    bottomReserved,
-    leftReserved,
-    topLeftReserved,
-    minRows,
-    bottomLeftReserved,
-  ]);
+  }, [scene, battlefield, bottomReserved, leftReserved, topLeftReserved, bottomLeftReserved]);
 
   useEffect(() => {
     if (!scene) return;
-    scene.setHandPreferences(handSize, vScale);
+    scene.setHandScale(vScale);
     scene.updateHand(hand ?? { cards: [] });
     // Hand dimensions changed → blocker rect changed → re-layout battlefield
     scene.updateBattlefield(battlefield);
-  }, [scene, hand, handSize, vScale, battlefield]);
+  }, [scene, hand, vScale, battlefield]);
 
   useEffect(() => {
     if (!scene) return;

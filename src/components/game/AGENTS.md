@@ -48,14 +48,14 @@ Don't roll your own symbol parsing.
 
 Use the standard size constants. Don't invent pixel values.
 
-| Constant             | Usage                                                                              |
-| -------------------- | ---------------------------------------------------------------------------------- |
-| `BATTLEFIELD_CARD`   | `w-[70px] h-[98px]` — battlefield (where React is involved)                        |
-| `HAND_CARD`          | `w-[80px] h-[112px]` — hand / zone viewer                                          |
-| `HAND_CARD_BASES`    | Per-size pixel dims (`small`/`medium`/`large`) scaled at runtime by `useHandScale` |
-| `MODAL_CARD_SIZE`    | `w-[100px] h-[140px]` — cards inside modal grids                                   |
-| `MULLIGAN_CARD_SIZE` | `w-[160px] h-[222px]` — cards inside mulligan modals                               |
-| `FLASH_CARD_SIZE`    | `{ w: 310, h: 434 }` (numeric — for Pixi-rendered preview, not a Tailwind class)   |
+| Constant             | Usage                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BATTLEFIELD_CARD`   | `w-[70px] h-[98px]` — battlefield (where React is involved)                                                                                 |
+| `HAND_CARD`          | `w-[80px] h-[112px]` — hand / zone viewer                                                                                                   |
+| `HAND_CARD_BASE`     | Hand-card base pixel dims, scaled at runtime by `useHandScale` (`HAND_FAN_PARAMS` in `pixi/HandLayout.ts` holds the fan spread/lift params) |
+| `MODAL_CARD_SIZE`    | `w-[100px] h-[140px]` — cards inside modal grids                                                                                            |
+| `MULLIGAN_CARD_SIZE` | `w-[160px] h-[222px]` — cards inside mulligan modals                                                                                        |
+| `FLASH_CARD_SIZE`    | `{ w: 310, h: 434 }` (numeric — for Pixi-rendered preview, not a Tailwind class)                                                            |
 
 ## Prompt routing
 

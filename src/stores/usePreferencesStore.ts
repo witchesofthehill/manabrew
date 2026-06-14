@@ -4,7 +4,6 @@ import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
-export type HandSize = "small" | "medium" | "large";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 
 interface PreferencesState {
@@ -30,13 +29,8 @@ interface PreferencesState {
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
 
-  /** Hand card size */
-  handSize: HandSize;
-  setHandSize: (size: HandSize) => void;
-
-  /** Multiplier applied to battlefield card sprites and the grid cells they snap into. */
   battlefieldCardScale: number;
-  setBattlefieldCardScale: (scale: number) => void;
+  setBattlefieldCardScale: (fraction: number) => void;
 
   /** Card preview trigger mode */
   cardPreviewMode: CardPreviewMode;
@@ -65,7 +59,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "zonePanelOrder",
-  "handSize",
   "battlefieldCardScale",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -117,12 +110,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),
 
-          handSize: "medium",
-          setHandSize: (handSize) => set({ handSize }),
-
-          battlefieldCardScale: 1.15,
+          battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>
-            set({ battlefieldCardScale: Math.max(0.8, Math.min(1.8, battlefieldCardScale)) }),
+            set({ battlefieldCardScale: Math.max(0, Math.min(1, battlefieldCardScale)) }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

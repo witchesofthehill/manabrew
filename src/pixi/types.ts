@@ -1,7 +1,4 @@
 import type { GameCard, ActivatableAbilityInfo } from "@/types/manabrew";
-import type { HAND_CARD_BASES } from "@/components/game/game.styles";
-
-export type HandSize = keyof typeof HAND_CARD_BASES;
 
 export interface ScreenBounds {
   x: number;
@@ -100,6 +97,7 @@ export interface GameCanvasCallbacks {
    * the scene begins a drag so the preview doesn't linger on the cursor.
    */
   onDismissHoverPreview?: () => void;
+  onUsableHeightChange?: (height: number) => void;
 }
 
 export interface BattlefieldState {

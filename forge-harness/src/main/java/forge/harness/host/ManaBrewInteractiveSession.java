@@ -143,20 +143,23 @@ public final class ManaBrewInteractiveSession {
         private final SpellAbility action;
         private final String untilPhase;
         private final Card untapCard;
+        private final String color;
 
         private PriorityChoice(final PriorityActionKind kind, final SpellAbility action, final String untilPhase) {
-            this(kind, action, untilPhase, null);
+            this(kind, action, untilPhase, null, null);
         }
 
         private PriorityChoice(
                 final PriorityActionKind kind,
                 final SpellAbility action,
                 final String untilPhase,
-                final Card untapCard) {
+                final Card untapCard,
+                final String color) {
             this.kind = kind;
             this.action = action;
             this.untilPhase = untilPhase;
             this.untapCard = untapCard;
+            this.color = color;
         }
 
         PriorityActionKind kind() {
@@ -173,6 +176,10 @@ public final class ManaBrewInteractiveSession {
 
         Card untapCard() {
             return untapCard;
+        }
+
+        String color() {
+            return color;
         }
     }
 
@@ -200,7 +207,7 @@ public final class ManaBrewInteractiveSession {
             }
             if ("untap_land".equals(kind)) {
                 final Card untapCard = resolveUntapCard(action, untappableCards);
-                return new PriorityChoice(PriorityActionKind.UNDO, null, null, untapCard);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null, untapCard, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
@@ -217,7 +224,10 @@ public final class ManaBrewInteractiveSession {
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("tap_land index out of range: " + index);
                 }
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null);
+                final String color = action.has("color") && !action.get("color").isJsonNull()
+                        ? action.get("color").getAsString()
+                        : null;
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, color);
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
@@ -1457,6 +1467,9 @@ public final class ManaBrewInteractiveSession {
             final Card host = sa.getHostCard();
             if (host != null) {
                 option.addProperty("cardId", SnapshotExtractor.javaCardId(host));
+            }
+            if (sa.isManaAbility() && sa.getManaPart() != null) {
+                option.addProperty("cost", sa.getManaPart().mana(sa));
             }
             options.add(option);
         }

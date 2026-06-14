@@ -365,6 +365,7 @@ pub struct JavaRawAction {
     #[serde(rename = "cardId")]
     pub card_id: Option<String>,
     pub kind: Option<String>,
+    pub cost: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

@@ -16,12 +16,11 @@ export const MAX_GRID_SLOTS = 200;
 
 // ── Battlefield card scale ─────────────────────────────────────────────────
 // Multiplier applied to battlefield sprites (and their grid cell footprint).
-// 1.0 is the baseline size; default is slightly bigger. User-adjustable via
-// the Settings page.
 export const BATTLEFIELD_CARD_SCALE_DEFAULT = 1.15;
-export const BATTLEFIELD_CARD_SCALE_MIN = 0.8;
-export const BATTLEFIELD_CARD_SCALE_MAX = 1.8;
-export const BATTLEFIELD_CARD_SCALE_AUTOFIT_MIN = 0.5;
+// Absolute floor so cards never go microscopic on very short displays.
+export const BATTLEFIELD_CARD_SCALE_FLOOR = 0.5;
+export const BATTLEFIELD_MIN_ROWS = 3;
+export const BATTLEFIELD_MAX_ROWS = 4;
 // Panel wider than this fraction of the canvas reserves the whole top row.
 export const OPPONENT_PANEL_FULLWIDTH_FRAC = 0.4;
 

@@ -7,7 +7,7 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { PixiPhaseStripCanvas } from "@/pixi/PixiPhaseStripCanvas";
-import type { BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
+import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import type { PromptType } from "@/protocol";
@@ -74,6 +74,11 @@ interface GameBoardProps {
    *  any locked-in blocks). Fades the center phase strip so the staged
    *  attacker/blocker columns aren't bisected by it. */
   combatStagingActive?: boolean;
+  /** Locked-in blocker→attacker assignments from the engine; combined with
+   *  pending blockAssignments to drive unified-board combat staging. */
+  combatAssignments?: { blockerId: string; attackerId: string }[];
+  /** Arrow specs for the unified board (attack/attach/placement). */
+  arrowSpecs?: ArrowSpec[];
   playerIsTargetable: (playerId: string) => boolean;
 
   // Per-player game-wide flags
@@ -172,6 +177,8 @@ export function GameBoard({
   selectedAttackDefenderId,
   blockAssignments,
   combatStagingActive,
+  combatAssignments,
+  arrowSpecs,
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
@@ -507,6 +514,15 @@ export function GameBoard({
     hostileTargeting,
   ]);
 
+  const unifiedCombatBlocks = useMemo(() => {
+    const byBlocker = new Map<string, string>();
+    for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
+    if (promptType === "chooseBlockers") {
+      for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
+    }
+    return [...byBlocker].map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
+  }, [combatAssignments, blockAssignments, promptType]);
+
   if (unifiedBoard) {
     return (
       <div
@@ -517,7 +533,8 @@ export function GameBoard({
           <BoardCanvas
             regions={unifiedRegions}
             hand={pixiHand}
-            arrowSpecs={[]}
+            arrowSpecs={arrowSpecs ?? []}
+            combatBlocks={unifiedCombatBlocks}
             phaseStrip={pixiPhaseStrip}
             phaseStripCallbacks={pixiPhaseStripCallbacks}
             arrangement={boardArrangement}

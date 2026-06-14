@@ -43,6 +43,7 @@ import type {
   RegionHost,
   SceneCombatStaging,
   SelectionHost,
+  StagedBlocker,
 } from "./types";
 
 /** One player's region assignment for the unified board. */
@@ -267,6 +268,74 @@ export class BoardScene {
 
   setCombatStaging(playerId: string, staging: SceneCombatStaging | null): void {
     this.regions.get(playerId)?.region.setCombatStaging(staging);
+  }
+
+  /**
+   * MTGA-style combat staging across regions: each attacker stays at its x
+   * and its blockers line up beneath it. Because every region shares one
+   * canvas, the attacker's lane is its own canvas-local x (passed as a
+   * viewport x so each region's `screenXToLocalX` resolves it back).
+   */
+  applyCombatBlocks(blocks: { blockerId: string; attackerId: string }[]): void {
+    if (this.destroyed) return;
+    const canvasLeft = this.app.canvas.getBoundingClientRect().left;
+    const regionOf = (cardId: string): BoardRegion | null => {
+      for (const rec of this.regions.values()) {
+        if (rec.region.getCardPosition(cardId)) return rec.region;
+      }
+      return null;
+    };
+
+    const byAttacker = new Map<string, string[]>();
+    for (const { blockerId, attackerId } of blocks) {
+      const list = byAttacker.get(attackerId);
+      if (list) list.push(blockerId);
+      else byAttacker.set(attackerId, [blockerId]);
+    }
+
+    interface Acc {
+      attackerIds: Set<string>;
+      blockers: StagedBlocker[];
+      blockerIds: Set<string>;
+    }
+    const acc = new Map<BoardRegion, Acc>();
+    const accFor = (region: BoardRegion): Acc => {
+      let a = acc.get(region);
+      if (!a) {
+        a = { attackerIds: new Set(), blockers: [], blockerIds: new Set() };
+        acc.set(region, a);
+      }
+      return a;
+    };
+
+    for (const [attackerId, blockerIds] of byAttacker) {
+      const attackerRegion = regionOf(attackerId);
+      const pos = attackerRegion?.getCardPosition(attackerId);
+      if (!attackerRegion || !pos) continue;
+      const laneScreenX = pos.x + canvasLeft;
+      accFor(attackerRegion).attackerIds.add(attackerId);
+      blockerIds.forEach((blockerId, i) => {
+        const blockerRegion = regionOf(blockerId);
+        if (!blockerRegion) return;
+        const a = accFor(blockerRegion);
+        a.blockers.push({
+          id: blockerId,
+          laneScreenX,
+          indexInLane: i,
+          laneCount: blockerIds.length,
+        });
+        a.blockerIds.add(blockerId);
+      });
+    }
+
+    for (const rec of this.regions.values()) {
+      const a = acc.get(rec.region);
+      rec.region.setCombatStaging(
+        a && (a.attackerIds.size > 0 || a.blockers.length > 0)
+          ? { attackerIds: a.attackerIds, blockers: a.blockers, blockerIds: a.blockerIds }
+          : null,
+      );
+    }
   }
 
   setArrowSpecs(specs: ArrowSpec[]): void {

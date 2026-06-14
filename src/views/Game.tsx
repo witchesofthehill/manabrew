@@ -1432,6 +1432,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
           combatStagingActive={promptType === "chooseBlockers" || combatAssignments.length > 0}
+          combatAssignments={combatAssignments}
+          arrowSpecs={arrowSpecs}
           playerIsTargetable={playerIsTargetable}
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}

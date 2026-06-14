@@ -21,7 +21,7 @@ import type {
   PlayZoneRect,
 } from "./types";
 import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
-import type { BlockingRect, SceneCombatStaging } from "./board/types";
+import type { BlockingRect } from "./board/types";
 
 /** One player's battlefield input for the unified canvas. Ordered: local
  *  first, then opponents left → right. */
@@ -42,7 +42,7 @@ interface BoardCanvasProps {
   regions: BoardCanvasRegion[];
   hand: HandState;
   arrowSpecs: ArrowSpec[];
-  combatStaging?: { playerId: string; staging: SceneCombatStaging | null }[];
+  combatBlocks?: { blockerId: string; attackerId: string }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
   arrangement: BoardArrangement;
@@ -57,7 +57,7 @@ export function BoardCanvas({
   regions,
   hand,
   arrowSpecs,
-  combatStaging,
+  combatBlocks,
   phaseStrip,
   phaseStripCallbacks,
   arrangement,
@@ -230,11 +230,8 @@ export function BoardCanvas({
   }, [scene, arrowSpecs]);
 
   useEffect(() => {
-    if (!scene) return;
-    for (const { playerId, staging } of combatStaging ?? []) {
-      scene.setCombatStaging(playerId, staging);
-    }
-  }, [scene, combatStaging]);
+    scene?.applyCombatBlocks(combatBlocks ?? []);
+  }, [scene, combatBlocks, regions]);
 
   useEffect(() => {
     scene?.setPhaseStripState(phaseStrip);

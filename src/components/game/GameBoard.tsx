@@ -12,7 +12,7 @@ import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import type { PromptType } from "@/protocol";
 import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
-import type { PlacementGhost } from "@/components/game/game.types";
+import { OPPONENT_SEATS, type PlacementGhost } from "@/components/game/game.types";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { COMBAT_STAGE_OPPONENT_SHIFT } from "@/components/game/game.constants";
@@ -46,6 +46,7 @@ const PASS_BUTTON_RESERVED = { width: 312, height: 50 } as const;
 const PLAYER_CLUSTER_BLOCKER = { width: 420, height: 140 } as const;
 
 const SELF_PANEL_SCALE = 0.85;
+const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
 
 interface GameBoardProps {
   // Core game state
@@ -514,6 +515,99 @@ export function GameBoard({
     hostileTargeting,
   ]);
 
+  const selfPanel = (
+    <div
+      className="absolute bottom-2 left-2 z-30 pointer-events-none origin-bottom-left"
+      style={{
+        maxWidth: `calc((${clusterMaxWidthCss}) / ${SELF_PANEL_SCALE})`,
+        transform: `scale(${SELF_PANEL_SCALE})`,
+      }}
+    >
+      <PlayerPanel
+        player={me}
+        isOpponent={false}
+        seat="self"
+        verticalAlign="bottom"
+        isActiveTurn={activePlayerId === me.id}
+        isPriorityPlayer={priorityPlayerId === me.id}
+        isTargetable={playerIsTargetable(me.id)}
+        onTarget={() => onTargetPlayer(me.id)}
+        isFlashing={turnFlashPlayerId === me.id}
+        isMonarch={monarchId === me.id}
+        hasInitiative={initiativeHolderId === me.id}
+        commanders={myCommandZone}
+        graveyard={graveyard}
+        exile={exile}
+        onCastCommander={onCastSpell}
+        onCommanderDragStart={onHandCardDragStart}
+        draggingCardId={draggingCardId}
+        onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
+        onOpenCommandZone={() => {
+          if ((myCommandZone?.length ?? 0) > 0) {
+            if (isTargetingPrompt && commandTargetIds.length > 0) {
+              onOpenZone("Your Command Zone", myCommandZone!, onTargetFromZone, commandTargetIds);
+              return;
+            }
+            if ((commandPlayableIds?.length ?? 0) > 0 && promptType === "chooseAction") {
+              onOpenZoneAndCast(
+                "Your Command Zone",
+                myCommandZone!,
+                (_cardId) => {},
+                commandPlayableIds,
+              );
+            } else {
+              onOpenZone("Your Command Zone", myCommandZone!);
+            }
+          }
+        }}
+        onOpenGraveyard={() => {
+          if (isTargetingPrompt && graveyardTargetIds.length > 0) {
+            onOpenZone("Your Graveyard", graveyard, onTargetFromZone, graveyardTargetIds);
+            return;
+          }
+          if (
+            promptType === "chooseTargetCardFromZone" &&
+            chooseTargetCardFromZonePrompt?.input.zone === "Graveyard"
+          ) {
+            onReopenZoneTarget();
+            return;
+          }
+          if (graveyardPlayableIds.length > 0 && promptType === "chooseAction") {
+            onOpenZoneAndCast("Your Graveyard", graveyard, (_cardId) => {}, graveyardPlayableIds);
+          } else {
+            onOpenZone("Your Graveyard", graveyard);
+          }
+        }}
+        onOpenExile={() => {
+          if (isTargetingPrompt && exileTargetIds.length > 0) {
+            onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds);
+            return;
+          }
+          if (
+            promptType === "chooseTargetCardFromZone" &&
+            chooseTargetCardFromZonePrompt?.input.zone === "Exile"
+          ) {
+            onReopenZoneTarget();
+            return;
+          }
+          if (exilePlayableIds.length > 0 && promptType === "chooseAction") {
+            onOpenZoneAndCast("Your Exile", exile, (_cardId) => {}, exilePlayableIds);
+          } else {
+            onOpenZone("Your Exile", exile);
+          }
+        }}
+        hasPlayableInGraveyard={
+          promptType === "chooseAction" && graveyard.some((c) => c.isPlayable)
+        }
+        hasPlayableInExile={promptType === "chooseAction" && exile.some((c) => c.isPlayable)}
+        hasTargetInGraveyard={isTargetingPrompt && graveyardTargetIds.length > 0}
+        hasTargetInExile={isTargetingPrompt && exileTargetIds.length > 0}
+        targetHostile={hostileTargeting}
+        zonePanelOrder={zonePanelOrder}
+      />
+    </div>
+  );
+
   const unifiedCombatBlocks = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
@@ -544,29 +638,47 @@ export function GameBoard({
             onLayout={setUnifiedLayout}
           />
         </div>
-        {unifiedLayout?.self && (
-          <div
-            className="absolute z-30 text-xs text-foreground bg-card/80 rounded px-2 py-0.5 pointer-events-none"
-            style={{ left: unifiedLayout.self.x + 8, top: unifiedLayout.self.y + 8 }}
-            data-player-id={me.id}
-          >
-            {me.name} · {me.life}
-          </div>
-        )}
-        {unifiedLayout?.opponents.map(({ playerId, rect }) => {
+        {selfPanel}
+        {unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
           const op = opponents.find((o) => o.id === playerId);
           if (!op) return null;
           return (
-            <button
+            <div
               key={playerId}
-              type="button"
-              className="absolute z-30 text-xs text-foreground bg-card/80 rounded px-2 py-0.5"
-              style={{ left: rect.x + 8, top: rect.y + 8 }}
-              data-player-id={playerId}
-              onClick={() => onTargetPlayer(playerId)}
+              className="absolute z-30 origin-top-left"
+              style={{
+                left: rect.x + 8,
+                top: rect.y + 8,
+                transform: `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`,
+              }}
             >
-              {op.name} · {op.life}
-            </button>
+              <PlayerPanel
+                player={op}
+                isOpponent
+                seat={OPPONENT_SEATS[i] ?? "opponent1"}
+                verticalAlign="top"
+                isActiveTurn={activePlayerId === op.id}
+                isPriorityPlayer={priorityPlayerId === op.id}
+                isTargetable={playerIsTargetable(op.id)}
+                isSelectedTarget={selectedAttackDefenderId === op.id}
+                onTarget={() => onTargetPlayer(op.id)}
+                isFlashing={turnFlashPlayerId === op.id}
+                isMonarch={monarchId === op.id}
+                hasInitiative={initiativeHolderId === op.id}
+                commanders={op.commandZone}
+                graveyard={op.graveyard}
+                exile={op.exile}
+                onOpenCommandZone={
+                  (op.commandZone?.length ?? 0) > 0
+                    ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
+                    : undefined
+                }
+                onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
+                onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
+                onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
+                zonePanelOrder={zonePanelOrder}
+              />
+            </div>
           );
         })}
       </div>
@@ -703,108 +815,7 @@ export function GameBoard({
                     there's no empty gutter at the right — but the cap
                     triggers `flex-wrap` once the zones + avatar would
                     start overlapping the hand. */}
-              <div
-                className="absolute bottom-2 left-2 z-30 pointer-events-none origin-bottom-left"
-                style={{
-                  maxWidth: `calc((${clusterMaxWidthCss}) / ${SELF_PANEL_SCALE})`,
-                  transform: `scale(${SELF_PANEL_SCALE})`,
-                }}
-              >
-                <PlayerPanel
-                  player={me}
-                  isOpponent={false}
-                  seat="self"
-                  verticalAlign="bottom"
-                  isActiveTurn={activePlayerId === me.id}
-                  isPriorityPlayer={priorityPlayerId === me.id}
-                  isTargetable={playerIsTargetable(me.id)}
-                  onTarget={() => onTargetPlayer(me.id)}
-                  isFlashing={turnFlashPlayerId === me.id}
-                  isMonarch={monarchId === me.id}
-                  hasInitiative={initiativeHolderId === me.id}
-                  commanders={myCommandZone}
-                  graveyard={graveyard}
-                  exile={exile}
-                  onCastCommander={onCastSpell}
-                  onCommanderDragStart={onHandCardDragStart}
-                  draggingCardId={draggingCardId}
-                  onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
-                  onOpenCommandZone={() => {
-                    if ((myCommandZone?.length ?? 0) > 0) {
-                      if (isTargetingPrompt && commandTargetIds.length > 0) {
-                        onOpenZone(
-                          "Your Command Zone",
-                          myCommandZone!,
-                          onTargetFromZone,
-                          commandTargetIds,
-                        );
-                        return;
-                      }
-                      if ((commandPlayableIds?.length ?? 0) > 0 && promptType === "chooseAction") {
-                        onOpenZoneAndCast(
-                          "Your Command Zone",
-                          myCommandZone!,
-                          (_cardId) => {},
-                          commandPlayableIds,
-                        );
-                      } else {
-                        onOpenZone("Your Command Zone", myCommandZone!);
-                      }
-                    }
-                  }}
-                  onOpenGraveyard={() => {
-                    if (isTargetingPrompt && graveyardTargetIds.length > 0) {
-                      onOpenZone("Your Graveyard", graveyard, onTargetFromZone, graveyardTargetIds);
-                      return;
-                    }
-                    if (
-                      promptType === "chooseTargetCardFromZone" &&
-                      chooseTargetCardFromZonePrompt?.input.zone === "Graveyard"
-                    ) {
-                      onReopenZoneTarget();
-                      return;
-                    }
-                    if (graveyardPlayableIds.length > 0 && promptType === "chooseAction") {
-                      onOpenZoneAndCast(
-                        "Your Graveyard",
-                        graveyard,
-                        (_cardId) => {},
-                        graveyardPlayableIds,
-                      );
-                    } else {
-                      onOpenZone("Your Graveyard", graveyard);
-                    }
-                  }}
-                  onOpenExile={() => {
-                    if (isTargetingPrompt && exileTargetIds.length > 0) {
-                      onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds);
-                      return;
-                    }
-                    if (
-                      promptType === "chooseTargetCardFromZone" &&
-                      chooseTargetCardFromZonePrompt?.input.zone === "Exile"
-                    ) {
-                      onReopenZoneTarget();
-                      return;
-                    }
-                    if (exilePlayableIds.length > 0 && promptType === "chooseAction") {
-                      onOpenZoneAndCast("Your Exile", exile, (_cardId) => {}, exilePlayableIds);
-                    } else {
-                      onOpenZone("Your Exile", exile);
-                    }
-                  }}
-                  hasPlayableInGraveyard={
-                    promptType === "chooseAction" && graveyard.some((c) => c.isPlayable)
-                  }
-                  hasPlayableInExile={
-                    promptType === "chooseAction" && exile.some((c) => c.isPlayable)
-                  }
-                  hasTargetInGraveyard={isTargetingPrompt && graveyardTargetIds.length > 0}
-                  hasTargetInExile={isTargetingPrompt && exileTargetIds.length > 0}
-                  targetHostile={hostileTargeting}
-                  zonePanelOrder={zonePanelOrder}
-                />
-              </div>
+              {selfPanel}
               <div className="absolute inset-0 z-10 overflow-hidden">
                 <PixiGameCanvas
                   boardId="self"

@@ -13,6 +13,26 @@ export interface BlockingRect {
   height: number;
 }
 
+/** One combatant blocker pulled to its region's front edge, aligned beneath
+ *  the attacker it blocks. `laneScreenX` is the attacker's on-screen x
+ *  (absolute viewport px), converted to canvas-local. Multiple blockers on
+ *  one attacker fan out by index. */
+export interface StagedBlocker {
+  id: string;
+  laneScreenX: number;
+  indexInLane: number;
+  laneCount: number;
+}
+
+/** MTGA-style combat layout for the cards in one region. Attackers slide
+ *  forward keeping their x; blockers slide to their attacker's lane. Set
+ *  null to release (cards lerp home). */
+export interface SceneCombatStaging {
+  attackerIds: Set<string>;
+  blockers: StagedBlocker[];
+  blockerIds: Set<string>;
+}
+
 /** Per-frame animation target for a hand-fan sprite. */
 export interface HandTarget {
   x: number;
@@ -60,6 +80,25 @@ export interface OverlayHost {
   cancelHoverClear(): void;
   setCardHovered(sprite: CardSprite): void;
   scheduleHoverClear(cardId: string): void;
+}
+
+/** Narrow seam a `BoardRegion` uses to reach orchestrator-level services
+ *  (theme, keep-out blockers, card-entry seeds, selection, overlay, sprite
+ *  event wiring) without owning them. */
+export interface RegionHost {
+  getTheme(): Theme;
+  /** Keep-out rects for this region (hand fan + panel reserves). */
+  collectBlockers(): BlockingRect[];
+  /** Seed transform for a newly-entering battlefield sprite (mirror of a
+   *  hand sprite / stack card / hand-fan origin). */
+  getEntrySeed(cardId: string): { x: number; y: number; scaleX: number; scaleY: number };
+  isSelected(cardId: string): boolean;
+  rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
+  /** Wire pointer events (drag/tap/hover) on a new battlefield sprite. */
+  wireSprite(sprite: CardSprite): void;
+  /** Convert an absolute viewport x to this region's canvas-local x. */
+  screenXToLocalX(screenX: number): number;
+  isDestroyed(): boolean;
 }
 
 /** Narrow seam the `SelectionController` uses to read battlefield sprites

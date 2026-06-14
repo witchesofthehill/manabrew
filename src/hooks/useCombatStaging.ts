@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
 import type { GameCard } from "@/types/manabrew";
-import type { PixiGameScene, SceneCombatStaging, StagedBlocker } from "@/pixi/PixiGameScene";
+import type { PixiGameScene } from "@/pixi/PixiGameScene";
+import type { SceneCombatStaging, StagedBlocker } from "@/pixi/board/types";
 
 interface CombatAssignment {
   blockerId: string;

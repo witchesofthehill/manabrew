@@ -27,6 +27,7 @@ import type {
   BlockingRect,
   HandHost,
   OverlayHost,
+  SceneCombatStaging,
   SelectionHost,
   SpriteEntry,
 } from "./board/types";
@@ -84,26 +85,6 @@ import { EMPTY_LABEL_STYLE, GHOST_LABEL_STYLE } from "./textStyles";
 
 // ───── Shared types ─────
 type Point = ScreenPos;
-
-/** One combatant blocker the scene must pull to its front edge, aligned
- *  beneath the attacker it blocks. `laneScreenX` is the attacker's
- *  on-screen x (absolute viewport px); the scene converts it to its own
- *  canvas-local x. Multiple blockers on one attacker fan out by index. */
-export interface StagedBlocker {
-  id: string;
-  laneScreenX: number;
-  indexInLane: number;
-  laneCount: number;
-}
-
-/** MTGA-style combat layout for the cards owned by a single scene.
- *  Attackers slide forward keeping their x; blockers slide to their
- *  attacker's lane. Set null to release (cards lerp home). */
-export interface SceneCombatStaging {
-  attackerIds: Set<string>;
-  blockers: StagedBlocker[];
-  blockerIds: Set<string>;
-}
 
 /**
  * Optional feature flags controlling which subsystems this scene runs.

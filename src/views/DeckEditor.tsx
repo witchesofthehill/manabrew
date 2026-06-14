@@ -90,6 +90,7 @@ export default function DeckEditor() {
       setSearchFocusSignal((n) => n + 1);
     },
     "deck-editor-toggle-preview": () => togglePreview(),
+    "go-back": () => handleBack(),
   });
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [previewCollapsed, setPreviewCollapsed] = useState<boolean>(

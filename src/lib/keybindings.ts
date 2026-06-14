@@ -26,13 +26,19 @@ export const KEYBINDINGS: KeybindingDef[] = [
     id: "nav-prev-page",
     label: "Previous page",
     category: "Navigation",
-    defaultCombo: { key: "arrowleft", alt: true },
+    defaultCombo: { key: "arrowup", alt: true },
   },
   {
     id: "nav-next-page",
     label: "Next page",
     category: "Navigation",
-    defaultCombo: { key: "arrowright", alt: true },
+    defaultCombo: { key: "arrowdown", alt: true },
+  },
+  {
+    id: "go-back",
+    label: "Go back",
+    category: "Navigation",
+    defaultCombo: { key: "arrowleft", alt: true },
   },
   {
     id: "deck-editor-focus-filter",

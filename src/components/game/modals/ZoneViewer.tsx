@@ -3,7 +3,6 @@ import type { GameCard } from "@/types/manabrew";
 import { Card } from "@/components/game/Card";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { HAND_CARD } from "../game.styles";
-import { isHiddenFaceDownCard } from "../game.utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useTheme } from "@/hooks/useTheme";
@@ -49,9 +48,7 @@ export function ZoneViewer({
                 <div
                   key={card.id}
                   className="shrink-0 relative flex flex-col gap-1"
-                  onMouseEnter={(e) => {
-                    if (!isHiddenFaceDownCard(card)) preview.handleMouseEnter(card, e);
-                  }}
+                  onMouseEnter={(e) => preview.handleMouseEnter(card, e)}
                   onMouseLeave={preview.handleMouseLeave}
                 >
                   <Card

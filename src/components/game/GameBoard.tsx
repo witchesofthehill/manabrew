@@ -10,7 +10,6 @@ import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import type { PromptType } from "@/protocol";
 import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
 import type { PlacementGhost } from "@/components/game/game.types";
-import { maskFaceDownCards } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASES } from "@/components/game/game.styles";
 import { computeBaseLayout, SIZE_PARAMS } from "@/pixi/HandLayout";
@@ -516,7 +515,7 @@ export function GameBoard({
             opponentIndex={0}
             permanents={opponentPermanentsByPlayer.get(opponents[0]!.id) ?? []}
             graveyard={opponents[0]!.graveyard}
-            exile={maskFaceDownCards(opponents[0]!.exile)}
+            exile={opponents[0]!.exile}
             commandZone={opponents[0]!.commandZone}
             isTargetable={playerIsTargetable(opponents[0]!.id)}
             isSelectedTarget={selectedAttackDefenderId === opponents[0]!.id}
@@ -552,7 +551,7 @@ export function GameBoard({
                     opponentIndex={i}
                     permanents={opponentPermanentsByPlayer.get(op.id) ?? []}
                     graveyard={op.graveyard}
-                    exile={maskFaceDownCards(op.exile)}
+                    exile={op.exile}
                     commandZone={op.commandZone}
                     isTargetable={playerIsTargetable(op.id)}
                     isSelectedTarget={selectedAttackDefenderId === op.id}

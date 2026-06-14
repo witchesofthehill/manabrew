@@ -538,10 +538,15 @@ export function GameBoard({
     hostileTargeting,
   ]);
 
+  // On the unified board the self region is offset (e.g. the perimeter
+  // arrangement puts it in the center column), so anchor the panel to the
+  // self region's left edge rather than the container corner.
+  const selfPanelLeftPx = unifiedBoard ? (unifiedLayout?.self?.x ?? 0) + 8 : 8;
   const selfPanel = (
     <div
-      className="absolute bottom-2 left-2 z-30 pointer-events-none origin-bottom-left"
+      className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
       style={{
+        left: selfPanelLeftPx,
         maxWidth: `calc((${clusterMaxWidthCss}) / ${SELF_PANEL_SCALE})`,
         transform: `scale(${SELF_PANEL_SCALE})`,
       }}

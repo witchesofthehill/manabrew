@@ -300,6 +300,8 @@ export function CardPreview({
     ? {
         frontImageUrl: faces![0].image_uris![imageSize],
         backImageUrl: faces![1].image_uris![imageSize],
+        frontImageUrlLow: faces![0].image_uris!.normal,
+        backImageUrlLow: faces![1].image_uris!.normal,
         frontName: faces![0].name,
         backName: faces![1].name,
       }
@@ -307,6 +309,10 @@ export function CardPreview({
       ? {
           frontImageUrl: imageUrl,
           backImageUrl: derivedBackImageUrl,
+          frontImageUrlLow: deckCard.uris.normal,
+          backImageUrlLow: deckCard.uris.normal?.includes("/front/")
+            ? deckCard.uris.normal.replace("/front/", "/back/")
+            : derivedBackImageUrl,
           frontName: card.name,
           backName: card.name,
         }
@@ -425,6 +431,14 @@ export function CardPreview({
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
   const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
+  const currentLowResUrl =
+    imageSize !== "large"
+      ? null
+      : hasDoubleFace
+        ? showBackFace
+          ? doubleFacedData.backImageUrlLow
+          : doubleFacedData.frontImageUrlLow
+        : deckCard.uris.normal;
   const imgLoaded = loadedSrc === currentImageUrl;
 
   return createPortal(
@@ -472,6 +486,25 @@ export function CardPreview({
           >
             {currentImageUrl ? (
               <>
+                {currentLowResUrl &&
+                  !imgLoaded &&
+                  (horizontal ? (
+                    <ScryfallImg
+                      src={currentLowResUrl}
+                      alt=""
+                      title=""
+                      aria-hidden
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
+                    />
+                  ) : (
+                    <ScryfallImg
+                      src={currentLowResUrl}
+                      alt=""
+                      title=""
+                      aria-hidden
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ))}
                 {horizontal ? (
                   <ScryfallImg
                     src={currentImageUrl}
@@ -489,7 +522,7 @@ export function CardPreview({
                     className="w-full h-full object-cover"
                   />
                 )}
-                {!imgLoaded && (
+                {!imgLoaded && !currentLowResUrl && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     <span className="text-xs text-muted-foreground text-center">

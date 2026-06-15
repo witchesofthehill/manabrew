@@ -124,12 +124,10 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
     }
 
-    // Let UI agents pre-build card info for the revealed cards.
-    ctx.agents[sa.activating_player.index()].on_library_peek(ctx.game, &top_n);
-
     // Ask the chooser (activating player) which cards to take.
     let max_take = change_num.min(valid.len());
     let chosen = ctx.agents[sa.activating_player.index()].choose_dig(
+        ctx.game,
         sa.activating_player,
         &valid,
         max_take,
@@ -301,6 +299,7 @@ mod tests {
         }
         fn choose_dig(
             &mut self,
+            _game: &GameState,
             _player: PlayerId,
             cards: &[CardId],
             max: usize,

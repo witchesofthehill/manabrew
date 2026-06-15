@@ -66,9 +66,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             lib.iter().rev().take(num).copied().collect();
         if milled_cards.len() > 1 {
             ctx.agents[target.index()].snapshot_state(ctx.game, ctx.mana_pools);
-            ctx.agents[target.index()].on_library_peek(ctx.game, &milled_cards);
             let reordered =
-                ctx.agents[target.index()].choose_reorder_library(target, &milled_cards);
+                ctx.agents[target.index()].choose_reorder_library(ctx.game, target, &milled_cards);
             if reordered.len() == milled_cards.len()
                 && milled_cards.iter().all(|id| reordered.contains(id))
             {

@@ -16,6 +16,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
   const isMultiplayer = useGameStore((s) => s.isMultiplayer);
   const isGameActive = useGameStore((s) => s.isGameActive);
   const gameOver = useGameStore((s) => s.gameView?.gameOver ?? false);
+  const gameOverPrompt = useGameStore((s) => s.currentPrompt?.input.type === "gameOver");
   const reconnectPhase = useServerStore((s) => s.reconnect.phase);
   const currentRoom = useServerStore((s) => s.currentRoom);
   const username = useServerStore((s) => s.username);
@@ -29,6 +30,7 @@ export function useMultiplayerInterruption(): MultiplayerInterruption {
     isMultiplayer &&
     isGameActive &&
     !gameOver &&
+    !gameOverPrompt &&
     (selfDisconnected || disconnectedNames.length > 0);
   const timeoutS = currentRoom?.reconnect_timeout_s ?? DEFAULT_RECONNECT_TIMEOUT_S;
 

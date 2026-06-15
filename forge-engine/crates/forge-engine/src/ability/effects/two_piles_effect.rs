@@ -44,9 +44,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         return;
     }
 
-    // Let the controller peek at the revealed cards
-    ctx.agents[controller.index()].on_library_peek(ctx.game, &revealed);
-
     // Controller divides into two piles — simplified: they choose cards for pile 1
     // via choose_cards_for_effect (min 0, max count-1 to ensure both piles have at least 1 if count>1)
     let min_pile1 = if count > 1 { 1 } else { 0 };

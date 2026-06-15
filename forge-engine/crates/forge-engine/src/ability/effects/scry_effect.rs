@@ -69,11 +69,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // downward, so the deterministic agent must consume RNG in the same order.
     top_n.reverse();
 
-    // Let UI agents pre-build card info for the revealed cards.
-    ctx.agents[target.index()].on_library_peek(ctx.game, &top_n);
-
     // Ask the agent which to put on the bottom.
-    let bottom_ids = ctx.agents[target.index()].choose_scry(target, &top_n);
+    let bottom_ids = ctx.agents[target.index()].choose_scry(ctx.game, target, &top_n);
 
     // Validate: only cards that were actually in top_n are accepted.
     let bottom: Vec<_> = bottom_ids
@@ -206,7 +203,12 @@ mod tests {
         fn choose_land_or_spell(&mut self, _: PlayerId) -> Option<bool> {
             None
         }
-        fn choose_scry(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+        fn choose_scry(
+            &mut self,
+            _game: &GameState,
+            _player: PlayerId,
+            cards: &[CardId],
+        ) -> Vec<CardId> {
             cards.to_vec() // put all on bottom
         }
         fn choose_targets_for(

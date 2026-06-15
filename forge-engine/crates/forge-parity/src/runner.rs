@@ -395,16 +395,16 @@ impl CapturingAgent {
             let names: Vec<String> = action_space
                 .activatable
                 .iter()
-                .map(|(cid, idx)| {
+                .map(|a| {
                     let name = self
                         .last_game_state
                         .as_ref()
                         .map(|g| {
-                            let c = g.card(*cid);
+                            let c = g.card(a.card_id);
                             format!("{} zone={:?}", c.card_name, c.zone)
                         })
                         .unwrap_or_default();
-                    format!("({cid:?},{idx},{name})")
+                    format!("({:?},{},{name})", a.card_id, a.ability_index)
                 })
                 .collect();
             eprintln!(
@@ -417,7 +417,7 @@ impl CapturingAgent {
             .retain(|play| !self.failed_payment_cards_this_turn.contains(&play.card_id));
         filtered
             .activatable
-            .retain(|(card_id, _)| !self.failed_payment_cards_this_turn.contains(card_id));
+            .retain(|a| !self.failed_payment_cards_this_turn.contains(&a.card_id));
         filtered
     }
 }
@@ -680,6 +680,11 @@ impl PlayerAgent for CapturingAgent {
         let cb_args = if action_space_was_provided {
             let action_space = action_space.expect("provided action space");
             let fmt = self.fmt_ctx();
+            let activatable_ids: Vec<(CardId, usize)> = action_space
+                .activatable
+                .iter()
+                .map(|a| (a.card_id, a.ability_index))
+                .collect();
             vec![
                 player.callback_arg_display(fmt.as_ref()),
                 action_space
@@ -694,8 +699,7 @@ impl PlayerAgent for CapturingAgent {
                     .untappable_lands
                     .as_slice()
                     .callback_arg_display(fmt.as_ref()),
-                action_space
-                    .activatable
+                activatable_ids
                     .as_slice()
                     .callback_arg_display(fmt.as_ref()),
             ]
@@ -718,7 +722,7 @@ impl PlayerAgent for CapturingAgent {
     }
 
     parity_agent_callback! {
-        fn choose_single_card_for_zone_change(&mut self, player: PlayerId, valid: &[CardId], select_prompt: &str, is_optional: bool) -> Option<CardId> => "choose_single_card_for_zone_change", format_with |result: &Option<CardId>, fmt: Option<FmtCtx<'_>>| {
+        fn choose_single_card_for_zone_change(&mut self, game: &GameState, player: PlayerId, valid: &[CardId], select_prompt: &str, is_optional: bool) -> Option<CardId> => "choose_single_card_for_zone_change", format_with |result: &Option<CardId>, fmt: Option<FmtCtx<'_>>| {
             match (result, fmt) {
                 (Some(cid), Some(ctx)) => ctx.card(*cid),
                 (Some(cid), None) => format!("{cid:?}"),
@@ -825,16 +829,16 @@ impl PlayerAgent for CapturingAgent {
         fn choose_legend_keep(&mut self, player: PlayerId, duplicates: &[CardId]) -> CardId => "choose_legend_keep";
         fn choose_sacrifice(&mut self, player: PlayerId, valid: &[CardId], source: Option<CardId>) -> Option<CardId> => "choose_sacrifice";
         fn choose_type(&mut self, player: PlayerId, type_category: &str, valid_types: &[String]) -> Option<String> => "choose_type";
-        fn choose_scry(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_scry";
-        fn choose_surveil(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_surveil";
-        fn choose_dig(&mut self, player: PlayerId, valid: &[CardId], max: usize, optional: bool) -> Vec<CardId> => "choose_dig";
-        fn choose_reorder_library(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_reorder_library";
+        fn choose_scry(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_scry";
+        fn choose_surveil(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_surveil";
+        fn choose_dig(&mut self, game: &GameState, player: PlayerId, valid: &[CardId], max: usize, optional: bool) -> Vec<CardId> => "choose_dig";
+        fn choose_reorder_library(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_reorder_library";
         fn choose_discard(&mut self, player: PlayerId, hand: &[CardId], num: usize) -> Vec<CardId> => "choose_discard";
         fn choose_discard_any_number(&mut self, player: PlayerId, hand: &[CardId], min: usize, max: usize) -> Vec<CardId> => "choose_discard";
         fn choose_random_discard(&mut self, player: PlayerId, hand: &[CardId], num: usize) -> Vec<CardId> => "choose_random_discard";
         fn choose_cards_for_effect(&mut self, player: PlayerId, valid: &[CardId], min: usize, max: usize) -> Vec<CardId> => "choose_cards_for_effect";
         fn choose_tap_type_for_cost(&mut self, player: PlayerId, valid: &[CardId], min_total_power: i32, card_powers: &[(CardId, i32)], card_sort_powers: &[(CardId, i32)], sa: Option<&forge_engine_core::spellability::SpellAbility>) -> Vec<CardId> => "choose_tap_type_for_cost";
-        fn choose_cards_for_zone_change(&mut self, player: PlayerId, valid: &[CardId], min: usize, max: usize, select_prompt: &str) -> Vec<CardId> => "choose_cards_for_zone_change";
+        fn choose_cards_for_zone_change(&mut self, game: &GameState, player: PlayerId, valid: &[CardId], min: usize, max: usize, select_prompt: &str) -> Vec<CardId> => "choose_cards_for_zone_change";
         fn choose_target_spell(&mut self, player: PlayerId, valid: &[u32], source: Option<CardId>) -> Option<u32> => "choose_target_spell";
         fn choose_mode(&mut self, player: PlayerId, descriptions: &[String], min: usize, max: usize, source_card_id: Option<CardId>) -> Vec<usize> => "choose_mode";
         fn choose_spell_abilities_for_effect(&mut self, player: PlayerId, abilities: &[forge_engine_core::spellability::SpellAbility], num: usize) -> Vec<usize> => "choose_spell_abilities_for_effect";
@@ -866,8 +870,8 @@ impl PlayerAgent for CapturingAgent {
         fn choose_delve(&mut self, player: PlayerId, valid: &[CardId], max: usize, source: Option<CardId>) -> Vec<CardId> => "choose_delve";
         fn choose_improvise(&mut self, player: PlayerId, untapped_artifacts: &[CardId], remaining_cost: &forge_foundation::ManaCost, source: Option<CardId>) -> Vec<CardId> => "choose_improvise";
         fn choose_convoke(&mut self, player: PlayerId, untapped_creatures: &[CardId], remaining_cost: &forge_foundation::ManaCost, source: Option<CardId>) -> Vec<CardId> => "choose_convoke";
-        fn specify_mana_combo(&mut self, player: PlayerId, available_colors: &[String], amount: usize, source: Option<CardId>) -> Vec<String> => "specify_mana_combo";
-        fn choose_explore_put_in_graveyard(&mut self, player: PlayerId, revealed_card_name: &str, revealed_cmc: i32, mana_producing_lands: usize, predicted_mana: usize, lands_in_hand: usize) -> bool => "choose_explore_put_in_graveyard";
+        fn specify_mana_combo(&mut self, player: PlayerId, available_colors: &[String], amount: usize, source: Option<CardId>, express_choice: Option<u16>) -> Vec<String> => "specify_mana_combo";
+        fn choose_explore_put_in_graveyard(&mut self, game: &GameState, player: PlayerId, revealed_card_name: &str, revealed_cmc: i32, mana_producing_lands: usize, predicted_mana: usize, lands_in_hand: usize) -> bool => "choose_explore_put_in_graveyard";
         fn choose_kicker(&mut self, player: PlayerId, kicker_cost: &str, source: Option<CardId>) -> bool => "choose_kicker";
         fn help_pay_assist(&mut self, player: PlayerId, card_name: &str, max_generic: u32) -> u32 => "help_pay_assist";
         fn choose_buyback(&mut self, player: PlayerId, buyback_cost: &str, source: Option<CardId>) -> bool => "choose_buyback";

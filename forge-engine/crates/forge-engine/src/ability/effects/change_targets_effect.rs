@@ -108,6 +108,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Agent chooses new target
     ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
     if let Some(chosen) = ctx.agents[controller.index()].choose_single_card_for_zone_change(
+        ctx.game,
         controller,
         &candidates,
         "Choose new target",

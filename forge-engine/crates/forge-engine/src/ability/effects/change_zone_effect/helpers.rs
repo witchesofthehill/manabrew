@@ -258,6 +258,7 @@ pub(super) fn apply_pre_move(
                 let ctrl = sa.activating_player;
                 ctx.agents[ctrl.index()].snapshot_state(ctx.game, ctx.mana_pools);
                 if let Some(target) = ctx.agents[ctrl.index()].choose_single_card_for_zone_change(
+                    ctx.game,
                     ctrl,
                     &valid,
                     "Select a card to attach to",
@@ -445,6 +446,7 @@ pub(super) fn apply_post_move(
             if !valid.is_empty() {
                 ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
                 if let Some(t) = ctx.agents[controller.index()].choose_single_card_for_zone_change(
+                    ctx.game,
                     controller,
                     &valid,
                     "Select a card to attach to",

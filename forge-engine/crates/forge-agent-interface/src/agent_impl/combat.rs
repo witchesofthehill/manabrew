@@ -4,7 +4,7 @@ use forge_engine_core::ids::{CardId, PlayerId};
 
 use crate::game_view_dto::CardDto;
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::prompt::{AgentPromptInner, BlockAssignment, PlayerAction};
+use crate::prompt::{BlockAssignment, PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
 
@@ -34,10 +34,12 @@ pub(super) fn choose_attackers<T: Responder>(
     let available_attacker_ids = PromptAgent::<T>::card_ids(available);
     let possible_defender_dtos = PromptAgent::<T>::defender_ids_to_dtos(possible_defenders);
     agent.send_prompt(
-        AgentPromptInner::ChooseAttackers {
-            available_attacker_ids,
-            possible_defender_ids: possible_defender_dtos,
-        },
+        PromptInput::ChooseAttackers(
+            forge_protocol::prompts::choose_attackers::ChooseAttackersInput {
+                available_attacker_ids,
+                possible_defender_ids: possible_defender_dtos,
+            },
+        ),
         None,
     );
     let default_defender = possible_defenders
@@ -73,10 +75,12 @@ pub(super) fn choose_blockers<T: Responder>(
     let attacker_ids = PromptAgent::<T>::card_ids(attackers);
     let available_blocker_ids = PromptAgent::<T>::card_ids(available_blockers);
     agent.send_prompt(
-        AgentPromptInner::ChooseBlockers {
-            attacker_ids,
-            available_blocker_ids,
-        },
+        PromptInput::ChooseBlockers(
+            forge_protocol::prompts::choose_blockers::ChooseBlockersInput {
+                attacker_ids,
+                available_blocker_ids,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -111,11 +115,11 @@ pub(super) fn choose_damage_assignment_order<T: Responder>(
     let blocker_ids: Vec<String> = blockers.iter().map(|&b| card_id_str(b)).collect();
     let blocker_cards: Vec<CardDto> = Vec::new(); // Blocker info available from gameView
     agent.send_prompt(
-        AgentPromptInner::ChooseDamageAssignmentOrder {
+        PromptInput::ChooseDamageAssignmentOrder(forge_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput {
             attacker_id,
             blocker_ids,
             blocker_cards,
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -152,13 +156,13 @@ pub(super) fn choose_combat_damage_assignment<T: Responder>(
         DefenderId::Permanent(cid) => format!("card-{}", cid.0),
     });
     agent.send_prompt(
-        AgentPromptInner::ChooseCombatDamageAssignment {
+        PromptInput::ChooseCombatDamageAssignment(forge_protocol::prompts::choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput {
             attacker_id,
             blocker_ids: blocker_ids.clone(),
             defender_id: defender_id.clone(),
             total_damage,
             attacker_has_deathtouch,
-        },
+        }),
         None,
     );
 
@@ -209,15 +213,17 @@ pub(super) fn pay_combat_cost<T: Responder>(
     let untappable_land_ids = PromptAgent::<T>::card_ids(untappable_lands);
 
     agent.send_prompt(
-        AgentPromptInner::PayCombatCost {
-            attacker_id,
-            attacker_name,
-            cost,
-            description: description.to_string(),
-            tappable_land_ids,
-            untappable_land_ids,
-            mana_pool_total,
-        },
+        PromptInput::PayCombatCost(
+            forge_protocol::prompts::pay_combat_cost::PayCombatCostInput {
+                attacker_id,
+                attacker_name,
+                cost,
+                description: description.to_string(),
+                tappable_land_ids,
+                untappable_land_ids,
+                mana_pool_total,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -244,10 +250,12 @@ pub(super) fn exert_attackers<T: Responder>(
         .filter_map(|id| view.battlefield.iter().find(|c| c.id == *id).cloned())
         .collect();
     agent.send_prompt(
-        AgentPromptInner::ChooseExertAttackers {
-            attacker_ids,
-            attacker_cards,
-        },
+        PromptInput::ChooseExertAttackers(
+            forge_protocol::prompts::choose_exert_attackers::ChooseExertAttackersInput {
+                attacker_ids,
+                attacker_cards,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -274,10 +282,12 @@ pub(super) fn enlist_attackers<T: Responder>(
         .filter_map(|id| view.battlefield.iter().find(|c| c.id == *id).cloned())
         .collect();
     agent.send_prompt(
-        AgentPromptInner::ChooseEnlistAttackers {
-            attacker_ids,
-            attacker_cards,
-        },
+        PromptInput::ChooseEnlistAttackers(
+            forge_protocol::prompts::choose_enlist_attackers::ChooseEnlistAttackersInput {
+                attacker_ids,
+                attacker_cards,
+            },
+        ),
         None,
     );
     match agent.recv_action() {

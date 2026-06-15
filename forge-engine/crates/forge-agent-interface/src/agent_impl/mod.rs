@@ -14,11 +14,11 @@ use forge_foundation::ZoneType;
 
 use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
-use crate::game_view_dto::{CardDto, GameViewDto};
+use crate::game_view_dto::{GameViewDto, GameViewDtoExt};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::prompt::{
-    ActivatableAbilityInfo, AgentMessage, AgentPrompt, AgentPromptInner, DisplayEvent,
-    PlayOptionDto, PlayerAction, StateUpdate,
+    AgentMessage, AgentPrompt, AvailableAction, AvailableActionKind, DisplayEvent, PlayOptionDto,
+    PlayerAction, PromptInput, StateUpdate,
 };
 
 mod choices;
@@ -75,13 +75,7 @@ pub struct PromptAgent<R: Responder> {
     pub responder: R,
     pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
-    /// Card DTOs pre-built by on_library_peek() for Scry/Surveil/Dig prompts.
-    pub(crate) peeked_library_cards: Vec<CardDto>,
-    /// Cached per-ability descriptions, is_mana_ability flags, and cost strings, populated in snapshot_state.
-    /// Key: (card_id.0, ability_index) → (description, is_mana_ability, cost_string)
-    ability_descriptions: std::collections::HashMap<(u32, usize), (String, bool, Option<String>)>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
-    pub(crate) pending_mana_color: Option<String>,
     pub pass_until_phase: Option<Option<String>>,
 }
 
@@ -93,15 +87,12 @@ impl<R: Responder> PromptAgent<R> {
             responder,
             pending_prompt: None,
             latest_view: None,
-            peeked_library_cards: Vec::new(),
-            ability_descriptions: std::collections::HashMap::new(),
             pending_restore_checkpoint: None,
-            pending_mana_color: None,
             pass_until_phase: None,
         }
     }
 
-    fn build_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) -> AgentPrompt {
+    fn build_prompt(&mut self, inner: PromptInput, source: Option<CardId>) -> AgentPrompt {
         AgentPrompt {
             deciding_player_id: player_id_str(self.player_id),
             source_card_id: source.map(card_id_str),
@@ -109,7 +100,7 @@ impl<R: Responder> PromptAgent<R> {
         }
     }
 
-    pub(crate) fn send_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
+    pub(crate) fn send_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
         self.responder
@@ -125,7 +116,7 @@ impl<R: Responder> PromptAgent<R> {
         self.responder.respond(prompt)
     }
 
-    pub(crate) fn present_prompt(&mut self, inner: AgentPromptInner, source: Option<CardId>) {
+    pub(crate) fn present_prompt(&mut self, inner: PromptInput, source: Option<CardId>) {
         let prompt = self.build_prompt(inner, source);
         self.emit_state();
         self.responder.present(&AgentMessage::Prompt(prompt));
@@ -313,39 +304,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             &self.game_id,
             &[], // playable filled at prompt time
         ));
-
-        // Cache per-ability descriptions from battlefield cards
-        self.ability_descriptions.clear();
-        for zone in [
-            forge_foundation::ZoneType::Battlefield,
-            forge_foundation::ZoneType::Hand,
-            forge_foundation::ZoneType::Graveyard,
-            forge_foundation::ZoneType::Exile,
-        ] {
-            for &card_id in game.cards_in_zone(zone, self.player_id) {
-                let card = game.card(card_id);
-                for ab in &card.activated_abilities {
-                    let desc = ab
-                        .spell_description
-                        .as_deref()
-                        .or(ab.precost_desc.as_deref())
-                        .or(ab.description.as_deref())
-                        .map(str::to_string)
-                        .unwrap_or_else(|| ab.ability_text.clone())
-                        .replace("CARDNAME", &card.card_name);
-                    let cost_str = ab.cost.to_simple_string();
-                    let cost = if cost_str.is_empty() {
-                        None
-                    } else {
-                        Some(cost_str)
-                    };
-                    self.ability_descriptions.insert(
-                        (card_id.0, ab.ability_index),
-                        (desc, ab.is_mana_ability, cost),
-                    );
-                }
-            }
-        }
     }
 
     fn mulligan_decision(
@@ -407,113 +365,120 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
         };
         let playable = &action_space.playable;
-        let tappable_lands = &action_space.tappable_lands;
         let untappable_lands = &action_space.untappable_lands;
         let activatable = &action_space.activatable;
-        let playable_card_ids: Vec<String> = playable
-            .iter()
-            .map(|play| card_id_str(play.card_id))
-            .collect();
         let playable_options: Vec<PlayOptionDto> = playable
             .iter()
             .map(|play| Self::play_option_to_dto(play))
             .collect();
-        let mut tappable_land_ids: Vec<String> =
-            tappable_lands.iter().map(|&c| card_id_str(c)).collect();
         let untappable_land_ids: Vec<String> =
             untappable_lands.iter().map(|&c| card_id_str(c)).collect();
 
-        // Build activatable ability info and merge mana-ability cards into tappable list
         let view_ref = self.view();
-        let mut activatable_ability_ids = Vec::new();
-        for &(card_id, ability_idx) in activatable {
-            let id_str = card_id_str(card_id);
-            let (description, is_mana, cost) = self
-                .ability_descriptions
-                .get(&(card_id.0, ability_idx))
-                .cloned()
-                .unwrap_or_else(|| {
-                    // Fallback: use card text from view
-                    let text = view_ref
-                        .battlefield
-                        .iter()
-                        .find(|c| c.id == id_str)
-                        .map(|c| c.text.clone())
-                        .unwrap_or_default();
-                    (text, false, None)
-                });
-            activatable_ability_ids.push(ActivatableAbilityInfo {
-                card_id: id_str.clone(),
-                ability_index: ability_idx,
-                description,
-                is_mana_ability: is_mana,
-                cost,
+        let is_land = |cid: &str| {
+            view_ref
+                .all_zone_cards()
+                .find(|c| c.id == cid)
+                .map(|c| c.types.iter().any(|t| t == "Land"))
+                .unwrap_or(false)
+        };
+        let mut actions: Vec<AvailableAction> = Vec::new();
+        for (play, opt) in playable.iter().zip(playable_options.iter()) {
+            let card_id = card_id_str(play.card_id);
+            let kind = if is_land(&card_id) {
+                AvailableActionKind::PlayLand {
+                    card_id: card_id.clone(),
+                }
+            } else {
+                AvailableActionKind::Cast {
+                    card_id: card_id.clone(),
+                    mode: opt.mode.clone(),
+                    mode_label: opt.mode_label.clone(),
+                }
+            };
+            actions.push(AvailableAction {
+                id: format!("cast:{card_id}:{}", opt.mode),
+                kind,
             });
-            // Only mana abilities should reuse the TAP affordance. Non-mana land
-            // abilities like Evolving Wilds must stay as explicit activations.
-            if is_mana && !tappable_land_ids.contains(&id_str) {
-                tappable_land_ids.push(id_str);
-            }
+        }
+        for a in action_space
+            .activatable
+            .iter()
+            .chain(action_space.mana_abilities.iter())
+        {
+            let card_id = card_id_str(a.card_id);
+            let prefix = if a.is_mana_ability { "tap" } else { "ability" };
+            actions.push(AvailableAction {
+                id: format!("{prefix}:{card_id}:{}", a.ability_index),
+                kind: AvailableActionKind::ActivateAbility {
+                    card_id,
+                    ability_index: a.ability_index,
+                    description: a.description.clone(),
+                    cost: a.cost.clone(),
+                    is_mana_ability: a.is_mana_ability,
+                    produced_colors: (!a.produced_colors.is_empty())
+                        .then(|| a.produced_colors.clone()),
+                },
+            });
+        }
+        for card_id in &untappable_land_ids {
+            actions.push(AvailableAction {
+                id: format!("untap:{card_id}"),
+                kind: AvailableActionKind::UndoMana {
+                    card_id: card_id.clone(),
+                },
+            });
         }
 
-        // Build mana ability options for tappable lands (dual land per-color buttons)
-        let mana_ability_options: Vec<ActivatableAbilityInfo> = tappable_land_ids
-            .iter()
-            .flat_map(|id_str| {
-                self.ability_descriptions
-                    .iter()
-                    .filter(move |(&(raw_id, _), &(_, is_mana, _))| {
-                        is_mana && card_id_str(CardId(raw_id)) == *id_str
-                    })
-                    .map(|(&(raw_id, idx), (desc, _, cost))| ActivatableAbilityInfo {
-                        card_id: card_id_str(CardId(raw_id)),
-                        ability_index: idx,
-                        description: desc.clone(),
-                        is_mana_ability: true,
-                        cost: cost.clone(),
-                    })
-            })
-            .collect();
-
-        let available_player_actions = playable
-            .iter()
-            .copied()
-            .map(EnginePlayerAction::CastSpell)
-            .chain(
-                tappable_lands
-                    .iter()
-                    .copied()
-                    .map(|cid| EnginePlayerAction::ActivateMana(cid, None)),
-            )
-            .chain(
-                untappable_lands
-                    .iter()
-                    .copied()
-                    .map(EnginePlayerAction::UndoMana),
-            )
-            .chain(activatable.iter().map(|&(card_id, ability_index)| {
-                EnginePlayerAction::ActivateAbility(AbilityRef {
-                    card_id,
-                    ability_index,
-                })
-            }))
-            .chain(std::iter::once(EnginePlayerAction::PassPriority))
-            .collect();
-
         self.send_prompt(
-            AgentPromptInner::ChooseAction {
-                playable_card_ids,
-                playable_options,
-                tappable_land_ids,
-                untappable_land_ids,
-                activatable_ability_ids,
-                mana_ability_options,
-                available_player_actions,
-            },
+            PromptInput::ChooseAction(forge_protocol::prompts::choose_action::ChooseActionInput {
+                actions,
+            }),
             None,
         );
         match self.recv_action() {
             PlayerAction::EngineAction { action } => action,
+            PlayerAction::Act { action_id } => {
+                if let Some(rest) = action_id.strip_prefix("cast:") {
+                    let (id_part, mode) = rest.split_once(':').unwrap_or((rest, "normal"));
+                    let resolved = parse_card_id(id_part).and_then(|cid| {
+                        Self::parse_play_mode(mode)
+                            .and_then(|m| {
+                                playable
+                                    .iter()
+                                    .copied()
+                                    .find(|play| play.card_id == cid && play.mode == m)
+                            })
+                            .or_else(|| playable.iter().copied().find(|play| play.card_id == cid))
+                    });
+                    resolved
+                        .map(EnginePlayerAction::CastSpell)
+                        .unwrap_or(EnginePlayerAction::PassPriority)
+                } else if let Some(rest) = action_id.strip_prefix("tap:") {
+                    let (id_part, idx) = rest.split_once(':').unwrap_or((rest, ""));
+                    match parse_card_id(id_part) {
+                        Some(cid) => EnginePlayerAction::ActivateMana(cid, idx.parse().ok()),
+                        None => EnginePlayerAction::PassPriority,
+                    }
+                } else if let Some(rest) = action_id.strip_prefix("ability:") {
+                    let (id_part, idx) = rest.split_once(':').unwrap_or((rest, ""));
+                    match (parse_card_id(id_part), idx.parse::<usize>()) {
+                        (Some(cid), Ok(ability_index)) => {
+                            EnginePlayerAction::ActivateAbility(AbilityRef {
+                                card_id: cid,
+                                ability_index,
+                            })
+                        }
+                        _ => EnginePlayerAction::PassPriority,
+                    }
+                } else if let Some(id_part) = action_id.strip_prefix("untap:") {
+                    parse_card_id(id_part)
+                        .map(EnginePlayerAction::UndoMana)
+                        .unwrap_or(EnginePlayerAction::PassPriority)
+                } else {
+                    EnginePlayerAction::PassPriority
+                }
+            }
             // Only the priority-loop branch acts on Concede; other recv_action
             // sites discard it and concede re-enters at the next priority window.
             PlayerAction::Concede => EnginePlayerAction::Concede,
@@ -548,9 +513,8 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             PlayerAction::TapLand {
                 card_id,
                 ability_index,
-                color,
+                color: _,
             } => {
-                self.pending_mana_color = color;
                 let parsed = parse_card_id(&card_id);
                 match parsed {
                     Some(cid) => {
@@ -561,7 +525,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                             .map(|idx| {
                                 activatable
                                     .iter()
-                                    .any(|&(id, ab_idx)| id == cid && ab_idx == idx)
+                                    .any(|a| a.card_id == cid && a.ability_index == idx)
                             })
                             .unwrap_or(false);
                         if is_non_mana_activatable {
@@ -572,11 +536,10 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         } else if ability_index.is_none() {
                             // No ability index — check if there's a single non-mana
                             // activatable ability on this card (legacy fallback).
-                            if let Some(&(id, idx)) = activatable.iter().find(|(id, _)| *id == cid)
-                            {
+                            if let Some(a) = activatable.iter().find(|a| a.card_id == cid) {
                                 EnginePlayerAction::ActivateAbility(AbilityRef {
-                                    card_id: id,
-                                    ability_index: idx,
+                                    card_id: a.card_id,
+                                    ability_index: a.ability_index,
                                 })
                             } else {
                                 EnginePlayerAction::ActivateMana(cid, None)
@@ -731,10 +694,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         targeting::choose_sacrifice(self, player, valid, source)
     }
 
-    fn on_library_peek(&mut self, game: &forge_engine_core::game::GameState, cards: &[CardId]) {
-        library::on_library_peek(self, game, cards)
-    }
-
     fn reveal_cards(
         &mut self,
         game: &GameState,
@@ -747,22 +706,28 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         choices::reveal_cards(self, game, cards, zone, owner, message_prefix)
     }
 
-    fn choose_scry(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-        library::choose_scry(self, player, cards)
+    fn choose_scry(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+        library::choose_scry(self, game, player, cards)
     }
 
-    fn choose_surveil(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-        library::choose_surveil(self, player, cards)
+    fn choose_surveil(
+        &mut self,
+        game: &GameState,
+        player: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
+        library::choose_surveil(self, game, player, cards)
     }
 
     fn choose_dig(
         &mut self,
+        game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         max: usize,
         optional: bool,
     ) -> Vec<CardId> {
-        library::choose_dig(self, player, valid, max, optional)
+        library::choose_dig(self, game, player, valid, max, optional)
     }
 
     fn choose_discard(&mut self, player: PlayerId, hand: &[CardId], num: usize) -> Vec<CardId> {
@@ -996,23 +961,32 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
 
     fn choose_single_card_for_zone_change(
         &mut self,
+        game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         select_prompt: &str,
         is_optional: bool,
     ) -> Option<CardId> {
-        choices::choose_single_card_for_zone_change(self, player, valid, select_prompt, is_optional)
+        choices::choose_single_card_for_zone_change(
+            self,
+            game,
+            player,
+            valid,
+            select_prompt,
+            is_optional,
+        )
     }
 
     fn choose_cards_for_zone_change(
         &mut self,
+        game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         min: usize,
         max: usize,
         select_prompt: &str,
     ) -> Vec<CardId> {
-        choices::choose_cards_for_zone_change(self, player, valid, min, max, select_prompt)
+        choices::choose_cards_for_zone_change(self, game, player, valid, min, max, select_prompt)
     }
 
     fn choose_type(
@@ -1210,8 +1184,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         available_colors: &[String],
         amount: usize,
         source: Option<CardId>,
+        express_choice: Option<u16>,
     ) -> Vec<String> {
-        costs::specify_mana_combo(self, player, available_colors, amount, source)
+        costs::specify_mana_combo(
+            self,
+            player,
+            available_colors,
+            amount,
+            source,
+            express_choice,
+        )
     }
 
     fn exert_attackers(&mut self, player: PlayerId, attackers: &[CardId]) -> Vec<CardId> {
@@ -1222,12 +1204,18 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         combat::enlist_attackers(self, player, attackers)
     }
 
-    fn choose_reorder_library(&mut self, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-        library::choose_reorder_library(self, player, cards)
+    fn choose_reorder_library(
+        &mut self,
+        game: &GameState,
+        player: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
+        library::choose_reorder_library(self, game, player, cards)
     }
 
     fn choose_explore_put_in_graveyard(
         &mut self,
+        _game: &GameState,
         player: PlayerId,
         revealed_card_name: &str,
         revealed_cmc: i32,
@@ -1338,11 +1326,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     })
                     .collect();
                 self.present_prompt(
-                    AgentPromptInner::FirstPlayerRoll {
-                        sides,
-                        rolls: entries,
-                        winner_player_id: player_id_str(winner),
-                    },
+                    PromptInput::FirstPlayerRoll(
+                        forge_protocol::prompts::first_player_roll::FirstPlayerRollInput {
+                            sides,
+                            rolls: entries,
+                            winner_player_id: player_id_str(winner),
+                        },
+                    ),
                     None,
                 );
                 // Caller is responsible for `await_display_ack` after the
@@ -1362,14 +1352,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 // animation start at the same time and we wait once for
                 // the slowest player rather than serially per-agent.
                 self.present_prompt(
-                    AgentPromptInner::DiceRolled {
-                        player_id: player_id_str(player),
-                        sides,
-                        natural_results,
-                        final_results,
-                        ignored_rolls,
-                        source_card_name,
-                    },
+                    PromptInput::DiceRolled(
+                        forge_protocol::prompts::dice_rolled::DiceRolledInput {
+                            player_id: player_id_str(player),
+                            sides,
+                            natural_results,
+                            final_results,
+                            ignored_rolls,
+                            source_card_name,
+                        },
+                    ),
                     None,
                 );
             }
@@ -1387,7 +1379,10 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
             GameNotification::GameOver => {
                 self.emit_state();
-                self.present_prompt(AgentPromptInner::GameOver {}, None);
+                self.present_prompt(
+                    PromptInput::GameOver(forge_protocol::prompts::game_over::GameOverInput {}),
+                    None,
+                );
             }
             GameNotification::ManaPaymentResolved { .. } => {}
             GameNotification::ActivatedAbilityPaymentFailed { .. } => {

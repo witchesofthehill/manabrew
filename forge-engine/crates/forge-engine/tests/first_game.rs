@@ -1456,10 +1456,10 @@ fn prodigal_sorcerer_pings_opponent() {
                         &requested_action_space
                     }
                 };
-                if let Some(&(cid, idx)) = action_space.activatable.first() {
+                if let Some(a) = action_space.activatable.first() {
                     return PlayerAction::ActivateAbility(AbilityRef {
-                        card_id: cid,
-                        ability_index: idx,
+                        card_id: a.card_id,
+                        ability_index: a.ability_index,
                     });
                 }
             }
@@ -1599,10 +1599,10 @@ fn sakura_tribe_elder_fetches_land() {
                         &requested_action_space
                     }
                 };
-                if let Some(&(cid, idx)) = action_space.activatable.first() {
+                if let Some(a) = action_space.activatable.first() {
                     return PlayerAction::ActivateAbility(AbilityRef {
-                        card_id: cid,
-                        ability_index: idx,
+                        card_id: a.card_id,
+                        ability_index: a.ability_index,
                     });
                 }
             }

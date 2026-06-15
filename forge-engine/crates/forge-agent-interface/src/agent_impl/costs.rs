@@ -4,7 +4,7 @@ use forge_engine_core::mana::ManaPool;
 use forge_foundation::ManaAtom;
 
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::prompt::{AgentPromptInner, PlayerAction};
+use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
 
@@ -15,9 +15,11 @@ pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     source: Option<CardId>,
 ) -> bool {
     agent.send_prompt(
-        AgentPromptInner::ChoosePhyrexian {
-            phyrexian_color: color.to_string(),
-        },
+        PromptInput::ChoosePhyrexian(
+            forge_protocol::prompts::choose_phyrexian::ChoosePhyrexianInput {
+                phyrexian_color: color.to_string(),
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -33,9 +35,9 @@ pub(super) fn choose_kicker<T: Responder>(
     source: Option<CardId>,
 ) -> bool {
     agent.send_prompt(
-        AgentPromptInner::ChooseKicker {
+        PromptInput::ChooseKicker(forge_protocol::prompts::choose_kicker::ChooseKickerInput {
             kicker_cost: kicker_cost.to_string(),
-        },
+        }),
         source,
     );
     match agent.recv_action() {
@@ -51,9 +53,11 @@ pub(super) fn choose_buyback<T: Responder>(
     source: Option<CardId>,
 ) -> bool {
     agent.send_prompt(
-        AgentPromptInner::ChooseBuyback {
-            buyback_cost: buyback_cost.to_string(),
-        },
+        PromptInput::ChooseBuyback(
+            forge_protocol::prompts::choose_buyback::ChooseBuybackInput {
+                buyback_cost: buyback_cost.to_string(),
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -70,10 +74,12 @@ pub(super) fn choose_multikicker<T: Responder>(
     source: Option<CardId>,
 ) -> u32 {
     agent.send_prompt(
-        AgentPromptInner::ChooseMultikicker {
-            cost: cost.to_string(),
-            max_kicks,
-        },
+        PromptInput::ChooseMultikicker(
+            forge_protocol::prompts::choose_multikicker::ChooseMultikickerInput {
+                cost: cost.to_string(),
+                max_kicks,
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -90,10 +96,12 @@ pub(super) fn choose_replicate<T: Responder>(
     source: Option<CardId>,
 ) -> u32 {
     agent.send_prompt(
-        AgentPromptInner::ChooseReplicate {
-            cost: cost.to_string(),
-            max_replicates,
-        },
+        PromptInput::ChooseReplicate(
+            forge_protocol::prompts::choose_replicate::ChooseReplicateInput {
+                cost: cost.to_string(),
+                max_replicates,
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -109,9 +117,11 @@ pub(super) fn choose_alternative_cost<T: Responder>(
     source: Option<CardId>,
 ) -> usize {
     agent.send_prompt(
-        AgentPromptInner::ChooseAlternativeCost {
-            options: options.to_vec(),
-        },
+        PromptInput::ChooseAlternativeCost(
+            forge_protocol::prompts::choose_alternative_cost::ChooseAlternativeCostInput {
+                options: options.to_vec(),
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -140,7 +150,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
     let untappable_land_ids = PromptAgent::<T>::card_ids(untappable_lands);
 
     agent.send_prompt(
-        AgentPromptInner::PayManaCost {
+        PromptInput::PayManaCost(forge_protocol::prompts::pay_mana_cost::PayManaCostInput {
             card_id: card_id_s,
             card_name: card_name.to_string(),
             mana_cost: mana_cost_display.to_string(),
@@ -158,7 +168,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
             untappable_land_ids,
             mana_pool_total: mana_pool.total_mana(),
             can_confirm_from_pool,
-        },
+        }),
         Some(card_id),
     );
     match agent.recv_action() {
@@ -166,20 +176,16 @@ pub(super) fn pay_mana_cost<T: Responder>(
             card_id,
             ability_index,
             color,
-        } => {
-            agent.pending_mana_color = color;
-            parse_card_id(&card_id)
-                .map(|card_id| ManaCostAction::TapLand {
-                    card_id,
-                    mana_ability_index: ability_index,
-                    express_choice: agent
-                        .pending_mana_color
-                        .as_deref()
-                        .map(|color| ManaAtom::from_name(&color.to_ascii_lowercase()))
-                        .filter(|&atom| atom != 0),
-                })
-                .unwrap_or(ManaCostAction::AttemptedAndFailed)
-        }
+        } => parse_card_id(&card_id)
+            .map(|card_id| ManaCostAction::TapLand {
+                card_id,
+                mana_ability_index: ability_index,
+                express_choice: color
+                    .as_deref()
+                    .map(|color| ManaAtom::from_name(&color.to_ascii_lowercase()))
+                    .filter(|&atom| atom != 0),
+            })
+            .unwrap_or(ManaCostAction::AttemptedAndFailed),
         PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
             .map(ManaCostAction::UntapLand)
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
@@ -195,18 +201,22 @@ pub(super) fn specify_mana_combo<T: Responder>(
     available_colors: &[String],
     amount: usize,
     source: Option<CardId>,
+    express_choice: Option<u16>,
 ) -> Vec<String> {
-    if let Some(pending) = agent.pending_mana_color.take() {
-        if let Some(matched) = super::find_matching_color(&pending, available_colors.iter()) {
+    if let Some(atom) = express_choice {
+        let letter = ManaPool::atom_to_letter(atom);
+        if let Some(matched) = super::find_matching_color(letter, available_colors.iter()) {
             return vec![matched; amount];
         }
     }
 
     agent.send_prompt(
-        AgentPromptInner::SpecifyManaCombo {
-            available_colors: available_colors.to_vec(),
-            amount,
-        },
+        PromptInput::SpecifyManaCombo(
+            forge_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
+                available_colors: available_colors.to_vec(),
+                amount,
+            },
+        ),
         source,
     );
     let action = agent.recv_action();
@@ -254,11 +264,11 @@ pub(super) fn choose_delve<T: Responder>(
         .collect();
 
     agent.send_prompt(
-        AgentPromptInner::ChooseDelve {
+        PromptInput::ChooseDelve(forge_protocol::prompts::choose_delve::ChooseDelveInput {
             valid_card_ids: valid_ids,
             zone_cards,
             max_cards: max,
-        },
+        }),
         source,
     );
     match agent.recv_action() {
@@ -282,10 +292,12 @@ pub(super) fn choose_improvise<T: Responder>(
     let valid_ids = PromptAgent::<T>::card_ids(untapped_artifacts);
 
     agent.send_prompt(
-        AgentPromptInner::ChooseImprovise {
-            valid_card_ids: valid_ids,
-            remaining_cost: remaining_cost.to_string(),
-        },
+        PromptInput::ChooseImprovise(
+            forge_protocol::prompts::choose_improvise::ChooseImproviseInput {
+                valid_card_ids: valid_ids,
+                remaining_cost: remaining_cost.to_string(),
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -308,10 +320,12 @@ pub(super) fn choose_convoke<T: Responder>(
     let valid_ids = PromptAgent::<T>::card_ids(untapped_creatures);
 
     agent.send_prompt(
-        AgentPromptInner::ChooseConvoke {
-            valid_card_ids: valid_ids,
-            remaining_cost: remaining_cost.to_string(),
-        },
+        PromptInput::ChooseConvoke(
+            forge_protocol::prompts::choose_convoke::ChooseConvokeInput {
+                valid_card_ids: valid_ids,
+                remaining_cost: remaining_cost.to_string(),
+            },
+        ),
         source,
     );
     match agent.recv_action() {

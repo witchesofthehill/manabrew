@@ -61,9 +61,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     if let Some(cid) = o_card {
         revealed.push(cid);
     }
-    for agent in ctx.agents.iter_mut() {
-        agent.on_library_peek(ctx.game, &revealed);
-    }
 
     // Java CR 701.11: Both players choose order simultaneously; the clash
     // winner is the activator iff their revealed CMC is strictly greater.

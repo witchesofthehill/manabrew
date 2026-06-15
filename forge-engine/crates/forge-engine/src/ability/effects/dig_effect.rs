@@ -128,8 +128,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         }
     }
 
-    // Let UI agents pre-build card info for the revealed cards.
-    ctx.agents[sa.activating_player.index()].on_library_peek(ctx.game, &top_n);
     if sa.ir.reveal_true {
         for &card_id in &top_n {
             notify_all_agents(
@@ -151,6 +149,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         Vec::new()
     } else {
         ctx.agents[sa.activating_player.index()].choose_dig(
+            ctx.game,
             sa.activating_player,
             &valid,
             max_take,
@@ -193,9 +192,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         && (dest_zone2 == ZoneType::Library || dest_zone2 == ZoneType::Graveyard)
     {
         ctx.agents[sa.activating_player.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        ctx.agents[sa.activating_player.index()].on_library_peek(ctx.game, &rest);
-        let reordered = ctx.agents[sa.activating_player.index()]
-            .choose_reorder_library(sa.activating_player, &rest);
+        let reordered = ctx.agents[sa.activating_player.index()].choose_reorder_library(
+            ctx.game,
+            sa.activating_player,
+            &rest,
+        );
         if reordered.len() == rest.len() && rest.iter().all(|id| reordered.contains(id)) {
             rest = reordered;
         }
@@ -380,6 +381,7 @@ mod tests {
         }
         fn choose_dig(
             &mut self,
+            _game: &GameState,
             _player: PlayerId,
             cards: &[CardId],
             max: usize,

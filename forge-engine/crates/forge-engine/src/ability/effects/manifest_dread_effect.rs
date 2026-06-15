@@ -43,12 +43,17 @@ fn manifest_dread_once(ctx: &mut EffectContext, _sa: &SpellAbility, player: Play
 
     // Player chooses one to manifest
     ctx.agents[player.index()].snapshot_state(ctx.game, ctx.mana_pools);
-    ctx.agents[player.index()].on_library_peek(ctx.game, &top2);
     let chosen = if top2.len() == 1 {
         top2[0]
     } else {
         ctx.agents[player.index()]
-            .choose_single_card_for_zone_change(player, &top2, "Choose a card to manifest", false)
+            .choose_single_card_for_zone_change(
+                ctx.game,
+                player,
+                &top2,
+                "Choose a card to manifest",
+                false,
+            )
             .unwrap_or(top2[0])
     };
 

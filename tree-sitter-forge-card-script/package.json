@@ -4,6 +4,13 @@
   "description": "Tree-sitter grammar for the Forge Card Script DSL",
   "main": "bindings/node",
   "types": "bindings/node",
+  "license": "MIT",
+  "author": "khaliostr",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/witchesofthehill/manabrew.git",
+    "directory": "tree-sitter-forge-card-script"
+  },
   "keywords": [
     "tree-sitter",
     "parser",

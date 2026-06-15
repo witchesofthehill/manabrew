@@ -813,6 +813,7 @@ pub fn determine_mana_production_ir(
                         &available,
                         amount as usize,
                         Some(card_id),
+                        express_choice,
                     );
                     *ms = chosen.join(" ");
                 } else {

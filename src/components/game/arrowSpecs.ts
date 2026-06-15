@@ -2,8 +2,7 @@
  * Pure helpers for producing `ArrowSpec[]` from the current game state.
  *
  * Arrows are reserved for combat declarations (attack/block) and the
- * placement preview when casting a permanent spell. Every other targeting
- * relation is emitted by `buildPointerSpecs` as a `PointerSpec` instead.
+ * placement preview when casting a permanent spell.
  *
  * The Pixi renderer resolves these specs to canvas-local coordinates
  * every tick so arrows follow animating sprites.

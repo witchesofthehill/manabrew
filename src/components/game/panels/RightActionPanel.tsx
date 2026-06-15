@@ -14,7 +14,6 @@ import {
 import { PlayerBadgeDevControls } from "@/components/dev/PlayerBadgeDevControls";
 import { CardBadgeDevControls } from "@/components/dev/CardBadgeDevControls";
 import { BattlefieldKeywordDevControls } from "@/components/dev/BattlefieldKeywordDevControls";
-import { PointerDebugControls } from "@/components/dev/PointerDebugControls";
 
 const DEV_LABELS: Record<DevPromptActionOverride, string> = {
   chooseAction: "ChooseAction",
@@ -173,7 +172,6 @@ export function RightActionPanel({
             <PlayerBadgeDevControls />
             <CardBadgeDevControls />
             <BattlefieldKeywordDevControls />
-            <PointerDebugControls />
           </div>
         )}
       </div>

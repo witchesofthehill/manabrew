@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { TargetingIntent } from "@/types/promptType";
 import type { ArrowType } from "@/pixi/types";
 
 export const DEBUG_KEYWORD_CARD_ID = "dev-keyword-card";
@@ -154,15 +153,8 @@ interface GameDevState {
   playerOverrides: DevPlayerOverrides;
   cardOverrides: DevCardOverrides;
   etbGlowVersion: number;
-  /** Pointer intent the operator has force-enabled to inspect its glyph
-   *  / glow on the live board. At most one at a time — the panel acts
-   *  as a radio so swapping intents lets you compare them side-by-side
-   *  without overlap. Renders a debug pointer from the local player's
-   *  avatar to the first opponent's. */
-  debugPointerIntent: TargetingIntent | null;
   /** Arrow type the operator has force-enabled to inspect on the live
-   *  board (combat / placement). Same radio behavior as
-   *  `debugPointerIntent`. */
+   *  board (combat / placement). Acts as a radio — one at a time. */
   debugArrowType: ArrowType | null;
   debugBattlefieldKeywords: string[];
   debugCardEnabled: boolean;
@@ -179,7 +171,6 @@ interface GameDevState {
   setCardOverride: <K extends keyof DevCardOverrides>(key: K, value: DevCardOverrides[K]) => void;
   resetCardOverrides: () => void;
   triggerEtbGlow: () => void;
-  setDebugPointerIntent: (intent: TargetingIntent | null) => void;
   setDebugArrowType: (type: ArrowType | null) => void;
   toggleDebugBattlefieldKeyword: (keyword: string) => void;
   clearDebugBattlefieldKeywords: () => void;
@@ -197,7 +188,6 @@ export const useGameDevStore = create<GameDevState>()(
       playerOverrides: DEFAULT_DEV_PLAYER_OVERRIDES,
       cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
       etbGlowVersion: 0,
-      debugPointerIntent: null,
       debugArrowType: null,
       debugBattlefieldKeywords: [],
       debugCardEnabled: false,
@@ -217,7 +207,6 @@ export const useGameDevStore = create<GameDevState>()(
         })),
       resetCardOverrides: () => set({ cardOverrides: DEFAULT_DEV_CARD_OVERRIDES }),
       triggerEtbGlow: () => set((s) => ({ etbGlowVersion: s.etbGlowVersion + 1 })),
-      setDebugPointerIntent: (intent) => set({ debugPointerIntent: intent }),
       setDebugArrowType: (type) => set({ debugArrowType: type }),
       toggleDebugBattlefieldKeyword: (keyword) =>
         set((state) => {
@@ -237,7 +226,6 @@ export const useGameDevStore = create<GameDevState>()(
           devToolsEnabled: false,
           playerOverrides: DEFAULT_DEV_PLAYER_OVERRIDES,
           cardOverrides: DEFAULT_DEV_CARD_OVERRIDES,
-          debugPointerIntent: null,
           debugArrowType: null,
           debugBattlefieldKeywords: [],
           debugCardEnabled: false,

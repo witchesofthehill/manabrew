@@ -37,24 +37,13 @@ export type ArrowEndpoint =
 /** Arrows render combat declarations (`attack` / `block`, painterly
  *  variant), attach relationships (`attach`, rune variant — Equipment /
  *  Aura targeting), and the placement preview (`placement`, dashed
- *  marching-ants) when casting a permanent spell. Every other targeting
- *  interaction renders as a `PointerSpec` instead. */
+ *  marching-ants) when casting a permanent spell. */
 export type ArrowType = "attack" | "block" | "attach" | "placement";
 
 export interface ArrowSpec {
   from: ArrowEndpoint;
   to: ArrowEndpoint;
   type: ArrowType;
-}
-
-/** A targeting pointer — floating icon anchored to a source card with a
- *  cursor-following or target-anchored endpoint, plus an animated glow on
- *  the source (and target, when locked). Icon and color derive from the
- *  intent via the theme. */
-export interface PointerSpec {
-  from: ArrowEndpoint;
-  to: ArrowEndpoint;
-  intent: import("@/types/promptType").TargetingIntent;
 }
 
 /**

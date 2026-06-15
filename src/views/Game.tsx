@@ -919,27 +919,33 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
     return map;
   }, [me, opponents, themeColors.playerColors]);
-  // DEV: pad with simulated opponents to test multi-player layout
-  const displayOpponents = [
-    ...opponents,
-    ...Array.from(
-      { length: devExtraOpponents },
-      (_, i) =>
-        ({
-          id: `dev-fake-${i}`,
-          name: `Dev Opp ${opponents.length + i + 1}`,
-          isHuman: false,
-          life: 20,
-          poison: 0,
-          hand: [],
-          graveyard: [],
-          exile: [],
-          commandZone: [],
-          libraryCount: 40,
-          manaPool: {} as Record<string, number>,
-        }) as Player,
-    ),
-  ];
+  // DEV: pad with simulated opponents to test multi-player layout. Memoized so
+  // the array identity is stable across renders — it flows into the board's
+  // region set and panel-measurement, which would otherwise relayout/measure
+  // on every render.
+  const displayOpponents = useMemo(
+    () => [
+      ...opponents,
+      ...Array.from(
+        { length: devExtraOpponents },
+        (_, i) =>
+          ({
+            id: `dev-fake-${i}`,
+            name: `Dev Opp ${opponents.length + i + 1}`,
+            isHuman: false,
+            life: 20,
+            poison: 0,
+            hand: [],
+            graveyard: [],
+            exile: [],
+            commandZone: [],
+            libraryCount: 40,
+            manaPool: {} as Record<string, number>,
+          }) as Player,
+      ),
+    ],
+    [opponents, devExtraOpponents],
+  );
   // Stabilize attackerIds so useGameArrows' useEffect doesn't re-run every render
   const attackerIds = useMemo(
     () => chooseBlockersInput?.attackerIds ?? [],
@@ -1033,6 +1039,33 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     return map;
   }, [gameView, debugCardEnabled, debugCardName, debugBattlefieldKeywords, me?.id]);
+
+  // Memoized so the board's region set has stable inputs and doesn't relayout
+  // every render. Pending attackers render as tapped for an immediate
+  // "selected" signal; tap state flips for real engine-side once committed.
+  const myPermanents = useMemo<GameCard[]>(() => {
+    if (!gameView || !me) return [];
+    const pendingSet = new Set(pendingAttackers);
+    const list = gameView.battlefield
+      .filter((c) => c.controllerId === me.id)
+      .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
+    if (debugCardEnabled) {
+      list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
+    }
+    return list;
+  }, [gameView, me, pendingAttackers, debugCardEnabled, debugCardName, debugBattlefieldKeywords]);
+
+  const opponentPermanentsByPlayer = useMemo(() => {
+    const map = new Map<string, GameCard[]>();
+    if (!gameView) return map;
+    for (const op of opponents) {
+      map.set(
+        op.id,
+        gameView.battlefield.filter((c) => c.controllerId === op.id),
+      );
+    }
+    return map;
+  }, [gameView, opponents]);
 
   const stackCardsBySourceId = useMemo(() => {
     const byId = new Map<string, GameCard>();
@@ -1252,22 +1285,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   const markIfPlayable = (c: GameCard): GameCard =>
     promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c;
-  // Pending attackers display as tapped so the user has an immediate
-  // visual signal of "selected" without us drawing a misleading arrow
-  // toward an arbitrary default opponent. Tap state flips for real on
-  // the engine side once the attack commits.
-  const pendingAttackerSet = new Set(pendingAttackers);
-  const markIfPendingAttacker = (c: GameCard): GameCard =>
-    pendingAttackerSet.has(c.id) ? { ...c, tapped: true } : c;
-  const myPermanents = gameView.battlefield
-    .filter((c) => c.controllerId === me.id)
-    .map(markIfPendingAttacker);
-  if (debugCardEnabled) {
-    myPermanents.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
-  }
-  const opponentPermanentsByPlayer = new Map(
-    opponents.map((op) => [op.id, gameView.battlefield.filter((c) => c.controllerId === op.id)]),
-  );
 
   // Game over overlay
   if (gameView.gameOver || promptType === "gameOver") {

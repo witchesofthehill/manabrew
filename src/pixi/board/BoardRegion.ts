@@ -31,6 +31,7 @@ import {
   DAMAGE_SHAKE_FRAMES,
   EXIT_FADE_LERP,
   EXIT_SHRINK,
+  GAP,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_OVERLAP_FRAC,
   GRID_SKELETON_FILL_ALPHA,
@@ -1135,6 +1136,26 @@ export class BoardRegion {
         alpha: isHover ? GRID_SKELETON_HOVER_ALPHA : GRID_SKELETON_STROKE_ALPHA,
       });
     }
+    gfx.visible = true;
+  }
+
+  /** Highlight the whole play zone (instant/sorcery cast drag — there's no
+   *  grid slot, the spell just goes to the stack). */
+  drawDropField(): void {
+    const zone = this.zone;
+    const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
+    const pad = GAP * 2;
+    const gfx = this.gridSkeletonGfx;
+    gfx.clear();
+    gfx.roundRect(
+      zone.x + pad,
+      zone.y + pad,
+      zone.width - pad * 2,
+      zone.height - pad * 2,
+      TABLE_RADIUS,
+    );
+    gfx.fill({ color, alpha: GRID_SKELETON_FILL_ALPHA * 4 });
+    gfx.stroke({ color, width: 3, alpha: GRID_SKELETON_HOVER_ALPHA });
     gfx.visible = true;
   }
 

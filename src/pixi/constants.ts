@@ -86,6 +86,14 @@ export const COMBAT_LUNGE_FRAC = 0.4;
 export const DAMAGE_SHAKE_FRAMES = 14;
 export const DAMAGE_SHAKE_AMP_PX = 4;
 
+// ── Drag-to-cast feedback ───────────────────────────────────────────────────
+// While dragging a card out of hand to cast it: the dragged permanent scales up
+// and lifts slightly; the rest of the hand sinks out of the way (more for an
+// instant, which reveals a full-field drop highlight instead of grid cells).
+export const CAST_DRAG_SCALE = 1.25;
+export const CAST_DRAG_CARD_DROP_PX = 16;
+export const CAST_DRAG_HAND_SINK_PX = 200;
+
 // ── Card exit (leaving the battlefield) ─────────────────────────────────────
 // A removed card fades + shrinks instead of popping out; destroyed once faded.
 export const EXIT_FADE_LERP = 0.2;

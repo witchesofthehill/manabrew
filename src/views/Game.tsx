@@ -2,7 +2,6 @@ import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { useCastDragStore } from "@/stores/useCastDragStore";
 import { useAutoResolvePrompt } from "@/components/game/prompts/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -826,11 +825,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     onCastSpell: handleCastSpell,
     dismissHover: preview.dismiss,
   });
-
-  const setCastDragActive = useCastDragStore((s) => s.setActive);
-  useEffect(() => {
-    setCastDragActive(!!draggingHandCard);
-  }, [draggingHandCard, setCastDragActive]);
 
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);

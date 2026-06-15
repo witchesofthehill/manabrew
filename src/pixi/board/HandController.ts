@@ -7,6 +7,9 @@ import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "../HandLa
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import {
+  CAST_DRAG_CARD_DROP_PX,
+  CAST_DRAG_HAND_SINK_PX,
+  CAST_DRAG_SCALE,
   GAP,
   HAND_HOVER_HOLD_MS,
   HAND_LERP,
@@ -41,6 +44,7 @@ export class HandController {
   private pendingLeaveIndex: number | null = null;
   private lastState: HandState | null = null;
   private vScale = 1;
+  private dropActive = false;
 
   constructor(host: HandHost, parent: Container) {
     this.host = host;
@@ -53,6 +57,18 @@ export class HandController {
 
   setScale(scale: number): void {
     this.vScale = scale;
+  }
+
+  /** Whether a drag-over-the-battlefield is in progress; drives the cast-drag
+   *  hand reshape for instants (sink to reveal the drop field). */
+  setDropActive(active: boolean): void {
+    if (this.dropActive === active) return;
+    this.dropActive = active;
+    this.relayout();
+  }
+
+  isDraggingPermanent(): boolean {
+    return this.lastState?.draggingCardId != null && this.lastState?.draggingIsPermanent === true;
   }
 
   /** Re-run the fan layout against the last hand state (after a geometry
@@ -123,18 +139,34 @@ export class HandController {
         sprite.updateCardContent(card);
       }
 
-      const isHidden =
-        !selectionMode && (card.id === state.draggingCardId || card.id === state.castingCardId);
+      // Drag-to-cast reshape: the dragged permanent scales up and lifts a
+      // little; the rest of the fan sinks out of the way (and an instant sinks
+      // the whole fan once it's over the battlefield, revealing the drop field).
+      const isCastDrag = !selectionMode && card.id === state.draggingCardId;
+      const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
+      const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
+      const reshapeFan =
+        !selectionMode &&
+        state.draggingCardId != null &&
+        (state.draggingIsPermanent === true || this.dropActive);
+      const castOffset = reshapeFan
+        ? Math.round(
+            (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,
+          )
+        : 0;
+      const castScale = isCastingPermanent ? CAST_DRAG_SCALE : 1;
+
+      const isHidden = !selectionMode && (card.id === state.castingCardId || isCastingSpell);
       sprite.alpha = isHidden ? 0 : 1;
       sprite.cursor = selectionMode ? "pointer" : card.isPlayable ? "grab" : "default";
 
       this.targets.set(card.id, {
         x: centerX + l.x,
-        y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
-        rot: isSelected ? 0 : (l.rotation * Math.PI) / 180,
-        scaleX: l.scaleW / CARD_W,
-        scaleY: l.scaleH / CARD_H,
-        zIndex: isHovered ? Z_HAND_HOVERED : i + 1,
+        y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
+        rot: isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180,
+        scaleX: (l.scaleW / CARD_W) * castScale,
+        scaleY: (l.scaleH / CARD_H) * castScale,
+        zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
       });
       hitZones.push({
         index: i,

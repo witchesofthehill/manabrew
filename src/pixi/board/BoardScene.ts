@@ -443,6 +443,7 @@ export class BoardScene {
   setDropActive(active: boolean): void {
     this.dropActive = active;
     this.localRegion()?.setDropActive(active);
+    this.hand?.setDropActive(active);
   }
 
   setAutoSort(value: boolean): void {
@@ -779,11 +780,16 @@ export class BoardScene {
     this.captureStackSeeds();
     if (this.dropActive) {
       const local = this.localRegion();
-      const canvasRect = this.app.canvas.getBoundingClientRect();
-      local?.drawDropGrid(
-        this.cursorViewportX - canvasRect.left,
-        this.cursorViewportY - canvasRect.top,
-      );
+      if (this.hand?.isDraggingPermanent()) {
+        const canvasRect = this.app.canvas.getBoundingClientRect();
+        local?.drawDropGrid(
+          this.cursorViewportX - canvasRect.left,
+          this.cursorViewportY - canvasRect.top,
+        );
+      } else {
+        // Instant/sorcery cast: highlight the whole play zone, not grid cells.
+        local?.drawDropField();
+      }
     }
   };
 

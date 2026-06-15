@@ -818,7 +818,8 @@ export class BoardScene {
    *  separate overlay canvas (above the React panels), not in this canvas. */
   getArrowDefs(): ArrowDef[] {
     if (this.destroyed) return [];
-    if (this.arrowSpecs.length === 0 && !this.castingArrow) return [];
+    const castDragging = this.hand?.isDraggingPermanent() ?? false;
+    if (this.arrowSpecs.length === 0 && !this.castingArrow && !castDragging) return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
     for (const spec of this.arrowSpecs) {
@@ -841,6 +842,21 @@ export class BoardScene {
           toY: this.cursorViewportY - canvasRect.top,
           type: "casting",
           color: hexToNum(this.castingArrow.hostile ? t.hostile : t.friendly),
+        });
+      }
+    }
+    // Drag-to-cast a permanent from hand: a "drop here" arrow from the lifted
+    // hand card to the cursor (mirrors the old board's cast-drag arrow).
+    if (castDragging) {
+      const id = this.hand?.getDraggingCardId();
+      const from = id ? (this.hand?.getCardPosition(id) ?? null) : null;
+      if (from) {
+        resolved.push({
+          fromX: from.x,
+          fromY: from.y,
+          toX: this.cursorViewportX - canvasRect.left,
+          toY: this.cursorViewportY - canvasRect.top,
+          type: "placement",
         });
       }
     }

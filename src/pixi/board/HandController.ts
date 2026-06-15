@@ -71,6 +71,10 @@ export class HandController {
     return this.lastState?.draggingCardId != null && this.lastState?.draggingIsPermanent === true;
   }
 
+  getDraggingCardId(): string | null {
+    return this.lastState?.draggingCardId ?? null;
+  }
+
   /** Re-run the fan layout against the last hand state (after a geometry
    *  change like resize / scale / play-zone). No-op if no hand state yet. */
   relayout(): void {

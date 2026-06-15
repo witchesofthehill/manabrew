@@ -38,7 +38,7 @@ export type ArrowEndpoint =
  *  variant), attach relationships (`attach`, rune variant — Equipment /
  *  Aura targeting), and the placement preview (`placement`, dashed
  *  marching-ants) when casting a permanent spell. */
-export type ArrowType = "attack" | "block" | "attach" | "placement";
+export type ArrowType = "attack" | "block" | "attach" | "placement" | "casting";
 
 export interface ArrowSpec {
   from: ArrowEndpoint;

@@ -13,6 +13,9 @@ export interface ArrowDef {
   toX: number;
   toY: number;
   type: ArrowType;
+  /** Explicit hue (e.g. the casting arrow's intent color); falls back to the
+   *  type's theme color when omitted. */
+  color?: number;
 }
 
 // ── Layer ordering ─────────────────────────────────────────────────────────
@@ -286,6 +289,7 @@ export class ArrowLayer {
     switch (arrow.type) {
       case "attack":
       case "block":
+      case "casting":
         this.drawPainterly(entry, arrow);
         return;
       case "attach":
@@ -301,11 +305,13 @@ export class ArrowLayer {
   private drawPainterly(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PAINTERLY);
-    const hueHex =
-      arrow.type === "attack"
-        ? this.theme.gameTheme.pointer.hostile
-        : this.theme.gameTheme.pointer.friendly;
-    const hue = hexToNum(hueHex);
+    const hue =
+      arrow.color ??
+      hexToNum(
+        arrow.type === "attack"
+          ? this.theme.gameTheme.pointer.hostile
+          : this.theme.gameTheme.pointer.friendly,
+      );
 
     const gradKey = `${ax1.toFixed(1)},${ay1.toFixed(1)},${ax2.toFixed(1)},${ay2.toFixed(1)},${hue}`;
     if (entry.gradKey !== gradKey || !entry.underGrad || !entry.coreGrad) {

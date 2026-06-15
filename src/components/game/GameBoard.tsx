@@ -68,6 +68,7 @@ interface GameBoardProps {
   combatAssignments?: { blockerId: string; attackerId: string }[];
   /** Arrow specs for the unified board (attack/attach/placement). */
   arrowSpecs?: ArrowSpec[];
+  castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   playerIsTargetable: (playerId: string) => boolean;
 
   // Per-player game-wide flags
@@ -156,6 +157,7 @@ export function GameBoard({
   blockAssignments,
   combatAssignments,
   arrowSpecs,
+  castingArrow,
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
@@ -733,6 +735,7 @@ export function GameBoard({
           regions={unifiedRegions}
           hand={pixiHand}
           arrowSpecs={arrowSpecs ?? []}
+          castingArrow={castingArrow}
           combatBlocks={unifiedCombatBlocks}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}

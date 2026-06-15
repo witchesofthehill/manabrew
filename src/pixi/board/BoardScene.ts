@@ -90,6 +90,7 @@ export class BoardScene {
   private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
+  private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
   private externalBlockers: BlockingRect[] = [];
 
@@ -393,6 +394,12 @@ export class BoardScene {
 
   setArrowSpecs(specs: ArrowSpec[]): void {
     this.arrowSpecs = specs;
+  }
+
+  /** Live source→cursor targeting arrow while casting a spell/ability, or null
+   *  when not targeting. Drawn by `getArrowDefs` against the current cursor. */
+  setCastingArrow(arrow: { sourceCardId: string; hostile: boolean } | null): void {
+    this.castingArrow = arrow;
   }
 
   setPhaseStripState(state: PhaseStripState): void {
@@ -786,7 +793,8 @@ export class BoardScene {
   /** Resolve the current arrow specs to canvas-local ArrowDefs. Drawn by the
    *  separate overlay canvas (above the React panels), not in this canvas. */
   getArrowDefs(): ArrowDef[] {
-    if (this.destroyed || this.arrowSpecs.length === 0) return [];
+    if (this.destroyed) return [];
+    if (this.arrowSpecs.length === 0 && !this.castingArrow) return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
     for (const spec of this.arrowSpecs) {
@@ -794,6 +802,23 @@ export class BoardScene {
       const to = this.resolveArrowEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
       resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
+    }
+    if (this.castingArrow) {
+      const from = this.resolveArrowEndpoint(
+        { kind: "card", id: this.castingArrow.sourceCardId },
+        canvasRect,
+      );
+      if (from) {
+        const t = this.theme.gameTheme.pointer;
+        resolved.push({
+          fromX: from.x,
+          fromY: from.y,
+          toX: this.cursorViewportX - canvasRect.left,
+          toY: this.cursorViewportY - canvasRect.top,
+          type: "casting",
+          color: hexToNum(this.castingArrow.hostile ? t.hostile : t.friendly),
+        });
+      }
     }
     return resolved;
   }

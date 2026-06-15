@@ -55,6 +55,8 @@ interface BoardCanvasProps {
   regions: BoardCanvasRegion[];
   hand: HandState;
   arrowSpecs: ArrowSpec[];
+  /** Live source→cursor targeting arrow while casting, or null. */
+  castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   combatBlocks?: { blockerId: string; attackerId: string }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
@@ -87,6 +89,7 @@ export function BoardCanvas({
   regions,
   hand,
   arrowSpecs,
+  castingArrow,
   combatBlocks,
   phaseStrip,
   phaseStripCallbacks,
@@ -296,6 +299,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setArrowSpecs(arrowSpecs);
   }, [scene, arrowSpecs]);
+
+  useEffect(() => {
+    scene?.setCastingArrow(castingArrow ?? null);
+  }, [scene, castingArrow]);
 
   useEffect(() => {
     scene?.applyCombatBlocks(combatBlocks ?? []);

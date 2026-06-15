@@ -1308,6 +1308,17 @@ export default function Game({ exitTo }: GameProps = {}) {
   const targetingCursorActive =
     casting.showArrow && !casting.targetId && !intentPrefersArrow(casting.arrowIntent);
 
+  // Intents that read better as a line draw a live source→cursor arrow (the
+  // cursor-glyph affordance handles the rest). Closes the gap left when the
+  // legacy pointer/casting-arrow overlay was removed.
+  const castingArrow =
+    casting.showArrow &&
+    casting.castingCardId &&
+    !casting.targetId &&
+    intentPrefersArrow(casting.arrowIntent)
+      ? { sourceCardId: casting.castingCardId, hostile: casting.arrowHostile }
+      : null;
+
   return (
     <div
       ref={containerRef}
@@ -1361,6 +1372,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
           arrowSpecs={arrowSpecs}
+          castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}

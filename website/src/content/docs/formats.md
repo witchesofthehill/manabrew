@@ -20,27 +20,27 @@ data.
 ## Card coverage
 
 The card database parses Forge's full library of 32,000+ card scripts, but
-the Rust engine does not implement every mechanic those scripts use yet.
+the ManaBrew engine does not implement every mechanic those scripts use yet.
 What that means in practice:
 
 - The deck editor checks every card against the engine and flags ones it
   can't run with an **unsupported** badge — check your deck before a game,
   not during one.
-- Coverage grows parity-first: each fix is verified against Java Forge's
+- Coverage grows parity-first: each fix is verified against Forge's
   behavior with identical seeds and choices, and locked in by a regression
   suite.
-- The engine is swappable: rooms hosted on the original Java Forge engine via
+- The engine is swappable: rooms hosted on the original Forge engine via
   a [self-hosted node](/self-hosting/) are fully supported and give you
   Forge's complete card coverage today.
 
 ## Web vs desktop
 
-|                  | Web (play.manabrew.app)                 | Desktop (Tauri)                                          |
-| ---------------- | --------------------------------------- | -------------------------------------------------------- |
-| Rules engine     | Rust engine compiled to WASM            | Same Rust engine, native                                 |
-| Java Forge games | Join rooms hosted by a self-hosted node | Same                                                     |
-| Offline play     | No                                      | Engine runs locally, but card images still need internet |
-| Install          | None                                    | `.dmg` / `.exe` from releases                            |
+|              | Web (play.manabrew.app)                 | Desktop (Tauri)                                          |
+| ------------ | --------------------------------------- | -------------------------------------------------------- |
+| Rules engine | ManaBrew engine compiled to WASM        | Same ManaBrew engine, native                             |
+| Forge games  | Join rooms hosted by a self-hosted node | Same                                                     |
+| Offline play | No                                      | Engine runs locally, but card images still need internet |
+| Install      | None                                    | `.dmg` / `.exe` from releases                            |
 
 The web client additionally requires a cross-origin-isolated host (see
 [hosting the web client](/self-hosting/#hosting-the-web-client)) — this

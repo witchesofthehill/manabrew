@@ -45,10 +45,10 @@ struct RelayClient {
 }
 
 enum EngineSession {
-    Rust {
+    Manabrew {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
     },
-    Java {
+    Forge {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
         cancel: Arc<AtomicBool>,
     },
@@ -197,7 +197,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     let backend = EngineBackendKind::from_env();
     if config.engine_enabled
         && backend.is_supported()
-        && matches!(backend, EngineBackendKind::JavaForge)
+        && matches!(backend, EngineBackendKind::Forge)
     {
         info!("initializing shared java engine (one JVM for all hosted games)");
         java_backend::init_engine()?;
@@ -267,10 +267,10 @@ async fn host_one_room(
         info!(room_id, "joining configured room");
         room_id.clone()
     } else {
-        let engine = if matches!(EngineBackendKind::from_env(), EngineBackendKind::JavaForge) {
-            EngineKind::Java
+        let engine = if matches!(EngineBackendKind::from_env(), EngineBackendKind::Forge) {
+            EngineKind::Forge
         } else {
-            EngineKind::Wasm
+            EngineKind::Manabrew
         };
         host.send(&ClientMessage::CreateRoom {
             room_name: config.room_name.clone(),
@@ -773,7 +773,7 @@ fn maybe_start_hosted_engine(
     let game_id = format!("room-game-{}", Uuid::new_v4());
 
     match backend {
-        EngineBackendKind::Rust => {
+        EngineBackendKind::Manabrew => {
             let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentMessage)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
@@ -785,7 +785,7 @@ fn maybe_start_hosted_engine(
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
-            *guard = Some(EngineSession::Rust {
+            *guard = Some(EngineSession::Manabrew {
                 remote_response_txs,
             });
             drop(guard);
@@ -818,7 +818,7 @@ fn maybe_start_hosted_engine(
                 clear_engine_session(&session_handle);
             });
         }
-        EngineBackendKind::JavaForge => {
+        EngineBackendKind::Forge => {
             let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentMessage)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
@@ -831,7 +831,7 @@ fn maybe_start_hosted_engine(
                 remote_response_rxs.push((i, response_rx));
             }
             let cancel = Arc::new(AtomicBool::new(false));
-            *guard = Some(EngineSession::Java {
+            *guard = Some(EngineSession::Forge {
                 remote_response_txs,
                 cancel: cancel.clone(),
             });
@@ -920,7 +920,7 @@ fn end_hosted_game_on_abandon(
 ) {
     let cancelled = match engine_session.lock() {
         Ok(guard) => match guard.as_ref() {
-            Some(EngineSession::Java { cancel, .. }) => {
+            Some(EngineSession::Forge { cancel, .. }) => {
                 cancel.store(true, Ordering::Relaxed);
                 true
             }
@@ -986,7 +986,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
         return;
     };
     match session {
-        EngineSession::Rust {
+        EngineSession::Manabrew {
             remote_response_txs,
         } => {
             let action: PlayerAction = match serde_json::from_value(action_value) {
@@ -1004,7 +1004,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
-        EngineSession::Java {
+        EngineSession::Forge {
             remote_response_txs,
             ..
         } => {

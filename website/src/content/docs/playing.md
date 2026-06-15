@@ -17,7 +17,7 @@ is checked live:
 
 - **Legality badges** mark cards that are banned or restricted in the deck's
   format.
-- An **unsupported** badge marks cards the Rust engine can't run yet — the
+- An **unsupported** badge marks cards the ManaBrew engine can't run yet — the
   deck still saves, but those cards won't behave correctly in a game.
 - For Commander decks, the editor shows detected **combos** (via Commander
   Spellbook), **Game Changers**, and an estimated **bracket**: brackets 2–4

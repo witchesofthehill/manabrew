@@ -109,7 +109,7 @@ export default function Play() {
             if (getPlatform().type === "web") {
               setPendingAiStart({ playerDeck, opponentDeck, formatId, commanderName });
             } else {
-              startGame(playerDeck, formatId, commanderName, opponentDeck, "Wasm");
+              startGame(playerDeck, formatId, commanderName, opponentDeck, "Manabrew");
             }
           }}
         />

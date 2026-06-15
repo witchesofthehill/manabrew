@@ -1,12 +1,12 @@
 ---
-title: Self-hosting a Java room
-description: Run your own headless game room backed by the Java Forge engine, via Docker Compose or from source.
+title: Self-hosting a Forge room
+description: Run your own headless game room backed by the Forge engine, via Docker Compose or from source.
 ---
 
 A **self-hosted node** is a headless room host. It connects to a relay server,
 opens a lobby room, and runs the games for everyone who joins — players only
-need the web or desktop client. With the `java-forge` backend the node spawns
-one Java Forge process per game, so games are played on the original Forge
+need the web or desktop client. With the `forge` backend the node spawns
+one Forge process per game, so games are played on the original Forge
 rules engine rather than the Rust port.
 
 Both options below start from a full checkout:
@@ -21,7 +21,7 @@ The node authenticates to the relay with the relay's server key. Set it via
 
 ## Option 1: Docker Compose
 
-The image bundles everything: the node binary, the Java Forge harness, and a
+The image bundles everything: the node binary, the Forge harness, and a
 JRE. Create a `compose.yml`:
 
 ```yaml
@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
 ```
 
-The image defaults to the Java backend, so no extra configuration is needed:
+The image defaults to the Forge backend, so no extra configuration is needed:
 
 ```bash
 SELF_HOSTED_NODE_SERVER_KEY=… docker compose up --build
@@ -48,7 +48,7 @@ SELF_HOSTED_NODE_SERVER_KEY=… docker compose up --build
 
 You need a Rust toolchain, a JDK (17+), and Maven.
 
-Build the Java Forge harness jar and the cardset archive once:
+Build the Forge harness jar and the cardset archive once:
 
 ```bash
 mvn -pl forge-harness -am package -DskipTests
@@ -60,7 +60,7 @@ Then run the node:
 ```bash
 SELF_HOSTED_NODE_ROOM_NAME=my-room \
 SELF_HOSTED_NODE_SERVER_KEY=<your-server-key> \
-SELF_HOSTED_NODE_ENGINE_BACKEND=java-forge \
+SELF_HOSTED_NODE_ENGINE_BACKEND=forge \
 SELF_HOSTED_NODE_RELAY_URL=wss://relay.manabrew.app \
 JAVA_HOME="$(/usr/libexec/java_home)" \
 cargo run --release -p self-hosted-node --features java-forge
@@ -74,18 +74,18 @@ cargo run --release -p self-hosted-node --features java-forge
 
 All settings are environment variables:
 
-| Variable                          | Default               | Purpose                                              |
-| --------------------------------- | --------------------- | ---------------------------------------------------- |
-| `SELF_HOSTED_NODE_RELAY_URL`      | `ws://127.0.0.1:9443` | Relay server to connect to                           |
-| `SELF_HOSTED_NODE_SERVER_KEY`     | —                     | Relay server key (must match the relay's)            |
-| `SELF_HOSTED_NODE_ROOM_NAME`      | `Self-Hosted Node`    | Lobby name shown to players                          |
-| `SELF_HOSTED_NODE_ROOM_PASSWORD`  | none                  | Require a password to join                           |
-| `SELF_HOSTED_NODE_FORMAT`         | `any`                 | Game format (e.g. `commander`)                       |
-| `SELF_HOSTED_NODE_MAX_PLAYERS`    | `4`                   | Seats in the room                                    |
-| `SELF_HOSTED_NODE_MAX_GAMES`      | `1`                   | Concurrent games the node will run                   |
-| `SELF_HOSTED_NODE_ENGINE_BACKEND` | `rust`                | `java-forge` for the Java engine (`java` also works) |
-| `SELF_HOSTED_NODE_BOT_ENABLED`    | `false`               | Seat an AI bot in the room                           |
-| `SELF_HOSTED_NODE_AUTO_START`     | `false`               | Start as soon as the room fills                      |
+| Variable                          | Default               | Purpose                                                          |
+| --------------------------------- | --------------------- | ---------------------------------------------------------------- |
+| `SELF_HOSTED_NODE_RELAY_URL`      | `ws://127.0.0.1:9443` | Relay server to connect to                                       |
+| `SELF_HOSTED_NODE_SERVER_KEY`     | —                     | Relay server key (must match the relay's)                        |
+| `SELF_HOSTED_NODE_ROOM_NAME`      | `Self-Hosted Node`    | Lobby name shown to players                                      |
+| `SELF_HOSTED_NODE_ROOM_PASSWORD`  | none                  | Require a password to join                                       |
+| `SELF_HOSTED_NODE_FORMAT`         | `any`                 | Game format (e.g. `commander`)                                   |
+| `SELF_HOSTED_NODE_MAX_PLAYERS`    | `4`                   | Seats in the room                                                |
+| `SELF_HOSTED_NODE_MAX_GAMES`      | `1`                   | Concurrent games the node will run                               |
+| `SELF_HOSTED_NODE_ENGINE_BACKEND` | `manabrew`            | `forge` for the Forge engine, `manabrew` for the ManaBrew engine |
+| `SELF_HOSTED_NODE_BOT_ENABLED`    | `false`               | Seat an AI bot in the room                                       |
+| `SELF_HOSTED_NODE_AUTO_START`     | `false`               | Start as soon as the room fills                                  |
 
 ## Hosting your own relay
 

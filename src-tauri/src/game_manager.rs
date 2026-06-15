@@ -118,7 +118,7 @@ impl GameManager {
                 );
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match backend {
-                        EngineBackendKind::Rust => rust_backend::run_game(
+                        EngineBackendKind::Manabrew => rust_backend::run_game(
                             game_id_clone.clone(),
                             deck,
                             starting_life,
@@ -130,7 +130,7 @@ impl GameManager {
                             snapshot_tx,
                             abort_signal_for_thread,
                         ),
-                        EngineBackendKind::JavaForge => java_backend::run_game(
+                        EngineBackendKind::Forge => java_backend::run_game(
                             game_id_clone.clone(),
                             deck,
                             starting_life,
@@ -238,7 +238,7 @@ impl GameManager {
         let game_id = format!("game-{}", uuid_simple());
         let game_id_clone = game_id.clone();
         let backend = EngineBackendKind::from_env();
-        if !backend.is_supported() || matches!(backend, EngineBackendKind::JavaForge) {
+        if !backend.is_supported() || matches!(backend, EngineBackendKind::Forge) {
             java_backend::JavaRuntimeConfig::from_env().validate()?;
             return Err("Tauri multiplayer java-forge dispatch is not wired yet".to_string());
         }
@@ -301,7 +301,7 @@ impl GameManager {
                 );
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match backend {
-                        EngineBackendKind::Rust => rust_backend::run_multiplayer_game(
+                        EngineBackendKind::Manabrew => rust_backend::run_multiplayer_game(
                             game_id_clone.clone(),
                             player_name_strs,
                             selected_deck_lists,
@@ -316,7 +316,7 @@ impl GameManager {
                             remote_response_rxs,
                             abort_signal_for_thread,
                         ),
-                        EngineBackendKind::JavaForge => {
+                        EngineBackendKind::Forge => {
                             unreachable!("unsupported backend rejected before thread start")
                         }
                     }));

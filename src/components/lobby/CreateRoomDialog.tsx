@@ -321,7 +321,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
         roomName.trim() || defaultName,
         maxPlayers,
         submittedFormat,
-        "Wasm",
+        "Manabrew",
         draftConfig,
         sealedConfig,
         reconnectTimeoutS,

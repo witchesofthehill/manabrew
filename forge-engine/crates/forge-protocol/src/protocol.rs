@@ -276,6 +276,6 @@ pub enum GameFormat {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum EngineKind {
     #[default]
-    Wasm,
-    Java,
+    Manabrew,
+    Forge,
 }

@@ -21,7 +21,7 @@ rules keep working without images.
 
 ## A card did the wrong thing
 
-Probably a gap in the Rust engine — these reports are the project's
+Probably a gap in the ManaBrew engine — these reports are the project's
 lifeblood. Post on [Discord](https://discord.gg/NqrKpbhtcd) or open a
 [GitHub issue](https://github.com/witchesofthehill/manabrew/issues) with:
 
@@ -32,7 +32,7 @@ lifeblood. Post on [Discord](https://discord.gg/NqrKpbhtcd) or open a
 
 ## Why is a card marked "unsupported"?
 
-The Rust engine doesn't implement everything that card's script needs yet.
+The ManaBrew engine doesn't implement everything that card's script needs yet.
 The deck still saves; the card just won't behave correctly in-game. See
 [Formats & limitations](/formats/).
 

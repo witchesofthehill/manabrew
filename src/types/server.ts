@@ -47,7 +47,7 @@ export interface RoomInfo {
   sealed_config?: SealedConfig;
 }
 
-export type EngineKind = "Wasm" | "Java";
+export type EngineKind = "Manabrew" | "Forge";
 
 export interface SealedConfig {
   set_code: string;

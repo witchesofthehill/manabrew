@@ -585,7 +585,19 @@ export function GameBoard({
     if (json === lastPanelBlockersRef.current) return;
     lastPanelBlockersRef.current = json;
     scene.setPlayerBlockers(new Map(Object.entries(next)));
-  });
+    // Re-measure only when something that moves/resizes a panel changes —
+    // layout, opponent set, zone-tile counts, arrangement, or the grid wrap.
+  }, [
+    sceneRef,
+    me.id,
+    unifiedLayout,
+    opponents,
+    myCommandZone?.length,
+    graveyard.length,
+    exile.length,
+    boardArrangement,
+    selfSplit.grid,
+  ]);
   // Span from the self zone's left edge to just left of the action cluster so
   // the right-anchored zones never sit under the PASS / KEEP-MULLIGAN buttons.
   const splitBoardWidth = selfRect ? 2 * selfRect.x + selfRect.width : 0;

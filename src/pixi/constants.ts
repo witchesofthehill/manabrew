@@ -9,6 +9,10 @@ import { CARD_GAP } from "@/components/game/game.constants";
 // ── Layout / geometry ──────────────────────────────────────────────────────
 export const GAP = CARD_GAP;
 export const ATTACH_OFFSET_Y = 16;
+// Cards in a stack (identical-token group or attachment pile) that fan out in
+// the staircase before the rest collapse onto one another. Caps the visual
+// height of huge token piles (e.g. 11 Treasures) — the ×N badge carries count.
+export const STACK_MAX_SLIDE_CARDS = 5;
 export const CARD_RADIUS = 6;
 export const TABLE_RADIUS = 8;
 export const MAX_LAND_SLOTS = 100;

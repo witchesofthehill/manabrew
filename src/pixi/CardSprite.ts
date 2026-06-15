@@ -5,6 +5,7 @@ import { isHorizontalCard } from "@/lib/cardLayout";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
+import { DOOMED_FILL_ALPHA } from "./constants";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
@@ -239,6 +240,7 @@ export class CardSprite extends Container {
 
   private imageSpr: Sprite;
   private imageMask: Graphics;
+  private doomedGfx: Graphics;
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -301,6 +303,11 @@ export class CardSprite extends Container {
     this.imageSpr.mask = this.imageMask;
     this.addChild(this.imageSpr);
     this.fitImageToSlot();
+
+    // Red death wash; sits above the art (so it reads) but below P/T and badges.
+    this.doomedGfx = new Graphics();
+    this.doomedGfx.visible = false;
+    this.addChild(this.doomedGfx);
 
     this.badgeContainer = new Container();
     this.badgeBg = new Graphics();
@@ -750,6 +757,18 @@ export class CardSprite extends Container {
     this.ringGfx.clear();
     if (color == null) return;
     this.drawRingStroke(color, alpha);
+  }
+
+  setDoomed(active: boolean): void {
+    if (this.doomedGfx.visible === active) return;
+    this.doomedGfx.visible = active;
+    this.doomedGfx.clear();
+    if (!active) return;
+    this.doomedGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    this.doomedGfx.fill({
+      color: hexToNum(activeTheme.gameTheme.pt.lethal),
+      alpha: DOOMED_FILL_ALPHA,
+    });
   }
 
   setHighlight(

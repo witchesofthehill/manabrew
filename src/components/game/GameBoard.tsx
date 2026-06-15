@@ -243,6 +243,13 @@ export function GameBoard({
 
   // Combat preview: which creatures would die + how much damage reaches the
   // local player, from the locked-in combat plus any mid-selection blocks.
+  const attackingCardIdSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of myPermanents) if (c.isAttacking) s.add(c.id);
+    for (const list of opponentPermanentsByPlayer.values())
+      for (const c of list) if (c.isAttacking) s.add(c.id);
+    return s;
+  }, [myPermanents, opponentPermanentsByPlayer]);
   const combatAssignmentsAll = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
@@ -250,8 +257,14 @@ export function GameBoard({
     // spatial staging alive after the player submits, until the engine echoes
     // the locked-in blocks (then `useCombatState` clears the local set).
     for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
-    return [...byBlocker].map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
-  }, [combatAssignments, blockAssignments]);
+    // Only stage assignments whose attacker is still attacking: once combat
+    // ends the attacker drops `isAttacking`, so staging self-clears even if a
+    // stale local/engine assignment lingers (otherwise a blocker stays frozen
+    // at the divider instead of returning home).
+    return [...byBlocker]
+      .filter(([, attackerId]) => attackingCardIdSet.has(attackerId))
+      .map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
+  }, [combatAssignments, blockAssignments, attackingCardIdSet]);
   const combatOutcome = useMemo(() => {
     const cards = [...myPermanents, ...[...opponentPermanentsByPlayer.values()].flat()];
     return computeCombatOutcome(cards, combatAssignmentsAll);

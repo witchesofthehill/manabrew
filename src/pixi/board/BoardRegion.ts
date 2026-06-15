@@ -30,7 +30,6 @@ import {
   COMBAT_LUNGE_FRAC,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
-  DOOMED_FILL_ALPHA,
   EXIT_FADE_LERP,
   EXIT_SHRINK,
   GAP,
@@ -51,6 +50,7 @@ import {
   SNAP_PX,
   SNAP_ROT,
   SNAP_SCALE,
+  STACK_MAX_SLIDE_CARDS,
   TABLE_RADIUS,
   Z_COMBAT_STAGED,
   Z_GRID_SKELETON,
@@ -429,18 +429,17 @@ export class BoardRegion {
       const attachments = childIds
         .map((id) => cardMap.get(id))
         .filter((c): c is GameCard => c !== undefined);
-      const totalOffset = attachments.length * ATTACH_OFFSET_Y;
+      const visibleSteps = Math.min(attachments.length, STACK_MAX_SLIDE_CARDS - 1);
+      const totalOffset = visibleSteps * ATTACH_OFFSET_Y;
       const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
 
       for (let i = 0; i < attachments.length; i++) {
         const att = attachments[i]!;
+        const stepsAbove = Math.min(attachments.length - i, visibleSteps);
         this.placeBattlefieldCard(
           att,
           center.x,
-          topLeftY +
-            totalOffset -
-            (attachments.length - i) * ATTACH_OFFSET_Y +
-            (CARD_H * this.cardScale) / 2,
+          topLeftY + totalOffset - stepsAbove * ATTACH_OFFSET_Y + (CARD_H * this.cardScale) / 2,
           i + 1,
           state,
         );
@@ -865,13 +864,14 @@ export class BoardRegion {
 
   private applyBattlefieldRing(sprite: CardSprite, state: BattlefieldState): void {
     const theme = this.host.getTheme();
-    if (this.host.isSelected(sprite.card.id)) {
+    const card = sprite.card;
+    sprite.setDoomed(state.doomedCardIds?.includes(card.id) ?? false);
+    if (this.host.isSelected(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
       return;
     }
-    const card = sprite.card;
     if (state.doomedCardIds?.includes(card.id)) {
-      sprite.setHighlight(true, hexToNum(theme.gameTheme.pt.lethal), DOOMED_FILL_ALPHA);
+      sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
     } else if (state.attackingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.attackAction));
     } else if (state.pendingCardIds?.includes(card.id)) {
@@ -973,21 +973,19 @@ export class BoardRegion {
   followAttachmentsDuringDrag(parentId: string, parentCenter: Point): void {
     const children = this.getEffectiveChildren(parentId);
     if (children.length === 0) return;
-    const cardH = CARD_H * this.cardScale;
-    const totalOffset = children.length * ATTACH_OFFSET_Y;
-    const topLeftY = parentCenter.y - totalOffset - cardH / 2;
+    const visibleSteps = Math.min(children.length, STACK_MAX_SLIDE_CARDS - 1);
     const parentEntry = this.entries.get(parentId);
     if (parentEntry) {
-      const parentCy = topLeftY + totalOffset + cardH / 2;
-      parentEntry.targetY = parentCy;
-      parentEntry.sprite.y = parentCy;
-      if (parentEntry.overlay?.visible) parentEntry.overlay.y = parentCy;
+      parentEntry.targetY = parentCenter.y;
+      parentEntry.sprite.y = parentCenter.y;
+      if (parentEntry.overlay?.visible) parentEntry.overlay.y = parentCenter.y;
     }
     for (let i = 0; i < children.length; i++) {
       const childId = children[i]!;
       const child = this.entries.get(childId);
       if (!child) continue;
-      const cy = topLeftY + totalOffset - (children.length - i) * ATTACH_OFFSET_Y + cardH / 2;
+      const stepsAbove = Math.min(children.length - i, visibleSteps);
+      const cy = parentCenter.y - stepsAbove * ATTACH_OFFSET_Y;
       child.targetX = parentCenter.x;
       child.targetY = cy;
       child.sprite.x = parentCenter.x;

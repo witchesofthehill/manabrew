@@ -455,6 +455,7 @@ export function GameBoard({
 
   // ── Unified single-canvas board ──
   const boardArrangementPref = usePreferencesStore((s) => s.boardArrangement);
+  const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
   // The wrap-around (perimeter) layout is gated behind a feature flag; until
   // it's enabled the board is locked to the row arrangement.
   const boardArrangement = isFeatureEnabled("wraparoundBoardLayout") ? boardArrangementPref : "row";
@@ -768,6 +769,7 @@ export function GameBoard({
           externalBlockers={pixiExternalBlockers}
           handInsets={handInsets}
           isDropActive={isOverBattlefield}
+          autoSort={battlefieldAutoSort}
           sceneRef={sceneRef}
           getHandActions={getHandActions}
           onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}

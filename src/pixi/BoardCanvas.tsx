@@ -73,6 +73,8 @@ interface BoardCanvasProps {
    *  tiles right) so the hand centers in the gap. */
   handInsets?: { left: number; right: number };
   isDropActive?: boolean;
+  /** Auto-arrange the battlefield into rows, ignoring manual drag placement. */
+  autoSort?: boolean;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: GameCard) => HandActionOption[];
   onSelectHandAction?: (card: GameCard, action: HandActionOption) => void;
@@ -100,6 +102,7 @@ export function BoardCanvas({
   externalBlockers,
   handInsets,
   isDropActive,
+  autoSort,
   sceneRef: externalSceneRef,
   getHandActions,
   onSelectHandAction,
@@ -327,6 +330,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setDropActive(isDropActive ?? false);
   }, [scene, isDropActive]);
+
+  useEffect(() => {
+    scene?.setAutoSort(autoSort ?? false);
+  }, [scene, autoSort]);
 
   // Re-apply theme when the preset / overrides change.
   useEffect(() => {

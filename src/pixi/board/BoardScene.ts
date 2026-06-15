@@ -107,6 +107,7 @@ export class BoardScene {
   private handInsetLeft = 0;
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
+  private autoSort = false;
 
   private cursorViewportX = 0;
   private cursorViewportY = 0;
@@ -197,6 +198,7 @@ export class BoardScene {
         { orientation },
       );
       region.container.zIndex = spec.isLocal ? 100 : 50;
+      region.setAutoSort(this.autoSort);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -430,6 +432,11 @@ export class BoardScene {
   setDropActive(active: boolean): void {
     this.dropActive = active;
     this.localRegion()?.setDropActive(active);
+  }
+
+  setAutoSort(value: boolean): void {
+    this.autoSort = value;
+    for (const rec of this.regions.values()) rec.region.setAutoSort(value);
   }
 
   setPendingDropSlot(slot: { col: number; row: number } | null): void {

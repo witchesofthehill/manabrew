@@ -98,6 +98,7 @@ export class BoardRegion {
   private pendingDropSlot: { col: number; row: number } | null = null;
   private hoveredCardId: string | null = null;
   private dropActive = false;
+  private autoSort = false;
 
   constructor(
     host: RegionHost,
@@ -216,6 +217,12 @@ export class BoardRegion {
     if (this.dropActive === active) return;
     this.dropActive = active;
     this.drawBackground();
+  }
+
+  setAutoSort(value: boolean): void {
+    if (this.autoSort === value) return;
+    this.autoSort = value;
+    if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
   setHoveredCard(cardId: string | null): void {
@@ -582,7 +589,7 @@ export class BoardRegion {
     const unplaced: GameCard[] = [];
 
     for (const c of cards) {
-      const slot = this.userSlots.get(c.id);
+      const slot = this.autoSort ? undefined : this.userSlots.get(c.id);
       if (!slot) {
         unplaced.push(c);
         continue;

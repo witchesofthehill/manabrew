@@ -35,6 +35,11 @@ interface PreferencesState {
   boardArrangement: BoardArrangement;
   setBoardArrangement: (arrangement: BoardArrangement) => void;
 
+  /** Auto-arrange the battlefield into tidy rows, ignoring manual drag
+   *  placement (MTGA-style). Off = free placement (the default). */
+  battlefieldAutoSort: boolean;
+  setBattlefieldAutoSort: (value: boolean) => void;
+
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
@@ -66,6 +71,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverPassword",
   "zonePanelOrder",
   "boardArrangement",
+  "battlefieldAutoSort",
   "battlefieldCardScale",
   "cardPreviewMode",
   "cardHoverDelayMs",
@@ -119,6 +125,8 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           boardArrangement: "row",
           setBoardArrangement: (boardArrangement) => set({ boardArrangement }),
+          battlefieldAutoSort: false,
+          setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
 
           battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>

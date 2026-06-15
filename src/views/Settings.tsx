@@ -625,6 +625,30 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Battlefield Layout</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={!prefs.battlefieldAutoSort ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setBattlefieldAutoSort(false)}
+                >
+                  Free placement
+                </Button>
+                <Button
+                  variant={prefs.battlefieldAutoSort ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setBattlefieldAutoSort(true)}
+                >
+                  Auto-arrange
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                "Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield
+                tidy in rows (creatures, then others, then lands) and ignores manual placement.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>
               <div className="flex items-center gap-2">
                 <Button

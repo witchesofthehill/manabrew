@@ -36,8 +36,8 @@ pub(super) fn resolve_each_search(
         // Java always routes through chooseSingleCardForZoneChange, even for
         // a single candidate, so do not short-circuit here.
         ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        ctx.agents[chooser.index()].on_library_peek(ctx.game, &candidates);
         let chosen = ctx.agents[chooser.index()].choose_single_card_for_zone_change(
+            ctx.game,
             chooser,
             &candidates,
             sa.select_prompt().unwrap_or("Select card for zone change"),
@@ -63,9 +63,9 @@ pub(super) fn resolve_single_search(
     // emitted (returning null). The cancel-prompt is then skipped when the
     // candidate list is empty (Java line 1215 `fetchList.isEmpty()` short).
     ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
-    ctx.agents[chooser.index()].on_library_peek(ctx.game, candidates);
     let chosen = ctx.agents[chooser.index()]
         .choose_single_card_for_zone_change(
+            ctx.game,
             chooser,
             candidates,
             sa.select_prompt().unwrap_or("Select card for zone change"),
@@ -144,8 +144,8 @@ pub(super) fn resolve_multi_search(
             break;
         }
         ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        ctx.agents[chooser.index()].on_library_peek(ctx.game, &remaining);
         let Some(chosen) = ctx.agents[chooser.index()].choose_single_card_for_zone_change(
+            ctx.game,
             chooser,
             &remaining,
             sa.select_prompt().unwrap_or("Select card for zone change"),
@@ -192,8 +192,8 @@ fn resolve_constrained_multi(
         }
 
         ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        ctx.agents[chooser.index()].on_library_peek(ctx.game, &remaining);
         let Some(chosen) = ctx.agents[chooser.index()].choose_single_card_for_zone_change(
+            ctx.game,
             chooser,
             &remaining,
             sa.select_prompt().unwrap_or("Select card for zone change"),
@@ -288,9 +288,14 @@ pub(super) fn resolve_defined_player_cards(
         return vec![candidates[0]];
     }
     ctx.agents[pid.index()].snapshot_state(ctx.game, ctx.mana_pools);
-    ctx.agents[pid.index()].on_library_peek(ctx.game, &candidates);
     ctx.agents[pid.index()]
-        .choose_single_card_for_zone_change(pid, &candidates, "Select card for zone change", false)
+        .choose_single_card_for_zone_change(
+            ctx.game,
+            pid,
+            &candidates,
+            "Select card for zone change",
+            false,
+        )
         .into_iter()
         .collect()
 }

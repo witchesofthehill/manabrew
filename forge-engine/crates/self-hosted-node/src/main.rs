@@ -9,7 +9,7 @@ mod config;
 mod engine_backend;
 
 use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
-use engine_backend::{java_backend, rust_backend, EngineBackendKind};
+use engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
@@ -45,10 +45,10 @@ struct RelayClient {
 }
 
 enum EngineSession {
-    Rust {
+    Manabrew {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
     },
-    Java {
+    Forge {
         remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
         cancel: Arc<AtomicBool>,
     },
@@ -197,7 +197,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
     let backend = EngineBackendKind::from_env();
     if config.engine_enabled
         && backend.is_supported()
-        && matches!(backend, EngineBackendKind::JavaForge)
+        && matches!(backend, EngineBackendKind::Forge)
     {
         info!("initializing shared java engine (one JVM for all hosted games)");
         java_backend::init_engine()?;
@@ -267,10 +267,10 @@ async fn host_one_room(
         info!(room_id, "joining configured room");
         room_id.clone()
     } else {
-        let engine = if matches!(EngineBackendKind::from_env(), EngineBackendKind::JavaForge) {
-            EngineKind::Java
+        let engine = if matches!(EngineBackendKind::from_env(), EngineBackendKind::Forge) {
+            EngineKind::Forge
         } else {
-            EngineKind::Wasm
+            EngineKind::Manabrew
         };
         host.send(&ClientMessage::CreateRoom {
             room_name: config.room_name.clone(),
@@ -773,7 +773,7 @@ fn maybe_start_hosted_engine(
     let game_id = format!("room-game-{}", Uuid::new_v4());
 
     match backend {
-        EngineBackendKind::Rust => {
+        EngineBackendKind::Manabrew => {
             let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentMessage)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
@@ -785,13 +785,13 @@ fn maybe_start_hosted_engine(
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
-            *guard = Some(EngineSession::Rust {
+            *guard = Some(EngineSession::Manabrew {
                 remote_response_txs,
             });
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
@@ -818,7 +818,7 @@ fn maybe_start_hosted_engine(
                 clear_engine_session(&session_handle);
             });
         }
-        EngineBackendKind::JavaForge => {
+        EngineBackendKind::Forge => {
             let (remote_prompt_tx, remote_prompt_rx) = std_mpsc::channel::<(usize, AgentMessage)>();
             let mut remote_response_txs = HashMap::new();
             let mut remote_response_rxs = Vec::new();
@@ -831,14 +831,14 @@ fn maybe_start_hosted_engine(
                 remote_response_rxs.push((i, response_rx));
             }
             let cancel = Arc::new(AtomicBool::new(false));
-            *guard = Some(EngineSession::Java {
+            *guard = Some(EngineSession::Forge {
                 remote_response_txs,
                 cancel: cancel.clone(),
             });
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
@@ -920,7 +920,7 @@ fn end_hosted_game_on_abandon(
 ) {
     let cancelled = match engine_session.lock() {
         Ok(guard) => match guard.as_ref() {
-            Some(EngineSession::Java { cancel, .. }) => {
+            Some(EngineSession::Forge { cancel, .. }) => {
                 cancel.store(true, Ordering::Relaxed);
                 true
             }
@@ -986,7 +986,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
         return;
     };
     match session {
-        EngineSession::Rust {
+        EngineSession::Manabrew {
             remote_response_txs,
         } => {
             let action: PlayerAction = match serde_json::from_value(action_value) {
@@ -1004,7 +1004,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
                 warn!(from_player, %error, "failed to route relay response");
             }
         }
-        EngineSession::Java {
+        EngineSession::Forge {
             remote_response_txs,
             ..
         } => {
@@ -1064,10 +1064,32 @@ fn spawn_remote_prompt_forwarder(
 
 fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    game_over_rx: std_mpsc::Receiver<String>,
+    game_over_rx: std_mpsc::Receiver<HostedGameOver>,
 ) {
     thread::spawn(move || {
-        while let Ok(game_id) = game_over_rx.recv() {
+        while let Ok(game_over) = game_over_rx.recv() {
+            // Final engine messages must reach clients before EndGame resets the room.
+            // Java uses this bundle for final state and the gameOver prompt; Rust
+            // currently sends an empty bundle.
+            let mut last_state: Option<Value> = None;
+            for (player_index, message) in game_over.messages {
+                let envelope =
+                    StateEnvelope::for_agent_message(player_slot(player_index), &message);
+                let Ok(state) = serde_json::to_value(envelope) else {
+                    continue;
+                };
+                match &message {
+                    AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
+                    AgentMessage::State(_) => last_state = Some(state.clone()),
+                    AgentMessage::Display(_) | AgentMessage::Prompt(_) => {}
+                }
+                if outbound_tx
+                    .send(ClientMessage::BroadcastState { state })
+                    .is_err()
+                {
+                    return;
+                }
+            }
             let Ok(state) = serde_json::to_value(StateEnvelope::RoomRelay {
                 protocol: SELF_HOSTED_NODE_PROTOCOL.to_string(),
                 version: 1,
@@ -1075,7 +1097,7 @@ fn spawn_game_over_forwarder(
                 from_player: None,
                 target_player: None,
                 room_id: None,
-                payload: json!({ "type": "gameOver", "gameId": game_id }),
+                payload: json!({ "type": "gameOver", "gameId": game_over.game_id }),
             }) else {
                 continue;
             };
@@ -1083,10 +1105,10 @@ fn spawn_game_over_forwarder(
                 .send(ClientMessage::BroadcastState { state })
                 .is_err()
             {
-                break;
+                return;
             }
             if outbound_tx.send(ClientMessage::EndGame).is_err() {
-                break;
+                return;
             }
         }
     });

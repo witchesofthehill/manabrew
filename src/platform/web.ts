@@ -800,7 +800,7 @@ class WebServerApi implements IServerApi {
       max_players: params.maxPlayers,
       format: params.format,
       hosted: params.hosted ?? false,
-      engine: params.engine ?? "Wasm",
+      engine: params.engine ?? "Manabrew",
       draft_config: params.draftConfig ?? null,
       sealed_config: params.sealedConfig ?? null,
       reconnect_timeout_s: params.reconnectTimeoutS ?? null,

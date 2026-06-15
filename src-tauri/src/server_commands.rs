@@ -102,7 +102,7 @@ pub async fn server_create_room(
             "max_players": max_players,
             "format": format,
             "hosted": hosted.unwrap_or(false),
-            "engine": engine.unwrap_or_else(|| "Wasm".to_string()),
+            "engine": engine.unwrap_or_else(|| "Manabrew".to_string()),
             "draft_config": draft_config,
             "sealed_config": sealed_config,
             "reconnect_timeout_s": reconnect_timeout_s,

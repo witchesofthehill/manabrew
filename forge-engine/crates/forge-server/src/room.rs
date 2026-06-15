@@ -365,7 +365,7 @@ mod tests {
             "host".into(),
             4,
             GameFormat::Commander,
-            EngineKind::Java,
+            EngineKind::Forge,
             host_plays,
             None,
             None,

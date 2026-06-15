@@ -3,9 +3,11 @@ use forge_engine_core::card::CounterType;
 use forge_engine_core::ids::{CardId, PlayerId};
 use forge_engine_core::spellability::SpellAbility;
 
-use crate::game_view_dto::{CardDto, TargetingIntent};
+use forge_engine_core::game::GameState;
+
+use crate::game_view_dto::{card_to_dto, CardDto, TargetingIntent};
 use crate::ids_codec::parse_card_id;
-use crate::prompt::{AgentPromptInner, PlayerAction};
+use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
 
@@ -88,10 +90,10 @@ pub(super) fn mulligan_decision_send<T: Responder>(
 ) {
     let hand_card_ids = PromptAgent::<T>::card_ids(hand);
     agent.send_prompt(
-        AgentPromptInner::Mulligan {
+        PromptInput::Mulligan(forge_protocol::prompts::mulligan::MulliganInput {
             hand_card_ids,
             mulligan_count,
-        },
+        }),
         None,
     );
 }
@@ -138,11 +140,13 @@ pub(super) fn choose_cards_to_bottom_send<T: Responder>(
         })
         .collect();
     agent.send_prompt(
-        AgentPromptInner::MulliganPutBack {
-            hand_card_ids,
-            cards,
-            count,
-        },
+        PromptInput::MulliganPutBack(
+            forge_protocol::prompts::mulligan_put_back::MulliganPutBackInput {
+                hand_card_ids,
+                cards,
+                count,
+            },
+        ),
         None,
     );
 }
@@ -170,12 +174,12 @@ pub(super) fn choose_mode<T: Responder>(
     source_card_id: Option<CardId>,
 ) -> Vec<usize> {
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options: descriptions.to_vec(),
             min_choices: min,
             max_choices: max,
             source_card_name: None,
-        },
+        }),
         source_card_id,
     );
     match agent.recv_action() {
@@ -200,12 +204,12 @@ pub(super) fn choose_spell_abilities_for_effect<T: Responder>(
         .collect();
     let source_card_id = abilities.first().and_then(|ability| ability.source);
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options,
             min_choices: num.min(abilities.len()),
             max_choices: num.min(abilities.len()),
             source_card_name: None,
-        },
+        }),
         source_card_id,
     );
     match agent.recv_action() {
@@ -289,12 +293,12 @@ pub(super) fn choose_single_entity_for_effect<T: Responder>(
         .map(|entity| entity_label(agent, *entity))
         .collect();
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options,
             min_choices: usize::from(!is_optional),
             max_choices: 1,
             source_card_name: Some("Choose entity".to_string()),
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -343,12 +347,12 @@ pub(super) fn choose_entities_for_effect<T: Responder>(
         .map(|entity| entity_label(agent, *entity))
         .collect();
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options,
             min_choices: min.min(valid.len()),
             max_choices: max.min(valid.len()),
             source_card_name: Some("Choose entities".to_string()),
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -369,14 +373,16 @@ pub(super) fn choose_optional_trigger<T: Responder>(
     _api: Option<forge_engine_core::ability::api_type::ApiType>,
 ) -> bool {
     agent.send_prompt(
-        AgentPromptInner::ChooseOptionalTrigger {
-            description: description.to_string(),
-            cards: Vec::new(),
-            prompt_kind: Some("optional_trigger".to_string()),
-            option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
-            mode: None,
-            api: None,
-        },
+        PromptInput::ChooseOptionalTrigger(
+            forge_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
+                description: description.to_string(),
+                cards: Vec::new(),
+                prompt_kind: Some("optional_trigger".to_string()),
+                option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
+                mode: None,
+                api: None,
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -403,14 +409,16 @@ pub(super) fn confirm_replacement_effect<T: Responder>(
         format!("{question}\n{effect_description}")
     };
     agent.send_prompt(
-        AgentPromptInner::ChooseOptionalTrigger {
-            description: message,
-            cards: Vec::new(),
-            prompt_kind: Some("confirm_replacement_effect".to_string()),
-            option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
-            mode: None,
-            api: None,
-        },
+        PromptInput::ChooseOptionalTrigger(
+            forge_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
+                description: message,
+                cards: Vec::new(),
+                prompt_kind: Some("confirm_replacement_effect".to_string()),
+                option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
+                mode: None,
+                api: None,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -435,14 +443,16 @@ pub(super) fn confirm_action<T: Responder>(
         options.to_vec()
     };
     agent.send_prompt(
-        AgentPromptInner::ChooseOptionalTrigger {
-            description: message.to_string(),
-            cards: Vec::new(),
-            prompt_kind: Some("confirm_action".to_string()),
-            option_labels: Some(option_labels),
-            mode: mode.map(String::from),
-            api: api.map(|a| a.name().to_string()),
-        },
+        PromptInput::ChooseOptionalTrigger(
+            forge_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
+                description: message.to_string(),
+                cards: Vec::new(),
+                prompt_kind: Some("confirm_action".to_string()),
+                option_labels: Some(option_labels),
+                mode: mode.map(String::from),
+                api: api.map(|a| a.name().to_string()),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -460,14 +470,16 @@ pub(super) fn confirm_payment<T: Responder>(
     api: Option<forge_engine_core::ability::api_type::ApiType>,
 ) -> bool {
     agent.send_prompt(
-        AgentPromptInner::ChooseOptionalTrigger {
-            description: message.to_string(),
-            cards: Vec::new(),
-            prompt_kind: Some("confirm_payment".to_string()),
-            option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
-            mode: Some(cost_kind.to_string()),
-            api: api.map(|a| a.name().to_string()),
-        },
+        PromptInput::ChooseOptionalTrigger(
+            forge_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
+                description: message.to_string(),
+                cards: Vec::new(),
+                prompt_kind: Some("confirm_payment".to_string()),
+                option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
+                mode: Some(cost_kind.to_string()),
+                api: api.map(|a| a.name().to_string()),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -493,12 +505,12 @@ pub(super) fn reveal_cards<T: Responder>(
         .collect();
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(
-        AgentPromptInner::RevealCards {
+        PromptInput::RevealCards(forge_protocol::prompts::reveal_cards::RevealCardsInput {
             cards,
             zone: zone.to_string(),
             owner_player_id: crate::ids_codec::player_id_str(owner),
             message,
-        },
+        }),
         None,
     );
     let _ = agent.recv_action();
@@ -517,11 +529,13 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
         return false;
     }
     agent.send_prompt(
-        AgentPromptInner::PayCostToPreventEffect {
-            description: message.to_string(),
-            cost_kind: cost_kind.to_string(),
-            api: api.map(|a| a.name().to_string()),
-        },
+        PromptInput::PayCostToPreventEffect(
+            forge_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput {
+                description: message.to_string(),
+                cost_kind: cost_kind.to_string(),
+                api: api.map(|a| a.name().to_string()),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -543,14 +557,16 @@ pub(super) fn choose_binary<T: Responder>(
     // In this modal pipeline, `accept=true` means "second button";
     // reverse labels so `true` still maps to Java's first (left) choice.
     agent.send_prompt(
-        AgentPromptInner::ChooseOptionalTrigger {
-            description: question.to_string(),
-            cards: Vec::new(),
-            prompt_kind: Some("choose_binary".to_string()),
-            option_labels: Some(vec![right.to_string(), left.to_string()]),
-            mode: Some(kind.as_str().to_string()),
-            api: api.map(|a| a.name().to_string()),
-        },
+        PromptInput::ChooseOptionalTrigger(
+            forge_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
+                description: question.to_string(),
+                cards: Vec::new(),
+                prompt_kind: Some("choose_binary".to_string()),
+                option_labels: Some(vec![right.to_string(), left.to_string()]),
+                mode: Some(kind.as_str().to_string()),
+                api: api.map(|a| a.name().to_string()),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -564,16 +580,10 @@ pub(super) fn choose_color<T: Responder>(
     _player: PlayerId,
     valid_colors: &[String],
 ) -> Option<String> {
-    if let Some(pending) = agent.pending_mana_color.take() {
-        if let Some(matched) = super::find_matching_color(&pending, valid_colors.iter()) {
-            return Some(matched);
-        }
-    }
-
     agent.send_prompt(
-        AgentPromptInner::ChooseColor {
+        PromptInput::ChooseColor(forge_protocol::prompts::choose_color::ChooseColorInput {
             valid_colors: valid_colors.to_vec(),
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -593,12 +603,12 @@ pub(super) fn choose_colors<T: Responder>(
         return Vec::new();
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options: valid_colors.to_vec(),
             min_choices: min.min(valid_colors.len()),
             max_choices: max.min(valid_colors.len()),
             source_card_name: Some("Choose colors".to_string()),
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -622,10 +632,10 @@ pub(super) fn choose_type<T: Responder>(
     valid_types: &[String],
 ) -> Option<String> {
     agent.send_prompt(
-        AgentPromptInner::ChooseType {
+        PromptInput::ChooseType(forge_protocol::prompts::choose_type::ChooseTypeInput {
             type_category: type_category.to_string(),
             valid_types: valid_types.to_vec(),
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -640,9 +650,11 @@ pub(super) fn choose_card_name<T: Responder>(
     valid_names: &[String],
 ) -> Option<String> {
     agent.send_prompt(
-        AgentPromptInner::ChooseCardName {
-            valid_names: valid_names.to_vec(),
-        },
+        PromptInput::ChooseCardName(
+            forge_protocol::prompts::choose_card_name::ChooseCardNameInput {
+                valid_names: valid_names.to_vec(),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -662,7 +674,7 @@ pub(super) fn choose_number_from_list<T: Responder>(
         return None;
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options: choices.iter().map(i32::to_string).collect(),
             min_choices: 1,
             max_choices: 1,
@@ -671,7 +683,7 @@ pub(super) fn choose_number_from_list<T: Responder>(
             } else {
                 Some(message.to_string())
             },
-        },
+        }),
         source_card_id,
     );
     match agent.recv_action() {
@@ -709,9 +721,11 @@ pub(super) fn choose_roll_to_ignore<T: Responder>(
         return None;
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseRollToIgnore {
-            rolls: rolls.to_vec(),
-        },
+        PromptInput::ChooseRollToIgnore(
+            forge_protocol::prompts::choose_roll_to_ignore::ChooseRollToIgnoreInput {
+                rolls: rolls.to_vec(),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -730,9 +744,11 @@ pub(super) fn choose_roll_to_swap<T: Responder>(
         return None;
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseRollToSwap {
-            rolls: rolls.to_vec(),
-        },
+        PromptInput::ChooseRollToSwap(
+            forge_protocol::prompts::choose_roll_to_swap::ChooseRollToSwapInput {
+                rolls: rolls.to_vec(),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -751,9 +767,11 @@ pub(super) fn choose_roll_to_modify<T: Responder>(
         return None;
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseRollToModify {
-            rolls: rolls.to_vec(),
-        },
+        PromptInput::ChooseRollToModify(
+            forge_protocol::prompts::choose_roll_to_modify::ChooseRollToModifyInput {
+                rolls: rolls.to_vec(),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -772,9 +790,11 @@ pub(super) fn choose_dice_to_reroll<T: Responder>(
         return Vec::new();
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseDiceToReroll {
-            rolls: rolls.to_vec(),
-        },
+        PromptInput::ChooseDiceToReroll(
+            forge_protocol::prompts::choose_dice_to_reroll::ChooseDiceToRerollInput {
+                rolls: rolls.to_vec(),
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -794,18 +814,24 @@ pub(super) fn choose_roll_swap_value<T: Responder>(
     source: Option<CardId>,
 ) -> Option<RollSwapChoice> {
     agent.send_prompt(
-        AgentPromptInner::ChooseRollSwapValue {
-            current_result,
-            power,
-            toughness,
-        },
+        PromptInput::ChooseRollSwapValue(
+            forge_protocol::prompts::choose_roll_swap_value::ChooseRollSwapValueInput {
+                current_result,
+                power,
+                toughness,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::RollSwapValueDecision { choice } => match choice.as_deref() {
-            Some("toughness") => Some(RollSwapChoice::Toughness),
-            Some("power") => Some(RollSwapChoice::Power),
-            _ => None,
+        PlayerAction::RollSwapValueDecision { choice } => match choice {
+            Some(forge_protocol::prompts::choose_roll_swap_value::RollSwapValue::Toughness) => {
+                Some(RollSwapChoice::Toughness)
+            }
+            Some(forge_protocol::prompts::choose_roll_swap_value::RollSwapValue::Power) => {
+                Some(RollSwapChoice::Power)
+            }
+            None => None,
         },
         _ => Some(RollSwapChoice::Power),
     }
@@ -830,10 +856,10 @@ pub(super) fn choose_x_value<T: Responder>(
     source: Option<CardId>,
 ) -> u32 {
     agent.send_prompt(
-        AgentPromptInner::ChooseNumber {
+        PromptInput::ChooseNumber(forge_protocol::prompts::choose_number::ChooseNumberInput {
             min: 0,
             max: max_x as i32,
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -850,7 +876,13 @@ pub(super) fn choose_number<T: Responder>(
     min: i32,
     max: i32,
 ) -> Option<i32> {
-    agent.send_prompt(AgentPromptInner::ChooseNumber { min, max }, None);
+    agent.send_prompt(
+        PromptInput::ChooseNumber(forge_protocol::prompts::choose_number::ChooseNumberInput {
+            min,
+            max,
+        }),
+        None,
+    );
     match agent.recv_action() {
         PlayerAction::NumberDecision { chosen_number } => chosen_number,
         _ => Some(min),
@@ -864,7 +896,13 @@ pub(super) fn announce_requirements<T: Responder>(
     max: i32,
     source: Option<CardId>,
 ) -> Option<i32> {
-    agent.send_prompt(AgentPromptInner::ChooseNumber { min, max }, source);
+    agent.send_prompt(
+        PromptInput::ChooseNumber(forge_protocol::prompts::choose_number::ChooseNumberInput {
+            min,
+            max,
+        }),
+        source,
+    );
     match agent.recv_action() {
         PlayerAction::NumberDecision { chosen_number } => chosen_number,
         _ => Some(min),
@@ -879,10 +917,12 @@ pub(super) fn choose_discard<T: Responder>(
 ) -> Vec<CardId> {
     let hand_card_ids = PromptAgent::<T>::card_ids(hand);
     agent.send_prompt(
-        AgentPromptInner::ChooseDiscard {
-            hand_card_ids,
-            num_to_discard: num,
-        },
+        PromptInput::ChooseDiscard(
+            forge_protocol::prompts::choose_discard::ChooseDiscardInput {
+                hand_card_ids,
+                num_to_discard: num,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -933,14 +973,16 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
         .collect();
 
     agent.send_prompt(
-        AgentPromptInner::ChooseCardsForEffect {
-            valid_card_ids,
-            zone_cards,
-            min_choices: min,
-            max_choices: max,
-            source_card_name: None,
-            optional: false,
-        },
+        PromptInput::ChooseCardsForEffect(
+            forge_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
+                valid_card_ids,
+                zone_cards,
+                min_choices: min,
+                max_choices: max,
+                source_card_name: None,
+                optional: false,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -954,6 +996,7 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
 
 pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     agent: &mut PromptAgent<T>,
+    game: &GameState,
     _player: PlayerId,
     valid: &[CardId],
     select_prompt: &str,
@@ -962,17 +1005,16 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     let view = agent.view();
 
-    // Build zone_cards from all known zones + peeked library cards
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
     let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
-    let mut zone_cards: Vec<CardDto> = valid_card_ids
+    let mut zone_cards: Vec<CardDto> = valid
         .iter()
-        .filter_map(|id| {
+        .map(|&cid| {
+            let id = crate::ids_codec::card_id_str(cid);
             all_cards
                 .iter()
-                .find(|c| c.id == *id)
+                .find(|c| c.id == id)
                 .map(|c| (*c).clone())
-                .or_else(|| peeked.iter().find(|c| c.id == *id).cloned())
+                .unwrap_or_else(|| card_to_dto(game, cid, &[], "library"))
         })
         .collect();
     // Deduplicate
@@ -981,14 +1023,16 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
 
     let min_choices = if is_optional { 0 } else { 1 };
     agent.send_prompt(
-        AgentPromptInner::ChooseCardsForEffect {
-            valid_card_ids,
-            zone_cards,
-            min_choices,
-            max_choices: 1,
-            source_card_name: Some(select_prompt.to_string()),
-            optional: is_optional,
-        },
+        PromptInput::ChooseCardsForEffect(
+            forge_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
+                valid_card_ids,
+                zone_cards,
+                min_choices,
+                max_choices: 1,
+                source_card_name: Some(select_prompt.to_string()),
+                optional: is_optional,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -1007,6 +1051,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
 
 pub(super) fn choose_cards_for_zone_change<T: Responder>(
     agent: &mut PromptAgent<T>,
+    game: &GameState,
     _player: PlayerId,
     valid: &[CardId],
     min: usize,
@@ -1016,31 +1061,32 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     let view = agent.view();
 
-    // Build zone_cards from all known zones + peeked library cards
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
     let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
-    let mut zone_cards: Vec<CardDto> = valid_card_ids
+    let mut zone_cards: Vec<CardDto> = valid
         .iter()
-        .filter_map(|id| {
+        .map(|&cid| {
+            let id = crate::ids_codec::card_id_str(cid);
             all_cards
                 .iter()
-                .find(|c| c.id == *id)
+                .find(|c| c.id == id)
                 .map(|c| (*c).clone())
-                .or_else(|| peeked.iter().find(|c| c.id == *id).cloned())
+                .unwrap_or_else(|| card_to_dto(game, cid, &[], "library"))
         })
         .collect();
     let mut seen = std::collections::HashSet::new();
     zone_cards.retain(|c| seen.insert(c.id.clone()));
 
     agent.send_prompt(
-        AgentPromptInner::ChooseCardsForEffect {
-            valid_card_ids,
-            zone_cards,
-            min_choices: min,
-            max_choices: max,
-            source_card_name: Some(select_prompt.to_string()),
-            optional: false,
-        },
+        PromptInput::ChooseCardsForEffect(
+            forge_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
+                valid_card_ids,
+                zone_cards,
+                min_choices: min,
+                max_choices: max,
+                source_card_name: Some(select_prompt.to_string()),
+                optional: false,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -1061,13 +1107,13 @@ pub(super) fn choose_explore_put_in_graveyard<T: Responder>(
     _predicted_mana: usize,
     _lands_in_hand: usize,
 ) -> bool {
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
-    let revealed_card = peeked.into_iter().next();
     agent.send_prompt(
-        AgentPromptInner::ExploreDecision {
-            revealed_card_name: revealed_card_name.to_string(),
-            revealed_card,
-        },
+        PromptInput::ExploreDecision(
+            forge_protocol::prompts::explore_decision::ExploreDecisionInput {
+                revealed_card_name: revealed_card_name.to_string(),
+                revealed_card: None,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -1083,10 +1129,12 @@ pub(super) fn help_pay_assist<T: Responder>(
     max_generic: u32,
 ) -> u32 {
     agent.send_prompt(
-        AgentPromptInner::HelpPayAssist {
-            card_name: card_name.to_string(),
-            max_generic,
-        },
+        PromptInput::HelpPayAssist(
+            forge_protocol::prompts::help_pay_assist::HelpPayAssistInput {
+                card_name: card_name.to_string(),
+                max_generic,
+            },
+        ),
         None,
     );
     match agent.recv_action() {
@@ -1113,12 +1161,12 @@ pub(super) fn choose_land_or_spell<T: Responder>(
     _player: PlayerId,
 ) -> Option<bool> {
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options: vec!["Land".to_string(), "Spell".to_string()],
             min_choices: 1,
             max_choices: 1,
             source_card_name: Some("Choose land or spell".to_string()),
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -1142,12 +1190,12 @@ pub(super) fn choose_single_replacement_effect<T: Responder>(
         return 0;
     }
     agent.send_prompt(
-        AgentPromptInner::ChooseMode {
+        PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options: descriptions.to_vec(),
             min_choices: 1,
             max_choices: 1,
             source_card_name: Some("Replacement Effect".to_string()),
-        },
+        }),
         None,
     );
     match agent.recv_action() {

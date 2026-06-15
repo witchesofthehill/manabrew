@@ -146,6 +146,10 @@ interface HandHitZone {
 }
 
 const HAND_SELECTION_DROP_PX = 30;
+const CAST_DRAG_SCALE = 1.25;
+const CAST_DRAG_CARD_DROP_PX = 16;
+const CAST_DRAG_HAND_SINK_PX = 200;
+const CAST_DRAG_HIGHLIGHT_ALPHA = 0.55;
 
 interface ActionKind {
   isTappable: boolean;
@@ -218,6 +222,7 @@ export class PixiGameScene {
   private theme: Theme = getTheme();
   private leftReserved = 0;
   private hoveredCardId: string | null = null;
+  private castDragActive = false;
   private battlefieldHoverClearTimer: number | null = null;
   /** Extra blocker rects (in canvas-local coords) — e.g. the PASS / phase-pass
    * button cluster at the bottom-right so lands aren't placed under it. */
@@ -665,6 +670,7 @@ export class PixiGameScene {
     }
     this.dropActive = active;
     this.drawDropTargetBackground(active);
+    if (this.isInstantCastDrag()) this.recalcHandTargets();
   }
 
   showPlacementGhost(cardName: string | null): void {
@@ -831,7 +837,20 @@ export class PixiGameScene {
       const isHovered = this.hoveredHandIndex === i;
       const selectionMode = state.selectionMode === true;
       const isSelected = selectionMode && (state.selectedIds?.has(card.id) ?? false);
+      const isCastDrag = !selectionMode && card.id === state.draggingCardId;
+      const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
+      const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
       const selectedDrop = isSelected ? Math.round(HAND_SELECTION_DROP_PX * this.vScale) : 0;
+      const reshapeFan =
+        !selectionMode &&
+        state.draggingCardId != null &&
+        (state.draggingIsPermanent === true || this.dropActive);
+      const castOffset = reshapeFan
+        ? Math.round(
+            (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,
+          )
+        : 0;
+      const castScale = isCastingPermanent ? CAST_DRAG_SCALE : 1;
 
       let sprite = this.handSprites.get(card.id);
       if (!sprite) {
@@ -846,18 +865,17 @@ export class PixiGameScene {
         sprite.updateCardContent(card);
       }
 
-      const isHidden =
-        !selectionMode && (card.id === state.draggingCardId || card.id === state.castingCardId);
+      const isHidden = !selectionMode && (card.id === state.castingCardId || isCastingSpell);
       sprite.alpha = isHidden ? 0 : 1;
       sprite.cursor = selectionMode ? "pointer" : card.isPlayable ? "grab" : "default";
 
       this.handTargets.set(card.id, {
         x: centerX + l.x,
-        y: bottomY + l.y - l.scaleH / 2 + selectedDrop,
-        rot: isSelected ? 0 : (l.rotation * Math.PI) / 180,
-        scaleX: l.scaleW / CARD_W,
-        scaleY: l.scaleH / CARD_H,
-        zIndex: isHovered ? Z_HAND_HOVERED : i + 1,
+        y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
+        rot: isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180,
+        scaleX: (l.scaleW / CARD_W) * castScale,
+        scaleY: (l.scaleH / CARD_H) * castScale,
+        zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
       });
       hitZones.push({
         index: i,
@@ -868,7 +886,14 @@ export class PixiGameScene {
         height: dims.cardH,
       });
 
-      this.applyHandCardHighlight(sprite, card, isHovered, selectionMode, isSelected);
+      this.applyHandCardHighlight(
+        sprite,
+        card,
+        isHovered,
+        selectionMode,
+        isSelected,
+        isCastingPermanent,
+      );
     }
     this.handHitZones = hitZones;
   }
@@ -944,8 +969,36 @@ export class PixiGameScene {
       this.gridSkeletonGfx.visible = false;
       return;
     }
-    // Show the grid skeleton so the player can see where the card will land
-    this.drawDropGrid();
+    this.drawDropVisual();
+  }
+
+  private drawDropVisual(): void {
+    if (this.isInstantCastDrag()) this.drawDropFieldHighlight();
+    else this.drawDropGrid();
+  }
+
+  private isInstantCastDrag(): boolean {
+    return (
+      this.lastHandState?.draggingCardId != null && this.lastHandState?.draggingIsPermanent !== true
+    );
+  }
+
+  private drawDropFieldHighlight(): void {
+    const zone = this.getPlayZone();
+    const color = hexToNum(this.theme.gameTheme.arrow.friendlyTarget);
+    const pad = GAP * 2;
+    const gfx = this.gridSkeletonGfx;
+    gfx.clear();
+    gfx.roundRect(
+      zone.x + pad,
+      zone.y + pad,
+      zone.width - pad * 2,
+      zone.height - pad * 2,
+      TABLE_RADIUS,
+    );
+    gfx.fill({ color, alpha: GRID_SKELETON_FILL_ALPHA * 4 });
+    gfx.stroke({ color, width: 3, alpha: GRID_SKELETON_HOVER_ALPHA });
+    gfx.visible = true;
   }
 
   /** Draw the grid skeleton for hand-to-battlefield drops, highlighting the cell under the cursor. */
@@ -1558,7 +1611,21 @@ export class PixiGameScene {
     sprite.on("pointerleave", () => this.scheduleBattlefieldHoverClear(sprite.card.id));
   }
 
+  setCastDragActive(active: boolean): void {
+    if (this.destroyed || active === this.castDragActive) return;
+    this.castDragActive = active;
+    if (active) this.clearBattlefieldHover();
+  }
+
+  private clearBattlefieldHover(): void {
+    this.cancelBattlefieldHoverClear();
+    if (this.hoveredCardId === null) return;
+    this.hoveredCardId = null;
+    this.callbacks.onHoverCard?.(null);
+  }
+
   private setBattlefieldCardHovered(sprite: CardSprite): void {
+    if (this.castDragActive) return;
     this.cancelBattlefieldHoverClear();
     const wasHovered = this.hoveredCardId === sprite.card.id;
     this.hoveredCardId = sprite.card.id;
@@ -2542,7 +2609,13 @@ export class PixiGameScene {
     isHovered: boolean,
     selectionMode = false,
     isSelected = false,
+    isCasting = false,
   ): void {
+    if (isCasting) {
+      const cast = hexToNum(this.theme.gameTheme.arrow.friendlyTarget);
+      sprite.setHighlight(true, cast, CAST_DRAG_HIGHLIGHT_ALPHA);
+      return;
+    }
     if (selectionMode) {
       const color = isSelected
         ? hexToNum(this.theme.gameTheme.pointer.hostile)
@@ -2575,7 +2648,7 @@ export class PixiGameScene {
     }
     this.captureStackSeeds();
     this.resolveAndDrawArrows();
-    if (this.dropActive) this.drawDropGrid();
+    if (this.dropActive) this.drawDropVisual();
   };
 
   /**
@@ -2612,7 +2685,11 @@ export class PixiGameScene {
    * Runs every tick so arrows follow animating sprites.
    */
   private resolveAndDrawArrows(): void {
-    const hasAny = this.arrowSpecs.length > 0 || this.castingArrow !== null;
+    const hasCastDrag =
+      this.showHand &&
+      this.lastHandState?.draggingCardId != null &&
+      this.lastHandState?.draggingIsPermanent === true;
+    const hasAny = this.arrowSpecs.length > 0 || this.castingArrow !== null || hasCastDrag;
     if (!hasAny) {
       if (this.arrowLayer && !this.arrowLayer.isClear) {
         this.arrowLayer.update([], this.app.ticker.deltaMS);
@@ -2636,7 +2713,26 @@ export class PixiGameScene {
     }
     const casting = this.resolveCastingArrow(canvasRect);
     if (casting) resolved.push(casting);
+    const castDrag = this.resolveCastDragArrow(canvasRect);
+    if (castDrag) resolved.push(castDrag);
     this.arrowLayer.update(resolved, this.app.ticker.deltaMS);
+  }
+
+  private resolveCastDragArrow(canvasRect: DOMRect): ArrowDef | null {
+    if (!this.showHand) return null;
+    const id = this.lastHandState?.draggingCardId;
+    if (!id) return null;
+    // Only permanents use the placement arrow; instants/sorceries drag a ghost.
+    if (this.lastHandState?.draggingIsPermanent !== true) return null;
+    const sprite = this.handSprites.get(id);
+    if (!sprite) return null;
+    return {
+      fromX: sprite.x,
+      fromY: sprite.y,
+      toX: this.cursorViewportX - canvasRect.left,
+      toY: this.cursorViewportY - canvasRect.top,
+      type: "cast",
+    };
   }
 
   private resolveCastingArrow(canvasRect: DOMRect): ArrowDef | null {

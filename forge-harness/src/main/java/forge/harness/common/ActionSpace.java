@@ -14,6 +14,7 @@ import forge.game.card.CardLists;
 import forge.game.card.CardPredicates;
 import forge.game.player.Player;
 import forge.game.spellability.AbilityManaPart;
+import forge.game.spellability.AlternativeCost;
 import forge.game.spellability.SpellAbility;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.spellability.TargetRestrictions;
@@ -39,13 +40,14 @@ public final class ActionSpace {
         final String kind = sa.isCycling() ? "CYCLE"
                 : (sa.isLandAbility() ? "LAND"
                 : (sa.isSpell() ? "SPELL" : (sa.isManaAbility() ? "MANA" : "AB")));
-        final String fbTag = sa.isFlashback() ? "[FB]" : "";
+        final AlternativeCost altCost = sa.getAlternativeCost();
+        final String altTag = altCost == null ? "" : "#" + altCost.name();
         final String hostName = sa.getHostCard().getName();
         final String faceName = sa.getCardState() == null ? hostName : sa.getCardState().getName();
         final String name = faceName == null || faceName.isBlank() || faceName.equals(hostName)
                 ? hostName
                 : hostName + "|" + faceName;
-        return kind + ":" + name + fbTag;
+        return kind + ":" + name + altTag;
     }
 
     public static List<String> buildMainActionLabels(final List<SpellAbility> actions) {

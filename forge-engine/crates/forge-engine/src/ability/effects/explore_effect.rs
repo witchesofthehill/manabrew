@@ -90,9 +90,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         // Reveal top card
         let top_card = *lib.last().unwrap();
 
-        // Let UI agents build card info
-        ctx.agents[controller.index()].on_library_peek(ctx.game, &[top_card]);
-
         let is_land = ctx.game.card(top_card).is_land();
 
         if is_land {

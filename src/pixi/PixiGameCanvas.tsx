@@ -19,6 +19,7 @@ import type {
 import { useHandScale } from "@/hooks/useHandScale";
 import { useResolvedBattlefieldScale } from "@/hooks/useBattlefieldCardScale";
 import { useBattlefieldScaleStore } from "@/stores/useBattlefieldScaleStore";
+import { useCastDragStore } from "@/stores/useCastDragStore";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
@@ -286,12 +287,18 @@ export function PixiGameCanvas({
   }, [scene]);
 
   const resolvedCardScale = useResolvedBattlefieldScale();
+  const castDragActive = useCastDragStore((s) => s.active);
   const vScale = useHandScale();
 
   useEffect(() => {
     if (!scene) return;
     scene.setCardScale(resolvedCardScale);
   }, [scene, resolvedCardScale]);
+
+  useEffect(() => {
+    if (!scene) return;
+    scene.setCastDragActive(castDragActive);
+  }, [scene, castDragActive]);
 
   useEffect(() => {
     if (!scene) return;

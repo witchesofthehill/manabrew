@@ -244,12 +244,17 @@ impl GameLoop {
                     .expect("non-pass priority action requires action space");
                 let agent = agents[priority_player.index()].as_mut();
                 let mut controller = PlayerController::new(game, priority_player, agent);
+                let activatable_ids: Vec<(CardId, usize)> = action_space
+                    .activatable
+                    .iter()
+                    .map(|a| (a.card_id, a.ability_index))
+                    .collect();
                 match action.run(
                     &mut controller,
                     &action_space.playable,
                     &action_space.tappable_lands,
                     &action_space.untappable_lands,
-                    &action_space.activatable,
+                    &activatable_ids,
                 ) {
                     PlayerActionOutcome::Priority(action) => action,
                     PlayerActionOutcome::Pending | PlayerActionOutcome::Target(_) => {
@@ -689,7 +694,11 @@ impl GameLoop {
                         priority_player,
                         &self.describe_priority_action(game, priority_action, Some(ability_idx)),
                     );
-                    if !action_space.activatable.contains(&(card_id, ability_idx)) {
+                    if !action_space
+                        .activatable
+                        .iter()
+                        .any(|a| a.card_id == card_id && a.ability_index == ability_idx)
+                    {
                         crate::agent::notify_all_agents(
                             agents,
                             crate::agent::GameLogEvent::warning(

@@ -130,9 +130,8 @@ pub(super) fn resolve_hidden_origin(
             let mut ordered = valid;
             if sa.ir.reorder && ordered.len() > 1 {
                 ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
-                ctx.agents[controller.index()].on_library_peek(ctx.game, &ordered);
-                let reordered =
-                    ctx.agents[controller.index()].choose_reorder_library(controller, &ordered);
+                let reordered = ctx.agents[controller.index()]
+                    .choose_reorder_library(ctx.game, controller, &ordered);
                 if reordered.len() == ordered.len()
                     && ordered.iter().all(|id| reordered.contains(id))
                 {
@@ -317,9 +316,11 @@ pub(super) fn resolve_hidden_origin(
 
             if sa.ir.reorder && cards_to_move.len() > 1 {
                 ctx.agents[effective_chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
-                ctx.agents[effective_chooser.index()].on_library_peek(ctx.game, &cards_to_move);
-                let reordered = ctx.agents[effective_chooser.index()]
-                    .choose_reorder_library(effective_chooser, &cards_to_move);
+                let reordered = ctx.agents[effective_chooser.index()].choose_reorder_library(
+                    ctx.game,
+                    effective_chooser,
+                    &cards_to_move,
+                );
                 if reordered.len() == cards_to_move.len()
                     && cards_to_move.iter().all(|id| reordered.contains(id))
                 {
@@ -470,9 +471,11 @@ pub(super) fn resolve_hidden_origin(
 
     if sa.ir.reorder && cards_to_move.len() > 1 {
         ctx.agents[effective_chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
-        ctx.agents[effective_chooser.index()].on_library_peek(ctx.game, &cards_to_move);
-        let reordered = ctx.agents[effective_chooser.index()]
-            .choose_reorder_library(effective_chooser, &cards_to_move);
+        let reordered = ctx.agents[effective_chooser.index()].choose_reorder_library(
+            ctx.game,
+            effective_chooser,
+            &cards_to_move,
+        );
         if reordered.len() == cards_to_move.len()
             && cards_to_move.iter().all(|id| reordered.contains(id))
         {
@@ -487,17 +490,6 @@ pub(super) fn resolve_hidden_origin(
                 .shuffle_zone_cards(ZoneType::Library, search_player, ctx.rng);
         }
         return;
-    }
-
-    // Reveal chosen cards (NoLooking$ suppresses)
-    if !sa.ir.no_looking
-        && sa.is_reveal()
-        && !cards_to_move.is_empty()
-        && origin_zone == ZoneType::Library
-    {
-        for agent in ctx.agents.iter_mut() {
-            agent.on_library_peek(ctx.game, &cards_to_move);
-        }
     }
 
     // RememberLKI$

@@ -140,11 +140,32 @@ impl GameLoop {
             );
             self.get_playable_cards(game, player, must_be_instant)
         };
-        let activatable: Vec<(CardId, usize)> = {
+        let activatable: Vec<crate::agent::ActivatableAction> = {
             let _params_lookup_scope = crate::perf::ParamsLookupScopeGuard::enter(
                 crate::perf::ParamsLookupScope::ActionSpaceActivatable,
             );
             self.get_activatable_abilities(game, player, can_play_sorcery)
+                .into_iter()
+                .map(|(card_id, ability_index)| {
+                    let card = game.card(card_id);
+                    let ability = card
+                        .activated_abilities
+                        .iter()
+                        .find(|a| a.ability_index == ability_index);
+                    crate::agent::ActivatableAction {
+                        card_id,
+                        ability_index,
+                        description: ability
+                            .map(|a| a.display_description(&card.card_name))
+                            .unwrap_or_default(),
+                        cost: ability.and_then(|a| a.cost_string()),
+                        is_mana_ability: ability.map(|a| a.is_mana_ability).unwrap_or(false),
+                        produced_colors: ability
+                            .map(|a| a.produced_color_symbols())
+                            .unwrap_or_default(),
+                    }
+                })
+                .collect()
         };
 
         let tappable_lands: Vec<CardId> = {
@@ -165,11 +186,31 @@ impl GameLoop {
             self.undoable_mana_sources(player)
         };
 
+        let mut mana_abilities = Vec::new();
+        for &card_id in &tappable_lands {
+            let card = game.card(card_id);
+            for ability in card
+                .activated_abilities
+                .iter()
+                .filter(|a| a.is_mana_ability)
+            {
+                mana_abilities.push(crate::agent::ActivatableAction {
+                    card_id,
+                    ability_index: ability.ability_index,
+                    description: ability.display_description(&card.card_name),
+                    cost: ability.cost_string(),
+                    is_mana_ability: true,
+                    produced_colors: ability.produced_color_symbols(),
+                });
+            }
+        }
+
         crate::agent::PriorityActionSpace {
             playable,
             tappable_lands,
             untappable_lands,
             activatable,
+            mana_abilities,
         }
     }
 }

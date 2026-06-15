@@ -532,7 +532,7 @@ impl DeterministicAgent {
         let filtered_activatable = action_space
             .activatable
             .iter()
-            .copied()
+            .map(|a| (a.card_id, a.ability_index))
             .filter(|(card_id, ability_idx)| !self.is_mana_ability(*card_id, *ability_idx));
         let choices = action_space
             .playable
@@ -941,13 +941,13 @@ impl PlayerAgent for DeterministicAgent {
                 .collect();
             let raw_activatable: Vec<String> = activatable
                 .iter()
-                .map(|(card_id, ability_idx)| {
+                .map(|a| {
                     format!(
                         "AB:{}@{}:{} mana={}",
-                        self.card_name(*card_id),
-                        self.parity_map.id(*card_id),
-                        ability_idx,
-                        self.is_mana_ability(*card_id, *ability_idx)
+                        self.card_name(a.card_id),
+                        self.parity_map.id(a.card_id),
+                        a.ability_index,
+                        self.is_mana_ability(a.card_id, a.ability_index)
                     )
                 })
                 .collect();
@@ -1587,6 +1587,7 @@ impl PlayerAgent for DeterministicAgent {
 
     fn choose_dig(
         &mut self,
+        _game: &GameState,
         _player: PlayerId,
         valid: &[CardId],
         max: usize,
@@ -1788,6 +1789,7 @@ impl PlayerAgent for DeterministicAgent {
 
     fn choose_single_card_for_zone_change(
         &mut self,
+        _game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         _select_prompt: &str,
@@ -1810,6 +1812,7 @@ impl PlayerAgent for DeterministicAgent {
 
     fn choose_cards_for_zone_change(
         &mut self,
+        _game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         min: usize,
@@ -1909,7 +1912,12 @@ impl PlayerAgent for DeterministicAgent {
         Some(idx)
     }
 
-    fn choose_scry(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+    fn choose_scry(
+        &mut self,
+        _game: &GameState,
+        _player: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
         let mut out = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
@@ -1920,7 +1928,12 @@ impl PlayerAgent for DeterministicAgent {
         out
     }
 
-    fn choose_surveil(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+    fn choose_surveil(
+        &mut self,
+        _game: &GameState,
+        _player: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
         let mut out = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
@@ -1931,7 +1944,12 @@ impl PlayerAgent for DeterministicAgent {
         out
     }
 
-    fn choose_reorder_library(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+    fn choose_reorder_library(
+        &mut self,
+        _game: &GameState,
+        _player: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
         // Java's DeterministicController.orderMoveToZoneList returns cards as-is
         // (no RNG consumed), so we must do the same to stay in sync.
         cards.to_vec()

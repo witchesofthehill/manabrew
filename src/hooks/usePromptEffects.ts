@@ -56,13 +56,9 @@ function hasActiveCombatAfterAttackers(gameView: GameView): boolean {
 
 function hasNonPassPriorityAction(prompt: Prompt): boolean {
   if (prompt.input.type !== "chooseAction") return false;
-  return (
-    prompt.input.playableCardIds.length > 0 ||
-    prompt.input.activatableAbilityIds.length > 0 ||
-    prompt.input.tappableLandIds.length > 0 ||
-    prompt.input.manaAbilityOptions.length > 0 ||
-    prompt.input.untappableLandIds.length > 0
-  );
+  // Every entry in `actions` is a real, non-pass action (pass lives in the
+  // response type, never in the list).
+  return prompt.input.actions.length > 0;
 }
 
 type AutoPassPlan =
@@ -186,7 +182,7 @@ function computeZoneTarget(currentPrompt: Prompt | null): ZoneTargetState | null
   };
   return {
     title: `Choose from ${zoneNames[zone] || zone}`,
-    cards: zoneCards,
+    cards: zoneCards as GameCard[],
     validCardIds,
   };
 }

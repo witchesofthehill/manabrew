@@ -8,6 +8,7 @@ import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
 import forge.game.phase.PhaseType;
 import forge.game.player.Player;
+import forge.game.player.RegisteredPlayer;
 import forge.game.spellability.SpellAbilityStackInstance;
 import forge.game.zone.ZoneType;
 
@@ -43,19 +44,7 @@ public final class SnapshotExtractor {
         snapshot.put("priority_player", playerIndex(game, game.getPhaseHandler().getPriorityPlayer()));
         snapshot.put("game_over", game.isGameOver());
 
-        // winner
-        if (game.getOutcome() != null && !game.getOutcome().isDraw() && game.getOutcome().getWinningLobbyPlayer() != null) {
-            String winnerName = game.getOutcome().getWinningLobbyPlayer().getName();
-            for (Player p : game.getPlayers()) {
-                if (p.getName().equals(winnerName)) {
-                    snapshot.put("winner", playerIndex(game, p));
-                    break;
-                }
-            }
-        }
-        if (!snapshot.containsKey("winner")) {
-            snapshot.put("winner", null);
-        }
+        snapshot.put("winner", winnerIndex(game));
 
         // players — use getRegisteredPlayers() to include lost players
         List<Map<String, Object>> players = new ArrayList<>();
@@ -153,6 +142,33 @@ public final class SnapshotExtractor {
         ps.put("library_top", libraryTop);
 
         return ps;
+    }
+
+    private static Integer winnerIndex(Game game) {
+        if (game.getOutcome() != null && !game.getOutcome().isDraw()) {
+            final RegisteredPlayer winner = game.getOutcome().getWinningPlayer();
+            if (winner != null) {
+                for (Player p : game.getRegisteredPlayers()) {
+                    if (p.getRegisteredPlayer().equals(winner)) {
+                        return playerIndex(game, p);
+                    }
+                }
+            }
+        }
+        if (!game.isGameOver()) {
+            return null;
+        }
+        Player winner = null;
+        for (Player p : game.getRegisteredPlayers()) {
+            if (p.hasLost()) {
+                continue;
+            }
+            if (winner != null) {
+                return null;
+            }
+            winner = p;
+        }
+        return winner == null ? null : playerIndex(game, winner);
     }
 
     private static Map<String, Object> snapshotCard(Game game, Card c) {

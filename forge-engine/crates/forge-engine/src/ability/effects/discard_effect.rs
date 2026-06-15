@@ -173,8 +173,11 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let remember_discarded = sa.ir.remember_discarded;
 
         let to_discard = if to_discard.len() > 1 {
-            let reordered = ctx.agents[target_player.index()]
-                .choose_reorder_library(target_player, &to_discard);
+            let reordered = ctx.agents[target_player.index()].choose_reorder_library(
+                ctx.game,
+                target_player,
+                &to_discard,
+            );
             if reordered.len() == to_discard.len() {
                 reordered
             } else {

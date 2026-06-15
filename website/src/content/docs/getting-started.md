@@ -6,7 +6,7 @@ description: Play ManaBrew in the browser, install the desktop app, or build fro
 ## Play in the browser
 
 The fastest way to try ManaBrew is the web client at
-[manabrew.app](https://play.manabrew.app). It runs the Rust engine compiled to
+[manabrew.app](https://play.manabrew.app). It runs the ManaBrew engine compiled to
 WebAssembly — nothing to install.
 
 ## Desktop app
@@ -28,14 +28,14 @@ connection even in the desktop app.
 You need [Node.js](https://nodejs.org) 22+, [Yarn v1](https://classic.yarnpkg.com),
 and a [Rust](https://rustup.rs) toolchain. Desktop builds also need the
 [Tauri platform prerequisites](https://tauri.app/start/prerequisites/); Java
-(18+) and Maven are only required for Java Forge-backed games and parity runs.
+(18+) and Maven are only required for Forge-backed games and parity runs.
 
 ```bash
 git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
 cd manabrew
 yarn install
 
-# Web client (Rust engine compiled to WASM)
+# Web client (ManaBrew engine compiled to WASM)
 yarn dev:web
 
 # Desktop client (Tauri)

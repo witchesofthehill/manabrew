@@ -56,7 +56,6 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         };
 
         if !no_peek && !peeked.is_empty() {
-            ctx.agents[peeking_player.index()].on_library_peek(ctx.game, &peeked);
             ctx.agents[peeking_player.index()].reveal_cards(
                 ctx.game,
                 peeking_player,

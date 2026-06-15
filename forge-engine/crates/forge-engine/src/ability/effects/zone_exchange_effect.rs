@@ -62,6 +62,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
     let obj2 = ctx.agents[controller.index()]
         .choose_single_card_for_zone_change(
+            ctx.game,
             controller,
             &candidates,
             "Choose a card to exchange",

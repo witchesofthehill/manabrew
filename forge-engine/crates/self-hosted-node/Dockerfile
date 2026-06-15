@@ -4,7 +4,7 @@
 # subprocess per game (line-delimited JSON-RPC over stdin/stdout, modelled on
 # forge-parity's --server pool). Each game owns its own JVM, so Forge's static
 # counters can't race across games. The Rust backend exists too
-# (SELF_HOSTED_NODE_ENGINE_BACKEND=rust) but this image defaults to java.
+# (SELF_HOSTED_NODE_ENGINE_BACKEND=manabrew) but this image defaults to forge.
 
 # ── Stage 1: Build the Java Forge harness JAR ───────────────────────
 # Mirrors forge-parity/Dockerfile — the harness jar bundles forge-core / game
@@ -91,7 +91,7 @@ COPY public/preset_decks/ /build/public/preset_decks/
 
 WORKDIR /build
 
-ENV SELF_HOSTED_NODE_ENGINE_BACKEND=java
+ENV SELF_HOSTED_NODE_ENGINE_BACKEND=forge
 ENV SELF_HOSTED_NODE_JAVA_HOME=/opt/java/openjdk
 # Default to the in-compose relay; compose overrides as needed.
 ENV FORGE_RELAY_URL=ws://forge-server:9443

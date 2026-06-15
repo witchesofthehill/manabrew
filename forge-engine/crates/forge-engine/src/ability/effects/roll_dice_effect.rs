@@ -798,6 +798,7 @@ fn apply_simple_roll_modifiers(
         let natural_value = roll_value;
         while !available.is_empty() {
             let chosen = agents[player.index()].choose_single_card_for_zone_change(
+                game,
                 player,
                 &available,
                 "Choose a roll modifier",
@@ -1192,6 +1193,7 @@ fn apply_keyword_roll_rerolls(
         }
 
         let chosen = ctx.agents[player.index()].choose_single_card_for_zone_change(
+            ctx.game,
             player,
             &reroll_cards,
             "Choose a card to reroll dice",
@@ -1488,6 +1490,7 @@ mod tests {
 
         fn choose_single_card_for_zone_change(
             &mut self,
+            _game: &crate::game::GameState,
             _player: PlayerId,
             valid: &[CardId],
             _select_prompt: &str,
@@ -1601,6 +1604,7 @@ mod tests {
 
         fn choose_single_card_for_zone_change(
             &mut self,
+            _game: &crate::game::GameState,
             _player: PlayerId,
             valid: &[CardId],
             _select_prompt: &str,

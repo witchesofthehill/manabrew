@@ -1,5 +1,32 @@
-import type { CardRulesSummary, GameCard, StackObject } from "@/types/manabrew";
+import type {
+  ActivatableAbilityInfo,
+  CardRulesSummary,
+  GameCard,
+  StackObject,
+} from "@/types/manabrew";
+import type { AvailableAction } from "@/protocol/prompts/chooseAction";
 import { PROMPT_LABELS } from "./game.constants";
+
+export function isPermanentSpellCard(card: Pick<GameCard, "types">): boolean {
+  return !card.types.includes("Instant") && !card.types.includes("Sorcery");
+}
+
+export function manaAbilityInfos(actions: AvailableAction[]): ActivatableAbilityInfo[] {
+  return actions.flatMap((a) =>
+    a.type === "activateAbility" && a.isManaAbility
+      ? [
+          {
+            cardId: a.cardId,
+            abilityIndex: a.abilityIndex,
+            description: a.description,
+            isManaAbility: true,
+            cost: a.cost,
+            producedMana: a.producedMana,
+          },
+        ]
+      : [],
+  );
+}
 
 export function getInitials(name: string): string {
   return name

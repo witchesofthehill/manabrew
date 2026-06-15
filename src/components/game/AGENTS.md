@@ -34,6 +34,8 @@ All game modals use the `Modal` compound:
 
 Use `MODAL_CARD_THUMBNAIL` / `MODAL_CARD_IMAGE` / `MODAL_FOOTER_BETWEEN` constants. Use `useModalKeyboard` for Enter/Escape handling. Use `CardImageThumbnail` for header art.
 
+For a modal that renders a list/grid of cards the user searches through (zone viewers, tutors, choose-from-zone), gate a name filter with `useCardNameFilter(cards)` (shows only past ~10 cards) and render `<ModalCardFilter>` between the header/instructions and `Modal.Body`, mapping its `filtered` instead of the raw `cards`. Pass `autoFocus` only when the modal has no Space/Enter-to-confirm (otherwise the focused input swallows the shortcut).
+
 ## Mana text
 
 Any text that may contain `{W}`, `{2}{R}`, etc. renders through `TextWithMana`:

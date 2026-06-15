@@ -14,6 +14,9 @@ dist
 dist-ssr
 *.local
 
+# Generated wire protocol
+/src/protocol/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

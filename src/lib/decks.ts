@@ -37,7 +37,7 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
       `Token archive has no entry for ${gameCard.name} (${gameCard.setCode}#${gameCard.cardNumber})`,
     );
   }
-  // The engine may not carry the printing through — the hosted Java backend
+  // The engine may not carry the printing through — the hosted Forge backend
   // emits empty setCode/cardNumber for every card — so the exact match misses
   // deck cards pinned to a specific printing (e.g. a commander). Fall back to
   // a name match; the singleton deck makes this unambiguous for non-basics.

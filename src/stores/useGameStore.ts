@@ -106,7 +106,7 @@ async function initializeGame({
   if (
     getPlatform().type === "web" &&
     isHostedEngineAvailable() &&
-    engine === "Java" &&
+    engine === "Forge" &&
     opponentDeck
   ) {
     set({

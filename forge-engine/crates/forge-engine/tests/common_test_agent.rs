@@ -148,7 +148,12 @@ impl PlayerAgent for RecordingAgent {
         state.pay_answers.remove(0)
     }
 
-    fn choose_reorder_library(&mut self, _: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+    fn choose_reorder_library(
+        &mut self,
+        _: &GameState,
+        _: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
         self.state.borrow_mut().events.push(CallbackEvent::Reorder(
             cards.iter().map(|c| format!("{}", c.0)).collect(),
         ));
@@ -157,6 +162,7 @@ impl PlayerAgent for RecordingAgent {
 
     fn choose_single_card_for_zone_change(
         &mut self,
+        _: &GameState,
         _: PlayerId,
         valid: &[CardId],
         _: &str,

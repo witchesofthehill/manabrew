@@ -71,6 +71,7 @@ fn learn_lesson(ctx: &mut EffectContext, _sa: &SpellAbility, player: PlayerId) {
     // Player chooses one card (optional — can decline)
     ctx.agents[player.index()].snapshot_state(ctx.game, ctx.mana_pools);
     let chosen = ctx.agents[player.index()].choose_single_card_for_zone_change(
+        ctx.game,
         player,
         &all_options,
         "Learn: choose a Lesson from sideboard, or a card from hand to discard",

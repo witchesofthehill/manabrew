@@ -30,12 +30,12 @@ export function EngineChoiceModal({ onChoose, onCancel, hostedAvailable }: Engin
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <button
-            onClick={() => onChoose("Wasm")}
+            onClick={() => onChoose("Manabrew")}
             className="text-left rounded-lg border p-4 transition-colors hover:border-primary/40 hover:bg-muted/30"
           >
             <div className="flex items-center gap-2 mb-1.5">
               <Cpu className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">Rust</span>
+              <span className="font-semibold text-sm">ManaBrew</span>
               <Badge variant="outline" className="text-[9px]">
                 in-browser
               </Badge>
@@ -46,7 +46,7 @@ export function EngineChoiceModal({ onChoose, onCancel, hostedAvailable }: Engin
             </p>
           </button>
           <button
-            onClick={() => onChoose("Java")}
+            onClick={() => onChoose("Forge")}
             disabled={!hostedAvailable}
             className="text-left rounded-lg border p-4 transition-colors enabled:hover:border-primary/40 enabled:hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -59,8 +59,8 @@ export function EngineChoiceModal({ onChoose, onCancel, hostedAvailable }: Engin
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
               {hostedAvailable
-                ? "Java Forge on a ManaBrew-hosted node — full card support, but adds a little network latency."
-                : "Java Forge on a ManaBrew-hosted node — full card support. Not available in this build."}
+                ? "Forge on a ManaBrew-hosted node — full card support, but adds a little network latency."
+                : "Forge on a ManaBrew-hosted node — full card support. Not available in this build."}
             </p>
           </button>
         </div>

@@ -1,7 +1,7 @@
 import type { IGameApi } from "@/platform";
 import type { GameCard, GameView } from "@/types/manabrew";
 
-export type GameRuntimeKind = "rust-engine" | "forge-java" | "manual-tabletop";
+export type GameRuntimeKind = "manabrew" | "forge" | "manual-tabletop";
 
 export type SeatControllerKind =
   | "local-human"

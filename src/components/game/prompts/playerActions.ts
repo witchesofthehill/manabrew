@@ -10,9 +10,9 @@ export function passOutput(prompt: Prompt | null, untilPhase: string | null): Pr
     case "chooseBlockers":
       return { type: "declareBlockers", assignments: [] };
     case "chooseAction":
-      return { type: "pass", untilPhase };
+      return { type: "pass", untilPhase: untilPhase ?? undefined };
     default:
-      return { type: "pass", untilPhase: null };
+      return { type: "pass", untilPhase: undefined };
   }
 }
 

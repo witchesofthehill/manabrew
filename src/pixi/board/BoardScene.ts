@@ -297,6 +297,7 @@ export class BoardScene {
       }
     }
     this.phaseStrip.container.alpha = active ? PHASE_STRIP_COMBAT_ALPHA : 1;
+    for (const rec of this.regions.values()) rec.region.setCombatDim(active);
   }
 
   updateHand(state: HandState): void {

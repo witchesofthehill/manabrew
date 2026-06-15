@@ -108,6 +108,9 @@ export const Z_STAGED_REGION = 8000;
 // Phase strip opacity while combat staging is active — dimmed so the staged
 // cards crossing the center band read clearly on top of it.
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
+// Opacity of non-combat cards while a combat is in progress, so attackers and
+// blockers stand out. Hovered cards and combatants stay at full opacity.
+export const COMBAT_DIM_ALPHA = 0.3;
 
 // ── zIndex layers ──────────────────────────────────────────────────────────
 export const Z_COMBAT_STAGED = 400;

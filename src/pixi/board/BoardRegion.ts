@@ -26,6 +26,7 @@ import {
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
   CARD_RADIUS,
+  COMBAT_DIM_ALPHA,
   COMBAT_LUNGE_FRAC,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
@@ -102,6 +103,7 @@ export class BoardRegion {
   private hoveredCardId: string | null = null;
   private dropActive = false;
   private autoSort = false;
+  private combatDim = false;
 
   constructor(
     host: RegionHost,
@@ -232,6 +234,17 @@ export class BoardRegion {
     this.hoveredCardId = cardId;
   }
 
+  /** While true, cards not in combat fade out so attackers/blockers stand out. */
+  setCombatDim(active: boolean): void {
+    this.combatDim = active;
+  }
+
+  private isCombatant(card: GameCard): boolean {
+    if (card.isAttacking) return true;
+    const s = this.combatStaging;
+    return !!s && (s.attackerIds.has(card.id) || s.blockerIds.has(card.id));
+  }
+
   setPendingDropSlot(slot: { col: number; row: number } | null): void {
     this.pendingDropSlot = slot;
   }
@@ -304,6 +317,12 @@ export class BoardRegion {
       }
       s.rotation = lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT);
       s.zIndex = entry.targetZIndex;
+
+      // Fade non-combatants during combat so attackers/blockers stand out;
+      // the hovered card stays lit so it can still be inspected.
+      const dimmed =
+        this.combatDim && this.hoveredCardId !== s.card.id && !this.isCombatant(s.card);
+      s.alpha = lerp(s.alpha, dimmed ? COMBAT_DIM_ALPHA : 1, OVERLAY_FADE_LERP, SNAP_ALPHA);
 
       if (entry.etbGlowAlpha > 0) {
         entry.etbGlowAlpha = lerp(entry.etbGlowAlpha, 0, OVERLAY_FADE_LERP, SNAP_ALPHA);

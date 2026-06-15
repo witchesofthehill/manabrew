@@ -201,14 +201,6 @@ export function GameBoard({
 
   const CLUSTER_GAP_FROM_HAND_PX = 12;
   const CLUSTER_MIN_WIDTH_PX = 120;
-  const clusterMaxWidthCss = useMemo(() => {
-    // `calc(50% - handHalf - gap - left-pad)` keeps the cluster's right
-    // edge comfortably left of the hand's left edge at every battlefield
-    // width. Falls back to 50%- if we haven't measured the hand yet.
-    const handHalf = handWidth / 2;
-    const pad = CLUSTER_GAP_FROM_HAND_PX + 8;
-    return `max(${CLUSTER_MIN_WIDTH_PX}px, calc(50% - ${handHalf + pad}px))`;
-  }, [handWidth]);
   const isTargetingPrompt = promptType === "chooseTargetCard" || promptType === "chooseTargetAny";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
   const chooseAttackersPrompt = promptOf(currentPrompt, "chooseAttackers");
@@ -514,12 +506,21 @@ export function GameBoard({
   // arrangement puts it in the center column), so anchor the panel to the
   // self region's left edge rather than the container corner.
   const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;
+  // The hand fan is centered in the self region; cap the cluster so its
+  // right edge stays left of the hand's left edge. Measured against the
+  // self region's half-width (not the board's), so it stays clear in the
+  // perimeter arrangement where the self column is narrower than the board.
+  const selfHalfWidthPx = (unifiedLayout?.self?.width ?? 0) / 2;
+  const clusterMaxWidthPx = Math.max(
+    CLUSTER_MIN_WIDTH_PX,
+    selfHalfWidthPx - handWidth / 2 - CLUSTER_GAP_FROM_HAND_PX - 8,
+  );
   const selfPanel = (
     <div
       className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
       style={{
         left: selfPanelLeftPx,
-        maxWidth: `calc((${clusterMaxWidthCss}) / ${SELF_PANEL_SCALE})`,
+        maxWidth: `calc(${clusterMaxWidthPx}px / ${SELF_PANEL_SCALE})`,
         transform: `scale(${SELF_PANEL_SCALE})`,
       }}
     >

@@ -352,11 +352,15 @@ impl<'a> ParsedCardScript<'a> {
         let mut diagnostics = SmallVec::new();
         let mut offset = 0;
 
-        for (idx, line) in raw.lines().enumerate() {
+        for (idx, segment) in raw.split_inclusive('\n').enumerate() {
+            let line = segment
+                .strip_suffix('\n')
+                .map(|s| s.strip_suffix('\r').unwrap_or(s))
+                .unwrap_or(segment);
             let line_no = idx + 1;
             let parsed = parse_script_line(line, line_no, offset, &mut diagnostics);
             lines.push(parsed);
-            offset += line.len() + 1;
+            offset += segment.len();
         }
 
         Self {

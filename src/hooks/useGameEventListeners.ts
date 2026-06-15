@@ -1,7 +1,11 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { getPlatform } from "@/platform";
-import { getSelectedGameRuntime } from "@/game";
+import {
+  getSelectedGameRuntime,
+  isRoomRelayProtocol,
+  SELF_HOSTED_NODE_RELAY_PROTOCOL,
+} from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
 import { clearActiveGameSession } from "@/lib/activeGameSession";
 import { FORETELL_LOG_PREFIX, normalizeGameLogPayload, type GameLogEntry } from "@/types/gameLog";
@@ -10,7 +14,25 @@ import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.consta
 import type { Prompt, StateUpdate } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameView } from "@/types/manabrew";
-import type { AuthResultPayload } from "@/types/server";
+import type { AuthResultPayload, RoomMessagePayload } from "@/types/server";
+
+type SelfHostedNodeRoomPayload = {
+  type?: unknown;
+};
+
+const GAME_OVER_PROMPT = { input: { type: "gameOver" } } as Prompt;
+
+function isGameOverPrompt(prompt: Prompt | null): boolean {
+  return prompt?.input.type === "gameOver";
+}
+
+function isSelfHostedNodeGameOverPayload(payload: unknown): boolean {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    (payload as SelfHostedNodeRoomPayload).type === "gameOver"
+  );
+}
 
 function normalizeEnginePrompt(prompt: unknown): Prompt | null {
   return typeof prompt === "object" && prompt !== null && "input" in prompt
@@ -154,10 +176,35 @@ export function useGameEventListeners() {
       );
 
       unsubscribers.push(
+        platform.events.on<RoomMessagePayload<SelfHostedNodeRoomPayload>>(
+          "server:room_message",
+          (payload) => {
+            if (
+              !isRoomRelayProtocol<SelfHostedNodeRoomPayload>(
+                payload.state,
+                SELF_HOSTED_NODE_RELAY_PROTOCOL,
+              )
+            ) {
+              return;
+            }
+            if (!isSelfHostedNodeGameOverPayload(payload.state.payload)) return;
+            const state = getState();
+            if (!state.isMultiplayer || !state.isGameActive) return;
+            if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
+            setState({
+              currentPrompt: GAME_OVER_PROMPT,
+              isWaitingForResponse: false,
+              debugInfo: "Remote: gameOver",
+            });
+          },
+        ),
+      );
+
+      unsubscribers.push(
         platform.events.on("server:game_aborted", () => {
           const state = getState();
           if (!state.isMultiplayer || !state.isGameActive) return;
-          if (state.gameView?.gameOver) return;
+          if (state.gameView?.gameOver || isGameOverPrompt(state.currentPrompt)) return;
           clearActiveGameSession();
           toast.error("Game aborted — a player did not reconnect.");
           void useGameStore.getState().endGame();

@@ -9,7 +9,7 @@ mod config;
 mod engine_backend;
 
 use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
-use engine_backend::{java_backend, rust_backend, EngineBackendKind};
+use engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
@@ -791,7 +791,7 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
@@ -838,7 +838,7 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
@@ -1064,10 +1064,32 @@ fn spawn_remote_prompt_forwarder(
 
 fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    game_over_rx: std_mpsc::Receiver<String>,
+    game_over_rx: std_mpsc::Receiver<HostedGameOver>,
 ) {
     thread::spawn(move || {
-        while let Ok(game_id) = game_over_rx.recv() {
+        while let Ok(game_over) = game_over_rx.recv() {
+            // Final engine messages must reach clients before EndGame resets the room.
+            // Java uses this bundle for final state and the gameOver prompt; Rust
+            // currently sends an empty bundle.
+            let mut last_state: Option<Value> = None;
+            for (player_index, message) in game_over.messages {
+                let envelope =
+                    StateEnvelope::for_agent_message(player_slot(player_index), &message);
+                let Ok(state) = serde_json::to_value(envelope) else {
+                    continue;
+                };
+                match &message {
+                    AgentMessage::State(_) if last_state.as_ref() == Some(&state) => continue,
+                    AgentMessage::State(_) => last_state = Some(state.clone()),
+                    AgentMessage::Display(_) | AgentMessage::Prompt(_) => {}
+                }
+                if outbound_tx
+                    .send(ClientMessage::BroadcastState { state })
+                    .is_err()
+                {
+                    return;
+                }
+            }
             let Ok(state) = serde_json::to_value(StateEnvelope::RoomRelay {
                 protocol: SELF_HOSTED_NODE_PROTOCOL.to_string(),
                 version: 1,
@@ -1075,7 +1097,7 @@ fn spawn_game_over_forwarder(
                 from_player: None,
                 target_player: None,
                 room_id: None,
-                payload: json!({ "type": "gameOver", "gameId": game_id }),
+                payload: json!({ "type": "gameOver", "gameId": game_over.game_id }),
             }) else {
                 continue;
             };
@@ -1083,10 +1105,10 @@ fn spawn_game_over_forwarder(
                 .send(ClientMessage::BroadcastState { state })
                 .is_err()
             {
-                break;
+                return;
             }
             if outbound_tx.send(ClientMessage::EndGame).is_err() {
-                break;
+                return;
             }
         }
     });

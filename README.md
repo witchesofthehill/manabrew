@@ -13,7 +13,7 @@
   &nbsp;
   <a href="./CONTRIBUTING.md"><img alt="Contributing" src="https://img.shields.io/badge/Contributing-Guide-24292f?style=for-the-badge&logo=github&logoColor=white"></a>
   &nbsp;
-  <a href="./LICENSE.md"><img alt="License: GPL 3.0+" src="https://img.shields.io/badge/License-GPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
+  <a href="./LICENSE.md"><img alt="License: AGPL 3.0+" src="https://img.shields.io/badge/License-AGPL%203.0%2B-2ea44f?style=for-the-badge&logo=gnu&logoColor=white"></a>
 </p>
 
 <table align="center">
@@ -248,8 +248,9 @@ Forge is the foundation of this project.
 - The Rust engine mirrors Forge's rules structure and consumes Forge card
   scripts.
 - The parity harness keeps behavior faithful to Forge.
-- The repository is GPL-3.0-or-later because the engine and bundled card data
-  are derivative of Forge.
+- The engine and bundled card data are derivative of Forge (GPL-3.0-or-later);
+  this project's own code is AGPL-3.0-or-later (a GPL-compatible license that
+  also covers network use). The vendored `forge/` tree stays GPL-3.0-or-later.
 
 This is an independent fan project. Forge maintainers are not expected to review
 or support this work.
@@ -288,15 +289,18 @@ See [AI Usage](./docs/AI_USAGE.md).
 
 ## License
 
-Source code in this repository is licensed under GPL-3.0-or-later, except where
-a file states otherwise. `docs/PROTOCOL.md` is published under CC-BY-4.0 so
-other implementations can describe or implement the same wire format.
+The project is licensed under **AGPL-3.0-or-later**, to close GPL's network
+loophole for the hosted instance. AGPL is GPL-compatible, so this is additive;
+the vendored `forge/` tree stays GPL-3.0-or-later under its upstream terms.
+`docs/PROTOCOL.md` remains CC-BY-4.0.
 
-See [LICENSE.md](./LICENSE.md), [LICENSE-GPL-3.0-or-later](./LICENSE-GPL-3.0-or-later),
+See [LICENSE.md](./LICENSE.md),
+[LICENSE-AGPL-3.0-or-later](./LICENSE-AGPL-3.0-or-later),
+[LICENSE-GPL-3.0-or-later](./LICENSE-GPL-3.0-or-later),
 and [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
 
 ---
 
 <div align="center">
-  <sub>Built by the ManaBrew contributors · GPL-3.0-or-later</sub>
+  <sub>Built by the ManaBrew contributors · AGPL-3.0-or-later</sub>
 </div>

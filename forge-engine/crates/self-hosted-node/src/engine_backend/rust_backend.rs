@@ -22,6 +22,7 @@ use memmap2::Mmap;
 use rand::SeedableRng;
 use tracing::{info, warn};
 
+use super::HostedGameOver;
 use crate::config::workspace_root;
 
 pub fn run_hosted_engine_game(
@@ -33,7 +34,7 @@ pub fn run_hosted_engine_game(
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
-    game_over_tx: std_mpsc::Sender<String>,
+    game_over_tx: std_mpsc::Sender<HostedGameOver>,
 ) {
     let prepared_players = prepare_players(
         &player_names,
@@ -84,7 +85,12 @@ pub fn run_hosted_engine_game(
             }
         },
     );
-    let _ = game_over_tx.send(game_id);
+    let _ = game_over_tx.send(HostedGameOver {
+        game_id,
+        // Assuming that Rust currently has no final messages that must precede EndGame.
+        // If that changes, bundle them here so the game-over forwarder preserves ordering.
+        messages: Vec::new(),
+    });
 }
 
 pub fn run_self_play(

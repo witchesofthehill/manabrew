@@ -87,7 +87,6 @@ export interface GameCanvasCallbacks {
    * the scene begins a drag so the preview doesn't linger on the cursor.
    */
   onDismissHoverPreview?: () => void;
-  onUsableHeightChange?: (height: number) => void;
 }
 
 export interface BattlefieldState {

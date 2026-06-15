@@ -67,6 +67,9 @@ interface BoardCanvasProps {
   /** Per-opponent column width fractions (row arrangement resize grips).
    *  Equal split when omitted. */
   opponentFractions?: number[];
+  /** Px the hand fan reserves at the bottom of the self region — subtracted
+   *  from its height when sizing cards so ~3 rows always fit the free area. */
+  selfBottomReserve?: number;
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
   /** Bottom-corner keep-out widths for the hand fan (player cluster left, zone
@@ -98,6 +101,7 @@ export function BoardCanvas({
   arrangement,
   selfHeightFraction,
   opponentFractions,
+  selfBottomReserve,
   callbacks,
   externalBlockers,
   handInsets,
@@ -254,7 +258,11 @@ export function BoardCanvas({
       selfHeightFraction,
       opponentFractions,
     );
-    const minHeight = Math.min(layout.self.height, ...layout.opponents.map((o) => o.rect.height));
+    // Size cards against the height actually free for permanents: the self
+    // region loses the hand fan at its bottom, so subtract that reserve before
+    // picking the scale (keeps ~3 rows visible in every region).
+    const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
+    const minHeight = Math.min(selfUsable, ...layout.opponents.map((o) => o.rect.height));
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
     s.configure(players, layout, cardScale);
     onLayoutRef.current?.({
@@ -266,7 +274,7 @@ export function BoardCanvas({
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, arrangement, fraction, selfHeightFraction, opponentFractions]);
+  }, [playersKey, arrangement, fraction, selfHeightFraction, opponentFractions, selfBottomReserve]);
 
   useEffect(() => {
     reconfigure();

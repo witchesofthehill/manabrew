@@ -18,6 +18,7 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { GAP } from "@/pixi/constants";
 import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
@@ -215,6 +216,12 @@ export function GameBoard({
     const xs = layout.map((slot) => slot.x);
     return Math.max(...xs) - Math.min(...xs) + cardW;
   }, [myHand.length, vScale]);
+
+  // Vertical space the hand fan occupies inside the self region (it peeks ~55%
+  // of a card above the zone bottom). Subtracted from the self region before
+  // computing the battlefield card scale so the "always 3 rows" guarantee is
+  // measured against the area actually free for permanents.
+  const selfBottomReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
 
   const CLUSTER_GAP_FROM_HAND_PX = 12;
   const CLUSTER_MIN_WIDTH_PX = 120;
@@ -786,6 +793,7 @@ export function GameBoard({
           handInsets={handInsets}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}
+          selfBottomReserve={selfBottomReserve}
           sceneRef={sceneRef}
           getHandActions={getHandActions}
           onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}

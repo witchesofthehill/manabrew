@@ -3,7 +3,7 @@ import { ManualTabletopGameApi } from "./manualTabletopApi";
 import type { GameRuntime, GameRuntimeCapabilities, GameRuntimeKind } from "./runtime.types";
 
 const manualTabletopApi = new ManualTabletopGameApi();
-let selectedRuntimeKind: GameRuntimeKind = "rust-engine";
+let selectedRuntimeKind: GameRuntimeKind = "manabrew";
 
 function getPlatformGameCapabilities(): GameRuntimeCapabilities {
   const platform = getPlatform();
@@ -16,8 +16,8 @@ function getPlatformGameCapabilities(): GameRuntimeCapabilities {
   };
 }
 
-const rustRuntime: GameRuntime = {
-  kind: "rust-engine",
+const manabrewRuntime: GameRuntime = {
+  kind: "manabrew",
   label: "Rust engine",
   get capabilities() {
     return getPlatformGameCapabilities();
@@ -41,9 +41,9 @@ const manualTabletopRuntime: GameRuntime = {
 };
 
 const runtimes: Record<GameRuntimeKind, GameRuntime | null> = {
-  "rust-engine": rustRuntime,
+  manabrew: manabrewRuntime,
   "manual-tabletop": manualTabletopRuntime,
-  "forge-java": null,
+  forge: null,
 };
 
 export function getAvailableGameRuntimes(): GameRuntime[] {
@@ -51,7 +51,7 @@ export function getAvailableGameRuntimes(): GameRuntime[] {
 }
 
 export function getSelectedGameRuntime(): GameRuntime {
-  return runtimes[selectedRuntimeKind] ?? rustRuntime;
+  return runtimes[selectedRuntimeKind] ?? manabrewRuntime;
 }
 
 export function getSelectedGameRuntimeKind(): GameRuntimeKind {
@@ -68,9 +68,9 @@ export function selectGameRuntime(kind: GameRuntimeKind): GameRuntime {
 }
 
 export function resetSelectedGameRuntime(): GameRuntime {
-  return selectGameRuntime("rust-engine");
+  return selectGameRuntime("manabrew");
 }
 
 export function getDefaultGameRuntime(): GameRuntime {
-  return rustRuntime;
+  return manabrewRuntime;
 }

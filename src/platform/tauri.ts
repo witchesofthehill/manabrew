@@ -112,7 +112,7 @@ class TauriServerApi implements IServerApi {
       maxPlayers: params.maxPlayers,
       format: params.format,
       hosted: params.hosted ?? false,
-      engine: params.engine ?? "Wasm",
+      engine: params.engine ?? "Manabrew",
       draftConfig: params.draftConfig ?? null,
       sealedConfig: params.sealedConfig ?? null,
       reconnectTimeoutS: params.reconnectTimeoutS ?? null,

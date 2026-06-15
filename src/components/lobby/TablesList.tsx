@@ -573,13 +573,13 @@ export function TablesList({
 
                     <span className="font-medium text-sm truncate min-w-0">{room.room_name}</span>
 
-                    <LobbyTag tone={room.engine === "Java" ? "blue" : "sky"} className="shrink-0">
-                      {room.engine === "Java" ? (
+                    <LobbyTag tone={room.engine === "Forge" ? "blue" : "sky"} className="shrink-0">
+                      {room.engine === "Forge" ? (
                         <Anvil className="h-3 w-3" />
                       ) : (
                         <Cpu className="h-3 w-3" />
                       )}
-                      {room.engine === "Java" ? "Forge" : "ManaBrew"}
+                      {room.engine === "Forge" ? "Forge" : "ManaBrew"}
                     </LobbyTag>
                     {room.format !== "Any" && (
                       <LobbyTag tone={modeTone} className="shrink-0">

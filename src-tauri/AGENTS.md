@@ -1,6 +1,6 @@
 # Tauri shell
 
-Native desktop wrapper. Tauri v2, Rust backend, hosts either the native Rust engine or (opt-in) the Java Forge bridge.
+Native desktop wrapper. Tauri v2, Rust backend, hosts either the native ManaBrew engine or (opt-in) the Forge bridge.
 
 Read first: `/AGENTS.md`.
 
@@ -22,7 +22,7 @@ Read first: `/AGENTS.md`.
 ## Conventions
 
 - **Bundled resources** — `scripts/harness.mjs` stages the Java Forge harness JAR and engine Forge assets into generated `src-tauri/resources/forge-runtime/`, with `forge-gui/res/cardsfolder/cardsfolder.zip` matching Forge's packaged-resource lookup. Tauri copies that bundle to `engine/forge/`; `public/preset_decks/` is copied to `preset_decks/` (the same directory the web build serves at `/preset_decks/`). Runtime paths are exposed via env vars (`CARDS_DIR`, `TOKEN_SCRIPTS_DIR`, `MANA_BREW_FORGE_ASSETS_DIR`, `MANA_BREW_FORGE_HARNESS_JAR`, `PRESET_DECKS_DIR`, …) set in `lib.rs::run()` before any command runs. `CARDSET_ARCHIVE` remains the separate Tauri archive resource at bundled `cardset.rkyv`, produced from `src-tauri/resources/cardset.rkyv` by `src-tauri/build.rs`. Don't read paths relative to the source tree at runtime — packaged builds don't have it.
-- **Backend selection.** `MANABREW_ENGINE_BACKEND=java-forge` switches to the Java bridge. Without it, the native Rust engine runs. Confirm the active backend in terminal logs (`backend=java-forge` or `backend=rust`); the UI alone doesn't reveal it.
+- **Backend selection.** `MANA_BREW_ENGINE_BACKEND=forge` switches to the Forge bridge. Without it (or `=manabrew`), the native ManaBrew engine runs. Confirm the active backend in terminal logs (`backend=forge` or `backend=manabrew`); the UI alone doesn't reveal it.
 - **DTO parity.** `engine_backend/rust_backend.rs` and `engine_backend/java_backend.rs` must emit identical DTO shapes. If you add a field to one, add it to the other.
 - **Tauri command surface.** Every UI-facing command is registered in `lib.rs::run()` via `tauri::generate_handler![…]`. Adding a command means: implement, add to the handler list, expose from the appropriate module.
 - **Long-running work runs off the command thread.** Tauri commands are async; spawn into the game/transport runtime, don't block.

@@ -5,6 +5,7 @@ import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
+import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -424,7 +425,10 @@ export function GameBoard({
   const boardRef = useRef<HTMLDivElement>(null);
 
   // ── Unified single-canvas board ──
-  const boardArrangement = usePreferencesStore((s) => s.boardArrangement);
+  const boardArrangementPref = usePreferencesStore((s) => s.boardArrangement);
+  // The wrap-around (perimeter) layout is gated behind a feature flag; until
+  // it's enabled the board is locked to the row arrangement.
+  const boardArrangement = isFeatureEnabled("wraparoundBoardLayout") ? boardArrangementPref : "row";
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;

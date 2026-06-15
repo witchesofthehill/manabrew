@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -661,30 +662,32 @@ export default function Settings() {
               </p>
             </div>
 
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Board Arrangement</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={prefs.boardArrangement === "row" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setBoardArrangement("row")}
-                >
-                  Opponents in a row
-                </Button>
-                <Button
-                  variant={prefs.boardArrangement === "perimeter" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setBoardArrangement("perimeter")}
-                >
-                  Wrapped around
-                </Button>
+            {isFeatureEnabled("wraparoundBoardLayout") && (
+              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+                <Label>Board Arrangement</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={prefs.boardArrangement === "row" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setBoardArrangement("row")}
+                  >
+                    Opponents in a row
+                  </Button>
+                  <Button
+                    variant={prefs.boardArrangement === "perimeter" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => prefs.setBoardArrangement("perimeter")}
+                  >
+                    Wrapped around
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  How opponents are placed in multiplayer games. "Row" lines them up across the top;
+                  "Wrapped around" seats them to your left, across, and right. Only affects 4-player
+                  games.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                How opponents are placed in multiplayer games. "Row" lines them up across the top;
-                "Wrapped around" seats them to your left, across, and right. Only affects 4-player
-                games.
-              </p>
-            </div>
+            )}
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <div className="flex items-center justify-between">

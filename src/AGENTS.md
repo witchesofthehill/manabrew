@@ -42,6 +42,10 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 - **No new abstractions for one-off patterns.** Three similar lines beat a helper.
 - **Tests** run via `yarn test` (vitest); co-locate `*.test.ts` next to the code. The prompt-handling test (`stores/gameStore.constants.test.ts`) runs the rust `emit_prompt_fixtures` bin on demand and replays every `AgentPromptInner` variant through `applyPrompt` — no committed fixture, so it can't drift from the engine types.
 
+## Feature flags
+
+Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. (The wrap-around `perimeter` board layout is gated by `wraparoundBoardLayout`.)
+
 ## Card data — Scryfall store
 
 Scryfall card lookups, image textures, set lists, and rulings flow through `src/stores/useScryfallStore.ts` (Zustand + immer). It is the **only** sanctioned path for card data; do not introduce TanStack Query, `useQuery`, or one-off `fetch` calls for card or set lookups.

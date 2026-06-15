@@ -75,7 +75,7 @@ export function PlayerPanel({
   zonesGrid = false,
   incomingDamage = 0,
   isActiveTurn,
-  isPriorityPlayer: _isPriorityPlayer,
+  isPriorityPlayer,
   isTargetable,
   isSelectedTarget,
   onTarget,
@@ -269,6 +269,7 @@ export function PlayerPanel({
         badges={orbitBadges}
         seatColor={seatColor}
         isActiveTurn={isActiveTurn}
+        isPriorityPlayer={isPriorityPlayer}
         isTargetable={isTargetable}
         isSelectedTarget={isSelectedTarget}
         onTarget={onTarget}

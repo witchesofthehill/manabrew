@@ -359,6 +359,7 @@ export class BoardRegion {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
     const prevDamage = new Map<string, number>();
     for (const c of this.lastState?.cards ?? []) prevDamage.set(c.id, c.damage ?? 0);
+    const isFirstState = this.lastState === null;
     this.lastState = state;
     const cardMap = new Map<string, GameCard>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
@@ -456,10 +457,17 @@ export class BoardRegion {
 
     this.applyCombatStaging();
     this.applyAttackLunge(state);
-    for (const card of state.cards) {
-      if ((card.damage ?? 0) > (prevDamage.get(card.id) ?? 0)) {
+    if (!isFirstState) {
+      const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+      const cardHalfH = (CARD_H * this.cardScale) / 2;
+      for (const card of state.cards) {
+        const delta = (card.damage ?? 0) - (prevDamage.get(card.id) ?? 0);
+        if (delta <= 0) continue;
         const entry = this.entries.get(card.id);
-        if (entry) entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+        if (!entry) continue;
+        entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+        const c = this.localToCanvas(entry.targetX, entry.targetY);
+        this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
       }
     }
     this.emptyText.visible = state.cards.length === 0;
@@ -832,6 +840,8 @@ export class BoardRegion {
         : card;
     entry.sprite.updateCardContent(overriddenCard);
     entry.sprite.setStackCount(this.stackCounts.get(card.id) ?? 1);
+    const orderIdx = state.orderedCardIds?.indexOf(card.id) ?? -1;
+    entry.sprite.setOrderBadge(orderIdx >= 0 ? orderIdx + 1 : null);
     entry.targetRotation = overriddenCard.tapped ? (this.mirrored ? -Math.PI / 2 : Math.PI / 2) : 0;
     this.applyBattlefieldRing(entry.sprite, state);
     this.host.rebuildOverlay(entry, state);

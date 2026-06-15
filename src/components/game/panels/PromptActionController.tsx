@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { ChooseAction } from "./prompt-actions/ChooseAction";
 import { ChooseAttackers } from "./prompt-actions/ChooseAttackers";
 import { ChooseBlockers } from "./prompt-actions/ChooseBlockers";
+import { ChooseDamageOrder } from "./prompt-actions/ChooseDamageOrder";
 import { ChooseTargetSpell } from "./prompt-actions/ChooseTargetSpell";
 import { PayManaCost } from "./prompt-actions/PayManaCost";
 import { PromptRequired } from "./prompt-actions/PromptRequired";
@@ -26,6 +27,8 @@ function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptAction
       return "chooseAttackers";
     case "chooseBlockers":
       return "chooseBlockers";
+    case "chooseDamageAssignmentOrder":
+      return "chooseDamageOrder";
     case "chooseTargetSpell":
       return "chooseTargetSpell";
     case "payManaCost":
@@ -61,8 +64,14 @@ interface PromptActionControllerProps {
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
   pendingAttacker: string | null;
+  pendingBlocker: string | null;
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
+  damageOrderCount: number;
+  damageOrderTotal: number;
+  onConfirmDamageOrder: () => void;
+  onUndoDamageOrder: () => void;
+  onDefaultDamageOrder: () => void;
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
   onCompleteTargets?: (() => void) | null;
@@ -104,8 +113,14 @@ export function PromptActionController({
   onDeclareAttackers,
   onBeginAttackTargetPick,
   pendingAttacker,
+  pendingBlocker,
   blockAssignments,
   onDeclareBlockers,
+  damageOrderCount,
+  damageOrderTotal,
+  onConfirmDamageOrder,
+  onUndoDamageOrder,
+  onDefaultDamageOrder,
   onOpenStack,
   targetCompletionLabel,
   onCompleteTargets,
@@ -152,9 +167,21 @@ export function PromptActionController({
         buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         pendingAttacker={pendingAttacker}
+        pendingBlocker={pendingBlocker}
         blockAssignments={blockAssignments}
         onPassPriority={onPassPriority}
         onDeclareBlockers={onDeclareBlockers}
+      />
+    ),
+    chooseDamageOrder: () => (
+      <ChooseDamageOrder
+        buttonLayout={buttonLayout}
+        isWaitingForResponse={isWaitingForResponse}
+        orderedCount={damageOrderCount}
+        totalCount={damageOrderTotal}
+        onConfirm={onConfirmDamageOrder}
+        onUndo={onUndoDamageOrder}
+        onDefault={onDefaultDamageOrder}
       />
     ),
     chooseTargetSpell: () => (

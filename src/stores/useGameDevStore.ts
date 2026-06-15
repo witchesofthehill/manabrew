@@ -8,6 +8,7 @@ export const PROMPT_ACTION_VIEW_KEYS = [
   "chooseAction",
   "chooseAttackers",
   "chooseBlockers",
+  "chooseDamageOrder",
   "chooseTargetSpell",
   "payManaCost",
   "promptRequired",

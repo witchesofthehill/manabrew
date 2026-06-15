@@ -57,6 +57,8 @@ interface BoardCanvasProps {
   arrowSpecs: ArrowSpec[];
   /** Live source→cursor targeting arrow while casting, or null. */
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
+  /** Local player is declaring blockers — enables drag-to-block. */
+  declareBlockers?: boolean;
   combatBlocks?: { blockerId: string; attackerId: string }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
@@ -95,6 +97,7 @@ export function BoardCanvas({
   hand,
   arrowSpecs,
   castingArrow,
+  declareBlockers,
   combatBlocks,
   phaseStrip,
   phaseStripCallbacks,
@@ -186,6 +189,7 @@ export function BoardCanvas({
       onUntapLands: (...a) => callbacksRef.current.onUntapLands?.(...a),
       onTapLandAbility: (...a) => callbacksRef.current.onTapLandAbility?.(...a),
       onAttackerClick: (...a) => callbacksRef.current.onAttackerClick?.(...a),
+      onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
@@ -314,6 +318,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setCastingArrow(castingArrow ?? null);
   }, [scene, castingArrow]);
+
+  useEffect(() => {
+    scene?.setDeclareBlockers(declareBlockers ?? false);
+  }, [scene, declareBlockers]);
 
   useEffect(() => {
     scene?.applyCombatBlocks(combatBlocks ?? []);

@@ -105,6 +105,8 @@ export interface RegionHost {
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
   getHandReserveBottom(): number;
+  /** Spawn a rising/fading number at a canvas-space point (combat damage). */
+  spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   isDestroyed(): boolean;
 }
 

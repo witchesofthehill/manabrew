@@ -58,9 +58,15 @@ export interface MainActionOverlayProps {
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
   pendingAttacker: string | null;
+  pendingBlocker: string | null;
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
+  damageOrderCount: number;
+  damageOrderTotal: number;
+  onConfirmDamageOrder: () => void;
+  onUndoDamageOrder: () => void;
+  onDefaultDamageOrder: () => void;
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
   onCompleteTargets?: (() => void) | null;

@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, type FederatedPointerEvent } from "pixi.js";
+import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite, setCardSpriteTheme } from "../CardSprite";
 import { hexToNum } from "../colorUtils";
@@ -17,6 +17,9 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import {
   BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
+  FLOATER_FONT_SIZE,
+  FLOATER_LIFETIME_FRAMES,
+  FLOATER_RISE_PER_FRAME,
   PHASE_STRIP_COMBAT_ALPHA,
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
@@ -80,6 +83,12 @@ export class BoardScene {
   private localPlayerId: string | null = null;
   private cardScale = 1;
 
+  private floaterLayer: Container;
+  private floaters: { text: Text; age: number }[] = [];
+
+  private declareBlockers = false;
+  private blockDragBlockerId: string | null = null;
+
   private hand: HandController | null = null;
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
@@ -139,6 +148,13 @@ export class BoardScene {
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
     this.root.addChild(this.phaseStrip.container);
+
+    // Floating damage/life numbers live in canvas space above every region so
+    // they read upright regardless of a seat's rotation.
+    this.floaterLayer = new Container();
+    this.floaterLayer.eventMode = "none";
+    this.floaterLayer.zIndex = 9000;
+    this.root.addChild(this.floaterLayer);
 
     app.stage.on("pointermove", (e: FederatedPointerEvent) => this.onGlobalMove(e));
     app.stage.on("pointerup", () => this.onGlobalUp());
@@ -416,6 +432,13 @@ export class BoardScene {
     this.castingArrow = arrow;
   }
 
+  /** Whether the local player is declaring blockers — enables drag-to-block
+   *  (press a blocker, drag onto an attacker). */
+  setDeclareBlockers(active: boolean): void {
+    this.declareBlockers = active;
+    if (!active) this.blockDragBlockerId = null;
+  }
+
   setPhaseStripState(state: PhaseStripState): void {
     this.phaseStrip.update(state);
   }
@@ -491,8 +514,46 @@ export class BoardScene {
       wireSprite: (sprite) => this.wireSprite(sprite, playerId, isLocal),
       screenXToLocalX: (screenX) => screenX - this.app.canvas.getBoundingClientRect().left,
       getHandReserveBottom: () => (isLocal ? this.handReserveBottom() : 0),
+      spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       isDestroyed: () => this.destroyed,
     };
+  }
+
+  /** Spawn a rising/fading number (e.g. "-3") at a canvas-space point. */
+  spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void {
+    if (this.destroyed) return;
+    const text = new Text({
+      text: content,
+      style: {
+        fontFamily: "system-ui, sans-serif",
+        fontSize: FLOATER_FONT_SIZE,
+        fontWeight: "900",
+        fill: color,
+        stroke: { color: 0x000000, width: 4 },
+      },
+    });
+    text.anchor.set(0.5);
+    text.position.set(canvasX, canvasY);
+    this.floaterLayer.addChild(text);
+    this.floaters.push({ text, age: 0 });
+  }
+
+  private animateFloaters(): void {
+    if (this.floaters.length === 0) return;
+    const survivors: { text: Text; age: number }[] = [];
+    for (const f of this.floaters) {
+      f.age += 1;
+      f.text.y -= FLOATER_RISE_PER_FRAME;
+      const t = f.age / FLOATER_LIFETIME_FRAMES;
+      f.text.alpha = t < 0.5 ? 1 : Math.max(0, 1 - (t - 0.5) / 0.5);
+      if (f.age >= FLOATER_LIFETIME_FRAMES) {
+        this.floaterLayer.removeChild(f.text);
+        f.text.destroy();
+      } else {
+        survivors.push(f);
+      }
+    }
+    this.floaters = survivors;
   }
 
   /** Depth (px) the hand fan overlaps the bottom of the local self zone. */
@@ -613,6 +674,15 @@ export class BoardScene {
           this.callbacks.onClickCard?.(sprite.card);
         }
       });
+      sprite.on("pointerup", () => {
+        if (
+          this.blockDragBlockerId &&
+          isAttackerTap(region?.getLastState() ?? null, sprite.card.id)
+        ) {
+          this.callbacks.onAssignBlock?.(this.blockDragBlockerId, sprite.card.id);
+          this.blockDragBlockerId = null;
+        }
+      });
     }
     sprite.on("pointerenter", () => {
       if (region) this.setBattlefieldCardHovered(region, sprite);
@@ -671,6 +741,15 @@ export class BoardScene {
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;
+    // Drag-to-block: while declaring blockers, pressing an available blocker
+    // arms a block-drag (an arrow to the cursor) instead of a grid move. The
+    // drop is resolved by the attacker sprite's pointerup.
+    if (this.declareBlockers && local.getLastState()?.selectableCardIds?.includes(sprite.card.id)) {
+      this.blockDragBlockerId = sprite.card.id;
+      this.callbacks.onHoverCard?.(null);
+      this.callbacks.onDismissHoverPreview?.();
+      return;
+    }
     this.callbacks.onHoverCard?.(null);
     const pos = this.root.toLocal(e.global);
     selection.setSelected(
@@ -743,6 +822,12 @@ export class BoardScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
+    // A live block-drag that wasn't released on an attacker (the attacker's
+    // own pointerup clears it on a hit) — cancel it.
+    if (this.blockDragBlockerId) {
+      this.blockDragBlockerId = null;
+      return;
+    }
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;
@@ -778,6 +863,7 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
+    this.animateFloaters();
     this.captureStackSeeds();
     if (this.dropActive) {
       const local = this.localRegion();
@@ -820,7 +906,13 @@ export class BoardScene {
   getArrowDefs(): ArrowDef[] {
     if (this.destroyed) return [];
     const castDragging = this.hand?.isDraggingPermanent() ?? false;
-    if (this.arrowSpecs.length === 0 && !this.castingArrow && !castDragging) return [];
+    if (
+      this.arrowSpecs.length === 0 &&
+      !this.castingArrow &&
+      !castDragging &&
+      !this.blockDragBlockerId
+    )
+      return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
     for (const spec of this.arrowSpecs) {
@@ -843,6 +935,22 @@ export class BoardScene {
           toY: this.cursorViewportY - canvasRect.top,
           type: "casting",
           color: hexToNum(this.castingArrow.hostile ? t.hostile : t.friendly),
+        });
+      }
+    }
+    // Drag-to-block: an arrow from the armed blocker to the cursor.
+    if (this.blockDragBlockerId) {
+      const from = this.resolveArrowEndpoint(
+        { kind: "card", id: this.blockDragBlockerId },
+        canvasRect,
+      );
+      if (from) {
+        resolved.push({
+          fromX: from.x,
+          fromY: from.y,
+          toX: this.cursorViewportX - canvasRect.left,
+          toY: this.cursorViewportY - canvasRect.top,
+          type: "block",
         });
       }
     }
@@ -918,6 +1026,8 @@ export class BoardScene {
       this.hand?.destroy();
       this.selection?.destroy();
       for (const rec of this.regions.values()) rec.region.destroy();
+      for (const f of this.floaters) f.text.destroy();
+      this.floaters = [];
     } catch (err) {
       console.warn("[pixi] BoardScene teardown threw:", err);
     }

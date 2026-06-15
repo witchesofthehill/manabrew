@@ -262,6 +262,9 @@ export class CardSprite extends Container {
   private stackCountContainer: Container;
   private stackCountBg: Graphics;
   private stackCountText: Text;
+  private orderBadgeContainer: Container;
+  private orderBadgeBg: Graphics;
+  private orderBadgeText: Text;
   private etbGlow: Graphics;
   private _imageLoaded = false;
 
@@ -371,6 +374,15 @@ export class CardSprite extends Container {
     this.stackCountContainer.addChild(this.stackCountText);
     this.stackCountContainer.visible = false;
     this.addChild(this.stackCountContainer);
+
+    this.orderBadgeContainer = new Container();
+    this.orderBadgeBg = new Graphics();
+    this.orderBadgeText = new Text({ text: "", style: COUNTER_STYLE });
+    this.orderBadgeText.resolution = TEXT_RASTER_RESOLUTION;
+    this.orderBadgeContainer.addChild(this.orderBadgeBg);
+    this.orderBadgeContainer.addChild(this.orderBadgeText);
+    this.orderBadgeContainer.visible = false;
+    this.addChild(this.orderBadgeContainer);
 
     this.etbGlow = new Graphics();
     this.etbGlow.visible = false;
@@ -572,6 +584,32 @@ export class CardSprite extends Container {
     this.stackCountText.y = 1;
     this.stackCountContainer.x = 3;
     this.stackCountContainer.y = 2;
+  }
+
+  /** Damage-assignment order badge (1-based). null hides it. */
+  setOrderBadge(n: number | null): void {
+    if (n == null) {
+      this.orderBadgeContainer.visible = false;
+      return;
+    }
+    this.orderBadgeContainer.visible = true;
+    this.orderBadgeText.text = String(n);
+    const d = Math.max(this.orderBadgeText.width, this.orderBadgeText.height) + 10;
+    this.orderBadgeBg.clear();
+    this.orderBadgeBg.circle(d / 2, d / 2, d / 2);
+    this.orderBadgeBg.fill({
+      color: hexToNum(activeTheme.gameTheme.promptAction.attackAction),
+      alpha: 0.95,
+    });
+    this.orderBadgeBg.stroke({
+      color: hexToNum(activeTheme.gameTheme.canvas.shadow),
+      width: 1.5,
+      alpha: 0.9,
+    });
+    this.orderBadgeText.x = (d - this.orderBadgeText.width) / 2;
+    this.orderBadgeText.y = (d - this.orderBadgeText.height) / 2;
+    this.orderBadgeContainer.x = (CARD_W - d) / 2;
+    this.orderBadgeContainer.y = 4;
   }
 
   private updateFoil(): void {

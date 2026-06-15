@@ -26,9 +26,15 @@ export function MainActionOverlay({
   onDeclareAttackers,
   onBeginAttackTargetPick,
   pendingAttacker,
+  pendingBlocker,
   attackerIds,
   blockAssignments,
   onDeclareBlockers,
+  damageOrderCount,
+  damageOrderTotal,
+  onConfirmDamageOrder,
+  onUndoDamageOrder,
+  onDefaultDamageOrder,
   onOpenStack,
   targetCompletionLabel,
   onCompleteTargets,
@@ -102,8 +108,14 @@ export function MainActionOverlay({
               onDeclareAttackers={onDeclareAttackers}
               onBeginAttackTargetPick={onBeginAttackTargetPick}
               pendingAttacker={pendingAttacker}
+              pendingBlocker={pendingBlocker}
               blockAssignments={blockAssignments}
               onDeclareBlockers={onDeclareBlockers}
+              damageOrderCount={damageOrderCount}
+              damageOrderTotal={damageOrderTotal}
+              onConfirmDamageOrder={onConfirmDamageOrder}
+              onUndoDamageOrder={onUndoDamageOrder}
+              onDefaultDamageOrder={onDefaultDamageOrder}
               onOpenStack={onOpenStack}
               targetCompletionLabel={targetCompletionLabel}
               onCompleteTargets={onCompleteTargets}

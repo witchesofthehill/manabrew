@@ -193,6 +193,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     activePrompt?.input.type === "chooseAttackers" ? activePrompt.input : null;
   const chooseBlockersInput =
     activePrompt?.input.type === "chooseBlockers" ? activePrompt.input : null;
+  const damageOrderInput =
+    activePrompt?.input.type === "chooseDamageAssignmentOrder" ? activePrompt.input : null;
   const payCombatCostInput =
     activePrompt?.input.type === "payCombatCost" ? activePrompt.input : null;
   const payManaCostInput = activePrompt?.input.type === "payManaCost" ? activePrompt.input : null;
@@ -525,8 +527,12 @@ export default function Game({ exitTo }: GameProps = {}) {
   const {
     pendingAttackers,
     pendingAttacker,
+    pendingBlocker,
     attackDefenderId,
     blockAssignments,
+    assignBlockPair,
+    damageOrder,
+    undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,
     playerIsTargetable,
@@ -1379,6 +1385,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           promptType={promptType}
           currentPrompt={activePrompt}
           pendingAttackers={pendingAttackers}
+          pendingBlocker={pendingBlocker}
+          damageOrder={damageOrder}
+          damageOrderBlockerIds={damageOrderInput?.blockerIds ?? []}
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
@@ -1414,6 +1423,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             handleBattlefieldClick(card);
           }}
           onAttackerClick={handleAttackerClick}
+          onAssignBlock={assignBlockPair}
           onTargetPlayer={handleTargetPlayer}
           onOpenZone={(title, cards, onClickCard, clickableCardIds) => {
             if (manualApi) {
@@ -1526,9 +1536,22 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
           onBeginAttackTargetPick={selectAllAttackersForPick}
           pendingAttacker={pendingAttacker}
+          pendingBlocker={pendingBlocker}
           attackerIds={chooseBlockersInput?.attackerIds ?? []}
           blockAssignments={blockAssignments}
           onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
+          damageOrderCount={damageOrder.length}
+          damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
+          onConfirmDamageOrder={() =>
+            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+          }
+          onUndoDamageOrder={undoDamageOrder}
+          onDefaultDamageOrder={() =>
+            respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+            })
+          }
           onOpenStack={() => setSpellStackModalOpen(true)}
           targetCompletionLabel={targetCompletion?.label}
           onCompleteTargets={targetCompletion?.onComplete}

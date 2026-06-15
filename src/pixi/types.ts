@@ -81,6 +81,8 @@ export interface GameCanvasCallbacks {
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
   onAttackerClick?: (card: GameCard) => void;
+  /** Drag-to-block: a blocker sprite was dropped onto an attacker sprite. */
+  onAssignBlock?: (blockerId: string, attackerId: string) => void;
   onCastSpell?: (cardId: string) => void;
   /**
    * Dismiss the hover preview immediately (no 250ms grace). Used when
@@ -95,6 +97,9 @@ export interface BattlefieldState {
   attackingCardIds?: string[];
   /** Creatures that would die in the current combat — drawn with a lethal ring. */
   doomedCardIds?: string[];
+  /** Blockers chosen so far in damage-assignment ordering; index+1 is shown as a
+   *  numbered badge on each (first in line takes damage first). */
+  orderedCardIds?: string[];
   selectableCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];

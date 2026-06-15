@@ -64,6 +64,12 @@ interface GameBoardProps {
 
   // Combat state
   pendingAttackers: string[];
+  /** Blocker armed in blocker-first declare-blockers, awaiting its attacker. */
+  pendingBlocker?: string | null;
+  /** Blockers chosen so far during damage-assignment ordering (in order). */
+  damageOrder?: string[];
+  /** All blockers the engine wants ordered (drives selectable rings). */
+  damageOrderBlockerIds?: string[];
   selectedAttackDefenderId?: string | null;
   blockAssignments: { blockerId: string; attackerId: string }[];
   /** Locked-in blocker→attacker assignments from the engine; combined with
@@ -104,6 +110,7 @@ interface GameBoardProps {
   onFlipCard: () => void;
   onBattlefieldClick: (card: GameCard) => void;
   onAttackerClick: (card: GameCard) => void;
+  onAssignBlock: (blockerId: string, attackerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
   onOpenZone: (
     title: string,
@@ -161,6 +168,9 @@ export function GameBoard({
   promptType,
   currentPrompt,
   pendingAttackers,
+  pendingBlocker,
+  damageOrder,
+  damageOrderBlockerIds,
   selectedAttackDefenderId,
   blockAssignments,
   combatAssignments,
@@ -184,6 +194,7 @@ export function GameBoard({
   onFlipCard,
   onBattlefieldClick,
   onAttackerClick,
+  onAssignBlock,
   onTargetPlayer,
   onOpenZone,
   onOpenZoneAndCast,
@@ -326,21 +337,24 @@ export function GameBoard({
           ]
         : promptType === "chooseBlockers"
           ? chooseBlockersPrompt?.input.availableBlockerIds
-          : promptType === "chooseTargetCard"
-            ? chooseTargetCardPrompt?.input.validCardIds
-            : promptType === "chooseTargetAny"
-              ? chooseTargetAnyPrompt?.input.validCardIds
-              : promptType === "chooseTargetCardFromZone" &&
-                  chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
-                ? chooseTargetCardFromZonePrompt.input.validCardIds
-                : promptType === "chooseAction"
-                  ? chooseActionAbilityCardIds
-                  : undefined,
+          : promptType === "chooseDamageAssignmentOrder"
+            ? damageOrderBlockerIds
+            : promptType === "chooseTargetCard"
+              ? chooseTargetCardPrompt?.input.validCardIds
+              : promptType === "chooseTargetAny"
+                ? chooseTargetAnyPrompt?.input.validCardIds
+                : promptType === "chooseTargetCardFromZone" &&
+                    chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
+                  ? chooseTargetCardFromZonePrompt.input.validCardIds
+                  : promptType === "chooseAction"
+                    ? chooseActionAbilityCardIds
+                    : undefined,
     [
       promptType,
       chooseAttackersPrompt,
       pendingAttackers,
       chooseBlockersPrompt,
+      damageOrderBlockerIds,
       chooseTargetCardPrompt,
       chooseTargetAnyPrompt,
       chooseTargetCardFromZonePrompt,
@@ -354,10 +368,14 @@ export function GameBoard({
         promptType === "chooseAttackers"
           ? pendingAttackers
           : promptType === "chooseBlockers"
-            ? blockAssignments.map((a) => a.blockerId)
+            ? [
+                ...blockAssignments.map((a) => a.blockerId),
+                ...(pendingBlocker ? [pendingBlocker] : []),
+              ]
             : undefined,
       attackingCardIds: promptAttackerIds,
       doomedCardIds,
+      orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       tappableLandIds: chooseActionActions
         ? chooseActionActions
@@ -375,9 +393,11 @@ export function GameBoard({
       myPermanents,
       promptType,
       pendingAttackers,
+      pendingBlocker,
       blockAssignments,
       promptAttackerIds,
       doomedCardIds,
+      damageOrder,
       selectableBattlefieldCardIds,
       chooseActionActions,
       payCombatCostPrompt,
@@ -444,6 +464,7 @@ export function GameBoard({
       onUntapLands,
       onFlipCard,
       onAttackerClick,
+      onAssignBlock,
     }),
     [
       promptType,
@@ -461,6 +482,7 @@ export function GameBoard({
       onUntapLands,
       onFlipCard,
       onAttackerClick,
+      onAssignBlock,
     ],
   );
 
@@ -567,6 +589,7 @@ export function GameBoard({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
       doomedCardIds,
+      orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
     });
@@ -586,6 +609,7 @@ export function GameBoard({
     promptType,
     promptAttackerIds,
     doomedCardIds,
+    damageOrder,
     selectableBattlefieldCardIds,
     hostileTargeting,
   ]);
@@ -711,7 +735,10 @@ export function GameBoard({
         split={selfIsSplit}
         zonesGrid={selfSplit.grid}
         isActiveTurn={activePlayerId === me.id}
-        isPriorityPlayer={priorityPlayerId === me.id}
+        // Pulse only marks a *reaction window*: a non-active player handed
+        // priority to respond. This skips the constant self-glow during your
+        // own turn while still flagging when you (or an opponent) must react.
+        isPriorityPlayer={priorityPlayerId === me.id && activePlayerId !== me.id}
         isTargetable={playerIsTargetable(me.id)}
         onTarget={() => onTargetPlayer(me.id)}
         isFlashing={turnFlashPlayerId === me.id}
@@ -806,6 +833,7 @@ export function GameBoard({
           hand={pixiHand}
           arrowSpecs={arrowSpecs ?? []}
           castingArrow={castingArrow}
+          declareBlockers={promptType === "chooseBlockers"}
           combatBlocks={combatAssignmentsAll}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
@@ -868,7 +896,7 @@ export function GameBoard({
                 orientation === "left" || orientation === "right" ? "vertical" : "horizontal"
               }
               isActiveTurn={activePlayerId === op.id}
-              isPriorityPlayer={priorityPlayerId === op.id}
+              isPriorityPlayer={priorityPlayerId === op.id && activePlayerId !== op.id}
               isTargetable={playerIsTargetable(op.id)}
               isSelectedTarget={selectedAttackDefenderId === op.id}
               onTarget={() => onTargetPlayer(op.id)}

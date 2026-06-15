@@ -7,7 +7,6 @@ export { ChooseNumberModal } from "./ChooseNumberModal";
 export { ChooseOptionalTriggerModal } from "./ChooseOptionalTriggerModal";
 export { RevealCardsModal } from "./RevealCardsModal";
 export { ChooseTypeModal } from "./ChooseTypeModal";
-export { DamageOrderModal } from "./DamageOrderModal";
 export { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
 export { LibraryPeekModal, type LibraryPeekMode } from "./LibraryPeekModal";
 export { Modal } from "./Modal";

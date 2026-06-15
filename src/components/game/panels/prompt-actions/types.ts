@@ -34,9 +34,18 @@ export interface ChooseAttackersProps extends PromptActionLayoutProps {
 
 export interface ChooseBlockersProps extends PromptActionLayoutProps {
   pendingAttacker: string | null;
+  pendingBlocker: string | null;
   blockAssignments: CombatAssignment[];
   onPassPriority: () => void;
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
+}
+
+export interface ChooseDamageOrderProps extends PromptActionLayoutProps {
+  orderedCount: number;
+  totalCount: number;
+  onConfirm: () => void;
+  onUndo: () => void;
+  onDefault: () => void;
 }
 
 export interface ChooseTargetSpellProps extends PromptActionLayoutProps {

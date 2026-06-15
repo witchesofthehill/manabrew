@@ -138,6 +138,8 @@
   --animate-player-turn-flash: player-turn-flash var(--flash-duration, 1000ms) ease-out forwards;
   --animate-life-flash: life-flash 600ms ease-out;
   --animate-player-targetable-pulse: player-targetable-pulse 1.5s ease-in-out infinite;
+  --animate-player-priority-pulse: player-priority-pulse 1.6s ease-in-out infinite;
+  --animate-life-float: life-float 900ms ease-out forwards;
   --animate-dice-roll: dice-roll 2s cubic-bezier(0.18, 0.72, 0.25, 1) both;
   --animate-onboard-fade-in: onboard-fade-in 200ms ease-out both;
   --animate-onboard-fade-up: onboard-fade-up 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -275,6 +277,39 @@
     }
   }
 
+  /* Rising/fading life-change number above the avatar. Keeps horizontal
+     centering via translateX(-50%) while it floats up. */
+  @keyframes life-float {
+    0% {
+      opacity: 0;
+      transform: translate(-50%, 4px) scale(0.85);
+    }
+    20% {
+      opacity: 1;
+      transform: translate(-50%, -2px) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -22px) scale(1);
+    }
+  }
+
+  /* Inset ring so it composes with the active-turn outer glow rather than
+     fighting it. `--priority-color` is set inline by PlayerAvatar. */
+  @keyframes player-priority-pulse {
+    0%,
+    100% {
+      box-shadow:
+        inset 0 0 0 2px var(--priority-color, hsl(45 90% 55%)),
+        0 0 6px 1px var(--priority-color, hsl(45 90% 55%));
+    }
+    50% {
+      box-shadow:
+        inset 0 0 0 2px var(--priority-color, hsl(45 90% 55%)),
+        0 0 12px 3px var(--priority-color, hsl(45 90% 55%));
+    }
+  }
+
   @keyframes button-gradient {
     0% {
       background-position: 0% 50%;
@@ -376,6 +411,8 @@
   .animate-card-stack-flash-in,
   .animate-player-turn-flash,
   .animate-player-targetable-pulse,
+  .animate-player-priority-pulse,
+  .animate-life-float,
   .animate-dice-roll {
     animation: none !important;
   }

@@ -12,10 +12,16 @@ export function ChooseBlockers({
   buttonLayout,
   isWaitingForResponse,
   pendingAttacker,
+  pendingBlocker,
   blockAssignments,
   onPassPriority,
   onDeclareBlockers,
 }: ChooseBlockersProps) {
+  const hint = pendingAttacker
+    ? "Attacker selected — click your blocker."
+    : pendingBlocker
+      ? "Blocker selected — click the attacker to block."
+      : null;
   const promptActionColors = usePromptActionColors();
 
   if (buttonLayout === "modern") {
@@ -33,11 +39,7 @@ export function ChooseBlockers({
         >
           NO BLOCKERS
         </Button>
-        {pendingAttacker && (
-          <p className="text-xs italic text-muted-foreground text-center">
-            Attacker selected. Click your blocker.
-          </p>
-        )}
+        {hint && <p className="text-xs italic text-muted-foreground text-center">{hint}</p>}
         {blockAssignments.length > 0 && (
           <Button
             size="sm"
@@ -66,11 +68,7 @@ export function ChooseBlockers({
         onClick={onPassPriority}
         disabled={isWaitingForResponse}
       />
-      {pendingAttacker && (
-        <p className="text-xs italic text-muted-foreground">
-          Attacker selected. Click your blocker.
-        </p>
-      )}
+      {hint && <p className="text-xs italic text-muted-foreground">{hint}</p>}
       {blockAssignments.length > 0 && (
         <PromptActionButton
           layout={buttonLayout}

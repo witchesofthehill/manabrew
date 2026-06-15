@@ -7,7 +7,6 @@ import {
   ChooseNumberModal,
   ChooseCardNameModal,
   ChooseCardsModal,
-  DamageOrderModal,
   VAssignCombatDamageModal,
   ReorderLibraryModal,
   RevealCardsModal,
@@ -168,18 +167,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
         .filter((card): card is GameCard => card != null)}
       numToTake={prompt.input.numToDiscard}
       onConfirm={(discardedCardIds) => respond({ type: "discardDecision", discardedCardIds })}
-    />
-  ),
-
-  chooseDamageAssignmentOrder: ({ prompt, respond, ctx }) => (
-    <DamageOrderModal
-      attackerId={prompt.input.attackerId}
-      blockerIds={prompt.input.blockerIds}
-      blockerCards={prompt.input.blockerCards as GameCard[]}
-      gameViewCards={ctx.gameView?.battlefield ?? []}
-      onConfirm={(orderedBlockerIds) =>
-        respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds })
-      }
     />
   ),
 

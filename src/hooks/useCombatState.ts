@@ -34,8 +34,10 @@ export function useCombatState({
 }: UseCombatStateOptions) {
   const [pendingAttackers, setPendingAttackers] = useState<string[]>([]);
   const [pendingAttacker, setPendingAttacker] = useState<string | null>(null);
+  const [pendingBlocker, setPendingBlocker] = useState<string | null>(null);
   const [attackDefenderId, setAttackDefenderId] = useState<string | null>(null);
   const [blockAssignments, setBlockAssignments] = useState<CombatAssignment[]>([]);
+  const [damageOrder, setDamageOrder] = useState<string[]>([]);
 
   // Reset transient combat selections whenever the prompt type changes. Block
   // assignments are NOT cleared on leaving chooseBlockers: they keep driving
@@ -46,7 +48,9 @@ export function useCombatState({
     setPrevPromptType(promptType);
     setPendingAttackers([]);
     setPendingAttacker(null);
+    setPendingBlocker(null);
     setAttackDefenderId(null);
+    setDamageOrder([]);
     if (promptType === "chooseBlockers") setBlockAssignments([]);
   }
 
@@ -159,27 +163,13 @@ export function useCombatState({
         return;
       }
       if (pendingAttacker) {
-        setBlockAssignments((prev) => {
-          // Toggle: clicking the same blocker on the same attacker again
-          // unassigns it.
-          const alreadyOnAttacker = prev.some(
-            (a) => a.blockerId === card.id && a.attackerId === pendingAttacker,
-          );
-          if (alreadyOnAttacker) {
-            return prev.filter(
-              (a) => !(a.blockerId === card.id && a.attackerId === pendingAttacker),
-            );
-          }
-          // MTG 509.1c — each creature can block at most one attacker. If
-          // this blocker was already assigned elsewhere, move it (don't
-          // duplicate). We deliberately do NOT strip other blockers off
-          // the current attacker — multiple creatures can block one
-          // attacker, and the engine handles legality (Menace etc).
-          const withoutBlocker = prev.filter((a) => a.blockerId !== card.id);
-          return [...withoutBlocker, { blockerId: card.id, attackerId: pendingAttacker }];
-        });
-        // Keep `pendingAttacker` selected so the user can chain multiple
-        // blockers onto the same attacker without re-clicking it.
+        // Attacker-first: an attacker is selected; clicking a blocker assigns
+        // it. Keep `pendingAttacker` so the user can chain blockers onto it.
+        assignBlock(card.id, pendingAttacker);
+      } else {
+        // Blocker-first: no attacker selected yet, so arm this blocker and wait
+        // for the user to click the attacker it should block.
+        setPendingBlocker((prev) => (prev === card.id ? null : card.id));
       }
     } else if (promptType === "chooseTargetCard" || promptType === "chooseTargetCardFromZone") {
       if (
@@ -198,18 +188,69 @@ export function useCombatState({
         return;
       }
       targetAny({ kind: "card", cardId: card.id });
+    } else if (promptType === "chooseDamageAssignmentOrder") {
+      if (
+        currentPrompt.input.type !== "chooseDamageAssignmentOrder" ||
+        !currentPrompt.input.blockerIds.includes(card.id)
+      ) {
+        return;
+      }
+      // Click a blocker to append it to the damage order; click an already-
+      // ordered one to remove it (everything after re-sequences).
+      setDamageOrder((prev) =>
+        prev.includes(card.id) ? prev.filter((id) => id !== card.id) : [...prev, card.id],
+      );
     }
   }
 
+  function undoDamageOrder() {
+    setDamageOrder((prev) => prev.slice(0, -1));
+  }
+
+  // MTG 509.1c — each creature blocks at most one attacker. Clicking the same
+  // blocker on the same attacker again unassigns it; assigning a blocker that
+  // already blocks elsewhere moves it (we never strip the attacker's other
+  // blockers — multiple creatures may block one attacker; the engine enforces
+  // legality like Menace).
+  function assignBlock(blockerId: string, attackerId: string) {
+    setBlockAssignments((prev) => {
+      const alreadyOnAttacker = prev.some(
+        (a) => a.blockerId === blockerId && a.attackerId === attackerId,
+      );
+      if (alreadyOnAttacker) {
+        return prev.filter((a) => !(a.blockerId === blockerId && a.attackerId === attackerId));
+      }
+      const withoutBlocker = prev.filter((a) => a.blockerId !== blockerId);
+      return [...withoutBlocker, { blockerId, attackerId }];
+    });
+  }
+
+  // Drag-to-block: drop a blocker sprite onto an attacker to assign it directly.
+  function assignBlockPair(blockerId: string, attackerId: string) {
+    assignBlock(blockerId, attackerId);
+    setPendingBlocker(null);
+  }
+
   function handleAttackerClick(card: GameCard) {
+    // Blocker-first: a blocker is armed, so this attacker click completes the
+    // assignment instead of selecting the attacker.
+    if (pendingBlocker) {
+      assignBlock(pendingBlocker, card.id);
+      setPendingBlocker(null);
+      return;
+    }
     setPendingAttacker((prev) => (prev === card.id ? null : card.id));
   }
 
   return {
     pendingAttackers,
     pendingAttacker,
+    pendingBlocker,
     attackDefenderId,
     blockAssignments,
+    assignBlockPair,
+    damageOrder,
+    undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,
     playerIsTargetable,

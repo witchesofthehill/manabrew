@@ -90,6 +90,12 @@ export const COMBAT_LUNGE_FRAC = 0.4;
 export const DAMAGE_SHAKE_FRAMES = 14;
 export const DAMAGE_SHAKE_AMP_PX = 4;
 
+// ── Floating numbers (combat damage / life change) ──────────────────────────
+// A "-N" damage number rises and fades over the card / avatar it hit.
+export const FLOATER_LIFETIME_FRAMES = 48;
+export const FLOATER_RISE_PER_FRAME = 0.7;
+export const FLOATER_FONT_SIZE = 24;
+
 // ── Drag-to-cast feedback ───────────────────────────────────────────────────
 // While dragging a card out of hand to cast it: the dragged permanent scales up
 // and lifts slightly; the rest of the hand sinks out of the way (more for an

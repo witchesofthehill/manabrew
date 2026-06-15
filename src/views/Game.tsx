@@ -18,6 +18,7 @@ import { MainActionOverlay, RightActionPanel } from "@/components/game/panels";
 import { StackDisplay } from "@/components/game/panels/StackDisplay";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
+import { PERIMETER_SIDE_FRACTION } from "@/pixi/board/boardLayout";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getExpandedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
@@ -129,6 +130,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     })),
   );
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
+  const boardArrangement = usePreferencesStore((s) => s.boardArrangement);
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const vScale = useHandScale();
   const ghostCardW = Math.round(HAND_CARD_BASE.cardW * vScale);
@@ -1555,6 +1557,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         }
         showPreStackFlash={shouldShowPreStackFlash}
         rightPanelCollapsed={isActionPanelCollapsed}
+        rightInsetExtra={
+          boardArrangement === "perimeter" ? `${PERIMETER_SIDE_FRACTION * 100}%` : undefined
+        }
         playerColorMap={playerColorMap}
         validSpellIds={
           promptType === "chooseTargetSpell" ? (activePrompt?.input.validSpellIds ?? []) : []

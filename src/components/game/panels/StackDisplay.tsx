@@ -14,6 +14,9 @@ interface StackDisplayProps {
   flashToken?: string | null;
   showPreStackFlash?: boolean;
   rightPanelCollapsed?: boolean;
+  /** Extra CSS length added to the stack's right offset — used to push it off
+   *  the right side column (right opponent's seat) in the perimeter board. */
+  rightInsetExtra?: string;
   playerColorMap?: Map<string, string>;
   validSpellIds?: string[];
   onTargetSpell?: (spellId: string) => void;
@@ -43,6 +46,7 @@ export function StackDisplay({
   flashToken,
   showPreStackFlash = true,
   rightPanelCollapsed = true,
+  rightInsetExtra,
   playerColorMap,
   validSpellIds,
   onTargetSpell,
@@ -119,15 +123,18 @@ export function StackDisplay({
 
   if (stack.length === 0 && !flashCard) return null;
 
-  const rightInset = rightPanelCollapsed
+  const baseRightInset = rightPanelCollapsed
     ? STACK_RIGHT_WHEN_PANEL_COLLAPSED
     : STACK_RIGHT_WHEN_PANEL_OPEN;
+  const rightInset = rightInsetExtra
+    ? `calc(${baseRightInset}px + ${rightInsetExtra})`
+    : `${baseRightInset}px`;
 
   return (
     <div
       data-stack-panel
       className={cn("pointer-events-auto absolute z-40 transition-[right] duration-200")}
-      style={{ top, right: `${rightInset}px` }}
+      style={{ top, right: rightInset }}
     >
       <div
         className="relative"

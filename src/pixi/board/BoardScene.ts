@@ -83,6 +83,7 @@ export class BoardScene {
   private dragHandler: DragHandler;
   private phaseStrip: PhaseStripLayer;
   private stripBackgroundGfx: Graphics;
+  private regionDividerGfx: Graphics;
   private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
@@ -124,6 +125,11 @@ export class BoardScene {
     this.stripBackgroundGfx.eventMode = "none";
     this.stripBackgroundGfx.zIndex = 5;
     this.root.addChild(this.stripBackgroundGfx);
+
+    this.regionDividerGfx = new Graphics();
+    this.regionDividerGfx.eventMode = "none";
+    this.regionDividerGfx.zIndex = 6000;
+    this.root.addChild(this.regionDividerGfx);
 
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
@@ -221,6 +227,25 @@ export class BoardScene {
     this.phaseStrip.container.y = layout.dividerY - STRIP_BAND_PX / 2;
     this.phaseStrip.resize(layout.self.width, STRIP_BAND_PX);
     this.drawStripBackground(layout);
+    this.drawRegionDividers(layout);
+  }
+
+  /** Draw full-height divider lines between the side columns and the center in
+   *  the perimeter arrangement so each player's battlefield reads as its own
+   *  area. Row keeps the phase-strip line + resize grips as its separators. */
+  private drawRegionDividers(layout: BoardLayout): void {
+    const g = this.regionDividerGfx;
+    g.clear();
+    const hasSides = layout.opponents.some(
+      (o) => o.orientation === "left" || o.orientation === "right",
+    );
+    if (!hasSides) return;
+    const h = this.app.renderer.height;
+    for (const x of [layout.self.x, layout.self.x + layout.self.width]) {
+      g.moveTo(x, 0);
+      g.lineTo(x, h);
+    }
+    g.stroke({ color: hexToNum(this.theme.gameTheme.canvas.neutral), width: 2, alpha: 0.12 });
   }
 
   /** Fill the center strip band with the same felt as the battlefield
@@ -398,7 +423,10 @@ export class BoardScene {
     this.theme = theme;
     setCardSpriteTheme(theme);
     this.phaseStrip.setTheme(theme);
-    if (this.lastLayout) this.drawStripBackground(this.lastLayout);
+    if (this.lastLayout) {
+      this.drawStripBackground(this.lastLayout);
+      this.drawRegionDividers(this.lastLayout);
+    }
     for (const rec of this.regions.values()) rec.region.redrawTheme();
   }
 

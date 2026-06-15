@@ -43,7 +43,19 @@ impl BotAgent for SimpleAi {
                 } else {
                     None
                 };
-                let allowed = |a: &&AvailableAction| Some(&a.id) != avoid.as_ref();
+
+                // Important: skip mana actions
+                let useful = |a: &&AvailableAction| {
+                    !matches!(
+                        a.kind,
+                        AvailableActionKind::UndoMana { .. }
+                            | AvailableActionKind::ActivateAbility {
+                                is_mana_ability: true,
+                                ..
+                            }
+                    )
+                };
+                let allowed = |a: &&AvailableAction| Some(&a.id) != avoid.as_ref() && useful(a);
                 let pick = actions
                     .iter()
                     .filter(allowed)

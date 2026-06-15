@@ -26,6 +26,7 @@ import {
   BG_ALPHA_DROP,
   BG_ALPHA_IDLE,
   CARD_RADIUS,
+  COMBAT_LUNGE_FRAC,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_OVERLAP_FRAC,
   GRID_SKELETON_FILL_ALPHA,
@@ -404,7 +405,23 @@ export class BoardRegion {
     }
 
     this.applyCombatStaging();
+    this.applyAttackLunge(state);
     this.emptyText.visible = state.cards.length === 0;
+  }
+
+  /** Slide committed attackers a little toward the divider (MTGA "lunge") when
+   *  they aren't already pulled to it by an active block staging. */
+  private applyAttackLunge(state: BattlefieldState): void {
+    if (this.orientation === "left" || this.orientation === "right") return;
+    const staged = this.combatStaging?.attackerIds;
+    const lunge = CARD_H * this.cardScale * COMBAT_LUNGE_FRAC;
+    for (const card of state.cards) {
+      if (!card.isAttacking || staged?.has(card.id)) continue;
+      const entry = this.entries.get(card.id);
+      if (!entry) continue;
+      entry.targetY += this.mirrored ? lunge : -lunge;
+      entry.targetZIndex = Math.max(entry.targetZIndex, Z_COMBAT_STAGED - 1);
+    }
   }
 
   private applyCombatStaging(): void {

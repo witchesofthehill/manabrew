@@ -511,7 +511,10 @@ export function CardPreview({
                     alt={currentCardName}
                     title=""
                     onLoad={() => setLoadedSrc(currentImageUrl)}
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
+                    className={cn(
+                      "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] transition-opacity duration-200",
+                      imgLoaded ? "opacity-100" : "opacity-0",
+                    )}
                   />
                 ) : (
                   <ScryfallImg
@@ -519,7 +522,10 @@ export function CardPreview({
                     alt={currentCardName}
                     title=""
                     onLoad={() => setLoadedSrc(currentImageUrl)}
-                    className="w-full h-full object-cover"
+                    className={cn(
+                      "w-full h-full object-cover transition-opacity duration-200",
+                      imgLoaded ? "opacity-100" : "opacity-0",
+                    )}
                   />
                 )}
                 {!imgLoaded && !currentLowResUrl && (

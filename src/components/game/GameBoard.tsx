@@ -641,6 +641,10 @@ export function GameBoard({
       const sections = el.querySelectorAll<HTMLElement>("[data-panel-section]");
       next[id] = sections.length > 0 ? [...sections].map(toRect) : [toRect(el)];
     }
+    // The action / PASS cluster (bottom-right, rendered outside this subtree)
+    // is a self-region keep-out so cards never lay out under the buttons.
+    const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
+    if (actionEl) (next[me.id] ??= []).push(toRect(actionEl));
     const json = JSON.stringify(next);
     if (json === lastPanelBlockersRef.current) return;
     lastPanelBlockersRef.current = json;
@@ -657,6 +661,7 @@ export function GameBoard({
     exile.length,
     boardArrangement,
     selfSplit.grid,
+    promptType,
   ]);
   // Span from the self zone's left edge to just left of the action cluster so
   // the right-anchored zones never sit under the PASS / KEEP-MULLIGAN buttons.

@@ -63,7 +63,10 @@ export function MainActionOverlay({
           (h-7 + gap-y-1 + bottom-2 = ~40px) so the PASS cluster sits
           at the same vertical line as the avatar / library / graveyard
           row on the left. */}
-      <div className="absolute bottom-10 right-12 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col items-end gap-0">
+      <div
+        data-action-cluster
+        className="absolute bottom-10 right-12 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col items-end gap-0"
+      >
         {/* Prompt / action area */}
         <section className="w-full flex flex-col gap-3">
           <CombatInfo

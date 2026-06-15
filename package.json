@@ -12,7 +12,7 @@
     "web": "yarn gen:protocol && node scripts/ensure-wasm.mjs && vite",
     "ensure:wasm": "node scripts/ensure-wasm.mjs",
     "ensure:harness": "node scripts/harness.mjs ensure",
-    "gen:protocol": "node scripts/gen-protocol.mjs",
+    "gen:protocol": "cargo run -q -p forge-protocol --bin gen-protocol -- src/protocol && prettier --write src/protocol",
     "vite:dev": "yarn gen:protocol && vite",
     "vite:build": "yarn gen:protocol && tsc -b && vite build",
     "tauri:before-build": "yarn build:harness && yarn vite:build",

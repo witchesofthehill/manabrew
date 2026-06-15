@@ -111,3 +111,64 @@ pub enum PromptInput {
     ChooseRollSwapValue(choose_roll_swap_value::ChooseRollSwapValueInput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput),
 }
+
+/// Union of every per-prompt response shape. Untagged because each `*Output` is
+/// already a `type`-tagged union; this exists to generate the TS `PromptOutput`
+/// union and to act as the ts-rs export root for the output types. The engine
+/// wire response is `PlayerAction` (in `forge-agent-interface`), not this.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(untagged)]
+#[ts(export, export_to = "prompts/promptOutput.ts")]
+pub enum PromptOutput {
+    Mulligan(mulligan::MulliganOutput),
+    MulliganPutBack(mulligan_put_back::MulliganPutBackOutput),
+    ChooseAction(choose_action::ChooseActionOutput),
+    ChooseAttackers(choose_attackers::ChooseAttackersOutput),
+    ChooseBlockers(choose_blockers::ChooseBlockersOutput),
+    ChooseTargetPlayer(choose_target_player::ChooseTargetPlayerOutput),
+    ChooseTargetCard(choose_target_card::ChooseTargetCardOutput),
+    ChooseTargetAny(choose_target_any::ChooseTargetAnyOutput),
+    ChooseTargetCardFromZone(choose_target_card_from_zone::ChooseTargetCardFromZoneOutput),
+    RevealCards(reveal_cards::RevealCardsOutput),
+    Scry(scry::ScryOutput),
+    Surveil(surveil::SurveilOutput),
+    Dig(dig::DigOutput),
+    ChooseDiscard(choose_discard::ChooseDiscardOutput),
+    ChooseTargetSpell(choose_target_spell::ChooseTargetSpellOutput),
+    ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerOutput),
+    PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectOutput),
+    ChooseMode(choose_mode::ChooseModeOutput),
+    ChoosePhyrexian(choose_phyrexian::ChoosePhyrexianOutput),
+    ChooseKicker(choose_kicker::ChooseKickerOutput),
+    ChooseBuyback(choose_buyback::ChooseBuybackOutput),
+    ChooseMultikicker(choose_multikicker::ChooseMultikickerOutput),
+    ChooseReplicate(choose_replicate::ChooseReplicateOutput),
+    ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostOutput),
+    ChooseColor(choose_color::ChooseColorOutput),
+    ChooseType(choose_type::ChooseTypeOutput),
+    ChooseNumber(choose_number::ChooseNumberOutput),
+    ChooseCardName(choose_card_name::ChooseCardNameOutput),
+    ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderOutput),
+    ChooseCombatDamageAssignment(
+        choose_combat_damage_assignment::ChooseCombatDamageAssignmentOutput,
+    ),
+    PayCombatCost(pay_combat_cost::PayCombatCostOutput),
+    ChooseDelve(choose_delve::ChooseDelveOutput),
+    ChooseConvoke(choose_convoke::ChooseConvokeOutput),
+    ChooseImprovise(choose_improvise::ChooseImproviseOutput),
+    PayManaCost(pay_mana_cost::PayManaCostOutput),
+    SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
+    ChooseExertAttackers(choose_exert_attackers::ChooseExertAttackersOutput),
+    ChooseEnlistAttackers(choose_enlist_attackers::ChooseEnlistAttackersOutput),
+    ReorderLibrary(reorder_library::ReorderLibraryOutput),
+    ExploreDecision(explore_decision::ExploreDecisionOutput),
+    HelpPayAssist(help_pay_assist::HelpPayAssistOutput),
+    FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
+    DiceRolled(dice_rolled::DiceRolledOutput),
+    ChooseRollToIgnore(choose_roll_to_ignore::ChooseRollToIgnoreOutput),
+    ChooseRollToSwap(choose_roll_to_swap::ChooseRollToSwapOutput),
+    ChooseRollToModify(choose_roll_to_modify::ChooseRollToModifyOutput),
+    ChooseDiceToReroll(choose_dice_to_reroll::ChooseDiceToRerollOutput),
+    ChooseRollSwapValue(choose_roll_swap_value::ChooseRollSwapValueOutput),
+    ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectOutput),
+}

@@ -91,26 +91,22 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
     return "neutral" as const;
   }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness]);
 
-  const ptStyle = useMemo<CSSProperties>(() => {
-    const fg = themeColors.textOnTinted;
-    const base: CSSProperties = {
-      color: fg,
-      backgroundColor:
-        ptState === "lethal"
-          ? themeColors.pt.lethal
-          : ptState === "buffed"
-            ? themeColors.pt.buffed
-            : ptState === "debuffed"
-              ? themeColors.pt.debuffed
-              : themeColors.pt.neutral,
-    };
-    const toughness = parseInt(card.toughness ?? "0", 10);
-    if (ptState !== "lethal" && damage > 0 && toughness > 0) {
-      const tint = withAlpha(themeColors.pt.lethal, Math.min(0.85, damage / toughness));
-      base.backgroundImage = `linear-gradient(${tint}, ${tint})`;
-    }
-    return base;
-  }, [ptState, damage, card.toughness, themeColors]);
+  const ptStyle: CSSProperties = {
+    color: themeColors.textOnTinted,
+    backgroundColor:
+      ptState === "lethal"
+        ? themeColors.pt.lethal
+        : ptState === "buffed"
+          ? themeColors.pt.buffed
+          : ptState === "debuffed"
+            ? themeColors.pt.debuffed
+            : themeColors.pt.neutral,
+  };
+  const ptToughness = parseInt(card.toughness ?? "0", 10);
+  if (ptState !== "lethal" && damage > 0 && ptToughness > 0) {
+    const tint = withAlpha(themeColors.pt.lethal, Math.min(0.85, damage / ptToughness));
+    ptStyle.backgroundImage = `linear-gradient(${tint}, ${tint})`;
+  }
 
   const ptModified = ptState !== "neutral" && ptState !== "unknown";
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;

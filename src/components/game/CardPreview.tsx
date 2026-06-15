@@ -167,6 +167,13 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
 
       {showPT && (
         <div className="absolute bottom-[5.5%] right-[5.5%] z-10 flex flex-col items-end gap-1 pointer-events-none">
+          {(ptState === "buffed" || ptState === "debuffed") &&
+            card.basePower != null &&
+            card.baseToughness != null && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-white/80 line-through leading-none">
+                {card.basePower}/{card.baseToughness}
+              </span>
+            )}
           <span
             className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
             style={ptStyle}

@@ -42,12 +42,8 @@ use tracing::warn;
 #[cfg(feature = "java-forge")]
 use tracing::{debug, info};
 
+use super::HostedGameOver;
 use crate::config::workspace_root;
-
-pub struct HostedGameOver {
-    pub game_id: String,
-    pub messages: Vec<(usize, AgentMessage)>,
-}
 
 pub fn unsupported_message() -> &'static str {
     "hosted java-forge backend is unavailable; rebuild self-hosted-node with --features java-forge"

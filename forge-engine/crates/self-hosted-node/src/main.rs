@@ -9,7 +9,7 @@ mod config;
 mod engine_backend;
 
 use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
-use engine_backend::{java_backend, rust_backend, EngineBackendKind};
+use engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use forge_agent_interface::deck_dto::Deck;
 use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
@@ -791,7 +791,7 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<String>();
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
@@ -838,8 +838,8 @@ fn maybe_start_hosted_engine(
             drop(guard);
 
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
-            let (game_over_tx, game_over_rx) = std_mpsc::channel::<java_backend::HostedGameOver>();
-            spawn_java_game_over_forwarder(outbound_tx.clone(), game_over_rx);
+            let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
+            spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -1064,44 +1064,13 @@ fn spawn_remote_prompt_forwarder(
 
 fn spawn_game_over_forwarder(
     outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    game_over_rx: std_mpsc::Receiver<String>,
-) {
-    thread::spawn(move || {
-        while let Ok(game_id) = game_over_rx.recv() {
-            let Ok(state) = serde_json::to_value(StateEnvelope::RoomRelay {
-                protocol: SELF_HOSTED_NODE_PROTOCOL.to_string(),
-                version: 1,
-                message_id: Uuid::new_v4().to_string(),
-                from_player: None,
-                target_player: None,
-                room_id: None,
-                payload: json!({ "type": "gameOver", "gameId": game_id }),
-            }) else {
-                continue;
-            };
-            if outbound_tx
-                .send(ClientMessage::BroadcastState { state })
-                .is_err()
-            {
-                break;
-            }
-            if outbound_tx.send(ClientMessage::EndGame).is_err() {
-                break;
-            }
-        }
-    });
-}
-
-// Java game over is an ordered sequence: final state updates and the
-// gameOver prompt must reach clients before EndGame resets the room.
-// This forwarder receives the sequence as one bundle so EndGame cannot
-// overtake the final engine messages on outbound_tx.
-fn spawn_java_game_over_forwarder(
-    outbound_tx: tokio_mpsc::UnboundedSender<ClientMessage>,
-    game_over_rx: std_mpsc::Receiver<java_backend::HostedGameOver>,
+    game_over_rx: std_mpsc::Receiver<HostedGameOver>,
 ) {
     thread::spawn(move || {
         while let Ok(game_over) = game_over_rx.recv() {
+            // Final engine messages must reach clients before EndGame resets the room.
+            // Java uses this bundle for final state and the gameOver prompt; Rust
+            // currently sends an empty bundle.
             let mut last_state: Option<Value> = None;
             for (player_index, message) in game_over.messages {
                 let envelope =

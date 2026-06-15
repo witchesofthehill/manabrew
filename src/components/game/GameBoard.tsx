@@ -134,6 +134,10 @@ interface GameBoardProps {
    *  its canvas for the stack-panel keep-out translation. */
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
+  /** Attached to the battlefield drop area so `useHandDrag` can detect when a
+   *  dragged hand card is over the board (drop-to-cast). */
+  battlefieldContainerRef?: React.RefObject<HTMLDivElement | null>;
+
   /** Mulligan-bottom selection overlay applied to the in-game hand so
    *  the player picks cards to send to the bottom of the library
    *  directly from the real hand fan instead of a separate modal. */
@@ -193,6 +197,7 @@ export function GameBoard({
   onUntapLands,
   pixiExternalBlockers,
   boardSceneRef,
+  battlefieldContainerRef,
   handSelectionMode,
   handSelectedIds,
   onHandCardToggle,
@@ -776,7 +781,7 @@ export function GameBoard({
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
       <ReconnectBanner />
-      <div className="absolute inset-0 z-10 overflow-hidden">
+      <div ref={battlefieldContainerRef} className="absolute inset-0 z-10 overflow-hidden">
         <BoardCanvas
           regions={unifiedRegions}
           hand={pixiHand}

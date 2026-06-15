@@ -1387,6 +1387,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}
           isOverBattlefield={isOverBattlefield}
+          battlefieldContainerRef={battlefieldContainerRef}
           draggingCardId={draggingHandCard?.id}
           draggingIsPermanent={draggingIsPermanent}
           castingCardId={casting.castingCardId}

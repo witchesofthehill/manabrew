@@ -568,7 +568,14 @@ export class BoardScene {
         this.overlay?.handleCardTap(sprite.card);
       });
     } else {
-      sprite.on("pointertap", () => this.callbacks.onClickCard?.(sprite.card));
+      sprite.on("pointertap", () => {
+        // During declare-blockers, tapping an attacking opponent creature
+        // selects it as the attacker to block (mirrors the old opponent
+        // canvas routing attacker clicks to onAttackerClick).
+        const attacking = region?.getLastState()?.attackingCardIds?.includes(sprite.card.id);
+        if (attacking) this.callbacks.onAttackerClick?.(sprite.card);
+        else this.callbacks.onClickCard?.(sprite.card);
+      });
     }
     sprite.on("pointerenter", () => {
       if (region) this.setBattlefieldCardHovered(region, sprite);

@@ -11,15 +11,15 @@ use crate::java_raw::{
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
 use crate::prompt::{
-    ActivatableAbilityInfo, AgentPrompt, AgentPromptInner, DefenderIdDto, PlayOptionDto,
-    PlayerAction, StateUpdate, TargetAnyChoice,
+    ActivatableAbilityInfo, AgentPrompt, AvailableAction, AvailableActionKind, DefenderIdDto,
+    PlayerAction, PromptInput, StateUpdate, TargetAnyChoice,
 };
 
 pub fn make_java_game_over_prompt() -> AgentPrompt {
     AgentPrompt {
         deciding_player_id: String::new(),
         source_card_id: None,
-        input: AgentPromptInner::GameOver {},
+        input: PromptInput::GameOver(forge_protocol::prompts::game_over::GameOverInput {}),
     }
 }
 
@@ -50,7 +50,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             actions,
             untappable_land_ids,
         } => build_choose_action(&actions, untappable_land_ids),
-        JavaRawPromptBody::ChooseDiscard { cards, min, max } => AgentPromptInner::ChooseDiscard {
+        JavaRawPromptBody::ChooseDiscard { cards, min, max } => PromptInput::ChooseDiscard(forge_protocol::prompts::choose_discard::ChooseDiscardInput {
             hand_card_ids: card_ids(&cards),
             num_to_discard: if max > 0 {
                 max
@@ -59,34 +59,34 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             } else {
                 1
             },
-        },
-        JavaRawPromptBody::Mulligan { cards, count } => AgentPromptInner::Mulligan {
+        }),
+        JavaRawPromptBody::Mulligan { cards, count } => PromptInput::Mulligan(forge_protocol::prompts::mulligan::MulliganInput {
             hand_card_ids: card_ids(&cards),
             mulligan_count: count,
-        },
+        }),
         JavaRawPromptBody::MulliganPutBack { cards, count, max } => {
-            AgentPromptInner::MulliganPutBack {
+            PromptInput::MulliganPutBack(forge_protocol::prompts::mulligan_put_back::MulliganPutBackInput {
                 hand_card_ids: card_ids(&cards),
                 cards: prompt_cards(&cards, &card_index),
                 count: if count > 0 { count } else { max },
-            }
+            })
         }
         JavaRawPromptBody::RevealCards {
             cards,
             zone,
             owner_player_id,
             message,
-        } => AgentPromptInner::RevealCards {
+        } => PromptInput::RevealCards(forge_protocol::prompts::reveal_cards::RevealCardsInput {
             cards: prompt_cards(&cards, &card_index),
             zone: zone.unwrap_or_else(|| "unknown".to_string()),
             owner_player_id: owner_player_id.unwrap_or_else(|| format!("player-{player}")),
             message: message.unwrap_or_else(|| "Look at these cards".to_string()),
-        },
+        }),
         JavaRawPromptBody::FirstPlayerRoll {
             sides,
             rolls,
             winner_player_id,
-        } => AgentPromptInner::FirstPlayerRoll {
+        } => PromptInput::FirstPlayerRoll(forge_protocol::prompts::first_player_roll::FirstPlayerRollInput {
             sides,
             rolls: rolls
                 .iter()
@@ -97,42 +97,42 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 })
                 .collect(),
             winner_player_id: winner_player_id.unwrap_or_else(|| format!("player-{player}")),
-        },
+        }),
         JavaRawPromptBody::ChooseAttackers {
             attackers,
             defenders,
-        } => AgentPromptInner::ChooseAttackers {
+        } => PromptInput::ChooseAttackers(forge_protocol::prompts::choose_attackers::ChooseAttackersInput {
             available_attacker_ids: card_ids(&attackers),
             possible_defender_ids: defender_ids(&defenders),
-        },
+        }),
         JavaRawPromptBody::ChooseBlockers {
             attackers,
             blockers,
-        } => AgentPromptInner::ChooseBlockers {
+        } => PromptInput::ChooseBlockers(forge_protocol::prompts::choose_blockers::ChooseBlockersInput {
             attacker_ids: card_ids(&attackers),
             available_blocker_ids: card_ids(&blockers),
-        },
+        }),
         JavaRawPromptBody::ChooseDamageAssignmentOrder {
             attacker_id,
             blockers,
-        } => AgentPromptInner::ChooseDamageAssignmentOrder {
+        } => PromptInput::ChooseDamageAssignmentOrder(forge_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput {
             attacker_id: attacker_id.unwrap_or_default(),
             blocker_ids: card_ids(&blockers),
             blocker_cards: prompt_cards(&blockers, &card_index),
-        },
+        }),
         JavaRawPromptBody::ChooseCombatDamageAssignment {
             attacker_id,
             defender_id,
             total_damage,
             attacker_has_deathtouch,
             blockers,
-        } => AgentPromptInner::ChooseCombatDamageAssignment {
+        } => PromptInput::ChooseCombatDamageAssignment(forge_protocol::prompts::choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput {
             attacker_id: attacker_id.unwrap_or_default(),
             blocker_ids: card_ids(&blockers),
             defender_id,
             total_damage: total_damage as i32,
             attacker_has_deathtouch,
-        },
+        }),
         JavaRawPromptBody::ChooseCardsForEffect {
             cards,
             min,
@@ -140,25 +140,25 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             optional,
             source_card_name,
             description: _,
-        } => AgentPromptInner::ChooseCardsForEffect {
+        } => PromptInput::ChooseCardsForEffect(forge_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
             valid_card_ids: card_ids(&cards),
             zone_cards: prompt_cards(&cards, &card_index),
             min_choices: min,
             max_choices: max,
             source_card_name,
             optional,
-        },
+        }),
         JavaRawPromptBody::ChooseMode {
             options,
             min,
             max,
             source_card_name,
-        } => AgentPromptInner::ChooseMode {
+        } => PromptInput::ChooseMode(forge_protocol::prompts::choose_mode::ChooseModeInput {
             options,
             min_choices: min,
             max_choices: max,
             source_card_name,
-        },
+        }),
         JavaRawPromptBody::ConfirmOrTrigger {
             description,
             source_card_name: _,
@@ -166,108 +166,108 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             option_labels,
             mode,
             api,
-        } => AgentPromptInner::ChooseOptionalTrigger {
+        } => PromptInput::ChooseOptionalTrigger(forge_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
             description: description.unwrap_or_else(|| "Confirm?".to_string()),
             cards: Vec::new(),
             prompt_kind,
             option_labels: Some(option_labels),
             mode,
             api,
-        },
+        }),
         JavaRawPromptBody::PayCostToPreventEffect {
             description,
             mode,
             source_card_name: _,
             api,
-        } => AgentPromptInner::PayCostToPreventEffect {
+        } => PromptInput::PayCostToPreventEffect(forge_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput {
             description: description.unwrap_or_else(|| "Pay cost?".to_string()),
             cost_kind: mode.unwrap_or_else(|| "Cost".to_string()),
             api,
-        },
+        }),
         JavaRawPromptBody::ChooseNumber {
             min,
             max,
             source_card_name: _,
             description: _,
-        } => AgentPromptInner::ChooseNumber {
+        } => PromptInput::ChooseNumber(forge_protocol::prompts::choose_number::ChooseNumberInput {
             min: min as i32,
             max: max as i32,
-        },
+        }),
         JavaRawPromptBody::ChooseColor {
             options,
             source_card_name: _,
-        } => AgentPromptInner::ChooseColor {
+        } => PromptInput::ChooseColor(forge_protocol::prompts::choose_color::ChooseColorInput {
             valid_colors: options,
-        },
+        }),
         JavaRawPromptBody::ChooseType {
             options,
             description,
             source_card_name: _,
-        } => AgentPromptInner::ChooseType {
+        } => PromptInput::ChooseType(forge_protocol::prompts::choose_type::ChooseTypeInput {
             type_category: description.unwrap_or_else(|| "Card".to_string()),
             valid_types: options,
-        },
+        }),
         JavaRawPromptBody::ChooseCardName {
             options,
             source_card_name: _,
-        } => AgentPromptInner::ChooseCardName {
+        } => PromptInput::ChooseCardName(forge_protocol::prompts::choose_card_name::ChooseCardNameInput {
             valid_names: options,
-        },
-        JavaRawPromptBody::ChooseScry { cards } => AgentPromptInner::Scry {
+        }),
+        JavaRawPromptBody::ChooseScry { cards } => PromptInput::Scry(forge_protocol::prompts::scry::ScryInput {
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
-        },
-        JavaRawPromptBody::ChooseSurveil { cards } => AgentPromptInner::Surveil {
+        }),
+        JavaRawPromptBody::ChooseSurveil { cards } => PromptInput::Surveil(forge_protocol::prompts::surveil::SurveilInput {
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
-        },
+        }),
         JavaRawPromptBody::ChooseDig {
             cards,
             max,
             optional,
             source_card_name: _,
-        } => AgentPromptInner::Dig {
+        } => PromptInput::Dig(forge_protocol::prompts::dig::DigInput {
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
             num_to_take: max,
             optional,
-        },
+        }),
         JavaRawPromptBody::ChooseDelve {
             cards,
             max,
             source_card_name: _,
-        } => AgentPromptInner::ChooseDelve {
+        } => PromptInput::ChooseDelve(forge_protocol::prompts::choose_delve::ChooseDelveInput {
             valid_card_ids: card_ids(&cards),
             zone_cards: prompt_cards(&cards, &card_index),
             max_cards: max,
-        },
+        }),
         JavaRawPromptBody::ChooseConvoke {
             cards,
             description,
             source_card_name: _,
-        } => AgentPromptInner::ChooseConvoke {
+        } => PromptInput::ChooseConvoke(forge_protocol::prompts::choose_convoke::ChooseConvokeInput {
             valid_card_ids: card_ids(&cards),
             remaining_cost: description.unwrap_or_default(),
-        },
+        }),
         JavaRawPromptBody::ChooseImprovise {
             cards,
             description,
             source_card_name: _,
-        } => AgentPromptInner::ChooseImprovise {
+        } => PromptInput::ChooseImprovise(forge_protocol::prompts::choose_improvise::ChooseImproviseInput {
             valid_card_ids: card_ids(&cards),
             remaining_cost: description.unwrap_or_default(),
-        },
+        }),
         JavaRawPromptBody::ReorderLibrary {
             cards,
             destination,
             top_of_deck,
             source_card_name: _,
-        } => AgentPromptInner::ReorderLibrary {
+        } => PromptInput::ReorderLibrary(forge_protocol::prompts::reorder_library::ReorderLibraryInput {
             card_ids: card_ids(&cards),
             cards: prompt_cards(&cards, &card_index),
             destination,
             top_of_deck,
-        },
+        }),
         JavaRawPromptBody::ChooseTargetPlayer {
             players,
             source_card_id: source,
@@ -280,14 +280,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
-            AgentPromptInner::ChooseTargetPlayer {
+            PromptInput::ChooseTargetPlayer(forge_protocol::prompts::choose_target_player::ChooseTargetPlayerInput {
                 valid_player_ids: target_ids(&players),
                 hostile: intent.is_hostile(),
                 intent,
                 min_targets,
                 max_targets,
                 chosen_targets,
-            }
+            })
         }
         JavaRawPromptBody::ChooseTargetCard {
             cards,
@@ -303,7 +303,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
             match zone {
-                Some(zone) if zone != "Battlefield" => AgentPromptInner::ChooseTargetCardFromZone {
+                Some(zone) if zone != "Battlefield" => PromptInput::ChooseTargetCardFromZone(forge_protocol::prompts::choose_target_card_from_zone::ChooseTargetCardFromZoneInput {
                     valid_card_ids: target_ids(&cards),
                     zone,
                     zone_cards: prompt_cards(&cards, &card_index),
@@ -311,15 +311,15 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                     min_targets,
                     max_targets,
                     chosen_targets,
-                },
-                _ => AgentPromptInner::ChooseTargetCard {
+                }),
+                _ => PromptInput::ChooseTargetCard(forge_protocol::prompts::choose_target_card::ChooseTargetCardInput {
                     valid_card_ids: target_ids(&cards),
                     hostile: intent.is_hostile(),
                     intent,
                     min_targets,
                     max_targets,
                     chosen_targets,
-                },
+                }),
             }
         }
         JavaRawPromptBody::ChooseTargetAny {
@@ -335,7 +335,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
-            AgentPromptInner::ChooseTargetAny {
+            PromptInput::ChooseTargetAny(forge_protocol::prompts::choose_target_any::ChooseTargetAnyInput {
                 valid_player_ids: target_ids(&players),
                 valid_card_ids: target_ids(&cards),
                 hostile: intent.is_hostile(),
@@ -343,7 +343,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
-            }
+            })
         }
         JavaRawPromptBody::ChooseTargetSpell {
             spells,
@@ -356,13 +356,13 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            AgentPromptInner::ChooseTargetSpell {
+            PromptInput::ChooseTargetSpell(forge_protocol::prompts::choose_target_spell::ChooseTargetSpellInput {
                 valid_spell_ids: target_ids(&spells),
                 intent: intent_from_api(&api, &destination, &counter_type),
                 min_targets,
                 max_targets,
                 chosen_targets,
-            }
+            })
         }
         JavaRawPromptBody::PayManaCost {
             card_id,
@@ -373,7 +373,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             untappable_land_ids,
             mana_pool_total,
             can_confirm_from_pool,
-        } => AgentPromptInner::PayManaCost {
+        } => PromptInput::PayManaCost(forge_protocol::prompts::pay_mana_cost::PayManaCostInput {
             card_id: card_id.unwrap_or_default(),
             card_name: card_name.unwrap_or_default(),
             mana_cost: mana_cost.unwrap_or_default(),
@@ -385,9 +385,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             untappable_land_ids,
             mana_pool_total,
             can_confirm_from_pool,
-        },
+        }),
     };
-    let deciding_player_id = if matches!(inner, AgentPromptInner::FirstPlayerRoll { .. }) {
+    let deciding_player_id = if matches!(
+        inner,
+        PromptInput::FirstPlayerRoll(
+            forge_protocol::prompts::first_player_roll::FirstPlayerRollInput { .. }
+        )
+    ) {
         String::new()
     } else {
         format!("player-{player}")
@@ -401,6 +406,29 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
 
 pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction, JavaActionError> {
     let java = match action {
+        PlayerAction::Act { action_id } => {
+            if let Some(index) = action_id
+                .strip_prefix("prompt-action-")
+                .and_then(|s| s.parse::<usize>().ok())
+            {
+                JavaAction::ChooseAction { index }
+            } else if let Some(rest) = action_id.strip_prefix("tap:") {
+                let (card_id, idx) = rest
+                    .rsplit_once(':')
+                    .ok_or(JavaActionError { action_type: "act" })?;
+                JavaAction::TapLand {
+                    card_id: card_id.to_string(),
+                    mana_ability_index: idx.parse::<usize>().ok(),
+                    color: None,
+                }
+            } else if let Some(card_id) = action_id.strip_prefix("untap:") {
+                JavaAction::UntapLand {
+                    card_id: card_id.to_string(),
+                }
+            } else {
+                return Err(JavaActionError { action_type: "act" });
+            }
+        }
         PlayerAction::PlayCard { card_id, mode } => {
             let index = mode
                 .as_deref()
@@ -614,13 +642,9 @@ struct NormalizedAction {
 fn build_choose_action(
     raw_actions: &[JavaRawAction],
     untappable_land_ids: Vec<String>,
-) -> AgentPromptInner {
+) -> PromptInput {
     let actions = to_actions(raw_actions);
-
-    let mut playable_options = Vec::new();
-    let mut activatable_ability_ids = Vec::new();
-    let mut mana_ability_options = Vec::new();
-    let mut tappable_land_ids: Vec<String> = Vec::new();
+    let mut out: Vec<AvailableAction> = Vec::new();
 
     // Each action carries the exact host card id and its kind from the Java
     // SpellAbility — so routing needs no label parsing and no zone-scoped name
@@ -629,50 +653,59 @@ fn build_choose_action(
         let Some(card_id) = action.card_id.clone() else {
             continue;
         };
-        match action.kind {
-            Some("mana") => {
-                if !tappable_land_ids.contains(&card_id) {
-                    tappable_land_ids.push(card_id.clone());
-                }
-                mana_ability_options.push(ActivatableAbilityInfo {
-                    card_id,
-                    ability_index: action.index,
-                    description: action.label.clone(),
-                    is_mana_ability: true,
-                    cost: action.cost.clone(),
-                });
-            }
-            Some("ability") => {
-                activatable_ability_ids.push(ActivatableAbilityInfo {
-                    card_id,
-                    ability_index: action.index,
-                    description: action.label.clone(),
-                    is_mana_ability: false,
-                    cost: None,
-                });
-            }
-            _ => {
-                playable_options.push(PlayOptionDto {
-                    card_id,
-                    mode: action.id.clone(),
-                    mode_label: action.label.clone(),
-                });
-            }
-        }
+        let kind = match action.kind {
+            Some("mana") => AvailableActionKind::ActivateAbility {
+                card_id: card_id.clone(),
+                ability_index: action.index,
+                description: action.label.clone(),
+                cost: action.cost.clone(),
+                is_mana_ability: true,
+                produced_colors: action.cost.as_deref().and_then(parse_mana_colors),
+            },
+            Some("ability") => AvailableActionKind::ActivateAbility {
+                card_id: card_id.clone(),
+                ability_index: action.index,
+                description: action.label.clone(),
+                cost: None,
+                is_mana_ability: false,
+                produced_colors: None,
+            },
+            Some("play") => AvailableActionKind::PlayLand {
+                card_id: card_id.clone(),
+            },
+            _ => AvailableActionKind::Cast {
+                card_id: card_id.clone(),
+                mode: action.id.clone(),
+                mode_label: action.label.clone(),
+            },
+        };
+        let id = if action.kind == Some("mana") {
+            format!("tap:{card_id}:{}", action.index)
+        } else {
+            format!("prompt-action-{}", action.index)
+        };
+        out.push(AvailableAction { id, kind });
     }
 
-    AgentPromptInner::ChooseAction {
-        playable_card_ids: playable_options
-            .iter()
-            .map(|option| option.card_id.clone())
-            .collect(),
-        playable_options,
-        tappable_land_ids,
-        untappable_land_ids,
-        activatable_ability_ids,
-        mana_ability_options,
-        available_player_actions: Vec::new(),
+    for card_id in untappable_land_ids {
+        out.push(AvailableAction {
+            id: format!("untap:{card_id}"),
+            kind: AvailableActionKind::UndoMana { card_id },
+        });
     }
+
+    PromptInput::ChooseAction(forge_protocol::prompts::choose_action::ChooseActionInput {
+        actions: out,
+    })
+}
+
+fn parse_mana_colors(s: &str) -> Option<Vec<String>> {
+    let colors: Vec<String> = ["W", "U", "B", "R", "G", "C"]
+        .into_iter()
+        .filter(|c| s.contains(*c))
+        .map(str::to_string)
+        .collect();
+    (!colors.is_empty()).then_some(colors)
 }
 
 fn build_game_view(

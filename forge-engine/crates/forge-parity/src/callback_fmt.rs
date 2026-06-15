@@ -449,6 +449,11 @@ impl CallbackArgDisplay for u32 {
         self.to_string()
     }
 }
+impl CallbackArgDisplay for u16 {
+    fn callback_arg_display(&self, _ctx: Option<&FmtCtx<'_>>) -> String {
+        self.to_string()
+    }
+}
 impl CallbackArgDisplay for i32 {
     fn callback_arg_display(&self, _ctx: Option<&FmtCtx<'_>>) -> String {
         self.to_string()

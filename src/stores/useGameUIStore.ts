@@ -8,6 +8,7 @@ export interface HandActionOption {
   kind: "cast" | "ability" | "manual-move" | "manual-tap";
   cardId: string;
   label: string;
+  actionId?: string;
   mode?: string;
   abilityIndex?: number;
   isManaAbility?: boolean;
@@ -25,7 +26,7 @@ export interface AbilityPickerState {
 interface PlayModePickerState {
   cardId: string;
   card: DeckCard;
-  options: { cardId: string; mode: string; modeLabel: string }[];
+  options: { actionId: string; cardId: string; mode: string; modeLabel: string }[];
 }
 
 interface ViewingZoneState {

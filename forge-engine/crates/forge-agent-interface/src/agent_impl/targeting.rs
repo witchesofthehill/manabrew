@@ -6,7 +6,7 @@ use crate::game_view_dto::{CardDto, TargetingIntent};
 use crate::ids_codec::parse_card_id;
 use crate::ids_codec::parse_player_id;
 use crate::ids_codec::stack_id_str;
-use crate::prompt::{AgentPromptInner, PlayerAction, TargetAnyChoice};
+use crate::prompt::{PlayerAction, PromptInput, TargetAnyChoice};
 
 use super::{PromptAgent, Responder};
 
@@ -20,14 +20,16 @@ pub(super) fn choose_target_player<T: Responder>(
 ) -> Option<PlayerId> {
     let valid_player_ids = PromptAgent::<T>::player_ids(valid);
     agent.send_prompt(
-        AgentPromptInner::ChooseTargetPlayer {
-            valid_player_ids,
-            hostile,
-            intent,
-            min_targets: 1,
-            max_targets: 1,
-            chosen_targets: 0,
-        },
+        PromptInput::ChooseTargetPlayer(
+            forge_protocol::prompts::choose_target_player::ChooseTargetPlayerInput {
+                valid_player_ids,
+                hostile,
+                intent,
+                min_targets: 1,
+                max_targets: 1,
+                chosen_targets: 0,
+            },
+        ),
         source,
     );
     agent.recv_player_choice_or_first(valid)
@@ -43,14 +45,16 @@ pub(super) fn choose_target_card<T: Responder>(
 ) -> Option<CardId> {
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     agent.send_prompt(
-        AgentPromptInner::ChooseTargetCard {
-            valid_card_ids,
-            hostile,
-            intent,
-            min_targets: 1,
-            max_targets: 1,
-            chosen_targets: 0,
-        },
+        PromptInput::ChooseTargetCard(
+            forge_protocol::prompts::choose_target_card::ChooseTargetCardInput {
+                valid_card_ids,
+                hostile,
+                intent,
+                min_targets: 1,
+                max_targets: 1,
+                chosen_targets: 0,
+            },
+        ),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -95,15 +99,17 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
     };
 
     agent.send_prompt(
-        AgentPromptInner::ChooseTargetCardFromZone {
-            valid_card_ids,
-            zone: format!("{:?}", zone),
-            zone_cards,
-            intent,
-            min_targets: 1,
-            max_targets: 1,
-            chosen_targets: 0,
-        },
+        PromptInput::ChooseTargetCardFromZone(
+            forge_protocol::prompts::choose_target_card_from_zone::ChooseTargetCardFromZoneInput {
+                valid_card_ids,
+                zone: format!("{:?}", zone),
+                zone_cards,
+                intent,
+                min_targets: 1,
+                max_targets: 1,
+                chosen_targets: 0,
+            },
+        ),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -121,15 +127,17 @@ pub(super) fn choose_target_any<T: Responder>(
     let valid_player_ids = PromptAgent::<T>::player_ids(valid_players);
     let valid_card_ids = PromptAgent::<T>::card_ids(valid_cards);
     agent.send_prompt(
-        AgentPromptInner::ChooseTargetAny {
-            valid_player_ids,
-            valid_card_ids,
-            hostile,
-            intent,
-            min_targets: 1,
-            max_targets: 1,
-            chosen_targets: 0,
-        },
+        PromptInput::ChooseTargetAny(
+            forge_protocol::prompts::choose_target_any::ChooseTargetAnyInput {
+                valid_player_ids,
+                valid_card_ids,
+                hostile,
+                intent,
+                min_targets: 1,
+                max_targets: 1,
+                chosen_targets: 0,
+            },
+        ),
         source,
     );
     match agent.recv_action() {
@@ -162,13 +170,15 @@ pub(super) fn choose_target_spell<T: Responder>(
 ) -> Option<u32> {
     let valid_spell_ids: Vec<String> = valid.iter().map(|&id| stack_id_str(id)).collect();
     agent.send_prompt(
-        AgentPromptInner::ChooseTargetSpell {
-            valid_spell_ids,
-            intent: TargetingIntent::Counter,
-            min_targets: 1,
-            max_targets: 1,
-            chosen_targets: 0,
-        },
+        PromptInput::ChooseTargetSpell(
+            forge_protocol::prompts::choose_target_spell::ChooseTargetSpellInput {
+                valid_spell_ids,
+                intent: TargetingIntent::Counter,
+                min_targets: 1,
+                max_targets: 1,
+                chosen_targets: 0,
+            },
+        ),
         source,
     );
     agent.recv_spell_choice_or_first(valid)
@@ -182,14 +192,16 @@ pub(super) fn choose_sacrifice<T: Responder>(
 ) -> Option<CardId> {
     let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     agent.send_prompt(
-        AgentPromptInner::ChooseTargetCard {
-            valid_card_ids,
-            hostile: true,
-            intent: TargetingIntent::Sacrifice,
-            min_targets: 1,
-            max_targets: 1,
-            chosen_targets: 0,
-        },
+        PromptInput::ChooseTargetCard(
+            forge_protocol::prompts::choose_target_card::ChooseTargetCardInput {
+                valid_card_ids,
+                hostile: true,
+                intent: TargetingIntent::Sacrifice,
+                min_targets: 1,
+                max_targets: 1,
+                chosen_targets: 0,
+            },
+        ),
         source,
     );
     agent.recv_card_choice_or_first(valid)

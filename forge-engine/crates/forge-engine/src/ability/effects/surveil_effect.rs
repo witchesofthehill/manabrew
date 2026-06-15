@@ -50,11 +50,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Reverse to match Java's `getTopXCardsFromLibrary` top-to-bottom iteration order.
     top_n.reverse();
 
-    // Let UI agents pre-build card info for the revealed cards.
-    ctx.agents[target.index()].on_library_peek(ctx.game, &top_n);
-
     // Ask the agent which cards to send to the graveyard.
-    let gy_ids = ctx.agents[target.index()].choose_surveil(target, &top_n);
+    let gy_ids = ctx.agents[target.index()].choose_surveil(ctx.game, target, &top_n);
 
     let graveyard: Vec<_> = gy_ids.into_iter().filter(|id| top_n.contains(id)).collect();
     let keep_top: Vec<_> = top_n
@@ -186,7 +183,12 @@ mod tests {
         fn choose_land_or_spell(&mut self, _: PlayerId) -> Option<bool> {
             None
         }
-        fn choose_surveil(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+        fn choose_surveil(
+            &mut self,
+            _game: &GameState,
+            _player: PlayerId,
+            cards: &[CardId],
+        ) -> Vec<CardId> {
             cards.to_vec() // send all to graveyard
         }
         fn choose_targets_for(

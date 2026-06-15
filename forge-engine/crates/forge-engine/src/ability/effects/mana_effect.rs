@@ -242,6 +242,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             &per_unit,
             amount as usize,
             Some(source_id),
+            None,
         );
         final_mana = per_unit.join(" ");
     } else if amount > 1 {

@@ -9,6 +9,7 @@ import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
+import type { GameView } from "@/types/manabrew";
 import type { AuthResultPayload } from "@/types/server";
 
 function normalizeEnginePrompt(prompt: unknown): Prompt | null {
@@ -65,7 +66,7 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<StateUpdate>("game:state", (payload) => {
           if (!payload?.gameView) return;
-          applyState(payload.gameView, "Event", setState, getState);
+          applyState(payload.gameView as GameView, "Event", setState, getState);
         }),
       );
 
@@ -114,7 +115,7 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<{ state: StateUpdate }>("game:remote_state", (payload) => {
           if (!payload.state?.gameView) return;
-          applyState(payload.state.gameView, "Remote", setState, getState);
+          applyState(payload.state.gameView as GameView, "Remote", setState, getState);
         }),
       );
 

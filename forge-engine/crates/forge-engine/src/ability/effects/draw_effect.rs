@@ -78,7 +78,6 @@ fn draw_for_player(
     // This ensures `drawn_this_turn` is correct for triggers with `Number$ N`
     // (e.g. Sneaky Snacker: "When you draw your third card in a turn...").
     let remember_drawn = sa.ir.remember_drawn;
-    let should_reveal = sa.ir.reveal_text.is_some();
     let mut drawn: Vec<crate::ids::CardId> = Vec::new();
     for _ in 0..actual_num {
         if let Some(card_id) = ctx.game.draw_card_with_agents(target, ctx.agents) {
@@ -103,15 +102,6 @@ fn draw_for_player(
             if ctx.trigger_handler.has_number_drawn_triggers(ctx.game) {
                 ctx.trigger_handler.flush_waiting_triggers(ctx.game);
             }
-        }
-    }
-
-    // `Reveal$ True` — reveal the drawn cards to all players once the draw
-    // completes. Mirrors Java `DrawEffect` which calls `revealTo` after the
-    // per-player loop.
-    if should_reveal && !drawn.is_empty() {
-        for agent in ctx.agents.iter_mut() {
-            agent.on_library_peek(ctx.game, &drawn);
         }
     }
 

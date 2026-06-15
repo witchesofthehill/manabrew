@@ -66,7 +66,13 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     } else {
         ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
         ctx.agents[controller.index()]
-            .choose_single_card_for_zone_change(controller, &armies, "Choose an Army", false)
+            .choose_single_card_for_zone_change(
+                ctx.game,
+                controller,
+                &armies,
+                "Choose an Army",
+                false,
+            )
             .unwrap_or(armies[0])
     };
 

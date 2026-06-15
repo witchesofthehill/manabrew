@@ -10,6 +10,7 @@ import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import type { PromptType } from "@/protocol";
 import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
 import type { PlacementGhost } from "@/components/game/game.types";
+import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
@@ -244,8 +245,13 @@ export function GameBoard({
   const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackerIds;
-  const manaAbilityOptions =
-    chooseActionPrompt?.input.manaAbilityOptions ?? payManaCostPrompt?.input.manaAbilityOptions;
+  const chooseActionActions = chooseActionPrompt?.input.actions;
+  const manaAbilityOptions = chooseActionActions
+    ? manaAbilityInfos(chooseActionActions)
+    : payManaCostPrompt?.input.manaAbilityOptions;
+  const chooseActionAbilityCardIds = chooseActionActions
+    ?.filter((a) => a.type === "activateAbility")
+    .map((a) => a.cardId);
   const hostileTargeting =
     chooseTargetCardPrompt?.input.hostile ?? chooseTargetAnyPrompt?.input.hostile ?? false;
   const targetCardIds = new Set(
@@ -294,7 +300,9 @@ export function GameBoard({
               : promptType === "chooseTargetCardFromZone" &&
                   chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
                 ? chooseTargetCardFromZonePrompt.input.validCardIds
-                : undefined,
+                : promptType === "chooseAction"
+                  ? chooseActionAbilityCardIds
+                  : undefined,
     [
       promptType,
       chooseAttackersPrompt,
@@ -303,6 +311,7 @@ export function GameBoard({
       chooseTargetCardPrompt,
       chooseTargetAnyPrompt,
       chooseTargetCardFromZonePrompt,
+      chooseActionAbilityCardIds,
     ],
   );
   const pixiBattlefield = useMemo(
@@ -316,18 +325,15 @@ export function GameBoard({
             : undefined,
       attackingCardIds: promptAttackerIds,
       selectableCardIds: selectableBattlefieldCardIds,
-      tappableLandIds:
-        chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
-          ? (chooseActionPrompt?.input.tappableLandIds ??
-            payCombatCostPrompt?.input.tappableLandIds ??
-            payManaCostPrompt?.input.tappableLandIds)
-          : undefined,
-      untappableLandIds:
-        chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
-          ? (chooseActionPrompt?.input.untappableLandIds ??
-            payCombatCostPrompt?.input.untappableLandIds ??
-            payManaCostPrompt?.input.untappableLandIds)
-          : undefined,
+      tappableLandIds: chooseActionActions
+        ? chooseActionActions
+            .filter((a) => a.type === "activateAbility" && a.isManaAbility)
+            .map((a) => a.cardId)
+        : (payCombatCostPrompt?.input.tappableLandIds ?? payManaCostPrompt?.input.tappableLandIds),
+      untappableLandIds: chooseActionActions
+        ? chooseActionActions.filter((a) => a.type === "undoMana").map((a) => a.cardId)
+        : (payCombatCostPrompt?.input.untappableLandIds ??
+          payManaCostPrompt?.input.untappableLandIds),
       manaAbilityOptions,
       hostileTargeting,
     }),
@@ -338,7 +344,7 @@ export function GameBoard({
       blockAssignments,
       promptAttackerIds,
       selectableBattlefieldCardIds,
-      chooseActionPrompt,
+      chooseActionActions,
       payCombatCostPrompt,
       payManaCostPrompt,
       manaAbilityOptions,

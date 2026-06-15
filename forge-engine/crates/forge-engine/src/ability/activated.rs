@@ -89,6 +89,31 @@ pub struct ActivatedAbility {
     pub params: Params,
 }
 
+impl ActivatedAbility {
+    pub fn display_description(&self, card_name: &str) -> String {
+        self.spell_description
+            .as_deref()
+            .or(self.precost_desc.as_deref())
+            .or(self.description.as_deref())
+            .unwrap_or(&self.ability_text)
+            .replace("CARDNAME", card_name)
+    }
+
+    pub fn cost_string(&self) -> Option<String> {
+        let s = self.cost.to_simple_string();
+        (!s.is_empty()).then_some(s)
+    }
+
+    pub fn produced_color_symbols(&self) -> Vec<String> {
+        use crate::ability::{ProducedMana, ProducedManaCombo};
+        match &self.produced_ir {
+            Some(ProducedMana::Fixed(v))
+            | Some(ProducedMana::Combo(ProducedManaCombo::Colors(v))) => v.clone(),
+            _ => Vec::new(),
+        }
+    }
+}
+
 /// Parse an ability string into an ActivatedAbility, if it's an AB$ line.
 /// Returns None for SP$/DB$/trigger lines.
 ///

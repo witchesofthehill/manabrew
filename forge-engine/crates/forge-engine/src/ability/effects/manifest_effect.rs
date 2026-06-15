@@ -59,6 +59,7 @@ fn manifest_for_player(
         // Let player choose
         ctx.agents[player.index()].snapshot_state(ctx.game, ctx.mana_pools);
         ctx.agents[player.index()].choose_cards_for_zone_change(
+            ctx.game,
             player,
             &zone_cards,
             amount.min(zone_cards.len()),

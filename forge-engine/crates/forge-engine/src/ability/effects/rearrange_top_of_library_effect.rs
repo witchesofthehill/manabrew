@@ -49,11 +49,13 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     // Let the agent see the cards before reordering.
     ctx.agents[sa.activating_player.index()].snapshot_state(ctx.game, ctx.mana_pools);
-    ctx.agents[sa.activating_player.index()].on_library_peek(ctx.game, &top_n);
 
     // Ask the agent to reorder the cards.
-    let reordered = ctx.agents[sa.activating_player.index()]
-        .choose_reorder_library(sa.activating_player, &top_n);
+    let reordered = ctx.agents[sa.activating_player.index()].choose_reorder_library(
+        ctx.game,
+        sa.activating_player,
+        &top_n,
+    );
 
     // Validate: use reordered if it contains exactly the same cards.
     let put_back =

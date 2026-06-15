@@ -3,33 +3,30 @@ use forge_engine_core::ids::{CardId, PlayerId};
 
 use crate::game_view_dto::{card_to_dto, CardDto};
 use crate::ids_codec::parse_card_id;
-use crate::prompt::{AgentPromptInner, PlayerAction};
+use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
 
-pub(super) fn on_library_peek<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    game: &GameState,
-    cards: &[CardId],
-) {
-    agent.peeked_library_cards = cards
+fn library_dtos(game: &GameState, cards: &[CardId]) -> Vec<CardDto> {
+    cards
         .iter()
         .map(|&id| card_to_dto(game, id, &[], "library"))
-        .collect();
+        .collect()
 }
 
 pub(super) fn choose_scry<T: Responder>(
     agent: &mut PromptAgent<T>,
+    game: &GameState,
     _player: PlayerId,
     cards: &[CardId],
 ) -> Vec<CardId> {
     let card_ids = PromptAgent::<T>::card_ids(cards);
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
+    let dtos = library_dtos(game, cards);
     agent.send_prompt(
-        AgentPromptInner::Scry {
+        PromptInput::Scry(forge_protocol::prompts::scry::ScryInput {
             card_ids,
-            cards: peeked,
-        },
+            cards: dtos,
+        }),
         None,
     );
     match agent.recv_action() {
@@ -43,16 +40,17 @@ pub(super) fn choose_scry<T: Responder>(
 
 pub(super) fn choose_surveil<T: Responder>(
     agent: &mut PromptAgent<T>,
+    game: &GameState,
     _player: PlayerId,
     cards: &[CardId],
 ) -> Vec<CardId> {
     let card_ids = PromptAgent::<T>::card_ids(cards);
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
+    let dtos = library_dtos(game, cards);
     agent.send_prompt(
-        AgentPromptInner::Surveil {
+        PromptInput::Surveil(forge_protocol::prompts::surveil::SurveilInput {
             card_ids,
-            cards: peeked,
-        },
+            cards: dtos,
+        }),
         None,
     );
     match agent.recv_action() {
@@ -66,25 +64,21 @@ pub(super) fn choose_surveil<T: Responder>(
 
 pub(super) fn choose_dig<T: Responder>(
     agent: &mut PromptAgent<T>,
+    game: &GameState,
     _player: PlayerId,
     valid: &[CardId],
     max: usize,
     optional: bool,
 ) -> Vec<CardId> {
     let card_ids = PromptAgent::<T>::card_ids(valid);
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
-    // Filter peeked to only valid cards (ChangeValid$ may have narrowed the list).
-    let valid_peeked: Vec<CardDto> = peeked
-        .into_iter()
-        .filter(|dto| card_ids.contains(&dto.id))
-        .collect();
+    let cards = library_dtos(game, valid);
     agent.send_prompt(
-        AgentPromptInner::Dig {
+        PromptInput::Dig(forge_protocol::prompts::dig::DigInput {
             card_ids,
-            cards: valid_peeked,
+            cards,
             num_to_take: max,
             optional,
-        },
+        }),
         None,
     );
     match agent.recv_action() {
@@ -98,22 +92,21 @@ pub(super) fn choose_dig<T: Responder>(
 
 pub(super) fn choose_reorder_library<T: Responder>(
     agent: &mut PromptAgent<T>,
+    game: &GameState,
     _player: PlayerId,
     cards: &[CardId],
 ) -> Vec<CardId> {
     let card_ids = PromptAgent::<T>::card_ids(cards);
-    let peeked = std::mem::take(&mut agent.peeked_library_cards);
-    let prompt_cards: Vec<CardDto> = peeked
-        .into_iter()
-        .filter(|dto| card_ids.contains(&dto.id))
-        .collect();
+    let prompt_cards = library_dtos(game, cards);
     agent.send_prompt(
-        AgentPromptInner::ReorderLibrary {
-            card_ids,
-            cards: prompt_cards,
-            destination: None,
-            top_of_deck: true,
-        },
+        PromptInput::ReorderLibrary(
+            forge_protocol::prompts::reorder_library::ReorderLibraryInput {
+                card_ids,
+                cards: prompt_cards,
+                destination: None,
+                top_of_deck: true,
+            },
+        ),
         None,
     );
     match agent.recv_action() {

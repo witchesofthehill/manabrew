@@ -30,12 +30,6 @@ pub trait PlayerAgent {
         None
     }
 
-    /// Called before library-peek choices (Scry, Surveil, Dig) so UI agents
-    /// can build card info for the cards being revealed from the library.
-    /// Receives `game` and the top-N card IDs the player is looking at.
-    /// Default implementation is a no-op.
-    fn on_library_peek(&mut self, _game: &GameState, _cards: &[CardId]) {}
-
     fn reveal_cards(
         &mut self,
         _game: &GameState,
@@ -334,13 +328,23 @@ pub trait PlayerAgent {
 
     /// Choose which of the top `cards` (from Scry) to put on the bottom of the library.
     /// The rest will stay on top. Default: keep all on top (no cards sent to bottom).
-    fn choose_scry(&mut self, _player: PlayerId, _cards: &[CardId]) -> Vec<CardId> {
+    fn choose_scry(
+        &mut self,
+        _game: &GameState,
+        _player: PlayerId,
+        _cards: &[CardId],
+    ) -> Vec<CardId> {
         vec![]
     }
 
     /// Choose which of the top `cards` (from Surveil) to put into the graveyard.
     /// The rest will go on top. Default: keep all on top (nothing milled).
-    fn choose_surveil(&mut self, _player: PlayerId, _cards: &[CardId]) -> Vec<CardId> {
+    fn choose_surveil(
+        &mut self,
+        _game: &GameState,
+        _player: PlayerId,
+        _cards: &[CardId],
+    ) -> Vec<CardId> {
         vec![]
     }
 
@@ -349,6 +353,7 @@ pub trait PlayerAgent {
     /// Default: take first `max` cards.
     fn choose_dig(
         &mut self,
+        _game: &GameState,
         _player: PlayerId,
         valid: &[CardId],
         max: usize,
@@ -360,7 +365,12 @@ pub trait PlayerAgent {
     /// Choose an ordering for the top N cards being put back on the library (Ponder/Reorder).
     /// Returns the cards in desired order: index 0 will be placed deepest, last will be on top.
     /// Default: keep original order.
-    fn choose_reorder_library(&mut self, _player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
+    fn choose_reorder_library(
+        &mut self,
+        _game: &GameState,
+        _player: PlayerId,
+        cards: &[CardId],
+    ) -> Vec<CardId> {
         cards.to_vec()
     }
 
@@ -464,6 +474,7 @@ pub trait PlayerAgent {
     /// Returns true to put in graveyard, false to keep on top of library.
     fn choose_explore_put_in_graveyard(
         &mut self,
+        _game: &GameState,
         _player: PlayerId,
         _revealed_card_name: &str,
         revealed_cmc: i32,
@@ -718,6 +729,7 @@ pub trait PlayerAgent {
     /// Choose a single card for hidden-origin zone changes (e.g. library search).
     fn choose_single_card_for_zone_change(
         &mut self,
+        _game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         _select_prompt: &str,
@@ -731,6 +743,7 @@ pub trait PlayerAgent {
     /// Choose multiple cards for hidden-origin zone changes (e.g. tutor multi-select).
     fn choose_cards_for_zone_change(
         &mut self,
+        _game: &GameState,
         player: PlayerId,
         valid: &[CardId],
         min: usize,
@@ -1018,6 +1031,7 @@ pub trait PlayerAgent {
         available_colors: &[String],
         amount: usize,
         _source: Option<CardId>,
+        _express_choice: Option<u16>,
     ) -> Vec<String> {
         // Default AI: pick first available color for all
         if let Some(first) = available_colors.first() {

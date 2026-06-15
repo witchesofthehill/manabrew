@@ -88,7 +88,7 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
     const debuffed = curP < card.basePower || curT < (card.baseToughness ?? 0);
     if (buffed) return { backgroundColor: themeColors.pt.buffed, color: fg };
     if (debuffed) return { backgroundColor: themeColors.pt.debuffed, color: fg };
-    return { backgroundColor: withAlpha(themeColors.pt.neutral, 0.85), color: fg };
+    return { backgroundColor: themeColors.pt.neutral, color: fg };
   }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness, themeColors]);
 
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;

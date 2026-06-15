@@ -39,6 +39,9 @@ export interface ZoneActionColumnProps {
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
   /** Layout direction. Defaults to "vertical" for backwards compatibility. */
   orientation?: "vertical" | "horizontal";
+  /** Horizontal-only: wrap the tiles into this many columns (e.g. 2 → a 2×2
+   *  grid). Overrides `wrap`. */
+  columns?: number;
   /** Off for opponents so the panel keeps a fixed height the board can reserve. */
   wrap?: boolean;
   /** Horizontal-only: rendered as the first flex item so it wraps
@@ -166,6 +169,7 @@ export function ZoneActionColumn({
   draggingCardId,
   onHoverCard,
   orientation = "vertical",
+  columns,
   wrap = true,
   leading,
 }: ZoneActionColumnProps) {
@@ -210,6 +214,7 @@ export function ZoneActionColumn({
   const isHorizontal = orientation === "horizontal";
   const showCommandZone = (commanders?.length ?? 0) > 0;
 
+  const columnWidthPx = columns ? columns * 72 + (columns - 1) * 10 : undefined;
   return (
     <div
       className={cn(
@@ -217,10 +222,11 @@ export function ZoneActionColumn({
         isHorizontal
           ? cn(
               "flex flex-row items-start gap-2.5 min-w-0 pointer-events-auto",
-              wrap ? "flex-wrap" : "flex-nowrap",
+              columns ? "flex-wrap justify-center" : wrap ? "flex-wrap" : "flex-nowrap",
             )
           : "shrink-0 w-fit flex flex-col items-center gap-1.5 pointer-events-auto",
       )}
+      style={columnWidthPx ? { maxWidth: columnWidthPx } : undefined}
     >
       {isHorizontal && leading}
       {showCommandZone && (

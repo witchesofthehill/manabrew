@@ -31,6 +31,9 @@ interface PlayerPanelProps {
   /** Split layout: avatar + mana on the far left, zone tiles on the far right,
    *  with the hand fan centered in the gap (perimeter self seat). */
   split?: boolean;
+  /** Split-only: wrap the right-side zone tiles into a 2-column grid so they
+   *  take less horizontal space when the hand would otherwise be squeezed. */
+  zonesGrid?: boolean;
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
   isTargetable?: boolean;
@@ -66,6 +69,7 @@ export function PlayerPanel({
   verticalAlign: _verticalAlign = "bottom",
   zoneOrientation = "horizontal",
   split = false,
+  zonesGrid = false,
   isActiveTurn,
   isPriorityPlayer: _isPriorityPlayer,
   isTargetable,
@@ -277,6 +281,7 @@ export function PlayerPanel({
   const zonesRow = (
     <ZoneActionColumn
       orientation={isVertical ? "vertical" : "horizontal"}
+      columns={split && zonesGrid ? 2 : undefined}
       wrap={!isOpponent && !split}
       libraryCount={player.libraryCount}
       graveyard={graveyard}

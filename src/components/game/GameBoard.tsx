@@ -33,6 +33,9 @@ const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
  *  `right-12` + `w-[300px]`) plus a small gap — reserved so the split self
  *  zones and the hand fan stay left of the PASS / KEEP-MULLIGAN buttons. */
 const ACTION_CLUSTER_RESERVE_PX = 360;
+/** Minimum hand-fan width in the split (perimeter) self layout. Below this the
+ *  right-side zones wrap to a 2-column grid to give the hand more room. */
+const HAND_MIN_WIDTH_PX = 560;
 
 interface GameBoardProps {
   // Core game state
@@ -523,6 +526,28 @@ export function GameBoard({
   // on the far left, zone tiles on the far right, hand centered between.
   const selfIsSplit = boardArrangement === "perimeter";
   const selfRect = unifiedLayout?.self;
+  // Keep the hand at least HAND_MIN_WIDTH_PX wide; if a single row of zones on
+  // the right would squeeze it below that, wrap them into a 2-column grid.
+  const selfSplit = useMemo(() => {
+    const off = { left: 0, right: 0, grid: false };
+    if (boardArrangement !== "perimeter") return off;
+    const sx = unifiedLayout?.self?.x ?? 0;
+    const sw = unifiedLayout?.self?.width ?? 0;
+    if (sw === 0) return off;
+    const left = 130;
+    const tileStride = (72 + 10) * SELF_PANEL_SCALE;
+    const zoneTileCount = 3 + ((myCommandZone?.length ?? 0) > 0 ? 1 : 0);
+    const rowWidth = zoneTileCount * tileStride;
+    const rightForWidth = (w: number) => Math.max(0, ACTION_CLUSTER_RESERVE_PX + w - sx);
+    const handIfRow = sw - left - rightForWidth(rowWidth);
+    const grid = handIfRow < HAND_MIN_WIDTH_PX;
+    const zonesWidth = grid ? Math.min(zoneTileCount, 2) * tileStride : rowWidth;
+    return { left, right: Math.round(rightForWidth(zonesWidth)), grid };
+  }, [boardArrangement, myCommandZone?.length, unifiedLayout?.self?.x, unifiedLayout?.self?.width]);
+  const handInsets = useMemo(
+    () => ({ left: selfSplit.left, right: selfSplit.right }),
+    [selfSplit.left, selfSplit.right],
+  );
   // Span from the self zone's left edge to just left of the action cluster so
   // the right-anchored zones never sit under the PASS / KEEP-MULLIGAN buttons.
   const splitBoardWidth = selfRect ? 2 * selfRect.x + selfRect.width : 0;
@@ -553,6 +578,7 @@ export function GameBoard({
         seat="self"
         verticalAlign="bottom"
         split={selfIsSplit}
+        zonesGrid={selfSplit.grid}
         isActiveTurn={activePlayerId === me.id}
         isPriorityPlayer={priorityPlayerId === me.id}
         isTargetable={playerIsTargetable(me.id)}
@@ -636,21 +662,6 @@ export function GameBoard({
   // Reserve hand-fan space at the bottom corners so the centered hand clears
   // the split self cluster (avatar left, zone tiles right). Row keeps the full
   // width (the capped cluster handles its own clearance there).
-  const handInsets = useMemo(() => {
-    if (boardArrangement !== "perimeter") return { left: 0, right: 0 };
-    const sx = unifiedLayout?.self?.x ?? 0;
-    const sw = unifiedLayout?.self?.width ?? 0;
-    if (sw === 0) return { left: 0, right: 0 };
-    const zoneTileCount = 3 + ((myCommandZone?.length ?? 0) > 0 ? 1 : 0);
-    const zonesWidth = zoneTileCount * (72 + 10) * SELF_PANEL_SCALE;
-    // Zones sit flush-right against the action-cluster reserve; reserve the
-    // hand's right edge up to the zones' left edge.
-    return {
-      left: 130,
-      right: Math.max(0, Math.round(ACTION_CLUSTER_RESERVE_PX + zonesWidth - sx)),
-    };
-  }, [boardArrangement, myCommandZone?.length, unifiedLayout?.self?.x, unifiedLayout?.self?.width]);
-
   const unifiedCombatBlocks = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);

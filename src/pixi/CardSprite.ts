@@ -13,7 +13,7 @@ import { applyIcon } from "./panelIcons";
 
 /**
  * Shared, mutable theme reference used by every `CardSprite` instance.
- * `PixiGameScene.setTheme` calls `setCardSpriteTheme` so every sprite
+ * `BoardScene.setTheme` calls `setCardSpriteTheme` so every sprite
  * repaints against the active preset without needing to thread the
  * theme through the Container constructor.
  */

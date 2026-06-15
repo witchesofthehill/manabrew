@@ -1,28 +1,21 @@
-import { Fragment, useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { GameCard, Player } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
-import { PixiGameCanvas } from "@/pixi/PixiGameCanvas";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { SELF_HEIGHT_FRACTION } from "@/pixi/board/boardLayout";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import { useGameDevStore } from "@/stores/useGameDevStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import { PixiPhaseStripCanvas } from "@/pixi/PixiPhaseStripCanvas";
 import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
-import type { PixiGameScene } from "@/pixi/PixiGameScene";
 import type { PromptType } from "@/protocol";
-import { OpponentHalf, PlayerPanel } from "@/components/game/panels";
-import { OPPONENT_SEATS, type PlacementGhost } from "@/components/game/game.types";
+import { PlayerPanel } from "@/components/game/panels";
+import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { COMBAT_STAGE_OPPONENT_SHIFT } from "@/components/game/game.constants";
 import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { cn } from "@/lib/utils";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 
 function promptOf<TType extends PromptType>(
@@ -33,20 +26,6 @@ function promptOf<TType extends PromptType>(
     ? (prompt as Extract<Prompt, { input: { type: TType } }>)
     : null;
 }
-
-// Footprint of the bottom-right action cluster (PASS, Pass-Until-End,
-// phase buttons). Matches MainActionOverlay's `w-[300px]` + its visible
-// vertical extent so the battlefield doesn't auto-place or let the user
-// drag cards underneath it.
-// Only reserve space for the bottom-most mana pool strip — the prompt
-// overlay now sits higher and doesn't block card placement.
-const PASS_BUTTON_RESERVED = { width: 312, height: 50 } as const;
-
-// Bottom-left player cluster (avatar + zone tiles + mana row). Sized to
-// cover the panel's natural footprint so cards auto-place around it, but
-// only the rows at the bottom are affected — the rest of the grid uses
-// the full canvas width.
-const PLAYER_CLUSTER_BLOCKER = { width: 420, height: 140 } as const;
 
 const SELF_PANEL_SCALE = 0.85;
 const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
@@ -71,13 +50,8 @@ interface GameBoardProps {
 
   // Combat state
   pendingAttackers: string[];
-  pendingAttacker: string | null;
   selectedAttackDefenderId?: string | null;
   blockAssignments: { blockerId: string; attackerId: string }[];
-  /** True while MTGA-style combat staging is on (declare-blockers step or
-   *  any locked-in blocks). Fades the center phase strip so the staged
-   *  attacker/blocker columns aren't bisected by it. */
-  combatStagingActive?: boolean;
   /** Locked-in blocker→attacker assignments from the engine; combined with
    *  pending blockAssignments to drive unified-board combat staging. */
   combatAssignments?: { blockerId: string; attackerId: string }[];
@@ -95,12 +69,8 @@ interface GameBoardProps {
   // Preferences
   zonePanelOrder: ZonePanelItem[];
 
-  // Stack placement preview
-  placementGhost?: PlacementGhost | null;
-
   // Battlefield drag state
   isOverBattlefield: boolean;
-  battlefieldContainerRef: React.RefObject<HTMLDivElement | null>;
   draggingCardId?: string;
   castingCardId?: string | null;
 
@@ -140,19 +110,13 @@ interface GameBoardProps {
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
 
-  /** Out-ref populated with the live Pixi scene so Game.tsx can share it
-   *  with the full-board PixiArrowsCanvas. */
-  pixiSceneRef?: React.MutableRefObject<PixiGameScene | null>;
-
   /** Canvas-local keep-out rects (e.g. the StackDisplay panel when it is
    *  mounted) so battlefield cards beneath them move into a free cell. */
   pixiExternalBlockers?: ScreenBounds[];
 
-  /** Per-opponent Pixi scene refs, keyed by player id. Each opponent's
-   *  canvas writes into its ref once the scene is live, so the full-board
-   *  arrow layer can resolve opponent sprite positions without DOM
-   *  fallbacks. Provided by `Game.tsx` which maintains the ref bag. */
-  getOpponentPixiSceneRef?: (playerId: string) => React.MutableRefObject<PixiGameScene | null>;
+  /** Out-ref populated with the live unified BoardScene so Game.tsx can read
+   *  its canvas for the stack-panel keep-out translation. */
+  boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
   /** Mulligan-bottom selection overlay applied to the in-game hand so
    *  the player picks cards to send to the bottom of the library
@@ -177,10 +141,8 @@ export function GameBoard({
   promptType,
   currentPrompt,
   pendingAttackers,
-  pendingAttacker,
   selectedAttackDefenderId,
   blockAssignments,
-  combatStagingActive,
   combatAssignments,
   arrowSpecs,
   playerIsTargetable,
@@ -188,9 +150,7 @@ export function GameBoard({
   initiativeHolderId,
   turnFlashPlayerId,
   zonePanelOrder,
-  placementGhost,
   isOverBattlefield,
-  battlefieldContainerRef,
   draggingCardId,
   castingCardId,
   onHandCardDragStart,
@@ -213,9 +173,8 @@ export function GameBoard({
   onTapLandAbility,
   onUntapLand,
   onUntapLands,
-  pixiSceneRef,
   pixiExternalBlockers,
-  getOpponentPixiSceneRef,
+  boardSceneRef,
   handSelectionMode,
   handSelectedIds,
   onHandCardToggle,
@@ -224,10 +183,6 @@ export function GameBoard({
   const toggleSelfStop = usePhaseStopStore((s) => s.toggleSelfStop);
 
   const vScale = useHandScale();
-  // Reserve the visible portion of the hand for drag clamping. The hand
-  // now sits lower (45% of card clipped below zone), so the reserved
-  // strip is thinner — roughly 35% of the container height.
-  const handBottomReserved = Math.round(HAND_CARD_BASE.containerH * vScale * 0.35);
 
   const handWidth = useMemo(() => {
     if (myHand.length === 0) return 0;
@@ -464,34 +419,13 @@ export function GameBoard({
     [toggleSelfStop, toggleOpponentStop],
   );
 
-  // ── Resizable split via custom drag handle on phase strip left edge ──
-  const [splitPct, setSplitPct] = useState(45); // opponent % of total height
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const onGripPointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const el = boardRef.current;
-    if (!el) return;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    const onMove = (ev: PointerEvent) => {
-      const rect = el.getBoundingClientRect();
-      const y = ev.clientY - rect.top;
-      const pct = Math.max(20, Math.min(80, (y / rect.height) * 100));
-      setSplitPct(pct);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, []);
-
-  // ── Experimental unified single-canvas board (dev toggle) ──
-  const unifiedBoard = useGameDevStore((s) => s.unifiedBoard);
+  // ── Unified single-canvas board ──
   const boardArrangement = usePreferencesStore((s) => s.boardArrangement);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
-  const unifiedSceneRef = useRef<BoardScene | null>(null);
+  const localSceneRef = useRef<BoardScene | null>(null);
+  const sceneRef = boardSceneRef ?? localSceneRef;
   const [unifiedSplit, setUnifiedSplit] = useState(SELF_HEIGHT_FRACTION);
 
   const onUnifiedGripDown = useCallback((e: React.PointerEvent) => {
@@ -579,7 +513,7 @@ export function GameBoard({
   // On the unified board the self region is offset (e.g. the perimeter
   // arrangement puts it in the center column), so anchor the panel to the
   // self region's left edge rather than the container corner.
-  const selfPanelLeftPx = unifiedBoard ? (unifiedLayout?.self?.x ?? 0) + 8 : 8;
+  const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;
   const selfPanel = (
     <div
       className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
@@ -683,259 +617,117 @@ export function GameBoard({
     return [...byBlocker].map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
   }, [combatAssignments, blockAssignments, promptType]);
 
-  if (unifiedBoard) {
-    return (
-      <div
-        ref={boardRef}
-        className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
-      >
-        <div className="absolute inset-0 z-10 overflow-hidden">
-          <BoardCanvas
-            regions={unifiedRegions}
-            hand={pixiHand}
-            arrowSpecs={arrowSpecs ?? []}
-            combatBlocks={unifiedCombatBlocks}
-            phaseStrip={pixiPhaseStrip}
-            phaseStripCallbacks={pixiPhaseStripCallbacks}
-            arrangement={boardArrangement}
-            selfHeightFraction={unifiedSplit}
-            opponentFractions={opponentFractions}
-            callbacks={pixiCallbacks}
-            externalBlockers={pixiExternalBlockers}
-            isDropActive={isOverBattlefield}
-            sceneRef={unifiedSceneRef}
-            getHandActions={getHandActions}
-            onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
-            onLayout={setUnifiedLayout}
-          />
-        </div>
-        {selfPanel}
-        {unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
-          const op = opponents.find((o) => o.id === playerId);
-          if (!op) return null;
-          return (
-            <div
-              key={playerId}
-              className="absolute z-30 origin-top-left"
-              style={{
-                left: rect.x + 8,
-                top: rect.y + 8,
-                transform: `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`,
-              }}
-            >
-              <PlayerPanel
-                player={op}
-                isOpponent
-                seat={OPPONENT_SEATS[i] ?? "opponent1"}
-                verticalAlign="top"
-                isActiveTurn={activePlayerId === op.id}
-                isPriorityPlayer={priorityPlayerId === op.id}
-                isTargetable={playerIsTargetable(op.id)}
-                isSelectedTarget={selectedAttackDefenderId === op.id}
-                onTarget={() => onTargetPlayer(op.id)}
-                isFlashing={turnFlashPlayerId === op.id}
-                isMonarch={monarchId === op.id}
-                hasInitiative={initiativeHolderId === op.id}
-                commanders={op.commandZone}
-                graveyard={op.graveyard}
-                exile={op.exile}
-                onOpenCommandZone={
-                  (op.commandZone?.length ?? 0) > 0
-                    ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
-                    : undefined
-                }
-                onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
-                onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
-                onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
-                zonePanelOrder={zonePanelOrder}
-              />
-            </div>
-          );
-        })}
-        <div className="absolute inset-0 z-40 pointer-events-none">
-          <BoardArrowsCanvas sceneRef={unifiedSceneRef} />
-        </div>
-        {boardArrangement === "row" &&
-          unifiedLayout &&
-          unifiedLayout.opponents.slice(1).map(({ playerId, rect }) => (
-            <div
-              key={`oppgrip-${playerId}`}
-              className="absolute z-50 w-3 cursor-col-resize flex items-center justify-center group"
-              style={{ left: rect.x - 6, top: 0, height: rect.height }}
-              onPointerDown={onOpponentGripDown(
-                unifiedLayout.opponents.findIndex((o) => o.playerId === playerId) - 1,
-              )}
-            >
-              <div className="w-[3px] h-16 rounded-full bg-white/25 group-hover:bg-white/50" />
-            </div>
-          ))}
-        {unifiedLayout?.self && (
-          <div
-            className="absolute left-0 right-0 z-50 h-4 cursor-row-resize flex items-center justify-center group"
-            style={{ top: unifiedLayout.self.y - 8 }}
-            onPointerDown={onUnifiedGripDown}
-          >
-            <div className="h-1 w-24 rounded-full bg-white/30 group-hover:bg-white/60" />
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div
       ref={boardRef}
-      className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-visible"
+      className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-        <ReconnectBanner className="shadow-sm bg-background/95" />
+      <ReconnectBanner />
+      <div className="absolute inset-0 z-10 overflow-hidden">
+        <BoardCanvas
+          regions={unifiedRegions}
+          hand={pixiHand}
+          arrowSpecs={arrowSpecs ?? []}
+          combatBlocks={unifiedCombatBlocks}
+          phaseStrip={pixiPhaseStrip}
+          phaseStripCallbacks={pixiPhaseStripCallbacks}
+          arrangement={boardArrangement}
+          selfHeightFraction={unifiedSplit}
+          opponentFractions={opponentFractions}
+          callbacks={pixiCallbacks}
+          externalBlockers={pixiExternalBlockers}
+          isDropActive={isOverBattlefield}
+          sceneRef={sceneRef}
+          getHandActions={getHandActions}
+          onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
+          onLayout={setUnifiedLayout}
+        />
       </div>
-
-      {/* ── Split: opponent (top) / phase strip / me (bottom) ─── */}
-
-      {/* Opponent half */}
-      <div style={{ flex: `${splitPct} 1 0%` }} className="min-h-0 overflow-visible">
-        {opponents.length <= 1 ? (
-          <OpponentHalf
-            player={opponents[0]!}
-            opponentIndex={0}
-            permanents={opponentPermanentsByPlayer.get(opponents[0]!.id) ?? []}
-            graveyard={opponents[0]!.graveyard}
-            exile={opponents[0]!.exile}
-            commandZone={opponents[0]!.commandZone}
-            isTargetable={playerIsTargetable(opponents[0]!.id)}
-            isSelectedTarget={selectedAttackDefenderId === opponents[0]!.id}
-            onTarget={() => onTargetPlayer(opponents[0]!.id)}
-            isFlashing={turnFlashPlayerId === opponents[0]?.id}
-            isMonarch={monarchId === opponents[0]?.id}
-            hasInitiative={initiativeHolderId === opponents[0]?.id}
-            activePlayerId={activePlayerId}
-            priorityPlayerId={priorityPlayerId}
-            step={step}
-            promptType={promptType}
-            pendingAttacker={pendingAttacker}
-            attackerIds={promptAttackerIds}
-            selectableCardIds={selectableBattlefieldCardIds}
-            onClickCard={onBattlefieldClick}
-            onClickAnyCard={onAttackerClick}
-            onHoverCard={(card, e, opts) => onHoverCard(card, e, { useAnchor: true, ...opts })}
-            onFlipCard={onFlipCard}
-            onOpenZone={onOpenZone}
-            zonePanelOrder={zonePanelOrder}
-            hostileTargeting={hostileTargeting}
-            manaAbilityOptions={manaAbilityOptions}
-            pixiSceneRef={getOpponentPixiSceneRef?.(opponents[0]!.id)}
-            combatShiftPx={combatStagingActive ? COMBAT_STAGE_OPPONENT_SHIFT : 0}
-          />
-        ) : (
-          <ResizablePanelGroup orientation="horizontal">
-            {opponents.map((op, i) => (
-              <Fragment key={op.id}>
-                {i > 0 && <ResizableHandle />}
-                <ResizablePanel className="overflow-visible">
-                  <OpponentHalf
-                    player={op}
-                    opponentIndex={i}
-                    permanents={opponentPermanentsByPlayer.get(op.id) ?? []}
-                    graveyard={op.graveyard}
-                    exile={op.exile}
-                    commandZone={op.commandZone}
-                    isTargetable={playerIsTargetable(op.id)}
-                    isSelectedTarget={selectedAttackDefenderId === op.id}
-                    onTarget={() => onTargetPlayer(op.id)}
-                    isFlashing={turnFlashPlayerId === op.id}
-                    isMonarch={monarchId === op.id}
-                    hasInitiative={initiativeHolderId === op.id}
-                    activePlayerId={activePlayerId}
-                    priorityPlayerId={priorityPlayerId}
-                    step={step}
-                    promptType={promptType}
-                    pendingAttacker={pendingAttacker}
-                    attackerIds={promptAttackerIds}
-                    selectableCardIds={selectableBattlefieldCardIds}
-                    onClickCard={onBattlefieldClick}
-                    onClickAnyCard={onAttackerClick}
-                    onHoverCard={(card, e, opts) =>
-                      onHoverCard(card, e, { useAnchor: true, ...opts })
-                    }
-                    onFlipCard={onFlipCard}
-                    onOpenZone={onOpenZone}
-                    zonePanelOrder={zonePanelOrder}
-                    hostileTargeting={hostileTargeting}
-                    manaAbilityOptions={manaAbilityOptions}
-                    pixiSceneRef={getOpponentPixiSceneRef?.(op.id)}
-                    combatShiftPx={combatStagingActive ? COMBAT_STAGE_OPPONENT_SHIFT : 0}
-                  />
-                </ResizablePanel>
-              </Fragment>
-            ))}
-          </ResizablePanelGroup>
-        )}
-      </div>
-
-      {/* Phase strip — the center line with resize grip on the left */}
-      <div className="h-20 w-full shrink-0 relative">
-        {/* Resize grip — overlaid on the left, above the phase strip */}
-        <div
-          className="absolute left-2 top-0 h-full w-10 cursor-row-resize z-20 flex items-center justify-center"
-          onPointerDown={onGripPointerDown}
-        >
-          <div className="flex flex-col items-center gap-[3px]">
-            <div className="w-4 h-[2px] rounded-full bg-white/25" />
-            <div className="w-6 h-[2px] rounded-full bg-white/35" />
-            <div className="w-4 h-[2px] rounded-full bg-white/25" />
+      {selfPanel}
+      {unifiedLayout?.opponents.map(({ playerId, rect, orientation }, i) => {
+        const op = opponents.find((o) => o.id === playerId);
+        if (!op) return null;
+        const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
+        // Seat the panel against the player's edge: top opponents at the
+        // region's top-left, side opponents vertically centered on their column.
+        const panelStyle: React.CSSProperties =
+          orientation === "left"
+            ? {
+                left: rect.x + 8,
+                top: rect.y + rect.height / 2,
+                transform: `translateY(-50%) ${scale}`,
+                transformOrigin: "left center",
+              }
+            : orientation === "right"
+              ? {
+                  left: rect.x + rect.width - 8,
+                  top: rect.y + rect.height / 2,
+                  transform: `translate(-100%, -50%) ${scale}`,
+                  transformOrigin: "right center",
+                }
+              : {
+                  left: rect.x + 8,
+                  top: rect.y + 8,
+                  transform: scale,
+                  transformOrigin: "top left",
+                };
+        return (
+          <div key={playerId} className="absolute z-30" style={panelStyle}>
+            <PlayerPanel
+              player={op}
+              isOpponent
+              seat={OPPONENT_SEATS[i] ?? "opponent1"}
+              verticalAlign="top"
+              isActiveTurn={activePlayerId === op.id}
+              isPriorityPlayer={priorityPlayerId === op.id}
+              isTargetable={playerIsTargetable(op.id)}
+              isSelectedTarget={selectedAttackDefenderId === op.id}
+              onTarget={() => onTargetPlayer(op.id)}
+              isFlashing={turnFlashPlayerId === op.id}
+              isMonarch={monarchId === op.id}
+              hasInitiative={initiativeHolderId === op.id}
+              commanders={op.commandZone}
+              graveyard={op.graveyard}
+              exile={op.exile}
+              onOpenCommandZone={
+                (op.commandZone?.length ?? 0) > 0
+                  ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
+                  : undefined
+              }
+              onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
+              onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
+              onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
+              zonePanelOrder={zonePanelOrder}
+            />
           </div>
-        </div>
-        {/* Phase strip — full width, centered. Faded during combat staging
-            so it doesn't bisect the attacker/blocker columns. */}
-        <div
-          className={cn(
-            "absolute inset-0 transition-opacity duration-300",
-            combatStagingActive && "opacity-10 pointer-events-none",
-          )}
-        >
-          <PixiPhaseStripCanvas state={pixiPhaseStrip} callbacks={pixiPhaseStripCallbacks} />
-        </div>
+        );
+      })}
+      <div className="absolute inset-0 z-40 pointer-events-none">
+        <BoardArrowsCanvas sceneRef={sceneRef} />
       </div>
-
-      {/* Player half */}
-      <div style={{ flex: `${100 - splitPct} 1 0%` }} className="min-h-0 overflow-visible">
-        <div className="flex flex-col h-full overflow-visible">
-          <div className="flex flex-1 min-h-0 overflow-visible">
-            <div
-              ref={battlefieldContainerRef}
-              className={cn("relative flex flex-col flex-1 min-w-0 overflow-visible")}
-            >
-              {/* Cluster is given a `max-width` (not explicit width)
-                    driven by a ResizeObserver on the hand container.
-                    The container sizes to its content naturally, so
-                    there's no empty gutter at the right — but the cap
-                    triggers `flex-wrap` once the zones + avatar would
-                    start overlapping the hand. */}
-              {selfPanel}
-              <div className="absolute inset-0 z-10 overflow-hidden">
-                <PixiGameCanvas
-                  boardId="self"
-                  battlefield={pixiBattlefield}
-                  hand={pixiHand}
-                  sceneRef={pixiSceneRef}
-                  placementGhostName={
-                    placementGhost?.controllerId === me.id ? placementGhost.cardName : null
-                  }
-                  isDropActive={isOverBattlefield}
-                  callbacks={pixiCallbacks}
-                  bottomReserved={handBottomReserved}
-                  bottomLeftReserved={PLAYER_CLUSTER_BLOCKER}
-                  getHandActions={getHandActions}
-                  onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
-                  bottomRightReserved={PASS_BUTTON_RESERVED}
-                  externalBlockers={pixiExternalBlockers}
-                />
-              </div>
-            </div>
+      {boardArrangement === "row" &&
+        unifiedLayout &&
+        unifiedLayout.opponents.slice(1).map(({ playerId, rect }) => (
+          <div
+            key={`oppgrip-${playerId}`}
+            className="absolute z-50 w-3 cursor-col-resize flex items-center justify-center group"
+            style={{ left: rect.x - 6, top: 0, height: rect.height }}
+            onPointerDown={onOpponentGripDown(
+              unifiedLayout.opponents.findIndex((o) => o.playerId === playerId) - 1,
+            )}
+          >
+            <div className="w-[3px] h-16 rounded-full bg-white/25 group-hover:bg-white/50" />
           </div>
+        ))}
+      {unifiedLayout?.self && (
+        <div
+          className="absolute left-0 right-0 z-50 h-4 cursor-row-resize flex items-center justify-center group"
+          style={{ top: unifiedLayout.self.y - 8 }}
+          onPointerDown={onUnifiedGripDown}
+        >
+          <div className="h-1 w-24 rounded-full bg-white/30 group-hover:bg-white/60" />
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -17,10 +17,8 @@ import { ManualTabletopControls } from "@/components/game/ManualTabletopControls
 import { MainActionOverlay, RightActionPanel } from "@/components/game/panels";
 import { StackDisplay } from "@/components/game/panels/StackDisplay";
 import { useCastingState } from "@/hooks/useCastingState";
-import { PixiArrowsCanvas } from "@/pixi/PixiArrowsCanvas";
-import type { PixiGameScene } from "@/pixi/PixiGameScene";
+import type { BoardScene } from "@/pixi/board/BoardScene";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
-import { buildPointerSpecs } from "@/components/game/pointerSpecs";
 import { getExpandedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
@@ -32,7 +30,6 @@ import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { usePromptEffects } from "@/hooks/usePromptEffects";
 import { useCombatState } from "@/hooks/useCombatState";
-import { useCombatStaging } from "@/hooks/useCombatStaging";
 import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
@@ -54,7 +51,6 @@ import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore
 import { stackObjectToCardStub } from "@/components/game/game.utils";
 import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import type { PlacementGhost } from "@/components/game/game.types";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 /** Prompt types where hover card preview is allowed (no modal overlay). */
@@ -142,30 +138,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   const devExtraOpponents =
     (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
-  // Ref populated by PixiGameCanvas once its scene is live. Used by the
-  // full-board PixiArrowsCanvas to read sprite positions across canvases.
-  const pixiSceneRef = useRef<PixiGameScene | null>(null);
-
-  // Per-opponent Pixi scene refs — one `MutableRefObject` per player id.
-  // Each opponent's PixiGameCanvas writes its live scene into its ref so
-  // the arrow layer can read opponent sprite positions without a DOM
-  // fallback. The dispenser lazily creates the ref object the first time
-  // a given opponent asks for it so the identity is stable across
-  // re-renders (React requires refs not to flicker between invocations).
-  const opponentSceneRefsRef = useRef<Map<string, React.MutableRefObject<PixiGameScene | null>>>(
-    new Map(),
-  );
-  const getOpponentPixiSceneRef = useCallback(
-    (playerId: string): React.MutableRefObject<PixiGameScene | null> => {
-      let ref = opponentSceneRefsRef.current.get(playerId);
-      if (!ref) {
-        ref = { current: null };
-        opponentSceneRefsRef.current.set(playerId, ref);
-      }
-      return ref;
-    },
-    [],
-  );
+  // Live unified BoardScene, populated by BoardCanvas. Used here to translate
+  // the StackDisplay panel into canvas-local coords for the keep-out rect.
+  const boardSceneRef = useRef<BoardScene | null>(null);
 
   // Rect of the StackDisplay panel in canvas-local coords, or null when the
   // stack isn't rendered. Fed to the Pixi scene as an external blocker so
@@ -183,7 +158,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     let lastKey = "";
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const scene = pixiSceneRef.current;
+      const scene = boardSceneRef.current;
       const panel = document.querySelector<HTMLElement>("[data-stack-panel]");
       if (!scene || !panel) {
         if (lastKey !== "") {
@@ -1035,59 +1010,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     ];
   }, [liveArrowSpecs, debugArrowType, me?.id, opponent?.id]);
 
-  // MTGA-style combat line-up: pull blockers to their attacker's lane
-  // instead of drawing block arrows (which `stageBlockers` suppresses).
-  useCombatStaging({
-    promptType,
-    combatAssignments,
-    blockAssignments,
-    battlefield: gameView?.battlefield ?? [],
-    localPlayerId: me?.id,
-    mainSceneRef: pixiSceneRef,
-    opponentSceneRefs: opponentSceneRefsRef.current,
-  });
-
-  const livePointerSpecs = useMemo(
-    () =>
-      buildPointerSpecs({
-        stack: gameView?.stack ?? [],
-        activeStackObjectId: hoveredStackObjectIdForSpecs,
-      }),
-    [gameView?.stack, hoveredStackObjectIdForSpecs],
-  );
-
-  // Dev-only: append a single force-rendered pointer spec for the
-  // intent the operator has selected in the dev panel so each glyph can
-  // be inspected on the live board without needing a real spell. Acts
-  // as a radio (one at a time) so glyphs never stack.
-  const debugPointerIntent = useGameDevStore((s) => s.debugPointerIntent);
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
-  const pointerSpecs = useMemo(() => {
-    if (!debugPointerIntent || !me?.id || !opponent?.id) return livePointerSpecs;
-    return [
-      ...livePointerSpecs,
-      {
-        from: { kind: "player" as const, id: me.id },
-        to: { kind: "player" as const, id: opponent.id },
-        intent: debugPointerIntent,
-      },
-    ];
-  }, [livePointerSpecs, debugPointerIntent, me?.id, opponent?.id]);
-
-  const hoveredStackObjectId = useStackUIStore((s) => s.hoveredStackObjectId);
-  const placementGhost = useMemo((): PlacementGhost | null => {
-    const stack = gameView?.stack;
-    if (!stack || stack.length === 0) return null;
-    const active =
-      (hoveredStackObjectId ? stack.find((obj) => obj.id === hoveredStackObjectId) : null) ??
-      stack[stack.length - 1];
-    const hasTargets = (active.targets ?? []).length > 0;
-    if (hasTargets) return null;
-    if (!active.isPermanentSpell) return null;
-    return { stackObjectId: active.id, cardName: active.name, controllerId: active.controllerId };
-  }, [gameView?.stack, hoveredStackObjectId]);
 
   const visibleCardsById = useMemo(() => {
     if (!gameView) return new Map<string, GameCard>();
@@ -1388,27 +1313,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       }
     >
       <FullscreenToggle />
-      <PixiArrowsCanvas
-        mainSceneRef={pixiSceneRef}
-        opponentSceneRefs={opponentSceneRefsRef.current}
-        arrowSpecs={arrowSpecs}
-        pointerSpecs={pointerSpecs}
-        castingArrow={
-          casting.showArrow && casting.castingCardId && intentPrefersArrow(casting.arrowIntent)
-            ? {
-                castingCardId: casting.castingCardId,
-                targetId: casting.targetId,
-                hostile: casting.arrowHostile,
-                intent: casting.arrowIntent,
-              }
-            : null
-        }
-      />
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
-          pixiSceneRef={pixiSceneRef}
+          boardSceneRef={boardSceneRef}
           pixiExternalBlockers={stackBlockerRect ? [stackBlockerRect] : []}
-          getOpponentPixiSceneRef={getOpponentPixiSceneRef}
           handSelectionMode={mulliganPutBack.active}
           handSelectedIds={mulliganPutBack.selected}
           onHandCardToggle={mulliganPutBack.toggle}
@@ -1428,18 +1336,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           promptType={promptType}
           currentPrompt={activePrompt}
           pendingAttackers={pendingAttackers}
-          pendingAttacker={pendingAttacker}
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
-          combatStagingActive={promptType === "chooseBlockers" || combatAssignments.length > 0}
           combatAssignments={combatAssignments}
           arrowSpecs={arrowSpecs}
           playerIsTargetable={playerIsTargetable}
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}
-          placementGhost={placementGhost}
           isOverBattlefield={isOverBattlefield}
-          battlefieldContainerRef={battlefieldContainerRef}
           draggingCardId={draggingHandCard?.id}
           castingCardId={casting.castingCardId}
           onHandCardDragStart={handleHandCardDragStart}

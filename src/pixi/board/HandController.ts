@@ -25,8 +25,8 @@ const HAND_SELECTION_DROP_PX = 30;
 
 /**
  * Owns the local player's hand fan: sprite layout, hover (with grace
- * timers), hit-testing, and per-frame animation. Extracted from
- * `PixiGameScene`; reads scene geometry through `HandHost` and feeds the
+ * timers), hit-testing, and per-frame animation. Reads scene geometry
+ * through `HandHost` and feeds the
  * drag-exclusion band back through it. The battlefield queries this for
  * the hand's keep-out rect and the card-entry origin seed.
  */

@@ -5,14 +5,25 @@ import type { PlayZoneRect } from "../types";
  *  wraps them left/top/right around a center-bottom local player. */
 export type BoardArrangement = "row" | "perimeter";
 
+/** Which screen edge a region's player is seated at. `bottom` is the local
+ *  player (upright); `top` opponents are mirrored; `left`/`right` opponents
+ *  are rotated 90° to face the table center. */
+export type RegionOrientation = "bottom" | "top" | "left" | "right";
+
+/** One opponent's region: its canvas-local rect and the edge it's seated at. */
+export interface OpponentRegion {
+  rect: PlayZoneRect;
+  orientation: RegionOrientation;
+}
+
 /**
  * Computed region rectangles for the unified board canvas. All rects are
  * canvas-local. A fixed center band carries the phase strip (no grip).
  */
 export interface BoardLayout {
   self: PlayZoneRect;
-  /** One rect per opponent, in the given opponent order. */
-  opponents: PlayZoneRect[];
+  /** One region per opponent, in the given opponent order. */
+  opponents: OpponentRegion[];
   /** Vertical center of the strip band — where the phase strip is drawn. */
   dividerY: number;
 }
@@ -53,9 +64,9 @@ export function computeBoardLayout(
     return {
       self: { x: sideW, y: topHeight + band, width: centerW, height: selfHeight },
       opponents: [
-        { x: 0, y: 0, width: sideW, height },
-        { x: sideW, y: 0, width: centerW, height: topHeight },
-        { x: width - sideW, y: 0, width: sideW, height },
+        { rect: { x: 0, y: 0, width: sideW, height }, orientation: "left" },
+        { rect: { x: sideW, y: 0, width: centerW, height: topHeight }, orientation: "top" },
+        { rect: { x: width - sideW, y: 0, width: sideW, height }, orientation: "right" },
       ],
       dividerY,
     };
@@ -73,12 +84,15 @@ export function computeBoardLayout(
     fractions = Array.from({ length: count }, () => 1 / count);
   }
 
-  const opponents: PlayZoneRect[] = [];
+  const opponents: OpponentRegion[] = [];
   let acc = 0;
   for (let i = 0; i < count; i++) {
     const x = Math.round(acc * width);
     acc += fractions[i]!;
-    opponents.push({ x, y: 0, width: Math.round(acc * width) - x, height: topHeight });
+    opponents.push({
+      rect: { x, y: 0, width: Math.round(acc * width) - x, height: topHeight },
+      orientation: "top",
+    });
   }
 
   return {

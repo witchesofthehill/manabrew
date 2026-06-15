@@ -33,7 +33,7 @@ import { BoardRegion } from "./BoardRegion";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
 import { SelectionController } from "./SelectionController";
-import { STRIP_BAND_PX, type BoardLayout } from "./boardLayout";
+import { STRIP_BAND_PX, type BoardLayout, type RegionOrientation } from "./boardLayout";
 import type {
   BlockingRect,
   HandHost,
@@ -60,12 +60,11 @@ interface RegionRecord {
  * Orchestrates the unified board canvas: one Pixi `Application` hosting a
  * `BoardRegion` per player (positioned via `boardLayout`), the local-player
  * controllers (`HandController` / `SelectionController` / `BattlefieldOverlay`
- * + the `DragHandler` gesture), one shared `ArrowLayer`, and the phase strip.
- * A single set of stage pointer handlers routes to marquee / hand-hover /
- * drag. Each region gets a `RegionHost` (local = full interaction; opponents
- * = tap-to-target + hover only).
- *
- * Built alongside `PixiGameScene`; consumed by `BoardCanvas` at the switch.
+ * + the `DragHandler` gesture), and the phase strip. Arrow specs are
+ * resolved via `getArrowDefs` and drawn by the separate `BoardArrowsCanvas`
+ * overlay. A single set of stage pointer handlers routes to marquee /
+ * hand-hover / drag. Each region gets a `RegionHost` (local = full
+ * interaction; opponents = tap-to-target + hover only).
  */
 export class BoardScene {
   private app: Application;
@@ -165,12 +164,14 @@ export class BoardScene {
     let oppIndex = 0;
 
     for (const spec of players) {
-      const zone = spec.isLocal ? layout.self : (layout.opponents[oppIndex++] ?? layout.self);
+      const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
+      const zone = opp?.rect ?? layout.self;
+      const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
       seen.add(spec.playerId);
       const existing = this.regions.get(spec.playerId);
       if (existing) {
         existing.zone = zone;
-        existing.region.setZone(zone);
+        existing.region.setZone(zone, orientation);
         existing.region.setCardScale(cardScale);
         continue;
       }
@@ -179,9 +180,7 @@ export class BoardScene {
         this.root,
         zone,
         cardScale,
-        {
-          mirrored: !spec.isLocal,
-        },
+        { orientation },
       );
       region.container.zIndex = spec.isLocal ? 100 : 50;
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
@@ -214,18 +213,20 @@ export class BoardScene {
 
   private positionPhaseStrip(layout: BoardLayout): void {
     this.lastLayout = layout;
+    this.phaseStrip.container.x = layout.self.x;
     this.phaseStrip.container.y = layout.dividerY - STRIP_BAND_PX / 2;
-    this.phaseStrip.resize(this.app.renderer.width, STRIP_BAND_PX);
+    this.phaseStrip.resize(layout.self.width, STRIP_BAND_PX);
     this.drawStripBackground(layout);
   }
 
   /** Fill the center strip band with the same felt as the battlefield
-   *  regions so the divider reads as part of the board. */
+   *  regions so the divider reads as part of the board. Spans only the self
+   *  column so it doesn't cut across the rotated side regions in perimeter. */
   private drawStripBackground(layout: BoardLayout): void {
     const g = this.stripBackgroundGfx;
     g.clear();
     const y = layout.dividerY - STRIP_BAND_PX / 2;
-    g.roundRect(0, y, this.app.renderer.width, STRIP_BAND_PX, TABLE_RADIUS);
+    g.roundRect(layout.self.x, y, layout.self.width, STRIP_BAND_PX, TABLE_RADIUS);
     g.fill({ color: hexToNum(this.theme.gameTheme.canvas.background), alpha: BG_ALPHA_IDLE });
   }
 

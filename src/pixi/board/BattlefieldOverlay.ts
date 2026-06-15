@@ -43,7 +43,7 @@ interface ActionKind {
 /**
  * Builds and wires the per-card action overlay shown on battlefield cards:
  * a single tap/untap/select button, or a grid of mana-ability buttons.
- * Extracted from `PixiGameScene`; talks to the scene through `OverlayHost`.
+ * Talks to the scene through `OverlayHost`.
  */
 export class BattlefieldOverlay {
   private host: OverlayHost;

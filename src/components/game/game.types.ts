@@ -1,8 +1,7 @@
-import type { GameCard, Player, ActivatableAbilityInfo } from "@/types/manabrew";
+import type { GameCard } from "@/types/manabrew";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType } from "@/protocol";
-import type { PixiGameScene } from "@/pixi/PixiGameScene";
 
 export type PromptActionType = PromptType;
 
@@ -14,12 +13,6 @@ export interface CombatAssignment {
 export type FlashItem =
   | { kind: "card"; cardId: string; cardName: string; setCode: string }
   | { kind: "turn"; playerId: string; playerName: string };
-
-export interface PlacementGhost {
-  stackObjectId: string;
-  cardName: string;
-  controllerId: string;
-}
 
 /** Seat identifier used to resolve per-player theme colours. Source of
  *  truth for `playerColors.<seat>` theme keys and for `OPPONENT_SEATS`
@@ -33,49 +26,6 @@ export const OPPONENT_SEATS: readonly Exclude<PlayerSeat, "self">[] = [
   "opponent2",
   "opponent3",
 ] as const;
-
-export interface OpponentHalfProps {
-  player: Player;
-  /** 0-based opponent index for seat color assignment. */
-  opponentIndex: number;
-  permanents: GameCard[];
-  graveyard: GameCard[];
-  exile: GameCard[];
-  commandZone?: GameCard[];
-  isTargetable: boolean;
-  isSelectedTarget?: boolean;
-  onTarget: () => void;
-  isFlashing: boolean;
-  activePlayerId: string;
-  priorityPlayerId: string;
-  step: string;
-  promptType: PromptType | undefined;
-  pendingAttacker: string | null;
-  attackerIds?: string[];
-  selectableCardIds?: string[];
-  onClickCard: (card: GameCard) => void;
-  onClickAnyCard: (card: GameCard) => void;
-  onHoverCard: (
-    card: GameCard | null,
-    e?: React.MouseEvent,
-    options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
-  ) => void;
-  onFlipCard: () => void;
-  onOpenZone: (title: string, cards: GameCard[], onClickCard?: (cardId: string) => void) => void;
-  zonePanelOrder: ("library" | "graveyard" | "exile")[];
-  isMonarch?: boolean;
-  hasInitiative?: boolean;
-  hostileTargeting?: boolean;
-  manaAbilityOptions?: ActivatableAbilityInfo[];
-  /** Populated by the opponent's Pixi canvas so the full-board arrow
-   *  layer can resolve sprite positions for opponent permanents
-   *  without round-tripping through DOM queries. */
-  pixiSceneRef?: React.MutableRefObject<PixiGameScene | null>;
-  /** Px to slide this battlefield canvas downward during combat staging,
-   *  so staged attackers descend over the center seam to meet the blockers
-   *  facing them. 0/undefined when not staging. */
-  combatShiftPx?: number;
-}
 
 export interface RightActionPanelProps {
   collapsed: boolean;

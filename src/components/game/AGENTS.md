@@ -4,20 +4,31 @@ The largest UI subtree. Read first: `src/AGENTS.md`, `docs/STYLE_GUIDELINES.md`,
 
 ## Layout
 
-| Folder / file                             | Role                                                                                                                                                                                |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GameBoard.tsx`, `Game.tsx` (in `views/`) | Top-level board composition.                                                                                                                                                        |
-| `panels/`                                 | Player panels, mana pool, action log, stack display, prompt actions.                                                                                                                |
-| `zones/`                                  | Small React overlays — `LibraryZoneTile`, `ManaAbilityTapButton`, `HandCardActions`. The battlefield and hand themselves are rendered by Pixi (`@/pixi/PixiGameCanvas`), not React. |
-| `modals/`                                 | Prompt modals (target picker, choose mode, choose number, library peek, …). All built on the `Modal` compound. `PromptModalController` routes engine prompts to the right modal.    |
-| `cost-modals/`                            | Alternative-cost prompts (kicker, buyback, replicate, phyrexian, …).                                                                                                                |
-| `dice/`                                   | Dice-roll UI: animations, feedback, and the reroll/swap/ignore/modify modals.                                                                                                       |
-| `game.types.ts`                           | Shared TS interfaces for board UI.                                                                                                                                                  |
-| `game.constants.ts`                       | Magic numbers, phase definitions, sizing values, color arrays.                                                                                                                      |
-| `game.styles.ts`                          | Reusable Tailwind class-string constants.                                                                                                                                           |
-| `game.utils.ts`                           | Pure utilities (no React).                                                                                                                                                          |
+| Folder / file                             | Role                                                                                                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GameBoard.tsx`, `Game.tsx` (in `views/`) | Top-level board composition.                                                                                                                                                     |
+| `panels/`                                 | Player panels, mana pool, action log, stack display, prompt actions.                                                                                                             |
+| `zones/`                                  | Small React overlays — `LibraryZoneTile`, `ManaAbilityTapButton`, `HandCardActions`. The battlefield and hand themselves are rendered by Pixi (`@/pixi/BoardCanvas`), not React. |
+| `modals/`                                 | Prompt modals (target picker, choose mode, choose number, library peek, …). All built on the `Modal` compound. `PromptModalController` routes engine prompts to the right modal. |
+| `cost-modals/`                            | Alternative-cost prompts (kicker, buyback, replicate, phyrexian, …).                                                                                                             |
+| `dice/`                                   | Dice-roll UI: animations, feedback, and the reroll/swap/ignore/modify modals.                                                                                                    |
+| `game.types.ts`                           | Shared TS interfaces for board UI.                                                                                                                                               |
+| `game.constants.ts`                       | Magic numbers, phase definitions, sizing values, color arrays.                                                                                                                   |
+| `game.styles.ts`                          | Reusable Tailwind class-string constants.                                                                                                                                        |
+| `game.utils.ts`                           | Pure utilities (no React).                                                                                                                                                       |
 
 When adding a constant, type, util, or class string, **check the shared modules first.** Don't duplicate.
+
+## Board canvas — single unified Pixi scene
+
+The whole table renders on **one** Pixi canvas, not one canvas per player. `BoardCanvas` (`@/pixi/BoardCanvas`) drives a single `BoardScene` (`@/pixi/board/BoardScene`) that hosts one `BoardRegion` per player, positioned by `computeBoardLayout` (`@/pixi/board/boardLayout`). Because every player's battlefield shares one coordinate space, cards can animate across the center line (MTGA-style combat staging) without crossing a canvas boundary.
+
+- **Regions** (`BoardRegion`) own per-player grid layout, attachment stacking, rings, combat staging, and animation. The local region gets full interaction (drag/marquee/overlay); opponent regions are tap-to-target + hover only. Each reaches orchestrator services through a `RegionHost`.
+- **Local controllers** live on the scene: `HandController`, `SelectionController`, `BattlefieldOverlay`, plus the `DragHandler` gesture. They talk to the scene through the `HandHost` / `SelectionHost` / `OverlayHost` seams in `@/pixi/board/types`.
+- **Arrows** are not drawn inside `BoardScene`. It exposes `getArrowDefs()`; a separate transparent overlay canvas, `BoardArrowsCanvas` (`@/pixi/BoardArrowsCanvas`), reads those each tick and draws arrows _above_ the React panels.
+- **Layout** is chosen in Settings (`row` vs `perimeter` arrangement); `GameBoard` anchors its React player panels to the region rects returned via `BoardCanvas`'s `onLayout`. Each opponent region carries a `RegionOrientation` (`top` / `left` / `right`); in `perimeter` (4 players) the left/right players are seated on the side columns. A side region's whole Pixi container is **rotated 90°** so its cards face the table center — the grid/layout/hit-test code is unchanged and runs in a swapped-dimension local space, with `localToCanvas` / `canvasToLocal` mapping in `BoardRegion` bridging to canvas coords for arrows and entry seeds. Combat staging is skipped for the rotated sides.
+
+The legacy per-player canvases (`PixiGameCanvas` / `PixiGameScene` / `PixiArrowsCanvas` / `PixiPhaseStripCanvas` / `OpponentHalf`) have been removed — do not reintroduce them.
 
 ## Modal pattern
 

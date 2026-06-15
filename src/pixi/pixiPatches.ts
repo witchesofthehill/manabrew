@@ -2,7 +2,7 @@
  * Runtime patches for Pixi v8 bugs we've hit in practice.
  *
  * Side-effect module — import it once at the top of any entry that uses
- * Pixi (PixiGameCanvas / PixiArrowsCanvas). The patches apply to the
+ * Pixi (BoardCanvas / BoardArrowsCanvas). The patches apply to the
  * singleton exports, so a single import protects the whole app.
  */
 

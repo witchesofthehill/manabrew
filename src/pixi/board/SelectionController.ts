@@ -8,8 +8,8 @@ import type { SelectionHost } from "./types";
 
 /**
  * Owns local-player battlefield selection: the drag-marquee, the selected-id
- * set, the "N selected" badge, and selection-ring refresh. Extracted from
- * `PixiGameScene`; reads battlefield sprites through `SelectionHost`. Drag
+ * set, the "N selected" badge, and selection-ring refresh. Reads
+ * battlefield sprites through `SelectionHost`. Drag
  * start/end feed the selected set in via `setSelected`.
  */
 export class SelectionController {

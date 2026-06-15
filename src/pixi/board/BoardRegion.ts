@@ -49,28 +49,33 @@ import {
   Z_OVERLAY_OFFSET,
 } from "../constants";
 import type { RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
+import type { RegionOrientation } from "./boardLayout";
 
 type Point = ScreenPos;
 
 interface BoardRegionOptions {
-  /** Mirrored (opponent) orientation: lands at the far edge, creatures
-   *  toward the center; tap rotation flips. */
-  mirrored: boolean;
+  /** Which screen edge this player is seated at. `left`/`right` rotate the
+   *  region container 90° so cards face the table center; `top` is mirrored;
+   *  `bottom` is the upright local player. */
+  orientation: RegionOrientation;
 }
 
 /**
  * Renders one player's battlefield inside a region rect of the unified
  * board canvas: grid auto-layout, attachment stacking, name-grouping +
- * overflow, rings, combat staging, and per-frame animation. Ported from
- * `PixiGameScene`; reaches orchestrator services through `RegionHost`.
+ * overflow, rings, combat staging, and per-frame animation. Reaches
+ * orchestrator services through `RegionHost`.
  * Interaction (drag/marquee) is wired by the host and operates on this
  * region's exposed grid state.
  */
 export class BoardRegion {
   readonly container: Container;
   private host: RegionHost;
+  private orientation: RegionOrientation;
   private mirrored: boolean;
-  private zone: PlayZoneRect;
+  /** Layout space the grid/cards live in (canvas-aligned for top/bottom; a
+   *  swapped-dimension rect at the origin for the rotated left/right sides). */
+  private zone!: PlayZoneRect;
   private cardScale: number;
 
   private backgroundGfx: Graphics;
@@ -99,14 +104,15 @@ export class BoardRegion {
     options: BoardRegionOptions,
   ) {
     this.host = host;
-    this.zone = zone;
     this.cardScale = cardScale;
-    this.mirrored = options.mirrored;
+    this.orientation = options.orientation;
+    this.mirrored = options.orientation !== "bottom";
 
     this.container = new Container();
     this.container.label = "boardRegion";
     this.container.sortableChildren = true;
     parent.addChild(this.container);
+    this.applyOrientation(zone);
 
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
@@ -129,11 +135,53 @@ export class BoardRegion {
 
   // ── Region geometry ────────────────────────────────────────────────
 
-  setZone(zone: PlayZoneRect): void {
-    this.zone = zone;
+  setZone(zone: PlayZoneRect, orientation: RegionOrientation): void {
+    this.orientation = orientation;
+    this.mirrored = orientation !== "bottom";
+    this.applyOrientation(zone);
     this.drawBackground();
     this.layoutEmptyText();
     if (this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  /** Place the region's container so its layout space maps onto the on-screen
+   *  rect. Top/bottom keep canvas coords (identity transform); left/right
+   *  rotate 90° and swap the layout dimensions so the grid runs along the
+   *  column. */
+  private applyOrientation(screenRect: PlayZoneRect): void {
+    const c = this.container;
+    if (this.orientation === "left") {
+      this.zone = { x: 0, y: 0, width: screenRect.height, height: screenRect.width };
+      c.rotation = -Math.PI / 2;
+      c.position.set(screenRect.x, screenRect.y + screenRect.height);
+    } else if (this.orientation === "right") {
+      this.zone = { x: 0, y: 0, width: screenRect.height, height: screenRect.width };
+      c.rotation = Math.PI / 2;
+      c.position.set(screenRect.x + screenRect.width, screenRect.y);
+    } else {
+      this.zone = screenRect;
+      c.rotation = 0;
+      c.position.set(0, 0);
+    }
+  }
+
+  /** Map a region-local point to canvas coords through the container transform
+   *  (identity for top/bottom). */
+  private localToCanvas(x: number, y: number): ScreenPos {
+    const c = this.container;
+    const cos = Math.cos(c.rotation);
+    const sin = Math.sin(c.rotation);
+    return { x: c.position.x + x * cos - y * sin, y: c.position.y + x * sin + y * cos };
+  }
+
+  /** Inverse of {@link localToCanvas}: canvas coords back into region-local. */
+  private canvasToLocal(x: number, y: number): ScreenPos {
+    const c = this.container;
+    const cos = Math.cos(c.rotation);
+    const sin = Math.sin(c.rotation);
+    const dx = x - c.position.x;
+    const dy = y - c.position.y;
+    return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos };
   }
 
   setCardScale(scale: number): void {
@@ -181,7 +229,7 @@ export class BoardRegion {
   /** Canvas-local target position of a battlefield card, or null. */
   getCardPosition(cardId: string): ScreenPos | null {
     const entry = this.entries.get(cardId);
-    return entry ? { x: entry.targetX, y: entry.targetY } : null;
+    return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
   }
 
   getLastState(): BattlefieldState | null {
@@ -347,6 +395,9 @@ export class BoardRegion {
   private applyCombatStaging(): void {
     const staging = this.combatStaging;
     if (!staging) return;
+    // The front-edge / lane math is vertical; it isn't meaningful for the
+    // rotated side regions, so they keep their resting layout during combat.
+    if (this.orientation === "left" || this.orientation === "right") return;
     const frontY = this.frontEdgeY();
     const fanStep = CARD_W * this.cardScale * COMBAT_STAGE_FAN_FRAC;
 
@@ -685,8 +736,9 @@ export class BoardRegion {
     this.container.addChild(sprite);
 
     const seed = this.host.getEntrySeed(card.id);
-    sprite.x = seed.x;
-    sprite.y = seed.y;
+    const local = this.canvasToLocal(seed.x, seed.y);
+    sprite.x = local.x;
+    sprite.y = local.y;
     sprite.scale.set(seed.scaleX, seed.scaleY);
 
     this.entries.set(card.id, {

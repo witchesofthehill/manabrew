@@ -6,7 +6,11 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
-import { computeBoardLayout, type BoardArrangement } from "./board/boardLayout";
+import {
+  computeBoardLayout,
+  type BoardArrangement,
+  type RegionOrientation,
+} from "./board/boardLayout";
 import { battlefieldScaleForFraction } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
@@ -44,7 +48,7 @@ export interface BoardCanvasRegion {
  *  anchor React panels to each player's region. */
 export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
-  opponents: { playerId: string; rect: PlayZoneRect }[];
+  opponents: { playerId: string; rect: PlayZoneRect; orientation: RegionOrientation }[];
 }
 
 interface BoardCanvasProps {
@@ -240,14 +244,15 @@ export function BoardCanvas({
       selfHeightFraction,
       opponentFractions,
     );
-    const minHeight = Math.min(layout.self.height, ...layout.opponents.map((o) => o.height));
+    const minHeight = Math.min(layout.self.height, ...layout.opponents.map((o) => o.rect.height));
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
     s.configure(players, layout, cardScale);
     onLayoutRef.current?.({
       self: layout.self,
       opponents: opponentIds.map((id, i) => ({
         playerId: id,
-        rect: layout.opponents[i] ?? layout.self,
+        rect: layout.opponents[i]?.rect ?? layout.self,
+        orientation: layout.opponents[i]?.orientation ?? "top",
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

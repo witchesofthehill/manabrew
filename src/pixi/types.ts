@@ -30,8 +30,8 @@ export type ArrowEndpoint =
   | { kind: "stack"; id: string }
   /** "Drop here" anchor for the placement preview. `playerId` selects
    *  which player's battlefield the ghost points at — when set, the
-   *  resolver looks up that player's PixiGameScene; when omitted it
-   *  falls back to the local player's scene. */
+   *  resolver looks up that player's board region; when omitted it
+   *  falls back to the local player's region. */
   | { kind: "placement-ghost"; playerId?: string };
 
 /** Arrows render combat declarations (`attack` / `block`, painterly

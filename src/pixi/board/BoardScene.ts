@@ -17,6 +17,7 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import {
   BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
+  PHASE_STRIP_COMBAT_ALPHA,
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
   Z_STAGED_REGION,
@@ -371,9 +372,11 @@ export class BoardScene {
       });
     }
 
+    let anyStaged = false;
     for (const rec of this.regions.values()) {
       const a = acc.get(rec.region);
       const staged = !!a && (a.attackerIds.size > 0 || a.blockers.length > 0);
+      if (staged) anyStaged = true;
       rec.region.setCombatStaging(
         staged
           ? { attackerIds: a!.attackerIds, blockers: a!.blockers, blockerIds: a!.blockerIds }
@@ -383,6 +386,8 @@ export class BoardScene {
       // of the center band as they converge on the divider.
       rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
+    // Dim the phase strip while cards are crossing the center band.
+    this.phaseStrip.container.alpha = anyStaged ? PHASE_STRIP_COMBAT_ALPHA : 1;
   }
 
   setArrowSpecs(specs: ArrowSpec[]): void {

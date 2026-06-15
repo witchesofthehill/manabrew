@@ -83,6 +83,9 @@ export const COMBAT_STAGE_OVERLAP_FRAC = 0.22;
 // zIndex for a region while it has active combat staging — lifted above the
 // phase strip so staged cards read on top of the center band.
 export const Z_STAGED_REGION = 8000;
+// Phase strip opacity while combat staging is active — dimmed so the staged
+// cards crossing the center band read clearly on top of it.
+export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
 
 // ── zIndex layers ──────────────────────────────────────────────────────────
 export const Z_COMBAT_STAGED = 400;

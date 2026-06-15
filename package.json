@@ -46,7 +46,7 @@
     "website:dev": "npm --prefix website run dev",
     "website:dev:docs": "npm --prefix website run dev:docs",
     "website:build": "npm --prefix website run build",
-    "build:web": "yarn build:wasm && tsc -b && vite build",
+    "build:web": "yarn gen:protocol && yarn build:wasm && tsc -b && vite build",
     "prepare": "husky",
     "test": "vitest run",
     "test:watch": "vitest"

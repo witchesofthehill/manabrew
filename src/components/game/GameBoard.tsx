@@ -6,6 +6,7 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
+import { computeCombatOutcome } from "@/components/game/combatOutcome";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -224,6 +225,30 @@ export function GameBoard({
   const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackerIds;
+
+  // Combat preview: which creatures would die + how much damage reaches the
+  // local player, from the locked-in combat plus any mid-selection blocks.
+  const combatAssignmentsAll = useMemo(() => {
+    const byBlocker = new Map<string, string>();
+    for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
+    if (promptType === "chooseBlockers") {
+      for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
+    }
+    return [...byBlocker].map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
+  }, [combatAssignments, blockAssignments, promptType]);
+  const combatOutcome = useMemo(() => {
+    const cards = [...myPermanents, ...[...opponentPermanentsByPlayer.values()].flat()];
+    return computeCombatOutcome(cards, combatAssignmentsAll);
+  }, [myPermanents, opponentPermanentsByPlayer, combatAssignmentsAll]);
+  const doomedCardIds = useMemo(() => [...combatOutcome.doomedCardIds], [combatOutcome]);
+  const myIncomingDamage = useMemo(() => {
+    if (promptType !== "chooseBlockers") return 0;
+    return (promptAttackerIds ?? []).reduce(
+      (sum, id) => sum + (combatOutcome.attackerFaceDamage.get(id) ?? 0),
+      0,
+    );
+  }, [promptType, promptAttackerIds, combatOutcome]);
+
   const manaAbilityOptions =
     chooseActionPrompt?.input.manaAbilityOptions ?? payManaCostPrompt?.input.manaAbilityOptions;
   const hostileTargeting =
@@ -295,6 +320,7 @@ export function GameBoard({
             ? blockAssignments.map((a) => a.blockerId)
             : undefined,
       attackingCardIds: promptAttackerIds,
+      doomedCardIds,
       selectableCardIds: selectableBattlefieldCardIds,
       tappableLandIds:
         chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
@@ -317,6 +343,7 @@ export function GameBoard({
       pendingAttackers,
       blockAssignments,
       promptAttackerIds,
+      doomedCardIds,
       selectableBattlefieldCardIds,
       chooseActionPrompt,
       payCombatCostPrompt,
@@ -496,6 +523,7 @@ export function GameBoard({
     const oppState = (cards: GameCard[]): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
+      doomedCardIds,
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
     });
@@ -514,6 +542,7 @@ export function GameBoard({
     pixiBattlefield,
     promptType,
     promptAttackerIds,
+    doomedCardIds,
     selectableBattlefieldCardIds,
     hostileTargeting,
   ]);
@@ -630,6 +659,7 @@ export function GameBoard({
         isOpponent={false}
         seat="self"
         verticalAlign="bottom"
+        incomingDamage={myIncomingDamage}
         split={selfIsSplit}
         zonesGrid={selfSplit.grid}
         isActiveTurn={activePlayerId === me.id}
@@ -715,14 +745,6 @@ export function GameBoard({
   // Reserve hand-fan space at the bottom corners so the centered hand clears
   // the split self cluster (avatar left, zone tiles right). Row keeps the full
   // width (the capped cluster handles its own clearance there).
-  const unifiedCombatBlocks = useMemo(() => {
-    const byBlocker = new Map<string, string>();
-    for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
-    if (promptType === "chooseBlockers") {
-      for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
-    }
-    return [...byBlocker].map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
-  }, [combatAssignments, blockAssignments, promptType]);
 
   return (
     <div
@@ -736,7 +758,7 @@ export function GameBoard({
           hand={pixiHand}
           arrowSpecs={arrowSpecs ?? []}
           castingArrow={castingArrow}
-          combatBlocks={unifiedCombatBlocks}
+          combatBlocks={combatAssignmentsAll}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
           arrangement={boardArrangement}

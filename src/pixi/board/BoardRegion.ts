@@ -782,7 +782,9 @@ export class BoardRegion {
       return;
     }
     const card = sprite.card;
-    if (state.attackingCardIds?.includes(card.id)) {
+    if (state.doomedCardIds?.includes(card.id)) {
+      sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
+    } else if (state.attackingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.attackAction));
     } else if (state.pendingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.passAction));

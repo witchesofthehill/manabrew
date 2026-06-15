@@ -34,6 +34,9 @@ interface PlayerPanelProps {
   /** Split-only: wrap the right-side zone tiles into a 2-column grid so they
    *  take less horizontal space when the hand would otherwise be squeezed. */
   zonesGrid?: boolean;
+  /** Predicted combat damage to this player this turn — shown as a red badge
+   *  while blocks are being decided. */
+  incomingDamage?: number;
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
   isTargetable?: boolean;
@@ -70,6 +73,7 @@ export function PlayerPanel({
   zoneOrientation = "horizontal",
   split = false,
   zonesGrid = false,
+  incomingDamage = 0,
   isActiveTurn,
   isPriorityPlayer: _isPriorityPlayer,
   isTargetable,
@@ -307,6 +311,15 @@ export function PlayerPanel({
 
   const manaRow = (
     <div className="flex h-7 w-fit items-center justify-start gap-2 px-1 pointer-events-auto">
+      {incomingDamage > 0 && (
+        <span
+          className="inline-flex items-center gap-0.5 font-extrabold leading-none tabular-nums animate-pulse"
+          style={{ color: themeColors.pt.lethal, fontSize: fontSizes.badgeCount }}
+          title="Predicted combat damage"
+        >
+          <GameIcon name="crossed-swords" className="h-[18px] w-[18px]" />−{incomingDamage}
+        </span>
+      )}
       {rowBadges.length > 0 && (
         <div className="flex items-center gap-1.5">
           {rowBadges.map((b) => {

@@ -93,6 +93,8 @@ export interface BattlefieldState {
   cards: GameCard[];
   pendingCardIds?: string[];
   attackingCardIds?: string[];
+  /** Creatures that would die in the current combat — drawn with a lethal ring. */
+  doomedCardIds?: string[];
   selectableCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];

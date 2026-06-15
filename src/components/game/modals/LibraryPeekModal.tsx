@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { MODAL_CARD_SIZE } from "../game.styles";
+import { ModalCardFilter } from "./ModalCardFilter";
+import { useCardNameFilter } from "./useCardNameFilter";
 import { useTheme } from "@/hooks/useTheme";
 import type { CSSProperties } from "react";
 
@@ -84,6 +86,7 @@ export function LibraryPeekModal({
 }: LibraryPeekModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const preview = useCardPreview();
+  const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
 
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
@@ -149,12 +152,16 @@ export function LibraryPeekModal({
 
       <Modal.Instructions>{config.instructions}</Modal.Instructions>
 
+      {showFilter && <ModalCardFilter value={query} onChange={setQuery} />}
+
       <Modal.Body>
         {cards.length === 0 ? (
           <Modal.EmptyState message="No cards to choose from" />
+        ) : filtered.length === 0 ? (
+          <Modal.EmptyState message="No matching cards" />
         ) : (
           <div className="flex flex-wrap gap-4 content-start justify-center">
-            {cards.map((card) => {
+            {filtered.map((card) => {
               const isSelected = selected.has(card.id);
               return (
                 <div

@@ -5,6 +5,8 @@ import { Modal } from "@/components/game/modals/Modal";
 import { cn } from "@/lib/utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { MODAL_CARD_SIZE } from "./game.styles";
+import { ModalCardFilter } from "@/components/game/modals/ModalCardFilter";
+import { useCardNameFilter } from "@/components/game/modals/useCardNameFilter";
 
 interface ZoneTargetSelectorProps {
   title: string;
@@ -24,6 +26,7 @@ export function ZoneTargetSelector({
   const preview = useCardPreview();
 
   const validCards = cards.filter((card) => validCardIds.includes(card.id));
+  const { query, setQuery, filtered, showFilter } = useCardNameFilter(validCards);
 
   return (
     <Modal onClose={onCancel} maxWidth="max-w-4xl" maxHeight="max-h-[85vh]">
@@ -33,12 +36,16 @@ export function ZoneTargetSelector({
 
       <Modal.Instructions>Choose a target card</Modal.Instructions>
 
+      {showFilter && <ModalCardFilter value={query} onChange={setQuery} autoFocus />}
+
       <Modal.Body>
         {validCards.length === 0 ? (
           <Modal.EmptyState message="No valid targets in this zone" />
+        ) : filtered.length === 0 ? (
+          <Modal.EmptyState message="No matching cards" />
         ) : (
           <div className="flex flex-wrap gap-3 content-start justify-center">
-            {validCards.map((card) => (
+            {filtered.map((card) => (
               <div
                 key={card.id}
                 className="shrink-0 cursor-pointer group"

@@ -7,6 +7,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { GameCard } from "@/types/manabrew";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { MODAL_FOOTER_BETWEEN } from "../game.styles";
+import { ModalCardFilter } from "./ModalCardFilter";
+import { useCardNameFilter } from "./useCardNameFilter";
 
 interface ChooseCardsModalProps {
   cards: GameCard[];
@@ -36,6 +38,7 @@ export function ChooseCardsModal({
     (optional && selected.size === 0);
 
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -107,12 +110,16 @@ export function ChooseCardsModal({
             : "Select the cards you want, then confirm."}
         </Modal.Instructions>
 
+        {showFilter && <ModalCardFilter value={query} onChange={setQuery} />}
+
         <div className="p-4 overflow-y-auto max-h-[50vh]">
           {cards.length === 0 ? (
             <Modal.EmptyState message="No valid cards" />
+          ) : filtered.length === 0 ? (
+            <Modal.EmptyState message="No matching cards" />
           ) : (
             <div className="flex flex-wrap gap-2 justify-center">
-              {cards.map((card) => {
+              {filtered.map((card) => {
                 const isSelected = selected.has(card.id);
                 return (
                   <div

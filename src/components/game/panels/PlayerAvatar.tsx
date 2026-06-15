@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type { Player } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +39,16 @@ export function PlayerAvatar({
   const theme = useTheme();
   const themeColors = theme.gameTheme;
   const fontSizes = theme.gameTheme.fontSizes;
+
+  // Flash the life badge red when this player loses life. Bumping a key on
+  // each loss remounts the badge so the one-shot CSS animation replays; the
+  // animation self-clears, so no effect/timer is needed.
+  const [prevLife, setPrevLife] = useState(player.life);
+  const [lifeLossKey, setLifeLossKey] = useState(0);
+  if (player.life !== prevLife) {
+    if (player.life < prevLife) setLifeLossKey((k) => k + 1);
+    setPrevLife(player.life);
+  }
   const targetableColor = withAlpha(themeColors.promptAction.attackAction, 0.9);
   const selectedTargetColor = themeColors.promptAction.attackAction;
 
@@ -90,8 +100,15 @@ export function PlayerAvatar({
 
         <div className="pointer-events-none absolute left-1/2 -bottom-2 -translate-x-1/2 z-30">
           <span
-            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-white shadow ring-1 ring-black/50"
-            style={{ backgroundColor: "rgba(0, 0, 0, 0.82)" }}
+            key={lifeLossKey}
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-white shadow ring-1 ring-black/50",
+              lifeLossKey > 0 && "animate-life-flash",
+            )}
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.82)",
+              ...({ "--life-flash-color": themeColors.pt.lethal } as CSSProperties),
+            }}
           >
             <Heart
               className="h-3.5 w-3.5"

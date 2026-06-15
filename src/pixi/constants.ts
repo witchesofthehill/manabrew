@@ -79,6 +79,12 @@ export const COMBAT_STAGE_FAN_FRAC = 0.7;
 // How far a committed attacker slides toward the divider (as a fraction of card
 // height) when it isn't part of an active block staging — the MTGA "lunge".
 export const COMBAT_LUNGE_FRAC = 0.4;
+
+// ── Damage shake ────────────────────────────────────────────────────────────
+// A creature jitters for this many frames when it takes new damage, decaying
+// from this peak amplitude (px).
+export const DAMAGE_SHAKE_FRAMES = 14;
+export const DAMAGE_SHAKE_AMP_PX = 4;
 // How far a staged card's center sits from the divider line, as a fraction of
 // card height. Both halves converge here so attacker and blocker overlap
 // across the divider (MTGA-style), rather than stopping at their own edges.

@@ -62,6 +62,8 @@ export interface SpriteEntry {
   targetZIndex: number;
   targetRotation: number;
   etbGlowAlpha: number;
+  /** Frames of damage-shake jitter remaining (0 = not shaking). */
+  shakeFrames: number;
   overlay: Container | null;
 }
 

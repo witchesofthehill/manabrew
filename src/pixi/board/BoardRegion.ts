@@ -27,6 +27,8 @@ import {
   BG_ALPHA_IDLE,
   CARD_RADIUS,
   COMBAT_LUNGE_FRAC,
+  DAMAGE_SHAKE_AMP_PX,
+  DAMAGE_SHAKE_FRAMES,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_OVERLAP_FRAC,
   GRID_SKELETON_FILL_ALPHA,
@@ -277,6 +279,12 @@ export class BoardRegion {
       const s = entry.sprite;
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
+      if (entry.shakeFrames > 0) {
+        const amp = DAMAGE_SHAKE_AMP_PX * (entry.shakeFrames / DAMAGE_SHAKE_FRAMES);
+        s.x += (Math.random() - 0.5) * 2 * amp;
+        s.y += (Math.random() - 0.5) * 2 * amp;
+        entry.shakeFrames -= 1;
+      }
       s.rotation = lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT);
       s.zIndex = entry.targetZIndex;
 
@@ -308,6 +316,8 @@ export class BoardRegion {
 
   updateBattlefield(state: BattlefieldState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
+    const prevDamage = new Map<string, number>();
+    for (const c of this.lastState?.cards ?? []) prevDamage.set(c.id, c.damage ?? 0);
     this.lastState = state;
     const cardMap = new Map<string, GameCard>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
@@ -406,6 +416,12 @@ export class BoardRegion {
 
     this.applyCombatStaging();
     this.applyAttackLunge(state);
+    for (const card of state.cards) {
+      if ((card.damage ?? 0) > (prevDamage.get(card.id) ?? 0)) {
+        const entry = this.entries.get(card.id);
+        if (entry) entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+      }
+    }
     this.emptyText.visible = state.cards.length === 0;
   }
 
@@ -788,6 +804,7 @@ export class BoardRegion {
       targetZIndex: 1,
       targetRotation: sprite.rotation,
       etbGlowAlpha: isEntering ? 1 : 0,
+      shakeFrames: 0,
       overlay: null,
     });
   }

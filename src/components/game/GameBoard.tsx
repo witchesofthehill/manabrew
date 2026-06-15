@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GameCard, Player } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
@@ -6,6 +6,7 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { SELF_HEIGHT_FRACTION } from "@/pixi/board/boardLayout";
 import type { BoardScene } from "@/pixi/board/BoardScene";
+import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
@@ -550,6 +551,37 @@ export function GameBoard({
     () => ({ left: selfSplit.left, right: selfSplit.right }),
     [selfSplit.left, selfSplit.right],
   );
+
+  // Measure each player's React panel and feed it back as a per-player
+  // keep-out so battlefield cards never lay out under their own zones/avatar.
+  // Keyed "self" (its split sub-sections are measured individually) or by
+  // opponent id.
+  const panelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setPanelEl = useCallback((key: string, el: HTMLDivElement | null) => {
+    if (el) panelElsRef.current.set(key, el);
+    else panelElsRef.current.delete(key);
+  }, []);
+  const lastPanelBlockersRef = useRef<string>("");
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    const scene = sceneRef.current;
+    if (!board || !scene) return;
+    const b = board.getBoundingClientRect();
+    const toRect = (el: Element): BlockingRect => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
+    };
+    const next: Record<string, BlockingRect[]> = {};
+    for (const [key, el] of panelElsRef.current) {
+      const id = key === "self" ? me.id : key;
+      const sections = el.querySelectorAll<HTMLElement>("[data-panel-section]");
+      next[id] = sections.length > 0 ? [...sections].map(toRect) : [toRect(el)];
+    }
+    const json = JSON.stringify(next);
+    if (json === lastPanelBlockersRef.current) return;
+    lastPanelBlockersRef.current = json;
+    scene.setPlayerBlockers(new Map(Object.entries(next)));
+  });
   // Span from the self zone's left edge to just left of the action cluster so
   // the right-anchored zones never sit under the PASS / KEEP-MULLIGAN buttons.
   const splitBoardWidth = selfRect ? 2 * selfRect.x + selfRect.width : 0;
@@ -559,6 +591,7 @@ export function GameBoard({
   );
   const selfPanel = (
     <div
+      ref={(el) => setPanelEl("self", el)}
       className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
       style={
         selfIsSplit && selfRect
@@ -729,7 +762,12 @@ export function GameBoard({
                   transformOrigin: "top left",
                 };
         return (
-          <div key={playerId} className="absolute z-30" style={panelStyle}>
+          <div
+            key={playerId}
+            ref={(el) => setPanelEl(playerId, el)}
+            className="absolute z-30"
+            style={panelStyle}
+          >
             <PlayerPanel
               player={op}
               isOpponent

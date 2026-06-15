@@ -381,11 +381,11 @@ export function PlayerPanel({
   if (split) {
     return (
       <div className={cn("flex w-full items-end justify-between gap-3 min-w-0", className)}>
-        <div className="flex flex-col items-start gap-1">
+        <div data-panel-section="identity" className="flex flex-col items-start gap-1">
           {avatarCell}
           {manaRow}
         </div>
-        {zonesRow}
+        <div data-panel-section="zones">{zonesRow}</div>
       </div>
     );
   }

@@ -48,7 +48,7 @@ import {
   Z_GRID_SKELETON,
   Z_OVERLAY_OFFSET,
 } from "../constants";
-import type { RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
+import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import type { RegionOrientation } from "./boardLayout";
 
 type Point = ScreenPos;
@@ -182,6 +182,21 @@ export class BoardRegion {
     const dx = x - c.position.x;
     const dy = y - c.position.y;
     return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos };
+  }
+
+  /** Keep-out rects in region-local space (host supplies them in canvas
+   *  coords; ±90° rotations map an axis-aligned rect to an axis-aligned one). */
+  private collectLocalBlockers(): BlockingRect[] {
+    return this.host.collectBlockers().map((r) => {
+      const p1 = this.canvasToLocal(r.x, r.y);
+      const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
+      return {
+        x: Math.min(p1.x, p2.x),
+        y: Math.min(p1.y, p2.y),
+        width: Math.abs(p2.x - p1.x),
+        height: Math.abs(p2.y - p1.y),
+      };
+    });
   }
 
   setCardScale(scale: number): void {
@@ -460,7 +475,7 @@ export class BoardRegion {
 
   private applyOverflowStacking(topLevelCandidates: GameCard[]): void {
     if (topLevelCandidates.length === 0) return;
-    const grid = computeGridLayout(this.zone, 0, this.host.collectBlockers(), this.cardScale);
+    const grid = computeGridLayout(this.zone, 0, this.collectLocalBlockers(), this.cardScale);
     let freeCellCount = 0;
     for (const cell of grid.cells) {
       if (!cell.blocked) freeCellCount++;
@@ -519,7 +534,7 @@ export class BoardRegion {
   private computeBattlefieldGrid(cards: GameCard[]): Map<string, Point> {
     const positions = new Map<string, Point>();
     const zone = this.zone;
-    const grid = computeGridLayout(zone, 0, this.host.collectBlockers(), this.cardScale);
+    const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     this.gridInfo = grid;
 
     const occupied = new Set<string>();
@@ -666,7 +681,7 @@ export class BoardRegion {
   private findFirstFreeBattlefieldSlot(): Point {
     const zone = this.zone;
     const grid =
-      this.gridInfo ?? computeGridLayout(zone, 0, this.host.collectBlockers(), this.cardScale);
+      this.gridInfo ?? computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     const occupied = new Set<string>();
     for (const pos of this.gridTargets.values()) {
       const cell = cellFromPoint(grid, pos.x, pos.y);
@@ -1026,7 +1041,7 @@ export class BoardRegion {
   /** Faint grid overlay shown while a hand card is dragged over this region;
    *  the cell under (localX, localY) brightens. */
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(this.zone, 0, this.host.collectBlockers(), this.cardScale);
+    const grid = computeGridLayout(this.zone, 0, this.collectLocalBlockers(), this.cardScale);
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();

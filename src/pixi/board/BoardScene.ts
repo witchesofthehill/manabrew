@@ -101,6 +101,7 @@ export class BoardScene {
 
   private handInsetLeft = 0;
   private handInsetRight = 0;
+  private playerBlockers = new Map<string, BlockingRect[]>();
 
   private cursorViewportX = 0;
   private cursorViewportY = 0;
@@ -373,6 +374,16 @@ export class BoardScene {
     if (local) local.updateBattlefield(local.getLastState() ?? ({ cards: [] } as BattlefieldState));
   }
 
+  /** Per-player keep-out rects (canvas coords) for that player's React panel,
+   *  so battlefield cards never lay out under their own zones / avatar. */
+  setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
+    this.playerBlockers = blockers;
+    for (const rec of this.regions.values()) {
+      const state = rec.region.getLastState();
+      if (state) rec.region.updateBattlefield(state);
+    }
+  }
+
   setDropActive(active: boolean): void {
     this.dropActive = active;
     this.localRegion()?.setDropActive(active);
@@ -402,7 +413,10 @@ export class BoardScene {
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {
     return {
       getTheme: () => this.theme,
-      collectBlockers: () => (isLocal ? this.localBlockers() : []),
+      collectBlockers: () => [
+        ...(this.playerBlockers.get(playerId) ?? []),
+        ...(isLocal ? this.localBlockers() : []),
+      ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {

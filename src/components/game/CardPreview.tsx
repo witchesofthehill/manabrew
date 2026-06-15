@@ -80,7 +80,7 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
     const fg = themeColors.textOnTinted;
     if (lethal) return { backgroundColor: themeColors.pt.lethal, color: fg };
     if (card.basePower == null || card.power == null) {
-      return { backgroundColor: withAlpha(themeColors.pt.neutral, 0.85), color: fg };
+      return { backgroundColor: themeColors.pt.neutral, color: fg };
     }
     const curP = parseInt(card.power, 10);
     const curT = parseInt(card.toughness ?? "0", 10);
@@ -136,9 +136,9 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
       )}
 
       {showPT && (
-        <div className="absolute bottom-2 right-2 z-10 flex flex-col items-end gap-1 pointer-events-none">
+        <div className="absolute bottom-[5.5%] right-[5.5%] z-10 flex flex-col items-end gap-1 pointer-events-none">
           <span
-            className="text-base font-bold px-2 py-0.5 rounded shadow-md leading-none"
+            className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
             style={ptStyle}
           >
             {card.power}/{card.toughness}

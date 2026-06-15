@@ -103,8 +103,19 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
   }, [ptState, themeColors]);
 
   const ptModified = ptState !== "neutral" && ptState !== "unknown";
+  const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
+  const loyalty = card.counters?.Loyalty;
+  const showLoyalty = isPlaneswalker && loyalty != null;
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
   const showPT = creature && !!card.power && !!card.toughness && (ptModified || damage > 0);
+
+  const overlayCounters = useMemo(() => {
+    if (!card.counters) return null;
+    const entries = Object.entries(card.counters).filter(
+      ([type, n]) => n > 0 && !(showLoyalty && type === "Loyalty"),
+    );
+    return entries.length ? Object.fromEntries(entries) : null;
+  }, [card.counters, showLoyalty]);
 
   return (
     <>
@@ -168,15 +179,29 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
         </div>
       )}
 
-      {card.counters && Object.values(card.counters).some((n) => n > 0) && (
+      {showLoyalty && (
+        <div className="absolute bottom-[5.5%] right-[5.5%] z-10 pointer-events-none">
+          <span
+            className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
+            style={{
+              backgroundColor: themeColors.counter.loyalty,
+              color: themeColors.textOnTinted,
+            }}
+          >
+            {loyalty}
+          </span>
+        </div>
+      )}
+
+      {overlayCounters && (
         <div
           className={cn(
             "absolute bottom-1 left-1 z-10 max-w-[70%]",
             "flex flex-wrap gap-0.5 pointer-events-none",
-            showPT ? "pr-12" : "right-1",
+            showPT || showLoyalty ? "pr-12" : "right-1",
           )}
         >
-          <CounterDisplay counters={card.counters} size="sm" />
+          <CounterDisplay counters={overlayCounters} size="sm" />
         </div>
       )}
 

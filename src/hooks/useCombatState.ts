@@ -18,6 +18,9 @@ interface UseCombatStateOptions {
   targetPlayer: (playerId: string) => void;
   respond: (output: PromptOutput) => void;
   currentPrompt: Prompt | null;
+  /** True once the engine's gameView carries the locked-in blocks. Used to
+   *  hand local pending blocks over to the engine without a one-frame gap. */
+  engineHasBlocks: boolean;
 }
 
 export function useCombatState({
@@ -27,20 +30,32 @@ export function useCombatState({
   targetPlayer,
   respond,
   currentPrompt,
+  engineHasBlocks,
 }: UseCombatStateOptions) {
   const [pendingAttackers, setPendingAttackers] = useState<string[]>([]);
   const [pendingAttacker, setPendingAttacker] = useState<string | null>(null);
   const [attackDefenderId, setAttackDefenderId] = useState<string | null>(null);
   const [blockAssignments, setBlockAssignments] = useState<CombatAssignment[]>([]);
 
-  // Reset combat state whenever the prompt type changes
+  // Reset transient combat selections whenever the prompt type changes. Block
+  // assignments are NOT cleared on leaving chooseBlockers: they keep driving
+  // the spatial staging until the engine echoes the locked-in blocks (see the
+  // engine-handoff below), so the blocker doesn't snap home for a frame.
   const [prevPromptType, setPrevPromptType] = useState(promptType);
   if (prevPromptType !== promptType) {
     setPrevPromptType(promptType);
     setPendingAttackers([]);
     setPendingAttacker(null);
     setAttackDefenderId(null);
-    setBlockAssignments([]);
+    if (promptType === "chooseBlockers") setBlockAssignments([]);
+  }
+
+  // Engine handoff: once the gameView carries the locked-in blocks, drop the
+  // local pending set so it can't linger as stale staging after combat ends.
+  const [prevEngineHasBlocks, setPrevEngineHasBlocks] = useState(engineHasBlocks);
+  if (prevEngineHasBlocks !== engineHasBlocks) {
+    setPrevEngineHasBlocks(engineHasBlocks);
+    if (engineHasBlocks) setBlockAssignments([]);
   }
 
   const possibleDefenders =

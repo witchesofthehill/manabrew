@@ -246,11 +246,12 @@ export function GameBoard({
   const combatAssignmentsAll = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
-    if (promptType === "chooseBlockers") {
-      for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
-    }
+    // Local pending blocks are merged regardless of prompt so they keep the
+    // spatial staging alive after the player submits, until the engine echoes
+    // the locked-in blocks (then `useCombatState` clears the local set).
+    for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
     return [...byBlocker].map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
-  }, [combatAssignments, blockAssignments, promptType]);
+  }, [combatAssignments, blockAssignments]);
   const combatOutcome = useMemo(() => {
     const cards = [...myPermanents, ...[...opponentPermanentsByPlayer.values()].flat()];
     return computeCombatOutcome(cards, combatAssignmentsAll);

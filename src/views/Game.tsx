@@ -542,6 +542,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     targetPlayer: casting.wrappedTargetPlayer,
     respond,
     currentPrompt: activePrompt,
+    engineHasBlocks: (gameView?.combatAssignments?.length ?? 0) > 0,
   });
   const selectedAttackDefender = chooseAttackersInput?.possibleDefenderIds.find(
     (defender) => defender.id === attackDefenderId,

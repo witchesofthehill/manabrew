@@ -111,6 +111,10 @@ export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
 // Opacity of non-combat cards while a combat is in progress, so attackers and
 // blockers stand out. Hovered cards and combatants stay at full opacity.
 export const COMBAT_DIM_ALPHA = 0.3;
+// Red wash laid over a creature the combat preview predicts will die, so the
+// "lethal" state reads as a doomed card rather than just another red ring
+// (pt.lethal shares the attacker-ring red).
+export const DOOMED_FILL_ALPHA = 0.42;
 
 // ── zIndex layers ──────────────────────────────────────────────────────────
 export const Z_COMBAT_STAGED = 400;

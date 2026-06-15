@@ -426,21 +426,11 @@ export class CardSprite extends Container {
   }
 
   /**
-   * Full update including tapped rotation + phased-out alpha. Use this on the
-   * battlefield, where `tapped` is what drives the 90° rotation.
-   */
-  updateCard(card: GameCard): void {
-    this.updateCardContent(card);
-    this.alpha = card.phasedOut ? 0.3 : 1;
-  }
-
-  /**
    * Updates the card's visible content (art, P/T, badges, counters, keywords)
-   * but does NOT touch `rotation` or `alpha`. Use this when an external
-   * animation owns those properties — e.g. the hand layout lerps rotation
-   * to the arc-fan angle and sets alpha based on dragging/casting state.
-   * Calling the full `updateCard` there would reset the rotation to 0 on
-   * every state update, causing a bumpy re-lerp back to the fan angle.
+   * but does NOT touch `rotation` or `alpha` — the board/hand animation ticks
+   * own those (the hand lerps rotation to the fan angle; the battlefield owns
+   * alpha for combat dim / phased-out / exit fade). Writing them here would snap
+   * them back to defaults on every state update, causing a re-lerp flicker.
    */
   updateCardContent(card: GameCard): void {
     const nameChanged =

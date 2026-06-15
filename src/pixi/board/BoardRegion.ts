@@ -30,6 +30,7 @@ import {
   COMBAT_LUNGE_FRAC,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
+  DOOMED_FILL_ALPHA,
   EXIT_FADE_LERP,
   EXIT_SHRINK,
   GAP,
@@ -318,11 +319,14 @@ export class BoardRegion {
       s.rotation = lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT);
       s.zIndex = entry.targetZIndex;
 
+      // Alpha is owned here (not in updateCard), so a state update mid-combat
+      // doesn't snap a dimmed/phased card back to 1 and re-fade it (flicker).
       // Fade non-combatants during combat so attackers/blockers stand out;
       // the hovered card stays lit so it can still be inspected.
-      const dimmed =
-        this.combatDim && this.hoveredCardId !== s.card.id && !this.isCombatant(s.card);
-      s.alpha = lerp(s.alpha, dimmed ? COMBAT_DIM_ALPHA : 1, OVERLAY_FADE_LERP, SNAP_ALPHA);
+      const faded =
+        s.card.phasedOut ||
+        (this.combatDim && this.hoveredCardId !== s.card.id && !this.isCombatant(s.card));
+      s.alpha = lerp(s.alpha, faded ? COMBAT_DIM_ALPHA : 1, OVERLAY_FADE_LERP, SNAP_ALPHA);
 
       if (entry.etbGlowAlpha > 0) {
         entry.etbGlowAlpha = lerp(entry.etbGlowAlpha, 0, OVERLAY_FADE_LERP, SNAP_ALPHA);
@@ -827,7 +831,7 @@ export class BoardRegion {
       card.id === DEBUG_KEYWORD_CARD_ID
         ? applyCardOverrides(card, useGameDevStore.getState().cardOverrides)
         : card;
-    entry.sprite.updateCard(overriddenCard);
+    entry.sprite.updateCardContent(overriddenCard);
     entry.sprite.setStackCount(this.stackCounts.get(card.id) ?? 1);
     entry.targetRotation = overriddenCard.tapped ? (this.mirrored ? -Math.PI / 2 : Math.PI / 2) : 0;
     this.applyBattlefieldRing(entry.sprite, state);
@@ -867,7 +871,7 @@ export class BoardRegion {
     }
     const card = sprite.card;
     if (state.doomedCardIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
+      sprite.setHighlight(true, hexToNum(theme.gameTheme.pt.lethal), DOOMED_FILL_ALPHA);
     } else if (state.attackingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.attackAction));
     } else if (state.pendingCardIds?.includes(card.id)) {

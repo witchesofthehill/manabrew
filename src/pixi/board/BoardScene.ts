@@ -283,6 +283,20 @@ export class BoardScene {
    *  one player's region. */
   updateRegionState(playerId: string, state: BattlefieldState): void {
     this.regions.get(playerId)?.region.updateBattlefield(state);
+    this.refreshPhaseStripDim();
+  }
+
+  /** Fade the phase strip whenever combat is happening (any attacker on the
+   *  board), so cards crossing the center band read clearly over it. */
+  private refreshPhaseStripDim(): void {
+    let active = false;
+    for (const rec of this.regions.values()) {
+      if (rec.region.getLastState()?.cards.some((c) => c.isAttacking)) {
+        active = true;
+        break;
+      }
+    }
+    this.phaseStrip.container.alpha = active ? PHASE_STRIP_COMBAT_ALPHA : 1;
   }
 
   updateHand(state: HandState): void {
@@ -376,11 +390,9 @@ export class BoardScene {
       });
     }
 
-    let anyStaged = false;
     for (const rec of this.regions.values()) {
       const a = acc.get(rec.region);
       const staged = !!a && (a.attackerIds.size > 0 || a.blockers.length > 0);
-      if (staged) anyStaged = true;
       rec.region.setCombatStaging(
         staged
           ? { attackerIds: a!.attackerIds, blockers: a!.blockers, blockerIds: a!.blockerIds }
@@ -390,8 +402,7 @@ export class BoardScene {
       // of the center band as they converge on the divider.
       rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
-    // Dim the phase strip while cards are crossing the center band.
-    this.phaseStrip.container.alpha = anyStaged ? PHASE_STRIP_COMBAT_ALPHA : 1;
+    this.refreshPhaseStripDim();
   }
 
   setArrowSpecs(specs: ArrowSpec[]): void {

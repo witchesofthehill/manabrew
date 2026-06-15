@@ -173,35 +173,52 @@ export function CreateGameDialog({
   const commanderValid = !needsCommander || selectedCommander !== "";
   const isReady = !!selectedDeckEntry && selectedDeckValidation.legal && commanderValid;
 
-  function handleCreate() {
-    if (!selectedDeckEntry) {
+  function handleCreate(
+    entry: (typeof allDecks)[number] | undefined = selectedDeckEntry,
+    commanderOverride?: string,
+  ) {
+    if (!entry) {
       toast.error("Please select a deck");
       return;
     }
-    if (!selectedDeckValidation.legal) {
-      toast.error(selectedDeckValidation.errors[0] ?? "Deck is not legal in this format");
+    const commander =
+      commanderOverride ?? (needsCommander ? selectedCommander : entry.commanderName);
+    const validation = entry.isPreset
+      ? { legal: true, errors: [] as string[] }
+      : validateDeckSections(
+          { deck: entry.sourceDeck, commanderName: commander || entry.commanderName },
+          selectedFormat,
+        );
+    if (!validation.legal) {
+      toast.error(validation.errors[0] ?? "Deck is not legal in this format");
       return;
     }
-    if (needsCommander && !selectedCommander) {
+    if (needsCommander && !(commander || entry.commanderName)) {
       toast.error("Please select a commander");
       return;
     }
     onOpenChange(false);
     onStart(
-      selectedDeckEntry.sourceDeck,
+      entry.sourceDeck,
       selectedFormat.id,
-      selectedFormat.deckRules.requiresCommander
-        ? needsCommander
-          ? selectedCommander
-          : selectedDeckEntry.commanderName
-        : undefined,
+      selectedFormat.deckRules.requiresCommander ? commander || entry.commanderName : undefined,
       playerCount,
     );
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(96vw,84rem)] max-w-6xl p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]">
+      <DialogContent
+        className="w-[min(96vw,84rem)] max-w-6xl p-0 gap-0 overflow-hidden grid-rows-[auto_minmax(0,1fr)_auto]"
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          const target = e.target as HTMLElement;
+          // Let dropdowns / multiline inputs use Enter themselves.
+          if (target.closest("[role='combobox'], [role='listbox'], textarea")) return;
+          e.preventDefault();
+          handleCreate();
+        }}
+      >
         {/* ── Header ── */}
         <div className="px-6 py-4 border-b">
           <DialogTitle className="text-lg font-semibold">
@@ -386,6 +403,7 @@ export function CreateGameDialog({
                       isSelected={selectedDeck === deck.id}
                       isLegal={true}
                       onSelect={() => setSelectedDeck(deck.id)}
+                      onActivate={() => handleCreate(deck, deck.commanderName)}
                     />
                   ))}
                 </div>
@@ -435,6 +453,7 @@ export function CreateGameDialog({
                         isLegal={validation.legal}
                         validationError={validation.errors[0]}
                         onSelect={() => setSelectedDeck(d.id)}
+                        onActivate={() => handleCreate(d, d.commanderName)}
                       />
                     );
                   })}
@@ -471,7 +490,12 @@ export function CreateGameDialog({
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleCreate} disabled={!isReady} className="gap-1.5">
+            <Button
+              size="sm"
+              onClick={() => handleCreate()}
+              disabled={!isReady}
+              className="gap-1.5"
+            >
               {!isLobbyMode && <Swords className="h-3.5 w-3.5" />}
               {isLobbyMode ? "Select Deck" : "Play"}
             </Button>

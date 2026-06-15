@@ -31,6 +31,8 @@ interface DeckSelectionCardProps {
   isOpponentDeck?: boolean;
   formatId?: string;
   onSelect: () => void;
+  /** Double-click to immediately confirm this deck (skip the Select button). */
+  onActivate?: () => void;
 }
 
 function getDeckTypeBreakdown(cards: { types?: string[] }[]): string {
@@ -63,6 +65,7 @@ export function DeckSelectionCard({
   isOpponentDeck,
   formatId,
   onSelect,
+  onActivate,
 }: DeckSelectionCardProps) {
   const colorCost = getDeckColorCost(cards);
   const titleColorClass = getDeckNameColorClass(cards, isPreset ? color : undefined);
@@ -93,6 +96,9 @@ export function DeckSelectionCard({
       type="button"
       onClick={() => {
         if (isLegal) onSelect();
+      }}
+      onDoubleClick={() => {
+        if (isLegal) onActivate?.();
       }}
       disabled={!isLegal}
       title={!isLegal ? validationError : undefined}

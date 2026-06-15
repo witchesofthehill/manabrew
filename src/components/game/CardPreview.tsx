@@ -10,7 +10,7 @@ import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
@@ -289,6 +289,7 @@ export function CardPreview({
   const facesHaveImages =
     !!faces &&
     faces.length >= 2 &&
+    !isTwoHalfLayout(card.layout) &&
     !!faces[0].image_uris?.[imageSize] &&
     !!faces[1].image_uris?.[imageSize];
   const derivedBackImageUrl =

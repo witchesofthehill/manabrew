@@ -44,6 +44,7 @@ interface CardPreviewProps {
 
 const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
+const MAX_PREVIEW_KEYWORDS = 8;
 
 function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: boolean }) {
   const themeColors = useTheme().gameTheme;
@@ -75,6 +76,8 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
   ]);
 
   const keywords = card.keywords ?? [];
+  const visibleKeywords = keywords.slice(0, MAX_PREVIEW_KEYWORDS);
+  const hiddenKeywordCount = keywords.length - visibleKeywords.length;
 
   const damage = card.damage ?? 0;
 
@@ -146,7 +149,7 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
           )}
           {keywords.length > 0 && (
             <div className="flex flex-wrap gap-1 justify-center">
-              {keywords.map((kw, i) => {
+              {visibleKeywords.map((kw, i) => {
                 const colonIdx = kw.indexOf(":");
                 const label = colonIdx === -1 ? kw : kw.slice(0, colonIdx);
                 const cost = colonIdx === -1 ? null : kw.slice(colonIdx + 1);
@@ -160,6 +163,11 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
                   </span>
                 );
               })}
+              {hiddenKeywordCount > 0 && (
+                <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
+                  +{hiddenKeywordCount}
+                </span>
+              )}
             </div>
           )}
         </div>

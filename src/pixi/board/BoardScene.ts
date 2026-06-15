@@ -19,6 +19,7 @@ import {
   BG_ALPHA_IDLE,
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
+  Z_STAGED_REGION,
 } from "../constants";
 import type {
   ArrowEndpoint,
@@ -372,11 +373,15 @@ export class BoardScene {
 
     for (const rec of this.regions.values()) {
       const a = acc.get(rec.region);
+      const staged = !!a && (a.attackerIds.size > 0 || a.blockers.length > 0);
       rec.region.setCombatStaging(
-        a && (a.attackerIds.size > 0 || a.blockers.length > 0)
-          ? { attackerIds: a.attackerIds, blockers: a.blockers, blockerIds: a.blockerIds }
+        staged
+          ? { attackerIds: a!.attackerIds, blockers: a!.blockers, blockerIds: a!.blockerIds }
           : null,
       );
+      // Lift a staging region above the phase strip so its cards read on top
+      // of the center band as they converge on the divider.
+      rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
   }
 

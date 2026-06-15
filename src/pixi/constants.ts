@@ -76,10 +76,13 @@ export const SNAP_HAND_SCALE = 0.002;
 // Side-by-side spacing of multiple blockers sharing one attacker, as a
 // fraction of card width.
 export const COMBAT_STAGE_FAN_FRAC = 0.7;
-// Gap from the canvas edge facing the divider to a staged card's edge —
-// pulls attackers/blockers flush against the center line so the two halves
-// read as one combat lane.
-export const COMBAT_STAGE_EDGE_INSET = 6;
+// How far a staged card's center sits from the divider line, as a fraction of
+// card height. Both halves converge here so attacker and blocker overlap
+// across the divider (MTGA-style), rather than stopping at their own edges.
+export const COMBAT_STAGE_OVERLAP_FRAC = 0.22;
+// zIndex for a region while it has active combat staging — lifted above the
+// phase strip so staged cards read on top of the center band.
+export const Z_STAGED_REGION = 8000;
 
 // ── zIndex layers ──────────────────────────────────────────────────────────
 export const Z_COMBAT_STAGED = 400;

@@ -534,7 +534,8 @@ export class BoardRegion {
 
   private applyOverflowStacking(topLevelCandidates: GameCard[]): void {
     if (topLevelCandidates.length === 0) return;
-    const grid = computeGridLayout(this.zone, 0, this.collectLocalBlockers(), this.cardScale);
+    const zone = this.usableZone();
+    const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     let freeCellCount = 0;
     for (const cell of grid.cells) {
       if (!cell.blocked) freeCellCount++;
@@ -554,9 +555,9 @@ export class BoardRegion {
     const keepers = topLevelCandidates.filter((c) => !overflowIds.has(c.id));
     if (keepers.length === 0) return;
 
-    const centerX = this.zone.x + this.zone.width / 2;
-    const topAnchorY = this.zone.y + grid.cellH / 2;
-    const bottomAnchorY = this.zone.y + this.zone.height - grid.cellH / 2;
+    const centerX = zone.x + zone.width / 2;
+    const topAnchorY = zone.y + grid.cellH / 2;
+    const bottomAnchorY = zone.y + zone.height - grid.cellH / 2;
     const nonLandAnchorY = this.mirrored ? bottomAnchorY : topAnchorY;
     const landAnchorY = this.mirrored ? topAnchorY : bottomAnchorY;
 
@@ -592,7 +593,7 @@ export class BoardRegion {
 
   private computeBattlefieldGrid(cards: GameCard[]): Map<string, Point> {
     const positions = new Map<string, Point>();
-    const zone = this.zone;
+    const zone = this.usableZone();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     this.gridInfo = grid;
 
@@ -738,7 +739,7 @@ export class BoardRegion {
   }
 
   private findFirstFreeBattlefieldSlot(): Point {
-    const zone = this.zone;
+    const zone = this.usableZone();
     const grid =
       this.gridInfo ?? computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     const occupied = new Set<string>();
@@ -875,9 +876,11 @@ export class BoardRegion {
 
   // ── Background + helpers ───────────────────────────────────────────
 
-  /** Felt rect: the zone with its bottom trimmed so it clears the hand fan
-   *  (local player only). */
-  private feltRect(): PlayZoneRect {
+  /** The area actually free for permanents: the zone with its bottom trimmed
+   *  so it clears the hand fan (local player only). Drives the felt, the empty
+   *  label, and — crucially — the card grid, so there are never grid cells at
+   *  the hand's row level (left/right of the fan). */
+  private usableZone(): PlayZoneRect {
     const zone = this.zone;
     const reserve = this.host.getHandReserveBottom();
     if (reserve <= 0) return zone;
@@ -890,7 +893,7 @@ export class BoardRegion {
   }
 
   private drawBackground(): void {
-    const felt = this.feltRect();
+    const felt = this.usableZone();
     this.backgroundGfx.clear();
     this.backgroundGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
     this.backgroundGfx.fill({
@@ -900,7 +903,7 @@ export class BoardRegion {
   }
 
   private layoutEmptyText(): void {
-    const felt = this.feltRect();
+    const felt = this.usableZone();
     this.emptyText.scale.set(1);
     const maxWidth = felt.width - 16;
     if (maxWidth > 0 && this.emptyText.width > maxWidth) {
@@ -1115,7 +1118,12 @@ export class BoardRegion {
   /** Faint grid overlay shown while a hand card is dragged over this region;
    *  the cell under (localX, localY) brightens. */
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(this.zone, 0, this.collectLocalBlockers(), this.cardScale);
+    const grid = computeGridLayout(
+      this.usableZone(),
+      0,
+      this.collectLocalBlockers(),
+      this.cardScale,
+    );
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
@@ -1142,7 +1150,7 @@ export class BoardRegion {
   /** Highlight the whole play zone (instant/sorcery cast drag — there's no
    *  grid slot, the spell just goes to the stack). */
   drawDropField(): void {
-    const zone = this.zone;
+    const zone = this.usableZone();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
     const pad = GAP * 2;
     const gfx = this.gridSkeletonGfx;

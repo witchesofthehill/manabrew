@@ -29,6 +29,8 @@ import {
   COMBAT_LUNGE_FRAC,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
+  EXIT_FADE_LERP,
+  EXIT_SHRINK,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_OVERLAP_FRAC,
   GRID_SKELETON_FILL_ALPHA,
@@ -282,8 +284,15 @@ export class BoardRegion {
   // ── Per-frame animation ────────────────────────────────────────────
 
   animate(): void {
-    for (const entry of this.entries.values()) {
+    let exited: string[] | null = null;
+    for (const [id, entry] of this.entries) {
       const s = entry.sprite;
+      if (entry.exiting) {
+        s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
+        s.scale.set(s.scale.x * EXIT_SHRINK);
+        if (s.alpha <= 0.05) (exited ??= []).push(id);
+        continue;
+      }
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
       if (entry.shakeFrames > 0) {
@@ -317,6 +326,7 @@ export class BoardRegion {
         );
       }
     }
+    if (exited) for (const id of exited) this.destroyEntry(id);
   }
 
   // ── Battlefield layout ─────────────────────────────────────────────
@@ -757,15 +767,23 @@ export class BoardRegion {
   // ── Entries ────────────────────────────────────────────────────────
 
   private pruneRemovedBattlefieldEntries(currentIds: Set<string>): void {
+    // Mark removed cards as exiting; animate() fades then destroys them.
     for (const [id, entry] of this.entries) {
-      if (currentIds.has(id)) continue;
-      this.container.removeChild(entry.sprite);
-      if (entry.overlay) this.container.removeChild(entry.overlay);
-      safeDestroy(entry.sprite);
-      if (entry.overlay) safeDestroy(entry.overlay);
-      this.entries.delete(id);
+      if (currentIds.has(id) || entry.exiting) continue;
+      entry.exiting = true;
+      if (entry.overlay) entry.overlay.visible = false;
       this.userPlacedCards.delete(id);
     }
+  }
+
+  private destroyEntry(id: string): void {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    this.container.removeChild(entry.sprite);
+    if (entry.overlay) this.container.removeChild(entry.overlay);
+    safeDestroy(entry.sprite);
+    if (entry.overlay) safeDestroy(entry.overlay);
+    this.entries.delete(id);
   }
 
   private placeBattlefieldCard(
@@ -777,6 +795,10 @@ export class BoardRegion {
   ): void {
     this.ensureBattlefieldEntry(card);
     const entry = this.entries.get(card.id)!;
+    if (entry.exiting) {
+      entry.exiting = false;
+      entry.sprite.alpha = 1;
+    }
     entry.targetX = centerX;
     entry.targetY = centerY;
     entry.targetZIndex = zIndex;

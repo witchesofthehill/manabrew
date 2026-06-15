@@ -64,6 +64,8 @@ export interface SpriteEntry {
   etbGlowAlpha: number;
   /** Frames of damage-shake jitter remaining (0 = not shaking). */
   shakeFrames: number;
+  /** True while the card is fading out after leaving the battlefield. */
+  exiting?: boolean;
   overlay: Container | null;
 }
 

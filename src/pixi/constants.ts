@@ -85,6 +85,11 @@ export const COMBAT_LUNGE_FRAC = 0.4;
 // from this peak amplitude (px).
 export const DAMAGE_SHAKE_FRAMES = 14;
 export const DAMAGE_SHAKE_AMP_PX = 4;
+
+// ── Card exit (leaving the battlefield) ─────────────────────────────────────
+// A removed card fades + shrinks instead of popping out; destroyed once faded.
+export const EXIT_FADE_LERP = 0.2;
+export const EXIT_SHRINK = 0.95;
 // How far a staged card's center sits from the divider line, as a fraction of
 // card height. Both halves converge here so attacker and blocker overlap
 // across the divider (MTGA-style), rather than stopping at their own edges.

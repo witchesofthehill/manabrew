@@ -1,11 +1,7 @@
 # License
 
-> **Proposal under discussion — see [#189](https://github.com/witchesofthehill/manabrew/issues/189).**
-> This relicensing is pending consent from existing contributors and is not yet
-> in effect. Until it lands, the repository remains GPL-3.0-or-later as recorded
-> in [`LICENSE-GPL-3.0-or-later`](./LICENSE-GPL-3.0-or-later).
-
-The proposed baseline is **AGPL-3.0-or-later for the whole project**.
+This project is licensed under **AGPL-3.0-or-later**. The full legal text is in
+[`LICENSE-AGPL-3.0-or-later`](./LICENSE-AGPL-3.0-or-later).
 
 ## Engine and project — AGPL-3.0-or-later
 
@@ -22,7 +18,9 @@ corresponding source.
 AGPL-3.0-or-later is compatible with GPL-3.0-or-later (GPLv3 §13 permits the
 combination), so this is additive. ManaBrew's own code is offered under
 AGPL-3.0-or-later; the vendored `forge/` tree remains GPL-3.0-or-later under its
-upstream terms — we do not, and cannot, relicense upstream's code.
+upstream terms — we do not, and cannot, relicense upstream's code. Earlier
+contributions made under GPL-3.0-or-later combine with the AGPL code under
+GPLv3 §13, so the network-source obligation applies to the work as a whole.
 
 Full text: [`LICENSE-AGPL-3.0-or-later`](./LICENSE-AGPL-3.0-or-later).
 
@@ -39,14 +37,11 @@ inclusion, notice of modifications).
 **Creative Commons Attribution 4.0 International (CC-BY-4.0)** so that third
 parties may describe or implement against the same wire format without
 depending on this repository. The license is declared in the file's header.
-(Whether the protocol should move to CC-BY-SA is a separate question tracked in
-[#189](https://github.com/witchesofthehill/manabrew/issues/189); this proposal
-leaves it as CC-BY.)
 
 ## Contributing
 
 Contributors are asked to add a `Signed-off-by:` trailer to every commit (the
 [Developer Certificate of Origin](https://developercertificate.org/)
-convention). Under this proposal, all contributions are offered under
+convention). All contributions to this repository are offered under
 AGPL-3.0-or-later, except changes to `docs/PROTOCOL.md`, which are offered under
 CC-BY-4.0.

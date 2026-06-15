@@ -249,9 +249,8 @@ Forge is the foundation of this project.
   scripts.
 - The parity harness keeps behavior faithful to Forge.
 - The engine and bundled card data are derivative of Forge (GPL-3.0-or-later);
-  this project's own code is proposed to be AGPL-3.0-or-later (a GPL-compatible
-  superset that also covers network use). The vendored `forge/` tree stays
-  GPL-3.0-or-later.
+  this project's own code is AGPL-3.0-or-later (a GPL-compatible license that
+  also covers network use). The vendored `forge/` tree stays GPL-3.0-or-later.
 
 This is an independent fan project. Forge maintainers are not expected to review
 or support this work.
@@ -290,14 +289,10 @@ See [AI Usage](./docs/AI_USAGE.md).
 
 ## License
 
-> **Proposed relicensing under discussion — see [#189](https://github.com/witchesofthehill/manabrew/issues/189).**
-> A proposal pending contributor consent. Until it lands the repository remains
-> GPL-3.0-or-later.
-
-The proposal relicenses the whole project to **AGPL-3.0-or-later**, to close
-GPL's network loophole for the hosted instance. AGPL is GPL-compatible, so this
-is additive; the vendored `forge/` tree stays GPL-3.0-or-later under its
-upstream terms. `docs/PROTOCOL.md` remains CC-BY-4.0.
+The project is licensed under **AGPL-3.0-or-later**, to close GPL's network
+loophole for the hosted instance. AGPL is GPL-compatible, so this is additive;
+the vendored `forge/` tree stays GPL-3.0-or-later under its upstream terms.
+`docs/PROTOCOL.md` remains CC-BY-4.0.
 
 See [LICENSE.md](./LICENSE.md),
 [LICENSE-AGPL-3.0-or-later](./LICENSE-AGPL-3.0-or-later),

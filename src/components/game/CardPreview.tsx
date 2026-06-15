@@ -90,17 +90,24 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
 
   const ptStyle = useMemo<CSSProperties>(() => {
     const fg = themeColors.textOnTinted;
-    switch (ptState) {
-      case "lethal":
-        return { backgroundColor: themeColors.pt.lethal, color: fg };
-      case "buffed":
-        return { backgroundColor: themeColors.pt.buffed, color: fg };
-      case "debuffed":
-        return { backgroundColor: themeColors.pt.debuffed, color: fg };
-      default:
-        return { backgroundColor: themeColors.pt.neutral, color: fg };
+    const base: CSSProperties = {
+      color: fg,
+      backgroundColor:
+        ptState === "lethal"
+          ? themeColors.pt.lethal
+          : ptState === "buffed"
+            ? themeColors.pt.buffed
+            : ptState === "debuffed"
+              ? themeColors.pt.debuffed
+              : themeColors.pt.neutral,
+    };
+    const toughness = parseInt(card.toughness ?? "0", 10);
+    if (ptState !== "lethal" && damage > 0 && toughness > 0) {
+      const tint = withAlpha(themeColors.pt.lethal, Math.min(0.85, damage / toughness));
+      base.backgroundImage = `linear-gradient(${tint}, ${tint})`;
     }
-  }, [ptState, themeColors]);
+    return base;
+  }, [ptState, damage, card.toughness, themeColors]);
 
   const ptModified = ptState !== "neutral" && ptState !== "unknown";
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;

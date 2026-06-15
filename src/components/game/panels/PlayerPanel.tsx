@@ -28,6 +28,9 @@ interface PlayerPanelProps {
   /** `vertical` stacks the avatar above a vertical zone column — used for the
    *  left/right seats in the perimeter arrangement where the column is narrow. */
   zoneOrientation?: "horizontal" | "vertical";
+  /** Split layout: avatar + mana on the far left, zone tiles on the far right,
+   *  with the hand fan centered in the gap (perimeter self seat). */
+  split?: boolean;
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
   isTargetable?: boolean;
@@ -62,6 +65,7 @@ export function PlayerPanel({
   className,
   verticalAlign: _verticalAlign = "bottom",
   zoneOrientation = "horizontal",
+  split = false,
   isActiveTurn,
   isPriorityPlayer: _isPriorityPlayer,
   isTargetable,
@@ -273,7 +277,7 @@ export function PlayerPanel({
   const zonesRow = (
     <ZoneActionColumn
       orientation={isVertical ? "vertical" : "horizontal"}
-      wrap={!isOpponent}
+      wrap={!isOpponent && !split}
       libraryCount={player.libraryCount}
       graveyard={graveyard}
       exile={exile}
@@ -292,7 +296,7 @@ export function PlayerPanel({
       onCommanderDragStart={onCommanderDragStart}
       draggingCardId={draggingCardId}
       onHoverCard={onHoverCard}
-      leading={isVertical ? undefined : avatarCell}
+      leading={isVertical || split ? undefined : avatarCell}
     />
   );
 
@@ -366,6 +370,20 @@ export function PlayerPanel({
       <ManaPoolDisplay pool={player.manaPool} />
     </div>
   );
+
+  // Split: avatar + mana hug the far left, zone tiles hug the far right, so
+  // the centered hand fan sits in the gap between them.
+  if (split) {
+    return (
+      <div className={cn("flex w-full items-end justify-between gap-3 min-w-0", className)}>
+        <div className="flex flex-col items-start gap-1">
+          {avatarCell}
+          {manaRow}
+        </div>
+        {zonesRow}
+      </div>
+    );
+  }
 
   return (
     <div

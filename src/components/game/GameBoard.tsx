@@ -515,20 +515,33 @@ export function GameBoard({
     CLUSTER_MIN_WIDTH_PX,
     selfHalfWidthPx - handWidth / 2 - CLUSTER_GAP_FROM_HAND_PX - 8,
   );
+  // Perimeter (wrap-around) seats the self cluster MTGA-style: avatar + mana
+  // on the far left, zone tiles on the far right, hand centered between.
+  const selfIsSplit = boardArrangement === "perimeter";
+  const selfRect = unifiedLayout?.self;
   const selfPanel = (
     <div
       className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
-      style={{
-        left: selfPanelLeftPx,
-        maxWidth: `calc(${clusterMaxWidthPx}px / ${SELF_PANEL_SCALE})`,
-        transform: `scale(${SELF_PANEL_SCALE})`,
-      }}
+      style={
+        selfIsSplit && selfRect
+          ? {
+              left: selfRect.x + 8,
+              width: (selfRect.width - 16) / SELF_PANEL_SCALE,
+              transform: `scale(${SELF_PANEL_SCALE})`,
+            }
+          : {
+              left: selfPanelLeftPx,
+              maxWidth: `calc(${clusterMaxWidthPx}px / ${SELF_PANEL_SCALE})`,
+              transform: `scale(${SELF_PANEL_SCALE})`,
+            }
+      }
     >
       <PlayerPanel
         player={me}
         isOpponent={false}
         seat="self"
         verticalAlign="bottom"
+        split={selfIsSplit}
         isActiveTurn={activePlayerId === me.id}
         isPriorityPlayer={priorityPlayerId === me.id}
         isTargetable={playerIsTargetable(me.id)}
@@ -609,6 +622,19 @@ export function GameBoard({
     </div>
   );
 
+  // Reserve hand-fan space at the bottom corners so the centered hand clears
+  // the split self cluster (avatar left, zone tiles right). Row keeps the full
+  // width (the capped cluster handles its own clearance there).
+  const handInsets = useMemo(() => {
+    if (boardArrangement !== "perimeter") return { left: 0, right: 0 };
+    const zoneTileCount = 3 + ((myCommandZone?.length ?? 0) > 0 ? 1 : 0);
+    const tileStridePx = 72 + 10;
+    return {
+      left: 130,
+      right: Math.round(zoneTileCount * tileStridePx * SELF_PANEL_SCALE) + 20,
+    };
+  }, [boardArrangement, myCommandZone?.length]);
+
   const unifiedCombatBlocks = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
@@ -637,6 +663,7 @@ export function GameBoard({
           opponentFractions={opponentFractions}
           callbacks={pixiCallbacks}
           externalBlockers={pixiExternalBlockers}
+          handInsets={handInsets}
           isDropActive={isOverBattlefield}
           sceneRef={sceneRef}
           getHandActions={getHandActions}

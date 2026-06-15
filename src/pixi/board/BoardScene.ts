@@ -99,6 +99,9 @@ export class BoardScene {
   private hoveredRegionRef: BoardRegion | null = null;
   private hoverClearTimer: number | null = null;
 
+  private handInsetLeft = 0;
+  private handInsetRight = 0;
+
   private cursorViewportX = 0;
   private cursorViewportY = 0;
   private cursorListener: (e: MouseEvent) => void;
@@ -266,6 +269,16 @@ export class BoardScene {
 
   setHandScale(scale: number): void {
     this.hand?.setScale(scale);
+    this.hand?.relayout();
+  }
+
+  /** Reserve horizontal space at the bottom corners of the self zone (player
+   *  cluster on the left, zone tiles on the right) so the hand fan centers in
+   *  the gap between them instead of overlapping. */
+  setHandInsets(left: number, right: number): void {
+    if (this.handInsetLeft === left && this.handInsetRight === right) return;
+    this.handInsetLeft = left;
+    this.handInsetRight = right;
     this.hand?.relayout();
   }
 
@@ -446,7 +459,19 @@ export class BoardScene {
 
   private makeHandHost(): HandHost {
     return {
-      getPlayZone: () => this.localZone() ?? { x: 0, y: 0, width: 0, height: 0 },
+      getPlayZone: () => {
+        const zone = this.localZone();
+        if (!zone) return { x: 0, y: 0, width: 0, height: 0 };
+        const left = this.handInsetLeft;
+        const right = this.handInsetRight;
+        if (left <= 0 && right <= 0) return zone;
+        return {
+          x: zone.x + left,
+          y: zone.y,
+          width: Math.max(0, zone.width - left - right),
+          height: zone.height,
+        };
+      },
       getCallbacks: () => this.callbacks,
       getTheme: () => this.theme,
       isMirrored: () => false,

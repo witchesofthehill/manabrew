@@ -67,6 +67,9 @@ interface BoardCanvasProps {
   opponentFractions?: number[];
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
+  /** Bottom-corner keep-out widths for the hand fan (player cluster left, zone
+   *  tiles right) so the hand centers in the gap. */
+  handInsets?: { left: number; right: number };
   isDropActive?: boolean;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: GameCard) => HandActionOption[];
@@ -92,6 +95,7 @@ export function BoardCanvas({
   opponentFractions,
   callbacks,
   externalBlockers,
+  handInsets,
   isDropActive,
   sceneRef: externalSceneRef,
   getHandActions,
@@ -308,6 +312,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setExternalBlockers(externalBlockers ?? []);
   }, [scene, externalBlockers]);
+
+  useEffect(() => {
+    scene?.setHandInsets(handInsets?.left ?? 0, handInsets?.right ?? 0);
+  }, [scene, handInsets?.left, handInsets?.right]);
 
   useEffect(() => {
     scene?.setDropActive(isDropActive ?? false);

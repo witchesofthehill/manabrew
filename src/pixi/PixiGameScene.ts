@@ -1718,7 +1718,10 @@ export class PixiGameScene {
     card: GameCard,
     abilities: ReturnType<typeof getExpandedManaAbilities>,
   ): void {
-    const cols = abilities.length > 2 ? 2 : abilities.length;
+    const hasMultiSymbolAbility = abilities.some(
+      (ab) => [...new Set(extractManaLetters(ab.description))].length > 1,
+    );
+    const cols = hasMultiSymbolAbility ? 1 : abilities.length > 2 ? 2 : abilities.length;
     const rows = Math.ceil(abilities.length / cols);
     const btnW = CARD_W / cols;
     const btnH = CARD_H / rows;
@@ -1730,9 +1733,11 @@ export class PixiGameScene {
       const shouldSpan = cols === 2 && i === abilities.length - 1 && isOddLast;
       const currentW = shouldSpan ? CARD_W : btnW;
 
-      const letters = extractManaLetters(ab.description);
-      const letter = letters[0];
-      const color = manaColorFor(letter, this.theme, hexToNum(this.theme.gameTheme.canvas.shadow));
+      const letters = [...new Set(extractManaLetters(ab.description))];
+      const letter = letters.length === 1 ? letters[0] : undefined;
+      const color = letter
+        ? manaColorFor(letter, this.theme, hexToNum(this.theme.gameTheme.canvas.shadow))
+        : hexToNum(this.theme.gameTheme.cardRing);
 
       const btn = new Graphics();
       const paintBtn = (highlighted: boolean) => {
@@ -1751,11 +1756,14 @@ export class PixiGameScene {
       paintBtn(false);
       overlay.addChild(btn);
 
-      const icon = this.createManaIcon(
-        letter ?? OVERLAY_LABEL_TAP,
-        cols === 2 ? 10 : 12,
-        cols === 2 ? 10 : 14,
-      );
+      const icon =
+        letters.length > 1
+          ? this.createManaIconGroup(letters)
+          : this.createManaIcon(
+              letter ?? OVERLAY_LABEL_TAP,
+              cols === 2 ? 10 : 12,
+              cols === 2 ? 10 : 14,
+            );
       icon.x = col * btnW + currentW / 2;
       icon.y = row * btnH + btnH / 2;
       overlay.addChild(icon);

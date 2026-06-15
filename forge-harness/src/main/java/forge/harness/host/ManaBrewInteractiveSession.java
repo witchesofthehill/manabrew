@@ -987,6 +987,65 @@ public final class ManaBrewInteractiveSession {
         return options.isEmpty() ? "" : options.get(0);
     }
 
+    List<String> awaitManaComboChoice(
+            final int playerId,
+            final List<String> availableColors,
+            final int amount,
+            final String sourceName
+    ) {
+        requireAttached();
+        if (amount <= 0 || availableColors.isEmpty()) {
+            return new ArrayList<String>();
+        }
+        publishManaComboPrompt(playerId, availableColors, amount, sourceName);
+        while (!closed && !game.isGameOver()) {
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                return defaultManaCombo(availableColors, amount);
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                return defaultManaCombo(availableColors, amount);
+            }
+            if (!"mana_combo_decision".equals(actionKind)) {
+                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+            }
+            final List<String> selected = new ArrayList<String>();
+            if (action.has("chosenColors") && action.get("chosenColors").isJsonArray()) {
+                for (JsonElement element : action.getAsJsonArray("chosenColors")) {
+                    selected.add(element.getAsString());
+                }
+            }
+            validateManaCombo(selected, availableColors, amount);
+            return selected;
+        }
+        return defaultManaCombo(availableColors, amount);
+    }
+
+    private static List<String> defaultManaCombo(final List<String> availableColors, final int amount) {
+        final List<String> selected = new ArrayList<String>();
+        final String fallback = availableColors.isEmpty() ? "C" : availableColors.get(0);
+        for (int i = 0; i < amount; i++) {
+            selected.add(fallback);
+        }
+        return selected;
+    }
+
+    private static void validateManaCombo(
+            final List<String> selected,
+            final List<String> availableColors,
+            final int amount
+    ) {
+        if (selected.size() != amount) {
+            throw new IllegalArgumentException("selected mana count out of range: " + selected.size());
+        }
+        for (final String color : selected) {
+            if (!availableColors.contains(color)) {
+                throw new IllegalArgumentException("mana color not among offered options: " + color);
+            }
+        }
+    }
+
     Pair<CardCollection, CardCollection> awaitCardIdListChoice(
             final String promptKind,
             final String responseKind,
@@ -1589,6 +1648,29 @@ public final class ManaBrewInteractiveSession {
             optionValues.add(option);
         }
         prompt.add("options", optionValues);
+        latestPromptJson = prompt.toString();
+    }
+
+    private void publishManaComboPrompt(
+            final int playerId,
+            final List<String> availableColors,
+            final int amount,
+            final String sourceName
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "specify_mana_combo");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("amount", amount);
+        if (sourceName != null) {
+            prompt.addProperty("sourceCardName", sourceName);
+        }
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        com.google.gson.JsonArray colors = new com.google.gson.JsonArray();
+        for (final String color : availableColors) {
+            colors.add(color);
+        }
+        prompt.add("availableColors", colors);
         latestPromptJson = prompt.toString();
     }
 

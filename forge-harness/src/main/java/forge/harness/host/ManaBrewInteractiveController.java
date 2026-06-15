@@ -19,6 +19,7 @@ import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilCost;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
+import forge.card.MagicColor;
 import forge.card.MagicColor.Color;
 import forge.card.mana.ManaAtom;
 import forge.card.mana.ManaCost;
@@ -152,7 +153,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 if (choice.color() == null) {
                     selected.getManaPart().clearExpressChoice();
                 } else {
-                    selected.getManaPart().setExpressChoice(shortColorName(choice.color()));
+                    selected.getManaPart().setExpressChoice(MagicColor.toShortString(choice.color()));
                 }
             }
             return selected == null ? null : Lists.newArrayList(selected);
@@ -1354,7 +1355,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 }
                 final String chosen =
                         session.awaitStringChoice("choose_color", me(), colorNames, sourceName(sa), message);
-                return colorMask(chosen);
+                return MagicColor.fromName(chosen);
         }
     }
 
@@ -1373,7 +1374,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         final String chosen = session.awaitStringChoice(
                 "choose_color", me(), colorNames, c == null ? null : c.getName(), message);
-        return colorMask(chosen);
+        return MagicColor.fromName(chosen);
     }
 
     @Override
@@ -1907,6 +1908,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 ? ColorSet.fromMask(0)
                 : ColorSet.fromMask(colorSet.getColor() & ~Color.COLORLESS.getColorMask());
         int remaining = different ? Math.min(manaAmount, mutable.countColors()) : manaAmount;
+        if (!different && remaining > 1 && !mutable.isColorless()) {
+            final List<String> availableColors = new ArrayList<>();
+            for (final Color color : mutable) {
+                availableColors.add(MagicColor.toShortString(color.getColorMask()));
+            }
+            final List<String> chosenColors = session.awaitManaComboChoice(me(), availableColors, remaining, sourceName(sa));
+            for (final String chosen : chosenColors) {
+                final byte mask = MagicColor.fromName(chosen);
+                result.put(mask, result.getOrDefault(mask, 0) + 1);
+            }
+            return result;
+        }
         while (remaining > 0 && !mutable.isColorless()) {
             final byte chosen = chooseColor("", sa, mutable);
             result.put(chosen, result.getOrDefault(chosen, 0) + 1);
@@ -2300,44 +2313,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return "Green";
         }
         return "Colorless";
-    }
-
-    private static byte colorMask(final String color) {
-        if ("White".equals(color)) {
-            return Color.WHITE.getColorMask();
-        }
-        if ("Blue".equals(color)) {
-            return Color.BLUE.getColorMask();
-        }
-        if ("Black".equals(color)) {
-            return Color.BLACK.getColorMask();
-        }
-        if ("Red".equals(color)) {
-            return Color.RED.getColorMask();
-        }
-        if ("Green".equals(color)) {
-            return Color.GREEN.getColorMask();
-        }
-        return Color.COLORLESS.getColorMask();
-    }
-
-    private static String shortColorName(final String color) {
-        if ("White".equals(color) || "W".equals(color)) {
-            return "W";
-        }
-        if ("Blue".equals(color) || "U".equals(color)) {
-            return "U";
-        }
-        if ("Black".equals(color) || "B".equals(color)) {
-            return "B";
-        }
-        if ("Red".equals(color) || "R".equals(color)) {
-            return "R";
-        }
-        if ("Green".equals(color) || "G".equals(color)) {
-            return "G";
-        }
-        return "C";
     }
 
     private Map<Card, Integer> fallbackCombatDamage(

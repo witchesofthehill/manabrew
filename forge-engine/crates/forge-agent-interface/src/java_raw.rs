@@ -148,6 +148,14 @@ pub enum JavaRawPromptBody {
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
     },
+    SpecifyManaCombo {
+        #[serde(rename = "availableColors", default)]
+        available_colors: Vec<String>,
+        #[serde(default)]
+        amount: usize,
+        #[serde(rename = "sourceCardName")]
+        source_card_name: Option<String>,
+    },
     ChooseType {
         #[serde(default)]
         options: Vec<String>,
@@ -341,6 +349,7 @@ impl JavaRawPromptBody {
             JavaRawPromptBody::PayCostToPreventEffect { .. } => "pay_cost_to_prevent_effect",
             JavaRawPromptBody::ChooseNumber { .. } => "choose_number",
             JavaRawPromptBody::ChooseColor { .. } => "choose_color",
+            JavaRawPromptBody::SpecifyManaCombo { .. } => "specify_mana_combo",
             JavaRawPromptBody::ChooseType { .. } => "choose_type",
             JavaRawPromptBody::ChooseCardName { .. } => "choose_card_name",
             JavaRawPromptBody::ChooseScry { .. } => "choose_scry",
@@ -680,6 +689,10 @@ pub enum JavaAction {
     },
     PayLife,
     CancelMana,
+    ManaComboDecision {
+        #[serde(rename = "chosenColors")]
+        chosen_colors: Vec<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

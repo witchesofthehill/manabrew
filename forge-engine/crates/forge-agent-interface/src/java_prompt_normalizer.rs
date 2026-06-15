@@ -199,6 +199,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => AgentPromptInner::ChooseColor {
             valid_colors: options,
         },
+        JavaRawPromptBody::SpecifyManaCombo {
+            available_colors,
+            amount,
+            source_card_name: _,
+        } => AgentPromptInner::SpecifyManaCombo {
+            available_colors,
+            amount,
+        },
         JavaRawPromptBody::ChooseType {
             options,
             description,
@@ -555,6 +563,9 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
         PlayerAction::PayLife => JavaAction::PayLife,
         PlayerAction::CancelManaCost => JavaAction::CancelMana,
+        PlayerAction::ManaComboDecision { chosen_colors } => JavaAction::ManaComboDecision {
+            chosen_colors: chosen_colors.clone(),
+        },
         PlayerAction::Pass { until_phase } => JavaAction::Pass {
             until_phase: until_phase.clone(),
         },

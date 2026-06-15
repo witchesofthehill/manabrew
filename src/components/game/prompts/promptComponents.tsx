@@ -56,7 +56,7 @@ type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) =>
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   revealCards: ({ prompt, respond }) => (
     <RevealCardsModal
-      cards={prompt.input.cards}
+      cards={prompt.input.cards as GameCard[]}
       message={prompt.input.message}
       onConfirm={() => respond({ type: "revealCardsAcknowledged" })}
     />
@@ -78,7 +78,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       description={prompt.input.description}
       sourceCard={ctx.sourceDeckCard}
       sourceCardId={prompt.sourceCardId}
-      cards={prompt.input.cards}
+      cards={prompt.input.cards as GameCard[]}
       promptKind={prompt.input.promptKind ?? undefined}
       optionLabels={prompt.input.optionLabels ?? undefined}
       mode={prompt.input.mode ?? undefined}
@@ -135,7 +135,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   scry: ({ prompt, respond }) => (
     <LibraryPeekModal
       mode="scry"
-      cards={prompt.input.cards}
+      cards={prompt.input.cards as GameCard[]}
       onConfirm={(bottomCardIds) => respond({ type: "scryDecision", bottomCardIds })}
     />
   ),
@@ -143,7 +143,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   surveil: ({ prompt, respond }) => (
     <LibraryPeekModal
       mode="surveil"
-      cards={prompt.input.cards}
+      cards={prompt.input.cards as GameCard[]}
       onConfirm={(graveyardCardIds) => respond({ type: "surveilDecision", graveyardCardIds })}
     />
   ),
@@ -151,7 +151,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   dig: ({ prompt, respond }) => (
     <LibraryPeekModal
       mode="dig"
-      cards={prompt.input.cards}
+      cards={prompt.input.cards as GameCard[]}
       numToTake={prompt.input.numToTake}
       optional={prompt.input.optional}
       onConfirm={(chosenCardIds) => respond({ type: "digDecision", chosenCardIds })}
@@ -175,7 +175,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <DamageOrderModal
       attackerId={prompt.input.attackerId}
       blockerIds={prompt.input.blockerIds}
-      blockerCards={prompt.input.blockerCards}
+      blockerCards={prompt.input.blockerCards as GameCard[]}
       gameViewCards={ctx.gameView?.battlefield ?? []}
       onConfirm={(orderedBlockerIds) =>
         respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds })
@@ -197,7 +197,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   reorderLibrary: ({ prompt, respond, ctx }) => (
     <ReorderLibraryModal
-      cards={prompt.input.cards}
+      cards={prompt.input.cards as GameCard[]}
       sourceCard={ctx.sourceDeckCard}
       destination={prompt.input.destination}
       topOfDeck={prompt.input.topOfDeck ?? true}
@@ -258,7 +258,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   chooseRollToIgnore: ({ prompt, respond, ctx }) => (
     <ChooseRollToIgnoreModal
       rolls={prompt.input.rolls}
-      sides={prompt.input.sides}
       sourceCard={ctx.sourceDeckCard}
       onConfirm={(roll) => respond({ type: "rollToIgnoreDecision", roll })}
     />
@@ -267,7 +266,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   chooseRollToSwap: ({ prompt, respond, ctx }) => (
     <ChooseRollToSwapModal
       rolls={prompt.input.rolls}
-      sides={prompt.input.sides}
       sourceCard={ctx.sourceDeckCard}
       onConfirm={(roll) => respond({ type: "rollToSwapDecision", roll })}
     />
@@ -276,7 +274,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   chooseRollToModify: ({ prompt, respond, ctx }) => (
     <ChooseRollToModifyModal
       rolls={prompt.input.rolls}
-      sides={prompt.input.sides}
       sourceCard={ctx.sourceDeckCard}
       onConfirm={(roll) => respond({ type: "rollToModifyDecision", roll })}
     />
@@ -285,7 +282,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   chooseDiceToReroll: ({ prompt, respond, ctx }) => (
     <ChooseDiceToRerollModal
       rolls={prompt.input.rolls}
-      sides={prompt.input.sides}
       sourceCard={ctx.sourceDeckCard}
       onConfirm={(rolls) => respond({ type: "diceToRerollDecision", rolls })}
     />
@@ -364,7 +360,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseDelve: ({ prompt, respond }) => (
     <ChooseCardsModal
-      cards={prompt.input.zoneCards}
+      cards={prompt.input.zoneCards as GameCard[]}
       minChoices={0}
       maxChoices={prompt.input.maxCards}
       onConfirm={(chosenCardIds) => respond({ type: "delveDecision", chosenCardIds })}
@@ -401,7 +397,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseCardsForEffect: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
-      cards={prompt.input.zoneCards}
+      cards={prompt.input.zoneCards as GameCard[]}
       minChoices={prompt.input.minChoices}
       maxChoices={prompt.input.maxChoices}
       sourceCardName={prompt.input.sourceCardName ?? ctx.sourceDeckCard?.name}
@@ -412,7 +408,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseExertAttackers: ({ prompt, respond }) => (
     <ChooseCardsModal
-      cards={prompt.input.attackerCards}
+      cards={prompt.input.attackerCards as GameCard[]}
       minChoices={0}
       maxChoices={prompt.input.attackerCards.length}
       sourceCardName="Exert Attackers"
@@ -423,7 +419,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseEnlistAttackers: ({ prompt, respond }) => (
     <ChooseCardsModal
-      cards={prompt.input.attackerCards}
+      cards={prompt.input.attackerCards as GameCard[]}
       minChoices={0}
       maxChoices={prompt.input.attackerCards.length}
       sourceCardName="Enlist Attackers"

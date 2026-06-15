@@ -82,12 +82,24 @@ pub enum MainPhaseAction {
     ActivateAbility(CardId, usize),
 }
 
+#[derive(Debug, Clone)]
+pub struct ActivatableAction {
+    pub card_id: CardId,
+    pub ability_index: usize,
+    pub description: String,
+    pub cost: Option<String>,
+    pub is_mana_ability: bool,
+    pub produced_colors: Vec<String>,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct PriorityActionSpace {
     pub playable: Vec<PlayOption>,
+    /// Card ids tappable for mana (engine validation of `ActivateMana`).
     pub tappable_lands: Vec<CardId>,
     pub untappable_lands: Vec<CardId>,
-    pub activatable: Vec<(CardId, usize)>,
+    pub activatable: Vec<ActivatableAction>,
+    pub mana_abilities: Vec<ActivatableAction>,
 }
 
 impl PriorityActionSpace {

@@ -17,9 +17,7 @@ struct Document {
     svars: HashMap<String, SvarInfo>,
 }
 
-#[allow(dead_code)]
 struct SvarInfo {
-    line: u32,
     name_start: u32,
     name_end: u32,
     value_start: u32,
@@ -42,7 +40,6 @@ impl Document {
                 svars.insert(
                     svar.name.to_string(),
                     SvarInfo {
-                        line: (line.line_no - 1) as u32,
                         name_start: svar.name_span.start as u32,
                         name_end: svar.name_span.end as u32,
                         value_start: svar.value_span.start as u32,
@@ -83,23 +80,18 @@ impl Backend {
     }
 
     fn compute_diagnostics(&self, text: &str) -> Vec<Diagnostic> {
+        let rope = Rope::from_str(text);
         let parsed = ParsedCardScript::parse(text);
         parsed
             .diagnostics()
             .iter()
-            .filter_map(|d| self.to_lsp_diagnostic(text, d))
+            .filter_map(|d| self.to_lsp_diagnostic(&rope, d))
             .collect()
     }
 
-    fn to_lsp_diagnostic(&self, text: &str, d: &ScriptDiagnostic<'_>) -> Option<Diagnostic> {
-        let line = (d.line_no.saturating_sub(1)) as u32;
-        let line_start = text
-            .lines()
-            .take(d.line_no.saturating_sub(1))
-            .map(|l| l.len() + 1)
-            .sum::<usize>();
-        let col_start = d.span.start.saturating_sub(line_start) as u32;
-        let col_end = d.span.end.saturating_sub(line_start) as u32;
+    fn to_lsp_diagnostic(&self, rope: &Rope, d: &ScriptDiagnostic<'_>) -> Option<Diagnostic> {
+        let start = byte_to_position(rope, d.span.start);
+        let end = byte_to_position(rope, d.span.end);
 
         let (severity, message) = match d.kind {
             ScriptDiagnosticKind::MissingColon => (
@@ -146,10 +138,7 @@ impl Backend {
         };
 
         Some(Diagnostic {
-            range: Range {
-                start: Position::new(line, col_start),
-                end: Position::new(line, col_end),
-            },
+            range: Range { start, end },
             severity: Some(severity),
             source: Some("forge-card-script".to_string()),
             message,
@@ -157,11 +146,8 @@ impl Backend {
         })
     }
 
-    /// Find the SVar name at a cursor position (for go-to-def and hover).
-    fn svar_ref_at_position<'a>(&self, text: &'a str, pos: Position) -> Option<&'a str> {
-        let line_text = text.lines().nth(pos.line as usize)?;
-        let col = pos.character as usize;
-
+    /// Find the SVar name at a byte column within a line (for go-to-def and hover).
+    fn svar_ref_at_position<'a>(&self, line_text: &'a str, col: usize) -> Option<&'a str> {
         // Look for patterns like Execute$ Name, SubAbility$ Name, etc.
         // Find the $ before cursor or the value after $
         for segment in line_text.split('|') {
@@ -208,6 +194,24 @@ fn is_svar_ref_key(key: &str) -> bool {
         || key.ends_with("Subs")
         || key.starts_with("AddTrigger")
         || key.starts_with("AddStaticAbility")
+}
+
+/// Convert an absolute byte offset into an LSP position (line + UTF-16 column).
+fn byte_to_position(rope: &Rope, byte: usize) -> Position {
+    let byte = byte.min(rope.len_bytes());
+    let line = rope.byte_to_line(byte);
+    let line_start = rope.char_to_utf16_cu(rope.line_to_char(line));
+    let col = rope.char_to_utf16_cu(rope.byte_to_char(byte)) - line_start;
+    Position::new(line as u32, col as u32)
+}
+
+/// Convert an LSP position (line + UTF-16 column) into an absolute byte offset.
+fn position_to_byte(rope: &Rope, pos: Position) -> usize {
+    let line = (pos.line as usize).min(rope.len_lines().saturating_sub(1));
+    let line_start = rope.char_to_utf16_cu(rope.line_to_char(line));
+    let max = rope.char_to_utf16_cu(rope.len_chars());
+    let target = (line_start + pos.character as usize).min(max);
+    rope.char_to_byte(rope.utf16_cu_to_char(target))
 }
 
 // ── LanguageServer trait ────────────────────────────────────────
@@ -275,15 +279,18 @@ impl LanguageServer for Backend {
         };
 
         let text = doc.rope.to_string();
+        let cursor = position_to_byte(&doc.rope, pos);
+        let line_idx = doc.rope.byte_to_line(cursor);
+        let line_start = doc.rope.line_to_byte(line_idx);
+        let line_text = doc.rope.line(line_idx).to_string();
 
         // Check if cursor is on an SVar reference
-        if let Some(svar_name) = self.svar_ref_at_position(&text, pos) {
+        if let Some(svar_name) = self.svar_ref_at_position(&line_text, cursor - line_start) {
             if let Some(info) = doc.svars.get(svar_name) {
-                let svar_line = text.lines().nth(info.line as usize).unwrap_or("");
-                let value = &svar_line[info.value_start as usize..];
-                // Truncate at newline
-                let value = value.lines().next().unwrap_or(value);
-                let hover_text = format!("**SVar** `{}`\n\n```\n{}\n```", svar_name, value);
+                let value = text
+                    .get(info.value_start as usize..info.value_end as usize)
+                    .unwrap_or("");
+                let hover_text = format!("**SVar** `{svar_name}`\n\n```\n{value}\n```");
                 return Ok(Some(Hover {
                     contents: HoverContents::Markup(MarkupContent {
                         kind: MarkupKind::Markdown,
@@ -295,7 +302,7 @@ impl LanguageServer for Backend {
                 return Ok(Some(Hover {
                     contents: HoverContents::Markup(MarkupContent {
                         kind: MarkupKind::Markdown,
-                        value: format!("**SVar** `{}` — ⚠️ not defined on this card", svar_name),
+                        value: format!("**SVar** `{svar_name}` — ⚠️ not defined on this card"),
                     }),
                     range: None,
                 }));
@@ -303,22 +310,15 @@ impl LanguageServer for Backend {
         }
 
         // Check if cursor is on a param key — show semantic type
-        let _line_text = match text.lines().nth(pos.line as usize) {
-            Some(l) => l,
-            None => return Ok(None),
-        };
-
         let parsed = ParsedCardScript::parse(&text);
         for line in parsed.lines() {
-            if line.line_no != (pos.line as usize + 1) {
+            if line.line_no != line_idx + 1 {
                 continue;
             }
             match &line.kind {
                 ScriptLineKind::Ability(ability) => {
                     for entry in ability.params.entries() {
-                        if pos.character as usize >= entry.key_span.start - line.span.start
-                            && pos.character as usize <= entry.value_span.end - line.span.start
-                        {
+                        if cursor >= entry.key_span.start && cursor <= entry.value_span.end {
                             let sem = entry.semantic();
                             return Ok(Some(Hover {
                                 contents: HoverContents::Markup(MarkupContent {
@@ -339,9 +339,7 @@ impl LanguageServer for Backend {
                 | ScriptLineKind::StaticAbility(rec)
                 | ScriptLineKind::Replacement(rec) => {
                     for entry in rec.params.entries() {
-                        if pos.character as usize >= entry.key_span.start - line.span.start
-                            && pos.character as usize <= entry.value_span.end - line.span.start
-                        {
+                        if cursor >= entry.key_span.start && cursor <= entry.value_span.end {
                             let sem = entry.semantic();
                             return Ok(Some(Hover {
                                 contents: HoverContents::Markup(MarkupContent {
@@ -377,22 +375,18 @@ impl LanguageServer for Backend {
             None => return Ok(None),
         };
 
-        let text = doc.rope.to_string();
+        let cursor = position_to_byte(&doc.rope, pos);
+        let line_idx = doc.rope.byte_to_line(cursor);
+        let line_start = doc.rope.line_to_byte(line_idx);
+        let line_text = doc.rope.line(line_idx).to_string();
 
-        if let Some(svar_name) = self.svar_ref_at_position(&text, pos) {
+        if let Some(svar_name) = self.svar_ref_at_position(&line_text, cursor - line_start) {
             if let Some(info) = doc.svars.get(svar_name) {
-                let line_start = text
-                    .lines()
-                    .take(info.line as usize)
-                    .map(|l| l.len() + 1)
-                    .sum::<usize>();
-                let col = info.name_start as usize - line_start;
-
                 return Ok(Some(GotoDefinitionResponse::Scalar(Location {
                     uri: uri.clone(),
                     range: Range {
-                        start: Position::new(info.line, col as u32),
-                        end: Position::new(info.line, (col + svar_name.len()) as u32),
+                        start: byte_to_position(&doc.rope, info.name_start as usize),
+                        end: byte_to_position(&doc.rope, info.name_end as usize),
                     },
                 })));
             }

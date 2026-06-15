@@ -242,8 +242,14 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         max: usize,
         select_prompt: &str,
     ) -> Vec<CardId> {
-        self.agent
-            .choose_cards_for_zone_change(self.player, valid, min, max, select_prompt)
+        self.agent.choose_cards_for_zone_change(
+            self.game,
+            self.player,
+            valid,
+            min,
+            max,
+            select_prompt,
+        )
     }
 
     pub fn choose_single_card_for_zone_change(
@@ -253,6 +259,7 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         is_optional: bool,
     ) -> Option<CardId> {
         self.agent.choose_single_card_for_zone_change(
+            self.game,
             self.player,
             valid,
             select_prompt,
@@ -470,15 +477,16 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
     }
 
     pub fn choose_scry(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_scry(self.player, cards)
+        self.agent.choose_scry(self.game, self.player, cards)
     }
 
     pub fn choose_surveil(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_surveil(self.player, cards)
+        self.agent.choose_surveil(self.game, self.player, cards)
     }
 
     pub fn choose_reorder_library(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_reorder_library(self.player, cards)
+        self.agent
+            .choose_reorder_library(self.game, self.player, cards)
     }
 
     pub fn choose_discard(&mut self, hand: &[CardId], num: usize) -> Vec<CardId> {
@@ -523,9 +531,15 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         available_colors: &[String],
         amount: usize,
         source: Option<CardId>,
+        express_choice: Option<u16>,
     ) -> Vec<String> {
-        self.agent
-            .specify_mana_combo(self.player, available_colors, amount, source)
+        self.agent.specify_mana_combo(
+            self.player,
+            available_colors,
+            amount,
+            source,
+            express_choice,
+        )
     }
 
     pub fn choose_roll_swap_value(

@@ -77,6 +77,7 @@ fn ring_tempts(ctx: &mut EffectContext, _sa: &SpellAbility, player: PlayerId) {
     if !creatures.is_empty() {
         ctx.agents[player.index()].snapshot_state(ctx.game, ctx.mana_pools);
         if let Some(chosen) = ctx.agents[player.index()].choose_single_card_for_zone_change(
+            ctx.game,
             player,
             &creatures,
             "Choose your Ring-bearer",

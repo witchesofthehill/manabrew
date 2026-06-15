@@ -76,7 +76,7 @@ jobs:
       - run: yarn build:wasm
 
       - name: Type-check
-        run: yarn tsc -p tsconfig.app.json --noEmit
+        run: yarn typecheck
 
   # ── Rust workspace (engine, CLI, agent-interface) ──────────────────
   rust-engine:

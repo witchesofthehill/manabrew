@@ -2,14 +2,19 @@
 name = "forge-card-script-lsp"
 version = "0.1.0"
 edition = "2021"
-description = "Language Server Protocol implementation for the Forge card script DSL"
+description = "Language Server Protocol implementation for the Forge card-script DSL"
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["mtg", "magic", "forge", "lsp", "dsl"]
+categories = ["development-tools"]
 
 [[bin]]
 name = "forge-card-script-lsp"
 path = "src/main.rs"
 
 [dependencies]
-forge-card-script = { path = "../forge-card-script" }
+forge-card-script = { path = "../forge-card-script", version = "0.1.0" }
 tower-lsp = "0.20"
 tokio = { version = "1", features = ["full"] }
 ropey = "1"

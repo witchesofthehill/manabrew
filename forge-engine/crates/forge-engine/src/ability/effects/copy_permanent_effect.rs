@@ -227,7 +227,13 @@ fn resolve_originals(
             .unwrap_or(sa.activating_player);
         ctx.agents[chooser.index()].snapshot_state(ctx.game, ctx.mana_pools);
         return ctx.agents[chooser.index()]
-            .choose_single_card_for_zone_change(chooser, &candidates, "Choose a card", false)
+            .choose_single_card_for_zone_change(
+                ctx.game,
+                chooser,
+                &candidates,
+                "Choose a card",
+                false,
+            )
             .into_iter()
             .collect();
     }

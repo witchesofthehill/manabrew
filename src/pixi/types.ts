@@ -37,7 +37,8 @@ export type ArrowEndpoint =
 /** Arrows render combat declarations (`attack` / `block`, painterly
  *  variant), attach relationships (`attach`, rune variant — Equipment /
  *  Aura targeting), and the placement preview (`placement`, dashed
- *  marching-ants) when casting a permanent spell. */
+ *  marching-ants) when casting a permanent spell, and the live targeting
+ *  arrow (`casting`, painterly with an explicit intent color). */
 export type ArrowType = "attack" | "block" | "attach" | "placement" | "casting";
 
 export interface ArrowSpec {
@@ -105,6 +106,7 @@ export interface BattlefieldState {
 export interface HandState {
   cards: GameCard[];
   draggingCardId?: string;
+  draggingIsPermanent?: boolean;
   castingCardId?: string | null;
   selectionMode?: boolean;
   selectedIds?: Set<string>;

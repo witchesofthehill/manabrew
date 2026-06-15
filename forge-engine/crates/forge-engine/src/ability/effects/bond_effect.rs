@@ -59,6 +59,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
 
     ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
     if let Some(partner) = ctx.agents[controller.index()].choose_single_card_for_zone_change(
+        ctx.game,
         controller,
         &candidates,
         "Choose a creature to pair with",

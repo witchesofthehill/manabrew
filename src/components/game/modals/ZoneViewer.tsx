@@ -7,6 +7,8 @@ import { useCardPreview } from "@/hooks/useCardPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useTheme } from "@/hooks/useTheme";
 import { Modal } from "./Modal";
+import { ModalCardFilter } from "./ModalCardFilter";
+import { useCardNameFilter } from "./useCardNameFilter";
 import type { CSSProperties } from "react";
 
 interface ZoneViewerProps {
@@ -29,6 +31,7 @@ export function ZoneViewer({
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
   const clickableIdSet = clickableCardIds ? new Set(clickableCardIds) : null;
+  const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
 
   return (
     <Modal onClose={onClose}>
@@ -36,12 +39,16 @@ export function ZoneViewer({
         <h2 className="font-semibold text-base">{title}</h2>
       </Modal.Header>
 
+      {showFilter && <ModalCardFilter value={query} onChange={setQuery} autoFocus />}
+
       <Modal.Body>
         {cards.length === 0 ? (
           <Modal.EmptyState />
+        ) : filtered.length === 0 ? (
+          <Modal.EmptyState message="No matching cards" />
         ) : (
           <div className="flex flex-wrap gap-2 content-start">
-            {cards.map((card) => {
+            {filtered.map((card) => {
               const clickable =
                 !!onClickCard && (clickableIdSet == null || clickableIdSet.has(card.id));
               return (

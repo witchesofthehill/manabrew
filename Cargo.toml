@@ -29,12 +29,14 @@ exclude = [
 ]
 
 [workspace.package]
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
+repository = "https://github.com/witchesofthehill/manabrew"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 deunicode = "1"
+ts-rs = "10"
 
 [profile.release]
 opt-level = "z"

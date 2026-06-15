@@ -1298,9 +1298,15 @@ mod tests {
         let gl = GameLoop::new(2);
         let action_space = gl.action_space(&game, p0, true);
 
-        assert!(action_space.activatable.contains(&(food, 0)));
-        assert!(action_space.activatable.contains(&(goose, 0)));
-        assert!(!action_space.activatable.contains(&(goose, 1)));
+        let has = |cid, idx| {
+            action_space
+                .activatable
+                .iter()
+                .any(|a| a.card_id == cid && a.ability_index == idx)
+        };
+        assert!(has(food, 0));
+        assert!(has(goose, 0));
+        assert!(!has(goose, 1));
     }
 
     #[test]

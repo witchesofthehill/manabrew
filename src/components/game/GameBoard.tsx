@@ -15,6 +15,7 @@ import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { PlayerPanel } from "@/components/game/panels";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
+import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
@@ -85,6 +86,7 @@ interface GameBoardProps {
   // Battlefield drag state
   isOverBattlefield: boolean;
   draggingCardId?: string;
+  draggingIsPermanent?: boolean;
   castingCardId?: string | null;
 
   // Callbacks
@@ -166,6 +168,7 @@ export function GameBoard({
   zonePanelOrder,
   isOverBattlefield,
   draggingCardId,
+  draggingIsPermanent,
   castingCardId,
   onHandCardDragStart,
   onHandCardClick,
@@ -249,8 +252,13 @@ export function GameBoard({
     );
   }, [promptType, promptAttackerIds, combatOutcome]);
 
-  const manaAbilityOptions =
-    chooseActionPrompt?.input.manaAbilityOptions ?? payManaCostPrompt?.input.manaAbilityOptions;
+  const chooseActionActions = chooseActionPrompt?.input.actions;
+  const manaAbilityOptions = chooseActionActions
+    ? manaAbilityInfos(chooseActionActions)
+    : payManaCostPrompt?.input.manaAbilityOptions;
+  const chooseActionAbilityCardIds = chooseActionActions
+    ?.filter((a) => a.type === "activateAbility")
+    .map((a) => a.cardId);
   const hostileTargeting =
     chooseTargetCardPrompt?.input.hostile ?? chooseTargetAnyPrompt?.input.hostile ?? false;
   const targetCardIds = new Set(
@@ -299,7 +307,9 @@ export function GameBoard({
               : promptType === "chooseTargetCardFromZone" &&
                   chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
                 ? chooseTargetCardFromZonePrompt.input.validCardIds
-                : undefined,
+                : promptType === "chooseAction"
+                  ? chooseActionAbilityCardIds
+                  : undefined,
     [
       promptType,
       chooseAttackersPrompt,
@@ -308,6 +318,7 @@ export function GameBoard({
       chooseTargetCardPrompt,
       chooseTargetAnyPrompt,
       chooseTargetCardFromZonePrompt,
+      chooseActionAbilityCardIds,
     ],
   );
   const pixiBattlefield = useMemo(
@@ -322,18 +333,15 @@ export function GameBoard({
       attackingCardIds: promptAttackerIds,
       doomedCardIds,
       selectableCardIds: selectableBattlefieldCardIds,
-      tappableLandIds:
-        chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
-          ? (chooseActionPrompt?.input.tappableLandIds ??
-            payCombatCostPrompt?.input.tappableLandIds ??
-            payManaCostPrompt?.input.tappableLandIds)
-          : undefined,
-      untappableLandIds:
-        chooseActionPrompt || payCombatCostPrompt || payManaCostPrompt
-          ? (chooseActionPrompt?.input.untappableLandIds ??
-            payCombatCostPrompt?.input.untappableLandIds ??
-            payManaCostPrompt?.input.untappableLandIds)
-          : undefined,
+      tappableLandIds: chooseActionActions
+        ? chooseActionActions
+            .filter((a) => a.type === "activateAbility" && a.isManaAbility)
+            .map((a) => a.cardId)
+        : (payCombatCostPrompt?.input.tappableLandIds ?? payManaCostPrompt?.input.tappableLandIds),
+      untappableLandIds: chooseActionActions
+        ? chooseActionActions.filter((a) => a.type === "undoMana").map((a) => a.cardId)
+        : (payCombatCostPrompt?.input.untappableLandIds ??
+          payManaCostPrompt?.input.untappableLandIds),
       manaAbilityOptions,
       hostileTargeting,
     }),
@@ -345,7 +353,7 @@ export function GameBoard({
       promptAttackerIds,
       doomedCardIds,
       selectableBattlefieldCardIds,
-      chooseActionPrompt,
+      chooseActionActions,
       payCombatCostPrompt,
       payManaCostPrompt,
       manaAbilityOptions,
@@ -357,11 +365,19 @@ export function GameBoard({
     (): import("@/pixi/types").HandState => ({
       cards: myHand,
       draggingCardId,
+      draggingIsPermanent,
       castingCardId,
       selectionMode: handSelectionMode,
       selectedIds: handSelectedIds,
     }),
-    [myHand, draggingCardId, castingCardId, handSelectionMode, handSelectedIds],
+    [
+      myHand,
+      draggingCardId,
+      draggingIsPermanent,
+      castingCardId,
+      handSelectionMode,
+      handSelectedIds,
+    ],
   );
 
   const pixiCallbacks = useMemo(

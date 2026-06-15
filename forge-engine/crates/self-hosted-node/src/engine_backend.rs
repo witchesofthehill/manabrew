@@ -1,6 +1,13 @@
 pub mod java_backend;
 pub mod rust_backend;
 
+use forge_agent_interface::prompt::AgentMessage;
+
+pub struct HostedGameOver {
+    pub game_id: String,
+    pub messages: Vec<(usize, AgentMessage)>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EngineBackendKind {
     Rust,

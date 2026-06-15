@@ -4,7 +4,7 @@ import type { Prompt } from "@/protocol";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
-import { SELF_HEIGHT_FRACTION } from "@/pixi/board/boardLayout";
+import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -819,11 +819,19 @@ export function GameBoard({
         ))}
       {unifiedLayout?.self && (
         <div
-          className="absolute left-0 right-0 z-50 h-4 cursor-row-resize flex items-center justify-center group"
-          style={{ top: unifiedLayout.self.y - 8 }}
+          className="absolute z-50 w-10 cursor-row-resize flex items-center justify-center group"
+          style={{
+            left: unifiedLayout.self.x + 4,
+            top: unifiedLayout.self.y - STRIP_BAND_PX / 2,
+            height: STRIP_BAND_PX,
+          }}
           onPointerDown={onUnifiedGripDown}
         >
-          <div className="h-1 w-24 rounded-full bg-white/30 group-hover:bg-white/60" />
+          <div className="flex flex-col items-center gap-[3px]">
+            <div className="w-4 h-[2px] rounded-full bg-white/25 group-hover:bg-white/50" />
+            <div className="w-6 h-[2px] rounded-full bg-white/35 group-hover:bg-white/60" />
+            <div className="w-4 h-[2px] rounded-full bg-white/25 group-hover:bg-white/50" />
+          </div>
         </div>
       )}
     </div>

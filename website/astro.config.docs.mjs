@@ -41,7 +41,10 @@ export default defineConfig({
           ],
         },
         { label: "Playing", items: ["playing", "formats", "faq"] },
-        { label: "Hosting", items: ["self-hosting"] },
+        {
+          label: "Hosting",
+          items: ["self-hosting", "hosting-relay", "hosting-web-client"],
+        },
         { label: "Project", items: ["contributing", "releases", "privacy"] },
       ],
       editLink: {

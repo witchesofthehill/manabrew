@@ -9,8 +9,8 @@ import preset from "../../src/theme";
 import logo from "../../../src/assets/manaBrew.png";
 import brewery from "../../../public/manabrew_brewery_1.png";
 import deckLibrary from "../../../images/screenshots/my-decks.png";
-import deckEditor from "../../../images/screenshots/deck-editor.png";
-import formatSelect from "../../../images/screenshots/format-select.png";
+import deckEditor from "../../../images/screenshots/deck-editor-grid.png";
+import battleground from "../../../images/screenshots/battleground.png";
 
 const GITHUB = "https://github.com/witchesofthehill/manabrew";
 const DISCORD = "https://discord.gg/NqrKpbhtcd";
@@ -28,7 +28,7 @@ const mana = preset.gameColors;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ManaBrew — Magic, brewed in Rust</title>
+    <title>ManaBrew — Magic, by the players, for the players</title>
     <meta name="description" content={DESCRIPTION} />
     <meta property="og:title" content="ManaBrew" />
     <meta property="og:description" content={DESCRIPTION} />
@@ -61,12 +61,11 @@ const mana = preset.gameColors;
         />
         <div class="hero-veil"></div>
         <div class="hero-inner">
-          <p class="kicker reveal">Open-source MTG client · Rust rules engine</p>
-          <h1 class="reveal">Magic, brewed in&nbsp;Rust.</h1>
+          <p class="kicker reveal">Open-source MTG client · Multiplayer first</p>
+          <h1 class="reveal">Magic with friends, minus the friction.</h1>
           <p class="lede reveal">
-            ManaBrew is an open-source Magic: The Gathering client built around
-            <a href="https://github.com/Card-Forge/forge">Forge</a> compatibility —
-            its rules engine ported to Rust, running in your browser or on your desk.
+            ManaBrew is a modern client for playing Magic: The Gathering with friends. Available on most platforms and
+            <a href="https://github.com/Card-Forge/forge">Forge</a> engine compatible.
           </p>
           <div class="cta-row reveal">
             <a class="btn btn-primary" href="https://play.manabrew.app">Play in your browser</a>
@@ -97,25 +96,25 @@ const mana = preset.gameColors;
 
       <section class="features">
         <article>
-          <h2>Forge-faithful rules</h2>
+          <h2>A game engine that works</h2>
           <p>
-            The engine is a Rust port of Forge, not a reinterpretation — and it's
-            swappable: games can run on the original Forge engine itself,
-            with full rules coverage, through the same client.
+            The
+            <a href="https://github.com/Card-Forge/forge">Forge engine</a>
+            has been developed for 15+ years, and we made manabrew compatible with it.
+            We also aim to make it better, with a more modern, official, Manabrew porting.
           </p>
         </article>
         <article>
           <h2>Runs anywhere</h2>
           <p>
-            One codebase ships as a WebAssembly site and a native Tauri app for
-            macOS and Windows. Same decks, same engine, no account required.
+            Manabrew ships to browser, desktop, and mobile. No matter where you are, you can play magic with friends.
+            No account required.
           </p>
         </article>
         <article>
           <h2>Play together</h2>
           <p>
-            A multiplayer relay hosts online lobbies and lets you reconnect to
-            games in progress. Solo, there are AI opponents and preset decks.
+            Play multiplayer with your friends or against the AI. We support all formats, from standard to commander, up to 4 players.
           </p>
         </article>
         <article>
@@ -138,8 +137,8 @@ const mana = preset.gameColors;
             <figcaption>Deck editor</figcaption>
           </figure>
           <figure>
-            <Image src={formatSelect} alt="Choosing a format in ManaBrew" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
-            <figcaption>Choose a format</figcaption>
+            <Image src={battleground} alt="Choosing a format in ManaBrew" widths={[480, 960]} sizes="(max-width: 900px) 100vw, 530px" />
+            <figcaption>Battleground</figcaption>
           </figure>
         </div>
       </section>

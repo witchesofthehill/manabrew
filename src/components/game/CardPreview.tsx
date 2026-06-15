@@ -76,24 +76,35 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
 
   const keywords = card.keywords ?? [];
 
-  const ptStyle = useMemo<CSSProperties>(() => {
-    const fg = themeColors.textOnTinted;
-    if (lethal) return { backgroundColor: themeColors.pt.lethal, color: fg };
-    if (card.basePower == null || card.power == null) {
-      return { backgroundColor: themeColors.pt.neutral, color: fg };
-    }
+  const damage = card.damage ?? 0;
+
+  const ptState = useMemo(() => {
+    if (lethal) return "lethal" as const;
+    if (card.basePower == null || card.power == null) return "unknown" as const;
     const curP = parseInt(card.power, 10);
     const curT = parseInt(card.toughness ?? "0", 10);
-    const buffed = curP > card.basePower || curT > (card.baseToughness ?? 0);
-    const debuffed = curP < card.basePower || curT < (card.baseToughness ?? 0);
-    if (buffed) return { backgroundColor: themeColors.pt.buffed, color: fg };
-    if (debuffed) return { backgroundColor: themeColors.pt.debuffed, color: fg };
-    return { backgroundColor: themeColors.pt.neutral, color: fg };
-  }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness, themeColors]);
+    if (curP > card.basePower || curT > (card.baseToughness ?? 0)) return "buffed" as const;
+    if (curP < card.basePower || curT < (card.baseToughness ?? 0)) return "debuffed" as const;
+    return "neutral" as const;
+  }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness]);
 
+  const ptStyle = useMemo<CSSProperties>(() => {
+    const fg = themeColors.textOnTinted;
+    switch (ptState) {
+      case "lethal":
+        return { backgroundColor: themeColors.pt.lethal, color: fg };
+      case "buffed":
+        return { backgroundColor: themeColors.pt.buffed, color: fg };
+      case "debuffed":
+        return { backgroundColor: themeColors.pt.debuffed, color: fg };
+      default:
+        return { backgroundColor: themeColors.pt.neutral, color: fg };
+    }
+  }, [ptState, themeColors]);
+
+  const ptModified = ptState !== "neutral" && ptState !== "unknown";
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
-  const showPT = creature && !!card.power && !!card.toughness;
-  const damage = card.damage ?? 0;
+  const showPT = creature && !!card.power && !!card.toughness && (ptModified || damage > 0);
 
   return (
     <>

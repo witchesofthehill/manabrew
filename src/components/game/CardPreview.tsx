@@ -13,7 +13,7 @@ import { isCreature, isLethalDamage } from "./game.utils";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
@@ -230,7 +230,7 @@ export function CardPreview({
   // undefined and the hovered object is a `DeckCard` (uris already on it).
   // Fall back to that case instead of going through `asDeckCard`.
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
-  const isLoading = false;
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const imageUrl = deckCard.uris[imageSize];
   const scryfallEntry = useCard({
     name: card.name,
@@ -376,6 +376,7 @@ export function CardPreview({
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
   const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
+  const imgLoaded = loadedSrc === currentImageUrl;
 
   return createPortal(
     <>
@@ -420,18 +421,14 @@ export function CardPreview({
                 : undefined
             }
           >
-            {isLoading && !currentImageUrl ? (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground text-center">{currentCardName}</span>
-              </div>
-            ) : currentImageUrl ? (
+            {currentImageUrl ? (
               <>
                 {horizontal ? (
                   <ScryfallImg
                     src={currentImageUrl}
                     alt={currentCardName}
                     title=""
+                    onLoad={() => setLoadedSrc(currentImageUrl)}
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
                   />
                 ) : (
@@ -439,8 +436,17 @@ export function CardPreview({
                     src={currentImageUrl}
                     alt={currentCardName}
                     title=""
+                    onLoad={() => setLoadedSrc(currentImageUrl)}
                     className="w-full h-full object-cover"
                   />
+                )}
+                {!imgLoaded && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground text-center">
+                      {currentCardName}
+                    </span>
+                  </div>
                 )}
                 <CardDetailOverlay card={card} />
                 {hasDoubleFace && onFlip && (

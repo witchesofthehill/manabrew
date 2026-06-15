@@ -29,6 +29,10 @@ function promptOf<TType extends PromptType>(
 
 const SELF_PANEL_SCALE = 0.85;
 const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
+/** Bottom-right footprint of the action cluster (`MainActionOverlay`:
+ *  `right-12` + `w-[300px]`) plus a small gap — reserved so the split self
+ *  zones and the hand fan stay left of the PASS / KEEP-MULLIGAN buttons. */
+const ACTION_CLUSTER_RESERVE_PX = 360;
 
 interface GameBoardProps {
   // Core game state
@@ -519,6 +523,13 @@ export function GameBoard({
   // on the far left, zone tiles on the far right, hand centered between.
   const selfIsSplit = boardArrangement === "perimeter";
   const selfRect = unifiedLayout?.self;
+  // Span from the self zone's left edge to just left of the action cluster so
+  // the right-anchored zones never sit under the PASS / KEEP-MULLIGAN buttons.
+  const splitBoardWidth = selfRect ? 2 * selfRect.x + selfRect.width : 0;
+  const splitPanelWidth = Math.max(
+    CLUSTER_MIN_WIDTH_PX,
+    splitBoardWidth - ACTION_CLUSTER_RESERVE_PX - (selfRect ? selfRect.x + 8 : 0),
+  );
   const selfPanel = (
     <div
       className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
@@ -526,7 +537,7 @@ export function GameBoard({
         selfIsSplit && selfRect
           ? {
               left: selfRect.x + 8,
-              width: (selfRect.width - 16) / SELF_PANEL_SCALE,
+              width: splitPanelWidth / SELF_PANEL_SCALE,
               transform: `scale(${SELF_PANEL_SCALE})`,
             }
           : {
@@ -627,13 +638,18 @@ export function GameBoard({
   // width (the capped cluster handles its own clearance there).
   const handInsets = useMemo(() => {
     if (boardArrangement !== "perimeter") return { left: 0, right: 0 };
+    const sx = unifiedLayout?.self?.x ?? 0;
+    const sw = unifiedLayout?.self?.width ?? 0;
+    if (sw === 0) return { left: 0, right: 0 };
     const zoneTileCount = 3 + ((myCommandZone?.length ?? 0) > 0 ? 1 : 0);
-    const tileStridePx = 72 + 10;
+    const zonesWidth = zoneTileCount * (72 + 10) * SELF_PANEL_SCALE;
+    // Zones sit flush-right against the action-cluster reserve; reserve the
+    // hand's right edge up to the zones' left edge.
     return {
       left: 130,
-      right: Math.round(zoneTileCount * tileStridePx * SELF_PANEL_SCALE) + 20,
+      right: Math.max(0, Math.round(ACTION_CLUSTER_RESERVE_PX + zonesWidth - sx)),
     };
-  }, [boardArrangement, myCommandZone?.length]);
+  }, [boardArrangement, myCommandZone?.length, unifiedLayout?.self?.x, unifiedLayout?.self?.width]);
 
   const unifiedCombatBlocks = useMemo(() => {
     const byBlocker = new Map<string, string>();

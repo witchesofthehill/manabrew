@@ -34,8 +34,10 @@ const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
  *  zones and the hand fan stay left of the PASS / KEEP-MULLIGAN buttons. */
 const ACTION_CLUSTER_RESERVE_PX = 360;
 /** Minimum hand-fan width in the split (perimeter) self layout. Below this the
- *  right-side zones wrap to a 2-column grid to give the hand more room. */
-const HAND_MIN_WIDTH_PX = 560;
+ *  right-side zones wrap to a 2-column grid to give the hand more room. Set
+ *  high so the grid is the norm on laptop widths; only very wide displays keep
+ *  the single zone row. */
+const HAND_MIN_WIDTH_PX = 820;
 
 interface GameBoardProps {
   // Core game state

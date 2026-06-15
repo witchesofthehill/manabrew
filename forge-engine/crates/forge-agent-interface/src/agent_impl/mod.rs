@@ -89,6 +89,14 @@ pub trait Responder {
     fn send_snapshot(&mut self, _snapshot: GameSnapshotEventDto) {}
 }
 
+#[derive(Clone)]
+struct AbilityDescription {
+    description: String,
+    is_mana_ability: bool,
+    cost: Option<String>,
+    produced_mana: Option<String>,
+}
+
 pub struct PromptAgent<R: Responder> {
     pub player_id: PlayerId,
     pub game_id: String,
@@ -97,10 +105,7 @@ pub struct PromptAgent<R: Responder> {
     pub(crate) latest_view: Option<GameViewDto>,
     /// Card DTOs pre-built by on_library_peek() for Scry/Surveil/Dig prompts.
     pub(crate) peeked_library_cards: Vec<CardDto>,
-    /// Cached per-ability descriptions, is_mana_ability flags, and cost strings, populated in snapshot_state.
-    /// Key: (card_id.0, ability_index) → (description, is_mana_ability, cost_string, produced_mana)
-    ability_descriptions:
-        std::collections::HashMap<(u32, usize), (String, bool, Option<String>, Option<String>)>,
+    ability_descriptions: std::collections::HashMap<(u32, usize), AbilityDescription>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
     pub(crate) pending_mana_color: Option<String>,
     pub pass_until_phase: Option<Option<String>>,
@@ -365,7 +370,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     });
                     self.ability_descriptions.insert(
                         (card_id.0, ab.ability_index),
-                        (desc, ab.is_mana_ability, cost, produced_mana),
+                        AbilityDescription {
+                            description: desc,
+                            is_mana_ability: ab.is_mana_ability,
+                            cost,
+                            produced_mana,
+                        },
                     );
                 }
             }
@@ -452,7 +462,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let mut activatable_ability_ids = Vec::new();
         for &(card_id, ability_idx) in activatable {
             let id_str = card_id_str(card_id);
-            let (description, is_mana, cost, produced_mana) = self
+            let ability = self
                 .ability_descriptions
                 .get(&(card_id.0, ability_idx))
                 .cloned()
@@ -464,19 +474,24 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         .find(|c| c.id == id_str)
                         .map(|c| c.text.clone())
                         .unwrap_or_default();
-                    (text, false, None, None)
+                    AbilityDescription {
+                        description: text,
+                        is_mana_ability: false,
+                        cost: None,
+                        produced_mana: None,
+                    }
                 });
             activatable_ability_ids.push(ActivatableAbilityInfo {
                 card_id: id_str.clone(),
                 ability_index: ability_idx,
-                description,
-                is_mana_ability: is_mana,
-                cost,
-                produced_mana,
+                description: ability.description,
+                is_mana_ability: ability.is_mana_ability,
+                cost: ability.cost,
+                produced_mana: ability.produced_mana,
             });
             // Only mana abilities should reuse the TAP affordance. Non-mana land
             // abilities like Evolving Wilds must stay as explicit activations.
-            if is_mana && !tappable_land_ids.contains(&id_str) {
+            if ability.is_mana_ability && !tappable_land_ids.contains(&id_str) {
                 tappable_land_ids.push(id_str);
             }
         }
@@ -487,18 +502,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             .flat_map(|id_str| {
                 self.ability_descriptions
                     .iter()
-                    .filter(move |(&(raw_id, _), &(_, is_mana, _, _))| {
-                        is_mana && card_id_str(CardId(raw_id)) == *id_str
+                    .filter(move |(&(raw_id, _), ability)| {
+                        ability.is_mana_ability && card_id_str(CardId(raw_id)) == *id_str
                     })
-                    .map(|(&(raw_id, idx), (desc, _, cost, produced_mana))| {
-                        ActivatableAbilityInfo {
-                            card_id: card_id_str(CardId(raw_id)),
-                            ability_index: idx,
-                            description: desc.clone(),
-                            is_mana_ability: true,
-                            cost: cost.clone(),
-                            produced_mana: produced_mana.clone(),
-                        }
+                    .map(|(&(raw_id, idx), ability)| ActivatableAbilityInfo {
+                        card_id: card_id_str(CardId(raw_id)),
+                        ability_index: idx,
+                        description: ability.description.clone(),
+                        is_mana_ability: true,
+                        cost: ability.cost.clone(),
+                        produced_mana: ability.produced_mana.clone(),
                     })
             })
             .collect();

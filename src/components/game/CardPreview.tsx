@@ -45,7 +45,7 @@ interface CardPreviewProps {
 const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
 
-function CardDetailOverlay({ card }: { card: GameCard }) {
+function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: boolean }) {
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
@@ -105,9 +105,10 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
   const ptModified = ptState !== "neutral" && ptState !== "unknown";
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
   const loyalty = card.counters?.Loyalty;
-  const showLoyalty = isPlaneswalker && loyalty != null;
+  const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
-  const showPT = creature && !!card.power && !!card.toughness && (ptModified || damage > 0);
+  const showPT =
+    creature && !horizontal && !!card.power && !!card.toughness && (ptModified || damage > 0);
 
   const overlayCounters = useMemo(() => {
     if (!card.counters) return null;
@@ -473,7 +474,7 @@ export function CardPreview({
                     </span>
                   </div>
                 )}
-                <CardDetailOverlay card={card} />
+                <CardDetailOverlay card={card} horizontal={horizontal} />
                 {hasDoubleFace && onFlip && (
                   <button
                     type="button"

@@ -36,8 +36,9 @@ export const SELF_HEIGHT_FRACTION = 0.55;
 export const STRIP_BAND_PX = 56;
 
 /** Width of each side column, as a fraction of canvas width, in the
- *  `perimeter` arrangement with 3 opponents. */
-const PERIMETER_SIDE_FRACTION = 0.22;
+ *  `perimeter` arrangement with 3 opponents. Kept narrow so the local
+ *  player's center column — where most interaction happens — stays wide. */
+const PERIMETER_SIDE_FRACTION = 0.15;
 
 export function computeBoardLayout(
   width: number,

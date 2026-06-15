@@ -678,6 +678,9 @@ export function GameBoard({
               isOpponent
               seat={OPPONENT_SEATS[i] ?? "opponent1"}
               verticalAlign="top"
+              zoneOrientation={
+                orientation === "left" || orientation === "right" ? "vertical" : "horizontal"
+              }
               isActiveTurn={activePlayerId === op.id}
               isPriorityPlayer={priorityPlayerId === op.id}
               isTargetable={playerIsTargetable(op.id)}

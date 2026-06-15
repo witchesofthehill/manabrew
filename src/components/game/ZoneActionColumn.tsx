@@ -219,7 +219,7 @@ export function ZoneActionColumn({
               "flex flex-row items-start gap-2.5 min-w-0 pointer-events-auto",
               wrap ? "flex-wrap" : "flex-nowrap",
             )
-          : "shrink-0 w-12 flex flex-col items-center gap-1.5 pointer-events-auto",
+          : "shrink-0 w-fit flex flex-col items-center gap-1.5 pointer-events-auto",
       )}
     >
       {isHorizontal && leading}

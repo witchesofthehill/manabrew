@@ -786,10 +786,24 @@ export class BoardRegion {
 
   // ── Background + helpers ───────────────────────────────────────────
 
-  private drawBackground(): void {
+  /** Felt rect: the zone with its bottom trimmed so it clears the hand fan
+   *  (local player only). */
+  private feltRect(): PlayZoneRect {
     const zone = this.zone;
+    const reserve = this.host.getHandReserveBottom();
+    if (reserve <= 0) return zone;
+    return { ...zone, height: Math.max(0, zone.height - reserve) };
+  }
+
+  redrawBackground(): void {
+    this.drawBackground();
+    this.layoutEmptyText();
+  }
+
+  private drawBackground(): void {
+    const felt = this.feltRect();
     this.backgroundGfx.clear();
-    this.backgroundGfx.roundRect(zone.x, zone.y, zone.width, zone.height, TABLE_RADIUS);
+    this.backgroundGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
     this.backgroundGfx.fill({
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
@@ -797,14 +811,14 @@ export class BoardRegion {
   }
 
   private layoutEmptyText(): void {
-    const zone = this.zone;
+    const felt = this.feltRect();
     this.emptyText.scale.set(1);
-    const maxWidth = zone.width - 16;
+    const maxWidth = felt.width - 16;
     if (maxWidth > 0 && this.emptyText.width > maxWidth) {
       this.emptyText.scale.set(maxWidth / this.emptyText.width);
     }
-    this.emptyText.x = this.zoneCenterX();
-    this.emptyText.y = this.zoneCenterY();
+    this.emptyText.x = felt.x + felt.width / 2;
+    this.emptyText.y = felt.y + felt.height / 2;
   }
 
   private zoneCenterX(): number {

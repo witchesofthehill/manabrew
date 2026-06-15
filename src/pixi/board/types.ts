@@ -98,6 +98,9 @@ export interface RegionHost {
   wireSprite(sprite: CardSprite): void;
   /** Convert an absolute viewport x to this region's canvas-local x. */
   screenXToLocalX(screenX: number): number;
+  /** Px to trim off the bottom of this region's felt so it clears the hand
+   *  fan (local player only; 0 for opponents). */
+  getHandReserveBottom(): number;
   isDestroyed(): boolean;
 }
 

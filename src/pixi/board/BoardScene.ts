@@ -397,8 +397,17 @@ export class BoardScene {
       },
       wireSprite: (sprite) => this.wireSprite(sprite, playerId, isLocal),
       screenXToLocalX: (screenX) => screenX - this.app.canvas.getBoundingClientRect().left,
+      getHandReserveBottom: () => (isLocal ? this.handReserveBottom() : 0),
       isDestroyed: () => this.destroyed,
     };
+  }
+
+  /** Depth (px) the hand fan overlaps the bottom of the local self zone. */
+  private handReserveBottom(): number {
+    const rect = this.hand?.getBlockerRect();
+    const zone = this.localZone();
+    if (!rect || !zone) return 0;
+    return Math.max(0, zone.y + zone.height - rect.y);
   }
 
   private localBlockers(): BlockingRect[] {
@@ -443,7 +452,10 @@ export class BoardScene {
       isMirrored: () => false,
       showsHand: () => true,
       isDestroyed: () => this.destroyed,
-      setHandExclusion: (rect) => this.dragHandler.setHandExclusion(rect),
+      setHandExclusion: (rect) => {
+        this.dragHandler.setHandExclusion(rect);
+        this.localRegion()?.redrawBackground();
+      },
     };
   }
 

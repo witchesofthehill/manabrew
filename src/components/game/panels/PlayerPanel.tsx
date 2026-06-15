@@ -25,6 +25,9 @@ interface PlayerPanelProps {
    *  alters layout — the badge/mana row always sits above the avatar
    *  and zones. */
   verticalAlign?: "top" | "bottom";
+  /** `vertical` stacks the avatar above a vertical zone column — used for the
+   *  left/right seats in the perimeter arrangement where the column is narrow. */
+  zoneOrientation?: "horizontal" | "vertical";
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
   isTargetable?: boolean;
@@ -58,6 +61,7 @@ export function PlayerPanel({
   seat,
   className,
   verticalAlign: _verticalAlign = "bottom",
+  zoneOrientation = "horizontal",
   isActiveTurn,
   isPriorityPlayer: _isPriorityPlayer,
   isTargetable,
@@ -265,9 +269,10 @@ export function PlayerPanel({
   // ZoneActionColumn so it shares the same `flex-wrap` row as the zone
   // tiles — when the cluster narrows, the avatar wraps onto its own
   // row above the zones automatically.
+  const isVertical = zoneOrientation === "vertical";
   const zonesRow = (
     <ZoneActionColumn
-      orientation="horizontal"
+      orientation={isVertical ? "vertical" : "horizontal"}
       wrap={!isOpponent}
       libraryCount={player.libraryCount}
       graveyard={graveyard}
@@ -287,7 +292,7 @@ export function PlayerPanel({
       onCommanderDragStart={onCommanderDragStart}
       draggingCardId={draggingCardId}
       onHoverCard={onHoverCard}
-      leading={avatarCell}
+      leading={isVertical ? undefined : avatarCell}
     />
   );
 
@@ -372,10 +377,12 @@ export function PlayerPanel({
         // wrap together instead of being locked into a rigid 2-col
         // grid.
         "flex w-full flex-col gap-1 min-w-0",
+        isVertical && "items-center",
         className,
       )}
     >
       {manaRow}
+      {isVertical && avatarCell}
       {zonesRow}
     </div>
   );

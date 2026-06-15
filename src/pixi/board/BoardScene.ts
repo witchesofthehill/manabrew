@@ -32,6 +32,7 @@ import type {
   ScreenPos,
 } from "../types";
 import { BoardRegion } from "./BoardRegion";
+import { isAttackerTap } from "./combatRouting";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
 import { SelectionController } from "./SelectionController";
@@ -579,12 +580,11 @@ export class BoardScene {
       });
     } else {
       sprite.on("pointertap", () => {
-        // During declare-blockers, tapping an attacking opponent creature
-        // selects it as the attacker to block (mirrors the old opponent
-        // canvas routing attacker clicks to onAttackerClick).
-        const attacking = region?.getLastState()?.attackingCardIds?.includes(sprite.card.id);
-        if (attacking) this.callbacks.onAttackerClick?.(sprite.card);
-        else this.callbacks.onClickCard?.(sprite.card);
+        if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
+          this.callbacks.onAttackerClick?.(sprite.card);
+        } else {
+          this.callbacks.onClickCard?.(sprite.card);
+        }
       });
     }
     sprite.on("pointerenter", () => {

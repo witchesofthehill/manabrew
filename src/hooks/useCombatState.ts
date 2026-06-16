@@ -3,7 +3,6 @@ import type { GameCard } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import type { PromptOutput } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
-import { canBlockAttacker } from "@/components/game/combatLegality";
 
 type TargetAnyChoice = Extract<PromptOutput, { type: "targetAny" }>["target"];
 
@@ -73,8 +72,10 @@ export function useCombatState({
     currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.attackers : [];
   const blockError =
     currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.error : undefined;
-  const canBlock = (blockerId: string, attackerId: string): boolean =>
-    canBlockAttacker(blockableAttackers, blockerId, attackerId);
+  const canBlock = (blockerId: string, attackerId: string): boolean => {
+    const attacker = blockableAttackers.find((a) => a.attackerId === attackerId);
+    return !!attacker && attacker.validBlockerIds.includes(blockerId);
+  };
 
   // Awaiting-defender state is implicit now: as soon as the user has at
   // least one pending attacker AND there's more than one legal defender

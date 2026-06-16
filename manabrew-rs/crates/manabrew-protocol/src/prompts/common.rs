@@ -32,8 +32,6 @@ pub enum AttackTargetKind {
     Battle,
 }
 
-/// A legal attack target (player / planeswalker / battle). Replaces the old
-/// "defender" naming — these are what an attacker is declared *against*.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]

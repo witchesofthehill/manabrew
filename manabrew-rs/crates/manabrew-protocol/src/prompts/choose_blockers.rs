@@ -3,9 +3,6 @@ use ts_rs::TS;
 
 use crate::prompts::common::BlockAssignment;
 
-/// One attacker the local player may block, with the legality the engine
-/// reports: which of the player's creatures may block it, the minimum number
-/// of blockers required (menace etc.), and whether it must be blocked (lure).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/chooseBlockers.ts")]
@@ -23,8 +20,6 @@ pub struct BlockableAttackerDto {
 pub struct ChooseBlockersInput {
     pub attackers: Vec<BlockableAttackerDto>,
     pub available_blocker_ids: Vec<String>,
-    /// Validation message from a rejected previous declaration (Forge's
-    /// `validateBlocks`), shown so the player can fix an illegal block set.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub error: Option<String>,

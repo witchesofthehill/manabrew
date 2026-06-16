@@ -3,8 +3,6 @@ use ts_rs::TS;
 
 use crate::prompts::common::{AttackAssignment, AttackTargetDto};
 
-/// One creature that can attack, with the targets it may legally attack
-/// (`valid_target_ids` reference `ChooseAttackersInput::attack_targets`).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/chooseAttackers.ts")]

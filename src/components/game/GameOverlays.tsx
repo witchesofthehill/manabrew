@@ -1,10 +1,5 @@
-import {
-  ZoneViewer,
-  LibraryPeekModal,
-  type LibraryPeekMode,
-  SpellStackModal,
-  AbilityPickerModal,
-} from "@/components/game/modals";
+import { ZoneViewer, SpellStackModal, AbilityPickerModal } from "@/components/game/modals";
+import { LibraryPeekModal, type LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import { ZoneTargetSelector } from "@/components/game/ZoneTargetSelector";
 import type { GameCard, StackObject } from "@/types/manabrew";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";

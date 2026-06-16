@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Settings } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
-import { PromptActionController } from "./PromptActionController";
+import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
 

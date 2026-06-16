@@ -1,6 +1,6 @@
-import { PromptModalHost } from "@/components/game/prompts/promptComponents";
+import { PromptModalHost } from "@/components/prompts/promptComponents";
 import { GameOverlays } from "@/components/game/GameOverlays";
-import type { LibraryPeekMode } from "@/components/game/modals";
+import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";

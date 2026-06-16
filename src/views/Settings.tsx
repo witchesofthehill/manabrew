@@ -4,7 +4,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
-import { PromptPreferencesPanel } from "@/components/game/prompts/PromptPreferencesPanel";
+import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { toPickerHexColor } from "@/themes/gameTheme";
 import type { GameThemeColors } from "@/themes/gameTheme";

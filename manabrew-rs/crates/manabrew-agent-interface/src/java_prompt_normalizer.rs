@@ -147,6 +147,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                             .clone()
                             .unwrap_or_else(|| available_blocker_ids.clone()),
                         min_blockers: a.min_blockers.unwrap_or(1),
+                        max_blockers: a.max_blockers,
                         must_be_blocked: a.must_be_blocked.unwrap_or(false),
                     })
                 })

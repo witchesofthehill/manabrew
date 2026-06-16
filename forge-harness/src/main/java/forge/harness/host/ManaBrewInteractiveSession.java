@@ -21,6 +21,7 @@ import forge.game.combat.CombatUtil;
 import forge.game.player.Player;
 import forge.game.player.PlayerView;
 import forge.game.spellability.SpellAbility;
+import forge.game.staticability.StaticAbilityCantAttackBlock;
 import forge.game.zone.ZoneType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -1891,6 +1892,11 @@ public final class ManaBrewInteractiveSession {
             }
             option.add("validBlockerIds", validBlockerIds);
             option.addProperty("minBlockers", CombatUtil.getMinNumBlockersForAttacker(attacker, defendingPlayer));
+            final int maxBlockers =
+                    StaticAbilityCantAttackBlock.getMinMaxBlocker(attacker, defendingPlayer).getRight();
+            if (maxBlockers < Integer.MAX_VALUE) {
+                option.addProperty("maxBlockers", maxBlockers);
+            }
             attackerOptions.add(option);
         }
         prompt.add("attackers", attackerOptions);

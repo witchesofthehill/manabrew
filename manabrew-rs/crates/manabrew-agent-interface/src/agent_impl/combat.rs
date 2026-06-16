@@ -92,6 +92,7 @@ pub(super) fn choose_blockers<T: Responder>(
             attacker_id,
             valid_blocker_ids: available_blocker_ids.clone(),
             min_blockers: 1,
+            max_blockers: None,
             must_be_blocked: false,
         })
         .collect();

@@ -400,6 +400,9 @@ pub struct JavaRawCardOption {
     /// choose_blockers: minimum blockers required for this attacker (menace).
     #[serde(rename = "minBlockers")]
     pub min_blockers: Option<u32>,
+    /// choose_blockers: maximum blockers allowed for this attacker, when capped.
+    #[serde(rename = "maxBlockers")]
+    pub max_blockers: Option<u32>,
     /// choose_blockers: this attacker must be blocked if able (lure).
     #[serde(rename = "mustBeBlocked")]
     pub must_be_blocked: Option<bool>,

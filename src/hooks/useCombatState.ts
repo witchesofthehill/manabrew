@@ -11,6 +11,13 @@ export interface CombatAssignment {
   attackerId: string;
 }
 
+export interface BlockRequirementViolation {
+  attackerId: string;
+  assigned: number;
+  kind: "min" | "max";
+  count: number;
+}
+
 interface UseCombatStateOptions {
   promptType: string | undefined;
   targetCard: (cardId: string) => void;
@@ -76,6 +83,23 @@ export function useCombatState({
     const attacker = blockableAttackers.find((a) => a.attackerId === attackerId);
     return !!attacker && attacker.validBlockerIds.includes(blockerId);
   };
+
+  // First attacker whose current block count breaks its min/max requirement
+  // (menace, "can't be blocked unless all block it", "can't be blocked by more
+  // than N"). An attacker with zero blockers is fine — blocking is optional.
+  const blockRequirement: BlockRequirementViolation | null =
+    blockableAttackers.reduce<BlockRequirementViolation | null>((found, a) => {
+      if (found) return found;
+      const assigned = blockAssignments.filter((b) => b.attackerId === a.attackerId).length;
+      if (assigned === 0) return null;
+      if (assigned < a.minBlockers) {
+        return { attackerId: a.attackerId, assigned, kind: "min", count: a.minBlockers };
+      }
+      if (a.maxBlockers != null && assigned > a.maxBlockers) {
+        return { attackerId: a.attackerId, assigned, kind: "max", count: a.maxBlockers };
+      }
+      return null;
+    }, null);
 
   // Awaiting-defender state is implicit now: as soon as the user has at
   // least one pending attacker AND there's more than one legal defender
@@ -268,6 +292,7 @@ export function useCombatState({
     attackDefenderId,
     blockAssignments,
     blockError,
+    blockRequirement,
     assignBlockPair,
     unassignBlock,
     damageOrder,

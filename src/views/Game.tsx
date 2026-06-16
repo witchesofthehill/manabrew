@@ -531,6 +531,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     attackDefenderId,
     blockAssignments,
     blockError,
+    blockRequirement,
     assignBlockPair,
     unassignBlock,
     damageOrder,
@@ -555,6 +556,16 @@ export default function Game({ exitTo }: GameProps = {}) {
   const selectedAttackDefender = chooseAttackersInput?.attackTargets.find(
     (target) => target.id === attackDefenderId,
   );
+  const blockRequirementError = useMemo<string | null>(() => {
+    if (!blockRequirement) return null;
+    const name =
+      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.name ??
+      "This attacker";
+    const creatures = (n: number) => `${n} ${n === 1 ? "creature" : "creatures"}`;
+    return blockRequirement.kind === "min"
+      ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
+      : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
+  }, [blockRequirement, gameView?.battlefield]);
   const { wrappedTargetAny, wrappedTargetCard } = casting;
   const targetCompletion = useMemo(() => {
     if (!activePrompt) return null;
@@ -811,7 +822,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseBlockers") {
-      if (blockAssignments.length === 0) return false;
+      if (blockAssignments.length === 0 || blockRequirement) return false;
       respond({ type: "declareBlockers", assignments: blockAssignments });
       return true;
     }
@@ -1542,6 +1553,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           blockError={blockError}
+          blockRequirementError={blockRequirementError}
           attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
           blockAssignments={blockAssignments}
           onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}

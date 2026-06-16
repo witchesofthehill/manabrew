@@ -66,6 +66,7 @@ interface PromptActionControllerProps {
   pendingAttacker: string | null;
   pendingBlocker: string | null;
   blockError?: string | null;
+  blockRequirementError?: string | null;
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
@@ -116,6 +117,7 @@ export function PromptActionController({
   pendingAttacker,
   pendingBlocker,
   blockError,
+  blockRequirementError,
   blockAssignments,
   onDeclareBlockers,
   damageOrderCount,
@@ -171,6 +173,7 @@ export function PromptActionController({
         pendingAttacker={pendingAttacker}
         pendingBlocker={pendingBlocker}
         blockError={blockError}
+        blockRequirementError={blockRequirementError}
         blockAssignments={blockAssignments}
         onPassPriority={onPassPriority}
         onDeclareBlockers={onDeclareBlockers}

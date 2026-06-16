@@ -11,6 +11,9 @@ pub struct BlockableAttackerDto {
     pub valid_blocker_ids: Vec<String>,
     #[ts(type = "number")]
     pub min_blockers: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub max_blockers: Option<u32>,
     pub must_be_blocked: bool,
 }
 

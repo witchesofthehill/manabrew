@@ -68,6 +68,7 @@ export function CommandZoneTile({
   return (
     <div
       className="relative shrink-0"
+      data-card-id={first.id}
       onMouseEnter={onHoverCard ? (e) => onHoverCard(first, e) : undefined}
       onMouseLeave={onHoverCard ? () => onHoverCard(null) : undefined}
     >

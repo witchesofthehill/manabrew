@@ -14,7 +14,7 @@ export function AboutContent() {
           href={WEBSITE_URL}
           icon={<Globe className="size-5" />}
           title="Visit the website"
-          description="News, downloads, and everything ManaBrew at manabrew.app."
+          description="News, downloads, and everything Manabrew at manabrew.app."
         />
         <LinkCallout
           href={DOCS_URL}

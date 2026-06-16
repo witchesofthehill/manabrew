@@ -5,7 +5,7 @@ The Rust engine targets **1:1 behavioral parity** with the Java Forge engine in 
 ## What we mirror
 
 - **File names.** `ChangeZoneEffect.java` → `change_zone_effect.rs`. Snake_case the class name, keep the suffix.
-- **Module layout.** `forge/game/ability/effects/` → `forge-engine/crates/forge-engine/src/ability/effects/`. New folders only when Java has them.
+- **Module layout.** `forge/game/ability/effects/` → `manabrew-rs/crates/manabrew-engine/src/ability/effects/`. New folders only when Java has them.
 - **Symbol names.** Methods, structs, enum variants — same names in Rust idiom (snake_case methods, PascalCase types). Don't rename for "Rust style" if it breaks the trail back to Java.
 - **Behavior.** Given the same inputs (same deck, same seed, same agent), both engines must produce the same trace.
 

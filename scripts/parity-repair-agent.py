@@ -228,7 +228,7 @@ def branch_exists(name: str) -> bool:
 def abandon_branch(branch_name: str, return_to: str):
     """Discard all changes and delete a failed attempt branch."""
     git("checkout", ".", check=False)  # discard modified files
-    git("clean", "-fd", "--", "forge-engine/", check=False)  # remove untracked engine files
+    git("clean", "-fd", "--", "manabrew-engine/", check=False)  # remove untracked engine files
     git("checkout", return_to, check=False)
     git("branch", "-D", branch_name, check=False)
 
@@ -265,7 +265,7 @@ def extract_divergence_field(stdout: str) -> str | None:
 def run_parity_test(deck1: str, deck2: str, seed: int, cwd=None, timeout: int = 120) -> dict:
     """Run a single parity test and return the result."""
     cmd = [
-        "cargo", "run", "-p", "forge-parity", "--bin", "forge-parity", "--",
+        "cargo", "run", "-p", "parity", "--bin", "parity", "--",
         "--deck1", deck1, "--deck2", deck2,
         "--seed", str(seed),
         "--java-jar", str(JAVA_JAR),
@@ -293,16 +293,16 @@ def run_parity_test(deck1: str, deck2: str, seed: int, cwd=None, timeout: int = 
 
 
 def cargo_check(cwd=None) -> dict:
-    """Run cargo check on forge-engine-core and forge-parity."""
+    """Run cargo check onmanabrew-engine  and parity."""
     result = subprocess.run(
-        ["cargo", "check", "-p", "forge-engine-core"],
+        ["cargo", "check", "-p", "manabrew-engine"],
         cwd=cwd or REPO_ROOT, capture_output=True, text=True, timeout=300
     )
     if result.returncode != 0:
         return {"ok": False, "stderr": result.stderr[-3000:]}
     # Also check parity crate (agent may have modified deterministic_agent.rs)
     result2 = subprocess.run(
-        ["cargo", "check", "-p", "forge-parity"],
+        ["cargo", "check", "-p", "parity"],
         cwd=cwd or REPO_ROOT, capture_output=True, text=True, timeout=300
     )
     if result2.returncode != 0:
@@ -522,14 +522,14 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
 1. **Analyze**: Compare the Rust and Java traces to understand WHERE the divergence occurs.
 2. **Find the Java reference**: Look in `forge/forge-game/src/main/java/forge/game/` for the
    correct behavior. The Java game engine is the source of truth for game rules.
-3. **Find the Rust code**: Look in `forge-engine/crates/forge-engine/src/` for the corresponding
+3. **Find the Rust code**: Look in `manabrew-rs/crates/manabrew-engine/src/` for the corresponding
    Rust implementation.
 4. **Diagnose**: Determine whether the bug is in:
    - **Rust engine** (most common) — the Rust port doesn't match Java game logic
    - **Java harness** (`forge-harness/`) — the deterministic test harness has a bug
      that makes Java behave incorrectly (the game engine is correct but the harness
      controller makes wrong decisions or stores data incorrectly)
-   - **Rust parity agent** (`forge-engine/crates/forge-parity/src/deterministic_agent.rs`)
+   - **Rust parity agent** (`manabrew-rs/crates/parity/src/deterministic_agent.rs`)
      — the Rust test agent doesn't match the Java harness behavior (e.g., missing RNG
      calls, wrong selection logic)
 5. **Fix**: Fix the code where the bug actually is.
@@ -537,10 +537,10 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
    - If the bug is in the Java harness, fix the harness code AND rebuild the JAR:
      `JAVA_HOME={JAVA_HOME} mvn -pl forge-harness -am -DskipTests package`
    - If the bug is in the Rust parity agent, fix the agent code.
-6. **Verify compilation**: Run `cargo check -p forge-engine-core` to ensure it compiles.
+6. **Verify compilation**: Run `cargo check -pmanabrew-engine ` to ensure it compiles.
 7. **Verify parity**: Run this exact command to test:
    ```
-   JAVA_HOME={JAVA_HOME} cargo run -p forge-parity --bin forge-parity -- \\
+   JAVA_HOME={JAVA_HOME} cargo run -p parity --bin parity -- \\
      --deck1 {samples[0]['deck1']} --deck2 {samples[0]['deck2']} --seed {samples[0]['seed']} \\
      --java-jar {JAVA_JAR} \\
      --cards-dir {CARDS_DIR}
@@ -551,7 +551,7 @@ Treat this as a hint, NOT as ground truth. Verify all file paths and claims inde
 - Keep file/interface parity with Java Forge (same structure, same names)
 - Do NOT modify game engine Java files in `forge/forge-game/` — those are the reference
 - You CAN modify the Java harness in `forge-harness/` if the harness has a bug
-- You CAN modify the Rust parity agent in `forge-engine/crates/forge-parity/src/`
+- You CAN modify the Rust parity agent in `manabrew-rs/crates/parity/src/`
 - Do NOT modify test files unless the test itself is wrong
 - Update `features.md` if you implement or change a feature
 - Make the smallest possible fix — don't refactor unrelated code
@@ -727,7 +727,7 @@ def _log_tool_call(name: str, input_data: dict):
 
 # ── Regression test ─────────────────────────────────────────────────────────
 
-REGRESSION_JSON = REPO_ROOT / "forge-engine" / "crates" / "forge-parity" / "regression.json"
+REGRESSION_JSON = REPO_ROOT / "manabrew-engine" / "crates" / "parity" / "regression.json"
 
 
 def _add_regression_test(field: str, passing_test: dict):
@@ -890,7 +890,7 @@ def attempt_repair(cluster: dict, dry_run: bool = False) -> bool:
         # Create branch from main (clean slate each attempt)
         git("checkout", "main", check=False)
         git("checkout", ".", check=False)  # discard any uncommitted changes from previous attempt
-        git("clean", "-fd", "--", "forge-engine/", check=False)  # remove untracked files in engine
+        git("clean", "-fd", "--", "manabrew-engine/", check=False)  # remove untracked files in engine
         git("checkout", "-b", branch_name)
         _log(f"  ✓ On branch: {branch_name}")
 

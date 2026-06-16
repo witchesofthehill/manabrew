@@ -13,7 +13,7 @@ const GUIDE_SECTIONS = [
     body: "Open the Deck Editor to build decks from scratch, import existing lists, and fine-tune every card before you sit down at the table.",
   },
   {
-    heading: "Host your own ManaBrew rooms",
+    heading: "Host your own Manabrew rooms",
     icon: Github,
     body: "Want to run a private server for your playgroup?",
     link: {

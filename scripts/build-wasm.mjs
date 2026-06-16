@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 //
-// Build the forge-wasm crate for use in the web frontend.
+// Build the wasm crate for use in the web frontend.
 //
 // This script:
-// 1. Builds forge-wasm using wasm-pack
+// 1. Builds wasm using wasm-pack
 // 2. Copies the output to src/wasm for Vite to consume
 //
 // Prerequisites:
@@ -52,7 +52,7 @@ function run(cmd, args, opts = {}) {
   }
 }
 
-console.log("Building forge-wasm...");
+console.log("Building wasm...");
 
 let wasmPack = resolveWasmPack();
 if (!wasmPack) {
@@ -72,8 +72,8 @@ run(wasmPack, [
   "--out-dir",
   outputDir,
   "--out-name",
-  "forge_wasm",
-  "forge-engine/crates/forge-wasm",
+  "wasm",
+  "manabrew-rs/crates/wasm",
 ]);
 
 for (const file of [".gitignore", "package.json", "README.md"]) {
@@ -84,12 +84,12 @@ for (const file of [".gitignore", "package.json", "README.md"]) {
 }
 
 // Post-process with wasm-opt if Binaryen is on PATH. `wasm-pack`'s bundled
-// `wasm-opt` is disabled in `forge-wasm/Cargo.toml` (old Binaryen crashed
+// `wasm-opt` is disabled in `wasm/Cargo.toml` (old Binaryen crashed
 // on our output); a modern Binaryen installed via brew / a release binary
 // handles it fine and produces a smaller, Firefox-compilable wasm. If
 // `wasm-opt` isn't installed we ship the unoptimized wasm — Chrome compiles
-// it, Firefox doesn't (see the comments on `forge-wasm` in Cargo.toml).
-const wasmFile = join(outputDir, "forge_wasm_bg.wasm");
+// it, Firefox doesn't (see the comments on `wasm` in Cargo.toml).
+const wasmFile = join(outputDir, "wasm_bg.wasm");
 if (commandExists("wasm-opt")) {
   console.log("\nOptimizing with wasm-opt...");
   const tmpOut = `${wasmFile}.opt`;

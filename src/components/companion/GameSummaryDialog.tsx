@@ -83,7 +83,7 @@ function SummaryBody({
 
 function copySummary(session: CompanionSession, winner: CompanionPlayer | null) {
   const lines = [
-    "ManaBrew game summary",
+    "Manabrew game summary",
     winner ? `Winner: ${winner.name}` : "Winner: none",
     `Length: ${formatDuration(session.timer.accumulatedMs)}`,
     `Turns: ${session.turn || 0}`,

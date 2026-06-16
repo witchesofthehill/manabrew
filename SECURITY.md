@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-ManaBrew is pre-release software. Only the latest release and the current
+Manabrew is pre-release software. Only the latest release and the current
 `main` branch receive security fixes.
 
 ## Reporting a vulnerability

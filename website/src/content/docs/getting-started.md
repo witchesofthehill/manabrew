@@ -1,12 +1,12 @@
 ---
 title: Getting started
-description: Play ManaBrew in the browser, install the desktop app, or build from source.
+description: Play Manabrew in the browser, install the desktop app, or build from source.
 ---
 
 ## Play in the browser
 
-The fastest way to try ManaBrew is the web client at
-[manabrew.app](https://play.manabrew.app). It runs the ManaBrew engine compiled to
+The fastest way to try Manabrew is the web client at
+[manabrew.app](https://play.manabrew.app). It runs the Manabrew engine compiled to
 WebAssembly — nothing to install.
 
 ## Desktop app
@@ -35,8 +35,8 @@ git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
 cd manabrew
 yarn install
 
-# Web client (ManaBrew engine compiled to WASM)
-yarn dev:web
+# Web client Manabrew( engine compiled to WASM)
+yarn web
 
 # Desktop client (Tauri)
 yarn dev

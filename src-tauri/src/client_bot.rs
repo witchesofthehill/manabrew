@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use forge_bot::{run_bot, BotConfig};
+use manabot::{run_bot, BotConfig};
 use tauri::async_runtime::JoinHandle;
 
 pub struct ClientBotManager {

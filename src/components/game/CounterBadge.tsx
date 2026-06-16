@@ -56,6 +56,7 @@ const COUNTER_CONFIG: Record<string, CounterConfig> = {
     title: "Depletion",
   },
   Page: { iconName: "scroll-unfurled", label: "Page", colorKey: "page", title: "Page" },
+  Shield: { iconName: "round-shield", label: "Shield", colorKey: "shield", title: "Shield" },
 };
 
 function getCounterConfig(type: string): CounterConfig {
@@ -88,6 +89,7 @@ const COUNTER_BG_CLASS: Record<CounterColorKey, string> = {
   brick: "bg-counter-brick",
   depletion: "bg-counter-depletion",
   page: "bg-counter-page",
+  shield: "bg-counter-shield",
 };
 
 // ---------------------------------------------------------------------------

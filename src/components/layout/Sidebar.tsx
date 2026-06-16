@@ -171,7 +171,7 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
                   className="w-full justify-start whitespace-nowrap"
                 >
                   <Info className="mr-2 h-4 w-4 shrink-0" />
-                  About ManaBrew
+                  About Manabrew
                 </Button>
               )}
             </NavLink>

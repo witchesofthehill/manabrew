@@ -1,0 +1,13 @@
+[package]
+name = "manabrew-protocol"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "gen-protocol"
+path = "src/bin/gen_protocol.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+ts-rs = { workspace = true }

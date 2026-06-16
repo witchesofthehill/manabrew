@@ -10,8 +10,8 @@ on:
       - unlabeled
     paths:
       - "forge/**"
-      - "forge-engine/**"
-      - "!forge-engine/**/*.md"
+      - "manabrew-rs/crates/manabrew-engine/**"
+      - "!manabrew-rs/crates/manabrew-engine/**/*.md"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/regression.yml"
@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  forge-engine-unit:
+  manabrew-engine-unit:
     runs-on: [self-hosted, Linux]
     timeout-minutes: 30
     steps:
@@ -38,8 +38,8 @@ jobs:
           clean: true
           submodules: recursive
 
-      - name: Run forge-engine unit tests
-        run: yarn test:forge-engine
+      - name: Run manabrew-engine unit tests
+        run: yarn test:manabrew-engine
 
   classify:
     # Splits regression.json into `new` (added or changed vs main) and `existing`
@@ -61,13 +61,13 @@ jobs:
         run: |
           git fetch --depth=1 origin main
           mkdir -p main-ref
-          git show origin/main:forge-engine/crates/forge-parity/regression.json > main-ref/regression.json
+          git show origin/main:manabrew-rs/crates/parity/regression.json > main-ref/regression.json
 
       - name: Classify entries
         id: split
         run: |
           node scripts/parity-classify-entries.mjs \
-            --branch forge-engine/crates/forge-parity/regression.json \
+            --branch manabrew-rs/crates/parity/regression.json \
             --main main-ref/regression.json \
             --out-new new-entries.json \
             --out-existing existing-entries.json
@@ -121,9 +121,9 @@ jobs:
   #         clean: true
   #         path: main-ref
   #
-  #     - name: Build forge-parity (branch)
+  #     - name: Build parity (branch)
   #       working-directory: branch
-  #       run: cargo build -p forge-parity --release
+  #       run: cargo build -p parity --release
   #
   #     - name: Build cardset archive (branch)
   #       working-directory: branch
@@ -131,9 +131,9 @@ jobs:
   #         cargo run -p forge-cardset-archive --features build --release \
   #           --bin build-cardset-archive
   #
-  #     - name: Build forge-parity (main)
+  #     - name: Build parity (main)
   #       working-directory: main-ref
-  #       run: cargo build -p forge-parity --release
+  #       run: cargo build -p parity --release
   #
   #     - name: Build cardset archive (main)
   #       working-directory: main-ref
@@ -151,8 +151,8 @@ jobs:
   #       working-directory: branch
   #       run: |
   #         node scripts/parity-rust-vs-rust.mjs \
-  #           --branch-bin ../branch/target/release/forge-parity \
-  #           --main-bin   ../main-ref/target/release/forge-parity \
+  #           --branch-bin ../branch/target/release/parity \
+  #           --main-bin   ../main-ref/target/release/parity \
   #           --entries    ../partitions/existing-entries.json \
   #           --cards-dir  ../branch/forge/forge-gui/res/cardsfolder \
   #           --decks-dir  ../branch/public/preset_decks \
@@ -197,7 +197,7 @@ jobs:
         # disabled above). Restore the if/else branching on
         # `force_full_java` when re-enabling the fast path.
         run: |
-          cp forge-engine/crates/forge-parity/regression.json java-entries.json
+          cp manabrew-rs/crates/parity/regression.json java-entries.json
           echo "source=full" >> "$GITHUB_OUTPUT"
           echo "Java harness will process $(jq 'length' java-entries.json) entries"
 
@@ -216,8 +216,8 @@ jobs:
       - name: Build Java parity harness JAR
         run: mvn -pl forge-harness -am -DskipTests package
 
-      - name: Build forge-parity
-        run: cargo build -p forge-parity --features serve --profile parity
+      - name: Buildparity
+        run: cargo build -p parity --features serve --profile parity
 
       - name: Build cardset archive
         run: |
@@ -227,7 +227,7 @@ jobs:
       - name: Start parity server
         run: |
           (
-            ./target/parity/forge-parity \
+            ./target/parity/parity \
               --ci --serve --port 8080 --verbose \
               --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar \
               --db-path parity-ci.db \
@@ -238,12 +238,12 @@ jobs:
           echo "Server PID: $(cat server.pid)"
 
       - name: Wait for server health
-        run: ./target/parity/forge-parity ci-client health --server http://localhost:8080
+        run: ./target/parity/parity ci-client health --server http://localhost:8080
 
       - name: Submit regression jobs
         id: submit
         run: |
-          BATCH_ID=$(./target/parity/forge-parity ci-client submit \
+          BATCH_ID=$(./target/parity/parity ci-client submit \
             --server http://localhost:8080 \
             --file java-entries.json)
           echo "batch_id=$BATCH_ID" >> "$GITHUB_OUTPUT"
@@ -252,7 +252,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./target/parity/forge-parity ci-client poll \
+          ./target/parity/parity ci-client poll \
             --server http://localhost:8080 \
             --batch-id ${{ steps.submit.outputs.batch_id }} \
             --repo ${{ github.repository }} \

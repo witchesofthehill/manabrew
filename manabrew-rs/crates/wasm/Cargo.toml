@@ -1,0 +1,51 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WASM bindings for the manabrew-engine MTG rules engine"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+forge-foundation = { path = "../forge-foundation" }
+forge-carddb = { path = "../forge-carddb" }
+forge-cardset-archive = { path = "../forge-cardset-archive" }
+manabrew-engine = { path = "../manabrew-engine" }
+manabrew-agent-interface = { path = "../manabrew-agent-interface" }
+manabrew_game_runtime = { path = "../manabrew-game-runtime" }
+manabot= { path = "../manabot", default-features = false }
+forge-limited = { path = "../forge-limited" }
+
+# WASM bindings
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+serde-wasm-bindgen = "0.6"
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "console",
+    "Window",
+    "DedicatedWorkerGlobalScope",
+] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# RNG for WASM (enables crypto.getRandomValues in browser)
+getrandom = { version = "0.2", features = ["js"] }
+rand = "0.8"
+
+# Error handling in WASM
+console_error_panic_hook = "0.1"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+# wasm-pack's bundled wasm-opt (Binaryen) has an internal assertion crash on
+# our release wasm ("child not found in parent" in Precompute.cpp). Disabling
+# its post-build optimizer pass avoids the crash; rustc's own opt-level="z"
+# + lto still produce a reasonable binary. Workspace defines `[profile.release]`
+# with the size-tuned settings; wasm inherits them.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

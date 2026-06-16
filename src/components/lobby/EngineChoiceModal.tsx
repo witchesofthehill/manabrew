@@ -35,13 +35,13 @@ export function EngineChoiceModal({ onChoose, onCancel, hostedAvailable }: Engin
           >
             <div className="flex items-center gap-2 mb-1.5">
               <Cpu className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">ManaBrew</span>
+              <span className="font-semibold text-sm">Manabrew</span>
               <Badge variant="outline" className="text-[9px]">
                 in-browser
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
-              ManaBrew&apos;s own engine, running locally in your browser. Instant, no network — but
+              Manabrew&apos;s own engine, running locally in your browser. Instant, no network — but
               card support is the in-progress Rust port.
             </p>
           </button>
@@ -59,8 +59,8 @@ export function EngineChoiceModal({ onChoose, onCancel, hostedAvailable }: Engin
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
               {hostedAvailable
-                ? "Forge on a ManaBrew-hosted node — full card support, but adds a little network latency."
-                : "Forge on a ManaBrew-hosted node — full card support. Not available in this build."}
+                ? "Forge on a Manabrew-hosted node — full card support, but adds a little network latency."
+                : "Forge on a Manabrew-hosted node — full card support. Not available in this build."}
             </p>
           </button>
         </div>

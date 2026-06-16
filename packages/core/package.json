@@ -1,7 +1,7 @@
 {
   "name": "@manabrew/core",
   "version": "0.0.1",
-  "description": "Reserved package name for ManaBrew, a Magic: The Gathering client. See https://github.com/witchesofthehill/manabrew",
+  "description": "Reserved package name for Manabrew, a Magic: The Gathering client. See https://github.com/witchesofthehill/manabrew",
   "license": "GPL-3.0-or-later",
   "publishConfig": {
     "access": "public"

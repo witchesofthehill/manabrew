@@ -168,6 +168,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "counter.brick": p.brown,
     "counter.depletion": p.redDeep,
     "counter.page": p.paper,
+    "counter.shield": p.amber,
 
     // ── Player seat colours ──────────────────────────────────────────
     // Phase strip indicator + turn tint. Seat-to-hue mapping is fixed

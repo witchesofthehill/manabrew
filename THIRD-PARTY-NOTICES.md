@@ -31,14 +31,14 @@ this project uses it.
    Forge. These data files are GPL-3.0-or-later.
 
 4. **Rust engine derivation.** The Rust rules engine
-   (`forge-engine/crates/forge-engine/` and adjacent crates) is a port of the
+   (`manabrew-rs/crates/manabrew-engine/` and adjacent crates) is a port of the
    Java rules engine in `forge/forge-game/`. The port maintains file-level
    and interface-level parity with the Java source per the project's
    contribution conventions. The Rust engine is therefore a derivative work
    of upstream Forge and is licensed GPL-3.0-or-later.
 
-5. **Card script DSL.** `forge-engine/crates/forge-card-script/` and
-   `forge-engine/crates/forge-carddb/` parse and execute Forge's card-script
+5. **Card script DSL.** `manabrew-rs/crates/forge-card-script/` and
+   `manabrew-rs/crates/forge-carddb/` parse and execute Forge's card-script
    text format. `docs/forge-dsl-grammar.md` and `docs/forge-dsl-semantics.md`
    describe Forge's existing format; they are not an independent specification.
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const registryPath = join(root, "forge-engine/crates/forge-parity/regression.json");
+const registryPath = join(root, "manabrew-rs/crates/parity/regression.json");
 const javaJar = join(root, "forge-harness/target/forge-harness-jar-with-dependencies.jar");
 
 // Ensure the Java harness JAR is up-to-date before running any parity test.
@@ -32,6 +32,6 @@ if (!entry) {
   process.exit(1);
 }
 
-const cmd = `cargo run --profile parity -p forge-parity --bin forge-parity -- --java-jar "${javaJar}" ${entry.args}${extraArgs ? " " + extraArgs : ""}`;
+const cmd = `cargo run --profile parity -p parity --bin parity -- --java-jar "${javaJar}" ${entry.args}${extraArgs ? " " + extraArgs : ""}`;
 console.log(`> ${cmd}\n`);
 execSync(cmd, { stdio: "inherit", cwd: root });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Mirror of the engine-side DTOs in
-// `forge-engine/crates/forge-agent-interface/`. The Rust crate is GPL by
+// `manabrew-rs/crates/manabrew-agent-interface/`. The Rust crate is GPL by
 // virtue of being engine-coupled; these mirrors inherit the GPL.
 
 import type { ScryfallImageUris } from "@/types/scryfall";

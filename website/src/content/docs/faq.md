@@ -21,10 +21,13 @@ rules keep working without images.
 
 ## A card did the wrong thing
 
-Probably a gap in the ManaBrew engine — these reports are the project's
-lifeblood. Post on [Discord](https://discord.gg/NqrKpbhtcd) or open a
+If you encounter a bug or you believe the engine didn't behave as it should have,
+please take some time to tell us about it.
+These reports are the project's lifeblood. Post on [Discord](https://discord.gg/NqrKpbhtcd) or open a
 [GitHub issue](https://github.com/witchesofthehill/manabrew/issues) with:
 
+- the engine you were using
+- the platform you were playing on (web, macos, windows..)
 - the card name(s) involved,
 - what happened vs. what should have happened,
 - your deck list (export it from the editor),
@@ -32,7 +35,7 @@ lifeblood. Post on [Discord](https://discord.gg/NqrKpbhtcd) or open a
 
 ## Why is a card marked "unsupported"?
 
-The ManaBrew engine doesn't implement everything that card's script needs yet.
+The Manabrew engine doesn't implement everything that card's script needs yet.
 The deck still saves; the card just won't behave correctly in-game. See
 [Formats & limitations](/formats/).
 

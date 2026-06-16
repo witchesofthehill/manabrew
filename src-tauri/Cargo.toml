@@ -12,7 +12,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-forge-cardset-archive = { path = "../forge-engine/crates/forge-cardset-archive", features = [
+forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive", features = [
     "build",
 ] }
 walkdir = "2"
@@ -22,19 +22,19 @@ tauri = { version = "2.11.1", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-forge-engine-core = { path = "../forge-engine/crates/forge-engine" }
-forge-foundation = { path = "../forge-engine/crates/forge-foundation" }
-forge-carddb = { path = "../forge-engine/crates/forge-carddb" }
-forge-cardset-archive = { path = "../forge-engine/crates/forge-cardset-archive" }
+manabrew-engine = { path = "../manabrew-rs/crates/manabrew-engine" }
+forge-foundation = { path = "../manabrew-rs/crates/forge-foundation" }
+forge-carddb = { path = "../manabrew-rs/crates/forge-carddb" }
+forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive" }
 memmap2 = "0.9"
 rand = "0.8"
 tokio = { version = "1", features = ["rt", "sync", "macros"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
-forge-server = { path = "../forge-engine/crates/forge-server" }
-forge-agent-interface = { path = "../forge-engine/crates/forge-agent-interface" }
-forge-bot = { path = "../forge-engine/crates/forge-bot" }
-forge-game-runtime = { path = "../forge-engine/crates/forge-game-runtime" }
-forge-limited = { path = "../forge-engine/crates/forge-limited" }
+manabrew-server = { path = "../manabrew-rs/crates/manabrew-server" }
+manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interface" }
+manabot = { path = "../manabrew-rs/crates/manabot/" }
+manabrew_game_runtime = { path = "../manabrew-rs/crates/manabrew-game-runtime" }
+forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
 tauri-plugin-http = "2.5.9"
 j4rs = { version = "0.25.1", optional = true }

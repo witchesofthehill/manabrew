@@ -1,6 +1,6 @@
 # Per-PR preview stack, driven by .github/workflows/preview-deploy.yml.
 # Runs under /opt/manabrew-staging, joins the prod docker network. Own
-# forge-server so a backend-breaking PR is previewable without touching
+# manabrew-server so a backend-breaking PR is previewable without touching
 # the live relay.
 services:
   manabrew-staging:
@@ -10,7 +10,7 @@ services:
       args:
         VITE_RELAY_HOST: relay-staging.manabrew.app
         VITE_RELAY_PORT: "443"
-        VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
+        VITE_RELAY_PASSWORD: ${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
         # Make the hosted (Java) engine available on staging so the Settings
@@ -23,20 +23,20 @@ services:
     volumes:
       - ./ops/staging.Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
-      - forge-server-staging
+      - manabrew-server-staging
 
-  forge-server-staging:
+  manabrew-server-staging:
     build:
       context: .
-      dockerfile: forge-engine/crates/forge-server/Dockerfile
+      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
-      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
-      RUST_LOG: "forge_server=info"
+      RUST_LOG: "manabrew_server=info"
     expose:
       - "9443"
       - "9444"
@@ -54,10 +54,10 @@ services:
   self-hosted-node-staging:
     build:
       context: .
-      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
     environment:
-      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server-staging:9443"
-      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server-staging:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       # Pool size of Java subprocesses; each room runs in its own JVM.
@@ -65,7 +65,7 @@ services:
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-1}"
       RUST_LOG: "self_hosted_node=info"
     depends_on:
-      - forge-server-staging
+      - manabrew-server-staging
     restart: unless-stopped
 
 networks:

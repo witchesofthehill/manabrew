@@ -15,7 +15,7 @@ reference implementation.
 
 ### 1. Use an existing regression entry when possible
 
-Regression entries live in `forge-engine/crates/forge-parity/regression.json`.
+Regression entries live in `manabrew-rs/crates/parity/regression.json`.
 If the matchup is already listed there, run it by name:
 
 ```bash

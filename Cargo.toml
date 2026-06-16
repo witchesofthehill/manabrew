@@ -3,23 +3,23 @@ resolver = "2"
 members = [
     "src-tauri",
     "tree-sitter-forge-card-script",
-    "forge-engine/crates/forge-foundation",
-    "forge-engine/crates/forge-card-script",
-    "forge-engine/crates/forge-carddb",
-    "forge-engine/crates/forge-engine-macros",
-    "forge-engine/crates/forge-engine",
-    "forge-engine/crates/forge-protocol",
-    "forge-engine/crates/forge-server",
-    "forge-engine/crates/self-hosted-node",
-    "forge-engine/crates/forge-game-runtime",
-    "forge-engine/crates/forge-parity",
-    "forge-engine/crates/forge-wasm",
-    "forge-engine/crates/forge-agent-interface",
-    "forge-engine/crates/forge-card-script-lsp",
-    "forge-engine/crates/forge-engine-debugger",
-    "forge-engine/crates/forge-cardset-archive",
-    "forge-engine/crates/forge-limited",
-    "forge-engine/crates/forge-bot",
+    "manabrew-rs/crates/forge-foundation",
+    "manabrew-rs/crates/forge-card-script",
+    "manabrew-rs/crates/forge-carddb",
+    "manabrew-rs/crates/manabrew-engine-macros",
+    "manabrew-rs/crates/manabrew-engine",
+    "manabrew-rs/crates/manabrew-protocol",
+    "manabrew-rs/crates/manabrew-server",
+    "manabrew-rs/crates/self-hosted-node",
+    "manabrew-rs/crates/manabrew-game-runtime",
+    "manabrew-rs/crates/parity",
+    "manabrew-rs/crates/wasm",
+    "manabrew-rs/crates/manabrew-agent-interface",
+    "manabrew-rs/crates/forge-card-script-lsp",
+    "manabrew-rs/crates/parity-debugger",
+    "manabrew-rs/crates/forge-cardset-archive",
+    "manabrew-rs/crates/forge-limited",
+    "manabrew-rs/crates/manabot",
 ]
 exclude = [
     "packages/core",
@@ -46,5 +46,5 @@ lto = true
 inherits = "release"
 debug-assertions = true
 
-[profile.release.package.forge-wasm]
+[profile.release.package.wasm]
 opt-level = 3

@@ -8,7 +8,7 @@ International license. https://creativecommons.org/licenses/by/4.0/
 # Card Game Engine Protocol
 
 **Status:** draft
-**Version:** 0.2
+**Version:** 0.3
 **License:** CC-BY-4.0
 
 This document specifies a JSON wire format between a card-game frontend and
@@ -62,7 +62,7 @@ carried over any of:
 - A WebSocket connection (`ws://` or `wss://`) with one JSON document per
   text frame. Used for multiplayer relay and as the web-frontend transport.
 - Web Worker `postMessage` exchange. Used by the reference web client when
-  the engine runs in a `forge-wasm` worker.
+  the engine runs in a `wasm` worker.
 - An in-process channel (e.g. Rust `mpsc`) carrying serialized JSON. Used
   by the reference test harness and embedded engine deployments.
 
@@ -73,7 +73,7 @@ Cross-transport sessions are out of scope.
 
 When more than one client participates in a single game session, a relay
 server sits between the engine host and the remote clients. The reference
-relay is `forge-engine/crates/forge-server/`. The relay protocol has two
+relay is `manabrew-rs/crates/manabrew-server/`. The relay protocol has two
 layers.
 
 **Outer layer — lobby/room control.** The relay defines two top-level
@@ -151,7 +151,7 @@ The protocol defines two top-level message families:
   emits a display-only state update).
 - **Frontend → Engine:** `PlayerAction`. The frontend answers a prompt.
 
-Display-only events (card played, turn changed, cards revealed) are not
+Display-only events (card played, turn changed, cards revealed) are not $TODO: Reveal, card played, potentially slop. Reveal is engine side and it's a property of a card (same with face down) and card played can be inferred.
 top-level messages; they are bundled into the `displayEvents` array of the
 prompt that follows them.
 
@@ -344,7 +344,7 @@ preferred classification (see §5.4).
 that don't render labels MUST tolerate its presence.
 
 The complete per-type field schemas are described in the reference Rust
-implementation at `forge-engine/crates/forge-agent-interface/src/prompt.rs`.
+implementation at `manabrew-rs/crates/manabrew-agent-interface/src/prompt.rs`.
 A future revision of this specification will inline the full schemas; for
 this draft, the reference implementation is authoritative for fields not
 shown above.
@@ -724,7 +724,7 @@ MAY add action variants; consumers MUST accept actions whose shape matches a
 prompt the engine emitted.
 
 The full Rust definitions are in
-`forge-engine/crates/forge-agent-interface/src/prompt.rs` (the
+`manabrew-rs/crates/manabrew-agent-interface/src/prompt.rs` (the
 `PlayerAction` enum starting around line 752). A future revision of this
 specification will inline the full per-variant field schema.
 
@@ -772,9 +772,9 @@ future revisions of this specification.
 
 A reference implementation is maintained alongside this specification:
 
-- Rust prompt and game-state types: `forge-engine/crates/forge-agent-interface/src/`
-- Rust `PlayerAction` enumeration: `forge-engine/crates/forge-agent-interface/src/prompt.rs`
-- Rust relay envelope: `forge-engine/crates/forge-server/src/protocol.rs`
+- Rust prompt and game-state types: `manabrew-rs/crates/manabrew-agent-interface/src/`
+- Rust `PlayerAction` enumeration: `manabrew-rs/crates/manabrew-agent-interface/src/prompt.rs`
+- Rust relay envelope: `manabrew-rs/crates/manabrew-server/src/protocol.rs`
 - TypeScript counterpart types: `src/types/` (`manabrew.ts`, `promptType.ts`,
   `gameSnapshot.ts`)
 

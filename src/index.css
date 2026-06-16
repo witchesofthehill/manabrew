@@ -90,6 +90,7 @@
   --color-counter-brick: var(--counter-brick);
   --color-counter-depletion: var(--counter-depletion);
   --color-counter-page: var(--counter-page);
+  --color-counter-shield: var(--counter-shield);
   --color-player-colors-self: var(--player-colors-self);
   --color-player-colors-opponent1: var(--player-colors-opponent1);
   --color-player-colors-opponent2: var(--player-colors-opponent2);

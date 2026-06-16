@@ -4,8 +4,8 @@
 //
 // Usage:
 //   node scripts/parity-classify-entries.mjs \
-//     --branch forge-engine/crates/forge-parity/regression.json \
-//     --main   main-ref/forge-engine/crates/forge-parity/regression.json \
+//     --branch manabrew-rs/crates/parity/regression.json \
+//     --main   main-ref/manabrew-rs/crates/parity/regression.json \
 //     --out-new   new-entries.json \
 //     --out-existing existing-entries.json
 

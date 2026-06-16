@@ -32,6 +32,7 @@ if card.name == LIGHTNING_BOLT { ... }
 ```
 
 **Exceptions**: Strings that match Java card script syntax are intentional (they maintain parity with Java's `forge-game`). These include:
+
 - API type strings in `effect_dispatch!` macro invocations
 - Filter expression syntax (`"Creature.YouCtrl"`)
 - `script_name()` / `from_script_name()` return values
@@ -56,6 +57,7 @@ fn get_zone(zone: ZoneType) -> ... { match zone { ZoneType::Hand => ..., } }
 ```
 
 **Check for**:
+
 - Functions that take `&str` or `u8`/`i32` when the set of valid values is known and finite
 - `match` arms on strings or integers that represent categories
 - Boolean parameters that would be clearer as a two-variant enum
@@ -76,6 +78,7 @@ fn apply_to<T: Permanent>(card: &T) -> Result<()> { /* 20 lines once */ }
 ```
 
 **Check for**:
+
 - Functions with identical or near-identical bodies operating on different types
 - Large `match` arms where each arm does the same thing with minor variation
 - Concrete types in function signatures that could be trait bounds
@@ -87,12 +90,13 @@ fn apply_to<T: Permanent>(card: &T) -> Result<()> { /* 20 lines once */ }
 **Fix**: Split into focused functions/modules.
 
 **Check for**:
+
 - Functions longer than ~80 lines (likely doing multiple things)
 - Files mixing business logic with I/O, serialisation, or UI concerns
 - Structs with methods that don't use `self` (should be free functions or in a different module)
 - Game engine logic leaking into the Tauri/UI layer (`src-tauri/`) or vice versa
 
-**Project-specific rule**: The engine crate (`forge-engine/`) must NEVER depend on Tauri, UI, or network types. The Tauri app (`src-tauri/`) translates between engine types and UI/network types — that boundary must stay clean.
+**Project-specific rule**: The engine crate (`manabrew-engine/`) must NEVER depend on Tauri, UI, or network types. The Tauri app (`src-tauri/`) translates between engine types and UI/network types — that boundary must stay clean.
 
 ### 5. File Organisation
 
@@ -101,14 +105,16 @@ fn apply_to<T: Permanent>(card: &T) -> Result<()> { /* 20 lines once */ }
 **Fix**: Move items to the correct module following existing project conventions.
 
 **Project conventions**:
+
 - Each effect gets its own file in `ability/effects/` (mirroring Java's `ability/effects/` package)
 - Each static ability gets its own file in `staticability/`
 - Foundation types (`Color`, `ZoneType`, `PhaseType`, `Mana`, `CardType`) live in `forge-foundation`
-- Game state types live in `forge-engine`
+- Game state types live in `manabrew-engine`
 - Card database types live in `forge-carddb`
 - File names MUST match Java counterpart names (see CLAUDE.md)
 
 **Check for**:
+
 - New types/enums added to an existing file where they'd be better in their own module
 - Constants scattered across files instead of centralised in a dedicated `constants` module or the type they belong to
 - `pub use` re-exports that bypass module boundaries
@@ -120,6 +126,7 @@ fn apply_to<T: Permanent>(card: &T) -> Result<()> { /* 20 lines once */ }
 **Fix**: Group related variants. Extract sub-enums if an enum exceeds ~30 variants with clearly distinct categories.
 
 **Check for**:
+
 - Enum variants that are never matched together (may belong in separate enums)
 - Related `const` values that should be enum variants
 - Missing `impl` blocks for enum utility methods (`from_str`, `display`, `is_*` predicates)
@@ -148,6 +155,7 @@ let results: Vec<_> = items.iter()
 ```
 
 **Check for**:
+
 - `for` loops that build a `Vec` with `push` (use `collect`)
 - `for` loops with a running accumulator (use `fold` or `sum`)
 - Nested `if` inside `for` (use `filter`)
@@ -160,7 +168,8 @@ let results: Vec<_> = items.iter()
 ### Step 1: Identify Changed Files
 
 Determine which files are staged for commit or have been modified. Focus only on:
-- `*.rs` files in `forge-engine/`, `src-tauri/src/`
+
+- `*.rs` files in `manabrew-engine/`, `src-tauri/src/`
 - `*.ts` / `*.tsx` files in `src/`
 
 Ignore: test files (unless they contain production utilities), generated files, JSON data files, Java reference files.
@@ -168,6 +177,7 @@ Ignore: test files (unless they contain production utilities), generated files, 
 ### Step 2: Read and Analyse Each File
 
 For each changed file:
+
 1. Read the full file content
 2. Check against all 7 quality rules above
 3. Note every violation with file path, line number, and the specific rule violated
@@ -175,6 +185,7 @@ For each changed file:
 ### Step 3: Fix Violations
 
 For each violation:
+
 1. Apply the fix using Edit tool
 2. Ensure the fix maintains Java parity (check CLAUDE.md rules)
 3. Ensure the fix doesn't change public API signatures unless necessary
@@ -183,6 +194,7 @@ For each violation:
 ### Step 4: Verify
 
 After all fixes:
+
 1. Run `cargo check` on the workspace to ensure no compilation errors
 2. If TypeScript files were changed, verify no type errors
 3. Report a summary of all changes made
@@ -193,18 +205,22 @@ After all fixes:
 ## Code Quality Fixes Applied
 
 ### Files Modified
+
 - `path/to/file.rs` — [what was fixed]
 
 ### Violations Found and Fixed
-| # | File | Rule | Description | Fix Applied |
-|---|------|------|-------------|-------------|
-| 1 | `path:line` | Magic Strings | `"foo"` used 3 times inline | Extracted to `const FOO` |
-| 2 | `path:line` | Enum Usage | `mode: u8` with 4 known values | Created `Mode` enum |
+
+| #   | File        | Rule          | Description                    | Fix Applied              |
+| --- | ----------- | ------------- | ------------------------------ | ------------------------ |
+| 1   | `path:line` | Magic Strings | `"foo"` used 3 times inline    | Extracted to `const FOO` |
+| 2   | `path:line` | Enum Usage    | `mode: u8` with 4 known values | Created `Mode` enum      |
 
 ### Violations Skipped (with reason)
+
 - [any violations intentionally not fixed, e.g., Java-parity strings]
 
 ### Build Verification
+
 - `cargo check`: PASS / FAIL
 ```
 

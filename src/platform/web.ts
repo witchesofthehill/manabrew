@@ -577,7 +577,7 @@ class WebServerApi implements IServerApi {
   private relayUrl: string | null = null;
   private serverPassword: string | null = null;
   private bots = new Map<string, BotEntry>();
-  private wasmReady: Promise<typeof import("@/wasm/forge_wasm")> | null = null;
+  private wasmReady: Promise<typeof import("@/wasm/wasm")> | null = null;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
   private connectParams: ServerConnectParams | null = null;
   private connectedAt: number | null = null;
@@ -772,7 +772,7 @@ class WebServerApi implements IServerApi {
     // ws.close() alone races against the server still cleaning up the
     // session, so Settings "Save & Reconnect" (disconnect → connect)
     // would race the new authenticate against the previous session and
-    // forge-server rejected it as a duplicate.
+    // manabrew-server rejected it as a duplicate.
     await new Promise<void>((resolve) => {
       const done = () => {
         ws.removeEventListener("close", done);
@@ -912,10 +912,10 @@ class WebServerApi implements IServerApi {
     // would double-free the wasm-bindgen handle.
   }
 
-  private async loadWasm(): Promise<typeof import("@/wasm/forge_wasm")> {
+  private async loadWasm(): Promise<typeof import("@/wasm/wasm")> {
     if (!this.wasmReady) {
       this.wasmReady = (async () => {
-        const wasm = await import("@/wasm/forge_wasm");
+        const wasm = await import("@/wasm/wasm");
         await wasm.default();
         return wasm;
       })();
@@ -1097,7 +1097,7 @@ export class WebPlatform implements IPlatformApi {
   isSupported(feature: PlatformFeature): boolean {
     switch (feature) {
       case "multiplayer":
-        return true; // WebSocket-based multiplayer via forge-server
+        return true; // WebSocket-based multiplayer viamanabrew-server
       case "native-dialogs":
         return false; // Browser has limited file system access
       case "system-tray":

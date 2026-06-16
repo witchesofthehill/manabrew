@@ -1,10 +1,10 @@
-use forge_agent_interface::deck_dto::CardIdentity;
 use forge_foundation::sealed_product::{PaperCard, Rarity};
 use forge_foundation::ColorSet;
 use forge_limited::{
     BoosterDraft, GauntletKind, GauntletMini, IBoosterDraft, LimitedDeck, SealedDeckGroup,
     WinstonDraft,
 };
+use manabrew_agent_interface::deck_dto::CardIdentity;
 use serde::{Deserialize, Serialize};
 
 use crate::limited_bootstrap;

@@ -579,7 +579,7 @@ export function TablesList({
                       ) : (
                         <Cpu className="h-3 w-3" />
                       )}
-                      {room.engine === "Forge" ? "Forge" : "ManaBrew"}
+                      {room.engine === "Forge" ? "Forge" : "Manabrew"}
                     </LobbyTag>
                     {room.format !== "Any" && (
                       <LobbyTag tone={modeTone} className="shrink-0">

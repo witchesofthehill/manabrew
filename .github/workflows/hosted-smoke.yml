@@ -21,7 +21,7 @@ jobs:
     runs-on: [self-hosted, Linux]
     timeout-minutes: 60
     env:
-      FORGE_SERVER_KEY: forge
+      MANABREW_SERVER_KEY: forge
       SELF_HOSTED_NODE_MAX_GAMES: "1"
       HOSTED_SMOKE_RELAY_URL: ws://127.0.0.1:9443
       HOSTED_SMOKE_SERVER_KEY: forge

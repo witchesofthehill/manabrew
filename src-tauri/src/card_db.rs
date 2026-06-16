@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::{Once, OnceLock};
 
 use forge_carddb::CardDatabase;
-use forge_engine_core::card::CardInstance;
-use forge_engine_core::ids::PlayerId;
+use manabrew_engine::card::CardInstance;
+use manabrew_engine::ids::PlayerId;
 use memmap2::Mmap;
 
 static CARD_DB: OnceLock<CardDatabase> = OnceLock::new();

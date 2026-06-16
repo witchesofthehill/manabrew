@@ -1,0 +1,29 @@
+[package]
+name = "self-hosted-node"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+java-forge = []
+
+[[bin]]
+name = "self-hosted-node"
+path = "src/main.rs"
+
+[dependencies]
+manabrew-agent-interface = { path = "../manabrew-agent-interface" }
+manabot = { path = "../manabot/" }
+forge-carddb = { path = "../forge-carddb" }
+manabrew-engine = { path = "../manabrew-engine" }
+forge-foundation = { path = "../forge-foundation" }
+manabrew_game_runtime = { path = "../manabrew-game-runtime" }
+memmap2 = "0.9"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = "0.8"
+uuid = { version = "1", features = ["v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

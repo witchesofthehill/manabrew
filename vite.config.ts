@@ -59,7 +59,7 @@ export default defineConfig({
     format: "es",
   },
   optimizeDeps: {
-    exclude: ["@/wasm/forge_wasm"],
+    exclude: ["@/wasm/wasm"],
   },
   build: {
     target: "esnext",

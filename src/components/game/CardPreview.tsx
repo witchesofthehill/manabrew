@@ -10,10 +10,10 @@ import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
@@ -44,8 +44,9 @@ interface CardPreviewProps {
 
 const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
+const MAX_PREVIEW_KEYWORDS = 8;
 
-function CardDetailOverlay({ card }: { card: GameCard }) {
+function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: boolean }) {
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
@@ -75,25 +76,51 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
   ]);
 
   const keywords = card.keywords ?? [];
+  const visibleKeywords = keywords.slice(0, MAX_PREVIEW_KEYWORDS);
+  const hiddenKeywordCount = keywords.length - visibleKeywords.length;
 
-  const ptStyle = useMemo<CSSProperties>(() => {
-    const fg = themeColors.textOnTinted;
-    if (lethal) return { backgroundColor: themeColors.pt.lethal, color: fg };
-    if (card.basePower == null || card.power == null) {
-      return { backgroundColor: withAlpha(themeColors.pt.neutral, 0.85), color: fg };
-    }
+  const damage = card.damage ?? 0;
+
+  const ptState = useMemo(() => {
+    if (lethal) return "lethal" as const;
+    if (card.basePower == null || card.power == null) return "unknown" as const;
     const curP = parseInt(card.power, 10);
     const curT = parseInt(card.toughness ?? "0", 10);
-    const buffed = curP > card.basePower || curT > (card.baseToughness ?? 0);
-    const debuffed = curP < card.basePower || curT < (card.baseToughness ?? 0);
-    if (buffed) return { backgroundColor: themeColors.pt.buffed, color: fg };
-    if (debuffed) return { backgroundColor: themeColors.pt.debuffed, color: fg };
-    return { backgroundColor: withAlpha(themeColors.pt.neutral, 0.85), color: fg };
-  }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness, themeColors]);
+    if (curP > card.basePower || curT > (card.baseToughness ?? 0)) return "buffed" as const;
+    if (curP < card.basePower || curT < (card.baseToughness ?? 0)) return "debuffed" as const;
+    return "neutral" as const;
+  }, [lethal, card.basePower, card.baseToughness, card.power, card.toughness]);
 
+  const ptStyle: CSSProperties = {
+    color: themeColors.textOnTinted,
+    backgroundColor:
+      ptState === "lethal"
+        ? themeColors.pt.lethal
+        : ptState === "buffed"
+          ? themeColors.pt.buffed
+          : ptState === "debuffed"
+            ? themeColors.pt.debuffed
+            : themeColors.pt.neutral,
+  };
+  const ptToughness = parseInt(card.toughness ?? "0", 10);
+  if (ptState !== "lethal" && damage > 0 && ptToughness > 0) {
+    const tint = withAlpha(themeColors.pt.lethal, Math.min(0.85, damage / ptToughness));
+    ptStyle.backgroundImage = `linear-gradient(${tint}, ${tint})`;
+  }
+
+  const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
+  const loyalty = card.counters?.Loyalty;
+  const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
-  const showPT = creature && !!card.power && !!card.toughness;
-  const damage = card.damage ?? 0;
+  const showPT = creature && !horizontal && !!card.power && !!card.toughness;
+
+  const overlayCounters = useMemo(() => {
+    if (!card.counters) return null;
+    const entries = Object.entries(card.counters).filter(
+      ([type, n]) => n > 0 && !(showLoyalty && type === "Loyalty"),
+    );
+    return entries.length ? Object.fromEntries(entries) : null;
+  }, [card.counters, showLoyalty]);
 
   return (
     <>
@@ -116,7 +143,7 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
           )}
           {keywords.length > 0 && (
             <div className="flex flex-wrap gap-1 justify-center">
-              {keywords.map((kw, i) => {
+              {visibleKeywords.map((kw, i) => {
                 const colonIdx = kw.indexOf(":");
                 const label = colonIdx === -1 ? kw : kw.slice(0, colonIdx);
                 const cost = colonIdx === -1 ? null : kw.slice(colonIdx + 1);
@@ -130,15 +157,27 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
                   </span>
                 );
               })}
+              {hiddenKeywordCount > 0 && (
+                <span className="inline-flex items-center text-[11px] font-bold uppercase tracking-wide bg-black/75 text-white px-2 py-0.5 rounded shadow-md">
+                  +{hiddenKeywordCount}
+                </span>
+              )}
             </div>
           )}
         </div>
       )}
 
       {showPT && (
-        <div className="absolute bottom-2 right-2 z-10 flex flex-col items-end gap-1 pointer-events-none">
+        <div className="absolute bottom-[5.5%] right-[5.5%] z-10 flex flex-col items-end gap-1 pointer-events-none">
+          {(ptState === "buffed" || ptState === "debuffed") &&
+            card.basePower != null &&
+            card.baseToughness != null && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-white/80 line-through leading-none">
+                {card.basePower}/{card.baseToughness}
+              </span>
+            )}
           <span
-            className="text-base font-bold px-2 py-0.5 rounded shadow-md leading-none"
+            className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
             style={ptStyle}
           >
             {card.power}/{card.toughness}
@@ -157,15 +196,29 @@ function CardDetailOverlay({ card }: { card: GameCard }) {
         </div>
       )}
 
-      {card.counters && Object.values(card.counters).some((n) => n > 0) && (
+      {showLoyalty && (
+        <div className="absolute bottom-[5.5%] right-[5.5%] z-10 pointer-events-none">
+          <span
+            className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
+            style={{
+              backgroundColor: themeColors.counter.loyalty,
+              color: themeColors.textOnTinted,
+            }}
+          >
+            {loyalty}
+          </span>
+        </div>
+      )}
+
+      {overlayCounters && (
         <div
           className={cn(
             "absolute bottom-1 left-1 z-10 max-w-[70%]",
             "flex flex-wrap gap-0.5 pointer-events-none",
-            showPT ? "pr-12" : "right-1",
+            showPT || showLoyalty ? "pr-12" : "right-1",
           )}
         >
-          <CounterDisplay counters={card.counters} size="sm" />
+          <CounterDisplay counters={overlayCounters} size="md" />
         </div>
       )}
 
@@ -219,7 +272,7 @@ export function CardPreview({
   // undefined and the hovered object is a `DeckCard` (uris already on it).
   // Fall back to that case instead of going through `asDeckCard`.
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
-  const isLoading = false;
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const imageUrl = deckCard.uris[imageSize];
   const scryfallEntry = useCard({
     name: card.name,
@@ -230,6 +283,7 @@ export function CardPreview({
   const facesHaveImages =
     !!faces &&
     faces.length >= 2 &&
+    !isTwoHalfLayout(card.layout) &&
     !!faces[0].image_uris?.[imageSize] &&
     !!faces[1].image_uris?.[imageSize];
   const derivedBackImageUrl =
@@ -240,6 +294,8 @@ export function CardPreview({
     ? {
         frontImageUrl: faces![0].image_uris![imageSize],
         backImageUrl: faces![1].image_uris![imageSize],
+        frontImageUrlLow: faces![0].image_uris!.normal,
+        backImageUrlLow: faces![1].image_uris!.normal,
         frontName: faces![0].name,
         backName: faces![1].name,
       }
@@ -247,6 +303,10 @@ export function CardPreview({
       ? {
           frontImageUrl: imageUrl,
           backImageUrl: derivedBackImageUrl,
+          frontImageUrlLow: deckCard.uris.normal,
+          backImageUrlLow: deckCard.uris.normal?.includes("/front/")
+            ? deckCard.uris.normal.replace("/front/", "/back/")
+            : derivedBackImageUrl,
           frontName: card.name,
           backName: card.name,
         }
@@ -365,6 +425,15 @@ export function CardPreview({
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
   const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
+  const currentLowResUrl =
+    imageSize !== "large"
+      ? null
+      : hasDoubleFace
+        ? showBackFace
+          ? doubleFacedData.backImageUrlLow
+          : doubleFacedData.frontImageUrlLow
+        : deckCard.uris.normal;
+  const imgLoaded = loadedSrc === currentImageUrl;
 
   return createPortal(
     <>
@@ -409,29 +478,59 @@ export function CardPreview({
                 : undefined
             }
           >
-            {isLoading && !currentImageUrl ? (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground text-center">{currentCardName}</span>
-              </div>
-            ) : currentImageUrl ? (
+            {currentImageUrl ? (
               <>
+                {currentLowResUrl &&
+                  !imgLoaded &&
+                  (horizontal ? (
+                    <ScryfallImg
+                      src={currentLowResUrl}
+                      alt=""
+                      title=""
+                      aria-hidden
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
+                    />
+                  ) : (
+                    <ScryfallImg
+                      src={currentLowResUrl}
+                      alt=""
+                      title=""
+                      aria-hidden
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ))}
                 {horizontal ? (
                   <ScryfallImg
                     src={currentImageUrl}
                     alt={currentCardName}
                     title=""
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7]"
+                    onLoad={() => setLoadedSrc(currentImageUrl)}
+                    className={cn(
+                      "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center h-[calc(100%*7/5)] aspect-[5/7] transition-opacity duration-200",
+                      imgLoaded ? "opacity-100" : "opacity-0",
+                    )}
                   />
                 ) : (
                   <ScryfallImg
                     src={currentImageUrl}
                     alt={currentCardName}
                     title=""
-                    className="w-full h-full object-cover"
+                    onLoad={() => setLoadedSrc(currentImageUrl)}
+                    className={cn(
+                      "w-full h-full object-cover transition-opacity duration-200",
+                      imgLoaded ? "opacity-100" : "opacity-0",
+                    )}
                   />
                 )}
-                <CardDetailOverlay card={card} />
+                {!imgLoaded && !currentLowResUrl && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 bg-black">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground text-center">
+                      {currentCardName}
+                    </span>
+                  </div>
+                )}
+                <CardDetailOverlay card={card} horizontal={horizontal} />
                 {hasDoubleFace && onFlip && (
                   <button
                     type="button"
@@ -549,6 +648,32 @@ export function CardPreview({
                   </span>
                 </button>
               ))}
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 text-[10px] text-muted-foreground">
+                <span>
+                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                    1
+                  </kbd>
+                  –
+                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                    9
+                  </kbd>{" "}
+                  select
+                </span>
+                <span>
+                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                    Esc
+                  </kbd>{" "}
+                  close
+                </span>
+                {hasFlippableFaces && (
+                  <span>
+                    <kbd className="rounded border border-border bg-muted px-1 font-mono text-[9px]">
+                      F
+                    </kbd>{" "}
+                    flip
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>

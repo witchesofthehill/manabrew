@@ -7,7 +7,7 @@
  * floating pointer.
  *
  * Mirrors the `TargetingIntent` enum in
- * `forge-engine/crates/forge-agent-interface/src/game_view_dto.rs`. The
+ * `manabrew-rs/crates/manabrew-agent-interface/src/game_view_dto.rs`. The
  * canonical wire-format description is in `docs/PROTOCOL.md` §5.4.
  */
 export const TargetingIntent = {
@@ -59,12 +59,12 @@ export function intentPrefersArrow(intent: TargetingIntent): boolean {
  * carries the specific semantic; colour only signals the valence.
  *
  * Mirrors `TargetingIntent::is_hostile` in
- * `forge-agent-interface/src/game_view_dto.rs` so engine and UI stay in
+ * `manabrew-agent-interface/src/game_view_dto.rs` so engine and UI stay in
  * sync if a new intent is added.
  */
 export function intentIsHostile(intent: TargetingIntent): boolean {
   // Keep in lock-step with Rust `TargetingIntent::is_hostile` in
-  // `forge-agent-interface/src/game_view_dto.rs`. `Attack` / `Block`
+  // `manabrew-agent-interface/src/game_view_dto.rs`. `Attack` / `Block`
   // are combat intents rendered as arrows, not pointers, so they stay
   // out of this classifier on both sides of the wire.
   switch (intent) {

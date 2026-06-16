@@ -2069,36 +2069,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
-name = "forge-agent-interface"
-version = "0.1.0"
-dependencies = [
- "forge-engine-core",
- "forge-foundation",
- "forge-protocol",
- "rand 0.8.6",
- "serde",
- "serde_json",
- "strum",
- "strum_macros",
- "tracing",
-]
-
-[[package]]
-name = "forge-bot"
-version = "0.1.0"
-dependencies = [
- "forge-agent-interface",
- "forge-engine-core",
- "forge-protocol",
- "futures-util",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tracing",
-]
-
-[[package]]
 name = "forge-card-script"
 version = "0.1.0"
 dependencies = [
@@ -2141,71 +2111,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "forge-engine-core"
-version = "0.1.0"
-dependencies = [
- "dyn-clone",
- "forge-card-script",
- "forge-carddb",
- "forge-cardset-archive",
- "forge-engine-macros",
- "forge-foundation",
- "indexmap 2.13.0",
- "rand 0.8.6",
- "serde",
- "serde_json",
- "smallvec",
- "strum",
- "strum_macros",
- "typetag",
- "winnow 0.7.14",
-]
-
-[[package]]
-name = "forge-engine-debugger"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui",
- "forge-card-script",
- "forge-cardset-archive",
- "forge-parity",
- "memmap2",
- "rfd",
- "serde",
- "serde_json",
- "shlex",
- "streaming-iterator",
- "tree-sitter",
- "tree-sitter-forge-card-script",
-]
-
-[[package]]
-name = "forge-engine-macros"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn 2.0.116",
-]
-
-[[package]]
 name = "forge-foundation"
 version = "0.1.0"
 dependencies = [
  "rand 0.8.6",
  "serde",
-]
-
-[[package]]
-name = "forge-game-runtime"
-version = "0.1.0"
-dependencies = [
- "forge-agent-interface",
- "forge-carddb",
- "forge-engine-core",
- "forge-foundation",
- "rand 0.8.6",
- "tracing",
 ]
 
 [[package]]
@@ -2218,85 +2128,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "forge-parity"
-version = "0.1.0"
-dependencies = [
- "axum",
- "chrono",
- "clap",
- "forge-carddb",
- "forge-engine-core",
- "forge-foundation",
- "futures",
- "glob",
- "memmap2",
- "rand 0.8.6",
- "rayon",
- "reqwest 0.12.28",
- "rusqlite",
- "serde",
- "serde_json",
- "tempfile",
- "terminal_size",
- "tokio",
- "tower-http 0.5.2",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "forge-protocol"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "ts-rs",
-]
-
-[[package]]
-name = "forge-server"
-version = "0.1.0"
-dependencies = [
- "axum",
- "dashmap 6.1.0",
- "forge-protocol",
- "futures-util",
- "serde",
- "serde_json",
- "socket2 0.5.10",
- "tokio",
- "tokio-tungstenite",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "forge-wasm"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "forge-agent-interface",
- "forge-bot",
- "forge-carddb",
- "forge-cardset-archive",
- "forge-engine-core",
- "forge-foundation",
- "forge-game-runtime",
- "forge-limited",
- "getrandom 0.2.17",
- "js-sys",
- "rand 0.8.6",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "web-sys",
 ]
 
 [[package]]
@@ -3800,20 +3631,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "manabot"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "manabrew-protocol",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
 name = "manabrew"
 version = "0.3.0"
 dependencies = [
- "forge-agent-interface",
- "forge-bot",
  "forge-carddb",
  "forge-cardset-archive",
- "forge-engine-core",
  "forge-foundation",
- "forge-game-runtime",
  "forge-limited",
- "forge-server",
  "futures-util",
  "j4rs",
+ "manabot",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "manabrew-server",
+ "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
  "serde",
@@ -3825,6 +3671,89 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "walkdir",
+]
+
+[[package]]
+name = "manabrew-agent-interface"
+version = "0.1.0"
+dependencies = [
+ "forge-foundation",
+ "manabrew-engine",
+ "manabrew-protocol",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "tracing",
+]
+
+[[package]]
+name = "manabrew-engine"
+version = "0.1.0"
+dependencies = [
+ "dyn-clone",
+ "forge-card-script",
+ "forge-carddb",
+ "forge-cardset-archive",
+ "forge-foundation",
+ "indexmap 2.13.0",
+ "manabrew-engine-macros",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "strum",
+ "strum_macros",
+ "typetag",
+ "winnow 0.7.14",
+]
+
+[[package]]
+name = "manabrew-engine-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 2.0.116",
+]
+
+[[package]]
+name = "manabrew-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "ts-rs",
+]
+
+[[package]]
+name = "manabrew-server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "dashmap 6.1.0",
+ "futures-util",
+ "manabrew-protocol",
+ "serde",
+ "serde_json",
+ "socket2 0.5.10",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "manabrew_game_runtime"
+version = "0.1.0"
+dependencies = [
+ "forge-carddb",
+ "forge-foundation",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "rand 0.8.6",
+ "tracing",
 ]
 
 [[package]]
@@ -4700,6 +4629,52 @@ dependencies = [
  "gobject-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "parity"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "clap",
+ "forge-carddb",
+ "forge-foundation",
+ "futures",
+ "glob",
+ "manabrew-engine",
+ "memmap2",
+ "rand 0.8.6",
+ "rayon",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "terminal_size",
+ "tokio",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "parity-debugger"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "forge-card-script",
+ "forge-cardset-archive",
+ "memmap2",
+ "parity",
+ "rfd",
+ "serde",
+ "serde_json",
+ "shlex",
+ "streaming-iterator",
+ "tree-sitter",
+ "tree-sitter-forge-card-script",
 ]
 
 [[package]]
@@ -5962,13 +5937,13 @@ dependencies = [
 name = "self-hosted-node"
 version = "0.1.0"
 dependencies = [
- "forge-agent-interface",
- "forge-bot",
  "forge-carddb",
- "forge-engine-core",
  "forge-foundation",
- "forge-game-runtime",
  "futures-util",
+ "manabot",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
  "serde",
@@ -7948,6 +7923,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5428f8bf88ea5ddc08faddef2ac4a67e390b88186c703ce6dbd955e1c145aca5"
 dependencies = [
  "wit-bindgen",
+]
+
+[[package]]
+name = "wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "forge-carddb",
+ "forge-cardset-archive",
+ "forge-foundation",
+ "forge-limited",
+ "getrandom 0.2.17",
+ "js-sys",
+ "manabot",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "manabrew_game_runtime",
+ "rand 0.8.6",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "web-sys",
 ]
 
 [[package]]

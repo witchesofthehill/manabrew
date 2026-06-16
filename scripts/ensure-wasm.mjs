@@ -9,7 +9,7 @@
 //
 // Inputs hashed by content:
 //   - Cargo.toml and Cargo.lock at repo root
-//   - every forge-engine .rs and Cargo.toml
+//   - every manabrew-engine .rs and Cargo.toml
 //   - scripts/build-wasm.mjs
 //
 // Card-data dirs hold about 50k files, so hash a manifest of path, size, and mtime
@@ -25,9 +25,9 @@ const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptsDir, "..");
 
 const OUTPUTS = [
-  "src/wasm/forge_wasm_bg.wasm",
-  "src/wasm/forge_wasm.js",
-  "src/wasm/forge_wasm.d.ts",
+  "src/wasm/wasm_bg.wasm",
+  "src/wasm/wasm.js",
+  "src/wasm/wasm.d.ts",
   "public/wasm/cardset.manifest.json",
 ];
 
@@ -36,7 +36,7 @@ const STAMP_FILE = join(projectRoot, "src/wasm/.build-stamp.json");
 const CONTENT_HASH_FILES = ["Cargo.toml", "Cargo.lock", "scripts/build-wasm.mjs"];
 
 const CONTENT_HASH_DIRS = [
-  { root: "forge-engine", match: (p) => p.endsWith(".rs") || p.endsWith("Cargo.toml") },
+  { root: "manabrew-engine", match: (p) => p.endsWith(".rs") || p.endsWith("Cargo.toml") },
 ];
 
 const MANIFEST_HASH_DIRS = [

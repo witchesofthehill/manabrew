@@ -1,5 +1,5 @@
 /**
- * Web Worker for running the forge-wasm game engine.
+ * Web Worker for running the wasm game engine.
  *
  * Uses SharedArrayBuffer + Atomics for blocking human player input.
  * The game loop runs synchronously in the worker, blocking on Atomics.wait()
@@ -42,7 +42,7 @@ import init, {
   limited_cubecobra_url,
   limited_import_cube,
   limited_drop_session,
-} from "../wasm/forge_wasm";
+} from "../wasm/wasm";
 import type { Deck } from "@/types/manabrew";
 
 // ============================================================================

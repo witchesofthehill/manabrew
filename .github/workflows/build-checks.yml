@@ -102,11 +102,11 @@ jobs:
           cargo build --release
           -p forge-foundation
           -p forge-carddb
-          -p forge-engine-core
-          -p forge-agent-interface
+          -p manabrew-engine
+          -p manabrew-agent-interface
 
       - name: Run engine tests (release)
-        run: cargo test --release -p forge-engine-core --lib
+        run: cargo test --release -pmanabrew-engine  --lib
 
   # ── Rust server ────────────────────────────────────────────────────
   rust-server:
@@ -127,8 +127,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build forge-server (release)
-        run: cargo build --release -p forge-server
+      - name: Build manabrew-server (release)
+        run: cargo build --release -pmanabrew-server
 
   # ── Rust parity dashboard ─────────────────────────────────────────
   rust-parity:
@@ -149,8 +149,8 @@ jobs:
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build forge-parity (with serve feature, release)
-        run: cargo build --release -p forge-parity --features serve
+      - name: Build parity (with serve feature, release)
+        run: cargo build --release -p parity --features serve
 
   # ── Full web build (wasm + tsc + vite) ─────────────────────────────
   web-build:

@@ -56,7 +56,7 @@ jobs:
           fi
           cd "\$STAGING"
 
-          # Reuse prod's FORGE_SERVER_KEY (symlink follows rotations).
+          # Reuse prod's MANABREW_SERVER_KEY (symlink follows rotations).
           [ -L .env ] || ln -sf "${DEPLOY_PATH}/ops/production.secrets" .env
 
           git fetch origin "pull/${PR_NUMBER}/head" --force

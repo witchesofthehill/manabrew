@@ -107,7 +107,9 @@ To get started visit our [landing page](https://manabrew.app)
 - Node.js 22.12+ recommended
 - Yarn v1
 - Rust stable
-- Java 18 and Maven for Java Forge parity runs
+- JDK 18–21 and Maven for the Java Forge harness / parity runs. Newer JDKs
+  (e.g. 26) currently fail to compile Forge; if `/usr/libexec/java_home`
+  resolves to one, pin an older one: `JAVA_HOME="$(/usr/libexec/java_home -v 21)"`.
 - Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
 
 ### Clone with submodules
@@ -125,34 +127,78 @@ If you already cloned without it, initialize the submodule before building:
 git submodule update --init --recursive
 ```
 
+### Keep the `forge` submodule in sync
+
+The `forge` submodule is **pinned**: every branch records the exact Forge commit
+it expects (the gitlink). Git does **not** move the submodule for you when you
+switch branches or pull, so after either of those — or whenever `git status`
+shows `M forge` you didn't intend — sync your working copy back to the pinned
+commit:
+
+```bash
+git submodule update --init forge   # checks out the *recorded* commit (the pin)
+```
+
+Note this is **not** `--remote`: `--init` restores the pin, `--remote` advances
+to the latest upstream (see "Bump the Forge submodule" below). Check the state
+with:
+
+```bash
+git submodule status forge
+#  <sha> forge   → in sync with the pin
+# +<sha> forge   → your forge is AHEAD of the pin; run the sync command above
+# -<sha> forge   → not initialized; run the sync command above
+```
+
+An out-of-sync submodule means the Java engine, card scripts, and the harness
+jar disagree on which Forge version they target. Symptoms: cards silently
+stripped from decks, `No enum constant forge.card.CardSplitType.X` at deck load,
+or a `NoClassDefFoundError` at runtime. When in doubt, re-sync and rebuild.
+
 ### Install
 
 ```bash
 yarn install
 ```
 
-### Update the Forge submodule
+### Bump the Forge submodule
 
-The `forge` submodule is the whole Forge tree — the Java reference engine plus
-card scripts, editions, and token data. Pull the latest commit (it tracks the
+Do this only when you intentionally want **newer** Forge — not to fix an
+out-of-sync checkout (for that, use the sync command above). The `forge`
+submodule is the whole Forge tree — the Java reference engine plus card scripts,
+editions, and token data. Advance it to the latest commit (it tracks the
 `manabrew` branch — see `.gitmodules`) with:
 
 ```bash
 git submodule update --remote forge
 ```
 
-Then rebuild so the new submodule content is picked up — the Java harness, the
-WASM engine, and the bundled card archives all build from `forge/`. Skipping
-this leaves stale builds; one visible symptom is the deck loader stripping any
-card missing from the bundle.
+Then **clean-rebuild** so the new Forge is actually picked up — the Java harness,
+the WASM engine, and the bundled card archives all build from `forge/`:
 
 ```bash
-yarn build:harness   # rebuilds the Java harness + restages the Tauri card bundle
-yarn web             # rebuilds the WASM engine and card archive (yarn dev does too)
+# Clean rebuild — a plain build reuses stale .class files compiled against the
+# old Forge and silently ships a broken jar. Pin a JDK Forge can compile with.
+JAVA_HOME="$(/usr/libexec/java_home -v 21)" \
+  mvn -pl forge-harness -am clean package -DskipTests
+yarn ensure:harness   # restages the Tauri card bundle + updates the build checksum
+yarn web              # rebuilds the WASM engine and card archive (yarn dev does too)
 ```
 
-Committing the resulting submodule pointer bump (`git status` shows `M forge`) is
-a normal change — open a PR for it like any other.
+Two gotchas this avoids:
+
+- `yarn build:harness` / `yarn ensure:harness` run an **incremental** Maven build.
+  After a Forge bump they may reuse stale classes, so do the `mvn … clean package`
+  above at least once; the symptoms are deck cards stripped, `No enum constant …`,
+  or a `NoClassDefFoundError` at runtime.
+- `cargo run -p self-hosted-node` does **not** rebuild the harness; it loads the
+  prebuilt jar from `forge-harness/target/`. Rebuild the harness yourself after
+  any Forge change.
+
+A Forge bump can change Forge's Java API, which may require fixing compile errors
+in `forge-harness/` before it builds — do that in the same change. Then commit
+the submodule pointer bump (`git status` shows `M forge`) and open a PR like any
+other.
 
 ### Run the desktop app
 

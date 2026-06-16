@@ -12,7 +12,7 @@ use crate::java_raw::{
 };
 use crate::prompt::{
     ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
-    AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetAnyChoice,
+    AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetRef,
 };
 
 pub fn make_java_game_over_prompt() -> AgentPrompt {
@@ -328,14 +328,16 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
-            PromptInput::ChooseTargetPlayer(manabrew_protocol::prompts::choose_target_player::ChooseTargetPlayerInput {
-                valid_player_ids: target_ids(&players),
-                hostile: intent.is_hostile(),
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                target_ids(&players)
+                    .into_iter()
+                    .map(|id| TargetRef::Player { id })
+                    .collect(),
                 intent,
                 min_targets,
                 max_targets,
                 chosen_targets,
-            })
+            ))
         }
         JavaRawPromptBody::ChooseTargetCard {
             cards,
@@ -343,32 +345,23 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
-            zone,
+            zone: _,
             min_targets,
             max_targets,
             chosen_targets,
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
-            match zone {
-                Some(zone) if zone != "Battlefield" => PromptInput::ChooseTargetCardFromZone(manabrew_protocol::prompts::choose_target_card_from_zone::ChooseTargetCardFromZoneInput {
-                    valid_card_ids: target_ids(&cards),
-                    zone,
-                    zone_cards: prompt_cards(&cards, &card_index),
-                    intent,
-                    min_targets,
-                    max_targets,
-                    chosen_targets,
-                }),
-                _ => PromptInput::ChooseTargetCard(manabrew_protocol::prompts::choose_target_card::ChooseTargetCardInput {
-                    valid_card_ids: target_ids(&cards),
-                    hostile: intent.is_hostile(),
-                    intent,
-                    min_targets,
-                    max_targets,
-                    chosen_targets,
-                }),
-            }
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                target_ids(&cards)
+                    .into_iter()
+                    .map(|id| TargetRef::Card { id })
+                    .collect(),
+                intent,
+                min_targets,
+                max_targets,
+                chosen_targets,
+            ))
         }
         JavaRawPromptBody::ChooseTargetAny {
             players,
@@ -383,15 +376,18 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => {
             source_card_id = source;
             let intent = intent_from_api(&api, &destination, &counter_type);
-            PromptInput::ChooseTargetAny(manabrew_protocol::prompts::choose_target_any::ChooseTargetAnyInput {
-                valid_player_ids: target_ids(&players),
-                valid_card_ids: target_ids(&cards),
-                hostile: intent.is_hostile(),
+            let mut candidates: Vec<TargetRef> = target_ids(&players)
+                .into_iter()
+                .map(|id| TargetRef::Player { id })
+                .collect();
+            candidates.extend(target_ids(&cards).into_iter().map(|id| TargetRef::Card { id }));
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
                 intent,
                 min_targets,
                 max_targets,
                 chosen_targets,
-            })
+            ))
         }
         JavaRawPromptBody::ChooseTargetSpell {
             spells,
@@ -404,13 +400,17 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            PromptInput::ChooseTargetSpell(manabrew_protocol::prompts::choose_target_spell::ChooseTargetSpellInput {
-                valid_spell_ids: target_ids(&spells),
-                intent: intent_from_api(&api, &destination, &counter_type),
+            let intent = intent_from_api(&api, &destination, &counter_type);
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                target_ids(&spells)
+                    .into_iter()
+                    .map(|id| TargetRef::Spell { id })
+                    .collect(),
+                intent,
                 min_targets,
                 max_targets,
                 chosen_targets,
-            })
+            ))
         }
         JavaRawPromptBody::PayManaCost {
             card_id,
@@ -561,37 +561,30 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                     .collect(),
             }
         }
-        PlayerAction::TargetPlayer { player_id } => JavaAction::TargetChoice {
-            target: JavaTarget {
-                kind: JavaTargetKind::Player,
-                id: player_id.clone().unwrap_or_default(),
-            },
-        },
-        PlayerAction::TargetCard { card_id } => JavaAction::TargetChoice {
-            target: JavaTarget {
-                kind: JavaTargetKind::Card,
-                id: card_id.clone().unwrap_or_default(),
-            },
-        },
-        PlayerAction::TargetAny { target } => match target {
-            TargetAnyChoice::Player { player_id } => JavaAction::TargetChoice {
+        PlayerAction::BoardTargets { chosen } => match chosen.first() {
+            Some(TargetRef::Player { id }) => JavaAction::TargetChoice {
                 target: JavaTarget {
                     kind: JavaTargetKind::Player,
-                    id: player_id.clone(),
+                    id: id.clone(),
                 },
             },
-            TargetAnyChoice::Card { card_id } => JavaAction::TargetChoice {
+            Some(TargetRef::Card { id }) => JavaAction::TargetChoice {
                 target: JavaTarget {
                     kind: JavaTargetKind::Card,
-                    id: card_id.clone(),
+                    id: id.clone(),
                 },
             },
-            TargetAnyChoice::None => JavaAction::Pass { until_phase: None },
-        },
-        PlayerAction::TargetSpell { spell_id } => JavaAction::TargetChoice {
-            target: JavaTarget {
-                kind: JavaTargetKind::Spell,
-                id: spell_id.clone().unwrap_or_default(),
+            Some(TargetRef::Spell { id }) => JavaAction::TargetChoice {
+                target: JavaTarget {
+                    kind: JavaTargetKind::Spell,
+                    id: id.clone(),
+                },
+            },
+            None => JavaAction::TargetChoice {
+                target: JavaTarget {
+                    kind: JavaTargetKind::Card,
+                    id: String::new(),
+                },
             },
         },
         PlayerAction::DeclareAttackers { assignments } => JavaAction::DeclareAttackers {
@@ -649,7 +642,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::EngineAction { .. } => "engineAction",
         PlayerAction::TapLand { .. } => "tapLand",
         PlayerAction::UntapLand { .. } => "untapLand",
-        PlayerAction::TargetSpell { .. } => "targetSpell",
+        PlayerAction::BoardTargets { .. } => "boardTargets",
         PlayerAction::PhyrexianDecision { .. } => "phyrexianDecision",
         PlayerAction::KickerDecision { .. } => "kickerDecision",
         PlayerAction::BuybackDecision { .. } => "buybackDecision",
@@ -1083,6 +1076,23 @@ fn target_ids(targets: &[JavaRawCardOption]) -> Vec<String> {
         .iter()
         .filter_map(|target| target.id.clone())
         .collect()
+}
+
+fn board_targets_input(
+    candidates: Vec<TargetRef>,
+    intent: crate::game_view_dto::TargetingIntent,
+    min_targets: i32,
+    max_targets: i32,
+    chosen_targets: i32,
+) -> manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
+    manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
+        candidates,
+        hostile: intent.is_hostile(),
+        intent,
+        min_targets,
+        max_targets,
+        chosen_targets,
+    }
 }
 
 fn prompt_cards(cards: &[JavaRawCardOption], index: &HashMap<String, CardDto>) -> Vec<CardDto> {

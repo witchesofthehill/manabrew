@@ -70,42 +70,24 @@ fn main() {
             available_blocker_ids: vec![],
             error: None,
         }),
-        ChooseTargetPlayer(choose_target_player::ChooseTargetPlayerInput {
-            valid_player_ids: vec![],
-            hostile: false,
-            intent: TargetingIntent::default(),
-            min_targets: 0,
-            max_targets: 3,
-            chosen_targets: 1,
-        }),
-        ChooseTargetCard(choose_target_card::ChooseTargetCardInput {
-            valid_card_ids: vec![],
+        ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput {
+            candidates: vec![
+                common::TargetRef::Player {
+                    id: "player-1".into(),
+                },
+                common::TargetRef::Card {
+                    id: "card-1".into(),
+                },
+                common::TargetRef::Spell {
+                    id: "stack-1".into(),
+                },
+            ],
             hostile: false,
             intent: TargetingIntent::default(),
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
         }),
-        ChooseTargetAny(choose_target_any::ChooseTargetAnyInput {
-            valid_player_ids: vec![],
-            valid_card_ids: vec![],
-            hostile: false,
-            intent: TargetingIntent::default(),
-            min_targets: 0,
-            max_targets: 3,
-            chosen_targets: 1,
-        }),
-        ChooseTargetCardFromZone(
-            choose_target_card_from_zone::ChooseTargetCardFromZoneInput {
-                valid_card_ids: vec![],
-                zone: String::new(),
-                zone_cards: vec![],
-                intent: TargetingIntent::default(),
-                min_targets: 0,
-                max_targets: 3,
-                chosen_targets: 1,
-            },
-        ),
         GameOver(game_over::GameOverInput {}),
         RevealCards(reveal_cards::RevealCardsInput {
             cards: vec![],
@@ -130,13 +112,6 @@ fn main() {
         ChooseDiscard(choose_discard::ChooseDiscardInput {
             hand_card_ids: vec![],
             num_to_discard: 0,
-        }),
-        ChooseTargetSpell(choose_target_spell::ChooseTargetSpellInput {
-            valid_spell_ids: vec![],
-            intent: TargetingIntent::default(),
-            min_targets: 0,
-            max_targets: 3,
-            chosen_targets: 1,
         }),
         ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerInput {
             description: String::new(),

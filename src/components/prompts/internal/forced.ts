@@ -1,44 +1,5 @@
-import type { PromptResolver, ResolveCtx } from "./promptHandlers";
+import type { PromptResolver } from "./promptHandlers";
 import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
-
-function consumeIntentForCard(
-  prompt: { sourceCardId?: string; input: { validCardIds: string[] } },
-  ctx: ResolveCtx,
-): string | null {
-  const sourceId = prompt.sourceCardId;
-  if (!sourceId) return null;
-  const intent = ctx.targetIntents[sourceId];
-  if (!intent || intent.kind !== "card") return null;
-  if (!prompt.input.validCardIds.includes(intent.id)) return null;
-  useTargetIntentStore.getState().clearIntent(sourceId);
-  return intent.id;
-}
-
-function consumeIntentForPlayer(
-  prompt: { sourceCardId?: string; input: { validPlayerIds: string[] } },
-  ctx: ResolveCtx,
-): string | null {
-  const sourceId = prompt.sourceCardId;
-  if (!sourceId) return null;
-  const intent = ctx.targetIntents[sourceId];
-  if (!intent || intent.kind !== "player") return null;
-  if (!prompt.input.validPlayerIds.includes(intent.id)) return null;
-  useTargetIntentStore.getState().clearIntent(sourceId);
-  return intent.id;
-}
-
-function consumeIntentForSpell(
-  prompt: { sourceCardId?: string; input: { validSpellIds: string[] } },
-  ctx: ResolveCtx,
-): string | null {
-  const sourceId = prompt.sourceCardId;
-  if (!sourceId) return null;
-  const intent = ctx.targetIntents[sourceId];
-  if (!intent || intent.kind !== "spell") return null;
-  if (!prompt.input.validSpellIds.includes(intent.id)) return null;
-  useTargetIntentStore.getState().clearIntent(sourceId);
-  return intent.id;
-}
 
 function canFinishTargeting(input: {
   minTargets: number;
@@ -48,65 +9,30 @@ function canFinishTargeting(input: {
   return input.maxTargets > input.minTargets && input.chosenTargets >= input.minTargets;
 }
 
-export const singleLegalCard: PromptResolver<"chooseTargetCard" | "chooseTargetCardFromZone"> = (
-  prompt,
-  ctx,
-) => {
-  if (prompt.input.type === "chooseTargetCard" && canFinishTargeting(prompt.input)) {
-    return { kind: "force-show" };
-  }
-  const preselected = consumeIntentForCard(prompt, ctx);
-  if (preselected) {
-    return {
-      kind: "auto",
-      respond: { type: "targetCard", cardId: preselected },
-      reason: `pre-selected target ${preselected}`,
-    };
-  }
-  const ids = prompt.input.validCardIds;
-  if (ids.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "targetCard", cardId: ids[0] },
-    reason: `single legal target: ${ids[0]}`,
-  };
-};
+export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (prompt, ctx) => {
+  const input = prompt.input;
+  if (canFinishTargeting(input)) return { kind: "force-show" };
 
-export const singleLegalPlayer: PromptResolver<"chooseTargetPlayer"> = (prompt, ctx) => {
-  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
-  const preselected = consumeIntentForPlayer(prompt, ctx);
-  if (preselected) {
-    return {
-      kind: "auto",
-      respond: { type: "targetPlayer", playerId: preselected },
-      reason: `pre-selected player ${preselected}`,
-    };
+  const sourceId = prompt.sourceCardId;
+  const intent = sourceId ? ctx.targetIntents[sourceId] : undefined;
+  if (intent) {
+    const match = input.candidates.find((c) => c.kind === intent.kind && c.id === intent.id);
+    if (match) {
+      useTargetIntentStore.getState().clearIntent(sourceId!);
+      return {
+        kind: "auto",
+        respond: { type: "boardTargets", chosen: [match] },
+        reason: `pre-selected target ${match.id}`,
+      };
+    }
   }
-  const ids = prompt.input.validPlayerIds;
-  if (ids.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "targetPlayer", playerId: ids[0] },
-    reason: `single legal player: ${ids[0]}`,
-  };
-};
 
-export const singleLegalSpell: PromptResolver<"chooseTargetSpell"> = (prompt, ctx) => {
-  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
-  const preselected = consumeIntentForSpell(prompt, ctx);
-  if (preselected) {
-    return {
-      kind: "auto",
-      respond: { type: "targetSpell", spellId: preselected },
-      reason: `pre-selected spell ${preselected}`,
-    };
-  }
-  const ids = prompt.input.validSpellIds;
-  if (ids.length !== 1) return { kind: "force-show" };
+  if (input.candidates.length !== 1) return { kind: "force-show" };
+  const only = input.candidates[0];
   return {
     kind: "auto",
-    respond: { type: "targetSpell", spellId: ids[0] },
-    reason: `single legal spell: ${ids[0]}`,
+    respond: { type: "boardTargets", chosen: [only] },
+    reason: `single legal target: ${only.id}`,
   };
 };
 
@@ -214,45 +140,6 @@ export const singleAssigneeDamage: PromptResolver<"chooseCombatDamageAssignment"
     },
     reason: `single assignee (${target}) gets all ${total} damage`,
   };
-};
-
-export const singleLegalAny: PromptResolver<"chooseTargetAny"> = (prompt, ctx) => {
-  if (canFinishTargeting(prompt.input)) return { kind: "force-show" };
-  const preCard = consumeIntentForCard(prompt, ctx);
-  if (preCard) {
-    return {
-      kind: "auto",
-      respond: { type: "targetAny", target: { kind: "card", cardId: preCard } },
-      reason: `pre-selected target (card ${preCard})`,
-    };
-  }
-  const prePlayer = consumeIntentForPlayer(prompt, ctx);
-  if (prePlayer) {
-    return {
-      kind: "auto",
-      respond: { type: "targetAny", target: { kind: "player", playerId: prePlayer } },
-      reason: `pre-selected target (player ${prePlayer})`,
-    };
-  }
-  const cards = prompt.input.validCardIds;
-  const players = prompt.input.validPlayerIds;
-  const total = cards.length + players.length;
-  if (total !== 1) return { kind: "force-show" };
-  if (cards.length === 1) {
-    return {
-      kind: "auto",
-      respond: { type: "targetAny", target: { kind: "card", cardId: cards[0] } },
-      reason: `single legal target (card ${cards[0]})`,
-    };
-  }
-  if (players.length === 1) {
-    return {
-      kind: "auto",
-      respond: { type: "targetAny", target: { kind: "player", playerId: players[0] } },
-      reason: `single legal target (player ${players[0]})`,
-    };
-  }
-  return { kind: "force-show" };
 };
 
 export const forcedDiscard: PromptResolver<"chooseDiscard"> = (prompt) => {

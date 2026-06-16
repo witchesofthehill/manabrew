@@ -7,6 +7,7 @@ pub mod choose_action;
 pub mod choose_alternative_cost;
 pub mod choose_attackers;
 pub mod choose_blockers;
+pub mod choose_board_targets;
 pub mod choose_buyback;
 pub mod choose_card_name;
 pub mod choose_cards_for_effect;
@@ -31,11 +32,6 @@ pub mod choose_roll_swap_value;
 pub mod choose_roll_to_ignore;
 pub mod choose_roll_to_modify;
 pub mod choose_roll_to_swap;
-pub mod choose_target_any;
-pub mod choose_target_card;
-pub mod choose_target_card_from_zone;
-pub mod choose_target_player;
-pub mod choose_target_spell;
 pub mod choose_type;
 pub mod dice_rolled;
 pub mod dig;
@@ -63,17 +59,13 @@ pub enum PromptInput {
     ChooseAction(choose_action::ChooseActionInput),
     ChooseAttackers(choose_attackers::ChooseAttackersInput),
     ChooseBlockers(choose_blockers::ChooseBlockersInput),
-    ChooseTargetPlayer(choose_target_player::ChooseTargetPlayerInput),
-    ChooseTargetCard(choose_target_card::ChooseTargetCardInput),
-    ChooseTargetAny(choose_target_any::ChooseTargetAnyInput),
-    ChooseTargetCardFromZone(choose_target_card_from_zone::ChooseTargetCardFromZoneInput),
+    ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput),
     GameOver(game_over::GameOverInput),
     RevealCards(reveal_cards::RevealCardsInput),
     Scry(scry::ScryInput),
     Surveil(surveil::SurveilInput),
     Dig(dig::DigInput),
     ChooseDiscard(choose_discard::ChooseDiscardInput),
-    ChooseTargetSpell(choose_target_spell::ChooseTargetSpellInput),
     ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerInput),
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectInput),
     ChooseMode(choose_mode::ChooseModeInput),
@@ -125,16 +117,12 @@ pub enum PromptOutput {
     ChooseAction(choose_action::ChooseActionOutput),
     ChooseAttackers(choose_attackers::ChooseAttackersOutput),
     ChooseBlockers(choose_blockers::ChooseBlockersOutput),
-    ChooseTargetPlayer(choose_target_player::ChooseTargetPlayerOutput),
-    ChooseTargetCard(choose_target_card::ChooseTargetCardOutput),
-    ChooseTargetAny(choose_target_any::ChooseTargetAnyOutput),
-    ChooseTargetCardFromZone(choose_target_card_from_zone::ChooseTargetCardFromZoneOutput),
+    ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsOutput),
     RevealCards(reveal_cards::RevealCardsOutput),
     Scry(scry::ScryOutput),
     Surveil(surveil::SurveilOutput),
     Dig(dig::DigOutput),
     ChooseDiscard(choose_discard::ChooseDiscardOutput),
-    ChooseTargetSpell(choose_target_spell::ChooseTargetSpellOutput),
     ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerOutput),
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectOutput),
     ChooseMode(choose_mode::ChooseModeOutput),

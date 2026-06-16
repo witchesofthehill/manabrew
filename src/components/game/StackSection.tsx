@@ -12,7 +12,7 @@ interface StackSectionProps {
 }
 
 export function StackSection({ stack, promptType, onOpenStack }: StackSectionProps) {
-  const isCounterPrompt = promptType === "chooseTargetSpell";
+  const isCounterPrompt = promptType === "chooseBoardTargets";
   const show = stack.length > 0 || isCounterPrompt;
 
   const themeColors = useTheme().gameTheme;

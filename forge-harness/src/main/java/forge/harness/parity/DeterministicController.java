@@ -18,14 +18,17 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import forge.StaticData;
 import forge.LobbyPlayer;
+import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilCost;
 import forge.game.ability.ApiType;
 import forge.game.ability.effects.RollDiceEffect;
 import forge.game.cost.Cost;
 import forge.game.cost.CostAdjustment;
+import forge.game.cost.CostDecisionMakerBase;
 import forge.game.cost.CostEnlist;
 import forge.game.cost.CostPart;
+import forge.game.cost.CostPartWithList;
 import forge.game.player.PlayerController;
 import forge.game.cost.CostPartMana;
 import forge.card.mana.ManaCost;
@@ -248,6 +251,11 @@ public class DeterministicController extends PlayerController implements Harness
         }
     }
 
+    @Override
+    public CostDecisionMakerBase getCostDecisionMaker(Player player, SpellAbility ability, boolean effect, String prompt) {
+        return new AiCostDecision(player, ability, effect);
+    }
+
     private List<SpellAbility> filterFailedPaymentActions(final List<SpellAbility> actions) {
         if (failedPaymentCardsThisTurn.isEmpty()) {
             return actions;
@@ -278,7 +286,6 @@ public class DeterministicController extends PlayerController implements Harness
         return result;
     }
 
-    @Override
     public boolean confirmMulliganScry(Player p) {
         onCallback("confirm_mulligan_scry", "false");
         return false;
@@ -354,7 +361,7 @@ public class DeterministicController extends PlayerController implements Harness
         if (payCosts != null) {
             ManaCost mana = payCosts.getTotalMana();
             if (mana != null && mana.countX() > 0) {
-                int maxX = ComputerUtilCost.getMaxXValue(sa, player, sa.isTrigger());
+                int maxX = ComputerUtilCost.setMaxXValue(sa, player, sa.isTrigger());
                 sa.setXManaCostPaid(Math.max(maxX, 0));
             }
         }
@@ -782,6 +789,15 @@ public class DeterministicController extends PlayerController implements Harness
     // Rust's choose_sacrifice sorts alphabetically by name, picks first.
 
     @Override
+    public CardCollectionView chooseCardsForCost(CardCollectionView optionList, SpellAbility sa,
+            CostPartWithList cpl, int amount, boolean isOptional, String prompt) {
+        final List<Card> sorted = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(optionList));
+        final CardCollectionView result = ChoiceSpace.pickManyCards(new CardCollection(sorted), amount, amount, rng);
+        onCallback("choose_cards_for_cost", formatCards(result), String.valueOf(optionList.size()), String.valueOf(amount));
+        return result;
+    }
+
+    @Override
     public CardCollectionView choosePermanentsToSacrifice(SpellAbility sa, int min, int max,
             CardCollectionView validTargets, String message) {
         captureDeepCheckpoint("choose_sacrifice");
@@ -825,7 +841,7 @@ public class DeterministicController extends PlayerController implements Harness
 
     @Override
     public CardCollection chooseCardsToDiscardFrom(Player playerDiscard, SpellAbility sa,
-            CardCollection validCards, int min, int max) {
+            CardCollection validCards, int min, int max, CardCollectionView visibleToChooser) {
         final List<Card> sorted = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(validCards));
         final CardCollection result = ChoiceSpace.pickManyCards(new CardCollection(sorted), min, max, rng);
         onCallback("choose_discard", formatCards(result), String.valueOf(validCards.size()), String.valueOf(min), String.valueOf(max));
@@ -990,8 +1006,11 @@ public class DeterministicController extends PlayerController implements Harness
     // not about paying or validating an entire cost payment plan.
 
     @Override
-    public Integer announceRequirements(SpellAbility ability, String announce) {
-        final Integer result = EngineHandler.announceRequirements(player, ability, announce, rng);
+    public Integer announceRequirements(SpellAbility ability, int min, int max, String announce) {
+        Integer result = EngineHandler.announceRequirements(player, ability, announce, rng);
+        if (result != null) {
+            result = Math.max(min, Math.min(max, result));
+        }
         onCallback("announce_requirements", String.valueOf(result), announce != null ? announce : "?");
         return result;
     }
@@ -1103,7 +1122,7 @@ public class DeterministicController extends PlayerController implements Harness
     // Rust default flip_coin_call returns true (always call heads).
 
     @Override
-    public boolean chooseFlipResult(SpellAbility sa, Player flipper, boolean[] results, boolean call) {
+    public boolean chooseFlipResult(SpellAbility sa, Player flipper, boolean call) {
         final boolean chosen = ChoiceSpace.pickBool(rng);
         onCallback("flip_coin_call", String.valueOf(chosen));
         return chosen;
@@ -1113,8 +1132,7 @@ public class DeterministicController extends PlayerController implements Harness
     // Rust default choose_cards_to_bottom returns first N cards.
 
     @Override
-    public CardCollectionView tuckCardsViaMulligan(Player mulliganingPlayer, int cardsToReturn) {
-        CardCollectionView hand = mulliganingPlayer.getCardsIn(ZoneType.Hand);
+    public CardCollectionView tuckCardsViaMulligan(CardCollectionView hand, int cardsToReturn) {
         CardCollection pool = new CardCollection(hand);
         CardCollection out = new CardCollection();
         int count = Math.min(cardsToReturn, pool.size());
@@ -1190,6 +1208,11 @@ public class DeterministicController extends PlayerController implements Harness
         final boolean result = playPlumbing.playNoStack(c.getController(), sa, getGame(), true);
         onCallback("pay_combat_cost", Boolean.toString(result), formatCard(c));
         return result;
+    }
+
+    @Override
+    public List<SpellAbility> orderSimultaneousSa(List<SpellAbility> activePlayerSAs) {
+        return playPlumbing.orderSimultaneousSa(activePlayerSAs);
     }
 
     @Override
@@ -1404,7 +1427,7 @@ public class DeterministicController extends PlayerController implements Harness
     }
 
     @Override
-    public CardCollectionView chooseCardsToDiscardUnlessType(int min, CardCollectionView hand, String param, SpellAbility sa) {
+    public CardCollectionView chooseCardsToDiscardUnlessType(int min, CardCollectionView hand, String[] unlessTypes, SpellAbility sa) {
         final List<Card> sorted = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(hand));
         final CardCollectionView result = ChoiceSpace.pickManyCards(new CardCollection(sorted), min, min, rng);
         onCallback("choose_discard_unless_type", formatCards(result), String.valueOf(hand.size()), String.valueOf(min));
@@ -1527,8 +1550,9 @@ public class DeterministicController extends PlayerController implements Harness
     }
 
     @Override
-    public int chooseSprocket(Card assignee, boolean forceDifferent) {
-        final int result = ChoiceSpace.pickIntInRange(1, 3, rng);
+    public int chooseSprocket(Card assignee, List<Integer> sprockets) {
+        final Integer picked = ChoiceSpace.pickOne(sprockets, rng);
+        final int result = picked == null ? 1 : picked;
         onCallback("choose_sprocket", String.valueOf(result));
         return result;
     }
@@ -1677,7 +1701,7 @@ public class DeterministicController extends PlayerController implements Harness
     }
 
     @Override
-    public StaticAbility chooseSingleStaticAbility(String prompt, List<StaticAbility> possibleReplacers) {
+    public StaticAbility chooseSingleStaticAbility(List<StaticAbility> possibleReplacers) {
         // Do NOT consume RNG here. This method is called during action-space evaluation
         // (canPlay() checks), not just at resolution time. Consuming RNG here causes
         // desync with Rust, which selects static abilities algorithmically without
@@ -1690,7 +1714,7 @@ public class DeterministicController extends PlayerController implements Harness
     }
 
     @Override
-    public String chooseProtectionType(String string, SpellAbility sa, List<String> choices) {
+    public String chooseProtectionType(SpellAbility sa, List<String> choices) {
         final String result = ChoiceSpace.pickOne(choices, rng);
         onCallback("choose_protection_type", result == null ? "null" : result, String.valueOf(choices.size()));
         return result;
@@ -1729,7 +1753,7 @@ public class DeterministicController extends PlayerController implements Harness
     }
 
     @Override
-    public boolean payCostDuringRoll(Cost cost, SpellAbility sa, FCollectionView<Player> allPayers) {
+    public boolean payCostDuringRoll(Cost cost, SpellAbility sa) {
         if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
             onCallback("pay_cost_during_roll", "false", "cannot_pay");
             return false;
@@ -1737,6 +1761,17 @@ public class DeterministicController extends PlayerController implements Harness
         final boolean result = costPlumbing.payWithControllerDecision(cost, sa, true);
         onCallback("pay_cost_during_roll", Boolean.toString(result));
         return result;
+    }
+
+    @Override
+    public boolean applyManaToCost(
+            ManaCostBeingPaid toPay,
+            SpellAbility ability,
+            String prompt,
+            ManaConversionMatrix matrix,
+            boolean effect
+    ) {
+        return autoPay.payManaCost(toPay.toManaCost(), ability, effect);
     }
 
     @Override

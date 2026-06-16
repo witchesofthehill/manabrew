@@ -57,16 +57,8 @@ pub enum PlayerAction {
     DeclareBlockers {
         assignments: Vec<BlockAssignment>,
     },
-    TargetPlayer {
-        #[serde(rename = "playerId")]
-        player_id: Option<String>,
-    },
-    TargetCard {
-        #[serde(rename = "cardId")]
-        card_id: Option<String>,
-    },
-    TargetAny {
-        target: TargetAnyChoice,
+    BoardTargets {
+        chosen: Vec<TargetRef>,
     },
     TapLand {
         #[serde(rename = "cardId")]
@@ -106,11 +98,6 @@ pub enum PlayerAction {
     DiscardDecision {
         #[serde(rename = "discardedCardIds")]
         discarded_card_ids: Vec<String>,
-    },
-    /// Response to ChooseTargetSpell prompt: the stack entry ID the player targets.
-    TargetSpell {
-        #[serde(rename = "spellId")]
-        spell_id: Option<String>,
     },
     /// Response to ChooseOptionalTrigger: whether the player accepts.
     OptionalTriggerDecision {

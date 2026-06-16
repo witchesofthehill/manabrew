@@ -39,5 +39,5 @@ Never use `--no-verify` to bypass the commit-msg or pre-commit hooks. If a hook 
 
 - **New scripts must be runnable via `yarn`.** Add the entry to `package.json`'s `scripts` so CI and humans use the same surface.
 - **Don't hardcode absolute paths.** Resolve from the repo root via `process.cwd()` or the script's own location.
-- **JDK 18 for harness work.** Set `JAVA_HOME` explicitly (`/Library/Java/JavaVirtualMachines/zulu-18.jdk/Contents/Home` on macOS).
+- **JDK 18–21 for harness work; newer JDKs (e.g. 26) fail to compile Forge.** Set `JAVA_HOME` explicitly — `/usr/libexec/java_home -v 21` on macOS (or a zulu-18 path). After a `forge` submodule bump, run `mvn -pl forge-harness -am clean package -DskipTests` once: `yarn build:harness`/`ensure:harness` are incremental and will otherwise reuse stale classes compiled against the old Forge. `cargo run` never rebuilds the harness.
 - **Keep stdout machine-readable when CI consumes it.** Status text → stderr; results → stdout.

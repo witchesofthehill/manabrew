@@ -111,13 +111,13 @@ export interface SetDeckSelectionParams {
 
 export const serverCommands = {
   /**
-   * Connect to an ManaBrew server.
+   * Connect to an Manabrew server.
    * Triggers 'server:auth_result' event on completion.
    */
   connect: (params: ServerConnectParams) => tauriInvoke<void>("server_connect", params),
 
   /**
-   * Disconnect from the current ManaBrew server.
+   * Disconnect from the current Manabrew server.
    */
   disconnect: () => invoke<void>("server_disconnect"),
 

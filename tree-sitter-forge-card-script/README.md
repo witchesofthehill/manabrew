@@ -3,7 +3,7 @@
 A [tree-sitter](https://tree-sitter.github.io/tree-sitter/) grammar for the **Forge card-script
 DSL** — the text format used to describe Magic: The Gathering cards in the
 [Forge](https://github.com/Card-Forge/forge) rules engine. Part of the
-[ManaBrew](https://github.com/witchesofthehill/manabrew) project.
+[Manabrew](https://github.com/witchesofthehill/manabrew) project.
 
 It parses the line-oriented card format: field lines (`Name:`, `ManaCost:`, …), ability/trigger/
 static/replacement lines (`A:`, `T:`, `S:`, `R:`), `SVar:` definitions, keyword (`K:`) lines,

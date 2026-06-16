@@ -8,17 +8,17 @@
 #   * browser playtest: VITE_RELAY_HOST=localhost VITE_RELAY_PORT=9443 \
 #       VITE_HOSTED_AI_ENABLED=true yarn dev  (then open the dev server)
 services:
-  forge-server:
+  manabrew-server:
     build:
       context: .
-      dockerfile: forge-engine/crates/forge-server/Dockerfile
+      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_MAX_ROOMS: "100"
-      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:-forge}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
-      RUST_LOG: "forge_server=info"
+      RUST_LOG: "manabrew_server=info"
     ports:
       - "9443:9443"
     restart: unless-stopped
@@ -26,15 +26,14 @@ services:
   self-hosted-node:
     build:
       context: .
-      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
     environment:
-      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
-      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:-forge}"
+      SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:-forge}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-standard}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       # Pool size of Java subprocesses; each room runs in its own JVM.
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-2}"
       RUST_LOG: "self_hosted_node=info"
-    depends_on:
-      - forge-server
+    depends_on: -manabrew-server
     restart: unless-stopped

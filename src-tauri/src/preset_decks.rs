@@ -1,12 +1,12 @@
 use std::sync::OnceLock;
 
 use forge_agent_interface::deck_dto::{Deck as WireDeck, DeckCard as WireDeckCard};
-use forge_engine_core::card::CardInstance;
-use forge_engine_core::game::GameState;
-use forge_engine_core::ids::PlayerId;
-use forge_engine_core::player::RegisteredPlayer;
 use forge_foundation::ZoneType;
-use forge_game_runtime::deck::{
+use manabrew_engine::card::CardInstance;
+use manabrew_engine::game::GameState;
+use manabrew_engine::ids::PlayerId;
+use manabrew_engine::player::RegisteredPlayer;
+use manabrew_game_runtime::deck::{
     card_rules_to_instance, deck_zone_for_identity, fallback_deck_zone_for_card, lookup_card_rules,
     register_card_name, PreparedRegisteredPlayer,
 };
@@ -384,9 +384,9 @@ fn prepare_cards_from_identities(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use forge_engine_core::card::Card;
-    use forge_engine_core::ids::CardId;
     use forge_foundation::{CardTypeLine, ColorSet, ManaCost};
+    use manabrew_engine::card::Card;
+    use manabrew_engine::ids::CardId;
 
     #[test]
     fn routes_variant_cards_to_variant_decks() {

@@ -14,7 +14,7 @@ export default defineConfig({
   },
   integrations: [
     starlight({
-      title: "ManaBrew",
+      title: "Manabrew",
       description:
         "An open-source Magic: The Gathering client and rules engine, built around Forge compatibility.",
       favicon: "/favicon-32x32.png",
@@ -34,7 +34,7 @@ export default defineConfig({
         {
           label: "Start here",
           items: [
-            { label: "What is ManaBrew?", link: "/" },
+            { label: "What is Manabrew?", link: "/" },
             "getting-started",
             "download-windows",
             "download-macos",

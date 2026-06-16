@@ -15,7 +15,7 @@ Dependency rule (do not violate): `parity → common`, `host → common`, `Main 
 
 - **common** — anything used by both engines: RNG (`CountingRandom`), logging (`DecisionLog`, `ParityLog`), snapshot base (`SnapshotExtractor`), GUI bootstrap (`HeadlessGuiBase`), deterministic ordering / id mapping / reset (`ParityOrder`, `ParityCardMap`, `ForgeEngineReset`), the shared decision/cost/play plumbing (`ActionSpace`, `ChoiceSpace`, `CombatChoiceSpace`, `AutoPay`, `HarnessCostPlumbing`, `HarnessPlayPlumbing`, `HarnessPlayHooks`), and the prompt acceptance-rule facade (`EngineHandler`). `EngineHandler` is the one entrypoint for Forge GUI/controller legality: per prompt it returns the legal choice set (so a caller only offers valid picks) and post-validates the submitted answer for whole-answer constraints a per-option set can't express (e.g. `CombatUtil.validateBlocks`). Heavy mechanics stay in `ActionSpace`/`ChoiceSpace`/`CombatChoiceSpace`; `EngineHandler` unifies them.
 - **parity** — `DeterministicController`, `DeterministicLobbyPlayer`, `PresetDecks`.
-- **host** — `ManaBrewEngineAdapter` (the in-process facade Rust j4rs talks to), `ManaBrewInteractiveSession`, `ManaBrewInteractiveController`, `ManaBrewInteractiveLobbyPlayer`, `InteractiveSnapshotExtractor`, `PriorityFastForward` (skips a priority window with no roundtrip when the player has a standing pass-until; mirrors `forge-engine` `priority.rs`).
+- **host** — `ManaBrewEngineAdapter` (the in-process facade Rust j4rs talks to), `ManaBrewInteractiveSession`, `ManaBrewInteractiveController`, `ManaBrewInteractiveLobbyPlayer`, `InteractiveSnapshotExtractor`, `PriorityFastForward` (skips a priority window with no roundtrip when the player has a standing pass-until; mirrors `manabrew-engine` `priority.rs`).
 
 ### Host payability probes must stay silent
 
@@ -27,7 +27,7 @@ Dependency rule (do not violate): `parity → common`, `host → common`, `Main 
 
 ## External references (keep in sync)
 
-- `forge.harness.Main` is the jar `mainClass` (pom) and is invoked by forge-parity and self-hosted-node (CLI flags). Keep `Main` in the root package.
+- `forge.harness.Main` is the jar `mainClass` (pom) and is invoked by parity and self-hosted-node (CLI flags). Keep `Main` in the root package.
 - `forge.harness.host.ManaBrewEngineAdapter` is loaded by class name in `src-tauri/src/engine_backend/java_backend.rs` (`create_instance`). Moving/renaming it means updating that string.
 
 ## Build / verify

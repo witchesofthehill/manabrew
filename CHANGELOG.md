@@ -38,7 +38,7 @@
 
 ### Refactors
 
-- decouple relay from engine + only redeploy forge-server when its code changes ([#149](https://github.com/witchesofthehill/manabrew/issues/149)) ([9c3b46e](https://github.com/witchesofthehill/manabrew/commit/9c3b46ee5733ae4a7449ba815cc2b5086ca41b15))
+- decouple relay from engine + only redeploy manabrew-server when its code changes ([#149](https://github.com/witchesofthehill/manabrew/issues/149)) ([9c3b46e](https://github.com/witchesofthehill/manabrew/commit/9c3b46ee5733ae4a7449ba815cc2b5086ca41b15))
 - prompt typing system ([#125](https://github.com/witchesofthehill/manabrew/issues/125)) ([72c77f6](https://github.com/witchesofthehill/manabrew/commit/72c77f640d6ed90658620fb9a08848a217e9ea5f))
 
 ## [0.2.0](https://github.com/witchesofthehill/manabrew/compare/v0.1.0...v0.2.0) (2026-06-01)
@@ -66,7 +66,7 @@
 - **dashboard:** Show resolution status on failure clusters ([74ae9fa](https://github.com/witchesofthehill/manabrew/commit/74ae9fa9fb0cbc4a708cb6522eb6a2e07dcc71df))
 - **debugger:** action-space surfacing + card_widgets refactor + valid_filter fix ([#518](https://github.com/witchesofthehill/manabrew/issues/518)) ([a369613](https://github.com/witchesofthehill/manabrew/commit/a369613f517fb1b37d6e6ab0b727ab3ecba82b4c))
 - **deck-editor:** multi-select, lasso, labels color picker, and stack view fixes ([#293](https://github.com/witchesofthehill/manabrew/issues/293)) ([eaa2042](https://github.com/witchesofthehill/manabrew/commit/eaa204256909a45968d9c4309c3a5825cd01a496))
-- **deploy:** build and deploy both forge-server and parity-dashboard ([a68c451](https://github.com/witchesofthehill/manabrew/commit/a68c4519f99c1566d103111a51b27de52130f8cc))
+- **deploy:** build and deploy both manabrew-server and parity-dashboard ([a68c451](https://github.com/witchesofthehill/manabrew/commit/a68c4519f99c1566d103111a51b27de52130f8cc))
 - **deploy:** Discord-friendly summary on stdout, raw log to file ([38075ff](https://github.com/witchesofthehill/manabrew/commit/38075ff82c2374f8325433133afd90d6f8eaaa9d))
 - **deploy:** joyful Discord embed + rename to Wasm deploy ([#14](https://github.com/witchesofthehill/manabrew/issues/14)) ([011c8bd](https://github.com/witchesofthehill/manabrew/commit/011c8bd7692f0fef4520f42239dc952c425e2e62))
 - dice rolls — engine prompts, polyhedral UI, opening d20 ([#477](https://github.com/witchesofthehill/manabrew/issues/477)) ([718a111](https://github.com/witchesofthehill/manabrew/commit/718a111a7bfc3f13e75de205b5337e55283f88a8))
@@ -122,7 +122,7 @@
 - **parity:** CI server mode with persistent JVM and job queue API ([#171](https://github.com/witchesofthehill/manabrew/issues/171)) ([add2aef](https://github.com/witchesofthehill/manabrew/commit/add2aef3be0f202eb24a0d4ef8ed03bace711d81))
 - **parity:** continuous parity server with SQLite and web dashboard ([#149](https://github.com/witchesofthehill/manabrew/issues/149)) ([9ffd228](https://github.com/witchesofthehill/manabrew/commit/9ffd22829bfe9b3af9a56dafeb840ec75a08449c))
 - **parity:** Docker layer caching + n8n auto-deploy ([#167](https://github.com/witchesofthehill/manabrew/issues/167)) ([c24edd8](https://github.com/witchesofthehill/manabrew/commit/c24edd8b9f28bbfc5168bcda2363f4388bf6e89d))
-- **parity:** forge-parity crate + Java forge-harness for cross-engine differential testing ([#51](https://github.com/witchesofthehill/manabrew/issues/51)) ([ae0beec](https://github.com/witchesofthehill/manabrew/commit/ae0beecae22aa1ca49c120ba2d2509db692f907b))
+- **parity:** parity crate + Java forge-harness for cross-engine differential testing ([#51](https://github.com/witchesofthehill/manabrew/issues/51)) ([ae0beec](https://github.com/witchesofthehill/manabrew/commit/ae0beecae22aa1ca49c120ba2d2509db692f907b))
 - **parity:** fuzz random deck testing with dynamic card pool ([#85](https://github.com/witchesofthehill/manabrew/issues/85)) ([548c0d5](https://github.com/witchesofthehill/manabrew/commit/548c0d5b75b59da860694e2cafc6a4467b2e73dd))
 - **parity:** Introduce extra actions ([#115](https://github.com/witchesofthehill/manabrew/issues/115)) ([3fa5dc2](https://github.com/witchesofthehill/manabrew/commit/3fa5dc2766045e914f3a1b6ff4f3a8624aba55cd))
 - **parity:** Java harness server mode + fuzz pool effect filter ([#91](https://github.com/witchesofthehill/manabrew/issues/91)) ([ba8b7a3](https://github.com/witchesofthehill/manabrew/commit/ba8b7a3fa81779aec237c01ad505cf80d5740e02))
@@ -218,7 +218,7 @@
 - **forge:** java dto zone casting ([#91](https://github.com/witchesofthehill/manabrew/issues/91)) ([8a6be25](https://github.com/witchesofthehill/manabrew/commit/8a6be25707664a46ac196e2daf2418e0926da774))
 - hosted play-vs-ai — let the user set format and start, not the node ([#94](https://github.com/witchesofthehill/manabrew/issues/94)) ([f5281f4](https://github.com/witchesofthehill/manabrew/commit/f5281f45878f893ce78fd32778843432f58147aa))
 - include mana abilities on interactive controller action space ([#93](https://github.com/witchesofthehill/manabrew/issues/93)) ([d113015](https://github.com/witchesofthehill/manabrew/commit/d113015cc9cf15c47fd1f756a443ad821bdbfa04))
-- **infra:** build forge-server with full workspace context ([#555](https://github.com/witchesofthehill/manabrew/issues/555)) ([9062b18](https://github.com/witchesofthehill/manabrew/commit/9062b18ede8934e54546affe02f5ce3051bd7b3a))
+- **infra:** build manabrew-server with full workspace context ([#555](https://github.com/witchesofthehill/manabrew/issues/555)) ([9062b18](https://github.com/witchesofthehill/manabrew/commit/9062b18ede8934e54546affe02f5ce3051bd7b3a))
 - **infra:** Update deploy.sh to respect COMPOSE_PROFILES for parity dashboard ([7a1f63d](https://github.com/witchesofthehill/manabrew/commit/7a1f63d810895b26a5645dc0eecb3e889fc894be))
 - java self hosted dto ([#90](https://github.com/witchesofthehill/manabrew/issues/90)) ([d11cc7e](https://github.com/witchesofthehill/manabrew/commit/d11cc7ed833409afd46b2ef226bc72436ea768db))
 - **lobby:** let host set room format on enter, not just at game start ([#85](https://github.com/witchesofthehill/manabrew/issues/85)) ([070d880](https://github.com/witchesofthehill/manabrew/commit/070d880cf0f5164f42e5c44d35fff32747dfc1d9))

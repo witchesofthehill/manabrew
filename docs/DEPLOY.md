@@ -45,7 +45,7 @@ Check the final response headers after Twingate/SSO, not just the origin server:
 ```bash
 curl -I https://<internal-host>/
 curl -I https://<internal-host>/assets/game-engine.worker-<hash>.js
-curl -I https://<internal-host>/assets/forge_wasm_bg-<hash>.wasm
+curl -I https://<internal-host>/assets/wasm_bg-<hash>.wasm
 ```
 
 You should see:
@@ -100,7 +100,7 @@ cd manabrew
 ### 2. Create a `.env` file
 
 ```bash
-cp forge-engine/crates/forge-server/.env.example .env  # or create manually
+cp manabrew-rs/crates/manabrew-server/.env.example .env  # or create manually
 ```
 
 Add your keys:
@@ -127,8 +127,8 @@ mkdir -p public/preset_decks/
 
 ```bash
 export DOCKER_BUILDKIT=1
-docker compose -f forge-engine/crates/forge-server/compose.yml build parity-dashboard
-docker compose -f forge-engine/crates/forge-server/compose.yml up -d parity-dashboard
+docker compose -f manabrew-rs/crates/manabrew-server/compose.yml build parity-dashboard
+docker compose -f manabrew-rs/crates/manabrew-server/compose.yml up -d parity-dashboard
 ```
 
 Dashboard will be at `http://<server-ip>:8080`.
@@ -137,7 +137,7 @@ Dashboard will be at `http://<server-ip>:8080`.
 
 Every push to `main` triggers the **Wasm deploy** workflow
 (`.github/workflows/deploy.yml`), which SSHes into the server, runs
-`deploy.sh` to rebuild the Wasm/web stack (manabrew, forge-server, optional
+`deploy.sh` to rebuild the Wasm/web stack (manabrew, manabrew-server, optional
 parity-dashboard) under Docker, and posts a success/failure embed to the
 community Discord channel via the project's Discord bot.
 
@@ -234,21 +234,21 @@ The script will:
 
 ```bash
 # View logs
-docker compose -f forge-engine/crates/forge-server/compose.yml logs -f parity-dashboard
+docker compose -f manabrew-rs/crates/manabrew-server/compose.yml logs -f parity-dashboard
 
 # Restart without rebuild
-docker compose -f forge-engine/crates/forge-server/compose.yml restart parity-dashboard
+docker compose -f manabrew-rs/crates/manabrew-server/compose.yml restart parity-dashboard
 
 # Full rebuild (no cache)
-docker compose -f forge-engine/crates/forge-server/compose.yml build --no-cache parity-dashboard
+docker compose -f manabrew-rs/crates/manabrew-server/compose.yml build --no-cache parity-dashboard
 
 # Check parity database
-docker compose -f forge-engine/crates/forge-server/compose.yml exec parity-dashboard sqlite3 /app/data/parity.db ".tables"
+docker compose -f manabrew-rs/crates/manabrew-server/compose.yml exec parity-dashboard sqlite3 /app/data/parity.db ".tables"
 ```
 
 ## Investigating relay disconnects
 
-`forge-server` exposes a healthcheck on port 9444 (`/health`), and every
+`manabrew-server` exposes a healthcheck on port 9444 (`/health`), and every
 disconnect emits a single tagged log line of the form
 `[disconnect] user='…' id=… reason=<…> connected_for_s=… room=…`. The reason
 attributes the drop to one of: `idle_timeout`, `read_error`, `stream_closed`,
@@ -283,7 +283,7 @@ journalctl -u docker -k --since "1h ago" | grep -iE 'oom|killed process'
 # dominates we're losing connections in the network path (Hetzner NAT,
 # Caddy, kernel). If `client_close` dominates it's clean exits — not a
 # reliability problem.
-docker compose -f compose.production.yml logs --since 1h forge-server \
+docker compose -f compose.production.yml logs --since 1h manabrew-server \
   | grep '\[disconnect\]' \
   | sed -n 's/.*reason=\([a-z_]*\).*/\1/p' \
   | sort | uniq -c | sort -rn
@@ -294,5 +294,5 @@ docker compose -f compose.production.yml logs --since 1h forge-server \
 ```bash
 # Direct probe against the container's health port (only reachable from
 # inside the docker network):
-docker compose -f compose.production.yml exec forge-server curl -fsS http://localhost:9444/health
+docker compose -f compose.production.yml exec manabrew-server curl -fsS http://localhost:9444/health
 ```

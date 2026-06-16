@@ -15,7 +15,7 @@ public final class ForgeEngineReset {
     /** Reset all known static ID counters in forge-game to 0. */
     public static void resetAllIdCounters() {
         if (!logged) {
-            System.err.println("[forge-engine-reset] Resetting all forge-game ID counters via reflection");
+            System.err.println("[manabrew-engine-reset] Resetting all forge-game ID counters via reflection");
             logged = true;
         }
         resetStaticInt("forge.game.spellability.SpellAbility", "maxId");
@@ -34,7 +34,7 @@ public final class ForgeEngineReset {
             field.setAccessible(true);
             field.setInt(null, 0);
         } catch (Exception e) {
-            System.err.printf("[forge-engine-reset] WARNING: Failed to reset %s.%s: %s%n",
+            System.err.printf("[manabrew-engine-reset] WARNING: Failed to reset %s.%s: %s%n",
                 className, fieldName, e.getMessage());
         }
     }

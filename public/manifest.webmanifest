@@ -1,6 +1,6 @@
 {
-  "name": "ManaBrew",
-  "short_name": "ManaBrew",
+  "name": "Manabrew",
+  "short_name": "Manabrew",
   "description": "Magic: The Gathering client and paper-play life tracker.",
   "start_url": "/companion",
   "display": "standalone",

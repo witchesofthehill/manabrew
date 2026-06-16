@@ -1,1 +1,1 @@
-pub type TauriTransport = forge_game_runtime::mpsc_transport::MpscTransport;
+pub type TauriTransport = manabrew_game_runtime::mpsc_transport::MpscTransport;

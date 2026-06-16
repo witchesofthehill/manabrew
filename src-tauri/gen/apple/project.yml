@@ -10,7 +10,7 @@ configs:
 settingGroups:
   app:
     base:
-      PRODUCT_NAME: ManaBrew
+      PRODUCT_NAME: Manabrew
       PRODUCT_BUNDLE_IDENTIFIER: com.manabrew.app
 targetTemplates:
   app:

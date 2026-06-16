@@ -14,7 +14,7 @@ export default defineConfig([
     "src-tauri/gen",
     "src-tauri/resources",
     "forge",
-    "forge-engine",
+    "manabrew-engine",
     "website/dist",
     "website/.astro",
   ]),

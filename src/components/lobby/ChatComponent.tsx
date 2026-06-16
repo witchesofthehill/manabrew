@@ -22,7 +22,7 @@ export function ChatComponent({ channelId }: ChatComponentProps) {
     {
       id: "1",
       sender: "System",
-      content: "Welcome to ManaBrew!",
+      content: "Welcome to Manabrew!",
       timestamp: new Date(),
       type: "system",
     },

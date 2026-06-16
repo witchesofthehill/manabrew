@@ -109,7 +109,7 @@ docs.manabrew.app {
 }
 
 relay.manabrew.app {
-    reverse_proxy forge-server:9443 {
+    reverse_proxy manabrew-server:9443 {
         health_uri /health
         health_port 9444
         health_interval 15s
@@ -122,7 +122,7 @@ staging.manabrew.app {
 }
 
 relay-staging.manabrew.app {
-    reverse_proxy forge-server-staging:9443 {
+    reverse_proxy manabrew-server-staging:9443 {
         health_uri /health
         health_port 9444
         health_interval 15s

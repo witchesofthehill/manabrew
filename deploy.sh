@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # deploy.sh — Smart rebuild of the Wasm/web stack on the production host.
-# Scope: builds manabrew (Wasm + React, served by caddy), forge-server, and
+# Scope: builds manabrew (Wasm + React, served by caddy), manabrew-server, and
 # optionally parity-dashboard. Native Tauri installers (.dmg / .exe) are
 # built separately by .github/workflows/release-artifacts.yml.
 # Triggered by .github/workflows/deploy.yml (the "Wasm deploy" workflow)
@@ -35,7 +35,7 @@ if [ -f "$REPO_DIR/.env" ]; then
     set +a
 fi
 # Server .env (COMPOSE_PROFILES + dashboard settings)
-SERVER_ENV="$REPO_DIR/forge-engine/crates/forge-server/.env"
+SERVER_ENV="$REPO_DIR/manabrew-rs/crates/manabrew-server/.env"
 if [ -f "$SERVER_ENV" ]; then
     set -a
     # shellcheck disable=SC1091
@@ -98,10 +98,10 @@ INFRA_CHANGED=false
 # would otherwise be classified JAVA_CHANGED and skip the web rebuild — leaving
 # the deployed archive stale (missing newly-added sets).
 CARDDATA_CHANGED=false
-# forge-server (the relay) is rebuilt/restarted only when its own dep closure
+# manabrew-server (the relay) is rebuilt/restarted only when its own dep closure
 # changes — restarting it bounces the relay and interrupts live games. Since the
-# forge-protocol split, that closure is just forge-server + forge-protocol (it no
-# longer compiles the engine), so a change anywhere else under forge-engine/ must
+# manabrew-protocol split, that closure is just manabrew-server + manabrew-protocol (it no
+# longer compiles the engine), so a change anywhere else under manabrew-engine/ must
 # NOT redeploy it.
 FORGE_SERVER_CHANGED=false
 # The Caddyfile is volume-mounted into the manabrew container, not baked into
@@ -114,12 +114,12 @@ while IFS= read -r file; do
     case "$file" in
         forge|forge/*|forge-harness/*)
             JAVA_CHANGED=true ;;
-        forge-engine/*|Cargo.toml|Cargo.lock)
+        manabrew-engine/*|Cargo.toml|Cargo.lock)
             RUST_CHANGED=true ;;
     esac
     case "$file" in
-        # forge-server's whole closure (see `cargo tree -p forge-server`).
-        forge-engine/crates/forge-server/*|forge-engine/crates/forge-protocol/*|Cargo.toml|Cargo.lock)
+        # manabrew-server's whole closure (see `cargo tree -p manabrew-server`).
+        manabrew-rs/crates/manabrew-server/*|manabrew-rs/crates/manabrew-protocol/*|Cargo.toml|Cargo.lock)
             FORGE_SERVER_CHANGED=true ;;
     esac
     case "$file" in
@@ -129,7 +129,7 @@ while IFS= read -r file; do
     case "$file" in
         src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html|website/*)
             WEB_CHANGED=true ;;
-        forge-engine/crates/forge-wasm/*)
+        manabrew-rs/crates/wasm/*)
             WEB_CHANGED=true ;;
     esac
     case "$file" in
@@ -166,15 +166,15 @@ else
     echo "Parity dashboard skipped (COMPOSE_PROFILES does not include 'parity')" >> "$RAW_LOG"
 fi
 
-# -- forge-server (relay; rebuilt only when its own dep closure changes) --
+# -- manabrew-server (relay; rebuilt only when its own dep closure changes) --
 if $INFRA_CHANGED; then
-    echo "Building forge-server (full)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache forge-server >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART forge-server"
+    echo "Building manabrew-server (full)..." >> "$RAW_LOG"
+    docker compose -f "$COMPOSE_FILE" build --progress=plain --no-cache manabrew-server >> "$RAW_LOG" 2>&1
+    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
 elif $FORGE_SERVER_CHANGED; then
-    echo "Building forge-server (cached)..." >> "$RAW_LOG"
-    docker compose -f "$COMPOSE_FILE" build --progress=plain forge-server >> "$RAW_LOG" 2>&1
-    SERVICES_TO_RESTART="$SERVICES_TO_RESTART forge-server"
+    echo "Building manabrew-server (cached)..." >> "$RAW_LOG"
+    docker compose -f "$COMPOSE_FILE" build --progress=plain manabrew-server >> "$RAW_LOG" 2>&1
+    SERVICES_TO_RESTART="$SERVICES_TO_RESTART manabrew-server"
 fi
 
 # -- manabrew (WASM + React static site served via caddy) --

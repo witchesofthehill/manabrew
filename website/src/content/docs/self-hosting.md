@@ -29,7 +29,7 @@ services:
   self-hosted-node:
     build:
       context: .
-      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
     environment:
       SELF_HOSTED_NODE_RELAY_URL: "wss://relay.manabrew.app"
       SELF_HOSTED_NODE_SERVER_KEY: "${SELF_HOSTED_NODE_SERVER_KEY:?required}"
@@ -83,18 +83,18 @@ All settings are environment variables:
 | `SELF_HOSTED_NODE_FORMAT`         | `any`                 | Game format (e.g. `commander`)                                   |
 | `SELF_HOSTED_NODE_MAX_PLAYERS`    | `4`                   | Seats in the room                                                |
 | `SELF_HOSTED_NODE_MAX_GAMES`      | `1`                   | Concurrent games the node will run                               |
-| `SELF_HOSTED_NODE_ENGINE_BACKEND` | `manabrew`            | `forge` for the Forge engine, `manabrew` for the ManaBrew engine |
+| `SELF_HOSTED_NODE_ENGINE_BACKEND` | `manabrew`            | `forge` for the Forge engine, `manabrew` for the Manabrew engine |
 | `SELF_HOSTED_NODE_BOT_ENABLED`    | `false`               | Seat an AI bot in the room                                       |
 | `SELF_HOSTED_NODE_AUTO_START`     | `false`               | Start as soon as the room fills                                  |
 
 ## Hosting your own relay
 
-You don't have to use the public relay — the relay server (`forge-server`) is
+You don't have to use the public relay — the relay server (`manabrew-server`) is
 part of the repo and self-hostable too. It handles lobbies, matchmaking, and
 message relay between players; it never runs games itself.
 
 ```bash
-FORGE_SERVER_KEY=<pick-a-key> cargo run --release -p forge-server
+MANABREW_SERVER_KEY=<pick-a-key> cargo run --release -pmanabrew-server
 ```
 
 It listens for WebSocket connections on port `9443` (override with
@@ -103,7 +103,7 @@ clients at it with `ws://your-host:9443` — or put it behind a TLS-terminating
 proxy and use `wss://`. The key you pick is the same one your nodes pass as
 `SELF_HOSTED_NODE_SERVER_KEY`.
 
-A Dockerfile is available at `forge-engine/crates/forge-server/Dockerfile`, and
+A Dockerfile is available at `manabrew-rs/crates/manabrew-server/Dockerfile`, and
 `compose.production.yml` in the repo root shows a complete relay + node
 deployment behind Caddy.
 

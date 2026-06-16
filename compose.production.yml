@@ -6,7 +6,7 @@ services:
       args:
         VITE_RELAY_HOST: relay.manabrew.app
         VITE_RELAY_PORT: "443"
-        VITE_RELAY_PASSWORD: ${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}
+        VITE_RELAY_PASSWORD: ${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}
         VITE_MANAGED_RELAY: "1"
         VITE_SCRYFALL_SYMBOL_BASE: /scryfall-symbols/
         # Off by default: "Play vs AI" runs the engine client-side, so the web
@@ -22,21 +22,20 @@ services:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-    depends_on:
-      - forge-server
+    depends_on: -manabrew-server
 
-  forge-server:
+  manabrew-server:
     build:
       context: .
-      dockerfile: forge-engine/crates/forge-server/Dockerfile
+      dockerfile: manabrew-rs/crates/manabrew-server/Dockerfile
     environment:
       FORGE_HOST: "0.0.0.0"
       FORGE_PORT: "9443"
       FORGE_HEALTH_PORT: "9444"
       FORGE_MAX_ROOMS: "100"
-      FORGE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      MANABREW_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SECRET_MANABREW_KEY: "${SECRET_MANABREW_KEY:-}"
-      RUST_LOG: "forge_server=info"
+      RUST_LOG: "manabrew_server=info"
     expose:
       - "9443"
       - "9444"
@@ -61,15 +60,14 @@ services:
       - hosted-ai
     build:
       context: .
-      dockerfile: forge-engine/crates/self-hosted-node/Dockerfile
+      dockerfile: manabrew-rs/crates/self-hosted-node/Dockerfile
     environment:
-      SELF_HOSTED_NODE_RELAY_URL: "ws://forge-server:9443"
-      SELF_HOSTED_NODE_SERVER_KEY: "${FORGE_SERVER_KEY:?FORGE_SERVER_KEY is required}"
+      SELF_HOSTED_NODE_RELAY_URL: "ws://manabrew-server:9443"
+      SELF_HOSTED_NODE_SERVER_KEY: "${MANABREW_SERVER_KEY:?MANABREW_SERVER_KEY is required}"
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       RUST_LOG: "self_hosted_node=info"
-    depends_on:
-      - forge-server
+    depends_on: -manabrew-server
     restart: unless-stopped
 
 volumes:

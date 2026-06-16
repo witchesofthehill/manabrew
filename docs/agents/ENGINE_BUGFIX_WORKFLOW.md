@@ -44,7 +44,7 @@ Don't ship a fix that passes the failing matchup but regresses another. The matr
 
 ## 5. Lock the fix in
 
-If the divergence wasn't already covered by an entry in `regression.json`, add one. See `forge-engine/crates/forge-parity/AGENTS.md`.
+If the divergence wasn't already covered by an entry in `regression.json`, add one. See `manabrew-rs/crates/parity/AGENTS.md`.
 
 ## Rules of thumb
 

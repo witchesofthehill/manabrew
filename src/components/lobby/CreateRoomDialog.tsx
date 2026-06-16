@@ -414,7 +414,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               />
             </div>
 
-            {/* Engine — rooms created here always run the ManaBrew engine. Forge
+            {/* Engine — rooms created here always run the Manabrew engine. Forge
                 rooms come from self-hosted nodes and are joined from the list, but
                 nodes only host constructed matches, not limited (draft/sealed). */}
             <div className="space-y-1.5">
@@ -423,13 +423,13 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 <div className="flex flex-col items-start gap-0.5 rounded-lg border border-primary bg-primary/5 p-2 text-left">
                   <div className="flex items-center gap-1.5">
                     <GameIcon name="beer-stein" className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs font-medium">ManaBrew</span>
+                    <span className="text-xs font-medium">Manabrew</span>
                     <Badge variant="outline" className="text-[9px]">
                       in-browser
                     </Badge>
                   </div>
                   <span className="text-[10px] text-muted-foreground leading-tight">
-                    ManaBrew's own engine, running locally. Instant, no network.
+                    Manabrew's own engine, running locally. Instant, no network.
                   </span>
                 </div>
                 {kind === "match" && (
@@ -460,8 +460,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <p>
                   {kind === "match"
-                    ? "The ManaBrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
-                    : "Limited runs on the ManaBrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."}
+                    ? "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
+                    : "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."}
                 </p>
               </div>
             </div>

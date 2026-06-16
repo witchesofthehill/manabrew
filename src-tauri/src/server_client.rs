@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
 use forge_agent_interface::protocol::StateEnvelope;
-use forge_server::protocol::ServerMessage;
+use manabrew_server::protocol::ServerMessage;
 
 pub struct ServerClient {
     tx: Mutex<Option<mpsc::UnboundedSender<String>>>,

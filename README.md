@@ -1,4 +1,4 @@
-<h1 align="center">ManaBrew</h1>
+<h1 align="center">Manabrew</h1>
 
 <p align="center">
   <strong>An open-source Magic: The Gathering client and rules engine, built around <a href="https://github.com/Card-Forge/forge">Forge</a> compatibility.</strong>
@@ -66,7 +66,7 @@
 
 ## What This Is
 
-`ManaBrew` is a React/Tauri client and Rust rules-engine project for playing
+`Manabrew` is a React/Tauri client and Rust rules-engine project for playing
 Magic online. It uses Forge as the rules reference instead of defining a new
 interpretation of the game.
 
@@ -89,7 +89,7 @@ To get started visit our [landing page](https://manabrew.app)
 
 ## Current Status
 
-`ManaBrew` is pre-release software.
+`Manabrew` is pre-release software.
 
 - The client and Java Forge backend path are the most practical way to play
   today.
@@ -125,7 +125,7 @@ yarn dev
 ### Run the web build
 
 ```bash
-yarn dev:web
+yarn web
 ```
 
 ### Build
@@ -145,7 +145,7 @@ yarn lint:all
 | Command                | What it does                                           |
 | ---------------------- | ------------------------------------------------------ |
 | `yarn dev`             | Start the Tauri desktop app in development mode        |
-| `yarn dev:web`         | Build the WASM engine and start the web client         |
+| `yarn web`             | Build the WASM engine and start the web client         |
 | `yarn build`           | Build the desktop app                                  |
 | `yarn build:web`       | Build the web app                                      |
 | `yarn build:harness`   | Build the Java Forge parity harness                    |
@@ -162,18 +162,18 @@ yarn lint:all
 ```text
 React UI                    src/
 Tauri desktop shell          src-tauri/
-Web/WASM engine bridge       forge-engine/crates/forge-wasm/
-Headless runtime             forge-engine/crates/self-hosted-node/
-Relay / lobby server         forge-engine/crates/forge-server/
-Agent protocol DTOs          forge-engine/crates/forge-agent-interface/
-Rust rules engine            forge-engine/crates/forge-engine/
-Card database + script IR    forge-engine/crates/forge-carddb/
+Web/WASM engine bridge       manabrew-rs/crates/wasm/
+Headless runtime             manabrew-rs/crates/self-hosted-node/
+Relay / lobby server         manabrew-rs/crates/manabrew-server/
+Agent protocol DTOs          manabrew-rs/crates/manabrew-agent-interface/
+Rust rules engine            manabrew-rs/crates/manabrew-engine/
+Card database + script IR    manabrew-rs/crates/forge-carddb/
 Forge Java reference         forge/
-Parity harness               forge-engine/crates/forge-parity/
+Parity harness               manabrew-rs/crates/parity/
 ```
 
 The deeper engine workspace map is in
-[forge-engine/README.md](./forge-engine/README.md).
+[manabrew-engine/README.md](./manabrew-engine/README.md).
 
 ## Parity Harness
 
@@ -207,7 +207,7 @@ similar domains. This is an implementation difference, not a game-behavior
 difference. SVar resolution remains late-bound and follows the current
 host-card state.
 
-See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and the SVar semantics
+See [Forge Parity and IR](./docs/PARITY_AND_IR.md) and the SVar semantics
 in [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md).
 
 ---
@@ -255,7 +255,7 @@ Forge is the foundation of this project.
 This is an independent fan project. Forge maintainers are not expected to review
 or support this work.
 
-See [Forge Parity and IR](./docs/FORGE_PARITY_AND_IR.md) and
+See [Forge Parity and IR](./docs/PARITY_AND_IR.md) and
 [Third-Party Notices](./THIRD-PARTY-NOTICES.md). For related projects and
 ecosystem context, see [Ecosystem](./docs/ECOSYSTEM.md).
 
@@ -302,5 +302,5 @@ and [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
 ---
 
 <div align="center">
-  <sub>Built by the ManaBrew contributors · AGPL-3.0-or-later</sub>
+  <sub>Built by the Manabrew contributors · AGPL-3.0-or-later</sub>
 </div>

@@ -101,7 +101,7 @@ export function countGenericMana(manaCost: string): number {
 
 /**
  * Returns true if the card type line indicates a land.
- * Handles both array (ManaBrew Card.types) and string (Forge Types field).
+ * Handles both array (Manabrew Card.types) and string (Forge Types field).
  */
 export function isLand(types: string[] | string | undefined): boolean {
   if (!types) return false;

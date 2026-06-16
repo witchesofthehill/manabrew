@@ -1,0 +1,12 @@
+[package]
+name = "manabrew_game_runtime"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+manabrew-agent-interface = { path = "../manabrew-agent-interface" }
+forge-carddb = { path = "../forge-carddb" }
+manabrew-engine = { path = "../manabrew-engine" }
+forge-foundation = { path = "../forge-foundation" }
+rand = "0.8"
+tracing = "0.1"

@@ -4,7 +4,7 @@ export function ManaBrewLogo({ size = 48, className }: { size?: number; classNam
   return (
     <img
       src={logoUrl}
-      alt="ManaBrew"
+      alt="Manabrew"
       width={size}
       height={size}
       className={className}

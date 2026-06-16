@@ -1,6 +1,6 @@
 export type GameLogEntryType = "info" | "action" | "stack" | "priority" | "rule" | "warning";
 
-// Keep in sync with the GameLogEvent messages emitted by forge-engine
+// Keep in sync with the GameLogEvent messages emitted bymanabrew-engine
 // (cast_spell.rs ForetellExile -> "Foretold: {name}").
 export const FORETELL_LOG_PREFIX = "Foretold: ";
 

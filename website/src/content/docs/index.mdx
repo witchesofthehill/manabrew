@@ -1,45 +1,42 @@
 ---
-title: What is ManaBrew?
+title: What is Manabrew ?
 description: An open-source Magic, The Gathering client and rules engine, built around Forge compatibility.
 ---
 
 import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-ManaBrew is an open-source **Magic: The Gathering** client and rules engine. It
-uses [Forge](https://github.com/Card-Forge/forge) as the rules reference instead
-of defining a new interpretation of the game, and ports Forge's engine to Rust
-so it can run anywhere — including directly in your browser via WebAssembly.
+Manabrew is an open-source **Magic: The Gathering** client and rules engine. It focuses on a modern gameplay experience, with a multiplayer first mindset. Currently supports most formats, including commander up to 4 players. Manabrew's engine, whilst experimental, was ported in rust from [forge](https://github.com/Card-Forge/forge) so it can run anywhere — including directly in your browser via WebAssembly.
 
 <CardGrid>
   <Card title="Play in the browser" icon="rocket">
     The full client runs as a static site at [manabrew.app](https://play.manabrew.app) — no install
     required.
   </Card>
-  <Card title="Desktop client" icon="laptop">
-    A native Tauri app for macOS and Windows, with installers published on [GitHub
-    releases](https://github.com/witchesofthehill/manabrew/releases).
+  <Card title="Desktop App" icon="laptop">
+    Cross platform application for [macOS](/download-macos/) and [Windows](/download-windows/)
+    (experimental)
   </Card>
   <Card title="Swappable engine" icon="setting">
-    A Rust port of Forge's game engine, verified card-by-card against Forge — or swap in the
-    original Forge engine itself and play with full rules coverage today.
+    Play with multiple engines developed by the community. We currently support Manabrew's official
+    engine, as well as [forge](https://github.com/Card-Forge/forge)
   </Card>
   <Card title="Multiplayer" icon="seti:pipeline">
-    A relay server powers online lobbies, with reconnection support for in-progress games.
+    Play with friends in multiplayer lobbies, up to 4 players.
   </Card>
 </CardGrid>
 
 :::note
-ManaBrew is unofficial fan software. It is not affiliated with, endorsed by, or
+Manabrew is unofficial fan software. It is not affiliated with, endorsed by, or
 sponsored by Wizards of the Coast LLC or by the Forge project. Card images are
 not shipped by this project.
 :::
 
 ## Project status
 
-ManaBrew is pre-release software, and its game engine is **swappable**. Two
+Manabrew is pre-release software, and its game engine is **swappable**. Two
 backends drive the same client today:
 
-- **ManaBrew engine** — the Forge port that runs everywhere, including in your
+- **Manabrew engine** — the Forge port that runs everywhere, including in your
   browser. It plays a growing set of matchups, with card coverage expanding
   through parity testing against Forge.
 - **Forge engine** — fully supported as a first-class way to play. Rooms
@@ -54,7 +51,7 @@ backends drive the same client today:
   href="/getting-started/"
 />
 <LinkCard
-  title="Playing ManaBrew"
+  title="Playing Manabrew"
   description="Deck building and import, AI games, multiplayer rooms, drafts, and the paper-play companion."
   href="/playing/"
 />

@@ -1,0 +1,41 @@
+[package]
+name = "parity"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "parity"
+path = "src/main.rs"
+
+[features]
+default = []
+storage = ["rusqlite", "chrono"]
+serve = ["storage", "tokio", "axum", "tower-http", "tracing", "tracing-subscriber"]
+analyze = ["serve", "reqwest", "futures", "glob"]
+
+[dependencies]
+forge-foundation = { path = "../forge-foundation" }
+manabrew-engine = { path = "../manabrew-engine" }
+forge-carddb = { path = "../forge-carddb" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = "0.8"
+clap = { version = "4", features = ["derive", "env"] }
+rayon = "1.10"
+terminal_size = "0.4"
+memmap2 = "0.9"
+
+# Continuous parity (behind feature flags)
+rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+chrono = { version = "0.4", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+axum = { version = "0.7", optional = true }
+tower-http = { version = "0.5", features = ["cors"], optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"], optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+futures = { version = "0.3", optional = true }
+glob = { version = "0.3", optional = true }
+
+[dev-dependencies]
+tempfile = "3"

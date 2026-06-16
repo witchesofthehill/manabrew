@@ -1,4 +1,4 @@
-# Contributing to ManaBrew
+# Contributing toManabrew
 
 First things first, thanks so much for helping. The easiest contributions to review are small,
 issue-backed, reproducible, and checked locally before the PR is opened.
@@ -68,7 +68,7 @@ Required background:
 - [docs/agents/PARITY_PHILOSOPHY.md](./docs/agents/PARITY_PHILOSOPHY.md)
 - [docs/agents/ENGINE_BUGFIX_WORKFLOW.md](./docs/agents/ENGINE_BUGFIX_WORKFLOW.md)
 - [docs/forge-dsl-semantics.md](./docs/forge-dsl-semantics.md)
-- [docs/FORGE_PARITY_AND_IR.md](./docs/FORGE_PARITY_AND_IR.md)
+- [docs/PARITY_AND_IR.md](./docs/PARITY_AND_IR.md)
 
 ## UI contribution workflow
 

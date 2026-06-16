@@ -17,9 +17,9 @@ mod server_commands;
 mod tauri_transport;
 
 use client_bot::ClientBotManager;
-use forge_engine_core::game::TypeRegistry;
 use game_manager::GameManager;
 use limited_manager::LimitedManager;
+use manabrew_engine::game::TypeRegistry;
 use server_client::ServerClient;
 use tauri::Manager;
 

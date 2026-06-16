@@ -1,13 +1,13 @@
 ---
 title: Download for macOS
-description: Install the latest ManaBrew desktop build on macOS.
+description: Install the latest Manabrew desktop build on macOS.
 ---
 
 ## 1. Download
 
 Download the latest macOS `.dmg` from
 [GitHub releases](https://github.com/witchesofthehill/manabrew/releases/latest).
-Open the disk image and drag `ManaBrew.app` into `/Applications`.
+Open the disk image and drag `Manabrew.app` into `/Applications`.
 :::note
 We currently only support Apple silicon devices
 :::
@@ -18,7 +18,7 @@ Double click on the downloaded `.dmg` file, after that, drag the Manabrew app in
 
 ## 3. macOS warning
 
-ManaBrew's CI builds are not currently Developer ID signed and notarized.
+Manabrew's CI builds are not currently Developer ID signed and notarized.
 After downloading from the internet, macOS may say the app is damaged or cannot
 be opened.
 
@@ -29,17 +29,17 @@ After dragging the app to `/Applications`:
 
 ```bash
 # 1. Remove the quarantine and provenance attributes from the whole bundle
-xattr -dr com.apple.quarantine /Applications/ManaBrew.app
-xattr -dr com.apple.provenance /Applications/ManaBrew.app
+xattr -dr com.apple.quarantine /Applications/Manabrew.app
+xattr -dr com.apple.provenance /Applications/Manabrew.app
 
 # 2. Re-seal with an ad-hoc signature, regenerating _CodeSignature/CodeResources
-codesign --force --deep --sign - /Applications/ManaBrew.app
+codesign --force --deep --sign - /Applications/Manabrew.app
 
 # 3. Verify the seal is now valid
-codesign --verify --deep --strict --verbose=2 /Applications/ManaBrew.app
+codesign --verify --deep --strict --verbose=2 /Applications/Manabrew.app
 ```
 
-3. Then open ManaBrew from `/Applications`.
+3. Then open Manabrew from `/Applications`.
 
 Only install builds from the official
-[ManaBrew releases page](https://github.com/witchesofthehill/manabrew/releases/latest).
+[Manabrew releases page](https://github.com/witchesofthehill/manabrew/releases/latest).

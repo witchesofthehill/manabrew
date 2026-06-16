@@ -1,0 +1,15 @@
+[package]
+name = "manabrew-agent-interface"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+manabrew-protocol = { path = "../manabrew-protocol" }
+manabrew-engine = { path = "../manabrew-engine" }
+forge-foundation = { path = "../forge-foundation" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = "0.8"
+tracing = "0.1"
+strum = "0.28"
+strum_macros = "0.28.0"

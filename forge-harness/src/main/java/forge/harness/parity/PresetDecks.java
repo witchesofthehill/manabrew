@@ -28,7 +28,7 @@ public final class PresetDecks {
     /**
      * Default directories for preset deck JSON files (relative to CWD), searched
      * in order. Mirrors {@code DEFAULT_DECKS_DIRS} on the Rust side
-     * ({@code forge-parity/src/runner.rs}).
+     * ({@code parity/src/runner.rs}).
      */
     private static final String[] DEFAULT_DECKS_DIRS = { "parity_decks", "public/preset_decks" };
 

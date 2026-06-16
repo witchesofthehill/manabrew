@@ -15,7 +15,7 @@ let corpus: Prompt[] = [];
 beforeAll(() => {
   const jsonl = execFileSync(
     "cargo",
-    ["run", "-q", "-p", "forge-agent-interface", "--bin", "emit_prompt_fixtures"],
+    ["run", "-q", "-p", "manabrew-agent-interface", "--bin", "emit_prompt_fixtures"],
     { cwd: process.cwd(), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
   );
   corpus = jsonl

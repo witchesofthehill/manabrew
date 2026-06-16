@@ -1,0 +1,19 @@
+[package]
+name = "manabot"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["native"]
+native = ["dep:tokio", "dep:tokio-tungstenite", "dep:futures-util"]
+
+[dependencies]
+manabrew-agent-interface = { path = "../manabrew-agent-interface" }
+manabrew-engine = { path = "../manabrew-engine" }
+manabrew-protocol = { path = "../manabrew-protocol" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+futures-util = { version = "0.3", optional = true }
+tokio = { version = "1", features = ["rt", "macros", "net"], optional = true }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
+tracing = "0.1"

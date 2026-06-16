@@ -1,0 +1,22 @@
+[package]
+name = "manabrew-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "manabrew-server"
+path = "src/main.rs"
+
+[dependencies]
+manabrew-protocol = { path = "../manabrew-protocol" }
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+dashmap = "6"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+socket2 = "0.5"
+axum = "0.7"

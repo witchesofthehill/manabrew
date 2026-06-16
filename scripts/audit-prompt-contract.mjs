@@ -12,7 +12,7 @@ function rustVariantToPromptType(variant) {
 }
 
 function extractRustPromptVariants() {
-  const source = read("forge-engine/crates/forge-agent-interface/src/prompt.rs");
+  const source = read("manabrew-rs/crates/manabrew-agent-interface/src/prompt.rs");
   const variants = [];
   let inEnum = false;
   for (const line of source.split("\n")) {
@@ -49,7 +49,7 @@ function extractPromptTypeReferences(relativePath) {
 }
 
 function extractJavaPromptKinds() {
-  const source = read("forge-engine/crates/forge-agent-interface/src/java_raw.rs");
+  const source = read("manabrew-rs/crates/manabrew-agent-interface/src/java_raw.rs");
   const match = source.match(/fn kind_label\(&self\) -> &'static str \{[\s\S]*?\n {4}\}/);
   if (!match) {
     return [];

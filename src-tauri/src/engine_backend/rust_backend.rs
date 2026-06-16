@@ -7,11 +7,11 @@ use forge_agent_interface::agent_impl::PromptAgent;
 use forge_agent_interface::game_log_event::GameLogEntryDto;
 use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
-use forge_bot::BotResponder;
-use forge_engine_core::agent::PlayerAgent;
-use forge_engine_core::ids::PlayerId;
-use forge_game_runtime::deck::force_commander_by_name;
-use forge_game_runtime::host_runtime::{run_hosted_multiplayer_game, DEFAULT_MAX_TURNS};
+use manabot::BotResponder;
+use manabrew_engine::agent::PlayerAgent;
+use manabrew_engine::ids::PlayerId;
+use manabrew_game_runtime::deck::force_commander_by_name;
+use manabrew_game_runtime::host_runtime::{run_hosted_multiplayer_game, DEFAULT_MAX_TURNS};
 use rand::SeedableRng;
 
 use crate::card_db::{card_rules_to_instance, get_token_db, get_token_image_map};

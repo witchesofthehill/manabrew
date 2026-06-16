@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs a filtered regression.json through two forge-parity binaries (branch vs main)
+// Runs a filtered regression.json through two parity binaries (branch vs main)
 // in rust-only mode and diffs the emitted JSON per entry.
 //
 // One invocation per (entry, side): the binary's own multi-game / matrix mode
@@ -8,8 +8,8 @@
 //
 // Usage:
 //   node scripts/parity-rust-vs-rust.mjs \
-//     --branch-bin ./target/release/forge-parity \
-//     --main-bin   ./main-bin/forge-parity \
+//     --branch-bin ./target/release/parity \
+//     --main-bin   ./main-bin/parity \
 //     --entries    existing-entries.json \
 //     --cards-dir  forge/forge-gui/res/cardsfolder \
 //     --decks-dir  public/preset_decks \
@@ -59,7 +59,7 @@ function shellSplit(s) {
 const IGNORED_FIELDS = new Set(["timestamp_ms"]);
 
 // Log-array keys whose contents we filter to snapshot entries only. The
-// production java-vs-rust parity comparator (forge-parity::comparator) only
+// production java-vs-rust parity comparator (parity::comparator) only
 // diffs StateSnapshots; Decision and Callback log entries are inspection
 // metadata for the debugger, not part of the parity verdict. Including them
 // here would make rust-vs-rust strictly stricter than the production check

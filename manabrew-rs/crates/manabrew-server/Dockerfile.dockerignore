@@ -1,0 +1,37 @@
+# BuildKit reads <dockerfile>.dockerignore adjacent to the Dockerfile and
+# uses it INSTEAD of the repo-root .dockerignore (no merge). Repeat the
+# standard excludes, then trim the directories manabrew-server's Rust build
+# never reads. Saves ~600 MB of context upload per build.
+
+# Standard excludes (mirrors repo-root .dockerignore)
+.git/
+.github/
+.gitignore
+target/
+node_modules/
+dist/
+.DS_Store
+*.swp
+.idea/
+.vscode/
+parity.db
+*.log
+*.md
+
+# Java source — only parity uses this.
+forge/
+
+# Web frontend assets — not consumed by the Rust build.
+src/
+public/
+index.html
+vite.config.ts
+tsconfig*.json
+package.json
+package-lock.json
+yarn.lock
+
+# Tauri app — keep manifest only (workspace resolution needs it);
+# the stub src/ is created inside the image.
+src-tauri/**
+!src-tauri/Cargo.toml

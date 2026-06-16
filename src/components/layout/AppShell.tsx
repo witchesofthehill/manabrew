@@ -116,7 +116,7 @@ export function AppShell() {
               <Menu className="h-5 w-5" />
             </Button>
             <ManaBrewLogo size={28} className="rounded-lg shrink-0" />
-            <span className="text-sm font-semibold tracking-tight">ManaBrew</span>
+            <span className="text-sm font-semibold tracking-tight">Manabrew</span>
           </header>
 
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>

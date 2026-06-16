@@ -16,7 +16,7 @@ requires that users interacting with the engine over a network be offered the
 corresponding source.
 
 AGPL-3.0-or-later is compatible with GPL-3.0-or-later (GPLv3 §13 permits the
-combination), so this is additive. ManaBrew's own code is offered under
+combination), so this is additive. Manabrew's own code is offered under
 AGPL-3.0-or-later; the vendored `forge/` tree remains GPL-3.0-or-later under its
 upstream terms — we do not, and cannot, relicense upstream's code. Earlier
 contributions made under GPL-3.0-or-later combine with the AGPL code under

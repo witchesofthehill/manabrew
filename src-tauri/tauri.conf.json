@@ -1,5 +1,5 @@
 {
-  "productName": "ManaBrew",
+  "productName": "Manabrew",
   "version": "0.3.0",
   "identifier": "com.manabrew.app",
   "build": {
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "ManaBrew",
+        "title": "Manabrew",
         "width": 1400,
         "height": 900,
         "resizable": true,

@@ -1,6 +1,6 @@
 # Tauri shell
 
-Native desktop wrapper. Tauri v2, Rust backend, hosts either the native ManaBrew engine or (opt-in) the Forge bridge.
+Native desktop wrapper. Tauri v2, Rust backend, hosts either the native Manabrew engine or (opt-in) the Forge bridge.
 
 Read first: `/AGENTS.md`.
 

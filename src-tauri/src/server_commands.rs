@@ -4,7 +4,7 @@ use crate::client_bot::ClientBotManager;
 use crate::multiplayer_controller::relay_response_value;
 use crate::server_client::ServerClient;
 use forge_agent_interface::deck_dto::Deck;
-use forge_bot::{AgentKind, BotConfig};
+use manabot::{AgentKind, BotConfig};
 
 fn send_server_message(client: &ServerClient, msg: serde_json::Value) -> Result<(), String> {
     client.send(&msg.to_string())

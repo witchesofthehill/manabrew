@@ -1,6 +1,6 @@
 # UI — React + TypeScript
 
-The web frontend for ManaBrew. Tailwind CSS 4, Shadcn/UI, Zustand, React Router. PIXI.js for the game board canvas. (TanStack Query has been removed from the stack — see "Card data" below.)
+The web frontend for Manabrew. Tailwind CSS 4, Shadcn/UI, Zustand, React Router. PIXI.js for the game board canvas. (TanStack Query has been removed from the stack — see "Card data" below.)
 
 Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULES.md`.
 
@@ -68,7 +68,7 @@ Commander deck analysis (combos, Game Changers, bracket estimate) lives in `stor
 
 The engine→UI channel carries **three separate message families**, never conflated: `state` (a `StateUpdate` = `{ gameView }`, the sole carrier of game state), `display` (a `DisplayEvent` animation hint), and `prompt` (a `Prompt` call-to-action that carries **no** gameView). The store has one apply fn each — `applyState` / `applyDisplay` / `applyPrompt` (`stores/gameStore.constants.ts`) — and `useGameEventListeners` routes `game:state` / `game:display` / `game:prompt` (plus `game:remote_*` for relay seats) to them. State is applied for whichever player it is addressed to; a prompt only becomes actionable when `forPlayer === myPlayerSlot`. Prompt modals read gameView from the store (via `ctx.gameView`), never off the prompt.
 
-Per-prompt `Type`/`Input`/`Output` payloads live under `protocol/prompts/`; the `Prompt`/`StateUpdate` shapes and `Response` envelope under `protocol/transport/`. (`src/types/promptType.ts` holds only shared helper types like `TargetingIntent`.) These shapes are mirrored on the Rust side in `forge-engine/crates/forge-agent-interface/` (`AgentMessage { State | Display | Prompt }`). **Both sides change together**, or the UI breaks.
+Per-prompt `Type`/`Input`/`Output` payloads live under `protocol/prompts/`; the `Prompt`/`StateUpdate` shapes and `Response` envelope under `protocol/transport/`. (`src/types/promptType.ts` holds only shared helper types like `TargetingIntent`.) These shapes are mirrored on the Rust side in `manabrew-rs/crates/manabrew-agent-interface/` (`AgentMessage { State | Display | Prompt }`). **Both sides change together**, or the UI breaks.
 
 ## Multiplayer reconnection
 

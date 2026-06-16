@@ -52,7 +52,7 @@ const tintedTextFill = (): string => activeTheme.gameTheme.textOnTinted;
 
 const PT_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     fontSize: 10,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -61,7 +61,7 @@ const PT_STYLE = registerTintedTextStyle(
 
 const BADGE_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     fontSize: 6,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -70,7 +70,7 @@ const BADGE_STYLE = registerTintedTextStyle(
 
 const COUNTER_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     fontSize: 8,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -79,7 +79,7 @@ const COUNTER_STYLE = registerTintedTextStyle(
 
 const DAMAGE_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     fontSize: 9,
     fontWeight: "bold",
     fill: tintedTextFill(),
@@ -88,7 +88,7 @@ const DAMAGE_STYLE = registerTintedTextStyle(
 
 const NAME_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     fontSize: 8,
     fill: tintedTextFill(),
     wordWrap: true,
@@ -98,7 +98,7 @@ const NAME_STYLE = registerTintedTextStyle(
 );
 
 const FOIL_STAR_STYLE = new TextStyle({
-  fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
   fontSize: 10,
   fontWeight: "bold",
   fill: 0xffe27a,
@@ -127,7 +127,7 @@ function truncateChipLabel(text: string): string {
 
 const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
   new TextStyle({
-    fontFamily: "Alegreya Sans, system-ui, -apple-system, sans-serif",
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     fontSize: 7,
     fontWeight: "bold",
     fill: tintedTextFill(),

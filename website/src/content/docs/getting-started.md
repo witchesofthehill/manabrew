@@ -55,17 +55,19 @@ git submodule update --init --recursive
 
 ### Update the submodule
 
-New cards land in the `forge` submodule (it tracks the `manabrew` branch). Pull
-the latest commit and rebuild the bundled card archives:
+The `forge` submodule is the whole Forge tree — the Java reference engine plus
+card scripts, editions, and tokens (it tracks the `manabrew` branch). Pull the
+latest commit and rebuild, since the harness, the WASM engine, and the card
+archives all build from it:
 
 ```bash
 git submodule update --remote forge
-yarn build:harness   # restages the Java harness + Tauri card bundle
-yarn web             # rebuilds the WASM card archive (yarn dev does too)
+yarn build:harness   # rebuilds the Java harness + restages the Tauri card bundle
+yarn web             # rebuilds the WASM engine and card archive (yarn dev does too)
 ```
 
-Without the rebuild, the deck loader removes any card that is not yet in the
-bundle — that "Removed from your deck" notice means the archives are stale.
+Skipping the rebuild leaves stale builds; one visible symptom is the deck loader
+removing any card not yet in the bundle — that "Removed from your deck" notice.
 
 ## Getting help
 

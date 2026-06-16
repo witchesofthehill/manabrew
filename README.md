@@ -133,19 +133,22 @@ yarn install
 
 ### Update the Forge submodule
 
-Card data and the Java reference engine ship from the `forge` submodule. Pull the
-latest card scripts (it tracks the `manabrew` branch — see `.gitmodules`) with:
+The `forge` submodule is the whole Forge tree — the Java reference engine plus
+card scripts, editions, and token data. Pull the latest commit (it tracks the
+`manabrew` branch — see `.gitmodules`) with:
 
 ```bash
 git submodule update --remote forge
 ```
 
-Then rebuild the bundled card archives so the new cards are available — otherwise
-the deck loader strips any card missing from the bundle:
+Then rebuild so the new submodule content is picked up — the Java harness, the
+WASM engine, and the bundled card archives all build from `forge/`. Skipping
+this leaves stale builds; one visible symptom is the deck loader stripping any
+card missing from the bundle.
 
 ```bash
-yarn build:harness   # restages the Java harness + Tauri cardsfolder.zip
-yarn web             # rebuilds the WASM card archive (yarn dev does too)
+yarn build:harness   # rebuilds the Java harness + restages the Tauri card bundle
+yarn web             # rebuilds the WASM engine and card archive (yarn dev does too)
 ```
 
 Committing the resulting submodule pointer bump (`git status` shows `M forge`) is

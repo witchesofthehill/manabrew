@@ -231,6 +231,12 @@ export function useCombatState({
     setPendingBlocker(null);
   }
 
+  // Drag-to-unblock: drop a staged blocker back in open space to remove it.
+  function unassignBlock(blockerId: string) {
+    setBlockAssignments((prev) => prev.filter((a) => a.blockerId !== blockerId));
+    setPendingBlocker((prev) => (prev === blockerId ? null : prev));
+  }
+
   function handleAttackerClick(card: GameCard) {
     // Blocker-first: a blocker is armed, so this attacker click completes the
     // assignment instead of selecting the attacker.
@@ -249,6 +255,7 @@ export function useCombatState({
     attackDefenderId,
     blockAssignments,
     assignBlockPair,
+    unassignBlock,
     damageOrder,
     undoDamageOrder,
     multipleAttackDefenders,

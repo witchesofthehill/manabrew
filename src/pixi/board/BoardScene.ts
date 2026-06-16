@@ -822,9 +822,11 @@ export class BoardScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
-    // A live block-drag that wasn't released on an attacker (the attacker's
-    // own pointerup clears it on a hit) — cancel it.
+    // A live block-drag released off an attacker (the attacker's own pointerup
+    // handles a hit). Dragging a staged blocker back to open space unblocks it;
+    // onUnassignBlock is a no-op when the blocker wasn't assigned.
     if (this.blockDragBlockerId) {
+      this.callbacks.onUnassignBlock?.(this.blockDragBlockerId);
       this.blockDragBlockerId = null;
       return;
     }

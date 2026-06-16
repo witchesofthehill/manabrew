@@ -83,6 +83,8 @@ export interface GameCanvasCallbacks {
   onAttackerClick?: (card: GameCard) => void;
   /** Drag-to-block: a blocker sprite was dropped onto an attacker sprite. */
   onAssignBlock?: (blockerId: string, attackerId: string) => void;
+  /** Drag-to-unblock: a staged blocker was dragged back off its attacker. */
+  onUnassignBlock?: (blockerId: string) => void;
   onCastSpell?: (cardId: string) => void;
   /**
    * Dismiss the hover preview immediately (no 250ms grace). Used when

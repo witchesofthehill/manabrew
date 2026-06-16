@@ -531,6 +531,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     attackDefenderId,
     blockAssignments,
     assignBlockPair,
+    unassignBlock,
     damageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
@@ -1424,6 +1425,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           }}
           onAttackerClick={handleAttackerClick}
           onAssignBlock={assignBlockPair}
+          onUnassignBlock={unassignBlock}
           onTargetPlayer={handleTargetPlayer}
           onOpenZone={(title, cards, onClickCard, clickableCardIds) => {
             if (manualApi) {

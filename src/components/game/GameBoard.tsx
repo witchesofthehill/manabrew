@@ -111,6 +111,7 @@ interface GameBoardProps {
   onBattlefieldClick: (card: GameCard) => void;
   onAttackerClick: (card: GameCard) => void;
   onAssignBlock: (blockerId: string, attackerId: string) => void;
+  onUnassignBlock: (blockerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
   onOpenZone: (
     title: string,
@@ -195,6 +196,7 @@ export function GameBoard({
   onBattlefieldClick,
   onAttackerClick,
   onAssignBlock,
+  onUnassignBlock,
   onTargetPlayer,
   onOpenZone,
   onOpenZoneAndCast,
@@ -465,6 +467,7 @@ export function GameBoard({
       onFlipCard,
       onAttackerClick,
       onAssignBlock,
+      onUnassignBlock,
     }),
     [
       promptType,
@@ -483,6 +486,7 @@ export function GameBoard({
       onFlipCard,
       onAttackerClick,
       onAssignBlock,
+      onUnassignBlock,
     ],
   );
 

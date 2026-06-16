@@ -147,6 +147,13 @@ const mana = preset.gameColors;
         <h2>The cauldron is on.</h2>
         <p>No install, no account — the web client is one click away.</p>
         <a class="btn btn-primary" href="https://play.manabrew.app">Open Manabrew</a>
+        <div class="cauldron-scene" aria-hidden="true">
+          <div class="ember"></div>
+          <div class="cauldron-stage">
+            <div class="bubbles" id="cauldron-bubbles"></div>
+            <img class="cauldron" src="/cauldron.png" alt="" width="760" height="376" loading="lazy" />
+          </div>
+        </div>
       </section>
     </main>
 
@@ -163,6 +170,58 @@ const mana = preset.gameColors;
         <a href={`${GITHUB}/blob/main/LICENSE.md`}>GPL-3.0-or-later</a>
       </p>
     </footer>
+    <script>
+      // ── Bubble tuning knobs ──────────────────────────────────────────
+      const BUBBLES = {
+        sizeMin: 18, // smallest bubble diameter (px)
+        sizeMax: 24, // largest bubble diameter (px)
+        spreadStart: 0, // left edge of spawn band (% across the mouth)
+        spreadEnd: 100, // right edge of spawn band (%)
+        liftMin: 65, // shortest rise height (px)
+        liftMax: 75, // tallest rise height (px)
+        durMin: 7.5, // fastest rise time (s) — bigger = slower
+        durMax: 10.5, // slowest rise time (s)
+        gapMin: 900, // shortest pause between bubbles (ms) — bigger = fewer
+        gapMax: 901, // longest pause between bubbles (ms)
+      };
+      // Fade timing lives in the `@keyframes bubble-rise` rule (the `70%` stop
+      // is where the fade-out begins — raise it to fade later/higher).
+      // ─────────────────────────────────────────────────────────────────
+
+      const layer = document.getElementById("cauldron-bubbles");
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const rand = (min: number, max: number) => min + Math.random() * (max - min);
+
+      function spawnBubble() {
+        const b = document.createElement("span");
+        b.className = "bubble";
+        const size = rand(BUBBLES.sizeMin, BUBBLES.sizeMax);
+        b.style.width = size + "px";
+        b.style.height = size + "px";
+        b.style.left = rand(BUBBLES.spreadStart, BUBBLES.spreadEnd) + "%";
+        b.style.setProperty("--lift", rand(BUBBLES.liftMin, BUBBLES.liftMax) + "px");
+        b.style.setProperty("--dur", rand(BUBBLES.durMin, BUBBLES.durMax).toFixed(2) + "s");
+        b.addEventListener("animationend", () => b.remove());
+        if (layer) {
+          layer.appendChild(b);
+        }
+      }
+
+      let timer;
+      function loop() {
+        if (document.visibilityState === "visible") spawnBubble();
+        timer = window.setTimeout(loop, rand(BUBBLES.gapMin, BUBBLES.gapMax));
+      }
+
+      if (layer && !reduced.matches) loop();
+      reduced.addEventListener("change", (e) => {
+        if (e.matches) {
+          window.clearTimeout(timer);
+        } else {
+          loop();
+        }
+      });
+    </script>
   </body>
 </html>
 
@@ -462,9 +521,9 @@ const mana = preset.gameColors;
   }
 
   .last-call {
+    position: relative;
     text-align: center;
-    padding: clamp(3.5rem, 10vh, 6.5rem) 1.5rem;
-    background: radial-gradient(60% 90% at 50% 100%, color-mix(in srgb, var(--ring) 18%, transparent) 0%, transparent 70%);
+    padding: clamp(3.5rem, 10vh, 6.5rem) 1.5rem 0;
   }
 
   .last-call h2 {
@@ -480,6 +539,9 @@ const mana = preset.gameColors;
   }
 
   footer {
+    position: relative;
+    z-index: 3;
+    background: var(--background);
     border-top: 1px solid var(--border);
     padding: 2rem clamp(1rem, 4vw, 3rem) 2.6rem;
     text-align: center;
@@ -524,6 +586,148 @@ const mana = preset.gameColors;
 
   @media (prefers-reduced-motion: reduce) {
     .mana-rule i {
+      animation: none;
+    }
+  }
+</style>
+
+<style is:global>
+  /* Global (unscoped) so the JS-spawned .bubble elements pick up these rules. */
+  .last-call::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(
+      62% 86% at 50% 100%,
+      rgba(255, 150, 36, 0.38) 0%,
+      rgba(255, 96, 20, 0.14) 40%,
+      transparent 72%
+    );
+    transform-origin: 50% 100%;
+    will-change: opacity, transform;
+    animation: ember-breathe 3.6s ease-in-out infinite;
+  }
+
+  .cauldron-scene {
+    position: relative;
+    z-index: 0;
+    width: min(520px, 82vw);
+    margin: clamp(1.8rem, 6vh, 3.4rem) auto -5rem;
+  }
+
+  .cauldron-stage {
+    position: relative;
+    width: 100%;
+  }
+
+  .cauldron {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .ember {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    width: 96%;
+    height: 62%;
+    transform: translateX(-50%);
+    background:
+      radial-gradient(ellipse 62% 70% at 50% 80%, rgba(255, 184, 56, 0.95) 0%, rgba(255, 120, 24, 0.6) 36%, rgba(255, 70, 10, 0) 72%),
+      radial-gradient(ellipse 38% 50% at 50% 86%, rgba(255, 234, 150, 0.95) 0%, rgba(255, 160, 40, 0) 62%);
+    filter: blur(14px);
+    z-index: 0;
+    will-change: opacity, transform;
+    animation: fire-flicker 2.6s ease-in-out infinite;
+  }
+
+  .bubbles {
+    position: absolute;
+    left: 28%;
+    right: 28%;
+    top: -14%;
+    bottom: 68%;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .bubble {
+    position: absolute;
+    bottom: 0;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(238, 255, 196, 0.98) 0%, rgba(150, 235, 44, 0.96) 45%, rgba(96, 185, 22, 0.94) 100%);
+    box-shadow:
+      0 0 14px rgba(150, 245, 60, 0.85),
+      inset 0 0 6px rgba(255, 255, 235, 0.7);
+    will-change: transform, opacity;
+    animation: bubble-rise var(--dur, 4s) linear forwards;
+  }
+
+  @keyframes fire-flicker {
+    0%, 100% {
+      opacity: 0.78;
+      transform: translateX(-50%) scaleY(1);
+    }
+    25% {
+      opacity: 1;
+      transform: translateX(-51%) scaleY(1.08);
+    }
+    50% {
+      opacity: 0.65;
+      transform: translateX(-49%) scaleY(0.94);
+    }
+    75% {
+      opacity: 0.95;
+      transform: translateX(-50.5%) scaleY(1.05);
+    }
+  }
+
+  @keyframes ember-breathe {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scaleY(0.96) scaleX(1);
+    }
+    18% {
+      opacity: 1;
+      transform: scaleY(1.12) scaleX(1.03);
+    }
+    42% {
+      opacity: 0.66;
+      transform: scaleY(0.98) scaleX(0.98);
+    }
+    63% {
+      opacity: 0.95;
+      transform: scaleY(1.08) scaleX(1.02);
+    }
+    82% {
+      opacity: 0.7;
+      transform: scaleY(1) scaleX(0.99);
+    }
+  }
+
+  @keyframes bubble-rise {
+    0% {
+      transform: translate(-50%, 0) scale(0.55);
+      opacity: 1;
+    }
+    90% {
+      transform: translate(-50%, calc(-0.9 * var(--lift, 60px))) scale(1.14);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, calc(-1 * var(--lift, 60px))) scale(1.25);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ember,
+    .last-call::before {
       animation: none;
     }
   }

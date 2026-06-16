@@ -105,10 +105,9 @@ export const CAST_DRAG_HAND_SINK_PX = 200;
 // A removed card fades + shrinks instead of popping out; destroyed once faded.
 export const EXIT_FADE_LERP = 0.2;
 export const EXIT_SHRINK = 0.95;
-// How far a staged card's center rests from the divider line, as a fraction of
-// card height (larger = the card sits further back, so it tilts less toward
-// center). Attacker and blocker still overlap across the divider (MTGA-style).
-export const COMBAT_STAGE_OVERLAP_FRAC = 0.32;
+// Gap (px) between a staged card's edge and the phase-strip border. The card
+// tilts as close to the bar as possible without overlapping it, at any scale.
+export const COMBAT_STAGE_PADDING_PX = 6;
 // zIndex for a region while it has active combat staging — lifted above the
 // phase strip so staged cards read on top of the center band.
 export const Z_STAGED_REGION = 8000;

@@ -34,7 +34,7 @@ import {
   EXIT_SHRINK,
   GAP,
   COMBAT_STAGE_FAN_FRAC,
-  COMBAT_STAGE_OVERLAP_FRAC,
+  COMBAT_STAGE_PADDING_PX,
   GRID_SKELETON_FILL_ALPHA,
   GRID_SKELETON_HOVER_ALPHA,
   GRID_SKELETON_STACK_ALPHA,
@@ -544,17 +544,18 @@ export class BoardRegion {
     }
   }
 
-  /** Staging target Y: the card's center converges just past the divider line
-   *  so attacker and blocker overlap across it (MTGA-style). The divider sits
-   *  half a strip-band beyond the edge of this region that faces it. */
+  /** Staging target Y: the card rests just outside the phase-strip band on this
+   *  region's side — its near edge sits COMBAT_STAGE_PADDING_PX from the bar
+   *  border, as close to center as possible without overlapping the bar (at any
+   *  card scale / screen size). */
   private frontEdgeY(): number {
-    const overlap = CARD_H * this.cardScale * COMBAT_STAGE_OVERLAP_FRAC;
+    const gap = STRIP_BAND_PX / 2 + COMBAT_STAGE_PADDING_PX + (CARD_H * this.cardScale) / 2;
     if (this.mirrored) {
       const dividerY = this.zone.y + this.zone.height + STRIP_BAND_PX / 2;
-      return dividerY - overlap;
+      return dividerY - gap;
     }
     const dividerY = this.zone.y - STRIP_BAND_PX / 2;
-    return dividerY + overlap;
+    return dividerY + gap;
   }
 
   private applyNameGrouping(topLevel: GameCard[]): void {

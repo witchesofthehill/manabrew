@@ -26,9 +26,21 @@ pub struct ActivatableAbilityInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
-pub struct DefenderIdDto {
+pub enum AttackTargetKind {
+    Player,
+    Planeswalker,
+    Battle,
+}
+
+/// A legal attack target (player / planeswalker / battle). Replaces the old
+/// "defender" naming — these are what an attacker is declared *against*.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct AttackTargetDto {
     pub id: String,
     pub label: String,
+    pub kind: AttackTargetKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -44,7 +56,7 @@ pub struct BlockAssignment {
 #[ts(export, export_to = "prompts/common.ts")]
 pub struct AttackAssignment {
     pub attacker_id: String,
-    pub defender_id: String,
+    pub target_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -97,8 +97,6 @@ export interface BattlefieldState {
   cards: GameCard[];
   pendingCardIds?: string[];
   attackingCardIds?: string[];
-  /** Creatures that would die in the current combat — drawn with a lethal ring. */
-  doomedCardIds?: string[];
   /** Blockers chosen so far in damage-assignment ordering; index+1 is shown as a
    *  numbered badge on each (first in line takes damage first). */
   orderedCardIds?: string[];

@@ -6,7 +6,6 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
-import { computeCombatOutcome } from "@/components/game/combatOutcome";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -252,10 +251,10 @@ export function GameBoard({
   const chooseTargetCardFromZonePrompt = promptOf(currentPrompt, "chooseTargetCardFromZone");
   const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
-  const promptAttackerIds = chooseBlockersPrompt?.input.attackerIds;
+  const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
 
-  // Combat preview: which creatures would die + how much damage reaches the
-  // local player, from the locked-in combat plus any mid-selection blocks.
+  // Cards currently attacking — gates combat staging so it self-clears when
+  // combat ends (combined with any mid-selection local blocks).
   const attackingCardIdSet = useMemo(() => {
     const s = new Set<string>();
     for (const c of myPermanents) if (c.isAttacking) s.add(c.id);
@@ -278,18 +277,6 @@ export function GameBoard({
       .filter(([, attackerId]) => attackingCardIdSet.has(attackerId))
       .map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
   }, [combatAssignments, blockAssignments, attackingCardIdSet]);
-  const combatOutcome = useMemo(() => {
-    const cards = [...myPermanents, ...[...opponentPermanentsByPlayer.values()].flat()];
-    return computeCombatOutcome(cards, combatAssignmentsAll);
-  }, [myPermanents, opponentPermanentsByPlayer, combatAssignmentsAll]);
-  const doomedCardIds = useMemo(() => [...combatOutcome.doomedCardIds], [combatOutcome]);
-  const myIncomingDamage = useMemo(() => {
-    if (promptType !== "chooseBlockers") return 0;
-    return (promptAttackerIds ?? []).reduce(
-      (sum, id) => sum + (combatOutcome.attackerFaceDamage.get(id) ?? 0),
-      0,
-    );
-  }, [promptType, promptAttackerIds, combatOutcome]);
 
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const manaAbilityOptions = chooseActionActions
@@ -331,10 +318,9 @@ export function GameBoard({
     () =>
       promptType === "chooseAttackers"
         ? [
-            ...(chooseAttackersPrompt?.input.availableAttackerIds ?? []),
+            ...(chooseAttackersPrompt?.input.attackers.map((a) => a.attackerId) ?? []),
             ...(pendingAttackers.length > 0
-              ? (chooseAttackersPrompt?.input.possibleDefenderIds.map((defender) => defender.id) ??
-                [])
+              ? (chooseAttackersPrompt?.input.attackTargets.map((t) => t.id) ?? [])
               : []),
           ]
         : promptType === "chooseBlockers"
@@ -376,7 +362,6 @@ export function GameBoard({
               ]
             : undefined,
       attackingCardIds: promptAttackerIds,
-      doomedCardIds,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       tappableLandIds: chooseActionActions
@@ -398,7 +383,6 @@ export function GameBoard({
       pendingBlocker,
       blockAssignments,
       promptAttackerIds,
-      doomedCardIds,
       damageOrder,
       selectableBattlefieldCardIds,
       chooseActionActions,
@@ -592,7 +576,6 @@ export function GameBoard({
     const oppState = (cards: GameCard[]): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
-      doomedCardIds,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
@@ -612,7 +595,6 @@ export function GameBoard({
     pixiBattlefield,
     promptType,
     promptAttackerIds,
-    doomedCardIds,
     damageOrder,
     selectableBattlefieldCardIds,
     hostileTargeting,
@@ -735,7 +717,6 @@ export function GameBoard({
         isOpponent={false}
         seat="self"
         verticalAlign="bottom"
-        incomingDamage={myIncomingDamage}
         split={selfIsSplit}
         zonesGrid={selfSplit.grid}
         isActiveTurn={activePlayerId === me.id}

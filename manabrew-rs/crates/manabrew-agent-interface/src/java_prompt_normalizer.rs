@@ -11,8 +11,8 @@ use crate::java_raw::{
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
 use crate::prompt::{
-    ActivatableAbilityInfo, AgentPrompt, AvailableAction, AvailableActionKind, DefenderIdDto,
-    PlayerAction, PromptInput, StateUpdate, TargetAnyChoice,
+    ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
+    AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetAnyChoice,
 };
 
 pub fn make_java_game_over_prompt() -> AgentPrompt {
@@ -101,17 +101,48 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::ChooseAttackers {
             attackers,
             defenders,
-        } => PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
-            available_attacker_ids: card_ids(&attackers),
-            possible_defender_ids: defender_ids(&defenders),
-        }),
+        } => {
+            use manabrew_protocol::prompts::choose_attackers::AttackerOptionDto;
+            let attack_targets = attack_targets(&defenders);
+            let all_target_ids: Vec<String> =
+                attack_targets.iter().map(|t| t.id.clone()).collect();
+            let attackers = card_ids(&attackers)
+                .into_iter()
+                .map(|attacker_id| AttackerOptionDto {
+                    attacker_id,
+                    valid_target_ids: all_target_ids.clone(),
+                })
+                .collect();
+            PromptInput::ChooseAttackers(
+                manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
+                    attackers,
+                    attack_targets,
+                },
+            )
+        }
         JavaRawPromptBody::ChooseBlockers {
             attackers,
             blockers,
-        } => PromptInput::ChooseBlockers(manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
-            attacker_ids: card_ids(&attackers),
-            available_blocker_ids: card_ids(&blockers),
-        }),
+        } => {
+            use manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto;
+            let available_blocker_ids = card_ids(&blockers);
+            let attackers = card_ids(&attackers)
+                .into_iter()
+                .map(|attacker_id| BlockableAttackerDto {
+                    attacker_id,
+                    valid_blocker_ids: available_blocker_ids.clone(),
+                    min_blockers: 1,
+                    must_be_blocked: false,
+                })
+                .collect();
+            PromptInput::ChooseBlockers(
+                manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
+                    attackers,
+                    available_blocker_ids,
+                    error: None,
+                },
+            )
+        }
         JavaRawPromptBody::ChooseDamageAssignmentOrder {
             attacker_id,
             blockers,
@@ -551,7 +582,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                 .iter()
                 .map(|assignment| JavaAttackAssignment {
                     attacker_id: assignment.attacker_id.clone(),
-                    defender_id: assignment.defender_id.clone(),
+                    defender_id: assignment.target_id.clone(),
                 })
                 .collect(),
         },
@@ -1070,13 +1101,20 @@ fn index_view_cards(view: &GameViewDto) -> HashMap<String, CardDto> {
     index
 }
 
-fn defender_ids(defenders: &[JavaRawCardOption]) -> Vec<DefenderIdDto> {
+fn attack_targets(defenders: &[JavaRawCardOption]) -> Vec<AttackTargetDto> {
     defenders
         .iter()
         .filter_map(|defender| {
             let id = defender.id.clone()?;
             let label = defender.label.clone().unwrap_or_else(|| id.clone());
-            Some(DefenderIdDto { id, label })
+            // Until the harness sends an explicit kind, infer player vs.
+            // permanent (planeswalker/battle) from the id prefix.
+            let kind = if id.starts_with("player-") {
+                AttackTargetKind::Player
+            } else {
+                AttackTargetKind::Planeswalker
+            };
+            Some(AttackTargetDto { id, label, kind })
         })
         .collect()
 }

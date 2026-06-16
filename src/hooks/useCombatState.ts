@@ -63,7 +63,7 @@ export function useCombatState({
   }
 
   const possibleDefenders =
-    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.possibleDefenderIds : [];
+    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackTargets : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
 
   // Awaiting-defender state is implicit now: as soon as the user has at
@@ -148,7 +148,7 @@ export function useCombatState({
     if (promptType === "chooseAttackers") {
       if (
         currentPrompt.input.type !== "chooseAttackers" ||
-        !currentPrompt.input.availableAttackerIds.includes(card.id)
+        !currentPrompt.input.attackers.some((a) => a.attackerId === card.id)
       ) {
         return;
       }

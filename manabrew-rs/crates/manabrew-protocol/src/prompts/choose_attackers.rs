@@ -1,14 +1,24 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::{AttackAssignment, DefenderIdDto};
+use crate::prompts::common::{AttackAssignment, AttackTargetDto};
+
+/// One creature that can attack, with the targets it may legally attack
+/// (`valid_target_ids` reference `ChooseAttackersInput::attack_targets`).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/chooseAttackers.ts")]
+pub struct AttackerOptionDto {
+    pub attacker_id: String,
+    pub valid_target_ids: Vec<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/chooseAttackers.ts")]
 pub struct ChooseAttackersInput {
-    pub available_attacker_ids: Vec<String>,
-    pub possible_defender_ids: Vec<DefenderIdDto>,
+    pub attackers: Vec<AttackerOptionDto>,
+    pub attack_targets: Vec<AttackTargetDto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

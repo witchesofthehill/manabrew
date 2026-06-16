@@ -157,6 +157,11 @@ pub struct CardDto {
     pub is_warp_exiled: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub foil: bool,
+    /// Engine combat prediction: this creature would be destroyed by the
+    /// current (committed) combat. Populated by the Forge harness; the Rust
+    /// engine leaves it false for now.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub would_die_in_combat: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

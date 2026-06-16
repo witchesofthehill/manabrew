@@ -551,8 +551,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     currentPrompt: activePrompt,
     engineHasBlocks: (gameView?.combatAssignments?.length ?? 0) > 0,
   });
-  const selectedAttackDefender = chooseAttackersInput?.possibleDefenderIds.find(
-    (defender) => defender.id === attackDefenderId,
+  const selectedAttackDefender = chooseAttackersInput?.attackTargets.find(
+    (target) => target.id === attackDefenderId,
   );
   const { wrappedTargetAny, wrappedTargetCard } = casting;
   const targetCompletion = useMemo(() => {
@@ -965,9 +965,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
   // Stabilize attackerIds so useGameArrows' useEffect doesn't re-run every render
   const attackerIds = useMemo(
-    () => chooseBlockersInput?.attackerIds ?? [],
+    () => chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [chooseBlockersInput?.attackerIds.join(",")],
+    [chooseBlockersInput?.attackers.map((a) => a.attackerId).join(",")],
   );
   const combatAssignments = useMemo(
     () => gameView?.combatAssignments ?? [],
@@ -1526,7 +1526,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           isWaitingForResponse={isWaitingForResponse}
           isAutoPassing={isAutoPassing}
           isPassingUntilEot={isPassingUntilEot}
-          availableAttackerIds={chooseAttackersInput?.availableAttackerIds ?? []}
+          availableAttackerIds={chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []}
           pendingAttackers={pendingAttackers}
           onPassPriority={unifiedPass}
           onPassUntilEot={activatePassUntilEot}
@@ -1539,7 +1539,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onBeginAttackTargetPick={selectAllAttackersForPick}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
-          attackerIds={chooseBlockersInput?.attackerIds ?? []}
+          attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
           blockAssignments={blockAssignments}
           onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
           damageOrderCount={damageOrder.length}

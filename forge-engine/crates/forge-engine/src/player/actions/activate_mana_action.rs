@@ -9,6 +9,6 @@ pub struct ActivateManaAction {
 
 impl From<ActivateManaAction> for PlayerAction {
     fn from(value: ActivateManaAction) -> Self {
-        PlayerAction::ActivateMana(value.card_id, None)
+        PlayerAction::ActivateMana(value.card_id, None, None)
     }
 }

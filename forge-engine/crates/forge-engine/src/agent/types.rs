@@ -75,7 +75,7 @@ pub enum MainPhaseAction {
     Play(PlayOption),
     /// Tap an untapped land on the battlefield to add its mana to the pool.
     /// Optional ability index selects a specific mana ability (dual lands).
-    ActivateMana(CardId, Option<usize>),
+    ActivateMana(CardId, Option<usize>, Option<u16>),
     /// Untap a tapped land and remove its mana from the pool (undo tap).
     UntapMana(CardId),
     /// Activate an ability on a permanent. (source card, ability index)
@@ -90,6 +90,7 @@ pub struct ActivatableAction {
     pub cost: Option<String>,
     pub is_mana_ability: bool,
     pub produced_colors: Vec<String>,
+    pub produced_mana: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

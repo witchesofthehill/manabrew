@@ -10,7 +10,7 @@ use forge_engine_core::ids::{CardId, PlayerId};
 use forge_engine_core::mana::ManaPool;
 use forge_engine_core::player::actions::player_action::AbilityRef;
 use forge_engine_core::player::actions::PlayerAction as EnginePlayerAction;
-use forge_foundation::ZoneType;
+use forge_foundation::{mana::ManaAtom, ZoneType};
 
 use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
@@ -418,7 +418,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     is_mana_ability: a.is_mana_ability,
                     produced_colors: (!a.produced_colors.is_empty())
                         .then(|| a.produced_colors.clone()),
-                    produced_mana: None,
+                    produced_mana: a.produced_mana.clone(),
                 },
             });
         }
@@ -458,7 +458,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 } else if let Some(rest) = action_id.strip_prefix("tap:") {
                     let (id_part, idx) = rest.split_once(':').unwrap_or((rest, ""));
                     match parse_card_id(id_part) {
-                        Some(cid) => EnginePlayerAction::ActivateMana(cid, idx.parse().ok()),
+                        Some(cid) => EnginePlayerAction::ActivateMana(cid, idx.parse().ok(), None),
                         None => EnginePlayerAction::PassPriority,
                     }
                 } else if let Some(rest) = action_id.strip_prefix("ability:") {
@@ -514,11 +514,15 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             PlayerAction::TapLand {
                 card_id,
                 ability_index,
-                color: _,
+                color,
             } => {
                 let parsed = parse_card_id(&card_id);
                 match parsed {
                     Some(cid) => {
+                        let express_choice = color
+                            .as_deref()
+                            .map(|color| ManaAtom::from_name(&color.to_ascii_lowercase()))
+                            .filter(|&atom| atom != 0);
                         // Check if the specified ability is a non-mana activated ability
                         // (e.g. Evolving Wilds sacrifice). Mana abilities route through
                         // ActivateMana which handles the ability index directly.
@@ -543,11 +547,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                                     ability_index: a.ability_index,
                                 })
                             } else {
-                                EnginePlayerAction::ActivateMana(cid, None)
+                                EnginePlayerAction::ActivateMana(cid, None, express_choice)
                             }
                         } else {
                             // Mana ability with specific index
-                            EnginePlayerAction::ActivateMana(cid, ability_index)
+                            EnginePlayerAction::ActivateMana(cid, ability_index, express_choice)
                         }
                     }
                     None => EnginePlayerAction::PassPriority,

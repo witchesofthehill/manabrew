@@ -163,6 +163,9 @@ impl GameLoop {
                         produced_colors: ability
                             .map(|a| a.produced_color_symbols())
                             .unwrap_or_default(),
+                        produced_mana: ability
+                            .and_then(|a| a.produced_ir.as_ref())
+                            .map(|produced| produced.as_script_text().into_owned()),
                     }
                 })
                 .collect()
@@ -201,6 +204,10 @@ impl GameLoop {
                     cost: ability.cost_string(),
                     is_mana_ability: true,
                     produced_colors: ability.produced_color_symbols(),
+                    produced_mana: ability
+                        .produced_ir
+                        .as_ref()
+                        .map(|produced| produced.as_script_text().into_owned()),
                 });
             }
         }

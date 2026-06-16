@@ -243,8 +243,17 @@ impl ParityFormat for PlayerAction {
             PlayerAction::ActivateAbility(aref) => {
                 format!("ActivateAbility({})", aref.parity_fmt(ctx))
             }
-            PlayerAction::ActivateMana(cid, idx) => {
-                format!("ActivateMana({}, {:?})", ctx.card(*cid), idx)
+            PlayerAction::ActivateMana(cid, idx, express_choice) => {
+                if express_choice.is_some() {
+                    format!(
+                        "ActivateMana({}, {:?}, {:?})",
+                        ctx.card(*cid),
+                        idx,
+                        express_choice
+                    )
+                } else {
+                    format!("ActivateMana({}, {:?})", ctx.card(*cid), idx)
+                }
             }
             // For other variants, fall back to Debug but resolve card IDs where possible.
             other => format!("{:?}", other),

@@ -332,11 +332,22 @@ export default function Game({ exitTo }: GameProps = {}) {
   const manaAbilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     if (chooseActionInput) {
+      const byCard = new Map<string, ActivatableAbilityInfo[]>();
+      const actionIds = new Map<string, string>();
       for (const a of chooseActionInput.actions) {
         if (a.type !== "activateAbility" || !a.isManaAbility) continue;
-        const arr = map.get(a.cardId) ?? [];
-        arr.push(toAbilityOption(a, a.id));
-        map.set(a.cardId, arr);
+        const arr = byCard.get(a.cardId) ?? [];
+        arr.push(a);
+        byCard.set(a.cardId, arr);
+        actionIds.set(`${a.cardId}:${a.abilityIndex}`, a.id);
+      }
+      for (const [cardId, abilities] of byCard) {
+        map.set(
+          cardId,
+          getExpandedManaAbilities(cardId, abilities).map((ab) => {
+            return toAbilityOption(ab, actionIds.get(`${ab.cardId}:${ab.abilityIndex}`));
+          }),
+        );
       }
       return map;
     }

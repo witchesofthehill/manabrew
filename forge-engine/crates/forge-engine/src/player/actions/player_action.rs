@@ -13,7 +13,7 @@ pub enum PlayerAction {
     Concede,
     FinishTargeting,
     CastSpell(PlayOption),
-    ActivateMana(CardId, Option<usize>),
+    ActivateMana(CardId, Option<usize>, Option<u16>),
     UndoMana(CardId),
     ActivateAbility(AbilityRef),
     PayCost(CardId),
@@ -60,9 +60,13 @@ impl PlayerAction {
             PlayerAction::CastSpell(play) => playable
                 .contains(&play)
                 .then_some(MainPhaseAction::Play(play)),
-            PlayerAction::ActivateMana(card_id, ability_index) => tappable_lands
+            PlayerAction::ActivateMana(card_id, ability_index, express_choice) => tappable_lands
                 .contains(&card_id)
-                .then_some(MainPhaseAction::ActivateMana(card_id, ability_index)),
+                .then_some(MainPhaseAction::ActivateMana(
+                    card_id,
+                    ability_index,
+                    express_choice,
+                )),
             PlayerAction::UndoMana(card_id) => untappable_lands
                 .contains(&card_id)
                 .then_some(MainPhaseAction::UntapMana(card_id)),

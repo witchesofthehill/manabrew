@@ -724,14 +724,60 @@ pub fn determine_mana_production_ir(
     express_choice: Option<u16>,
 ) -> Option<String> {
     let mut mana_string: Option<String> = None;
+    let amount = if let Some(amount_str) = amount_param {
+        if let Ok(n) = amount_str.parse::<i32>() {
+            n
+        } else if let Some(svar_expr) = game.card(card_id).svars.get(amount_str).cloned() {
+            crate::ability::effects::resolve_count_svar(&svar_expr, game, card_id, player)
+        } else {
+            1
+        }
+    } else {
+        1
+    };
+    if amount <= 0 {
+        return None;
+    }
+    let mut amount_applied = false;
 
     if produced_ir.is_combo_color_identity() {
         let colors = game.player_commander_color_identity(player);
 
         if !colors.is_empty() {
-            if let Some(chosen) = agents[player.index()].choose_color(player, &colors) {
-                if let Some(atom) = color_name_to_mana_atom(&chosen) {
-                    mana_string = Some(ManaPool::atom_to_letter(atom).to_string());
+            if amount > 1 {
+                let available: Vec<String> = colors
+                    .iter()
+                    .filter_map(|name| {
+                        color_name_to_mana_atom(name)
+                            .map(|a| ManaPool::atom_to_letter(a).to_string())
+                    })
+                    .collect();
+                let chosen = agents[player.index()].specify_mana_combo(
+                    player,
+                    &available,
+                    amount as usize,
+                    Some(card_id),
+                    express_choice,
+                );
+                mana_string = Some(chosen.join(" "));
+                amount_applied = true;
+            } else {
+                let chosen = if let Some(forced) = express_choice
+                    .and_then(mana_atom_to_color_name)
+                    .and_then(|forced_name| {
+                        colors
+                            .iter()
+                            .find(|valid| valid.eq_ignore_ascii_case(forced_name))
+                            .cloned()
+                    }) {
+                    Some(forced)
+                } else {
+                    agents[player.index()].choose_color(player, &colors)
+                };
+                if let Some(chosen) = chosen {
+                    if let Some(atom) = color_name_to_mana_atom(&chosen) {
+                        mana_string = Some(ManaPool::atom_to_letter(atom).to_string());
+                    }
                 }
             }
         }
@@ -741,26 +787,47 @@ pub fn determine_mana_production_ir(
         let chosen_colors = game.card(card_id).chosen_colors.clone();
         let colors = produced_ir.to_color_names(&chosen_colors);
         if colors.len() > 1 {
-            let chosen = if let Some(forced) = express_choice
-                .and_then(mana_atom_to_color_name)
-                .and_then(|forced_name| {
+            if amount > 1 && produced_ir.is_choice_like() {
+                let available: Vec<String> = if produced_ir.is_any_like() {
+                    vec!["W", "U", "B", "R", "G"]
+                        .into_iter()
+                        .map(String::from)
+                        .collect()
+                } else {
                     colors
                         .iter()
-                        .find(|valid| valid.eq_ignore_ascii_case(forced_name))
-                        .cloned()
-                }) {
-                // Java calls chooseColor even when expressChoice is set,
-                // presenting the forced color as a single-option choice.
-                // Consume the RNG pick for parity.
-                let single = vec![forced.clone()];
-                let _ = agents[player.index()].choose_color(player, &single);
-                Some(forced)
+                        .filter_map(|name| {
+                            color_name_to_mana_atom(name)
+                                .map(|a| ManaPool::atom_to_letter(a).to_string())
+                        })
+                        .collect()
+                };
+                let chosen = agents[player.index()].specify_mana_combo(
+                    player,
+                    &available,
+                    amount as usize,
+                    Some(card_id),
+                    express_choice,
+                );
+                mana_string = Some(chosen.join(" "));
+                amount_applied = true;
             } else {
-                agents[player.index()].choose_color(player, &colors)
-            };
-            if let Some(chosen) = chosen {
-                if let Some(atom) = color_name_to_mana_atom(&chosen) {
-                    mana_string = Some(ManaPool::atom_to_letter(atom).to_string());
+                let chosen = if let Some(forced) = express_choice
+                    .and_then(mana_atom_to_color_name)
+                    .and_then(|forced_name| {
+                        colors
+                            .iter()
+                            .find(|valid| valid.eq_ignore_ascii_case(forced_name))
+                            .cloned()
+                    }) {
+                    Some(forced)
+                } else {
+                    agents[player.index()].choose_color(player, &colors)
+                };
+                if let Some(chosen) = chosen {
+                    if let Some(atom) = color_name_to_mana_atom(&chosen) {
+                        mana_string = Some(ManaPool::atom_to_letter(atom).to_string());
+                    }
                 }
             }
         } else if let Some(single) = colors.first() {
@@ -773,58 +840,12 @@ pub fn determine_mana_production_ir(
         }
     }
 
-    // Apply Amount$ multiplier (e.g. Rofellos produces mana equal to Forests)
     if let Some(ref mut ms) = mana_string {
-        if let Some(amount_str) = amount_param {
-            let amount = if let Ok(n) = amount_str.parse::<i32>() {
-                n
-            } else {
-                // Try to resolve as SVar on the source card
-                if let Some(svar_expr) = game.card(card_id).svars.get(amount_str).cloned() {
-                    crate::ability::effects::resolve_count_svar(&svar_expr, game, card_id, player)
-                } else {
-                    1
-                }
-            };
-            if amount > 1 {
-                // Check if this is combo/any mana (multiple color choices)
-                let is_combo = produced_ir.is_choice_like();
-                if is_combo {
-                    // Multi-amount combo: let agent choose color distribution
-                    let available: Vec<String> = if produced_ir.is_any_like() {
-                        vec!["W", "U", "B", "R", "G"]
-                            .into_iter()
-                            .map(String::from)
-                            .collect()
-                    } else {
-                        let chosen_colors = game.card(card_id).chosen_colors.clone();
-                        let names = produced_ir.to_color_names(&chosen_colors);
-                        names
-                            .iter()
-                            .filter_map(|name| {
-                                color_name_to_mana_atom(name)
-                                    .map(|a| ManaPool::atom_to_letter(a).to_string())
-                            })
-                            .collect()
-                    };
-                    let card_name = game.card(card_id).card_name.clone();
-                    let chosen = agents[player.index()].specify_mana_combo(
-                        player,
-                        &available,
-                        amount as usize,
-                        Some(card_id),
-                        express_choice,
-                    );
-                    *ms = chosen.join(" ");
-                } else {
-                    let base = ms.clone();
-                    for _ in 1..amount {
-                        ms.push(' ');
-                        ms.push_str(&base);
-                    }
-                }
-            } else if amount <= 0 {
-                mana_string = None;
+        if amount > 1 && !amount_applied {
+            let base = ms.clone();
+            for _ in 1..amount {
+                ms.push(' ');
+                ms.push_str(&base);
             }
         }
     }

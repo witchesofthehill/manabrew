@@ -88,6 +88,7 @@ export class BoardScene {
 
   private declareBlockers = false;
   private blockDragBlockerId: string | null = null;
+  private phaseStripAlphaTarget = 1;
 
   private hand: HandController | null = null;
   private selection: SelectionController | null = null;
@@ -312,7 +313,7 @@ export class BoardScene {
         break;
       }
     }
-    this.phaseStrip.container.alpha = active ? PHASE_STRIP_COMBAT_ALPHA : 1;
+    this.phaseStripAlphaTarget = active ? PHASE_STRIP_COMBAT_ALPHA : 1;
     for (const rec of this.regions.values()) rec.region.setCombatDim(active);
   }
 
@@ -865,6 +866,12 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
+    const stripA = this.phaseStrip.container.alpha;
+    if (Math.abs(stripA - this.phaseStripAlphaTarget) > 0.01) {
+      this.phaseStrip.container.alpha = stripA + (this.phaseStripAlphaTarget - stripA) * 0.2;
+    } else {
+      this.phaseStrip.container.alpha = this.phaseStripAlphaTarget;
+    }
     this.animateFloaters();
     this.captureStackSeeds();
     if (this.dropActive) {

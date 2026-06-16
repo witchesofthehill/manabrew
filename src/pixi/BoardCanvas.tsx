@@ -48,6 +48,9 @@ export interface BoardCanvasRegion {
  *  anchor React panels to each player's region. */
 export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
+  /** Y of the center band line between the opponents and the self region —
+   *  where the phase strip is centered. */
+  dividerY: number;
   opponents: { playerId: string; rect: PlayZoneRect; orientation: RegionOrientation }[];
 }
 
@@ -271,6 +274,7 @@ export function BoardCanvas({
     s.configure(players, layout, cardScale);
     onLayoutRef.current?.({
       self: layout.self,
+      dividerY: layout.dividerY,
       opponents: opponentIds.map((id, i) => ({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,

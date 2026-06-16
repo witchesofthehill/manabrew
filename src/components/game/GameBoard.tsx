@@ -941,7 +941,9 @@ export function GameBoard({
           className="absolute z-50 w-10 cursor-row-resize flex items-center justify-center group"
           style={{
             left: unifiedLayout.self.x + 4,
-            top: unifiedLayout.self.y - STRIP_BAND_PX / 2,
+            // Center on the divider line (where the phase strip sits), not the
+            // self-region top, which is half a band below it.
+            top: unifiedLayout.dividerY - STRIP_BAND_PX / 2,
             height: STRIP_BAND_PX,
           }}
           onPointerDown={onUnifiedGripDown}

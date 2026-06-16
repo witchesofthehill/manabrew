@@ -72,6 +72,14 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
+// ── Cast (source→cursor targeting arrow — bold dashed, big filled head) ─────
+const CAST_STROKE_WIDTH = 5;
+const CAST_ALPHA = 0.9;
+const CAST_DASH = 15;
+const CAST_GAP = 10;
+const CAST_HEAD_LEN = 22;
+const CAST_HEAD_WIDTH = 18;
+
 interface DashedArrowStyle {
   color: number;
   strokeWidth: number;
@@ -300,8 +308,21 @@ export class ArrowLayer {
     switch (arrow.type) {
       case "attack":
       case "block":
-      case "casting":
         this.drawPainterly(entry, arrow);
+        return;
+      case "casting":
+        // Bold dashed targeting arrow (matches the original board's cast arrow)
+        // — distinct from the painterly combat stroke.
+        this.drawPlacement(entry, arrow, {
+          color: arrow.color ?? hexToNum(this.theme.gameTheme.arrow.friendlyTarget),
+          strokeWidth: CAST_STROKE_WIDTH,
+          alpha: CAST_ALPHA,
+          dash: CAST_DASH,
+          gap: CAST_GAP,
+          headLen: CAST_HEAD_LEN,
+          headWidth: CAST_HEAD_WIDTH,
+          dashOffset: 0,
+        });
         return;
       case "attach":
         this.drawRune(entry, arrow);

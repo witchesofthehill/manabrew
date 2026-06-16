@@ -3,11 +3,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::mpsc;
 use std::sync::Arc;
 
-use forge_agent_interface::agent_impl::PromptAgent;
-use forge_agent_interface::game_log_event::GameLogEntryDto;
-use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
 use manabot::BotResponder;
+use manabrew_agent_interface::agent_impl::PromptAgent;
+use manabrew_agent_interface::game_log_event::GameLogEntryDto;
+use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
+use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
 use manabrew_engine::agent::PlayerAgent;
 use manabrew_engine::ids::PlayerId;
 use manabrew_game_runtime::deck::force_commander_by_name;

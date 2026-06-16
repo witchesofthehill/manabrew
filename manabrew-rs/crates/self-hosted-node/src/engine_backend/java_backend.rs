@@ -18,21 +18,21 @@ use std::sync::Mutex;
 #[cfg(feature = "java-forge")]
 use std::time::{Duration, Instant};
 
-use forge_agent_interface::deck_dto::{CardIdentity, Deck};
+use manabrew_agent_interface::deck_dto::{CardIdentity, Deck};
 
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_prompt_normalizer::{
+use manabot::{BotAgent, SimpleAi};
+#[cfg(feature = "java-forge")]
+use manabrew_agent_interface::java_prompt_normalizer::{
     make_java_game_over_prompt, make_java_state_update, normalize_java_prompt,
     translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_raw::{
+use manabrew_agent_interface::java_raw::{
     JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
 };
-use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
-#[cfg(feature = "java-forge")]
-use manabot::{BotAgent, SimpleAi};
+use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
 use serde_json::json;

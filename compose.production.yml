@@ -22,7 +22,8 @@ services:
       - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-    depends_on: -manabrew-server
+    depends_on:
+      - manabrew-server
 
   manabrew-server:
     build:
@@ -67,7 +68,8 @@ services:
       SELF_HOSTED_NODE_FORMAT: "${SELF_HOSTED_NODE_FORMAT:-commander}"
       SELF_HOSTED_NODE_MAX_PLAYERS: "${SELF_HOSTED_NODE_MAX_PLAYERS:-2}"
       RUST_LOG: "self_hosted_node=info"
-    depends_on: -manabrew-server
+    depends_on:
+      - manabrew-server
     restart: unless-stopped
 
 volumes:

@@ -3,8 +3,8 @@ use tauri::{AppHandle, State};
 use crate::client_bot::ClientBotManager;
 use crate::multiplayer_controller::relay_response_value;
 use crate::server_client::ServerClient;
-use forge_agent_interface::deck_dto::Deck;
 use manabot::{AgentKind, BotConfig};
+use manabrew_agent_interface::deck_dto::Deck;
 
 fn send_server_message(client: &ServerClient, msg: serde_json::Value) -> Result<(), String> {
     client.send(&msg.to_string())
@@ -234,12 +234,12 @@ pub async fn server_send_room_message(
     client: State<'_, ServerClient>,
     message: serde_json::Value,
 ) -> Result<(), String> {
-    let envelope: forge_agent_interface::protocol::StateEnvelope =
+    let envelope: manabrew_agent_interface::protocol::StateEnvelope =
         serde_json::from_value(message.clone())
             .map_err(|e| format!("Room message must be a valid StateEnvelope: {}", e))?;
     if !matches!(
         envelope,
-        forge_agent_interface::protocol::StateEnvelope::RoomRelay { .. }
+        manabrew_agent_interface::protocol::StateEnvelope::RoomRelay { .. }
     ) {
         return Err("Room message must be a roomRelay envelope".to_string());
     }

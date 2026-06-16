@@ -1,8 +1,8 @@
 use serde_json::Value;
 
-use forge_agent_interface::ids_codec::parse_player_slot;
-use forge_agent_interface::prompt::PlayerAction;
-use forge_agent_interface::protocol::StateEnvelope;
+use manabrew_agent_interface::ids_codec::parse_player_slot;
+use manabrew_agent_interface::prompt::PlayerAction;
+use manabrew_agent_interface::protocol::StateEnvelope;
 
 pub fn wrap_broadcast_state(state: Value) -> String {
     serde_json::json!({

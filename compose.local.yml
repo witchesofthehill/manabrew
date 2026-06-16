@@ -35,5 +35,6 @@ services:
       # Pool size of Java subprocesses; each room runs in its own JVM.
       SELF_HOSTED_NODE_MAX_GAMES: "${SELF_HOSTED_NODE_MAX_GAMES:-2}"
       RUST_LOG: "self_hosted_node=info"
-    depends_on: -manabrew-server
+    depends_on:
+      - manabrew-server
     restart: unless-stopped

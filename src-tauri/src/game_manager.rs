@@ -13,10 +13,10 @@ use crate::multiplayer_controller::{
     spawn_remote_prompt_forwarder, spawn_snapshot_forwarder,
 };
 use crate::preset_decks::CardIdentity;
-use forge_agent_interface::game_log_event::GameLogEntryDto;
-use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
+use manabrew_agent_interface::game_log_event::GameLogEntryDto;
+use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
+use manabrew_agent_interface::ids_codec::player_slot;
+use manabrew_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 

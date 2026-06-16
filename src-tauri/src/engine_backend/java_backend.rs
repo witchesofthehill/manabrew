@@ -16,15 +16,15 @@ use serde_json::Value;
 
 use crate::preset_decks::CardIdentity;
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_prompt_normalizer::{
+use manabrew_agent_interface::java_prompt_normalizer::{
     make_java_game_over_prompt, make_java_state_update, normalize_java_prompt,
     translate_java_player_action,
 };
 #[cfg(feature = "java-forge")]
-use forge_agent_interface::java_raw::{
+use manabrew_agent_interface::java_raw::{
     JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
 };
-use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
 
 pub fn unsupported_error() -> String {
     "Engine backend 'java-forge' requires building Tauri with --features java-forge".to_string()

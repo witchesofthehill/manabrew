@@ -8,7 +8,7 @@ COPY Cargo.toml Cargo.lock ./
 
 # Workspace crates. manabrew-server only compiles manabrew-protocol now, but cargo
 # needs every member's manifest to resolve the workspace, so copy the tree.
-COPY manabrew-engine/ manabrew-engine/
+COPY manabrew-rs/ manabrew-rs/
 
 # Stub the other workspace members that cargo metadata validates.
 # src-tauri and tree-sitter-forge-card-script are declared in the root
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/build/target \
     cargo build --release -p manabrew-server \
-    && cp /build/target/release/manabrew-server /usr/local/binmanabrew-server/
+    && cp /build/target/release/manabrew-server /usr/local/bin/manabrew-server
 
 # --- Runtime ---
 FROM debian:bookworm-slim
@@ -31,7 +31,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/bin/manabrew-server /usr/local/binmanabrew-server/
+COPY --from=builder /usr/local/bin/manabrew-server /usr/local/bin/manabrew-server
 
 ENV FORGE_HOST=0.0.0.0
 ENV FORGE_PORT=9443

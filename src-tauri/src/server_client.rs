@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
-use forge_agent_interface::protocol::StateEnvelope;
+use manabrew_agent_interface::protocol::StateEnvelope;
 use manabrew_server::protocol::ServerMessage;
 
 pub struct ServerClient {

@@ -58,7 +58,7 @@ WORKDIR /build
 
 # Copy workspace manifests for dependency caching
 COPY Cargo.toml Cargo.lock ./
-COPY manabrew-engine/ manabrew-engine/
+COPY manabrew-rs/ manabrew-rs/
 COPY public/preset_decks/ public/preset_decks/
 COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
 RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs

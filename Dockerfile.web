@@ -4,7 +4,7 @@
 # for all three public hostnames, and sets the COOP/COEP/CORP headers
 # SharedArrayBuffer requires.
 #
-# Build context: repo root (needs manabrew-engine/, src/, scripts/,
+# Build context: repo root (needs manabrew-rs/, src/, scripts/,
 # forge/forge-gui/res/cardsfolder/, public/preset_decks/, package.json, vite.config.ts)
 
 # --- Builder: Rust + Node to build WASM and bundle the Vite app ---
@@ -32,7 +32,7 @@ RUN corepack enable && yarn install --frozen-lockfile
 COPY Cargo.toml Cargo.lock ./
 # src-tauri is a workspace member; cargo metadata needs its manifest to resolve
 COPY src-tauri/ ./src-tauri/
-COPY manabrew-engine/ ./manabrew-engine/
+COPY manabrew-rs/ ./manabrew-rs/
 # tree-sitter-forge-card-script is also a workspace member (declared at the
 # repo root, not under manabrew-engine/) so cargo metadata fails without it.
 COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/

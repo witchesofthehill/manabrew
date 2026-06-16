@@ -4,8 +4,8 @@ use crate::game_manager::GameManager;
 use crate::multiplayer_controller::relay_response;
 use crate::preset_decks::{wire_deck_to_identities, PresetDeckInfo};
 use crate::server_client::ServerClient;
-use forge_agent_interface::deck_dto::Deck;
-use forge_agent_interface::prompt::PlayerAction;
+use manabrew_agent_interface::deck_dto::Deck;
+use manabrew_agent_interface::prompt::PlayerAction;
 use serde_json::Value;
 
 #[tauri::command]

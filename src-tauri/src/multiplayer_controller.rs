@@ -7,11 +7,11 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::network::{decode_relay_response, wrap_broadcast_state};
 use crate::server_client::ServerClient;
-use forge_agent_interface::game_log_event::GameLogEntryDto;
-use forge_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
-use forge_agent_interface::protocol::StateEnvelope;
+use manabrew_agent_interface::game_log_event::GameLogEntryDto;
+use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
+use manabrew_agent_interface::ids_codec::player_slot;
+use manabrew_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
+use manabrew_agent_interface::protocol::StateEnvelope;
 
 pub fn spawn_engine_prompt_forwarder(
     app: AppHandle,

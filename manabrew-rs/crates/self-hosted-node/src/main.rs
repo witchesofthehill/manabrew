@@ -10,16 +10,16 @@ mod engine_backend;
 
 use config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
 use engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
-use forge_agent_interface::deck_dto::Deck;
-use forge_agent_interface::ids_codec::{parse_player_slot, player_slot};
-use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
-use forge_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope,
-};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabot::{run_bot, AgentKind, BotConfig};
+use manabrew_agent_interface::deck_dto::Deck;
+use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
+use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::protocol::{
+    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
+    StateEnvelope,
+};
 use manabrew_engine::game::TypeRegistry;
 use serde::Deserialize;
 use serde_json::{json, Value};

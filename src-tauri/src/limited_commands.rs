@@ -1,6 +1,6 @@
-use forge_agent_interface::deck_dto::CardIdentity;
 use forge_foundation::sealed_product::PaperCard;
 use forge_limited::{CubeImporter, ThemedChaosDraft, CONSPIRACY_HOOKS};
+use manabrew_agent_interface::deck_dto::CardIdentity;
 use tauri::State;
 
 use crate::card_db::card_name_known;

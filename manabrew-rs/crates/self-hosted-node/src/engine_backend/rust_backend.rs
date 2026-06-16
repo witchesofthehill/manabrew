@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
-use forge_agent_interface::agent_impl::PromptAgent;
-use forge_agent_interface::deck_dto::Deck;
-use forge_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::agent_impl::PromptAgent;
+use manabrew_agent_interface::deck_dto::Deck;
+use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
 
 use crate::config::DeckSelection;
 use forge_carddb::CardDatabase;

@@ -1,13 +1,13 @@
 use std::time::Duration;
 
-use forge_agent_interface::ids_codec::player_slot;
-use forge_agent_interface::prompt::AgentPrompt;
-use forge_agent_interface::protocol::{
-    ClientMessage, GameFormat, RoomStatus, ServerMessage, StateEnvelope,
-};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabot::{BotAgent, SimpleAi};
+use manabrew_agent_interface::ids_codec::player_slot;
+use manabrew_agent_interface::prompt::AgentPrompt;
+use manabrew_agent_interface::protocol::{
+    ClientMessage, GameFormat, RoomStatus, ServerMessage, StateEnvelope,
+};
 use serde_json::{json, Value};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;

@@ -60,7 +60,7 @@ FROM rust:1.88-bookworm AS rust-builder
 WORKDIR /build
 
 COPY Cargo.toml Cargo.lock ./
-COPY manabrew-engine/ manabrew-engine/
+COPY manabrew-rs/ manabrew-rs/
 COPY public/preset_decks/ public/preset_decks/
 # Stub the non-engine workspace members cargo metadata validates (mirrors
 # manabrew-server's Dockerfile).

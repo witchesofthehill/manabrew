@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
-use forge_agent_interface::deck_dto::{Deck as WireDeck, DeckCard as WireDeckCard};
 use forge_foundation::ZoneType;
+use manabrew_agent_interface::deck_dto::{Deck as WireDeck, DeckCard as WireDeckCard};
 use manabrew_engine::card::CardInstance;
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::PlayerId;

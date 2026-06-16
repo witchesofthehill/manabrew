@@ -1,7 +1,7 @@
 pub mod java_backend;
 pub mod rust_backend;
 
-use forge_agent_interface::prompt::AgentMessage;
+use manabrew_agent_interface::prompt::AgentMessage;
 
 pub struct HostedGameOver {
     pub game_id: String,

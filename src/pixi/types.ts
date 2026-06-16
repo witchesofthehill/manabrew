@@ -85,6 +85,9 @@ export interface GameCanvasCallbacks {
   onAssignBlock?: (blockerId: string, attackerId: string) => void;
   /** Drag-to-unblock: a staged blocker was dragged back off its attacker. */
   onUnassignBlock?: (blockerId: string) => void;
+  /** Fires when a block-drag arms (blockerId) or ends (null), so the UI can
+   *  highlight the attackers that blocker may legally block. */
+  onBlockDragChange?: (blockerId: string | null) => void;
   onCastSpell?: (cardId: string) => void;
   /**
    * Dismiss the hover preview immediately (no 250ms grace). Used when

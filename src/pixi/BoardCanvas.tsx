@@ -194,6 +194,7 @@ export function BoardCanvas({
       onAttackerClick: (...a) => callbacksRef.current.onAttackerClick?.(...a),
       onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
       onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
+      onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),

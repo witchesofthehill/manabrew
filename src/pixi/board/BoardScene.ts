@@ -438,7 +438,15 @@ export class BoardScene {
    *  (press a blocker, drag onto an attacker). */
   setDeclareBlockers(active: boolean): void {
     this.declareBlockers = active;
-    if (!active) this.blockDragBlockerId = null;
+    if (!active) this.setBlockDragId(null);
+  }
+
+  /** Set the in-progress block-drag blocker and notify the UI so it can
+   *  highlight the attackers this blocker may legally block. */
+  private setBlockDragId(id: string | null): void {
+    if (this.blockDragBlockerId === id) return;
+    this.blockDragBlockerId = id;
+    this.callbacks.onBlockDragChange?.(id);
   }
 
   setPhaseStripState(state: PhaseStripState): void {
@@ -682,7 +690,7 @@ export class BoardScene {
           isAttackerTap(region?.getLastState() ?? null, sprite.card.id)
         ) {
           this.callbacks.onAssignBlock?.(this.blockDragBlockerId, sprite.card.id);
-          this.blockDragBlockerId = null;
+          this.setBlockDragId(null);
         }
       });
     }
@@ -747,7 +755,7 @@ export class BoardScene {
     // arms a block-drag (an arrow to the cursor) instead of a grid move. The
     // drop is resolved by the attacker sprite's pointerup.
     if (this.declareBlockers && local.getLastState()?.selectableCardIds?.includes(sprite.card.id)) {
-      this.blockDragBlockerId = sprite.card.id;
+      this.setBlockDragId(sprite.card.id);
       this.callbacks.onHoverCard?.(null);
       this.callbacks.onDismissHoverPreview?.();
       return;
@@ -829,7 +837,7 @@ export class BoardScene {
     // onUnassignBlock is a no-op when the blocker wasn't assigned.
     if (this.blockDragBlockerId) {
       this.callbacks.onUnassignBlock?.(this.blockDragBlockerId);
-      this.blockDragBlockerId = null;
+      this.setBlockDragId(null);
       return;
     }
     const local = this.localRegion();

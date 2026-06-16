@@ -255,6 +255,9 @@ export function GameBoard({
   const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
+  // Blocker currently being dragged onto an attacker (mirrors the Pixi drag
+  // state) so the legal-attacker highlight applies during drag-to-block too.
+  const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
 
   // Cards currently attacking — gates combat staging so it self-clears when
   // combat ends (combined with any mid-selection local blocks).
@@ -334,9 +337,9 @@ export function GameBoard({
             pendingAttacker
             ? (chooseBlockersPrompt?.input.attackers.find((a) => a.attackerId === pendingAttacker)
                 ?.validBlockerIds ?? [])
-            : pendingBlocker
+            : (pendingBlocker ?? dragBlockerId)
               ? (chooseBlockersPrompt?.input.attackers
-                  .filter((a) => a.validBlockerIds.includes(pendingBlocker))
+                  .filter((a) => a.validBlockerIds.includes((pendingBlocker ?? dragBlockerId)!))
                   .map((a) => a.attackerId) ?? [])
               : chooseBlockersPrompt?.input.availableBlockerIds
           : promptType === "chooseDamageAssignmentOrder"
@@ -357,6 +360,7 @@ export function GameBoard({
       pendingAttackers,
       pendingAttacker,
       pendingBlocker,
+      dragBlockerId,
       chooseBlockersPrompt,
       damageOrderBlockerIds,
       chooseTargetCardPrompt,
@@ -468,6 +472,7 @@ export function GameBoard({
       onAttackerClick,
       onAssignBlock,
       onUnassignBlock,
+      onBlockDragChange: setDragBlockerId,
     }),
     [
       promptType,

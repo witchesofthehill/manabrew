@@ -56,7 +56,7 @@ const COUNTER_CONFIG: Record<string, CounterConfig> = {
     title: "Depletion",
   },
   Page: { iconName: "scroll-unfurled", label: "Page", colorKey: "page", title: "Page" },
-  Shield: { iconName: "shield", label: "Shield", colorKey: "shield", title: "Shield" },
+  Shield: { iconName: "round-shield", label: "Shield", colorKey: "shield", title: "Shield" },
 };
 
 function getCounterConfig(type: string): CounterConfig {

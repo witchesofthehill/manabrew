@@ -27,6 +27,7 @@ import {
   BG_ALPHA_IDLE,
   CARD_RADIUS,
   COMBAT_DIM_ALPHA,
+  COMBAT_DIM_TINT_LEVEL,
   DAMAGE_SHAKE_AMP_PX,
   DAMAGE_SHAKE_FRAMES,
   EXIT_FADE_LERP,
@@ -333,13 +334,28 @@ export class BoardRegion {
       // doesn't snap a dimmed/phased card back to 1 and re-fade it (flicker).
       // Fade non-combatants during combat so attackers/blockers stand out;
       // the hovered card stays lit so it can still be inspected.
-      const faded =
-        s.card.phasedOut ||
-        (this.combatDim &&
-          this.hoveredCardId !== s.card.id &&
-          !this.isCombatant(s.card) &&
-          !this.lastState?.selectableCardIds?.includes(s.card.id));
-      s.alpha = lerp(s.alpha, faded ? COMBAT_DIM_ALPHA : 1, OVERLAY_FADE_LERP, SNAP_ALPHA);
+      // Combat dim darkens (tint) rather than fades, so overlapping stacked
+      // cards don't show through one another. Phased-out keeps a real fade.
+      const dimmed =
+        this.combatDim &&
+        this.hoveredCardId !== s.card.id &&
+        !this.isCombatant(s.card) &&
+        !this.lastState?.selectableCardIds?.includes(s.card.id);
+      const curBright = (s.tint & 0xff) / 255;
+      const nextBright = lerp(
+        curBright,
+        dimmed ? COMBAT_DIM_TINT_LEVEL : 1,
+        OVERLAY_FADE_LERP,
+        0.01,
+      );
+      const ch = Math.round(nextBright * 255);
+      s.tint = (ch << 16) | (ch << 8) | ch;
+      s.alpha = lerp(
+        s.alpha,
+        s.card.phasedOut ? COMBAT_DIM_ALPHA : 1,
+        OVERLAY_FADE_LERP,
+        SNAP_ALPHA,
+      );
 
       if (entry.etbGlowAlpha > 0) {
         entry.etbGlowAlpha = lerp(entry.etbGlowAlpha, 0, OVERLAY_FADE_LERP, SNAP_ALPHA);

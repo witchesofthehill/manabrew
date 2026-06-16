@@ -115,9 +115,12 @@ export const Z_STAGED_REGION = 8000;
 // Phase strip opacity while combat staging is active — dimmed so the staged
 // cards crossing the center band read clearly on top of it.
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
-// Opacity of non-combat cards while a combat is in progress, so attackers and
-// blockers stand out. Hovered cards and combatants stay at full opacity.
+// Opacity of phased-out cards (a genuine ghostly fade).
 export const COMBAT_DIM_ALPHA = 0.3;
+// Brightness of non-combat cards while combat is in progress (a darkening tint,
+// 1 = full color). Tint rather than alpha so overlapping stacked cards don't
+// show through each other. Combatants and the hovered card stay at full bright.
+export const COMBAT_DIM_TINT_LEVEL = 0.42;
 // Red wash laid over a creature the combat preview predicts will die, so the
 // "lethal" state reads as a doomed card rather than just another red ring
 // (pt.lethal shares the attacker-ring red).

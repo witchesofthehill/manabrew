@@ -100,6 +100,9 @@ export class BoardRegion {
   private combatStaging: SceneCombatStaging | null = null;
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
+  // The cell under the cursor during a permanent cast-drag; committed to
+  // pendingDropSlot on release so the cast card lands where it was dropped.
+  private lastDropCell: { col: number; row: number } | null = null;
   private hoveredCardId: string | null = null;
   private dropActive = false;
   private autoSort = false;
@@ -221,6 +224,14 @@ export class BoardRegion {
   setDropActive(active: boolean): void {
     if (this.dropActive === active) return;
     this.dropActive = active;
+    if (active) {
+      this.lastDropCell = null;
+    } else {
+      // Drop released: land the cast card in the cell it was dropped on.
+      this.pendingDropSlot = this.lastDropCell;
+      this.lastDropCell = null;
+      this.hideGridSkeleton();
+    }
     this.drawBackground();
   }
 
@@ -1163,6 +1174,8 @@ export class BoardRegion {
     gfx.clear();
 
     const hoveredCell = cellFromPoint(grid, localX, localY);
+    this.lastDropCell =
+      hoveredCell && !hoveredCell.blocked ? { col: hoveredCell.col, row: hoveredCell.row } : null;
     const hoveredKey =
       hoveredCell && !hoveredCell.blocked ? cellKey(hoveredCell.col, hoveredCell.row) : null;
 
@@ -1184,6 +1197,8 @@ export class BoardRegion {
   /** Highlight the whole play zone (instant/sorcery cast drag — there's no
    *  grid slot, the spell just goes to the stack). */
   drawDropField(): void {
+    // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
+    this.lastDropCell = null;
     const zone = this.usableZone();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
     const pad = GAP * 2;

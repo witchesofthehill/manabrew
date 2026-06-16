@@ -53,10 +53,10 @@ If you cloned without `--recurse-submodules`, set it up before building:
 git submodule update --init --recursive
 ```
 
-### Update card data
+### Update the submodule
 
 New cards land in the `forge` submodule (it tracks the `manabrew` branch). Pull
-the latest scripts and rebuild the bundled card archives:
+the latest commit and rebuild the bundled card archives:
 
 ```bash
 git submodule update --remote forge

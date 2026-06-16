@@ -79,9 +79,17 @@ export function useCombatState({
     currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.attackers : [];
   const blockError =
     currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.error : undefined;
+  // An attacker whose minimum can't be met by its legal blockers can't be
+  // blocked at all (e.g. "all creatures must block it" while one is tapped).
+  // Treat it as unblockable so a partial assignment can't dead-end the
+  // declaration with the Block button stuck disabled.
+  const attackerIsBlockable = (a: { validBlockerIds: string[]; minBlockers: number }): boolean =>
+    a.validBlockerIds.length >= a.minBlockers;
   const canBlock = (blockerId: string, attackerId: string): boolean => {
     const attacker = blockableAttackers.find((a) => a.attackerId === attackerId);
-    return !!attacker && attacker.validBlockerIds.includes(blockerId);
+    return (
+      !!attacker && attackerIsBlockable(attacker) && attacker.validBlockerIds.includes(blockerId)
+    );
   };
 
   // First attacker whose current block count breaks its min/max requirement

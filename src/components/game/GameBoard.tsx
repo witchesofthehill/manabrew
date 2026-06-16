@@ -335,11 +335,17 @@ export function GameBoard({
             // lights the attackers it may legally block; otherwise every
             // available blocker.
             pendingAttacker
-            ? (chooseBlockersPrompt?.input.attackers.find((a) => a.attackerId === pendingAttacker)
-                ?.validBlockerIds ?? [])
+            ? (chooseBlockersPrompt?.input.attackers.find(
+                (a) =>
+                  a.attackerId === pendingAttacker && a.validBlockerIds.length >= a.minBlockers,
+              )?.validBlockerIds ?? [])
             : (pendingBlocker ?? dragBlockerId)
               ? (chooseBlockersPrompt?.input.attackers
-                  .filter((a) => a.validBlockerIds.includes((pendingBlocker ?? dragBlockerId)!))
+                  .filter(
+                    (a) =>
+                      a.validBlockerIds.length >= a.minBlockers &&
+                      a.validBlockerIds.includes((pendingBlocker ?? dragBlockerId)!),
+                  )
                   .map((a) => a.attackerId) ?? [])
               : chooseBlockersPrompt?.input.availableBlockerIds
           : promptType === "chooseDamageAssignmentOrder"

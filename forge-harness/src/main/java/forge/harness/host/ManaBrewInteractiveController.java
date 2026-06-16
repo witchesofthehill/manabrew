@@ -15,6 +15,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import forge.LobbyPlayer;
+import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilCost;
 import forge.card.ColorSet;
@@ -113,11 +114,15 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public CardCollection tuckCardsViaMulligan(final Player mulliganingPlayer, final int cardsToReturn) {
+    public CardCollection tuckCardsViaMulligan(final CardCollectionView hand, final int cardsToReturn) {
         return new CardCollection();
     }
 
     @Override
+    public CostDecisionMakerBase getCostDecisionMaker(Player player, SpellAbility ability, boolean effect, String prompt) {
+        return new AiCostDecision(player, ability, effect);
+    }
+
     public boolean confirmMulliganScry(final Player p) {
         return session.awaitBooleanChoice(
                 "confirm_action", me(), "Scry 1 after mulligan?", null, "confirm_mulligan_scry", null, null);
@@ -213,6 +218,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return;
         }
         playPlumbing.playNoStack(player, effectSA, getGame(), true);
+    }
+
+    @Override
+    public List<SpellAbility> orderSimultaneousSa(final List<SpellAbility> activePlayerSAs) {
+        return playPlumbing.orderSimultaneousSa(activePlayerSAs);
     }
 
     @Override
@@ -611,7 +621,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public CardCollection chooseCardsToDiscardFrom(
-            final Player playerDiscard, final SpellAbility sa, final CardCollection validCards, final int min, final int max) {
+            final Player playerDiscard, final SpellAbility sa, final CardCollection validCards, final int min, final int max,
+            final CardCollectionView visibleToChooser) {
         return session.awaitCardChoice("choose_discard", me(), validCards, min, max);
     }
 
@@ -623,8 +634,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public CardCollectionView chooseCardsToDiscardUnlessType(
-            final int min, final CardCollectionView hand, final String param, final SpellAbility sa) {
-        final String[] splitUTypes = param.split(",");
+            final int min, final CardCollectionView hand, final String[] unlessTypes, final SpellAbility sa) {
         final int max = Math.min(min, hand.size());
         if (max == 0) {
             return session.awaitCardChoice("choose_discard", me(), hand, 0, 0, sourceName(sa), null);
@@ -633,11 +643,22 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         while (guard++ < 512) {
             final CardCollection chosen =
                     session.awaitCardChoice("choose_discard", me(), hand, 1, max, sourceName(sa), null);
-            if (chosen.size() >= max || containsType(chosen, splitUTypes, sa)) {
+            if (chosen.size() >= max || containsType(chosen, unlessTypes, sa)) {
                 return chosen;
             }
         }
         return new CardCollection(new CardCollection(hand).subList(0, max));
+    }
+
+    @Override
+    public CardCollectionView chooseCardsForCost(final CardCollectionView optionList, final SpellAbility sa,
+            final CostPartWithList cpl, final int amount, final boolean isOptional, final String prompt) {
+        final CardCollection selected =
+                session.awaitCardChoice("choose_cards_for_cost", me(), optionList, amount, amount, sourceName(sa), prompt);
+        if (isOptional && selected.size() != amount) {
+            return null;
+        }
+        return selected;
     }
 
     private static boolean containsType(final CardCollection chosen, final String[] splitUTypes, final SpellAbility sa) {
@@ -1035,7 +1056,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public StaticAbility chooseSingleStaticAbility(final String prompt, final List<StaticAbility> possibleReplacers) {
+    public StaticAbility chooseSingleStaticAbility(final List<StaticAbility> possibleReplacers) {
         return possibleReplacers == null || possibleReplacers.isEmpty() ? null : possibleReplacers.get(0);
     }
 
@@ -1176,7 +1197,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public boolean chooseFlipResult(final SpellAbility sa, final Player flipper, final boolean[] results, final boolean call) {
+    public boolean chooseFlipResult(final SpellAbility sa, final Player flipper, final boolean call) {
         final List<String> labels = call
                 ? Lists.newArrayList("heads", "tails")
                 : Lists.newArrayList("win the flip", "lose the flip");
@@ -1325,11 +1346,13 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public Integer announceRequirements(final SpellAbility ability, final String announce) {
+    public Integer announceRequirements(final SpellAbility ability, final int min, final int max, final String announce) {
         final int[] bounds = EngineHandler.announceBounds(player, ability, announce);
         if (bounds == null) {
             return null;
         }
+        bounds[0] = Math.max(bounds[0], min);
+        bounds[1] = Math.min(bounds[1], max);
         if (bounds[0] >= bounds[1]) {
             return bounds[0];
         }
@@ -1422,11 +1445,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public int chooseSprocket(final Card assignee, final boolean forceDifferent) {
-        final List<Integer> options = new ArrayList<>(List.of(1, 2, 3));
-        if (forceDifferent && assignee != null) {
-            options.remove(Integer.valueOf(assignee.getSprocket()));
-        }
+    public int chooseSprocket(final Card assignee, final List<Integer> sprockets) {
+        final List<Integer> options = sprockets == null ? new ArrayList<>(List.of(1, 2, 3)) : new ArrayList<>(sprockets);
         return chooseNumber(null, "Choose sprocket", options, null);
     }
 
@@ -1441,9 +1461,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public String chooseProtectionType(final String string, final SpellAbility sa, final List<String> choices) {
+    public String chooseProtectionType(final SpellAbility sa, final List<String> choices) {
         final List<String> options = choices == null ? new ArrayList<>() : new ArrayList<>(choices);
-        final String chosen = session.awaitStringChoice("choose_type", me(), options, sourceName(sa), string == null ? "Protection" : string);
+        final String chosen = session.awaitStringChoice("choose_type", me(), options, sourceName(sa), "Protection");
         return EngineHandler.validateOption(chosen, options, false);
     }
 
@@ -1565,7 +1585,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     @Override
-    public boolean payCostDuringRoll(final Cost cost, final SpellAbility sa, final FCollectionView<Player> allPayers) {
+    public boolean payCostDuringRoll(final Cost cost, final SpellAbility sa) {
         probingPayability = true;
         try {
             if (!ComputerUtilCost.canPayCost(cost, sa, player, true)) {
@@ -1591,6 +1611,20 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     // ── Mana payment (interactive) ────────────────────────────────────
+
+    @Override
+    public boolean applyManaToCost(
+            final ManaCostBeingPaid toPay,
+            final SpellAbility ability,
+            final String prompt,
+            final ManaConversionMatrix matrix,
+            final boolean effect
+    ) {
+        if (ability != null) {
+            applyManaConversionMatrix(matrix, ability);
+        }
+        return autoPay.payManaCost(toPay.toManaCost(), ability, effect);
+    }
 
     @Override
     public boolean payManaCost(

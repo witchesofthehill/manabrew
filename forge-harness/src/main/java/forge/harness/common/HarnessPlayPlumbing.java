@@ -256,7 +256,7 @@ public final class HarnessPlayPlumbing {
             for (final String aVar : announce.split(",")) {
                 final String varName = aVar.trim();
 
-                final Integer value = controller.announceRequirements(ability, varName);
+                final Integer value = controller.announceRequirements(ability, 0, Integer.MAX_VALUE, varName);
                 if (value == null) {
                     return false;
                 }
@@ -276,7 +276,7 @@ public final class HarnessPlayPlumbing {
                 final String sVar = ability.getParamOrDefault("XAlternative", ability.getSVar("X"));
                 boolean replacedXshard = ability.isSpell() && ability.getHostCard().getManaCost().countX() > 0 && !cost.hasXInAnyCostPart();
                 if (("Count$xPaid".equals(sVar) && !replacedXshard) || sVar.isEmpty()) {
-                    final Integer value = controller.announceRequirements(ability, "X");
+                    final Integer value = controller.announceRequirements(ability, 0, Integer.MAX_VALUE, "X");
                     if (value == null) {
                         return false;
                     }
@@ -422,13 +422,13 @@ public final class HarnessPlayPlumbing {
         return sa.setupTargets();
     }
 
-    public void orderAndPlaySimultaneousSa(List<SpellAbility> activePlayerSAs, final Game game) {
-        // Sort simultaneous triggers deterministically by host card zone-entry
-        // timestamp, with trigger ID as tiebreaker.  The engine's
-        // TriggerWaiting stores triggers in a HashMap which does not preserve
-        // insertion order; re-sorting here in the harness avoids modifying the
-        // engine's TriggerWaiting.java while matching the Rust engine's
-        // zone_timestamp ordering.
+    // Sort simultaneous triggers deterministically by host card zone-entry
+    // timestamp, with trigger ID as tiebreaker.  The engine's
+    // TriggerWaiting stores triggers in a HashMap which does not preserve
+    // insertion order; re-sorting here in the harness avoids modifying the
+    // engine's TriggerWaiting.java while matching the Rust engine's
+    // zone_timestamp ordering.
+    public List<SpellAbility> orderSimultaneousSa(List<SpellAbility> activePlayerSAs) {
         activePlayerSAs.sort((a, b) -> {
             long tsA = a.getHostCard().getGameTimestamp();
             long tsB = b.getHostCard().getGameTimestamp();
@@ -437,6 +437,11 @@ public final class HarnessPlayPlumbing {
             int idB = b.isTrigger() ? b.getTrigger().getId() : -1;
             return Integer.compare(idA, idB);
         });
+        return activePlayerSAs;
+    }
+
+    public void orderAndPlaySimultaneousSa(List<SpellAbility> activePlayerSAs, final Game game) {
+        orderSimultaneousSa(activePlayerSAs);
         for (final SpellAbility sa : activePlayerSAs) {
             if (sa.isTrigger() && !sa.isCopied()) {
                 boolean prepared = prepareSingleSa(sa.getHostCard(), sa, true);

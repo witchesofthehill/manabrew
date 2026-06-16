@@ -34,7 +34,7 @@ futures-util = "0.3"
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server" }
 manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interface" }
 manabot = { path = "../manabrew-rs/crates/manabot/" }
-manabrew_game_runtime = { path = "../manabrew-rs/crates/manabrew_game_runtime" }
+manabrew_game_runtime = { path = "../manabrew-rs/crates/manabrew-game-runtime" }
 forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
 tauri-plugin-http = "2.5.9"
 j4rs = { version = "0.25.1", optional = true }

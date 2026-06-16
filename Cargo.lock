@@ -2069,21 +2069,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
-name = "manabot"
-version = "0.1.0"
-dependencies = [
- "futures-util",
- "manabrew-agent-interface",
- "manabrew-engine",
- "manabrew-protocol",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "tracing",
-]
-
-[[package]]
 name = "forge-card-script"
 version = "0.1.0"
 dependencies = [
@@ -2134,18 +2119,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "manabrew-game-runtime"
-version = "0.1.0"
-dependencies = [
- "forge-carddb",
- "forge-foundation",
- "manabrew-agent-interface",
- "manabrew-engine",
- "rand 0.8.6",
- "tracing",
-]
-
-[[package]]
 name = "forge-limited"
 version = "0.1.0"
 dependencies = [
@@ -2155,31 +2128,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "wasm"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "manabot",
- "forge-carddb",
- "forge-cardset-archive",
- "forge-foundation",
- "manabrew-game-runtime",
- "forge-limited",
- "getrandom 0.2.17",
- "js-sys",
- "manabrew-agent-interface",
- "manabrew-engine",
- "rand 0.8.6",
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "wasm-bindgen-test",
- "web-sys",
 ]
 
 [[package]]
@@ -3683,20 +3631,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "manabot"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "manabrew-protocol",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
 name = "manabrew"
 version = "0.3.0"
 dependencies = [
- "manabot",
  "forge-carddb",
  "forge-cardset-archive",
  "forge-foundation",
- "manabrew-game-runtime",
  "forge-limited",
  "futures-util",
  "j4rs",
+ "manabot",
  "manabrew-agent-interface",
  "manabrew-engine",
  "manabrew-server",
+ "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
  "serde",
@@ -3779,6 +3742,18 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "manabrew_game_runtime"
+version = "0.1.0"
+dependencies = [
+ "forge-carddb",
+ "forge-foundation",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "rand 0.8.6",
+ "tracing",
 ]
 
 [[package]]
@@ -5962,13 +5937,13 @@ dependencies = [
 name = "self-hosted-node"
 version = "0.1.0"
 dependencies = [
- "manabot",
  "forge-carddb",
  "forge-foundation",
- "manabrew-game-runtime",
  "futures-util",
+ "manabot",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
  "serde",
@@ -7948,6 +7923,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5428f8bf88ea5ddc08faddef2ac4a67e390b88186c703ce6dbd955e1c145aca5"
 dependencies = [
  "wit-bindgen",
+]
+
+[[package]]
+name = "wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "forge-carddb",
+ "forge-cardset-archive",
+ "forge-foundation",
+ "forge-limited",
+ "getrandom 0.2.17",
+ "js-sys",
+ "manabot",
+ "manabrew-agent-interface",
+ "manabrew-engine",
+ "manabrew_game_runtime",
+ "rand 0.8.6",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "web-sys",
 ]
 
 [[package]]

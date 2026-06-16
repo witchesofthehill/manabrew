@@ -36,7 +36,7 @@ const STAMP_FILE = join(projectRoot, "src/wasm/.build-stamp.json");
 const CONTENT_HASH_FILES = ["Cargo.toml", "Cargo.lock", "scripts/build-wasm.mjs"];
 
 const CONTENT_HASH_DIRS = [
-  { root: "manabrew-engine", match: (p) => p.endsWith(".rs") || p.endsWith("Cargo.toml") },
+  { root: "manabrew-rs/crates", match: (p) => p.endsWith(".rs") || p.endsWith("Cargo.toml") },
 ];
 
 const MANIFEST_HASH_DIRS = [

@@ -6,11 +6,7 @@ import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 
 /** Prompt types that are part of the spell-casting flow. */
 const CASTING_PROMPT_TYPES = new Set([
-  "chooseTargetCard",
-  "chooseTargetPlayer",
-  "chooseTargetAny",
-  "chooseTargetCardFromZone",
-  "chooseTargetSpell",
+  "chooseBoardTargets",
   "payManaCost",
   "payCombatCost",
   "chooseDelve",
@@ -18,8 +14,6 @@ const CASTING_PROMPT_TYPES = new Set([
   "chooseImprovise",
   "specifyManaCombo",
 ]);
-
-type TargetAnyChoice = Extract<PromptOutput, { type: "targetAny" }>["target"];
 
 interface UseCastingStateOptions {
   currentPrompt: Prompt | null | undefined;
@@ -44,15 +38,8 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
 
   // Whether the engine says the current effect is hostile
   const targetingInput =
-    currentPrompt?.input.type === "chooseTargetCard" ||
-    currentPrompt?.input.type === "chooseTargetPlayer" ||
-    currentPrompt?.input.type === "chooseTargetAny" ||
-    currentPrompt?.input.type === "chooseTargetCardFromZone" ||
-    currentPrompt?.input.type === "chooseTargetSpell"
-      ? currentPrompt.input
-      : null;
-  const promptHostile =
-    targetingInput != null && "hostile" in targetingInput ? (targetingInput.hostile ?? true) : true;
+    currentPrompt?.input.type === "chooseBoardTargets" ? currentPrompt.input : null;
+  const promptHostile = targetingInput?.hostile ?? true;
   const promptIntent =
     targetingInput?.intent ?? (promptHostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
 
@@ -69,55 +56,50 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     };
   }, [castingCardId]);
 
-  // Whether we're in the targeting phase (arrow follows cursor). Zone targets
-  // are chosen from a modal, not the board, so they never enter arrow mode.
-  const isTargeting =
-    (promptType?.startsWith("chooseTarget") ?? false) && promptType !== "chooseTargetCardFromZone";
+  // Whether we're in the targeting phase (arrow follows cursor).
+  const isTargeting = promptType === "chooseBoardTargets";
 
   // Arrow hostility: use locked value if target chosen, else prompt value
   const arrowHostile = targetId ? targetHostile : promptHostile;
   const arrowIntent: TargetingIntent = targetId ? targetIntent : promptIntent;
 
-  // Wrapped target actions that record the chosen target
+  const lockTarget = useCallback(
+    (kind: "card" | "player", id: string) => {
+      if (!castingCardId) return;
+      setTargetId(id);
+      setTargetHostile(promptHostile);
+      setTargetIntent(promptIntent);
+      useTargetIntentStore.getState().setIntent(castingCardId, { kind, id });
+    },
+    [castingCardId, promptHostile, promptIntent],
+  );
+
   const wrappedTargetCard = useCallback(
     (cardId: string | null) => {
-      if (cardId && castingCardId) {
-        setTargetId(cardId);
-        setTargetHostile(promptHostile);
-        setTargetIntent(promptIntent);
-        useTargetIntentStore.getState().setIntent(castingCardId, { kind: "card", id: cardId });
-      }
-      respond({ type: "targetCard", cardId });
+      if (cardId) lockTarget("card", cardId);
+      respond({ type: "boardTargets", chosen: cardId ? [{ kind: "card", id: cardId }] : [] });
     },
-    [respond, castingCardId, promptHostile, promptIntent],
+    [respond, lockTarget],
   );
 
   const wrappedTargetPlayer = useCallback(
     (playerId: string) => {
-      if (castingCardId) {
-        setTargetId(playerId);
-        setTargetHostile(promptHostile);
-        setTargetIntent(promptIntent);
-        useTargetIntentStore.getState().setIntent(castingCardId, { kind: "player", id: playerId });
-      }
-      respond({ type: "targetPlayer", playerId });
+      lockTarget("player", playerId);
+      respond({ type: "boardTargets", chosen: [{ kind: "player", id: playerId }] });
     },
-    [respond, castingCardId, promptHostile, promptIntent],
+    [respond, lockTarget],
   );
 
-  const wrappedTargetAny = useCallback(
-    (target: TargetAnyChoice) => {
-      if (castingCardId && target.kind !== "none") {
-        const id = target.kind === "card" ? target.cardId : target.playerId;
-        setTargetHostile(promptHostile);
-        setTargetIntent(promptIntent);
-        setTargetId(id);
-        useTargetIntentStore.getState().setIntent(castingCardId, { kind: target.kind, id });
-      }
-      respond({ type: "targetAny", target });
+  const wrappedTargetSpell = useCallback(
+    (spellId: string | null) => {
+      respond({ type: "boardTargets", chosen: spellId ? [{ kind: "spell", id: spellId }] : [] });
     },
-    [respond, castingCardId, promptHostile, promptIntent],
+    [respond],
   );
+
+  const declineTargets = useCallback(() => {
+    respond({ type: "boardTargets", chosen: [] });
+  }, [respond]);
 
   return {
     /** The card ID being cast, or null. */
@@ -135,6 +117,7 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     /** Wrapped target actions that track the chosen target. */
     wrappedTargetCard,
     wrappedTargetPlayer,
-    wrappedTargetAny,
+    wrappedTargetSpell,
+    declineTargets,
   };
 }

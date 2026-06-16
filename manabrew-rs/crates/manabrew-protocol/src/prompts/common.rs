@@ -69,6 +69,19 @@ pub enum TargetAnyChoice {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum TargetRef {
+    Player { id: String },
+    Card { id: String },
+    Spell { id: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
 pub struct FirstPlayerRollEntry {

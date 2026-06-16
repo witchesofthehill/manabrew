@@ -18,7 +18,7 @@ use crate::game_view_dto::{GameViewDto, GameViewDtoExt};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::prompt::{
     AgentMessage, AgentPrompt, AvailableAction, AvailableActionKind, DisplayEvent, PlayOptionDto,
-    PlayerAction, PromptInput, StateUpdate,
+    PlayerAction, PromptInput, StateUpdate, TargetRef,
 };
 
 mod choices;
@@ -254,25 +254,30 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
-            PlayerAction::TargetCard { card_id } => card_id.and_then(|id| parse_card_id(&id)),
+            PlayerAction::BoardTargets { chosen } => chosen.into_iter().find_map(|r| match r {
+                TargetRef::Card { id } => parse_card_id(&id),
+                _ => None,
+            }),
             _ => valid.first().copied(),
         }
     }
 
     pub(crate) fn recv_player_choice_or_first(&mut self, valid: &[PlayerId]) -> Option<PlayerId> {
         match self.recv_action() {
-            PlayerAction::TargetPlayer { player_id } => {
-                player_id.and_then(|id| parse_player_id(&id))
-            }
+            PlayerAction::BoardTargets { chosen } => chosen.into_iter().find_map(|r| match r {
+                TargetRef::Player { id } => parse_player_id(&id),
+                _ => None,
+            }),
             _ => valid.first().copied(),
         }
     }
 
     pub(crate) fn recv_spell_choice_or_first(&mut self, valid: &[u32]) -> Option<u32> {
         match self.recv_action() {
-            PlayerAction::TargetSpell { spell_id } => {
-                spell_id.and_then(|id| crate::ids_codec::parse_stack_id(&id))
-            }
+            PlayerAction::BoardTargets { chosen } => chosen.into_iter().find_map(|r| match r {
+                TargetRef::Spell { id } => crate::ids_codec::parse_stack_id(&id),
+                _ => None,
+            }),
             _ => valid.first().copied(),
         }
     }

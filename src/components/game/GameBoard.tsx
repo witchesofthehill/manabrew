@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GameCard, Player } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
+import type { BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
@@ -61,6 +62,7 @@ interface GameBoardProps {
   // Prompt state
   promptType?: PromptType;
   currentPrompt: Prompt | null;
+  boardTargets: BoardTargetBuckets | null;
 
   // Combat state
   pendingAttackers: string[];
@@ -168,6 +170,7 @@ export function GameBoard({
   step,
   promptType,
   currentPrompt,
+  boardTargets,
   pendingAttackers,
   pendingBlocker,
   damageOrder,
@@ -243,13 +246,11 @@ export function GameBoard({
 
   const CLUSTER_GAP_FROM_HAND_PX = 12;
   const CLUSTER_MIN_WIDTH_PX = 120;
-  const isTargetingPrompt = promptType === "chooseTargetCard" || promptType === "chooseTargetAny";
+  const isTargetingPrompt = promptType === "chooseBoardTargets";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
   const chooseAttackersPrompt = promptOf(currentPrompt, "chooseAttackers");
   const chooseBlockersPrompt = promptOf(currentPrompt, "chooseBlockers");
-  const chooseTargetCardPrompt = promptOf(currentPrompt, "chooseTargetCard");
-  const chooseTargetAnyPrompt = promptOf(currentPrompt, "chooseTargetAny");
-  const chooseTargetCardFromZonePrompt = promptOf(currentPrompt, "chooseTargetCardFromZone");
+  const boardTargetsPrompt = promptOf(currentPrompt, "chooseBoardTargets");
   const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackerIds;
@@ -298,27 +299,9 @@ export function GameBoard({
   const chooseActionAbilityCardIds = chooseActionActions
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);
-  const hostileTargeting =
-    chooseTargetCardPrompt?.input.hostile ?? chooseTargetAnyPrompt?.input.hostile ?? false;
-  const targetCardIds = new Set(
-    promptType === "chooseTargetCard"
-      ? (chooseTargetCardPrompt?.input.validCardIds ?? [])
-      : promptType === "chooseTargetAny"
-        ? (chooseTargetAnyPrompt?.input.validCardIds ?? [])
-        : [],
-  );
-  const targetZoneCardIds = (zone: string): string[] => {
-    if (promptType === "chooseTargetCard" || promptType === "chooseTargetAny") {
-      return [...targetCardIds];
-    }
-    if (
-      promptType === "chooseTargetCardFromZone" &&
-      chooseTargetCardFromZonePrompt?.input.zone === zone
-    ) {
-      return chooseTargetCardFromZonePrompt.input.validCardIds;
-    }
-    return [];
-  };
+  const hostileTargeting = boardTargetsPrompt?.input.hostile ?? false;
+  const targetZoneCardIds = (zone: string): string[] =>
+    boardTargets?.zone?.zone === zone ? boardTargets.zone.validCardIds : [];
   const commandTargetIds = targetZoneCardIds("Command");
   const graveyardTargetIds = targetZoneCardIds("Graveyard");
   const exileTargetIds = targetZoneCardIds("Exile");
@@ -341,25 +324,18 @@ export function GameBoard({
           ? chooseBlockersPrompt?.input.availableBlockerIds
           : promptType === "chooseDamageAssignmentOrder"
             ? damageOrderBlockerIds
-            : promptType === "chooseTargetCard"
-              ? chooseTargetCardPrompt?.input.validCardIds
-              : promptType === "chooseTargetAny"
-                ? chooseTargetAnyPrompt?.input.validCardIds
-                : promptType === "chooseTargetCardFromZone" &&
-                    chooseTargetCardFromZonePrompt?.input.zone === "Battlefield"
-                  ? chooseTargetCardFromZonePrompt.input.validCardIds
-                  : promptType === "chooseAction"
-                    ? chooseActionAbilityCardIds
-                    : undefined,
+            : promptType === "chooseBoardTargets"
+              ? boardTargets?.battlefieldCardIds
+              : promptType === "chooseAction"
+                ? chooseActionAbilityCardIds
+                : undefined,
     [
       promptType,
       chooseAttackersPrompt,
       pendingAttackers,
       chooseBlockersPrompt,
       damageOrderBlockerIds,
-      chooseTargetCardPrompt,
-      chooseTargetAnyPrompt,
-      chooseTargetCardFromZonePrompt,
+      boardTargets,
       chooseActionAbilityCardIds,
     ],
   );
@@ -434,9 +410,7 @@ export function GameBoard({
         promptType === "chooseAction" ||
         promptType === "chooseAttackers" ||
         promptType === "chooseBlockers" ||
-        promptType === "chooseTargetCard" ||
-        promptType === "chooseTargetCardFromZone" ||
-        promptType === "chooseTargetAny"
+        promptType === "chooseBoardTargets"
           ? onBattlefieldClick
           : undefined,
       onHoverCard: (card, bounds) => {
@@ -778,10 +752,7 @@ export function GameBoard({
             onOpenZone("Your Graveyard", graveyard, onTargetFromZone, graveyardTargetIds);
             return;
           }
-          if (
-            promptType === "chooseTargetCardFromZone" &&
-            chooseTargetCardFromZonePrompt?.input.zone === "Graveyard"
-          ) {
+          if (boardTargets?.zone?.zone === "Graveyard") {
             onReopenZoneTarget();
             return;
           }
@@ -796,10 +767,7 @@ export function GameBoard({
             onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds);
             return;
           }
-          if (
-            promptType === "chooseTargetCardFromZone" &&
-            chooseTargetCardFromZonePrompt?.input.zone === "Exile"
-          ) {
+          if (boardTargets?.zone?.zone === "Exile") {
             onReopenZoneTarget();
             return;
           }

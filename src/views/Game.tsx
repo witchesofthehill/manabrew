@@ -1,5 +1,6 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
+import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
@@ -60,11 +61,7 @@ const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "chooseAction",
   "chooseAttackers",
   "chooseBlockers",
-  "chooseTargetPlayer",
-  "chooseTargetCard",
-  "chooseTargetAny",
-  "chooseTargetCardFromZone",
-  "chooseTargetSpell",
+  "chooseBoardTargets",
   "payManaCost",
   "gameOver",
 ]);
@@ -229,6 +226,14 @@ export default function Game({ exitTo }: GameProps = {}) {
     currentPrompt: activePrompt,
     respond,
   });
+
+  const boardTargets = useMemo(
+    () =>
+      activePrompt?.input.type === "chooseBoardTargets"
+        ? partitionBoardTargets(activePrompt.input, gameView)
+        : null,
+    [activePrompt, gameView],
+  );
 
   // UI state from Zustand store (modals, panels)
   const {
@@ -545,42 +550,28 @@ export default function Game({ exitTo }: GameProps = {}) {
   } = useCombatState({
     promptType,
     targetCard: casting.wrappedTargetCard,
-    targetAny: casting.wrappedTargetAny,
     targetPlayer: casting.wrappedTargetPlayer,
     respond,
     currentPrompt: activePrompt,
+    targetableCardIds: boardTargets?.battlefieldCardIds ?? [],
+    targetablePlayerIds: boardTargets?.playerIds ?? [],
     engineHasBlocks: (gameView?.combatAssignments?.length ?? 0) > 0,
   });
   const selectedAttackDefender = chooseAttackersInput?.possibleDefenderIds.find(
     (defender) => defender.id === attackDefenderId,
   );
-  const { wrappedTargetAny, wrappedTargetCard } = casting;
+  const { declineTargets } = casting;
   const targetCompletion = useMemo(() => {
-    if (!activePrompt) return null;
+    if (activePrompt?.input.type !== "chooseBoardTargets") return null;
     const input = activePrompt.input;
-    if (
-      input.type !== "chooseTargetAny" &&
-      input.type !== "chooseTargetCard" &&
-      input.type !== "chooseTargetPlayer" &&
-      input.type !== "chooseTargetSpell"
-    ) {
-      return null;
-    }
     if (input.maxTargets <= input.minTargets || input.chosenTargets < input.minTargets) {
       return null;
     }
     return {
       label: input.chosenTargets === 0 ? "Skip" : "Done",
-      onComplete:
-        input.type === "chooseTargetAny"
-          ? () => wrappedTargetAny({ kind: "none" })
-          : input.type === "chooseTargetCard"
-            ? () => wrappedTargetCard(null)
-            : input.type === "chooseTargetPlayer"
-              ? () => respond({ type: "targetPlayer", playerId: null })
-              : () => respond({ type: "targetSpell", spellId: null }),
+      onComplete: declineTargets,
     };
-  }, [activePrompt, respond, wrappedTargetAny, wrappedTargetCard]);
+  }, [activePrompt, declineTargets]);
 
   // Zone viewer helpers (wrap store actions)
   function openZone(
@@ -1385,6 +1376,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}
+          boardTargets={boardTargets}
           pendingAttackers={pendingAttackers}
           pendingBlocker={pendingBlocker}
           damageOrder={damageOrder}
@@ -1448,11 +1440,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onReopenZoneTarget={reopenZoneTarget}
           onTargetFromZone={(cardId) => {
             closeZoneViewer();
-            if (promptType === "chooseTargetAny") {
-              casting.wrappedTargetAny({ kind: "card", cardId });
-            } else {
-              casting.wrappedTargetCard(cardId);
-            }
+            casting.wrappedTargetCard(cardId);
           }}
           onCastSpell={handleCastSpell}
           onTapLand={
@@ -1609,21 +1597,23 @@ export default function Game({ exitTo }: GameProps = {}) {
         </div>
       )}
 
-      {promptType === "chooseTargetSpell" && !spellStackModalOpen && (
-        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
-          <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
-            <span className="text-sm font-semibold tracking-wide">
-              Click a glowing spell on the stack to counter it
-            </span>
-            <button
-              className="text-xs font-medium uppercase text-muted-foreground hover:text-foreground"
-              onClick={() => setSpellStackModalOpen(true)}
-            >
-              Expand
-            </button>
+      {promptType === "chooseBoardTargets" &&
+        (boardTargets?.spellIds.length ?? 0) > 0 &&
+        !spellStackModalOpen && (
+          <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+            <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+              <span className="text-sm font-semibold tracking-wide">
+                Click a glowing spell on the stack to counter it
+              </span>
+              <button
+                className="text-xs font-medium uppercase text-muted-foreground hover:text-foreground"
+                onClick={() => setSpellStackModalOpen(true)}
+              >
+                Expand
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       <StackDisplay
         stack={gameView.stack}
@@ -1641,11 +1631,9 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardArrangement === "perimeter" ? `${PERIMETER_SIDE_FRACTION * 100}%` : undefined
         }
         playerColorMap={playerColorMap}
-        validSpellIds={
-          promptType === "chooseTargetSpell" ? (activePrompt?.input.validSpellIds ?? []) : []
-        }
+        validSpellIds={boardTargets?.spellIds ?? []}
         onTargetSpell={(spellId) => {
-          respond({ type: "targetSpell", spellId });
+          casting.wrappedTargetSpell(spellId);
           setSpellStackModalOpen(false);
         }}
       />
@@ -1675,11 +1663,9 @@ export default function Game({ exitTo }: GameProps = {}) {
         }}
         spellStackModalOpen={spellStackModalOpen}
         stack={gameView.stack}
-        validSpellIds={
-          promptType === "chooseTargetSpell" ? (activePrompt?.input.validSpellIds ?? []) : []
-        }
+        validSpellIds={boardTargets?.spellIds ?? []}
         onTargetSpell={(spellId) => {
-          respond({ type: "targetSpell", spellId });
+          casting.wrappedTargetSpell(spellId);
           setSpellStackModalOpen(false);
         }}
         onCloseStack={() => setSpellStackModalOpen(false)}

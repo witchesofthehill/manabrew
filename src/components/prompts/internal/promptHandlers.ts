@@ -66,11 +66,7 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
     showByDefault: true,
     resolve: forced.singleAssigneeDamage,
   },
-  ["chooseTargetCard"]: { showByDefault: true, resolve: forced.singleLegalCard },
-  ["chooseTargetCardFromZone"]: { showByDefault: true, resolve: forced.singleLegalCard },
-  ["chooseTargetPlayer"]: { showByDefault: true, resolve: forced.singleLegalPlayer },
-  ["chooseTargetAny"]: { showByDefault: true, resolve: forced.singleLegalAny },
-  ["chooseTargetSpell"]: { showByDefault: true, resolve: forced.singleLegalSpell },
+  ["chooseBoardTargets"]: { showByDefault: true, resolve: forced.singleLegalBoardTarget },
 
   ["revealCards"]: { showByDefault: true, resolve: informational.ackReveal },
   ["chooseMode"]: { showByDefault: true, resolve: forced.forcedAllModes },

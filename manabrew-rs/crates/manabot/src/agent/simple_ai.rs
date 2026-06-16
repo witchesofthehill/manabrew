@@ -1,6 +1,6 @@
 use manabrew_agent_interface::prompt::{
     AgentPrompt, AttackAssignment, AvailableAction, AvailableActionKind, BlockAssignment,
-    CombatDamageAssignmentEntry, PlayerAction, PromptInput, TargetAnyChoice,
+    CombatDamageAssignmentEntry, PlayerAction, PromptInput,
 };
 use manabrew_protocol::prompts::choose_roll_swap_value::RollSwapValue;
 
@@ -103,35 +103,11 @@ impl BotAgent for SimpleAi {
                 };
                 Some(PlayerAction::DeclareBlockers { assignments })
             }
-            PromptInput::ChooseTargetPlayer(manabrew_protocol::prompts::choose_target_player::ChooseTargetPlayerInput {
-                valid_player_ids, ..
-            }) => Some(PlayerAction::TargetPlayer {
-                player_id: valid_player_ids.first().cloned(),
+            PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
+                candidates, ..
+            }) => Some(PlayerAction::BoardTargets {
+                chosen: candidates.into_iter().take(1).collect(),
             }),
-            PromptInput::ChooseTargetCard(manabrew_protocol::prompts::choose_target_card::ChooseTargetCardInput { valid_card_ids, .. })
-            | PromptInput::ChooseTargetCardFromZone(manabrew_protocol::prompts::choose_target_card_from_zone::ChooseTargetCardFromZoneInput { valid_card_ids, .. }) => {
-                Some(PlayerAction::TargetCard {
-                    card_id: valid_card_ids.first().cloned(),
-                })
-            }
-            PromptInput::ChooseTargetAny(manabrew_protocol::prompts::choose_target_any::ChooseTargetAnyInput {
-                valid_player_ids,
-                valid_card_ids,
-                ..
-            }) => {
-                let target = if let Some(card_id) = valid_card_ids.first() {
-                    TargetAnyChoice::Card {
-                        card_id: card_id.clone(),
-                    }
-                } else if let Some(player_id) = valid_player_ids.first() {
-                    TargetAnyChoice::Player {
-                        player_id: player_id.clone(),
-                    }
-                } else {
-                    TargetAnyChoice::None
-                };
-                Some(PlayerAction::TargetAny { target })
-            }
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { .. }) => Some(PlayerAction::ScryDecision {
                 bottom_card_ids: Vec::new(),
             }),
@@ -151,11 +127,6 @@ impl BotAgent for SimpleAi {
                 ..
             }) => Some(PlayerAction::DiscardDecision {
                 discarded_card_ids: hand_card_ids.into_iter().take(num_to_discard).collect(),
-            }),
-            PromptInput::ChooseTargetSpell(manabrew_protocol::prompts::choose_target_spell::ChooseTargetSpellInput {
-                valid_spell_ids, ..
-            }) => Some(PlayerAction::TargetSpell {
-                spell_id: valid_spell_ids.first().cloned(),
             }),
             PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
                 options,

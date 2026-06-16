@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
+import { partitionBoardTargets } from "@/lib/boardTargets";
 import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { GameCard, GameView } from "@/types/manabrew";
 
@@ -169,21 +170,23 @@ function computeAutoPassPlan(
   );
 }
 
-function computeZoneTarget(currentPrompt: Prompt | null): ZoneTargetState | null {
-  if (currentPrompt?.input.type !== "chooseTargetCardFromZone") return null;
-  const zone = currentPrompt.input.zone;
-  const validCardIds = currentPrompt.input.validCardIds;
-  const zoneCards = currentPrompt.input.zoneCards;
-  if (!zone || zone === "Battlefield" || zoneCards.length === 0) return null;
+function computeZoneTarget(
+  currentPrompt: Prompt | null,
+  gameView: GameView | null,
+): ZoneTargetState | null {
+  if (currentPrompt?.input.type !== "chooseBoardTargets") return null;
+  const { zone } = partitionBoardTargets(currentPrompt.input, gameView);
+  if (!zone) return null;
   const zoneNames: Record<string, string> = {
     Graveyard: "Graveyard",
     Exile: "Exile",
     Hand: "Hand",
+    Command: "Command Zone",
   };
   return {
-    title: `Choose from ${zoneNames[zone] || zone}`,
-    cards: zoneCards as GameCard[],
-    validCardIds,
+    title: `Choose from ${zoneNames[zone.zone] || zone.zone}`,
+    cards: zone.cards,
+    validCardIds: zone.validCardIds,
   };
 }
 
@@ -258,7 +261,10 @@ export function usePromptEffects({
 
   const [libraryPeekModal, setLibraryPeekModal] = useState<LibraryPeekState | null>(null);
 
-  const zoneTargetFromPrompt = useMemo(() => computeZoneTarget(currentPrompt), [currentPrompt]);
+  const zoneTargetFromPrompt = useMemo(
+    () => computeZoneTarget(currentPrompt, gameView),
+    [currentPrompt, gameView],
+  );
   const [zoneTargetDismissedPrompt, setZoneTargetDismissedPrompt] = useState<Prompt | null>(null);
   const zoneTargetSelector =
     zoneTargetDismissedPrompt === currentPrompt ? null : zoneTargetFromPrompt;

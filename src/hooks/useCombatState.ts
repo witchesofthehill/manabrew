@@ -4,8 +4,6 @@ import type { Prompt } from "@/protocol";
 import type { PromptOutput } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 
-type TargetAnyChoice = Extract<PromptOutput, { type: "targetAny" }>["target"];
-
 export interface CombatAssignment {
   blockerId: string;
   attackerId: string;
@@ -14,10 +12,13 @@ export interface CombatAssignment {
 interface UseCombatStateOptions {
   promptType: string | undefined;
   targetCard: (cardId: string) => void;
-  targetAny: (target: TargetAnyChoice) => void;
   targetPlayer: (playerId: string) => void;
   respond: (output: PromptOutput) => void;
   currentPrompt: Prompt | null;
+  /** Board-target candidate ids for the active `chooseBoardTargets` prompt,
+   *  partitioned from `gameView` (battlefield cards / players). */
+  targetableCardIds: string[];
+  targetablePlayerIds: string[];
   /** True once the engine's gameView carries the locked-in blocks. Used to
    *  hand local pending blocks over to the engine without a one-frame gap. */
   engineHasBlocks: boolean;
@@ -26,10 +27,11 @@ interface UseCombatStateOptions {
 export function useCombatState({
   promptType,
   targetCard,
-  targetAny,
   targetPlayer,
   respond,
   currentPrompt,
+  targetableCardIds,
+  targetablePlayerIds,
   engineHasBlocks,
 }: UseCombatStateOptions) {
   const [pendingAttackers, setPendingAttackers] = useState<string[]>([]);
@@ -87,12 +89,8 @@ export function useCombatState({
   const playerIsTargetable =
     promptType === "chooseAttackers"
       ? (pid: string) => possibleDefenders.some((defender) => defender.id === pid)
-      : promptType === "chooseTargetPlayer" || promptType === "chooseTargetAny"
-        ? (pid: string) =>
-            currentPrompt?.input.type === "chooseTargetPlayer" ||
-            currentPrompt?.input.type === "chooseTargetAny"
-              ? currentPrompt.input.validPlayerIds.includes(pid)
-              : false
+      : promptType === "chooseBoardTargets"
+        ? (pid: string) => targetablePlayerIds.includes(pid)
         : () => false;
 
   /** True when a battlefield card is a legal defender (planeswalker / siege). */
@@ -130,8 +128,6 @@ export function useCombatState({
     }
     if (promptType === "chooseAttackers") {
       setAttackDefenderId(pid);
-    } else if (promptType === "chooseTargetAny") {
-      targetAny({ kind: "player", playerId: pid });
     } else {
       targetPlayer(pid);
     }
@@ -171,23 +167,9 @@ export function useCombatState({
         // for the user to click the attacker it should block.
         setPendingBlocker((prev) => (prev === card.id ? null : card.id));
       }
-    } else if (promptType === "chooseTargetCard" || promptType === "chooseTargetCardFromZone") {
-      if (
-        (currentPrompt.input.type !== "chooseTargetCard" &&
-          currentPrompt.input.type !== "chooseTargetCardFromZone") ||
-        !currentPrompt.input.validCardIds.includes(card.id)
-      ) {
-        return;
-      }
+    } else if (promptType === "chooseBoardTargets") {
+      if (!targetableCardIds.includes(card.id)) return;
       targetCard(card.id);
-    } else if (promptType === "chooseTargetAny") {
-      if (
-        currentPrompt.input.type !== "chooseTargetAny" ||
-        !currentPrompt.input.validCardIds.includes(card.id)
-      ) {
-        return;
-      }
-      targetAny({ kind: "card", cardId: card.id });
     } else if (promptType === "chooseDamageAssignmentOrder") {
       if (
         currentPrompt.input.type !== "chooseDamageAssignmentOrder" ||

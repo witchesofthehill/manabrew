@@ -29,19 +29,14 @@ function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptAction
       return "chooseBlockers";
     case "chooseDamageAssignmentOrder":
       return "chooseDamageOrder";
-    case "chooseTargetSpell":
-      return "chooseTargetSpell";
+    case "chooseBoardTargets":
+      return "promptLabel";
     case "payManaCost":
       return "payManaCost";
     case "mulligan":
       return "mulligan";
     case "mulliganPutBack":
       return "mulliganPutBack";
-    case "chooseTargetPlayer":
-    case "chooseTargetCard":
-    case "chooseTargetAny":
-    case "chooseTargetCardFromZone":
-      return "promptLabel";
     default:
       return "promptRequired";
   }
@@ -217,10 +212,7 @@ export function PromptActionController({
     autoPassing: () => <NoAction buttonLayout={buttonLayout} label="Auto Pass" />,
     promptLabel: () => {
       const labels: Record<string, string> = {
-        ["chooseTargetCard"]: "Choose a target",
-        ["chooseTargetPlayer"]: "Choose a target player",
-        ["chooseTargetAny"]: "Choose a target",
-        ["chooseTargetCardFromZone"]: "Choose a target",
+        ["chooseBoardTargets"]: "Choose a target",
         ["scry"]: "Scry",
         ["surveil"]: "Surveil",
         ["dig"]: "Choose cards",

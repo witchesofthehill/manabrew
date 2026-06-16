@@ -103,6 +103,7 @@ export interface GameThemeColors {
     brick: string;
     depletion: string;
     page: string;
+    shield: string;
   };
   cardRing: string;
   playerColors: {

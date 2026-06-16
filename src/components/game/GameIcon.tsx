@@ -27,6 +27,7 @@ export type GameIconName =
   | "skull-crack"
   | "shiny-omega"
   | "vibrating-shield"
+  | "shield"
   | "scroll-quill"
   | "spell-book"
   | "hourglass"

@@ -35,6 +35,7 @@ import {
   GAP,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_PADDING_PX,
+  COMBAT_STAGE_SELF_EXTRA_PX,
   GRID_SKELETON_FILL_ALPHA,
   GRID_SKELETON_HOVER_ALPHA,
   GRID_SKELETON_STACK_ALPHA,
@@ -555,7 +556,7 @@ export class BoardRegion {
       return dividerY - gap;
     }
     const dividerY = this.zone.y - STRIP_BAND_PX / 2;
-    return dividerY + gap;
+    return dividerY + gap - COMBAT_STAGE_SELF_EXTRA_PX;
   }
 
   private applyNameGrouping(topLevel: GameCard[]): void {

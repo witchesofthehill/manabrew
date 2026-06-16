@@ -108,6 +108,9 @@ export const EXIT_SHRINK = 0.95;
 // Gap (px) between a staged card's edge and the phase-strip border. The card
 // tilts as close to the bar as possible without overlapping it, at any scale.
 export const COMBAT_STAGE_PADDING_PX = 6;
+// Extra upward tilt (px) for the local player's staged creatures — the self
+// region sits right at the bar, so its creatures can come up a touch further.
+export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
 // zIndex for a region while it has active combat staging — lifted above the
 // phase strip so staged cards read on top of the center band.
 export const Z_STAGED_REGION = 8000;

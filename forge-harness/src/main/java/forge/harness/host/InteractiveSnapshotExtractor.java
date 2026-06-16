@@ -202,9 +202,19 @@ public final class InteractiveSnapshotExtractor {
             // Engine combat prediction for the doomed highlight — uses Forge's
             // own rules (deathtouch/indestructible/trample). Only computed for
             // actual combatants to avoid running the prediction per board card.
-            if ((attacking || combat.isBlocking(card))
-                    && ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat)) {
-                out.put("wouldDieInCombat", true);
+            // This calls AI combat eval from snapshot extraction, a context Forge
+            // never invokes it from; an exception here must never escape, or it
+            // kills the game thread and the session hangs with no further prompt.
+            if (attacking || combat.isBlocking(card)) {
+                boolean wouldDie = false;
+                try {
+                    wouldDie = ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat);
+                } catch (final RuntimeException ignored) {
+                    wouldDie = false;
+                }
+                if (wouldDie) {
+                    out.put("wouldDieInCombat", true);
+                }
             }
         }
         if (castable) {

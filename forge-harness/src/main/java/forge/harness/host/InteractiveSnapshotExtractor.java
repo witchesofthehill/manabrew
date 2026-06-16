@@ -190,7 +190,8 @@ public final class InteractiveSnapshotExtractor {
 
         final Combat combat = game.getCombat();
         if (combat != null) {
-            if (combat.isAttacking(card)) {
+            final boolean attacking = combat.isAttacking(card);
+            if (attacking) {
                 out.put("isAttacking", true);
                 final Player defender = combat.getDefenderPlayerByAttacker(card);
                 if (defender != null) {
@@ -199,9 +200,10 @@ public final class InteractiveSnapshotExtractor {
                 }
             }
             // Engine combat prediction for the doomed highlight — uses Forge's
-            // own rules (deathtouch/indestructible/trample). Returns false for
-            // any card not currently in combat.
-            if (ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat)) {
+            // own rules (deathtouch/indestructible/trample). Only computed for
+            // actual combatants to avoid running the prediction per board card.
+            if ((attacking || combat.isBlocking(card))
+                    && ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat)) {
                 out.put("wouldDieInCombat", true);
             }
         }

@@ -20,6 +20,9 @@ export interface BlockingRect {
 export interface StagedBlocker {
   id: string;
   laneScreenX: number;
+  /** The attacker's canvas-local y, so the blocker slides up onto it (crossing
+   *  the phase bar) rather than stopping at its own region's front edge. */
+  attackerY: number;
   indexInLane: number;
   laneCount: number;
 }

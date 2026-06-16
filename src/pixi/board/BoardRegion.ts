@@ -33,6 +33,7 @@ import {
   EXIT_FADE_LERP,
   EXIT_SHRINK,
   GAP,
+  COMBAT_BLOCKER_OVERLAP_FRAC,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_PADDING_PX,
   COMBAT_STAGE_SELF_EXTRA_PX,
@@ -535,12 +536,15 @@ export class BoardRegion {
       entry.targetZIndex = Z_COMBAT_STAGED;
     }
 
+    // A blocker slides onto its attacker (overlapping its near edge, crossing
+    // the phase bar) rather than stopping at this region's front edge.
+    const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
     for (const b of staging.blockers) {
       const entry = this.entries.get(b.id);
       if (!entry) continue;
       const offset = (b.indexInLane - (b.laneCount - 1) / 2) * fanStep;
       entry.targetX = this.host.screenXToLocalX(b.laneScreenX) + offset;
-      entry.targetY = frontY;
+      entry.targetY = b.attackerY + (this.mirrored ? -onAttacker : onAttacker);
       entry.targetZIndex = Z_COMBAT_STAGED + 1;
     }
   }

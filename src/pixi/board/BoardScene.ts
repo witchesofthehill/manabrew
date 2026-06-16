@@ -401,6 +401,7 @@ export class BoardScene {
         a.blockers.push({
           id: blockerId,
           laneScreenX,
+          attackerY: pos.y,
           indexInLane: i,
           laneCount: blockerIds.length,
         });

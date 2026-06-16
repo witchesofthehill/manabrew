@@ -10,8 +10,8 @@ on:
       - unlabeled
     paths:
       - "forge/**"
-      - "manabrew-engine/**"
-      - "!manabrew-engine/**/*.md"
+      - "manabrew-rs/crates/manabrew-engine/**"
+      - "!manabrew-rs/crates/manabrew-engine/**/*.md"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/regression.yml"

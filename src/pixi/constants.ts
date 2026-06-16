@@ -80,9 +80,6 @@ export const SNAP_HAND_SCALE = 0.002;
 // Side-by-side spacing of multiple blockers sharing one attacker, as a
 // fraction of card width.
 export const COMBAT_STAGE_FAN_FRAC = 0.7;
-// How far a committed attacker slides toward the divider (as a fraction of card
-// height) when it isn't part of an active block staging — the MTGA "lunge".
-export const COMBAT_LUNGE_FRAC = 0.4;
 
 // ── Damage shake ────────────────────────────────────────────────────────────
 // A creature jitters for this many frames when it takes new damage, decaying

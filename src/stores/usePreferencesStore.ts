@@ -6,6 +6,7 @@ import type { BoardArrangement } from "@/pixi/board/boardLayout";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
+export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
 interface PreferencesState {
   /** App color theme preset id */
@@ -43,6 +44,12 @@ interface PreferencesState {
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
+  /** How battlefield cards are drawn: the full Scryfall image (realistic),
+   *  art-crop with a name/type overlay (art), or a framed mini-card. Only the
+   *  Pixi battlefield reads this; hand, stack, and modals always use the image. */
+  battlefieldCardStyle: BattlefieldCardStyle;
+  setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
+
   /** Card preview trigger mode */
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
@@ -73,6 +80,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "boardArrangement",
   "battlefieldAutoSort",
   "battlefieldCardScale",
+  "battlefieldCardStyle",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -131,6 +139,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>
             set({ battlefieldCardScale: Math.max(0, Math.min(1, battlefieldCardScale)) }),
+
+          battlefieldCardStyle: "realistic",
+          setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

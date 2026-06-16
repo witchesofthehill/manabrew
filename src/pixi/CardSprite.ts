@@ -8,6 +8,9 @@ import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePreferencesStore";
+import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
+import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asDeckCard } from "@/lib/decks";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
@@ -33,6 +36,15 @@ export function setCardSpriteTheme(theme: Theme): void {
   for (const style of TINTED_TEXT_STYLES) {
     style.fill = theme.gameTheme.textOnTinted;
   }
+}
+
+/** Active battlefield render style, seeded from the persisted preference and
+ *  kept in sync by `setCardSpriteStyle`. Every sprite reads it on load and on
+ *  `restyle()`. */
+let activeStyle: BattlefieldCardStyle = usePreferencesStore.getState().battlefieldCardStyle;
+
+export function setCardSpriteStyle(style: BattlefieldCardStyle): void {
+  activeStyle = style;
 }
 
 function registerTintedTextStyle(style: TextStyle): TextStyle {
@@ -97,6 +109,29 @@ const NAME_STYLE = registerTintedTextStyle(
   }),
 );
 
+const FRAME_NAME_STYLE = registerTintedTextStyle(
+  new TextStyle({
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontSize: 7,
+    fontWeight: "600",
+    fill: tintedTextFill(),
+    wordWrap: true,
+    wordWrapWidth: CARD_W - 6,
+    lineHeight: 8,
+  }),
+);
+
+const FRAME_TYPE_STYLE = registerTintedTextStyle(
+  new TextStyle({
+    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    fontSize: 5.5,
+    fill: tintedTextFill(),
+    wordWrap: true,
+    wordWrapWidth: CARD_W - 6,
+    lineHeight: 6.5,
+  }),
+);
+
 const FOIL_STAR_STYLE = new TextStyle({
   fontFamily: "Inter, system-ui, -apple-system, sans-serif",
   fontSize: 10,
@@ -117,6 +152,7 @@ const CHIP_RADIUS = 3;
 const COUNTER_HEIGHT = 16;
 const COUNTER_RADIUS = 8;
 const KEYWORD_ROW_H = 12;
+const MANA_PIP_SIZE = 9;
 const MAX_VISIBLE_KEYWORDS = 4;
 const KEYWORD_LABEL_MAX_LEN = 14;
 
@@ -139,6 +175,21 @@ const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
 const BADGE_TITLE_BAND_FRAC = 0.1;
 
 const ON_FIELD_COUNTER_TYPES = new Set(["Loyalty", "Charge"]);
+
+const WUBRG = new Set(["W", "U", "B", "R", "G"]);
+
+/** Primary identity color for the frame tint. First WUBRG identity color, or
+ *  colorless. Multicolor cards use their first color — gradients are out of
+ *  scope for the battlefield tile. */
+function cardTintHex(card: GameCard): string {
+  const mana = activeTheme.gameTheme.mana;
+  const first = (card.colorIdentity ?? []).find((c) => WUBRG.has(c));
+  return first ? mana[first as keyof typeof mana] : mana.C;
+}
+
+function frameTypeLine(card: GameCard): string {
+  return [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
+}
 
 type CardStatusKey = keyof Theme["gameTheme"]["cardStatus"];
 
@@ -240,6 +291,12 @@ export class CardSprite extends Container {
 
   private imageSpr: Sprite;
   private imageMask: Graphics;
+  private frameContainer: Container;
+  private frameMask: Graphics;
+  private frameGfx: Graphics;
+  private frameNameText: Text;
+  private frameTypeText: Text;
+  private manaContainer: Container;
   private doomedGfx: Graphics;
   private ringGfx: Graphics;
   private ptContainer: Container;
@@ -267,10 +324,14 @@ export class CardSprite extends Container {
   private orderBadgeText: Text;
   private etbGlow: Graphics;
   private _imageLoaded = false;
+  /** Custom battlefield styles (art / mini-frame) apply only to battlefield
+   *  sprites. Hand cards always render the full printed image. */
+  private readonly isBattlefield: boolean;
 
-  constructor(card: GameCard) {
+  constructor(card: GameCard, kind: "battlefield" | "hand" = "battlefield") {
     super();
     this.card = card;
+    this.isBattlefield = kind === "battlefield";
     this.eventMode = "static";
     this.cursor = "pointer";
 
@@ -306,6 +367,29 @@ export class CardSprite extends Container {
     this.imageSpr.mask = this.imageMask;
     this.addChild(this.imageSpr);
     this.fitImageToSlot();
+
+    // Custom-frame chrome (name/type bars + colored border) for the art /
+    // mini-frame styles. Hidden in realistic mode. Masked to the rounded card
+    // shape so the opaque bars don't poke past the corners.
+    this.frameContainer = new Container();
+    this.frameContainer.visible = false;
+    this.frameMask = new Graphics();
+    this.frameMask.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    this.frameMask.fill(hexToNum(activeTheme.gameTheme.canvas.neutral));
+    this.frameContainer.addChild(this.frameMask);
+    this.frameContainer.mask = this.frameMask;
+    this.frameGfx = new Graphics();
+    this.frameContainer.addChild(this.frameGfx);
+    this.frameNameText = new Text({ text: "", style: FRAME_NAME_STYLE });
+    this.frameNameText.resolution = TEXT_RASTER_RESOLUTION;
+    this.frameTypeText = new Text({ text: "", style: FRAME_TYPE_STYLE });
+    this.frameTypeText.resolution = TEXT_RASTER_RESOLUTION;
+    this.frameContainer.addChild(this.frameNameText);
+    this.frameContainer.addChild(this.frameTypeText);
+    this.addChild(this.frameContainer);
+
+    this.manaContainer = new Container();
+    this.addChild(this.manaContainer);
 
     // Red death wash; sits above the art (so it reads) but below P/T and badges.
     this.doomedGfx = new Graphics();
@@ -429,15 +513,113 @@ export class CardSprite extends Container {
   private async loadImage(): Promise<void> {
     const deck = useGameStore.getState().gameDecks[this.card.ownerId];
     const deckCard = asDeckCard(deck, this.card);
-    const tex = await useScryfallStore.getState().getCardTexture(deckCard);
+    const custom = this.isBattlefield && activeStyle !== "realistic";
+    const tex = await useScryfallStore.getState().getCardTexture(deckCard, custom ? "art" : "full");
     if (this.destroyed) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
-      this.fitImageToSlot();
+      if (custom) this.fitArtCover();
+      else this.fitImageToSlot();
       this.placeholderGfx.visible = false;
       this.nameText.visible = false;
       this._imageLoaded = true;
     }
+    this.renderFrame();
+  }
+
+  /** Scales the art-crop texture to cover the whole card slot (crop to fill),
+   *  centered. Used by the art / mini-frame styles where the printed frame is
+   *  replaced by our own chrome. */
+  private fitArtCover(): void {
+    const tex = this.imageSpr.texture;
+    if (tex.width === 0 || tex.height === 0) return;
+    this.imageSpr.anchor.set(0.5, 0.5);
+    this.imageSpr.rotation = 0;
+    this.imageSpr.x = CARD_W / 2;
+    this.imageSpr.y = CARD_H / 2;
+    const ar = tex.width / tex.height;
+    const cardAR = CARD_W / CARD_H;
+    if (ar > cardAR) this.imageSpr.setSize(CARD_H * ar, CARD_H);
+    else this.imageSpr.setSize(CARD_W, CARD_W / ar);
+  }
+
+  /** Re-applies the active battlefield style: swaps the texture variant
+   *  (art-crop vs full image) and repaints the frame chrome + keyword strip. */
+  restyle(): void {
+    this.loadImage();
+    this.updateKeywords();
+    this.updateMana();
+  }
+
+  /** Mana-cost pips, top-right. Custom-style battlefield only — the realistic
+   *  image already shows the printed cost. */
+  private updateMana(): void {
+    this.manaContainer.removeChildren().forEach((c) => c.destroy());
+    if (!this.isBattlefield || activeStyle === "realistic") return;
+    const codes = parseManaCost(this.card.manaCost);
+    if (codes.length === 0) return;
+
+    const size = MANA_PIP_SIZE;
+    const gap = 1;
+    const totalW = codes.length * size + (codes.length - 1) * gap;
+    let x = CARD_W - totalW - 3;
+    const y = 3;
+    for (const code of codes) {
+      const spr = new Sprite(Texture.EMPTY);
+      applyManaSymbol(spr, code, size);
+      spr.x = x;
+      spr.y = y;
+      this.manaContainer.addChild(spr);
+      x += size + gap;
+    }
+  }
+
+  /** Draws the name/type bars + colored border for the art / mini-frame
+   *  styles. No-op (hidden) in realistic mode. */
+  private renderFrame(): void {
+    if (!this.isBattlefield || activeStyle === "realistic") {
+      this.frameContainer.visible = false;
+      return;
+    }
+    this.frameContainer.visible = true;
+    const tintNum = hexToNum(cardTintHex(this.card));
+    const shadowNum = hexToNum(activeTheme.gameTheme.canvas.shadow);
+
+    this.frameGfx.clear();
+    this.frameNameText.text = this.card.name;
+    this.frameTypeText.text = frameTypeLine(this.card);
+
+    if (activeStyle === "art") {
+      this.frameTypeText.anchor.set(0, 1);
+      this.frameTypeText.alpha = 0.78;
+      this.frameTypeText.x = 3;
+      this.frameTypeText.y = CARD_H - 2;
+      this.frameNameText.anchor.set(0, 1);
+      this.frameNameText.alpha = 1;
+      this.frameNameText.x = 3;
+      this.frameNameText.y = this.frameTypeText.y - this.frameTypeText.height - 1;
+      const scrimTop = this.frameNameText.y - this.frameNameText.height - 3;
+      this.frameGfx.rect(0, scrimTop, CARD_W, CARD_H - scrimTop);
+      this.frameGfx.fill({ color: shadowNum, alpha: 0.72 });
+    } else {
+      this.frameNameText.anchor.set(0, 0);
+      this.frameNameText.alpha = 1;
+      this.frameNameText.x = 3;
+      this.frameNameText.y = 2;
+      const nameBandH = this.frameNameText.height + 4;
+      this.frameTypeText.anchor.set(0, 1);
+      this.frameTypeText.alpha = 0.85;
+      this.frameTypeText.x = 3;
+      this.frameTypeText.y = CARD_H - 2;
+      const typeBandH = this.frameTypeText.height + 4;
+      this.frameGfx.rect(0, 0, CARD_W, nameBandH);
+      this.frameGfx.fill({ color: tintNum, alpha: 0.92 });
+      this.frameGfx.rect(0, CARD_H - typeBandH, CARD_W, typeBandH);
+      this.frameGfx.fill({ color: tintNum, alpha: 0.85 });
+    }
+
+    this.frameGfx.roundRect(0.75, 0.75, CARD_W - 1.5, CARD_H - 1.5, CARD_RADIUS);
+    this.frameGfx.stroke({ color: tintNum, width: 1.5, alpha: 0.95 });
   }
 
   get imageLoaded(): boolean {
@@ -474,6 +656,8 @@ export class CardSprite extends Container {
     this.updateKeywords();
     this.updateFoil();
     this.updateRingBearer();
+    this.renderFrame();
+    this.updateMana();
   }
 
   private updateRingBearer(): void {
@@ -504,47 +688,41 @@ export class CardSprite extends Container {
 
   private updateKeywords(): void {
     this.keywordsContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
-    if (this.card.id !== DEBUG_KEYWORD_CARD_ID) return;
-    const keywords = this.card.keywords;
-    if (!keywords || keywords.length === 0) return;
+    // The realistic style keeps the printed keywords in the card art, so the
+    // strip is battlefield custom-style only (plus the dev-preview card).
+    const custom = this.isBattlefield && activeStyle !== "realistic";
+    if (!custom && this.card.id !== DEBUG_KEYWORD_CARD_ID) return;
 
-    const visible = keywords.slice(0, MAX_VISIBLE_KEYWORDS);
-    const hiddenCount = keywords.length - visible.length;
+    const { shown, hidden } = battlefieldKeywords(this.card.keywords, MAX_VISIBLE_KEYWORDS);
+    if (shown.length === 0) return;
 
-    let offsetX = 3;
-    let offsetY = Math.round(CARD_H * BADGE_TITLE_BAND_FRAC);
     const rowH = KEYWORD_ROW_H;
+    let offsetY = Math.round(CARD_H * 0.3);
+    const shadowNum = hexToNum(activeTheme.gameTheme.canvas.shadow);
 
     const addChip = (text: string) => {
       const chip = new Container();
       const bg = new Graphics();
-      const truncated = truncateChipLabel(text);
-      const txt = new Text({ text: truncated, style: KEYWORD_CHIP_STYLE });
+      const txt = new Text({ text, style: KEYWORD_CHIP_STYLE });
       txt.resolution = TEXT_RASTER_RESOLUTION;
       txt.anchor.set(0, 0.5);
       txt.x = 3;
       txt.y = rowH / 2;
 
-      const maxChipW = CARD_W - 6;
-      const cw = Math.min(txt.width + 6, maxChipW);
-      if (offsetX + cw > CARD_W - 6) {
-        offsetX = 3;
-        offsetY += rowH + 2;
-      }
-
+      const cw = Math.min(txt.width + 6, CARD_W - 6);
       bg.roundRect(0, 0, cw, rowH, CHIP_RADIUS);
-      bg.fill({ color: hexToNum(activeTheme.gameTheme.canvas.shadow), alpha: 0.6 });
+      bg.fill({ color: shadowNum, alpha: 0.7 });
 
       chip.addChild(bg);
       chip.addChild(txt);
-      chip.x = offsetX;
+      chip.x = 3;
       chip.y = offsetY;
       this.keywordsContainer.addChild(chip);
-      offsetX += cw + 2;
+      offsetY += rowH + 2;
     };
 
-    visible.forEach((kw) => addChip(kw.split(":")[0]!));
-    if (hiddenCount > 0) addChip(`+${hiddenCount}`);
+    shown.forEach((kw) => addChip(truncateChipLabel(kw)));
+    if (hidden > 0) addChip(`+${hidden}`);
   }
 
   setEntryGlowAlpha(alpha: number): void {

@@ -26,6 +26,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { PrintPickerModal } from "@/components/editor/PrintPickerModal";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
+import { cardFaceImageUris } from "@/lib/cardImage";
 import { useSetLookup } from "@/stores/useScryfallStore";
 import { FORMAT_DISPLAY, LEGALITY_STYLES } from "@/lib/constants";
 import { toast } from "sonner";
@@ -88,8 +89,8 @@ export function CardDetailModal({
   const isDoubleFaced = !!(card.card_faces && card.card_faces.length >= 2);
 
   const activeFace = isDoubleFaced ? card.card_faces![faceIndex] : null;
-  const imageUrl =
-    activeFace?.image_uris?.large ?? activeFace?.image_uris?.normal ?? storeCard?.uris.large;
+  const faceUris = cardFaceImageUris(card, storeCard?.uris, faceIndex);
+  const imageUrl = faceUris?.large ?? faceUris?.normal;
   const manaCost = activeFace?.mana_cost ?? getScryfallManaCost(card);
   const displayName = activeFace?.name ?? card.name;
   const typeLine = activeFace?.type_line ?? card.type_line;

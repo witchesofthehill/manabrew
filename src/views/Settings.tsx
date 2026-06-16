@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
@@ -598,30 +599,52 @@ export default function Settings() {
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Battlefield Card Size ({Math.round(battlefieldSizeFraction * 100)}%)</Label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={Math.round(battlefieldSizeFraction * 100)}
-                onChange={(e) => setBattlefieldSizeFraction(Number(e.target.value) / 100)}
-                className="w-full accent-primary"
-              />
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(0)}>
-                  Smallest
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(0.5)}>
-                  Default
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(1)}>
-                  Largest
-                </Button>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={Math.round(battlefieldSizeFraction * 100)}
+                    onChange={(e) => setBattlefieldSizeFraction(Number(e.target.value) / 100)}
+                    className="w-full accent-primary"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBattlefieldSizeFraction(0)}
+                    >
+                      Smallest
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBattlefieldSizeFraction(0.5)}
+                    >
+                      Default
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBattlefieldSizeFraction(1)}
+                    >
+                      Largest
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Controls the size of cards on the battlefield. The largest setting still keeps
+                    at least 3 rows visible on any display.
+                  </p>
+                </div>
+                <div className="w-[120px] shrink-0 flex justify-center">
+                  <BattlefieldStylePreview
+                    style={prefs.battlefieldCardStyle}
+                    width={Math.round(48 + battlefieldSizeFraction * 72)}
+                  />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Controls the size of cards on the battlefield. The largest setting still keeps at
-                least 3 rows visible on any display.
-              </p>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
@@ -646,6 +669,44 @@ export default function Settings() {
                 "Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield
                 tidy in rows (creatures, then others, then lands) and ignores manual placement.
               </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Battlefield Card Style</Label>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => prefs.setBattlefieldCardStyle("realistic")}
+                    >
+                      Realistic
+                    </Button>
+                    <Button
+                      variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => prefs.setBattlefieldCardStyle("art")}
+                    >
+                      Art-forward
+                    </Button>
+                    <Button
+                      variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => prefs.setBattlefieldCardStyle("frame")}
+                    >
+                      Mini-frame
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    How cards are drawn on the battlefield. "Realistic" uses the full printed card
+                    image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame"
+                    frames the art with name and type bars. Hand, stack, and previews always use the
+                    full card image.
+                  </p>
+                </div>
+                <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
+              </div>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">

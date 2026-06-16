@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
-import { CardSprite, setCardSpriteTheme } from "../CardSprite";
+import { CardSprite, setCardSpriteTheme, setCardSpriteStyle } from "../CardSprite";
+import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -479,6 +480,12 @@ export class BoardScene {
 
   setPendingDropSlot(slot: { col: number; row: number } | null): void {
     this.localRegion()?.setPendingDropSlot(slot);
+  }
+
+  setCardStyle(style: BattlefieldCardStyle): void {
+    if (this.destroyed) return;
+    setCardSpriteStyle(style);
+    for (const rec of this.regions.values()) rec.region.restyleCards();
   }
 
   setTheme(theme: Theme): void {

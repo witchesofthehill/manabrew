@@ -20,6 +20,7 @@ import type { DeckCard } from "@/types/manabrew";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
+import { cardFaceImageUris } from "@/lib/cardImage";
 
 export interface ScryfallCardLookup {
   id?: string;
@@ -61,7 +62,7 @@ interface ScryfallState {
    *  MapSet plugin. */
   hydratedSets: Record<string, true>;
   getCard: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
-  getCardTexture: (card: DeckCard) => Promise<Texture>;
+  getCardTexture: (card: DeckCard, variant?: "full" | "art") => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
@@ -368,26 +369,43 @@ export const useScryfallStore = create<ScryfallState>()(
         });
         return pendingPromise;
       },
-      getCardTexture: async (deckCard) => {
-        const key = cardKey({
-          setCode: deckCard.setCode,
-          collectorNumber: deckCard.cardNumber,
-        });
-        const cached = textureCache.get(key);
-        if (cached) return cached;
+      getCardTexture: async (deckCard, variant = "full") => {
+        const pick = (u: ScryfallImageUris | undefined) =>
+          variant === "art" ? u?.art_crop : u?.border_crop;
+        // The Scryfall store is the source of truth for card art and resolves
+        // double-faced / split images the same way the deck editor does
+        // (`chooseImageUrisForCard` returns the front face / top-level image).
+        // The deck card's own uris cover archive tokens — which live in the
+        // token archive, not the card store — and the already-hydrated common
+        // case. Anything the deck can't supply (prompt/engine cards with no
+        // deck entry, or a printing we haven't hydrated) resolves from the
+        // store by the card's identity, fetching it if necessary.
+        let url = pick(deckCard.uris);
+        if (!url) {
+          const entry = await get().getCard({
+            name: deckCard.name,
+            setCode: deckCard.setCode || undefined,
+            collectorNumber: deckCard.cardNumber || undefined,
+          });
+          url = pick(cardFaceImageUris(entry.info, entry.uris));
+        }
+        if (!url) return Texture.EMPTY;
 
-        const pending = pendingTexturePromises.get(key);
+        const cached = textureCache.get(url);
+        if (cached) return cached;
+        const pending = pendingTexturePromises.get(url);
         if (pending) return pending;
 
+        const resolvedUrl = url;
         const promise = (async () => {
-          const htmlImage = await fetchImageElement(deckCard.uris.border_crop);
+          const htmlImage = await fetchImageElement(resolvedUrl);
           const texture = createTextureFromImage(htmlImage);
-          textureCache.set(key, texture);
+          textureCache.set(resolvedUrl, texture);
           return texture;
         })().finally(() => {
-          pendingTexturePromises.delete(key);
+          pendingTexturePromises.delete(resolvedUrl);
         });
-        pendingTexturePromises.set(key, promise);
+        pendingTexturePromises.set(resolvedUrl, promise);
         return promise;
       },
       getRulings: async (c) => {

@@ -367,7 +367,7 @@ export class HandController {
   }
 
   private createSprite(card: GameCard): CardSprite {
-    const sprite = new CardSprite(card);
+    const sprite = new CardSprite(card, "hand");
     sprite.eventMode = "static";
     sprite.cursor = card.isPlayable ? "grab" : "default";
 

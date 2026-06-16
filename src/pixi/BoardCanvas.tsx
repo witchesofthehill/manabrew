@@ -128,6 +128,7 @@ export function BoardCanvas({
   const onLayoutRef = useRef(onLayout);
 
   const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
+  const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
@@ -355,6 +356,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setAutoSort(autoSort ?? false);
   }, [scene, autoSort]);
+
+  useEffect(() => {
+    scene?.setCardStyle(cardStyle);
+  }, [scene, cardStyle]);
 
   // Re-apply theme when the preset / overrides change.
   useEffect(() => {

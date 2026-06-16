@@ -994,6 +994,10 @@ export class BoardRegion {
     this.drawBackground();
   }
 
+  restyleCards(): void {
+    for (const entry of this.entries.values()) entry.sprite.restyle();
+  }
+
   // ── Drag-commit + grid skeleton (driven by the host's drag gesture) ─
 
   getEffectiveChildren(parentId: string): string[] {

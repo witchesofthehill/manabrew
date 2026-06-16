@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput } from "@/protocol";
-import { passOutput } from "@/components/game/prompts/playerActions";
-import type { LibraryPeekMode } from "@/components/game/modals";
+import { passOutput } from "@/components/prompts/internal/playerActions";
+import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { GameCard, GameView } from "@/types/manabrew";
 
 interface UsePromptEffectsOptions {

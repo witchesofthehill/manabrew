@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { GameCard } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import type { PromptOutput } from "@/protocol";
-import { declareAttackersOutput } from "@/components/game/prompts/playerActions";
+import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
 
 type TargetAnyChoice = Extract<PromptOutput, { type: "targetAny" }>["target"];
 

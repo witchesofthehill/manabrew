@@ -106,11 +106,19 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             let attack_targets = attack_targets(&defenders);
             let all_target_ids: Vec<String> =
                 attack_targets.iter().map(|t| t.id.clone()).collect();
-            let attackers = card_ids(&attackers)
-                .into_iter()
-                .map(|attacker_id| AttackerOptionDto {
-                    attacker_id,
-                    valid_target_ids: all_target_ids.clone(),
+            let attackers = attackers
+                .iter()
+                .filter_map(|a| {
+                    let attacker_id = a.id.clone()?;
+                    Some(AttackerOptionDto {
+                        attacker_id,
+                        // Forge sends per-attacker legal targets; fall back to
+                        // every target when it doesn't restrict them.
+                        valid_target_ids: a
+                            .valid_target_ids
+                            .clone()
+                            .unwrap_or_else(|| all_target_ids.clone()),
+                    })
                 })
                 .collect();
             PromptInput::ChooseAttackers(
@@ -126,13 +134,21 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => {
             use manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto;
             let available_blocker_ids = card_ids(&blockers);
-            let attackers = card_ids(&attackers)
-                .into_iter()
-                .map(|attacker_id| BlockableAttackerDto {
-                    attacker_id,
-                    valid_blocker_ids: available_blocker_ids.clone(),
-                    min_blockers: 1,
-                    must_be_blocked: false,
+            let attackers = attackers
+                .iter()
+                .filter_map(|a| {
+                    let attacker_id = a.id.clone()?;
+                    Some(BlockableAttackerDto {
+                        attacker_id,
+                        // Forge sends per-attacker legal blockers / menace /
+                        // lure; fall back to permissive defaults when absent.
+                        valid_blocker_ids: a
+                            .valid_blocker_ids
+                            .clone()
+                            .unwrap_or_else(|| available_blocker_ids.clone()),
+                        min_blockers: a.min_blockers.unwrap_or(1),
+                        must_be_blocked: a.must_be_blocked.unwrap_or(false),
+                    })
                 })
                 .collect();
             PromptInput::ChooseBlockers(
@@ -900,6 +916,7 @@ fn to_card(
         kicker_cost: keyword_cost(&card.keywords, "Kicker"),
         madness_cost: keyword_cost(&card.keywords, "Madness"),
         effective_mana_cost: card.effective_mana_cost.clone(),
+        would_die_in_combat: card.would_die_in_combat,
         name,
         ..CardDto::default()
     }
@@ -1107,12 +1124,13 @@ fn attack_targets(defenders: &[JavaRawCardOption]) -> Vec<AttackTargetDto> {
         .filter_map(|defender| {
             let id = defender.id.clone()?;
             let label = defender.label.clone().unwrap_or_else(|| id.clone());
-            // Until the harness sends an explicit kind, infer player vs.
-            // permanent (planeswalker/battle) from the id prefix.
-            let kind = if id.starts_with("player-") {
-                AttackTargetKind::Player
-            } else {
-                AttackTargetKind::Planeswalker
+            let kind = match defender.kind.as_deref() {
+                Some("player") => AttackTargetKind::Player,
+                Some("battle") => AttackTargetKind::Battle,
+                Some("planeswalker") => AttackTargetKind::Planeswalker,
+                // Fall back to the id prefix when the harness omits a kind.
+                _ if id.starts_with("player-") => AttackTargetKind::Player,
+                _ => AttackTargetKind::Planeswalker,
             };
             Some(AttackTargetDto { id, label, kind })
         })

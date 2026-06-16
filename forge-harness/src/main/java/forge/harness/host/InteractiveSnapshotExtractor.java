@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder;
 import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.game.Game;
+import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
 import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
@@ -188,11 +189,20 @@ public final class InteractiveSnapshotExtractor {
         out.put("attachmentIds", attachmentIds);
 
         final Combat combat = game.getCombat();
-        if (combat != null && combat.isAttacking(card)) {
-            out.put("isAttacking", true);
-            final Player defender = combat.getDefenderPlayerByAttacker(card);
-            if (defender != null) {
-                out.put("attackingPlayerId", "player-" + SnapshotExtractor.playerIndex(game, defender));
+        if (combat != null) {
+            if (combat.isAttacking(card)) {
+                out.put("isAttacking", true);
+                final Player defender = combat.getDefenderPlayerByAttacker(card);
+                if (defender != null) {
+                    out.put("attackingPlayerId",
+                            "player-" + SnapshotExtractor.playerIndex(game, defender));
+                }
+            }
+            // Engine combat prediction for the doomed highlight — uses Forge's
+            // own rules (deathtouch/indestructible/trample). Returns false for
+            // any card not currently in combat.
+            if (ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat)) {
+                out.put("wouldDieInCombat", true);
             }
         }
         if (castable) {

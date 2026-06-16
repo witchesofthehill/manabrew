@@ -218,7 +218,7 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
             showPT || showLoyalty ? "pr-12" : "right-1",
           )}
         >
-          <CounterDisplay counters={overlayCounters} size="sm" />
+          <CounterDisplay counters={overlayCounters} size="md" />
         </div>
       )}
 

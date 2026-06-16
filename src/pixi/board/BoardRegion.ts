@@ -325,7 +325,10 @@ export class BoardRegion {
       // the hovered card stays lit so it can still be inspected.
       const faded =
         s.card.phasedOut ||
-        (this.combatDim && this.hoveredCardId !== s.card.id && !this.isCombatant(s.card));
+        (this.combatDim &&
+          this.hoveredCardId !== s.card.id &&
+          !this.isCombatant(s.card) &&
+          !this.lastState?.selectableCardIds?.includes(s.card.id));
       s.alpha = lerp(s.alpha, faded ? COMBAT_DIM_ALPHA : 1, OVERLAY_FADE_LERP, SNAP_ALPHA);
 
       if (entry.etbGlowAlpha > 0) {

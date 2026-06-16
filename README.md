@@ -110,11 +110,49 @@ To get started visit our [landing page](https://manabrew.app)
 - Java 18 and Maven for Java Forge parity runs
 - Platform prerequisites for [Tauri](https://tauri.app/start/prerequisites/)
 
+### Clone with submodules
+
+The Java reference engine and all card scripts live in the `forge` submodule, so
+clone with `--recurse-submodules`:
+
+```bash
+git clone --recurse-submodules https://github.com/witchesofthehill/manabrew.git
+```
+
+If you already cloned without it, initialize the submodule before building:
+
+```bash
+git submodule update --init --recursive
+```
+
 ### Install
 
 ```bash
 yarn install
 ```
+
+### Update the Forge submodule
+
+The `forge` submodule is the whole Forge tree — the Java reference engine plus
+card scripts, editions, and token data. Pull the latest commit (it tracks the
+`manabrew` branch — see `.gitmodules`) with:
+
+```bash
+git submodule update --remote forge
+```
+
+Then rebuild so the new submodule content is picked up — the Java harness, the
+WASM engine, and the bundled card archives all build from `forge/`. Skipping
+this leaves stale builds; one visible symptom is the deck loader stripping any
+card missing from the bundle.
+
+```bash
+yarn build:harness   # rebuilds the Java harness + restages the Tauri card bundle
+yarn web             # rebuilds the WASM engine and card archive (yarn dev does too)
+```
+
+Committing the resulting submodule pointer bump (`git status` shows `M forge`) is
+a normal change — open a PR for it like any other.
 
 ### Run the desktop app
 

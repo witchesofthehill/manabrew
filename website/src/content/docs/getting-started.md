@@ -45,6 +45,30 @@ yarn dev
 The `forge` submodule provides card scripts and the Java reference engine —
 the `--recurse-submodules` flag matters.
 
+### Initialize the submodule
+
+If you cloned without `--recurse-submodules`, set it up before building:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Update the submodule
+
+The `forge` submodule is the whole Forge tree — the Java reference engine plus
+card scripts, editions, and tokens (it tracks the `manabrew` branch). Pull the
+latest commit and rebuild, since the harness, the WASM engine, and the card
+archives all build from it:
+
+```bash
+git submodule update --remote forge
+yarn build:harness   # rebuilds the Java harness + restages the Tauri card bundle
+yarn web             # rebuilds the WASM engine and card archive (yarn dev does too)
+```
+
+Skipping the rebuild leaves stale builds; one visible symptom is the deck loader
+removing any card not yet in the bundle — that "Removed from your deck" notice.
+
 ## Getting help
 
 Questions, deck sharing, and bug reports all happen on

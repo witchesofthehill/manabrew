@@ -108,13 +108,11 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
     ptStyle.backgroundImage = `linear-gradient(${tint}, ${tint})`;
   }
 
-  const ptModified = ptState !== "neutral" && ptState !== "unknown";
   const isPlaneswalker = card.types?.some((t) => t.toLowerCase() === "planeswalker") ?? false;
   const loyalty = card.counters?.Loyalty;
   const showLoyalty = isPlaneswalker && loyalty != null && !horizontal;
   const showTopStrip = statusBadges.length > 0 || keywords.length > 0;
-  const showPT =
-    creature && !horizontal && !!card.power && !!card.toughness && (ptModified || damage > 0);
+  const showPT = creature && !horizontal && !!card.power && !!card.toughness;
 
   const overlayCounters = useMemo(() => {
     if (!card.counters) return null;

@@ -13,7 +13,7 @@ const AVATAR_R = 54; // circle radius
 const ICON_SIZE = 14;
 const STAT_GAP = 12;
 const ROW_GAP = 4;
-const FONT = "Alegreya Sans, system-ui, -apple-system, sans-serif";
+const FONT = "Inter, system-ui, -apple-system, sans-serif";
 const MANA_SYM_SIZE = 11;
 
 // ── Text styles — seeded from the current theme; kept in sync by setTheme()

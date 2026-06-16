@@ -46,7 +46,7 @@ export function PixiPhaseStripCanvas({ state, callbacks, className }: Props) {
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(2, window.devicePixelRatio || 1),
+        resolution: Math.max(3, window.devicePixelRatio || 1),
       });
     } catch {
       appRef.current = null;

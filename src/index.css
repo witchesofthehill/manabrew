@@ -3,6 +3,7 @@
 @theme {
   --font-sans: "Alegreya Sans", system-ui, -apple-system, sans-serif;
   --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-game: "Inter", system-ui, -apple-system, sans-serif;
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -232,9 +233,6 @@
     }
   }
 
-  /* `--turn-flash-color` is set inline by PlayerAvatar to the active
-     player's seat colour. Falls back to a neutral hue so any other
-     consumer still sees something. */
   @keyframes player-turn-flash {
     0% {
       box-shadow: 0 0 0 0 transparent;
@@ -387,14 +385,6 @@
   }
 }
 
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
   *,
   ::after,
@@ -486,6 +476,11 @@
     overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
   }
+}
+
+.font-game {
+  font-family: var(--font-game);
+  font-size-adjust: none;
 }
 
 /* While a targeting glyph is following the cursor, hide the native OS

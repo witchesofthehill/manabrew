@@ -1367,7 +1367,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-col h-full min-h-0 overflow-hidden select-none"
+      className="font-game relative flex flex-col h-full min-h-0 overflow-hidden select-none"
       style={
         {
           "--flash-duration": `${flashDurationMs}ms`,

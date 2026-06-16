@@ -590,6 +590,9 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::UntapLand { card_id } => JavaAction::UntapLand {
             card_id: card_id.clone(),
         },
+        PlayerAction::ManaComboDecision { chosen_colors } => JavaAction::ManaComboDecision {
+            chosen_colors: chosen_colors.clone(),
+        },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
         PlayerAction::PayLife => JavaAction::PayLife,
         PlayerAction::CancelManaCost => JavaAction::CancelMana,

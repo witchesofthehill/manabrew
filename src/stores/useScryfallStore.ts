@@ -62,7 +62,7 @@ interface ScryfallState {
    *  MapSet plugin. */
   hydratedSets: Record<string, true>;
   getCard: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
-  getCardTexture: (card: DeckCard, variant?: "full" | "art") => Promise<Texture>;
+  getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
@@ -369,25 +369,26 @@ export const useScryfallStore = create<ScryfallState>()(
         });
         return pendingPromise;
       },
-      getCardTexture: async (deckCard, variant = "full") => {
+      getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
           variant === "art" ? u?.art_crop : u?.border_crop;
         // The Scryfall store is the source of truth for card art and resolves
         // double-faced / split images the same way the deck editor does
-        // (`chooseImageUrisForCard` returns the front face / top-level image).
-        // The deck card's own uris cover archive tokens — which live in the
-        // token archive, not the card store — and the already-hydrated common
-        // case. Anything the deck can't supply (prompt/engine cards with no
-        // deck entry, or a printing we haven't hydrated) resolves from the
-        // store by the card's identity, fetching it if necessary.
-        let url = pick(deckCard.uris);
+        // (`cardFaceImageUris` reads the requested face's `image_uris`, falling
+        // back to the top-level / split image). The deck card's own uris are
+        // front-only (and cover archive tokens, which live in the token archive
+        // rather than the card store), so only the front face can use them; the
+        // back face and anything the deck can't supply (prompt/engine cards with
+        // no deck entry, an unhydrated printing) resolves from the store by the
+        // card's identity, fetching it if necessary.
+        let url = faceIndex === 0 ? pick(deckCard.uris) : undefined;
         if (!url) {
           const entry = await get().getCard({
             name: deckCard.name,
             setCode: deckCard.setCode || undefined,
             collectorNumber: deckCard.cardNumber || undefined,
           });
-          url = pick(cardFaceImageUris(entry.info, entry.uris));
+          url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
         }
         if (!url) return Texture.EMPTY;
 

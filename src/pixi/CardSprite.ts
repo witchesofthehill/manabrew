@@ -514,7 +514,10 @@ export class CardSprite extends Container {
     const deck = useGameStore.getState().gameDecks[this.card.ownerId];
     const deckCard = asDeckCard(deck, this.card);
     const custom = this.isBattlefield && activeStyle !== "realistic";
-    const tex = await useScryfallStore.getState().getCardTexture(deckCard, custom ? "art" : "full");
+    const faceIndex = this.card.isTransformed ? 1 : 0;
+    const tex = await useScryfallStore
+      .getState()
+      .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
     if (this.destroyed) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
@@ -638,7 +641,8 @@ export class CardSprite extends Container {
       card.name !== this.card.name ||
       card.setCode !== this.card.setCode ||
       card.cardNumber !== this.card.cardNumber ||
-      card.isFaceDown !== this.card.isFaceDown;
+      card.isFaceDown !== this.card.isFaceDown ||
+      card.isTransformed !== this.card.isTransformed;
     this.card = card;
 
     if (nameChanged) {

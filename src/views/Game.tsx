@@ -530,6 +530,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     pendingBlocker,
     attackDefenderId,
     blockAssignments,
+    blockError,
     assignBlockPair,
     unassignBlock,
     damageOrder,
@@ -1386,6 +1387,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           promptType={promptType}
           currentPrompt={activePrompt}
           pendingAttackers={pendingAttackers}
+          pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           damageOrder={damageOrder}
           damageOrderBlockerIds={damageOrderInput?.blockerIds ?? []}
@@ -1539,6 +1541,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onBeginAttackTargetPick={selectAllAttackersForPick}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
+          blockError={blockError}
           attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
           blockAssignments={blockAssignments}
           onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}

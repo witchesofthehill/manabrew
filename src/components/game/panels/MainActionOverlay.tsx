@@ -27,6 +27,7 @@ export function MainActionOverlay({
   onBeginAttackTargetPick,
   pendingAttacker,
   pendingBlocker,
+  blockError,
   attackerIds,
   blockAssignments,
   onDeclareBlockers,
@@ -109,6 +110,7 @@ export function MainActionOverlay({
               onBeginAttackTargetPick={onBeginAttackTargetPick}
               pendingAttacker={pendingAttacker}
               pendingBlocker={pendingBlocker}
+              blockError={blockError}
               blockAssignments={blockAssignments}
               onDeclareBlockers={onDeclareBlockers}
               damageOrderCount={damageOrderCount}

@@ -66,6 +66,17 @@ export function useCombatState({
     currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackTargets : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
 
+  // Per-attacker block legality the engine reported; drives which blocker→
+  // attacker pairings are allowed (and the menace/error feedback in the UI).
+  const blockableAttackers =
+    currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.attackers : [];
+  const blockError =
+    currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.error : undefined;
+  const canBlock = (blockerId: string, attackerId: string): boolean => {
+    const att = blockableAttackers.find((a) => a.attackerId === attackerId);
+    return !!att && att.validBlockerIds.includes(blockerId);
+  };
+
   // Awaiting-defender state is implicit now: as soon as the user has at
   // least one pending attacker AND there's more than one legal defender
   // (multiplayer / planeswalkers / sieges), the next click on a valid
@@ -213,6 +224,8 @@ export function useCombatState({
   // blockers — multiple creatures may block one attacker; the engine enforces
   // legality like Menace).
   function assignBlock(blockerId: string, attackerId: string) {
+    // Honor the engine's per-attacker legality — illegal pairings are ignored.
+    if (!canBlock(blockerId, attackerId)) return;
     setBlockAssignments((prev) => {
       const alreadyOnAttacker = prev.some(
         (a) => a.blockerId === blockerId && a.attackerId === attackerId,
@@ -254,6 +267,7 @@ export function useCombatState({
     pendingBlocker,
     attackDefenderId,
     blockAssignments,
+    blockError,
     assignBlockPair,
     unassignBlock,
     damageOrder,

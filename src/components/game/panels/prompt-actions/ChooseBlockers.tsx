@@ -13,6 +13,7 @@ export function ChooseBlockers({
   isWaitingForResponse,
   pendingAttacker,
   pendingBlocker,
+  blockError,
   blockAssignments,
   onPassPriority,
   onDeclareBlockers,
@@ -39,6 +40,14 @@ export function ChooseBlockers({
         >
           NO BLOCKERS
         </Button>
+        {blockError && (
+          <p
+            className="text-xs font-semibold text-center"
+            style={{ color: promptActionColors.attackAction }}
+          >
+            {blockError}
+          </p>
+        )}
         {hint && <p className="text-xs italic text-muted-foreground text-center">{hint}</p>}
         {blockAssignments.length > 0 && (
           <Button
@@ -68,6 +77,11 @@ export function ChooseBlockers({
         onClick={onPassPriority}
         disabled={isWaitingForResponse}
       />
+      {blockError && (
+        <p className="text-xs font-semibold" style={{ color: promptActionColors.attackAction }}>
+          {blockError}
+        </p>
+      )}
       {hint && <p className="text-xs italic text-muted-foreground">{hint}</p>}
       {blockAssignments.length > 0 && (
         <PromptActionButton

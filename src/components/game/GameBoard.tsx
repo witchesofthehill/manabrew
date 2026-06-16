@@ -63,6 +63,8 @@ interface GameBoardProps {
 
   // Combat state
   pendingAttackers: string[];
+  /** Attacker selected in attacker-first declare-blockers, awaiting blockers. */
+  pendingAttacker?: string | null;
   /** Blocker armed in blocker-first declare-blockers, awaiting its attacker. */
   pendingBlocker?: string | null;
   /** Blockers chosen so far during damage-assignment ordering (in order). */
@@ -168,6 +170,7 @@ export function GameBoard({
   promptType,
   currentPrompt,
   pendingAttackers,
+  pendingAttacker,
   pendingBlocker,
   damageOrder,
   damageOrderBlockerIds,
@@ -324,7 +327,18 @@ export function GameBoard({
               : []),
           ]
         : promptType === "chooseBlockers"
-          ? chooseBlockersPrompt?.input.availableBlockerIds
+          ? // Highlight the legal counterparts of the current selection: a
+            // selected attacker lights its valid blockers; an armed blocker
+            // lights the attackers it may legally block; otherwise every
+            // available blocker.
+            pendingAttacker
+            ? (chooseBlockersPrompt?.input.attackers.find((a) => a.attackerId === pendingAttacker)
+                ?.validBlockerIds ?? [])
+            : pendingBlocker
+              ? (chooseBlockersPrompt?.input.attackers
+                  .filter((a) => a.validBlockerIds.includes(pendingBlocker))
+                  .map((a) => a.attackerId) ?? [])
+              : chooseBlockersPrompt?.input.availableBlockerIds
           : promptType === "chooseDamageAssignmentOrder"
             ? damageOrderBlockerIds
             : promptType === "chooseTargetCard"
@@ -341,6 +355,8 @@ export function GameBoard({
       promptType,
       chooseAttackersPrompt,
       pendingAttackers,
+      pendingAttacker,
+      pendingBlocker,
       chooseBlockersPrompt,
       damageOrderBlockerIds,
       chooseTargetCardPrompt,

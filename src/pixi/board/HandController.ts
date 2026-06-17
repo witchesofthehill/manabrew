@@ -252,8 +252,10 @@ export class HandController {
     const idx = this.hoveredIndex;
     if (idx === null) return;
     if (this.pendingLeaveIndex === idx && this.hoverHoldTimer !== null) return;
-    this.host.getCallbacks().onHoverCard?.(null);
-    this.host.getCallbacks().onHoverHandCard?.(null);
+    // Defer the leave (and its onHover(null) callbacks) so a flickering
+    // hit-test doesn't tear the preview / action panel down between frames.
+    // The actual leave is emitted by commitHoverLeave once the hold elapses
+    // without a re-entry.
     this.scheduleHoverCommit(idx);
   }
 
@@ -393,12 +395,15 @@ export class HandController {
   }
 
   private setHovered(hit: HandHitZone): void {
-    const changed = this.hoveredIndex !== hit.index;
-    const wasPending = this.pendingLeaveIndex !== null;
+    // A re-entry cancels any pending leave. When it's the same card (the
+    // hit-test flickering as the card lifts under the cursor), do nothing
+    // else: re-emitting hover callbacks here is what tore the preview down
+    // and rebuilt it every frame, so it never survived to render.
     this.cancelHoverHoldTimer();
-    if (!changed && !wasPending) return;
+    this.pendingLeaveIndex = null;
+    if (this.hoveredIndex === hit.index) return;
     this.hoveredIndex = hit.index;
-    if (changed) this.recalcTargets();
+    this.recalcTargets();
     const sprite = this.sprites.get(hit.card.id);
     if (!sprite) return;
     const screenBounds = this.hoveredSpriteBounds(sprite);
@@ -465,6 +470,8 @@ export class HandController {
     if (idx === null || this.hoveredIndex !== idx) return;
     this.hoveredIndex = null;
     this.recalcTargets();
+    this.host.getCallbacks().onHoverCard?.(null);
+    this.host.getCallbacks().onHoverHandCard?.(null);
   }
 
   private cancelHoverHoldTimer(): void {

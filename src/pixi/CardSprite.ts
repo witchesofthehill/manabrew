@@ -493,10 +493,12 @@ export class CardSprite extends Container {
     this.loadImage();
   }
 
-  /** Dev overlay tinting the card's hit area (the whole card rect). */
+  /** Dev overlay tinting the card's hit area (the whole card rect). Hand cards
+   *  are excluded — their true hover region is the axis-aligned hit zone drawn
+   *  by HandController, not this rotated per-sprite rect. */
   private drawHoverDebug(on: boolean): void {
     this.hoverDebugGfx.clear();
-    if (!on) return;
+    if (!on || !this.isBattlefield) return;
     this.hoverDebugGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
     this.hoverDebugGfx.fill({ color: hexToNum(activeTheme.gameTheme.success), alpha: 0.28 });
   }

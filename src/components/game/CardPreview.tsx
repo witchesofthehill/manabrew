@@ -596,7 +596,9 @@ export function CardPreview({
                   left: actionsOnRight ? -10 - cardWidth : 0,
                   width: cardWidth + 10 + ACTIONS_PANEL_W,
                   height: cardHeight,
-                  backgroundColor: "transparent",
+                  backgroundColor: showHoverAreas
+                    ? withAlpha(themeColors.success, 0.28)
+                    : "transparent",
                   borderBottomRightRadius: actionsOnRight ? "100%" : "0",
                   borderBottomLeftRadius: actionsOnRight ? "0" : "100%",
                   zIndex: -1,

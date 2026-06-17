@@ -1,6 +1,8 @@
-import { Container, type FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite } from "../CardSprite";
+import { getTheme } from "@/hooks/useTheme";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
 import { hexToNum } from "../colorUtils";
 import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "../HandLayout";
@@ -46,6 +48,8 @@ export class HandController {
   private lastState: HandState | null = null;
   private vScale = 1;
   private dropActive = false;
+  private hoverDebugGfx: Graphics;
+  private devUnsub: (() => void) | null = null;
 
   constructor(host: HandHost, parent: Container) {
     this.host = host;
@@ -54,6 +58,29 @@ export class HandController {
     this.container.sortableChildren = true;
     this.container.zIndex = Z_HAND_CONTAINER;
     parent.addChild(this.container);
+
+    this.hoverDebugGfx = new Graphics();
+    this.hoverDebugGfx.eventMode = "none";
+    this.hoverDebugGfx.zIndex = Z_HAND_HOVERED + 1;
+    this.container.addChild(this.hoverDebugGfx);
+    this.devUnsub = useGameDevStore.subscribe(() => this.drawHoverDebug());
+  }
+
+  /** Dev overlay: tint each hand card's actual hit zone (axis-aligned, the same
+   *  rects `hitAt` tests) so the hoverable region is visible. */
+  private drawHoverDebug(): void {
+    this.hoverDebugGfx.clear();
+    if (!useGameDevStore.getState().showHoverAreas) return;
+    const color = hexToNum(getTheme().gameTheme.success);
+    for (const zone of this.hitZones) {
+      this.hoverDebugGfx.rect(
+        zone.x - zone.width / 2,
+        zone.y - zone.height / 2,
+        zone.width,
+        zone.height,
+      );
+      this.hoverDebugGfx.fill({ color, alpha: 0.28 });
+    }
   }
 
   setScale(scale: number): void {
@@ -199,6 +226,7 @@ export class HandController {
       this.applyHighlight(sprite, card, isHovered, selectionMode, isSelected);
     }
     this.hitZones = hitZones;
+    this.drawHoverDebug();
   }
 
   /** Per-frame easing of every hand sprite toward its target pose. */
@@ -384,6 +412,8 @@ export class HandController {
 
   destroy(): void {
     this.cancelHoverHoldTimer();
+    this.devUnsub?.();
+    this.devUnsub = null;
     this.sprites.clear();
     this.hitZones = [];
   }

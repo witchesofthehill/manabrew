@@ -286,8 +286,12 @@ export function CardPreview({
     !isTwoHalfLayout(card.layout) &&
     !!faces[0].image_uris?.[imageSize] &&
     !!faces[1].image_uris?.[imageSize];
+  // A `/front/` segment in the image URL is itself proof of a double-faced card
+  // (single-faced and split cards never have it), so the back lives at `/back/`.
+  // This drives the flip even when `deckCard.isDoubleFaced` isn't set (e.g. the
+  // hosted deck) or the Scryfall card-faces haven't been fetched yet.
   const derivedBackImageUrl =
-    !facesHaveImages && deckCard.isDoubleFaced && imageUrl?.includes("/front/")
+    !facesHaveImages && imageUrl?.includes("/front/")
       ? imageUrl.replace("/front/", "/back/")
       : null;
   const doubleFacedData = facesHaveImages

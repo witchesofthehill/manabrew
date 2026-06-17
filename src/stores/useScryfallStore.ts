@@ -105,7 +105,16 @@ function mirrorCardKeys(entry: ScryfallEntry): string[] {
     keys.push(cardKey({ setCode: info.set, collectorNumber: info.collector_number }));
   }
   const isToken = info.layout?.includes("token");
-  if (!isToken && info.name) keys.push(cardKey({ name: info.name }));
+  if (!isToken && info.name) {
+    keys.push(cardKey({ name: info.name }));
+    // Mirror each face name too, so a lookup by the engine's single-face name
+    // ("Darkbore Pathway") resolves the combined card ("Darkbore Pathway //
+    // Slitherbore Pathway"). The store only ever stored the combined name, so
+    // every face-name lookup (DFC labels, previews) missed.
+    for (const face of info.card_faces ?? []) {
+      if (face.name) keys.push(cardKey({ name: face.name }));
+    }
+  }
   return keys;
 }
 

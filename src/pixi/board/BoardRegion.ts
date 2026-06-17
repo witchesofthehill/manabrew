@@ -77,6 +77,11 @@ interface BoardRegionOptions {
  *  triggering its stomp. */
 const ENTRANCE_LAND_PX = 8;
 
+/** Cache keyed by the card object. The engine mints fresh `GameCard` objects
+ *  per state update, so a real change recomputes; the many re-layout passes that
+ *  reuse the same objects (resize, blockers, combat staging) hit the cache. */
+const stackKeyCache = new WeakMap<GameCard, string>();
+
 /** Two top-level permanents auto-stack only when they are the same card in the
  *  same state. Derived straight from the engine DTO rather than a hand-picked
  *  field list — so every property the engine reports (P/T, counters, keywords,
@@ -85,9 +90,13 @@ const ENTRANCE_LAND_PX = 8;
  *  fields are excluded: `id` (always unique) and `isSelected` (selecting a card
  *  must not pop it out of its group). */
 function stackIdentityKey(c: GameCard): string {
-  return JSON.stringify(c, (key, value) =>
-    key === "id" || key === "isSelected" ? undefined : value,
+  const cached = stackKeyCache.get(c);
+  if (cached !== undefined) return cached;
+  const key = JSON.stringify(c, (k, value) =>
+    k === "id" || k === "isSelected" ? undefined : value,
   );
+  stackKeyCache.set(c, key);
+  return key;
 }
 
 /**

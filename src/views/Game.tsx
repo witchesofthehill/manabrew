@@ -431,8 +431,19 @@ export default function Game({ exitTo }: GameProps = {}) {
     (card: GameCard): HandActionOption[] => {
       const casts = castOptionsByCardId.get(card.id) ?? [];
       const lands = playLandByCardId.get(card.id) ?? [];
-      if (lands.length === 0 || casts.length === 0) return casts;
+      // A single option (a plain spell, or a plain land) keeps default handling:
+      // pure lands click-to-play with no option panel.
+      if (casts.length + lands.length <= 1) return casts;
       const fn = dfcFaceNames(card);
+      if (casts.length === 0) {
+        // Dual-land DFC (e.g. Pathways): both faces are lands. Both engines emit
+        // them front-first, so index 0 is the front face and index 1 the back.
+        return lands.map((o, i) => ({
+          ...o,
+          label: `Play ${(i === 0 ? fn?.front : fn?.back) ?? (i === 0 ? card.name : "back side")}`,
+        }));
+      }
+      // Spell front / land back (e.g. Agadeem's Awakening).
       const castOpts = fn ? casts.map((o) => ({ ...o, label: `Cast ${fn.front}` })) : casts;
       const landOpts = lands.map((o) => ({
         ...o,

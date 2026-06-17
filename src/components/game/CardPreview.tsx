@@ -10,7 +10,7 @@ import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
-import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
+import { isHorizontalCard } from "@/lib/cardLayout";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +18,7 @@ import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { useCard } from "@/stores/useScryfallStore";
+import { useCardFaces } from "@/hooks/useCardFaces";
 
 interface CardPreviewProps {
   card: GameCard;
@@ -273,49 +273,28 @@ export function CardPreview({
   // Fall back to that case instead of going through `asDeckCard`.
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const imageUrl = deckCard.uris[imageSize];
-  const scryfallEntry = useCard({
+  const cardFaces = useCardFaces({
     name: card.name,
     setCode: deckCard.setCode,
-    collectorNumber: deckCard.cardNumber,
+    cardNumber: deckCard.cardNumber,
   });
-  const faces = scryfallEntry?.info?.card_faces;
-  const facesHaveImages =
-    !!faces &&
-    faces.length >= 2 &&
-    !isTwoHalfLayout(card.layout) &&
-    !!faces[0].image_uris?.[imageSize] &&
-    !!faces[1].image_uris?.[imageSize];
-  // A `/front/` segment in the image URL is itself proof of a double-faced card
-  // (single-faced and split cards never have it), so the back lives at `/back/`.
-  // This drives the flip even when `deckCard.isDoubleFaced` isn't set (e.g. the
-  // hosted deck) or the Scryfall card-faces haven't been fetched yet.
-  const derivedBackImageUrl =
-    !facesHaveImages && imageUrl?.includes("/front/")
-      ? imageUrl.replace("/front/", "/back/")
-      : null;
-  const doubleFacedData = facesHaveImages
+  const front = cardFaces.faces[0];
+  const back = cardFaces.faces[1];
+  // Prefer the deck's pinned printing; fall back to the resolved Scryfall face
+  // when the deck card carries no image (e.g. an unresolved double-faced card).
+  const imageUrl = deckCard.uris[imageSize] || front?.imageUris?.[imageSize];
+  const hasFlippableFaces =
+    cardFaces.isFlippable && !!front?.imageUris?.[imageSize] && !!back?.imageUris?.[imageSize];
+  const doubleFacedData = hasFlippableFaces
     ? {
-        frontImageUrl: faces![0].image_uris![imageSize],
-        backImageUrl: faces![1].image_uris![imageSize],
-        frontImageUrlLow: faces![0].image_uris!.normal,
-        backImageUrlLow: faces![1].image_uris!.normal,
-        frontName: faces![0].name,
-        backName: faces![1].name,
+        frontImageUrl: front!.imageUris![imageSize],
+        backImageUrl: back!.imageUris![imageSize],
+        frontImageUrlLow: front!.imageUris!.normal,
+        backImageUrlLow: back!.imageUris!.normal,
+        frontName: front!.name,
+        backName: back!.name,
       }
-    : derivedBackImageUrl
-      ? {
-          frontImageUrl: imageUrl,
-          backImageUrl: derivedBackImageUrl,
-          frontImageUrlLow: deckCard.uris.normal,
-          backImageUrlLow: deckCard.uris.normal?.includes("/front/")
-            ? deckCard.uris.normal.replace("/front/", "/back/")
-            : derivedBackImageUrl,
-          frontName: card.name,
-          backName: card.name,
-        }
-      : null;
-  const hasFlippableFaces = !!doubleFacedData;
+    : null;
 
   useEffect(() => {
     if (!onFlip || !hasFlippableFaces) return;

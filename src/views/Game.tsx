@@ -1,6 +1,7 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { useScryfallStore, cardKey } from "@/stores/useScryfallStore";
+import { resolveCardFaces } from "@/lib/cardFaces";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -79,9 +80,9 @@ function dfcFaceNames(card: GameCard): { front: string; back: string } | null {
         collectorNumber: card.cardNumber || undefined,
       })
     ]?.card?.info;
-  const faces = info?.card_faces;
-  if (!faces || faces.length < 2 || !faces[1]?.name) return null;
-  return { front: faces[0]!.name, back: faces[1]!.name };
+  const resolved = resolveCardFaces(info);
+  if (!resolved.isMultiFaced || resolved.faces.length < 2) return null;
+  return { front: resolved.faces[0]!.name, back: resolved.faces[1]!.name };
 }
 
 function isManualTabletopApi(

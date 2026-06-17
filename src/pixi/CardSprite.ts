@@ -720,7 +720,7 @@ export class CardSprite extends Container {
       this.frameGfx.stroke({ color: hexToNum(shadowHex), width: 0.6, alpha: 0.4 });
     }
 
-    this.frameGfx.roundRect(1.5, 1.5, CARD_W - 3, CARD_H - 3, CARD_RADIUS - 1.5);
+    this.frameGfx.roundRect(0.75, 0.75, CARD_W - 1.5, CARD_H - 1.5, CARD_RADIUS - 0.75);
     this.frameGfx.stroke({ color: tintNum, width: 1.5 });
   }
 

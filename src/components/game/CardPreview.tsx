@@ -29,13 +29,9 @@ interface CardPreviewProps {
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
   showBackFace?: boolean;
-  /** Available actions for this card (cast options + activated abilities). */
   actions?: HandActionOption[];
-  /** Called when the user selects an action from the preview. */
   onSelectAction?: (action: HandActionOption) => void;
-  /** Called to dismiss the preview. */
   onDismiss?: () => void;
-  /** Toggle the back face of a double-faced card. */
   onFlip?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -242,12 +238,6 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
   );
 }
 
-/**
- * Floating card preview rendered into document.body via portal.
- * Positions itself near the cursor or an anchor element, clamped to viewport edges.
- * When actions are available the preview becomes interactive and locks in place
- * until the user clicks an action, presses Escape, or clicks outside.
- */
 export function CardPreview({
   card,
   mouseX,
@@ -269,11 +259,8 @@ export function CardPreview({
   const showSidePanel = hasActions;
   const themeColors = useTheme().gameTheme;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
-  const ringColor = themeColors.cardRing; // matches battlefield playable color
+  const ringColor = themeColors.cardRing;
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
-  // Deck-editor hover bypasses the game runtime: `gameDecks[ownerId]` is
-  // undefined and the hovered object is a `DeckCard` (uris already on it).
-  // Fall back to that case instead of going through `asDeckCard`.
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const cardFaces = useCardFaces({
@@ -283,8 +270,6 @@ export function CardPreview({
   });
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
-  // Prefer the deck's pinned printing; fall back to the resolved Scryfall face
-  // when the deck card carries no image (e.g. an unresolved double-faced card).
   const imageUrl = deckCard.uris[imageSize] || front?.imageUris?.[imageSize];
   const hasFlippableFaces =
     cardFaces.isFlippable && !!front?.imageUris?.[imageSize] && !!back?.imageUris?.[imageSize];
@@ -305,7 +290,6 @@ export function CardPreview({
     },
   });
 
-  // Dismiss on Escape, outside click, or number key shortcut
   useEffect(() => {
     if (!hasActions || !onDismiss) return;
     function handleKey(e: KeyboardEvent) {
@@ -313,7 +297,6 @@ export function CardPreview({
         onDismiss!();
         return;
       }
-      // Number keys 1-9 activate the corresponding action
       const num = parseInt(e.key);
       if (num >= 1 && num <= actions!.length) {
         e.preventDefault();
@@ -357,14 +340,12 @@ export function CardPreview({
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = anchorRect.top - cardHeight - 12;
-    // Clamp to screen
     cardLeft = Math.max(8, Math.min(cardLeft, window.innerWidth - cardWidth - 8));
     top = Math.max(8, top);
 
     const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   } else {
-    // Use anchorRect if available, otherwise fallback to mouse coordinates
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
     const anchorRight = anchorRect ? anchorRect.right : mouseX;
     const anchorTop = anchorRect ? anchorRect.top : mouseY;
@@ -415,7 +396,6 @@ export function CardPreview({
 
   return createPortal(
     <>
-      {/* Backdrop dim when interactive */}
       {hasActions && isSticky && (
         <div
           className="fixed inset-0 z-[9998] bg-black/30 animate-in fade-in duration-150"
@@ -440,7 +420,6 @@ export function CardPreview({
         onMouseLeave={onMouseLeave}
       >
         <div className="relative" style={{ width: cardWidth, height: cardHeight }}>
-          {/* Card image */}
           <div
             className={cn(
               "w-full h-full rounded-xl shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
@@ -571,7 +550,6 @@ export function CardPreview({
             )}
           </div>
 
-          {/* Actions + extra-info side panel */}
           {showSidePanel && (
             <div
               className="absolute top-0 flex flex-col gap-1.5"
@@ -581,7 +559,6 @@ export function CardPreview({
                   : { right: cardWidth + 10, width: ACTIONS_PANEL_W }
               }
             >
-              {/* Curved invisible bridge to maintain hover without blocking cards below */}
               <div
                 style={{
                   position: "absolute",

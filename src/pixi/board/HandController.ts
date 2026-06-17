@@ -27,13 +27,6 @@ import type { BlockingRect, HandHitZone, HandHost, HandTarget } from "./types";
 
 const HAND_SELECTION_DROP_PX = 30;
 
-/**
- * Owns the local player's hand fan: sprite layout, hover (with grace
- * timers), hit-testing, and per-frame animation. Reads scene geometry
- * through `HandHost` and feeds the
- * drag-exclusion band back through it. The battlefield queries this for
- * the hand's keep-out rect and the card-entry origin seed.
- */
 export class HandController {
   private host: HandHost;
   readonly container: Container;
@@ -65,14 +58,11 @@ export class HandController {
     this.container.addChild(this.hoverDebugGfx);
   }
 
-  /** Toggle the dev hit-zone overlay (driven by BoardScene.setHoverDebug). */
   setHoverDebug(on: boolean): void {
     this.hoverDebug = on;
     this.drawHoverDebug();
   }
 
-  /** Dev overlay: tint each hand card's actual hit zone (axis-aligned, the same
-   *  rects `hitAt` tests) so the hoverable region is visible. */
   private drawHoverDebug(): void {
     this.hoverDebugGfx.clear();
     if (!this.hoverDebug) return;
@@ -92,8 +82,6 @@ export class HandController {
     this.vScale = scale;
   }
 
-  /** Whether a drag-over-the-battlefield is in progress; drives the cast-drag
-   *  hand reshape for instants (sink to reveal the drop field). */
   setDropActive(active: boolean): void {
     if (this.dropActive === active) return;
     this.dropActive = active;
@@ -108,16 +96,12 @@ export class HandController {
     return this.lastState?.draggingCardId ?? null;
   }
 
-  /** Re-run the fan layout against the last hand state (after a geometry
-   *  change like resize / scale / play-zone). No-op if no hand state yet. */
   relayout(): void {
     if (this.lastState) this.updateHand(this.lastState);
   }
 
   updateHand(state: HandState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
-    // Opponent canvases never show a hand fan — just silently absorb the
-    // state update so callers don't need to guard against the mode.
     if (!this.host.showsHand()) {
       this.hitZones = [];
       return;
@@ -170,15 +154,9 @@ export class HandController {
         sprite.y = bottomY + l.y - l.scaleH / 2;
         sprite.scale.set(l.scaleW / CARD_W, l.scaleH / CARD_H);
       } else {
-        // updateCardContent, not updateCard: the hand's animation tick owns
-        // rotation (arc-fan angle) and alpha (dragging/casting); touching
-        // them here would snap-jump back to defaults and re-lerp every tick.
         sprite.updateCardContent(card);
       }
 
-      // Drag-to-cast reshape: the dragged permanent scales up and lifts a
-      // little; the rest of the fan sinks out of the way (and an instant sinks
-      // the whole fan once it's over the battlefield, revealing the drop field).
       const isCastDrag = !selectionMode && card.id === state.draggingCardId;
       const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
       const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
@@ -205,9 +183,6 @@ export class HandController {
         scaleY: (l.scaleH / CARD_H) * castScale,
         zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
       });
-      // The hovered card lifts above its resting slot; extend its hit zone to
-      // the lifted bounds so the cursor can reach overlays on the raised card
-      // (the double-faced flip button) without leaving the zone and dropping it.
       hitZones.push(
         isHovered
           ? {
@@ -234,7 +209,6 @@ export class HandController {
     this.drawHoverDebug();
   }
 
-  /** Per-frame easing of every hand sprite toward its target pose. */
   animate(): void {
     for (const [id, target] of this.targets) {
       const sprite = this.sprites.get(id);
@@ -250,8 +224,6 @@ export class HandController {
     }
   }
 
-  /** Canvas-local position of a hand card (target pose, falling back to the
-   *  live sprite) — null if the card isn't in hand. */
   getCardPosition(cardId: string): ScreenPos | null {
     const sprite = this.sprites.get(cardId);
     if (!sprite) return null;
@@ -259,8 +231,6 @@ export class HandController {
     return target ? { x: target.x, y: target.y } : { x: sprite.x, y: sprite.y };
   }
 
-  /** Live transform of a hand sprite (for seeding a battlefield sprite that
-   *  mirrors a card just played from hand), or null if not in hand. */
   getLiveSpriteTransform(
     cardId: string,
   ): { x: number; y: number; scaleX: number; scaleY: number } | null {
@@ -298,15 +268,12 @@ export class HandController {
     }
   }
 
-  /** Restore the previously-hovered card to its real face (clears the in-hand
-   *  flip override). */
   private resetHoveredFace(): void {
     if (this.hoveredCardId === null) return;
     this.sprites.get(this.hoveredCardId)?.setPreviewFace(null);
     this.hoveredCardId = null;
   }
 
-  /** Flip the currently-hovered hand card to a specific face (view-only). */
   setHoveredPreviewFace(face: 0 | 1): void {
     if (this.hoveredCardId === null) return;
     this.sprites.get(this.hoveredCardId)?.setPreviewFace(face);
@@ -315,49 +282,28 @@ export class HandController {
   clearHover(): void {
     const idx = this.hoveredIndex;
     if (idx === null) return;
-    // The cursor is parked on an HTML overlay that owns the hover (action
-    // panel / curved bridge); ignore the canvas leaving until it releases.
-    // Order-independent with holdHover, so the race between the canvas
-    // pointer-leave and the overlay's mouse-enter can't drop the lift.
     if (this.hoverHeld) return;
     if (this.pendingLeaveIndex === idx && this.hoverHoldTimer !== null) return;
-    // Defer the leave (and its onHover(null) callbacks) so a flickering
-    // hit-test doesn't tear the preview / action panel down between frames.
-    // The actual leave is emitted by commitHoverLeave once the hold elapses
-    // without a re-entry.
     this.scheduleHoverCommit(idx);
   }
 
-  /** Called when an HTML overlay (action panel / hover bridge) takes the
-   *  cursor. Pins the hover so the lifted card stays raised. */
   holdHover(): void {
     this.hoverHeld = true;
     this.cancelHoverHoldTimer();
   }
 
-  /** Called when the cursor leaves the HTML overlay. */
   releaseHover(): void {
     this.hoverHeld = false;
     if (this.hoveredIndex === null) return;
     this.scheduleHoverCommit(this.hoveredIndex);
   }
 
-  /** Single source of truth for the hand's vertical anchor point.
-   *  The offset fraction controls how much of each hand card peeks above
-   *  the zone bottom — `0.45` means 55% of the card is visible and the
-   *  hand stays clear of the third battlefield row. */
   getBottomY(): number {
     const zone = this.host.getPlayZone();
     const dims = this.getDimensions();
     return zone.y + zone.height + dims.cardH * 0.45;
   }
 
-  /**
-   * Seed position + uniform scale for a brand-new battlefield sprite that
-   * has no live hand sprite to mirror. Anchors the drop animation at the
-   * hand-fan center (or the zone's far edge for mirrored / hand-less
-   * opponent canvases) so cards always appear to arrive from off-board.
-   */
   getOriginSeed(): { x: number; y: number; scale: number } {
     const zone = this.host.getPlayZone();
     const dims = this.getDimensions();
@@ -375,8 +321,6 @@ export class HandController {
   getDimensions() {
     const base = HAND_CARD_BASE;
     const params = HAND_FAN_PARAMS;
-    // `vScale` comes from the `useHandScale` hook. Using it directly
-    // keeps the Pixi hand consistent across mulligan and normal play.
     const scale = this.vScale;
     const cardW = Math.round(base.cardW * scale);
     const available = Math.max(cardW, this.host.getPlayZone().width - cardW);
@@ -391,8 +335,6 @@ export class HandController {
     };
   }
 
-  /** Canvas-coordinate keep-out rect for the hand fan, or null when empty.
-   *  Fed to the battlefield grid + drag clamp so cards stay off the hand. */
   getBlockerRect(): BlockingRect | null {
     const count = this.lastState?.cards.length ?? 0;
     if (count === 0) return null;
@@ -467,10 +409,6 @@ export class HandController {
   }
 
   private setHovered(hit: HandHitZone): void {
-    // A re-entry cancels any pending leave. When it's the same card (the
-    // hit-test flickering as the card lifts under the cursor), do nothing
-    // else: re-emitting hover callbacks here is what tore the preview down
-    // and rebuilt it every frame, so it never survived to render.
     this.cancelHoverHoldTimer();
     this.pendingLeaveIndex = null;
     if (this.hoveredIndex === hit.index) return;
@@ -509,11 +447,6 @@ export class HandController {
     return best;
   }
 
-  /**
-   * Analytical bounds for the hovered hand sprite in canvas coordinates.
-   * The position and scale are both animated, so reading the target instead
-   * of the live sprite anchors overlays to the settled hover pose.
-   */
   private hoveredSpriteBounds(sprite: CardSprite): ScreenBounds {
     const target = this.targets.get(sprite.card.id);
     const centerX = target?.x ?? sprite.x;

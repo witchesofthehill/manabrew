@@ -46,10 +46,6 @@ function route(
   const updates: Partial<GameState> = { debugInfo: source };
   if (snapshot.gameView) updates.gameView = snapshot.gameView;
   if (snapshot.prompt) {
-    console.log(
-      `[PROMPT-ARRIVED] ${source} type=${snapshot.prompt.input.type} sourceCardId=${snapshot.prompt.sourceCardId}`,
-      snapshot.prompt,
-    );
     updates.currentPrompt = snapshot.prompt;
     updates.isWaitingForResponse = false;
   }

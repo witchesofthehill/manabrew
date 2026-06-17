@@ -32,15 +32,11 @@ export function useAutoResolvePrompt(paused = false): void {
       prefs: { show: showOverrides, triggerMemory },
       targetIntents,
     });
-    console.log(
-      `[PROMPT] type=${currentPrompt.input.type} sourceCardId=${currentPrompt.sourceCardId} → resolver=${result.kind}` +
-        (result.kind === "auto"
-          ? ` reason="${result.reason}" respond=${JSON.stringify(result.respond)}`
-          : ""),
-      { prompt: currentPrompt, targetIntents },
-    );
     if (result.kind !== "auto") return;
 
+    if (import.meta.env?.DEV) {
+      console.debug(`[prompt-resolver] auto-respond ${currentPrompt.input.type}: ${result.reason}`);
+    }
     appendAutoResolutionLog(currentPrompt.input.type, result.reason);
     void respond(result.respond);
   }, [

@@ -519,10 +519,6 @@ public final class ActionSpace {
                         hasEnoughCandidates &= controllers.size() >= minTargets;
                     }
                     if (!hasEnoughCandidates) {
-                        HarnessDebug.log("[HARNESS-ACTIONSPACE] dropped "
-                                + sa.getHostCard().getName() + " (" + current.getApi()
-                                + ") minTargets=" + minTargets + " candidates=" + candidates.size()
-                                + " stackCandidates=" + stackCandidates.size());
                         return false;
                     }
                 }

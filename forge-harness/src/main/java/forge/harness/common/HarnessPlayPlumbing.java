@@ -411,22 +411,15 @@ public final class HarnessPlayPlumbing {
     }
 
     public boolean prepareSingleSa(final Card host, final SpellAbility sa, final boolean isMandatory) {
-        HarnessDebug.log("[HARNESS-PLAY] prepareSingleSa host=" + (host == null ? "null" : host.getName())
-                + " api=" + sa.getApi() + " usesTargeting=" + sa.usesTargeting()
-                + " hasSub=" + (sa.getSubAbility() != null));
         if (sa.getApi() == ApiType.Charm) {
             if (!CharmEffect.makeChoices(sa)) {
-                HarnessDebug.log("[HARNESS-PLAY] Charm.makeChoices returned false");
                 return false;
             }
         }
         // Deterministic harness must not route trigger target setup through AI
         // heuristics (`AiController#doTrigger`). Mirror Java SpellAbility setup flow
         // so all target prompts are resolved by controller callbacks.
-        final boolean ok = sa.setupTargets();
-        HarnessDebug.log("[HARNESS-PLAY] setupTargets returned " + ok
-                + " api=" + sa.getApi() + " subApi=" + (sa.getSubAbility() == null ? "none" : sa.getSubAbility().getApi()));
-        return ok;
+        return sa.setupTargets();
     }
 
     // Sort simultaneous triggers deterministically by host card zone-entry

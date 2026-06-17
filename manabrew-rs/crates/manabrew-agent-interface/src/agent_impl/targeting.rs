@@ -12,6 +12,7 @@ fn board_targets(
     candidates: Vec<TargetRef>,
     hostile: bool,
     intent: TargetingIntent,
+    label: String,
 ) -> PromptInput {
     PromptInput::ChooseBoardTargets(
         manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
@@ -21,7 +22,7 @@ fn board_targets(
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
-            label: None,
+            label,
         },
     )
 }
@@ -50,7 +51,7 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
                     min_targets: 0,
                     max_targets: total,
                     chosen_targets: chosen.len() as i32,
-                    label: Some(label.to_string()),
+                    label: label.to_string(),
                 },
             ),
             source,
@@ -91,7 +92,10 @@ pub(super) fn choose_target_player<T: Responder>(
         .into_iter()
         .map(|id| TargetRef::Player { id })
         .collect();
-    agent.send_prompt(board_targets(candidates, hostile, intent), source);
+    agent.send_prompt(
+        board_targets(candidates, hostile, intent, intent.to_string()),
+        source,
+    );
     agent.recv_player_choice_or_first(valid)
 }
 
@@ -107,7 +111,10 @@ pub(super) fn choose_target_card<T: Responder>(
         .into_iter()
         .map(|id| TargetRef::Card { id })
         .collect();
-    agent.send_prompt(board_targets(candidates, hostile, intent), source);
+    agent.send_prompt(
+        board_targets(candidates, hostile, intent, intent.to_string()),
+        source,
+    );
     agent.recv_card_choice_or_first(valid)
 }
 
@@ -125,7 +132,7 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
         .map(|id| TargetRef::Card { id })
         .collect();
     agent.send_prompt(
-        board_targets(candidates, intent.is_hostile(), intent),
+        board_targets(candidates, intent.is_hostile(), intent, intent.to_string()),
         source,
     );
     agent.recv_card_choice_or_first(valid)
@@ -149,7 +156,10 @@ pub(super) fn choose_target_any<T: Responder>(
             .into_iter()
             .map(|id| TargetRef::Card { id }),
     );
-    agent.send_prompt(board_targets(candidates, hostile, intent), source);
+    agent.send_prompt(
+        board_targets(candidates, hostile, intent, intent.to_string()),
+        source,
+    );
     match agent.recv_action() {
         PlayerAction::BoardTargets { chosen } => chosen
             .into_iter()
@@ -185,7 +195,7 @@ pub(super) fn choose_target_spell<T: Responder>(
         })
         .collect();
     agent.send_prompt(
-        board_targets(candidates, intent.is_hostile(), intent),
+        board_targets(candidates, intent.is_hostile(), intent, intent.to_string()),
         source,
     );
     agent.recv_spell_choice_or_first(valid)
@@ -202,7 +212,12 @@ pub(super) fn choose_sacrifice<T: Responder>(
         .map(|id| TargetRef::Card { id })
         .collect();
     agent.send_prompt(
-        board_targets(candidates, true, TargetingIntent::Sacrifice),
+        board_targets(
+            candidates,
+            true,
+            TargetingIntent::Sacrifice,
+            TargetingIntent::Sacrifice.to_string(),
+        ),
         source,
     );
     agent.recv_card_choice_or_first(valid)

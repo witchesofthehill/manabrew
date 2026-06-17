@@ -262,7 +262,7 @@ pub(super) fn exert_attackers<T: Responder>(
         agent,
         attackers,
         TargetingIntent::Tap,
-        "Choose attackers to exert",
+        "Exert",
         None,
     )
 }
@@ -276,7 +276,7 @@ pub(super) fn enlist_attackers<T: Responder>(
         agent,
         attackers,
         TargetingIntent::Tap,
-        "Choose creatures to enlist",
+        "Enlist",
         None,
     )
 }

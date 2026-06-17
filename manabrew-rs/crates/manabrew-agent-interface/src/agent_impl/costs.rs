@@ -6,8 +6,6 @@ use manabrew_engine::mana::ManaPool;
 use manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput;
 use manabrew_protocol::prompts::common::PromptPresentation;
 
-use crate::game_view_dto::TargetingIntent;
-
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{PlayerAction, PromptInput};
 

@@ -89,7 +89,7 @@ fn main() {
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
-            label: None,
+            label: "Damage".to_string(),
         }),
         GameOver(game_over::GameOverInput {}),
         RevealCards(reveal_cards::RevealCardsInput {

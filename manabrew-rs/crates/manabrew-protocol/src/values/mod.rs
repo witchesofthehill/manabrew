@@ -198,7 +198,9 @@ pub enum StackTargetKindDto {
     Stack,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,
+)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "values/index.ts")]
 pub enum TargetingIntent {

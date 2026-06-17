@@ -10,8 +10,6 @@ use crate::java_raw::{
     JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
-use manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput;
-
 use crate::prompt::{
     ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
     AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetRef,
@@ -308,10 +306,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 .map(|id| TargetRef::Card { id })
                 .collect();
             let total = candidates.len() as i32;
-            PromptInput::ChooseBoardTargets(ChooseBoardTargetsInput {
-                label: Some("Tap creatures for Convoke".to_string()),
-                ..board_targets_input(candidates, TargetingIntent::Tap, 0, total, 0)
-            })
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
+                TargetingIntent::Tap,
+                0,
+                total,
+                0,
+                "Convoke".to_string(),
+            ))
         }
         JavaRawPromptBody::ChooseImprovise {
             cards,
@@ -323,10 +325,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 .map(|id| TargetRef::Card { id })
                 .collect();
             let total = candidates.len() as i32;
-            PromptInput::ChooseBoardTargets(ChooseBoardTargetsInput {
-                label: Some("Tap artifacts for Improvise".to_string()),
-                ..board_targets_input(candidates, TargetingIntent::Tap, 0, total, 0)
-            })
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
+                TargetingIntent::Tap,
+                0,
+                total,
+                0,
+                "Improvise".to_string(),
+            ))
         }
         JavaRawPromptBody::ReorderLibrary {
             cards,
@@ -360,6 +366,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetCard {
@@ -384,6 +391,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetAny {
@@ -410,6 +418,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetSpell {
@@ -433,6 +442,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::PayManaCost {
@@ -1100,6 +1110,7 @@ fn board_targets_input(
     min_targets: i32,
     max_targets: i32,
     chosen_targets: i32,
+    label: String,
 ) -> manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
     manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
         candidates,
@@ -1108,7 +1119,7 @@ fn board_targets_input(
         min_targets,
         max_targets,
         chosen_targets,
-        label: None,
+        label,
     }
 }
 

@@ -3723,6 +3723,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+ "strum_macros",
  "ts-rs",
 ]
 

@@ -45,6 +45,11 @@ export const Z_GRID_SKELETON = -1;
 export const HAND_REF_WIDTH = 1440;
 export const HAND_MIN_SCALE = 0.55;
 export const HAND_MAX_SCALE = 1.3;
+// The hand scale is width-derived; on a short (but wide) window that can make
+// the fan taller than its region and overflow the battlefield. Cap the hand
+// card height to this fraction of the self region height (shrink-only) so a
+// play-area band always remains.
+export const HAND_MAX_ZONE_HEIGHT_FRACTION = 0.6;
 
 // ── Hover timing ───────────────────────────────────────────────────────────
 // Defers the hand-hover clear so an HTML overlay (action menu) can cancel

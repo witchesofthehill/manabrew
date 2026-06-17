@@ -19,6 +19,7 @@ import {
   SNAP_HAND_SCALE,
   SNAP_PX,
   SNAP_ROT,
+  HAND_MAX_ZONE_HEIGHT_FRACTION,
   Z_HAND_CONTAINER,
   Z_HAND_HOVERED,
 } from "../constants";
@@ -79,7 +80,12 @@ export class HandController {
   }
 
   setScale(scale: number): void {
-    this.vScale = scale;
+    // Shrink-only cap so a width-derived scale can't make the fan taller than
+    // its region (which would overflow the battlefield on a short window).
+    const zoneH = this.host.getPlayZone().height;
+    const maxScale =
+      zoneH > 0 ? (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH : scale;
+    this.vScale = Math.min(scale, maxScale);
   }
 
   setDropActive(active: boolean): void {

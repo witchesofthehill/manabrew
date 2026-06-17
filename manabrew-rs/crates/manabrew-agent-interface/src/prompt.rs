@@ -124,11 +124,6 @@ pub enum PlayerAction {
         #[serde(rename = "replicateCount")]
         replicate_count: u32,
     },
-    /// Response to ChooseAlternativeCost prompt: index of chosen option.
-    AlternativeCostDecision {
-        #[serde(rename = "chosenIndex")]
-        chosen_index: usize,
-    },
     /// Response to ChooseColor prompt: the chosen color name.
     ColorDecision {
         color: Option<String>,

@@ -40,7 +40,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseFromSelection"]: "Choose from options",
   ["chooseMultikicker"]: "Choose multikicker count",
   ["chooseReplicate"]: "Choose replicate count",
-  ["chooseAlternativeCost"]: "Choose casting option",
   ["scry"]: "Scry: choose cards to put on the bottom",
   ["surveil"]: "Surveil: choose cards to send to graveyard",
   ["dig"]: "Dig: choose cards to take",

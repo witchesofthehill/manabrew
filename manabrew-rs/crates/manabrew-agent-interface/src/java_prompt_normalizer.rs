@@ -667,7 +667,6 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::Decision { .. } => "decision",
         PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
         PlayerAction::ReplicateDecision { .. } => "replicateDecision",
-        PlayerAction::AlternativeCostDecision { .. } => "alternativeCostDecision",
         PlayerAction::ExploreResponse { .. } => "exploreResponse",
         PlayerAction::AssistDecision { .. } => "assistDecision",
         PlayerAction::PayCombatCost => "payCombatCost",

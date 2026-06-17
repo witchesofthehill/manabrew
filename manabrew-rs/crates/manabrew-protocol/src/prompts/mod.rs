@@ -4,7 +4,6 @@ use ts_rs::TS;
 pub mod common;
 
 pub mod choose_action;
-pub mod choose_alternative_cost;
 pub mod choose_attackers;
 pub mod choose_blockers;
 pub mod choose_board_targets;
@@ -61,7 +60,6 @@ pub enum PromptInput {
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectInput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerInput),
     ChooseReplicate(choose_replicate::ChooseReplicateInput),
-    ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostInput),
     ChooseColor(choose_color::ChooseColorInput),
     ChooseType(choose_type::ChooseTypeInput),
     ChooseNumber(choose_number::ChooseNumberInput),
@@ -107,7 +105,6 @@ pub enum PromptOutput {
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectOutput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerOutput),
     ChooseReplicate(choose_replicate::ChooseReplicateOutput),
-    ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostOutput),
     ChooseColor(choose_color::ChooseColorOutput),
     ChooseType(choose_type::ChooseTypeOutput),
     ChooseNumber(choose_number::ChooseNumberOutput),

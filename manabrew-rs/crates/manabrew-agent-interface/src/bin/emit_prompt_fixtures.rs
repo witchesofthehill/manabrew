@@ -137,9 +137,6 @@ fn main() {
             cost: String::new(),
             max_replicates: 0,
         }),
-        ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostInput {
-            options: vec![],
-        }),
         ChooseColor(choose_color::ChooseColorInput {
             valid_colors: vec![],
         }),

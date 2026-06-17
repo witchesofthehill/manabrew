@@ -105,16 +105,6 @@ export const allCardsForced: PromptResolver<"chooseCardsForEffect"> = (prompt) =
   };
 };
 
-export const singleAlternativeCost: PromptResolver<"chooseAlternativeCost"> = (prompt) => {
-  const opts = prompt.input.options;
-  if (opts.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "alternativeCostDecision", chosenIndex: 0 },
-    reason: "only one castable cost option",
-  };
-};
-
 export const singleBlockerOrder: PromptResolver<"chooseDamageAssignmentOrder"> = (prompt) => {
   const blockers = prompt.input.blockerIds;
   if (blockers.length > 1) return { kind: "force-show" };

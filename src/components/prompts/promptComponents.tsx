@@ -16,7 +16,6 @@ import { ChooseBooleanModal } from "./ChooseBooleanModal";
 import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
 import { MultikickerModal } from "./MultikickerModal";
 import { ReplicateModal } from "./ReplicateModal";
-import { AlternativeCostModal } from "./AlternativeCostModal";
 import { DiceRollFeedback, FirstPlayerRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
@@ -202,10 +201,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseReplicate: ({ prompt, respond }) => (
     <ReplicateModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseAlternativeCost: ({ prompt, respond }) => (
-    <AlternativeCostModal input={prompt.input} respond={respond} />
   ),
 
   payCombatCost: ({ prompt, respond }) => (

@@ -150,28 +150,6 @@ pub(super) fn choose_replicate<T: Responder>(
     }
 }
 
-pub(super) fn choose_alternative_cost<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    options: &[String],
-    source: Option<CardId>,
-) -> usize {
-    agent.send_prompt(
-        PromptInput::ChooseAlternativeCost(
-            manabrew_protocol::prompts::choose_alternative_cost::ChooseAlternativeCostInput {
-                options: options.to_vec(),
-            },
-        ),
-        source,
-    );
-    match agent.recv_action() {
-        PlayerAction::AlternativeCostDecision { chosen_index } => {
-            chosen_index.min(options.len().saturating_sub(1))
-        }
-        _ => 0,
-    }
-}
-
 pub(super) fn pay_mana_cost<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,

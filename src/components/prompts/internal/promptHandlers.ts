@@ -73,10 +73,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseMultikicker"]: { showByDefault: true, resolve: optionalCosts.skipMultikicker },
   ["chooseReplicate"]: { showByDefault: true, resolve: optionalCosts.skipReplicate },
-  ["chooseAlternativeCost"]: {
-    showByDefault: true,
-    resolve: forced.singleAlternativeCost,
-  },
   ["chooseDelve"]: { showByDefault: true, resolve: optionalCosts.skipDelve },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
   ["surveil"]: { showByDefault: true, resolve: forced.emptySurveil },

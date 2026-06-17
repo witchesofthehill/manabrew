@@ -156,9 +156,6 @@ impl BotAgent for SimpleAi {
             PromptInput::ChooseReplicate(manabrew_protocol::prompts::choose_replicate::ChooseReplicateInput { .. }) => {
                 Some(PlayerAction::ReplicateDecision { replicate_count: 0 })
             }
-            PromptInput::ChooseAlternativeCost(manabrew_protocol::prompts::choose_alternative_cost::ChooseAlternativeCostInput { .. }) => {
-                Some(PlayerAction::AlternativeCostDecision { chosen_index: 0 })
-            }
             PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, .. }) => {
                 Some(PlayerAction::ColorDecision {
                     color: valid_colors.first().cloned(),

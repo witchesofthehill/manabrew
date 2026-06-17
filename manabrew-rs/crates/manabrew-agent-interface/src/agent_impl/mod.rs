@@ -921,15 +921,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         costs::choose_replicate(self, player, cost, max_replicates, source)
     }
 
-    fn choose_alternative_cost(
-        &mut self,
-        player: PlayerId,
-        options: &[String],
-        source: Option<CardId>,
-    ) -> usize {
-        costs::choose_alternative_cost(self, player, options, source)
-    }
-
     fn choose_color(&mut self, player: PlayerId, valid_colors: &[String]) -> Option<String> {
         choices::choose_color(self, player, valid_colors)
     }

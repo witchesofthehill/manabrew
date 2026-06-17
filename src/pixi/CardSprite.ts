@@ -1149,7 +1149,7 @@ export class CardSprite extends Container {
 
       let countText: Text | null = null;
       let countWidth = 0;
-      if (count > 1 && !isPM) {
+      if (count > 1) {
         countText = new Text({ text: ` ${count}`, style: COUNTER_STYLE });
         countText.resolution = TEXT_RASTER_RESOLUTION;
         countText.anchor.set(0, 0.5);

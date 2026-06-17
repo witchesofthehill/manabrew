@@ -32,9 +32,6 @@ export interface ZoneActionColumnProps {
   /** Begin a drag-to-cast gesture on the commander card (mirrors the
    *  hand-card drag flow). Local player only. */
   onCommanderDragStart?: (card: GameCard, e: React.MouseEvent) => void;
-  /** Id of the card currently being drag-cast — passed through to the
-   *  command zone tile so it can render empty while the drag is live. */
-  draggingCardId?: string | null;
   /** Hover preview for the commander card. */
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
   /** Layout direction. Defaults to "vertical" for backwards compatibility. */
@@ -166,7 +163,6 @@ export function ZoneActionColumn({
   onOpenCommandZone,
   onCastCommander,
   onCommanderDragStart,
-  draggingCardId,
   onHoverCard,
   orientation = "vertical",
   columns,
@@ -236,7 +232,6 @@ export function ZoneActionColumn({
           onStartDrag={onCommanderDragStart}
           onOpenZone={onOpenCommandZone}
           onHoverCard={onHoverCard}
-          draggingCardId={draggingCardId}
         />
       )}
       {order.map((item) => items[item])}

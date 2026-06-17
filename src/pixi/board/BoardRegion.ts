@@ -426,7 +426,7 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
-    this.effects.tick(now);
+    this.effects.tick();
   }
 
   // ── Battlefield layout ─────────────────────────────────────────────

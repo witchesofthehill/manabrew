@@ -94,6 +94,12 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Card search",
     defaultCombo: { key: "/" },
   },
+  {
+    id: "flip-card",
+    label: "Flip double-faced card (preview / hand)",
+    category: "Game",
+    defaultCombo: { key: "f" },
+  },
 ];
 
 export const IS_APPLE =

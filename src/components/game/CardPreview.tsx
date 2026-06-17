@@ -20,6 +20,7 @@ import { useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
+import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface CardPreviewProps {
   card: GameCard;
@@ -298,19 +299,11 @@ export function CardPreview({
       }
     : null;
 
-  useEffect(() => {
-    if (!onFlip || !hasFlippableFaces) return;
-    function handleFlipKey(e: KeyboardEvent) {
-      if (e.key.toLowerCase() === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const target = e.target as HTMLElement | null;
-        if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
-        e.preventDefault();
-        onFlip!();
-      }
-    }
-    window.addEventListener("keydown", handleFlipKey);
-    return () => window.removeEventListener("keydown", handleFlipKey);
-  }, [onFlip, hasFlippableFaces]);
+  useKeybindings({
+    "flip-card": () => {
+      if (onFlip && hasFlippableFaces) onFlip();
+    },
+  });
 
   // Dismiss on Escape, outside click, or number key shortcut
   useEffect(() => {

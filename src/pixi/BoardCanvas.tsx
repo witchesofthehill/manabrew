@@ -24,6 +24,7 @@ import {
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { RotateCw } from "lucide-react";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
@@ -390,6 +391,20 @@ export function BoardCanvas({
   }, [hoverCardId]);
   const showHandFlip = !!handHover && hoverFaces.isFlippable;
 
+  const toggleHandFlip = useCallback(() => {
+    setHandFlipBack((prev) => {
+      const next = !prev;
+      sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
+      return next;
+    });
+  }, [sceneRef]);
+
+  useKeybindings({
+    "flip-card": () => {
+      if (showHandFlip) toggleHandFlip();
+    },
+  });
+
   return (
     <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
@@ -417,9 +432,7 @@ export function BoardCanvas({
             }}
             onClick={(e) => {
               e.stopPropagation();
-              const next = !handFlipBack;
-              setHandFlipBack(next);
-              sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
+              toggleHandFlip();
             }}
           >
             <RotateCw className="h-3 w-3" />

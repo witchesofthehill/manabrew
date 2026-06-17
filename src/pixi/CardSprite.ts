@@ -32,6 +32,7 @@ import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
 import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
+import { DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
 
 /**
  * Shared, mutable theme reference used by every `CardSprite` instance.
@@ -806,9 +807,9 @@ export class CardSprite extends Container {
     const color = attacking
       ? hexToNum(activeTheme.gameTheme.pt.lethal)
       : hexToNum(activeTheme.gameTheme.textOnTinted);
-    const maxAlpha = attacking ? 0.9 : 0.7;
-    const layers = 6;
-    const step = 1.6;
+    const maxAlpha = attacking ? EDGE_GLOW.attackingMaxAlpha : EDGE_GLOW.sickMaxAlpha;
+    const layers = EDGE_GLOW.layers;
+    const step = EDGE_GLOW.insetStep;
     for (let i = 0; i < layers; i++) {
       const inset = i * step;
       this.edgeGlowGfx.roundRect(
@@ -818,7 +819,11 @@ export class CardSprite extends Container {
         CARD_H - 2 * inset,
         Math.max(0, CARD_RADIUS - inset),
       );
-      this.edgeGlowGfx.stroke({ color, width: 2.2, alpha: maxAlpha * (1 - i / layers) });
+      this.edgeGlowGfx.stroke({
+        color,
+        width: EDGE_GLOW.strokeWidth,
+        alpha: maxAlpha * (1 - i / layers),
+      });
     }
     this.edgeGlowGfx.visible = true;
     this.edgeGlowGfx.alpha = 1;
@@ -827,13 +832,13 @@ export class CardSprite extends Container {
 
   /** Stat "pop" — a brief bump of the P/T badge when power/toughness changes. */
   playStatPop(now: number): void {
-    this.statPopFx = oneShot(now, 360);
+    this.statPopFx = oneShot(now, STAT_POP.durationMs);
   }
 
   /** White impact flash when the creature takes damage (with the existing
    *  wash + shake + floater). */
   playDamageHit(now: number): void {
-    this.hitFlashFx = oneShot(now, 260);
+    this.hitFlashFx = oneShot(now, DAMAGE_HIT.durationMs);
   }
 
   /** Per-frame hook (driven by the board region's animate loop) — breathes the
@@ -842,11 +847,13 @@ export class CardSprite extends Container {
    *  `fxScale`, driven by GSAP.) */
   tickEffects(now: number): void {
     if (this.glowPulsing) {
-      this.edgeGlowGfx.alpha = animationsEnabled() ? pulse(now, 1600, 0.5, 0.95) : 0.85;
+      this.edgeGlowGfx.alpha = animationsEnabled()
+        ? pulse(now, EDGE_GLOW.pulsePeriodMs, EDGE_GLOW.pulseMin, EDGE_GLOW.pulseMax)
+        : EDGE_GLOW.staticAlpha;
     }
 
     const sp = oneShotProgress(this.statPopFx, now);
-    if (sp != null) this.ptContainer.scale.set(1 + 0.35 * bump(sp));
+    if (sp != null) this.ptContainer.scale.set(1 + STAT_POP.bumpScale * bump(sp));
     else if (this.statPopFx) {
       this.statPopFx = null;
       this.ptContainer.scale.set(1);
@@ -858,7 +865,7 @@ export class CardSprite extends Container {
       this.hitFlashGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
       this.hitFlashGfx.fill({
         color: hexToNum(activeTheme.gameTheme.textOnTinted),
-        alpha: 0.5 * bump(fp),
+        alpha: DAMAGE_HIT.maxAlpha * bump(fp),
       });
       this.hitFlashGfx.visible = true;
     } else if (this.hitFlashFx) {
@@ -886,10 +893,10 @@ export class CardSprite extends Container {
     if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();
     const f = this.sickFilter;
     if (sick) {
-      f.saturate(-1.3, false);
-      f.brightness(0.78, true);
+      f.saturate(SUMMONING_FILTER.sickSaturate, false);
+      f.brightness(SUMMONING_FILTER.sickBrightness, true);
     } else {
-      f.saturate(-1.5, false);
+      f.saturate(SUMMONING_FILTER.phasedSaturate, false);
     }
     this.filters = [f];
   }

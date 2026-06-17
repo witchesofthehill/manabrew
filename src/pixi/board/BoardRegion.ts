@@ -18,6 +18,7 @@ import { lerp, safeDestroy } from "./pixiHelpers";
 import { EffectsLayer } from "../effects/EffectsLayer";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
+import { TURN_GLOW } from "../effects/config";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -1033,9 +1034,9 @@ export class BoardRegion {
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     // Static, restrained rim — a quiet "it's this player's turn" cue, not a
     // breathing pulse (which read as distracting).
-    const layers = 3;
+    const layers = TURN_GLOW.layers;
     for (let i = 0; i < layers; i++) {
-      const inset = i * 3;
+      const inset = i * TURN_GLOW.insetStep;
       this.activeGlowGfx.roundRect(
         felt.x + inset,
         felt.y + inset,
@@ -1043,7 +1044,11 @@ export class BoardRegion {
         felt.height - 2 * inset,
         Math.max(0, TABLE_RADIUS - inset),
       );
-      this.activeGlowGfx.stroke({ color, width: 2, alpha: 0.32 * (1 - i / layers) });
+      this.activeGlowGfx.stroke({
+        color,
+        width: TURN_GLOW.strokeWidth,
+        alpha: TURN_GLOW.maxAlpha * (1 - i / layers),
+      });
     }
   }
 

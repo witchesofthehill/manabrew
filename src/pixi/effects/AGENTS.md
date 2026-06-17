@@ -9,13 +9,14 @@ Two complementary timing systems:
 
 ## Modules
 
-| File              | What it is                                                                                                                                                                                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gsap.ts`         | GSAP + `PixiPlugin` registered for Pixi v8. Re-exports `gsap`.                                                                                                                                                                |
-| `easing.ts`       | Pure easings (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` 0..1 → eased value.                                                                                                                                |
-| `animation.ts`    | Pure time math: `oneShot`/`oneShotProgress` (transient), `pulse` (loops). Callers pass `now`.                                                                                                                                 |
-| `EffectsLayer.ts` | Pooled transient effects via Pixi v8's native `ParticleContainer` (the ETB dust burst). `@pixi/particle-emitter` is v7-only, so we don't use it. Mounted above the felt / below cards; ticked from the region's animate loop. |
-| `stomp.ts`        | The creature-ETB stomp: a GSAP squash-and-settle timeline + a dust burst.                                                                                                                                                     |
+| File              | What it is                                                                                                                                                                                                                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gsap.ts`         | GSAP + `PixiPlugin` registered for Pixi v8. Re-exports `gsap`.                                                                                                                                                                                                                                     |
+| `easing.ts`       | Pure easings (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` 0..1 → eased value.                                                                                                                                                                                                     |
+| `animation.ts`    | Pure time math: `oneShot`/`oneShotProgress` (transient), `pulse` (loops). Callers pass `now`.                                                                                                                                                                                                      |
+| `EffectsLayer.ts` | Pooled transient effects via Pixi v8's native `ParticleContainer` (the ETB dust burst). `@pixi/particle-emitter` is v7-only, so we don't use it. Mounted above the felt / below cards; ticked from the region's animate loop.                                                                      |
+| `stomp.ts`        | The creature-ETB stomp: a GSAP squash-and-settle timeline + a dust burst.                                                                                                                                                                                                                          |
+| `config/`         | One `*.const.ts` per effect (`CRACKLE`, `DUST`, `STOMP`, `TURN_GLOW`, `EDGE_GLOW`, `DAMAGE_HIT`, `STAT_POP`, `SUMMONING_FILTER`), re-exported from `config/index.ts`. **All tunable numbers live here** — colors are still theme tokens at the call site. Tweak feel here, not in the effect body. |
 
 ## Principles
 

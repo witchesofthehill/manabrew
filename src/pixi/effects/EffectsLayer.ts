@@ -8,6 +8,7 @@
  */
 
 import { Container, Graphics, ParticleContainer, Particle, Texture } from "pixi.js";
+import { CRACKLE, DUST } from "./config";
 
 interface DustParticle {
   p: Particle;
@@ -44,13 +45,6 @@ function dustTex(): Texture {
   return dustTexture;
 }
 
-// The stomp reads as kicked-up warm sand across every theme (a fixed
-// aesthetic, like the foil gold) — intentionally not theme tokens. Dust is
-// pale + translucent; cracks are a deeper, more saturated sand so they stay
-// evident on the dark felt.
-const DUST_COLOR = 0xd9c8a0;
-const CRACK_COLOR = 0xc7a35a;
-
 export class EffectsLayer {
   readonly container = new Container();
   private pc = new ParticleContainer({
@@ -71,20 +65,20 @@ export class EffectsLayer {
     this.burstDust(x, y);
   }
 
-  private burstDust(x: number, y: number, count = 34): void {
+  private burstDust(x: number, y: number, count = DUST.count): void {
     const tex = dustTex();
     for (let i = 0; i < count; i++) {
       const ang = Math.random() * Math.PI * 2;
-      const speed = 0.4 + Math.random() * 2.6; // wide range → some hang as a cloud
-      const s0 = 0.2 + Math.random() * 0.55;
+      const speed = DUST.speedMin + Math.random() * DUST.speedExtra;
+      const s0 = DUST.scaleMin + Math.random() * DUST.scaleExtra;
       const p = new Particle({
         texture: tex,
         x,
         y,
         anchorX: 0.5,
         anchorY: 0.5,
-        tint: DUST_COLOR,
-        alpha: 0.45,
+        tint: DUST.color,
+        alpha: DUST.alpha,
       });
       p.scaleX = s0;
       p.scaleY = s0;
@@ -93,9 +87,11 @@ export class EffectsLayer {
         p,
         vx: Math.cos(ang) * speed,
         // Flattened spread + an upward billow that low gravity lets hang.
-        vy: Math.sin(ang) * speed * 0.55 - (0.4 + Math.random() * 0.9),
+        vy:
+          Math.sin(ang) * speed * DUST.flatten -
+          (DUST.upwardMin + Math.random() * DUST.upwardExtra),
         life: 0,
-        max: 26 + Math.random() * 20,
+        max: DUST.lifeMin + Math.random() * DUST.lifeExtra,
         s0,
       });
     }
@@ -105,22 +101,25 @@ export class EffectsLayer {
    *  faded over their life. Placed under the dust. */
   private spawnCracks(x: number, y: number): void {
     const g = new Graphics();
-    const arms = 8 + Math.floor(Math.random() * 4);
+    const arms = CRACKLE.armsMin + Math.floor(Math.random() * CRACKLE.armsExtra);
     for (let i = 0; i < arms; i++) {
-      const base = (i / arms) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const len = 20 + Math.random() * 30;
-      const segs = 4;
+      const base = (i / arms) * Math.PI * 2 + (Math.random() - 0.5) * CRACKLE.baseJitter;
+      const len = CRACKLE.lengthMin + Math.random() * CRACKLE.lengthExtra;
+      const segs = CRACKLE.segments;
       g.moveTo(x, y);
       for (let s = 1; s <= segs; s++) {
-        const a = base + (Math.random() - 0.5) * 0.6;
+        const a = base + (Math.random() - 0.5) * CRACKLE.segmentJitter;
         const r = (len / segs) * s;
-        g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5);
+        g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * CRACKLE.flatten);
       }
     }
-    g.stroke({ color: CRACK_COLOR, width: 1.1, alpha: 0.95 });
-    g.ellipse(x, y, 5, 2.5).fill({ color: CRACK_COLOR, alpha: 0.4 });
+    g.stroke({ color: CRACKLE.color, width: CRACKLE.strokeWidth, alpha: CRACKLE.strokeAlpha });
+    g.ellipse(x, y, CRACKLE.blotchRadiusX, CRACKLE.blotchRadiusY).fill({
+      color: CRACKLE.color,
+      alpha: CRACKLE.blotchAlpha,
+    });
     this.container.addChildAt(g, 0); // under the dust particle container
-    this.crackles.push({ gfx: g, life: 0, max: 22 });
+    this.crackles.push({ gfx: g, life: 0, max: CRACKLE.lifeFrames });
   }
 
   tick(): void {
@@ -128,14 +127,14 @@ export class EffectsLayer {
       const survivors: DustParticle[] = [];
       for (const d of this.dust) {
         d.life += 1;
-        d.vy += 0.04;
-        d.vx *= 0.88;
-        d.vy *= 0.9;
+        d.vy += DUST.gravity;
+        d.vx *= DUST.dragX;
+        d.vy *= DUST.dragY;
         d.p.x += d.vx;
         d.p.y += d.vy;
         const t = d.life / d.max;
-        d.p.alpha = (1 - t) * 0.45;
-        const s = d.s0 * (1 + t * 2.8); // billow outward as it dissipates
+        d.p.alpha = (1 - t) * DUST.alpha;
+        const s = d.s0 * (1 + t * DUST.growth); // billow outward as it dissipates
         d.p.scaleX = s;
         d.p.scaleY = s;
         if (d.life >= d.max) {
@@ -153,8 +152,9 @@ export class EffectsLayer {
       for (const c of this.crackles) {
         c.life += 1;
         const t = c.life / c.max;
-        // Snap in, then fade out quickly.
-        c.gfx.alpha = t < 0.08 ? 1 : Math.max(0, 1 - (t - 0.08) / 0.92);
+        // Snap in, hold briefly, then fade out.
+        const hold = CRACKLE.holdFraction;
+        c.gfx.alpha = t < hold ? 1 : Math.max(0, 1 - (t - hold) / (1 - hold));
         if (c.life >= c.max) {
           this.container.removeChild(c.gfx);
           c.gfx.destroy();

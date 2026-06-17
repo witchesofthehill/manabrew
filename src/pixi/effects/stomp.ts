@@ -5,6 +5,7 @@
  * `fxScale` to the sprite each frame and supplies the ground reaction.
  */
 
+import { STOMP } from "./config";
 import { gsap } from "./gsap";
 
 export interface StompOptions {
@@ -18,7 +19,7 @@ export function playStomp({ fxScale, onImpact }: StompOptions): void {
   gsap.killTweensOf(fxScale);
   gsap
     .timeline()
-    .set(fxScale, { x: 1.24, y: 0.78 }) // instant squash on contact (wide + short)
+    .set(fxScale, { x: STOMP.squashX, y: STOMP.squashY })
     .call(onImpact)
-    .to(fxScale, { x: 1, y: 1, duration: 0.26, ease: "back.out(2.4)" }); // fast settle
+    .to(fxScale, { x: 1, y: 1, duration: STOMP.settleSec, ease: STOMP.settleEase });
 }

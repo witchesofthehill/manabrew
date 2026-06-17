@@ -123,6 +123,8 @@ export class BoardScene {
   private cursorViewportY = 0;
   private cursorListener: (e: MouseEvent) => void;
   private canvasLeaveListener: () => void;
+  private onStageMove = (e: FederatedPointerEvent): void => this.onGlobalMove(e);
+  private onStageUp = (): void => this.onGlobalUp();
 
   constructor(app: Application, callbacks: GameCanvasCallbacks) {
     this.app = app;
@@ -155,9 +157,9 @@ export class BoardScene {
     this.floaterLayer.zIndex = 9000;
     this.root.addChild(this.floaterLayer);
 
-    app.stage.on("pointermove", (e: FederatedPointerEvent) => this.onGlobalMove(e));
-    app.stage.on("pointerup", () => this.onGlobalUp());
-    app.stage.on("pointerupoutside", () => this.onGlobalUp());
+    app.stage.on("pointermove", this.onStageMove);
+    app.stage.on("pointerup", this.onStageUp);
+    app.stage.on("pointerupoutside", this.onStageUp);
 
     this.cursorListener = (e: MouseEvent) => {
       this.cursorViewportX = e.clientX;
@@ -1053,9 +1055,9 @@ export class BoardScene {
     window.removeEventListener("mousemove", this.cursorListener);
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);
-    this.app.stage.off("pointermove");
-    this.app.stage.off("pointerup");
-    this.app.stage.off("pointerupoutside");
+    this.app.stage.off("pointermove", this.onStageMove);
+    this.app.stage.off("pointerup", this.onStageUp);
+    this.app.stage.off("pointerupoutside", this.onStageUp);
     try {
       this.dragHandler.destroy();
       this.phaseStrip.destroy();

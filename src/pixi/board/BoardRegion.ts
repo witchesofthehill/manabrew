@@ -15,6 +15,7 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
 import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
+import { pulse } from "../effects/animation";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -89,6 +90,8 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private activeGlowGfx: Graphics;
+  private active = false;
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
 
@@ -132,6 +135,12 @@ export class BoardRegion {
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
+
+    this.activeGlowGfx = new Graphics();
+    this.activeGlowGfx.zIndex = -9;
+    this.activeGlowGfx.eventMode = "none";
+    this.activeGlowGfx.visible = false;
+    this.container.addChild(this.activeGlowGfx);
 
     this.gridSkeletonGfx = new Graphics();
     this.gridSkeletonGfx.eventMode = "none";
@@ -313,15 +322,16 @@ export class BoardRegion {
 
   animate(): void {
     let exited: string[] | null = null;
+    const now = performance.now();
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
-      s.tickEffects();
       if (entry.exiting) {
         s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
         s.scale.set(s.scale.x * EXIT_SHRINK);
         if (s.alpha <= 0.05) (exited ??= []).push(id);
         continue;
       }
+      s.tickEffects(now);
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
       if (entry.shakeFrames > 0) {
@@ -383,14 +393,15 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
+    if (this.active) this.activeGlowGfx.alpha = pulse(now, 1800, 0.3, 0.8);
   }
 
   // ── Battlefield layout ─────────────────────────────────────────────
 
   updateBattlefield(state: BattlefieldState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
-    const prevDamage = new Map<string, number>();
-    for (const c of this.lastState?.cards ?? []) prevDamage.set(c.id, c.damage ?? 0);
+    const prevCards = new Map<string, GameCard>();
+    for (const c of this.lastState?.cards ?? []) prevCards.set(c.id, c);
     const isFirstState = this.lastState === null;
     this.lastState = state;
     const cardMap = new Map<string, GameCard>(state.cards.map((c) => [c.id, c]));
@@ -492,14 +503,25 @@ export class BoardRegion {
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
       const cardHalfH = (CARD_H * this.cardScale) / 2;
+      const now = performance.now();
       for (const card of state.cards) {
-        const delta = (card.damage ?? 0) - (prevDamage.get(card.id) ?? 0);
-        if (delta <= 0) continue;
         const entry = this.entries.get(card.id);
         if (!entry) continue;
-        entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
-        const c = this.localToCanvas(entry.targetX, entry.targetY);
-        this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
+        const prev = prevCards.get(card.id);
+        if (!prev) {
+          entry.sprite.playEntrance(now);
+          continue;
+        }
+        if (card.power !== prev.power || card.toughness !== prev.toughness) {
+          entry.sprite.playStatPop(now);
+        }
+        const delta = (card.damage ?? 0) - (prev.damage ?? 0);
+        if (delta > 0) {
+          entry.sprite.playDamageHit(now);
+          entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+          const c = this.localToCanvas(entry.targetX, entry.targetY);
+          this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
+        }
       }
     }
     this.emptyText.visible = state.cards.length === 0;
@@ -964,6 +986,35 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
+    this.drawActiveGlow();
+  }
+
+  /** Highlight this region while its player holds the turn — a soft inner glow
+   *  on the felt edge, breathed in `animate`. */
+  setActive(active: boolean): void {
+    if (this.active === active) return;
+    this.active = active;
+    this.activeGlowGfx.visible = active;
+    this.drawActiveGlow();
+  }
+
+  private drawActiveGlow(): void {
+    this.activeGlowGfx.clear();
+    if (!this.active) return;
+    const felt = this.usableZone();
+    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
+    const layers = 3;
+    for (let i = 0; i < layers; i++) {
+      const inset = i * 4;
+      this.activeGlowGfx.roundRect(
+        felt.x + inset,
+        felt.y + inset,
+        felt.width - 2 * inset,
+        felt.height - 2 * inset,
+        Math.max(0, TABLE_RADIUS - inset),
+      );
+      this.activeGlowGfx.stroke({ color, width: 3, alpha: 1 - i / layers });
+    }
   }
 
   private layoutEmptyText(): void {
@@ -991,6 +1042,15 @@ export class BoardRegion {
 
   restyleCards(): void {
     for (const entry of this.entries.values()) entry.sprite.restyle();
+  }
+
+  /** Dev: replay the ETB flash on every current card (no state change). */
+  previewEtb(): void {
+    const now = performance.now();
+    for (const entry of this.entries.values()) {
+      entry.etbGlowAlpha = 1;
+      entry.sprite.playEntrance(now);
+    }
   }
 
   redrawHoverDebug(): void {

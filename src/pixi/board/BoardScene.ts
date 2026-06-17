@@ -91,6 +91,7 @@ export class BoardScene {
   private perfMinFps = Infinity;
   private perfMaxFps = 0;
   private perfLastFlush = 0;
+  private activePlayerId: string | null = null;
 
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
@@ -229,6 +230,7 @@ export class BoardScene {
       );
       region.container.zIndex = spec.isLocal ? 100 : 50;
       region.setAutoSort(this.autoSort);
+      region.setActive(spec.playerId === this.activePlayerId);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -500,6 +502,18 @@ export class BoardScene {
   setAutoSort(value: boolean): void {
     this.autoSort = value;
     for (const rec of this.regions.values()) rec.region.setAutoSort(value);
+  }
+
+  /** Highlight whichever region holds the turn (a breathing felt glow). */
+  setActivePlayer(playerId: string | null): void {
+    if (this.activePlayerId === playerId) return;
+    this.activePlayerId = playerId;
+    for (const [pid, rec] of this.regions) rec.region.setActive(pid === playerId);
+  }
+
+  /** Dev: replay the ETB flash on every card (driven by the dev panel). */
+  previewEtb(): void {
+    for (const rec of this.regions.values()) rec.region.previewEtb();
   }
 
   setPendingDropSlot(slot: { col: number; row: number } | null): void {

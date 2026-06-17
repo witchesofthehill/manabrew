@@ -16,11 +16,6 @@ interface CommandZoneTileProps {
   /** Fallback click (e.g. open zone modal) when no cast is available. */
   onOpenZone?: () => void;
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
-  /** Id of the card currently being drag-cast. When it matches the
-   *  shown commander, the tile renders an empty placeholder — mirrors
-   *  the hand's "lift" behaviour so the zone reads as emptied while the
-   *  ghost is in flight. */
-  draggingCardId?: string | null;
 }
 
 const COMMANDER_CARD_SIZE = "w-[72px] h-[100px] shrink-0" as const;
@@ -31,25 +26,15 @@ export function CommandZoneTile({
   onStartDrag,
   onOpenZone,
   onHoverCard,
-  draggingCardId,
 }: CommandZoneTileProps) {
   const themeColors = useTheme().gameTheme;
   const first = commanders[0];
   const count = commanders.length;
   if (!first) return null;
 
-  // While the commander is being drag-cast, render a dashed empty slot
-  // in-place so the cluster layout stays stable but the zone reads as
-  // emptied (matching the hand's gap-when-dragging behaviour).
-  if (draggingCardId && draggingCardId === first.id) {
-    return (
-      <div
-        className="relative h-[100px] w-[72px] shrink-0 rounded-md border-2 border-dashed border-muted-foreground/45 bg-muted/10"
-        aria-hidden="true"
-      />
-    );
-  }
-
+  // The commander stays put while being drag-cast — the placement arrow
+  // (anchored to its `data-card-id`) is the in-flight feedback. It leaves the
+  // zone only when the engine reports the cast, like any other zone change.
   const canCast = first.isPlayable && !!onCastCommander;
 
   // Mousedown initiates the drag-to-cast flow when the commander is

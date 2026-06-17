@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
@@ -76,6 +76,19 @@ interface BoardRegionOptions {
 /** Distance (px) from its slot at which an entering card counts as "landed",
  *  triggering its stomp. */
 const ENTRANCE_LAND_PX = 8;
+
+/** Two top-level permanents auto-stack only when they are the same card in the
+ *  same state. Derived straight from the engine DTO rather than a hand-picked
+ *  field list — so every property the engine reports (P/T, counters, keywords,
+ *  status badges, foil, printing, …) splits the stack automatically and a
+ *  different-looking card can never hide inside one. Only per-instance / UI
+ *  fields are excluded: `id` (always unique) and `isSelected` (selecting a card
+ *  must not pop it out of its group). */
+function stackIdentityKey(c: GameCard): string {
+  return JSON.stringify(c, (key, value) =>
+    key === "id" || key === "isSelected" ? undefined : value,
+  );
+}
 
 /**
  * Renders one player's battlefield inside a region rect of the unified
@@ -158,6 +171,14 @@ export class BoardRegion {
     this.container.addChild(this.emptyText);
 
     this.drawBackground();
+  }
+
+  /** Make the felt itself the drag-marquee start surface (local region only).
+   *  Wired by the scene in `setupLocalControllers`; card sprites sit above and
+   *  stop propagation, so this fires only on empty felt. */
+  enableFeltMarquee(onDown: (e: FederatedPointerEvent) => void): void {
+    this.backgroundGfx.eventMode = "static";
+    this.backgroundGfx.on("pointerdown", onDown);
   }
 
   // ── Region geometry ────────────────────────────────────────────────
@@ -618,16 +639,16 @@ export class BoardRegion {
       (!c.attachmentIds || c.attachmentIds.length === 0) &&
       !this.userPlacedCards.has(c.id);
 
-    const byNameAndTap = new Map<string, GameCard[]>();
+    const byIdentity = new Map<string, GameCard[]>();
     for (const c of topLevel) {
       if (!isStackable(c)) continue;
-      const key = `${c.tapped ? "t" : "u"}:${c.name}`;
-      const list = byNameAndTap.get(key);
+      const key = stackIdentityKey(c);
+      const list = byIdentity.get(key);
       if (list) list.push(c);
-      else byNameAndTap.set(key, [c]);
+      else byIdentity.set(key, [c]);
     }
 
-    for (const group of byNameAndTap.values()) {
+    for (const group of byIdentity.values()) {
       if (group.length < 2) continue;
       const parent = group[0]!;
       for (let i = 1; i < group.length; i++) {

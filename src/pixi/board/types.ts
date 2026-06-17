@@ -27,7 +27,7 @@ export interface StagedBlocker {
   laneCount: number;
 }
 
-/** MTGA-style combat layout for the cards in one region. Attackers slide
+/** style combat layout for the cards in one region. Attackers slide
  *  forward keeping their x; blockers slide to their attacker's lane. Set
  *  null to release (cards lerp home). */
 export interface SceneCombatStaging {

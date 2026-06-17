@@ -4,7 +4,7 @@
  * pushes toward greyscale; `brightness` < 1 dims.
  */
 export const SUMMONING_FILTER = {
-  sickSaturate: -1.3,
+  sickSaturate: -1,
   sickBrightness: 0.78,
   phasedSaturate: -1.5,
 } as const;

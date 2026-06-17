@@ -48,7 +48,6 @@ interface PlayerPanelProps {
   onOpenCommandZone?: () => void;
   onCastCommander?: (cardId: string) => void;
   onCommanderDragStart?: (card: GameCard, e: React.MouseEvent) => void;
-  draggingCardId?: string | null;
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
   onOpenLibrary?: () => void;
   onOpenGraveyard?: () => void;
@@ -84,7 +83,6 @@ export function PlayerPanel({
   onOpenCommandZone,
   onCastCommander,
   onCommanderDragStart,
-  draggingCardId,
   onHoverCard,
   onOpenLibrary,
   onOpenGraveyard,
@@ -300,7 +298,6 @@ export function PlayerPanel({
       onOpenCommandZone={onOpenCommandZone}
       onCastCommander={onCastCommander}
       onCommanderDragStart={onCommanderDragStart}
-      draggingCardId={draggingCardId}
       onHoverCard={onHoverCard}
       leading={isVertical || split ? undefined : avatarCell}
     />

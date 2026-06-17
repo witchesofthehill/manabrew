@@ -232,6 +232,24 @@ export class BoardScene {
     this.hand = new HandController(this.makeHandHost(), this.root);
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
+    region.enableFeltMarquee((e) => this.onFeltDown(e));
+  }
+
+  /** Pointer-down on the local player's empty felt starts a drag-marquee for
+   *  multi-select. Card sprites stop propagation, so this only fires off-card.
+   *  `onGlobalMove` / `onGlobalUp` already drive the active marquee. */
+  private onFeltDown(e: FederatedPointerEvent): void {
+    if (this.destroyed) return;
+    const selection = this.selection;
+    if (!selection) return;
+    // Multi-select is a normal-mode behavior — not while declaring blockers.
+    if (this.declareBlockers) return;
+    const pos = this.root.toLocal(e.global);
+    if (!e.shiftKey) {
+      selection.clear();
+      selection.refresh();
+    }
+    selection.startMarquee(pos.x, pos.y, e.shiftKey);
   }
 
   private positionPhaseStrip(layout: BoardLayout): void {
@@ -923,10 +941,14 @@ export class BoardScene {
       resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
     }
     if (this.castingArrow) {
-      const from = this.resolveArrowEndpoint(
-        { kind: "card", id: this.castingArrow.sourceCardId },
-        canvasRect,
-      );
+      // The casting source is the spell on the stack, marked `data-casting-card`
+      // (StackDisplay) — robust for casts from any zone, incl. the command zone,
+      // which has no battlefield/hand sprite for the generic card resolver to
+      // find. Fall back to the card resolver for battlefield ability sources.
+      const id = this.castingArrow.sourceCardId;
+      const from =
+        this.domCenterCanvasLocal(`[data-casting-card="${CSS.escape(id)}"]`, canvasRect) ??
+        this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
         const t = this.theme.gameTheme.pointer;
         resolved.push({
@@ -956,7 +978,12 @@ export class BoardScene {
     }
     if (castDragging) {
       const id = this.hand?.getDraggingCardId();
-      const from = id ? (this.hand?.getCardPosition(id) ?? null) : null;
+      // Hand cards resolve to a Pixi sprite; a permanent dragged from a zone with
+      // no sprite (the command zone) falls back to its React element by card id.
+      const from = id
+        ? (this.hand?.getCardPosition(id) ??
+          this.domCenterCanvasLocal(`[data-card-id="${CSS.escape(id)}"]`, canvasRect))
+        : null;
       if (from) {
         resolved.push({
           fromX: from.x,

@@ -654,7 +654,6 @@ export function GameBoard({
         exile={exile}
         onCastCommander={onCastSpell}
         onCommanderDragStart={onHandCardDragStart}
-        draggingCardId={draggingCardId}
         onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
         onOpenCommandZone={() => {
           if ((myCommandZone?.length ?? 0) > 0) {

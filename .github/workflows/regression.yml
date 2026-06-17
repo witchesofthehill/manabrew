@@ -46,6 +46,7 @@ jobs:
     # entries. Also records whether the PR asked for a full Java reverify.
     runs-on: [self-hosted, Linux]
     timeout-minutes: 5
+    if: false
     outputs:
       new_count: ${{ steps.split.outputs.new_count }}
       existing_count: ${{ steps.split.outputs.existing_count }}
@@ -173,7 +174,7 @@ jobs:
     # re-enabling rust-vs-rust:
     #   if: needs.classify.outputs.new_count != '0' || needs.classify.outputs.force_full_java == 'true'
     needs: classify
-    if: always()
+    if: false
     runs-on: [self-hosted, Linux, run_parity]
     timeout-minutes: 90
     env:

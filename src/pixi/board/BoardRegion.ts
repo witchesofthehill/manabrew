@@ -1066,12 +1066,14 @@ export class BoardRegion {
    *  permanents just get the entry glow. Impact point = the card's foot. */
   private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
     if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
-    const dust = hexToNum(this.host.getTheme().gameTheme.canvas.neutral);
+    const theme = this.host.getTheme().gameTheme;
+    const dust = hexToNum(theme.canvas.neutral);
+    const crack = hexToNum(theme.activeAction.active);
     const footX = entry.targetX;
     const footY = entry.targetY + (CARD_H * this.cardScale) / 2;
     playStomp({
       fxScale: entry.sprite.fxScale,
-      burstDust: () => this.effects.burstDust(footX, footY, dust),
+      onImpact: () => this.effects.stompGround(footX, footY, dust, crack),
     });
   }
 

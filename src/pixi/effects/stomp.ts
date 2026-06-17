@@ -10,16 +10,16 @@ import { gsap } from "./gsap";
 export interface StompOptions {
   /** Mutable squash multiplier the region applies to the sprite ({1,1} = none). */
   fxScale: { x: number; y: number };
-  /** Spawn the ground dust at the impact point. */
-  burstDust: () => void;
+  /** Fire the ground reaction (dust cloud + cracks) at the moment of impact. */
+  onImpact: () => void;
 }
 
-export function playStomp({ fxScale, burstDust }: StompOptions): void {
+export function playStomp({ fxScale, onImpact }: StompOptions): void {
   gsap.killTweensOf(fxScale);
   gsap
     .timeline()
     .set(fxScale, { x: 0.92, y: 1.12 }) // falling: narrow + tall
-    .to(fxScale, { x: 1.26, y: 0.76, duration: 0.11, ease: "power2.in" }) // slam: wide + short
-    .call(burstDust, undefined, ">-0.02")
-    .to(fxScale, { x: 1, y: 1, duration: 0.5, ease: "elastic.out(1, 0.45)" }); // springy settle
+    .to(fxScale, { x: 1.28, y: 0.74, duration: 0.12, ease: "power2.in" }) // slam: wide + short
+    .call(onImpact, undefined, ">-0.02")
+    .to(fxScale, { x: 1, y: 1, duration: 0.62, ease: "elastic.out(1, 0.4)" }); // springy settle
 }

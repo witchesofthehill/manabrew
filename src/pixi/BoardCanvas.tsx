@@ -459,7 +459,7 @@ export function BoardCanvas({
               top: handHover.bounds.y,
               width: HAND_ACTIONS_GAP_PX + HAND_ACTIONS_PANEL_W,
               height: handHover.bounds.height,
-              borderBottomLeftRadius: "100%",
+              borderBottomRightRadius: "100%",
               backgroundColor: showHoverAreas
                 ? withAlpha(getTheme().gameTheme.success, 0.28)
                 : "transparent",

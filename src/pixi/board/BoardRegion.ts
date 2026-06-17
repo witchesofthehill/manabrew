@@ -16,6 +16,7 @@ import { hexToNum } from "../colorUtils";
 import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
 import { EffectsLayer } from "../effects/EffectsLayer";
+import { playStomp } from "../effects/stomp";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -383,7 +384,7 @@ export class BoardRegion {
       const isHovered = this.hoveredCardId === s.card.id;
       const targetScale = this.cardScale * (isHovered ? HOVER_SCALE : 1);
       entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
-      const fx = s.getFxScale();
+      const fx = s.fxScale;
       s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
 
       if (entry.overlay?.visible) {
@@ -515,7 +516,7 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          entry.sprite.playEntrance(now);
+          this.playEntranceFx(entry, card);
           continue;
         }
         if (card.power !== prev.power || card.toughness !== prev.toughness) {
@@ -1053,13 +1054,25 @@ export class BoardRegion {
     for (const entry of this.entries.values()) entry.sprite.restyle();
   }
 
-  /** Dev: replay the ETB flash on every current card (no state change). */
+  /** Dev: replay the ETB flash/stomp on every current card (no state change). */
   previewEtb(): void {
-    const now = performance.now();
     for (const entry of this.entries.values()) {
       entry.etbGlowAlpha = 1;
-      entry.sprite.playEntrance(now);
+      this.playEntranceFx(entry, entry.sprite.card);
     }
+  }
+
+  /** Creature entrances stomp (GSAP squash + a ground dust burst); other
+   *  permanents just get the entry glow. Impact point = the card's foot. */
+  private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
+    if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
+    const dust = hexToNum(this.host.getTheme().gameTheme.canvas.neutral);
+    const footX = entry.targetX;
+    const footY = entry.targetY + (CARD_H * this.cardScale) / 2;
+    playStomp({
+      fxScale: entry.sprite.fxScale,
+      burstDust: () => this.effects.burstDust(footX, footY, dust),
+    });
   }
 
   redrawHoverDebug(): void {

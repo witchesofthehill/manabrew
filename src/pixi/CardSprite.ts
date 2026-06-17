@@ -30,7 +30,7 @@ import { asDeckCard } from "@/lib/decks";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
-import { bump, easeOutCubic } from "./effects/easing";
+import { bump } from "./effects/easing";
 
 /**
  * Shared, mutable theme reference used by every `CardSprite` instance.
@@ -325,11 +325,11 @@ export class CardSprite extends Container {
   private edgeGlowMask: Graphics;
   private glowPulsing = false;
   private hitFlashGfx: Graphics;
-  private entranceFx: OneShot | null = null;
   private statPopFx: OneShot | null = null;
   private hitFlashFx: OneShot | null = null;
-  private fxScaleX = 1;
-  private fxScaleY = 1;
+  /** Squash multiplier driven by GSAP (entrance stomp); the region multiplies
+   *  it into the base/hover scale each frame so the two don't fight. */
+  readonly fxScale = { x: 1, y: 1 };
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -824,18 +824,6 @@ export class CardSprite extends Container {
     this.glowPulsing = sick && !attacking;
   }
 
-  /** Entrance "stomp" — a squash-and-stretch on enter (the region also fires a
-   *  ground dust ring). Read by the region via {@link getFxScale}. */
-  playEntrance(now: number): void {
-    this.entranceFx = oneShot(now, 240);
-  }
-
-  /** Non-uniform scale multiplier from the entrance squash (1,1 when idle). The
-   *  region multiplies this into the base/hover scale so the two don't fight. */
-  getFxScale(): { x: number; y: number } {
-    return { x: this.fxScaleX, y: this.fxScaleY };
-  }
-
   /** Stat "pop" — a brief bump of the P/T badge when power/toughness changes. */
   playStatPop(now: number): void {
     this.statPopFx = oneShot(now, 360);
@@ -848,21 +836,11 @@ export class CardSprite extends Container {
   }
 
   /** Per-frame hook (driven by the board region's animate loop) — breathes the
-   *  summoning-sick aura and advances the one-shot entrance / stat-pop / hit
-   *  animations. `now` is the shared frame timestamp. */
+   *  summoning-sick aura and advances the one-shot stat-pop / hit animations.
+   *  `now` is the shared frame timestamp. (The entrance squash lives in
+   *  `fxScale`, driven by GSAP.) */
   tickEffects(now: number): void {
     if (this.glowPulsing) this.edgeGlowGfx.alpha = pulse(now, 1600, 0.5, 0.95);
-
-    const ep = oneShotProgress(this.entranceFx, now);
-    if (ep != null) {
-      const s = 1 + 0.06 * (1 - easeOutCubic(ep));
-      this.fxScaleX = s;
-      this.fxScaleY = s;
-    } else if (this.entranceFx) {
-      this.entranceFx = null;
-      this.fxScaleX = 1;
-      this.fxScaleY = 1;
-    }
 
     const sp = oneShotProgress(this.statPopFx, now);
     if (sp != null) this.ptContainer.scale.set(1 + 0.35 * bump(sp));

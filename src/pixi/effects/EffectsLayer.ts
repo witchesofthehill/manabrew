@@ -1,80 +1,113 @@
 /**
- * A small pool of transient, self-culling board effects (currently the ETB
- * ground stomp). Mounted by its owner — the board region mounts it just above
- * the felt, below the cards — and ticked from that owner's animate loop with
- * the shared frame `now`. Drawing is a pure function of progress.
+ * Pooled transient board effects, GPU-batched via Pixi v8's native
+ * `ParticleContainer` (no third-party emitter — `@pixi/particle-emitter` is
+ * Pixi v7 only). Currently: the ETB dust burst. Mounted by its owner (the
+ * board region, above the felt / below the cards) and ticked from that owner's
+ * animate loop. The sim is frame-based (one step per tick).
  */
 
-import { Container, Graphics } from "pixi.js";
-import { type OneShot, oneShot, oneShotProgress } from "./animation";
-import { easeOutCubic } from "./easing";
+import { Container, ParticleContainer, Particle, Texture } from "pixi.js";
 
-interface StompFx {
-  x: number;
-  y: number;
-  color: number;
-  fx: OneShot;
-  gfx: Graphics;
+interface DustParticle {
+  p: Particle;
+  vx: number;
+  vy: number;
+  life: number;
+  max: number;
+  s0: number;
 }
 
-const STOMP_DURATION_MS = 520;
-const STOMP_CRACKS = 8;
+let dustTexture: Texture | null = null;
+
+/** A soft radial puff, generated once and tinted per particle. */
+function dustTex(): Texture {
+  if (dustTexture) return dustTexture;
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.5, "rgba(255,255,255,0.55)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  dustTexture = Texture.from(canvas);
+  return dustTexture;
+}
 
 export class EffectsLayer {
   readonly container = new Container();
-  private active: StompFx[] = [];
+  private pc = new ParticleContainer({
+    dynamicProperties: { position: true, vertex: true, color: true, rotation: false, uvs: false },
+  });
+  private dust: DustParticle[] = [];
 
   constructor() {
     this.container.eventMode = "none";
+    this.container.addChild(this.pc);
   }
 
-  /** A creature stomping onto the felt: an expanding, flattened dust ring with
-   *  radial cracks that fades out. `(x, y)` is the impact point (card foot). */
-  spawnStomp(now: number, x: number, y: number, color: number): void {
-    const gfx = new Graphics();
-    this.container.addChild(gfx);
-    this.active.push({ x, y, color, fx: oneShot(now, STOMP_DURATION_MS), gfx });
+  /** Kick a flattened ring of dust outward from `(x, y)` (the card's foot). */
+  burstDust(x: number, y: number, color: number, count = 18): void {
+    const tex = dustTex();
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const speed = 0.8 + Math.random() * 2.4;
+      const s0 = 0.16 + Math.random() * 0.4;
+      const p = new Particle({
+        texture: tex,
+        x,
+        y,
+        anchorX: 0.5,
+        anchorY: 0.5,
+        tint: color,
+        alpha: 0.85,
+      });
+      p.scaleX = s0;
+      p.scaleY = s0;
+      this.pc.addParticle(p);
+      this.dust.push({
+        p,
+        vx: Math.cos(ang) * speed,
+        // Flattened (×0.45) so it reads as spreading along the ground, with a
+        // small upward puff that gravity then pulls back down.
+        vy: Math.sin(ang) * speed * 0.45 - 0.7,
+        life: 0,
+        max: 24 + Math.random() * 16,
+        s0,
+      });
+    }
   }
 
-  tick(now: number): void {
-    if (this.active.length === 0) return;
-    const survivors: StompFx[] = [];
-    for (const s of this.active) {
-      const p = oneShotProgress(s.fx, now);
-      if (p == null) {
-        this.container.removeChild(s.gfx);
-        s.gfx.destroy();
+  tick(): void {
+    if (this.dust.length === 0) return;
+    const survivors: DustParticle[] = [];
+    for (const d of this.dust) {
+      d.life += 1;
+      d.vy += 0.05;
+      d.vx *= 0.9;
+      d.vy *= 0.9;
+      d.p.x += d.vx;
+      d.p.y += d.vy;
+      const t = d.life / d.max;
+      d.p.alpha = (1 - t) * 0.85;
+      const s = d.s0 * (1 + t * 1.8);
+      d.p.scaleX = s;
+      d.p.scaleY = s;
+      if (d.life >= d.max) {
+        this.pc.removeParticle(d.p);
         continue;
       }
-      drawStomp(s.gfx, s.x, s.y, p, s.color);
-      survivors.push(s);
+      survivors.push(d);
     }
-    this.active = survivors;
+    this.dust = survivors;
+    this.pc.update();
   }
 
   destroy(): void {
-    for (const s of this.active) s.gfx.destroy();
-    this.active = [];
+    this.dust = [];
     this.container.destroy({ children: true });
   }
-}
-
-/** Flattened (ellipse) so it reads as lying on the ground in perspective. */
-function drawStomp(g: Graphics, cx: number, cy: number, p: number, color: number): void {
-  g.clear();
-  const ease = easeOutCubic(p);
-  const fade = 1 - p;
-
-  const rx = 6 + ease * 32;
-  g.ellipse(cx, cy, rx, rx * 0.42).stroke({ color, width: 0.5 + 2.5 * fade, alpha: fade * 0.85 });
-
-  const rx2 = 3 + ease * 19;
-  g.ellipse(cx, cy, rx2, rx2 * 0.42).stroke({ color, width: 1.5, alpha: fade * 0.5 });
-
-  const len = 9 + ease * 24;
-  for (let i = 0; i < STOMP_CRACKS; i++) {
-    const a = (i / STOMP_CRACKS) * Math.PI * 2 + i * 0.6;
-    g.moveTo(cx, cy).lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len * 0.42);
-  }
-  g.stroke({ color, width: 1, alpha: fade * 0.5 });
 }

@@ -357,6 +357,10 @@ export class PhaseStripLayer {
   resize(width: number, height: number): void {
     this.canvasWidth = width;
     this.canvasHeight = height;
+    // Cells + divider line are laid out around `canvasWidth / 2` in `update`,
+    // which only runs on a phase-state change — so re-run it here or the strip
+    // stays positioned for the old width (off-center) until the next phase.
+    if (this.lastState) this.update(this.lastState);
   }
 
   update(state: PhaseStripState): void {

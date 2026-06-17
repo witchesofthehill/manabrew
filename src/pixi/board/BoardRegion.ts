@@ -1073,14 +1073,11 @@ export class BoardRegion {
   private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
     if (!animationsEnabled()) return;
     if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
-    const theme = this.host.getTheme().gameTheme;
-    const dust = hexToNum(theme.canvas.neutral);
-    const crack = hexToNum(theme.activeAction.active);
     const footX = entry.targetX;
     const footY = entry.targetY + (CARD_H * this.cardScale) / 2;
     playStomp({
       fxScale: entry.sprite.fxScale,
-      onImpact: () => this.effects.stompGround(footX, footY, dust, crack),
+      onImpact: () => this.effects.stompGround(footX, footY),
     });
   }
 

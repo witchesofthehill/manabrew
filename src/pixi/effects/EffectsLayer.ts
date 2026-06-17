@@ -44,6 +44,13 @@ function dustTex(): Texture {
   return dustTexture;
 }
 
+// The stomp reads as kicked-up warm sand across every theme (a fixed
+// aesthetic, like the foil gold) — intentionally not theme tokens. Dust is
+// pale + translucent; cracks are a deeper, more saturated sand so they stay
+// evident on the dark felt.
+const DUST_COLOR = 0xd9c8a0;
+const CRACK_COLOR = 0xc7a35a;
+
 export class EffectsLayer {
   readonly container = new Container();
   private pc = new ParticleContainer({
@@ -59,12 +66,12 @@ export class EffectsLayer {
 
   /** The full ground reaction of a creature landing: radial cracks snap in
    *  (under the dust) and a billowing dust cloud rises from the foot. */
-  stompGround(x: number, y: number, dustColor: number, crackColor: number): void {
-    this.spawnCracks(x, y, crackColor);
-    this.burstDust(x, y, dustColor);
+  stompGround(x: number, y: number): void {
+    this.spawnCracks(x, y);
+    this.burstDust(x, y);
   }
 
-  private burstDust(x: number, y: number, color: number, count = 34): void {
+  private burstDust(x: number, y: number, count = 34): void {
     const tex = dustTex();
     for (let i = 0; i < count; i++) {
       const ang = Math.random() * Math.PI * 2;
@@ -76,8 +83,8 @@ export class EffectsLayer {
         y,
         anchorX: 0.5,
         anchorY: 0.5,
-        tint: color,
-        alpha: 0.7,
+        tint: DUST_COLOR,
+        alpha: 0.45,
       });
       p.scaleX = s0;
       p.scaleY = s0;
@@ -96,24 +103,24 @@ export class EffectsLayer {
 
   /** Jagged radial cracks, flattened into ground perspective, drawn once and
    *  faded over their life. Placed under the dust. */
-  private spawnCracks(x: number, y: number, color: number): void {
+  private spawnCracks(x: number, y: number): void {
     const g = new Graphics();
-    const arms = 6 + Math.floor(Math.random() * 3);
+    const arms = 8 + Math.floor(Math.random() * 4);
     for (let i = 0; i < arms; i++) {
       const base = (i / arms) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const len = 14 + Math.random() * 24;
-      const segs = 3;
+      const len = 20 + Math.random() * 30;
+      const segs = 4;
       g.moveTo(x, y);
       for (let s = 1; s <= segs; s++) {
-        const a = base + (Math.random() - 0.5) * 0.5;
+        const a = base + (Math.random() - 0.5) * 0.6;
         const r = (len / segs) * s;
         g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5);
       }
     }
-    g.stroke({ color, width: 1.5, alpha: 0.85 });
-    g.ellipse(x, y, 5, 2.5).fill({ color, alpha: 0.4 });
+    g.stroke({ color: CRACK_COLOR, width: 2.4, alpha: 0.95 });
+    g.ellipse(x, y, 7, 3.5).fill({ color: CRACK_COLOR, alpha: 0.5 });
     this.container.addChildAt(g, 0); // under the dust particle container
-    this.crackles.push({ gfx: g, life: 0, max: 60 });
+    this.crackles.push({ gfx: g, life: 0, max: 78 });
   }
 
   tick(): void {
@@ -127,7 +134,7 @@ export class EffectsLayer {
         d.p.x += d.vx;
         d.p.y += d.vy;
         const t = d.life / d.max;
-        d.p.alpha = (1 - t) * 0.7;
+        d.p.alpha = (1 - t) * 0.45;
         const s = d.s0 * (1 + t * 2.8); // billow outward as it dissipates
         d.p.scaleX = s;
         d.p.scaleY = s;
@@ -146,8 +153,8 @@ export class EffectsLayer {
       for (const c of this.crackles) {
         c.life += 1;
         const t = c.life / c.max;
-        // Snap in (held), then fade.
-        c.gfx.alpha = t < 0.15 ? 1 : Math.max(0, 1 - (t - 0.15) / 0.85);
+        // Snap in, hold, then fade — held long enough to read clearly.
+        c.gfx.alpha = t < 0.3 ? 1 : Math.max(0, 1 - (t - 0.3) / 0.7);
         if (c.life >= c.max) {
           this.container.removeChild(c.gfx);
           c.gfx.destroy();

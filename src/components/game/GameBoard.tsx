@@ -370,11 +370,12 @@ export function GameBoard({
         ? chooseActionActions
             .filter((a) => a.type === "activateAbility" && a.isManaAbility)
             .map((a) => a.cardId)
-        : (payCombatCostPrompt?.input.tappableLandIds ?? payManaCostPrompt?.input.tappableLandIds),
+        : (payCombatCostPrompt?.input.tappableSourceIds ??
+          payManaCostPrompt?.input.tappableSourceIds),
       untappableLandIds: chooseActionActions
         ? chooseActionActions.filter((a) => a.type === "undoMana").map((a) => a.cardId)
-        : (payCombatCostPrompt?.input.untappableLandIds ??
-          payManaCostPrompt?.input.untappableLandIds),
+        : (payCombatCostPrompt?.input.untappableSourceIds ??
+          payManaCostPrompt?.input.untappableSourceIds),
       manaAbilityOptions,
       hostileTargeting,
     }),

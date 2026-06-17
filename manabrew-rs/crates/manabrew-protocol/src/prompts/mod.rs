@@ -15,17 +15,12 @@ pub mod choose_color;
 pub mod choose_combat_damage_assignment;
 pub mod choose_damage_assignment_order;
 pub mod choose_delve;
-pub mod choose_dice_to_reroll;
 pub mod choose_discard;
-pub mod choose_mode;
+pub mod choose_from_selection;
 pub mod choose_multikicker;
 pub mod choose_number;
 pub mod choose_optional_trigger;
 pub mod choose_replicate;
-pub mod choose_roll_swap_value;
-pub mod choose_roll_to_ignore;
-pub mod choose_roll_to_modify;
-pub mod choose_roll_to_swap;
 pub mod choose_type;
 pub mod dice_rolled;
 pub mod dig;
@@ -55,6 +50,7 @@ pub enum PromptInput {
     ChooseBlockers(choose_blockers::ChooseBlockersInput),
     ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput),
     ChooseBoolean(choose_boolean::ChooseBooleanInput),
+    ChooseFromSelection(choose_from_selection::ChooseFromSelectionInput),
     GameOver(game_over::GameOverInput),
     RevealCards(reveal_cards::RevealCardsInput),
     Scry(scry::ScryInput),
@@ -63,7 +59,6 @@ pub enum PromptInput {
     ChooseDiscard(choose_discard::ChooseDiscardInput),
     ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerInput),
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectInput),
-    ChooseMode(choose_mode::ChooseModeInput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerInput),
     ChooseReplicate(choose_replicate::ChooseReplicateInput),
     ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostInput),
@@ -84,11 +79,6 @@ pub enum PromptInput {
     HelpPayAssist(help_pay_assist::HelpPayAssistInput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollInput),
     DiceRolled(dice_rolled::DiceRolledInput),
-    ChooseRollToIgnore(choose_roll_to_ignore::ChooseRollToIgnoreInput),
-    ChooseRollToSwap(choose_roll_to_swap::ChooseRollToSwapInput),
-    ChooseRollToModify(choose_roll_to_modify::ChooseRollToModifyInput),
-    ChooseDiceToReroll(choose_dice_to_reroll::ChooseDiceToRerollInput),
-    ChooseRollSwapValue(choose_roll_swap_value::ChooseRollSwapValueInput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput),
 }
 
@@ -107,6 +97,7 @@ pub enum PromptOutput {
     ChooseBlockers(choose_blockers::ChooseBlockersOutput),
     ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsOutput),
     ChooseBoolean(choose_boolean::ChooseBooleanOutput),
+    ChooseFromSelection(choose_from_selection::ChooseFromSelectionOutput),
     RevealCards(reveal_cards::RevealCardsOutput),
     Scry(scry::ScryOutput),
     Surveil(surveil::SurveilOutput),
@@ -114,7 +105,6 @@ pub enum PromptOutput {
     ChooseDiscard(choose_discard::ChooseDiscardOutput),
     ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerOutput),
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectOutput),
-    ChooseMode(choose_mode::ChooseModeOutput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerOutput),
     ChooseReplicate(choose_replicate::ChooseReplicateOutput),
     ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostOutput),
@@ -135,10 +125,5 @@ pub enum PromptOutput {
     HelpPayAssist(help_pay_assist::HelpPayAssistOutput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
-    ChooseRollToIgnore(choose_roll_to_ignore::ChooseRollToIgnoreOutput),
-    ChooseRollToSwap(choose_roll_to_swap::ChooseRollToSwapOutput),
-    ChooseRollToModify(choose_roll_to_modify::ChooseRollToModifyOutput),
-    ChooseDiceToReroll(choose_dice_to_reroll::ChooseDiceToRerollOutput),
-    ChooseRollSwapValue(choose_roll_swap_value::ChooseRollSwapValueOutput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectOutput),
 }

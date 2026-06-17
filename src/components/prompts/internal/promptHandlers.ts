@@ -61,7 +61,7 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseBoardTargets"]: { showByDefault: true, resolve: forced.singleLegalBoardTarget },
 
   ["revealCards"]: { showByDefault: true, resolve: informational.ackReveal },
-  ["chooseMode"]: { showByDefault: true, resolve: forced.forcedAllModes },
+  ["chooseFromSelection"]: { showByDefault: true, resolve: forced.forcedAllSelections },
   ["chooseOptionalTrigger"]: {
     showByDefault: true,
     resolve: triggerMemory.optionalTriggerMemory,

@@ -205,8 +205,8 @@ pub(super) fn pay_mana_cost<T: Responder>(
                         cost: None,
                     })
                     .collect(),
-                tappable_land_ids,
-                untappable_land_ids,
+                tappable_source_ids: tappable_land_ids,
+                untappable_source_ids: untappable_land_ids,
                 mana_pool_total: mana_pool.total_mana(),
                 can_confirm_from_pool,
             },
@@ -214,12 +214,12 @@ pub(super) fn pay_mana_cost<T: Responder>(
         Some(card_id),
     );
     match agent.recv_action() {
-        PlayerAction::TapLand {
+        PlayerAction::TapForMana {
             card_id,
             ability_index,
             color,
         } => parse_card_id(&card_id)
-            .map(|card_id| ManaCostAction::TapLand {
+            .map(|card_id| ManaCostAction::TapForMana {
                 card_id,
                 mana_ability_index: ability_index,
                 express_choice: color
@@ -228,8 +228,8 @@ pub(super) fn pay_mana_cost<T: Responder>(
                     .filter(|&atom| atom != 0),
             })
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
-            .map(ManaCostAction::UntapLand)
+        PlayerAction::Untap { card_id } => parse_card_id(&card_id)
+            .map(ManaCostAction::Untap)
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
         PlayerAction::PayManaCost { auto } => ManaCostAction::Pay { auto },
         PlayerAction::CancelManaCost => ManaCostAction::AttemptedAndFailed,
@@ -324,34 +324,26 @@ pub(super) fn choose_delve<T: Responder>(
     }
 }
 
+// Convoke and improvise are resolved interactively inside the mana-payment
+// session (tap a creature/artifact as a mana source), not as an upfront batch.
+// A human agent declines the batch reduction so the cost stays full until
+// payment, where `TapForMana` against a convoke source contributes mana.
 pub(super) fn choose_improvise<T: Responder>(
-    agent: &mut PromptAgent<T>,
+    _agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    untapped_artifacts: &[CardId],
+    _untapped_artifacts: &[CardId],
     _remaining_cost: &forge_foundation::ManaCost,
-    source: Option<CardId>,
+    _source: Option<CardId>,
 ) -> Vec<CardId> {
-    super::targeting::choose_board_targets_multi(
-        agent,
-        untapped_artifacts,
-        TargetingIntent::Tap,
-        "Tap artifacts for Improvise",
-        source,
-    )
+    Vec::new()
 }
 
 pub(super) fn choose_convoke<T: Responder>(
-    agent: &mut PromptAgent<T>,
+    _agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    untapped_creatures: &[CardId],
+    _untapped_creatures: &[CardId],
     _remaining_cost: &forge_foundation::ManaCost,
-    source: Option<CardId>,
+    _source: Option<CardId>,
 ) -> Vec<CardId> {
-    super::targeting::choose_board_targets_multi(
-        agent,
-        untapped_creatures,
-        TargetingIntent::Tap,
-        "Tap creatures for Convoke",
-        source,
-    )
+    Vec::new()
 }

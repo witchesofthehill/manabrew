@@ -3,7 +3,7 @@ import {
   PromptActionButton,
   type PromptButtonLayout,
 } from "@/components/prompts/PromptActionButton";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 
 interface PromptLabelProps {
   buttonLayout: PromptButtonLayout;
@@ -36,7 +36,7 @@ export function PromptLabel({
         <div className="flex min-w-0 flex-1 items-center gap-2 h-9 px-3 rounded-lg border border-white/20 bg-white/5 text-white/80">
           <Crosshair className="h-3.5 w-3.5 shrink-0 animate-pulse" />
           <span className="text-xs font-semibold tracking-wide truncate">
-            <TextWithMana text={label} manaSize="sm" />
+            <DynamicTextRender text={label} />
           </span>
         </div>
         {completionButton}
@@ -48,7 +48,7 @@ export function PromptLabel({
     <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
       <Crosshair className="h-4 w-4 shrink-0 animate-pulse" />
       <span className="font-medium">
-        <TextWithMana text={label} manaSize="sm" />
+        <DynamicTextRender text={label} />
       </span>
       {completionButton}
     </div>

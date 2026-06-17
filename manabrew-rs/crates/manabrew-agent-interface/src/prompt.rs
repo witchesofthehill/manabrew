@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use manabrew_engine::player::actions::PlayerAction as EnginePlayerAction;
-use manabrew_protocol::prompts::choose_roll_swap_value::RollSwapValue;
 
 pub use manabrew_protocol::prompts::choose_action::{AvailableAction, AvailableActionKind};
 pub use manabrew_protocol::prompts::common::*;
@@ -60,16 +59,15 @@ pub enum PlayerAction {
     BoardTargets {
         chosen: Vec<TargetRef>,
     },
-    TapLand {
+    TapForMana {
         #[serde(rename = "cardId")]
         card_id: String,
         #[serde(rename = "abilityIndex")]
         ability_index: Option<usize>,
-        /// Optional color choice for 'any color' mana abilities.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         color: Option<String>,
     },
-    UntapLand {
+    Untap {
         #[serde(rename = "cardId")]
         card_id: String,
     },
@@ -107,15 +105,14 @@ pub enum PlayerAction {
     PayCostToPreventEffectDecision {
         accept: bool,
     },
-    /// Response to ChooseMode prompt: indices (0-based) of chosen modes.
-    ModeDecision {
-        #[serde(rename = "chosenIndices")]
-        chosen_indices: Vec<usize>,
-    },
     /// Response to a generic ChooseBoolean prompt (kicker, buyback, phyrexian, …).
     /// The handler that issued the prompt interprets `value` in context.
     Decision {
         value: bool,
+    },
+    SelectionDecision {
+        #[serde(rename = "chosenIndices")]
+        chosen_indices: Vec<usize>,
     },
     /// Response to ChooseMultikicker prompt: how many times.
     MultikickerDecision {
@@ -214,24 +211,5 @@ pub enum PlayerAction {
     DiceRolledAcknowledged,
     /// Acknowledge a `FirstPlayerRoll` display-only prompt.
     FirstPlayerRollAcknowledged,
-    /// Response to ChooseRollToIgnore.
-    RollToIgnoreDecision {
-        roll: Option<i32>,
-    },
-    /// Response to ChooseRollToSwap.
-    RollToSwapDecision {
-        roll: Option<i32>,
-    },
-    /// Response to ChooseRollToModify.
-    RollToModifyDecision {
-        roll: Option<i32>,
-    },
-    /// Response to ChooseDiceToReroll.
-    DiceToRerollDecision {
-        rolls: Vec<i32>,
-    },
-    RollSwapValueDecision {
-        choice: Option<RollSwapValue>,
-    },
     Concede,
 }

@@ -9,8 +9,8 @@ pub struct PayCombatCostInput {
     pub attacker_name: String,
     pub cost: i32,
     pub description: String,
-    pub tappable_land_ids: Vec<String>,
-    pub untappable_land_ids: Vec<String>,
+    pub tappable_source_ids: Vec<String>,
+    pub untappable_source_ids: Vec<String>,
     pub mana_pool_total: i32,
 }
 
@@ -24,7 +24,7 @@ pub struct PayCombatCostInput {
 pub enum PayCombatCostOutput {
     PayCombatCost,
     DeclineCombatCost,
-    TapLand {
+    TapForMana {
         card_id: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -33,7 +33,7 @@ pub enum PayCombatCostOutput {
         #[ts(optional)]
         color: Option<String>,
     },
-    UntapLand {
+    Untap {
         card_id: String,
     },
 }

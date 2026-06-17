@@ -203,12 +203,19 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             min,
             max,
             source_card_name,
-        } => PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options,
-            min_choices: min,
-            max_choices: max,
-            source_card_name,
-        }),
+        } => PromptInput::ChooseFromSelection(
+            manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
+                presentation: manabrew_protocol::prompts::common::PromptPresentation {
+                    title: source_card_name.unwrap_or_else(|| "Choose".to_string()),
+                    description: None,
+                    text: None,
+                    source_card_id: None,
+                },
+                options,
+                min_choices: min,
+                max_choices: max,
+            },
+        ),
         JavaRawPromptBody::ConfirmOrTrigger {
             description,
             source_card_name: _,
@@ -445,8 +452,8 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 .iter()
                 .map(to_mana_ability_info)
                 .collect(),
-            tappable_land_ids,
-            untappable_land_ids,
+            tappable_source_ids: tappable_land_ids,
+            untappable_source_ids: untappable_land_ids,
             mana_pool_total,
             can_confirm_from_pool,
         }),
@@ -523,7 +530,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::ChooseCardsDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::ModeDecision { chosen_indices } => JavaAction::ModeDecision {
+        PlayerAction::SelectionDecision { chosen_indices } => JavaAction::ModeDecision {
             indices: chosen_indices.clone(),
         },
         PlayerAction::OptionalTriggerDecision { accept }
@@ -623,7 +630,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             ability_index: index,
             ..
         } => JavaAction::ChooseAction { index: *index },
-        PlayerAction::TapLand {
+        PlayerAction::TapForMana {
             card_id,
             ability_index,
             color,
@@ -632,7 +639,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             mana_ability_index: *ability_index,
             color: color.clone(),
         },
-        PlayerAction::UntapLand { card_id } => JavaAction::UntapLand {
+        PlayerAction::Untap { card_id } => JavaAction::UntapLand {
             card_id: card_id.clone(),
         },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
@@ -654,8 +661,8 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
 fn player_action_label(action: &PlayerAction) -> &'static str {
     match action {
         PlayerAction::EngineAction { .. } => "engineAction",
-        PlayerAction::TapLand { .. } => "tapLand",
-        PlayerAction::UntapLand { .. } => "untapLand",
+        PlayerAction::TapForMana { .. } => "tapLand",
+        PlayerAction::Untap { .. } => "untapLand",
         PlayerAction::BoardTargets { .. } => "boardTargets",
         PlayerAction::Decision { .. } => "decision",
         PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
@@ -672,11 +679,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::CancelManaCost => "cancelManaCost",
         PlayerAction::DiceRolledAcknowledged => "diceRolledAcknowledged",
         PlayerAction::FirstPlayerRollAcknowledged => "firstPlayerRollAcknowledged",
-        PlayerAction::RollToIgnoreDecision { .. } => "rollToIgnoreDecision",
-        PlayerAction::RollToSwapDecision { .. } => "rollToSwapDecision",
-        PlayerAction::RollToModifyDecision { .. } => "rollToModifyDecision",
-        PlayerAction::DiceToRerollDecision { .. } => "diceToRerollDecision",
-        PlayerAction::RollSwapValueDecision { .. } => "rollSwapValueDecision",
+        PlayerAction::SelectionDecision { .. } => "selectionDecision",
         _ => "unknown",
     }
 }

@@ -161,7 +161,7 @@ pub fn choose_pay_mana_cost_action(
                     .iter()
                     .any(|color| color == needed)
         }) {
-            return Some(PlayerAction::TapLand {
+            return Some(PlayerAction::TapForMana {
                 card_id: ability.card_id.clone(),
                 ability_index: Some(ability.ability_index),
                 color: Some(needed.clone()),
@@ -173,7 +173,7 @@ pub fn choose_pay_mana_cost_action(
                 .map(|card| card_mana_colors(card).iter().any(|color| color == needed))
                 .unwrap_or(false)
         }) {
-            return Some(PlayerAction::TapLand {
+            return Some(PlayerAction::TapForMana {
                 card_id: card_id.clone(),
                 ability_index: None,
                 color: Some(needed.clone()),
@@ -189,7 +189,7 @@ pub fn choose_pay_mana_cost_action(
         .iter()
         .find(|ability| tappable_land_ids.contains(&ability.card_id))
     {
-        return Some(PlayerAction::TapLand {
+        return Some(PlayerAction::TapForMana {
             card_id: ability.card_id.clone(),
             ability_index: Some(ability.ability_index),
             color: None,
@@ -198,7 +198,7 @@ pub fn choose_pay_mana_cost_action(
 
     tappable_land_ids
         .first()
-        .map(|card_id| PlayerAction::TapLand {
+        .map(|card_id| PlayerAction::TapForMana {
             card_id: card_id.clone(),
             ability_index: None,
             color: None,

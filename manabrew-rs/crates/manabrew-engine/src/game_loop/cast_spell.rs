@@ -1642,7 +1642,7 @@ impl GameLoop {
                         let mut trace: Vec<ManaCostAction> = result
                             .choices
                             .iter()
-                            .map(|choice| ManaCostAction::TapLand {
+                            .map(|choice| ManaCostAction::TapForMana {
                                 card_id: choice.card_id,
                                 mana_ability_index: Some(choice.mana_ability_index.unwrap_or(0)),
                                 express_choice: if choice.needs_express_choice {

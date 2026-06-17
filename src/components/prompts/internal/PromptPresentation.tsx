@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useResolveDeckCard } from "./usePromptSourceCard";
 import type { PromptPresentation as PromptPresentationInput } from "@/protocol";
 
@@ -26,16 +26,16 @@ export function PromptPresentation({
       )}
       <div className="flex flex-1 flex-col gap-3 min-w-0">
         <h2 className="font-semibold text-2xl leading-tight">
-          <TextWithMana text={title} manaSize="lg" />
+          <DynamicTextRender text={title} />
         </h2>
         {description && (
           <p className="text-base text-foreground/90 leading-relaxed">
-            <TextWithMana text={description} manaSize="md" />
+            <DynamicTextRender text={description} />
           </p>
         )}
         {text && (
           <p className="text-sm text-muted-foreground leading-relaxed">
-            <TextWithMana text={text} />
+            <DynamicTextRender text={text} />
           </p>
         )}
         {actions && <div className="mt-auto flex justify-end gap-2">{actions}</div>}

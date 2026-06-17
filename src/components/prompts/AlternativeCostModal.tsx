@@ -1,7 +1,7 @@
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { MODAL_CARD_IMAGE } from "@/components/game/game.styles";
 import { usePromptSourceCard } from "./internal/usePromptSourceCard";
 import type { PromptProps } from "./internal/promptProps";
@@ -27,7 +27,7 @@ export function AlternativeCostModal({
               className="text-left justify-start h-auto py-2"
               onClick={() => respond({ type: "alternativeCostDecision", chosenIndex: idx })}
             >
-              <TextWithMana text={opt} manaSize="sm" />
+              <DynamicTextRender text={opt} />
             </Button>
           ))}
         </div>

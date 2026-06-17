@@ -129,12 +129,6 @@ fn main() {
             cost_kind: String::new(),
             api: None,
         }),
-        ChooseMode(choose_mode::ChooseModeInput {
-            options: vec![],
-            min_choices: 0,
-            max_choices: 0,
-            source_card_name: None,
-        }),
         ChooseMultikicker(choose_multikicker::ChooseMultikickerInput {
             cost: String::new(),
             max_kicks: 0,
@@ -178,8 +172,8 @@ fn main() {
             attacker_name: String::new(),
             cost: 0,
             description: String::new(),
-            tappable_land_ids: vec![],
-            untappable_land_ids: vec![],
+            tappable_source_ids: vec![],
+            untappable_source_ids: vec![],
             mana_pool_total: 0,
         }),
         ChooseDelve(choose_delve::ChooseDelveInput {
@@ -192,8 +186,8 @@ fn main() {
             card_name: String::new(),
             mana_cost: String::new(),
             mana_ability_options: vec![],
-            tappable_land_ids: vec![],
-            untappable_land_ids: vec![],
+            tappable_source_ids: vec![],
+            untappable_source_ids: vec![],
             mana_pool_total: 0,
             can_confirm_from_pool: false,
         }),
@@ -220,6 +214,20 @@ fn main() {
             confirm_label: "Pay Buyback".to_string(),
             deny_label: "No".to_string(),
         }),
+        ChooseFromSelection(choose_from_selection::ChooseFromSelectionInput {
+            presentation: common::PromptPresentation {
+                title: "Choose Mode".to_string(),
+                description: Some("Choose one or both —".to_string()),
+                text: None,
+                source_card_id: None,
+            },
+            options: vec![
+                "Destroy target artifact".to_string(),
+                "Destroy target enchantment".to_string(),
+            ],
+            min_choices: 1,
+            max_choices: 2,
+        }),
         ExploreDecision(explore_decision::ExploreDecisionInput {
             revealed_card_name: String::new(),
             revealed_card: None,
@@ -240,15 +248,6 @@ fn main() {
             final_results: vec![],
             ignored_rolls: vec![],
             source_card_name: None,
-        }),
-        ChooseRollToIgnore(choose_roll_to_ignore::ChooseRollToIgnoreInput { rolls: vec![] }),
-        ChooseRollToSwap(choose_roll_to_swap::ChooseRollToSwapInput { rolls: vec![] }),
-        ChooseRollToModify(choose_roll_to_modify::ChooseRollToModifyInput { rolls: vec![] }),
-        ChooseDiceToReroll(choose_dice_to_reroll::ChooseDiceToRerollInput { rolls: vec![] }),
-        ChooseRollSwapValue(choose_roll_swap_value::ChooseRollSwapValueInput {
-            current_result: 0,
-            power: 0,
-            toughness: 0,
         }),
         ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput {
             valid_card_ids: vec![],

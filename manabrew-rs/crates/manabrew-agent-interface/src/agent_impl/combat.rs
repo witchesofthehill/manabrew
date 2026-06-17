@@ -234,18 +234,18 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 attacker_name,
                 cost,
                 description: description.to_string(),
-                tappable_land_ids,
-                untappable_land_ids,
+                tappable_source_ids: tappable_land_ids,
+                untappable_source_ids: untappable_land_ids,
                 mana_pool_total,
             },
         ),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::TapLand { card_id, .. } => parse_card_id(&card_id)
+        PlayerAction::TapForMana { card_id, .. } => parse_card_id(&card_id)
             .map(CombatCostAction::TapLand)
             .unwrap_or(CombatCostAction::Decline),
-        PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
+        PlayerAction::Untap { card_id } => parse_card_id(&card_id)
             .map(CombatCostAction::UntapLand)
             .unwrap_or(CombatCostAction::Decline),
         PlayerAction::PayCombatCost => CombatCostAction::Pay,

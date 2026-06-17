@@ -127,17 +127,17 @@ pub enum CombatCostAction {
 /// The action a player takes when interactively paying a mana cost for a spell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManaCostAction {
-    /// Tap an untapped land to add mana to the pool.
-    TapLand {
+    TapForMana {
         card_id: CardId,
         mana_ability_index: Option<usize>,
         express_choice: Option<u16>,
     },
-    /// Untap a tapped land and remove its mana from the pool (undo).
-    UntapLand(CardId),
+    Untap(CardId),
     /// Confirm payment from the mana pool. When `auto` is true, the engine
     /// should complete the payment session using engine auto-pay.
-    Pay { auto: bool },
+    Pay {
+        auto: bool,
+    },
     /// Payment was attempted but could not be completed.
     AttemptedAndFailed,
 }

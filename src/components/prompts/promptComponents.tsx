@@ -1,5 +1,4 @@
 import { Fragment, useState, type ReactNode } from "react";
-import { ChooseModeModal } from "./ChooseModeModal";
 import { ChooseOptionalTriggerModal } from "./ChooseOptionalTriggerModal";
 import { ChooseColorModal } from "./ChooseColorModal";
 import { ChooseTypeModal } from "./ChooseTypeModal";
@@ -14,14 +13,10 @@ import { LibraryPeekModal } from "./LibraryPeekModal";
 import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
 import { ChooseBooleanModal } from "./ChooseBooleanModal";
+import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
 import { MultikickerModal } from "./MultikickerModal";
 import { ReplicateModal } from "./ReplicateModal";
 import { AlternativeCostModal } from "./AlternativeCostModal";
-import { ChooseRollToIgnoreModal } from "./ChooseRollToIgnoreModal";
-import { ChooseRollToSwapModal } from "./ChooseRollToSwapModal";
-import { ChooseRollToModifyModal } from "./ChooseRollToModifyModal";
-import { ChooseDiceToRerollModal } from "./ChooseDiceToRerollModal";
-import { ChooseRollSwapValueModal } from "./ChooseRollSwapValueModal";
 import { DiceRollFeedback, FirstPlayerRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
@@ -45,8 +40,6 @@ type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) =>
 
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   revealCards: ({ prompt, respond }) => <RevealCardsModal input={prompt.input} respond={respond} />,
-
-  chooseMode: ({ prompt, respond }) => <ChooseModeModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
   chooseOptionalTrigger: ({ prompt, respond, ctx }) => (
@@ -195,28 +188,12 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  chooseRollToIgnore: ({ prompt, respond }) => (
-    <ChooseRollToIgnoreModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseRollToSwap: ({ prompt, respond }) => (
-    <ChooseRollToSwapModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseRollToModify: ({ prompt, respond }) => (
-    <ChooseRollToModifyModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseDiceToReroll: ({ prompt, respond }) => (
-    <ChooseDiceToRerollModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseRollSwapValue: ({ prompt, respond }) => (
-    <ChooseRollSwapValueModal input={prompt.input} respond={respond} />
-  ),
-
   chooseBoolean: ({ prompt, respond }) => (
     <ChooseBooleanModal input={prompt.input} respond={respond} />
+  ),
+
+  chooseFromSelection: ({ prompt, respond }) => (
+    <ChooseFromSelectionModal input={prompt.input} respond={respond} />
   ),
 
   chooseMultikicker: ({ prompt, respond }) => (

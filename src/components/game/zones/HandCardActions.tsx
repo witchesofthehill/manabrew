@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useEffect } from "react";
@@ -70,12 +70,12 @@ export function HandCardActions({ actions, onSelectAction }: HandCardActionsProp
             </span>
             {action.cost && (
               <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                <TextWithMana text={action.cost} manaSize="sm" />
+                <DynamicTextRender text={action.cost} />
               </span>
             )}
           </span>
           <span className="leading-snug text-[13px] font-semibold pointer-events-none">
-            <TextWithMana text={action.label} manaSize="sm" />
+            <DynamicTextRender text={action.label} />
           </span>
         </button>
       ))}

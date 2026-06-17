@@ -505,7 +505,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     .map(EnginePlayerAction::CastSpell)
                     .unwrap_or(EnginePlayerAction::PassPriority)
             }
-            PlayerAction::TapLand {
+            PlayerAction::TapForMana {
                 card_id,
                 ability_index,
                 color: _,
@@ -558,7 +558,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     })
                 })
                 .unwrap_or(EnginePlayerAction::PassPriority),
-            PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
+            PlayerAction::Untap { card_id } => parse_card_id(&card_id)
                 .map(EnginePlayerAction::UndoMana)
                 .unwrap_or(EnginePlayerAction::PassPriority),
             _ => EnginePlayerAction::PassPriority,

@@ -203,14 +203,14 @@ export default function Game({ exitTo }: GameProps = {}) {
         ? chooseActionInput.actions.flatMap((a) =>
             a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
           )
-        : (payCombatCostInput?.tappableLandIds ?? payManaCostInput?.tappableLandIds ?? []),
+        : (payCombatCostInput?.tappableSourceIds ?? payManaCostInput?.tappableSourceIds ?? []),
     [chooseActionInput, payCombatCostInput, payManaCostInput],
   );
   const untappableLandIds = useMemo<string[]>(
     () =>
       chooseActionInput
         ? chooseActionInput.actions.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : []))
-        : (payCombatCostInput?.untappableLandIds ?? payManaCostInput?.untappableLandIds ?? []),
+        : (payCombatCostInput?.untappableSourceIds ?? payManaCostInput?.untappableSourceIds ?? []),
     [chooseActionInput, payCombatCostInput, payManaCostInput],
   );
 
@@ -443,7 +443,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     if (option.kind === "ability" && option.abilityIndex != null) {
       respond({
-        type: "tapLand",
+        type: "tapForMana",
         cardId: option.cardId,
         abilityIndex: option.abilityIndex >= 0 ? option.abilityIndex : undefined,
       });
@@ -645,19 +645,19 @@ export default function Game({ exitTo }: GameProps = {}) {
       }
       if (manaAbilities.length === 1) {
         respond({
-          type: "tapLand",
+          type: "tapForMana",
           cardId: card.id,
           abilityIndex: manaAbilities[0].abilityIndex,
           color: manaColorFromAction(manaAbilities[0]) ?? undefined,
         });
         return;
       }
-      respond({ type: "tapLand", cardId: card.id });
+      respond({ type: "tapForMana", cardId: card.id });
       return;
     }
 
     if (promptType !== "chooseAction") {
-      respond({ type: "tapLand", cardId: card.id });
+      respond({ type: "tapForMana", cardId: card.id });
       return;
     }
 
@@ -679,7 +679,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       respond({ type: "act", actionId: undo.id });
       return;
     }
-    respond({ type: "untapLand", cardId: card.id });
+    respond({ type: "untap", cardId: card.id });
   };
 
   // Queues for tapping/untapping multiple selected lands across prompt cycles
@@ -703,12 +703,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       (x) => x.type === "activateAbility" && x.isManaAbility && x.cardId === id,
     );
     if (a) respond({ type: "act", actionId: a.id });
-    else respond({ type: "tapLand", cardId: id });
+    else respond({ type: "tapForMana", cardId: id });
   };
   const untapResponse = (id: string) => {
     const a = chooseActionInput?.actions.find((x) => x.type === "undoMana" && x.cardId === id);
     if (a) respond({ type: "act", actionId: a.id });
-    else respond({ type: "untapLand", cardId: id });
+    else respond({ type: "untap", cardId: id });
   };
 
   const handleTapLands = (cardIds: string[]) =>
@@ -1479,7 +1479,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               return;
             }
             respond({
-              type: "tapLand",
+              type: "tapForMana",
               cardId,
               abilityIndex: abilityIndex ?? undefined,
               color: color ?? undefined,

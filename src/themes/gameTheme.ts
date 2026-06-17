@@ -1,27 +1,10 @@
-/**
- * Game-surface theme colours and resolution logic.
- *
- * `GameThemeColors` is the single source of truth for every colour token
- * consumed by the game canvas, Pixi renderers, card sprites, prompt
- * buttons, and in-game panels.  Theme presets supply flat dot-notation
- * keys (e.g. `"pointer.hostile"`) via `buildGameColors()`; the
- * `resolveGameThemeColors` function merges default preset → active preset
- * → user overrides into a fully-resolved `GameThemeColors` object.
- */
-
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { THEME_PRESETS, DEFAULT_GAME_FONT_SIZES, type GameFontSizes } from "./presets";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export type ManaLetter = "W" | "U" | "B" | "R" | "G" | "C";
 
-/** Canonical ordered list of all mana letters (WUBRGC). */
 export const MANA_LETTERS: readonly ManaLetter[] = ["W", "U", "B", "R", "G", "C"] as const;
 
-/** Tailwind background utility for each mana letter. */
 export const MANA_BG_CLASS: Record<ManaLetter, string> = {
   W: "bg-mana-w",
   U: "bg-mana-u",
@@ -152,13 +135,6 @@ export interface GameThemeColors {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Derived flat-map types — compile-time safety for preset & override keys
-// ---------------------------------------------------------------------------
-
-/** Recursively flatten `GameThemeColors` into a union of dot-notation
- *  path strings. A typo in `buildGameColors` or user overrides becomes a
- *  compile error instead of a silent dead token. */
 type FlatPaths<T, P extends string = ""> = {
   [K in keyof T & string]: T[K] extends string
     ? P extends ""
@@ -167,20 +143,10 @@ type FlatPaths<T, P extends string = ""> = {
     : FlatPaths<T[K], P extends "" ? K : `${P}.${K}`>;
 }[keyof T & string];
 
-/** Union of every valid dot-notation key (e.g. `"pointer.hostile" | "mana.W" | …`). */
 export type GameThemeColorKey = FlatPaths<GameThemeColors>;
 
-/** A flat map containing **every** game-theme colour keyed by dot-path.
- *  Used as the return type of `buildGameColors()` — a missing or extra
- *  key is a compile error. */
 export type GameThemeColorMap = Record<GameThemeColorKey, string>;
 
-// ---------------------------------------------------------------------------
-// Resolution helpers
-// ---------------------------------------------------------------------------
-
-/** Convert a flat dot-notation map (`"pointer.hostile": "#ff0000"`)
- *  into the nested `GameThemeColors` structure. */
 function flatToGameTheme(flat: GameThemeColorMap): GameThemeColors {
   const result: Record<string, unknown> = {};
   for (const [path, value] of Object.entries(flat)) {
@@ -196,7 +162,6 @@ function flatToGameTheme(flat: GameThemeColorMap): GameThemeColors {
   return result as unknown as GameThemeColors;
 }
 
-/** Trim whitespace and filter out empty/non-string entries. */
 function cleanFlatMap(raw: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(raw)
@@ -205,30 +170,16 @@ function cleanFlatMap(raw: Record<string, string>): Record<string, string> {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Resolution
-// ---------------------------------------------------------------------------
-
-/** Default preset's gameColors map — the fallback layer that guarantees
- *  every game-theme key has a value. Also used as the canonical key list
- *  for `getGameThemeColorPaths()`. */
 const DEFAULT_PRESET_GAME_COLORS: GameThemeColorMap = (() => {
   const defaultPreset = THEME_PRESETS.find((p) => p.id === "default");
   if (!defaultPreset) return {} as GameThemeColorMap;
   return cleanFlatMap(defaultPreset.gameColors) as GameThemeColorMap;
 })();
 
-/** Return every valid dot-notation leaf path, derived from the default
- *  preset. Used by the Settings color picker to enumerate editable keys. */
 export function getGameThemeColorPaths(): GameThemeColorKey[] {
   return Object.keys(DEFAULT_PRESET_GAME_COLORS) as GameThemeColorKey[];
 }
 
-/**
- * Merge default preset → active preset → user overrides into a
- * fully-resolved `GameThemeColors` object. Every key is guaranteed
- * to be a non-empty trimmed string.
- */
 export function resolveGameThemeColors(
   overrides: Partial<GameThemeColorMap> = {},
   presetId?: string,
@@ -245,17 +196,6 @@ export function resolveGameThemeColors(
   return flatToGameTheme(merged);
 }
 
-// ---------------------------------------------------------------------------
-// CSS variable emission
-// ---------------------------------------------------------------------------
-
-/**
- * Flatten the nested `GameThemeColors` object into CSS-variable-ready
- * key/value pairs.  Object paths become dash-separated, camelCase is
- * converted to kebab-case, and each key is prefixed with `--`.
- *
- * Example: `{ pointer: { hostile: "red" } }` -> `{ "--pointer-hostile": "red" }`.
- */
 export function flattenGameThemeToCssVars(theme: GameThemeColors): Record<string, string> {
   const out: Record<string, string> = {};
   const walk = (value: unknown, prefix: string): void => {
@@ -280,12 +220,6 @@ function camelToKebab(s: string): string {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Font sizes
-// ---------------------------------------------------------------------------
-
-/** Resolve the active preset's `gameFontSizes`, inheriting unset keys
- *  from the default preset, then from `DEFAULT_GAME_FONT_SIZES`. */
 export function resolveGameFontSizes(presetId?: string): GameFontSizes {
   const activePresetId = presetId ?? usePreferencesStore.getState().appThemePreset;
   const active = THEME_PRESETS.find((p) => p.id === activePresetId);
@@ -296,10 +230,6 @@ export function resolveGameFontSizes(presetId?: string): GameFontSizes {
     ...(active?.gameFontSizes ?? {}),
   };
 }
-
-// ---------------------------------------------------------------------------
-// Colour utilities
-// ---------------------------------------------------------------------------
 
 function normalizeHexColor(hex: string): string {
   const value = hex.trim().replace("#", "");
@@ -346,6 +276,15 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+export function relativeLuminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+export function readableTextColor(background: string, dark: string, light: string): string {
+  return relativeLuminance(background) > 0.6 ? dark : light;
+}
+
 export function darken(hex: string, factor: number): string {
   const { r, g, b } = hexToRgb(hex);
   const k = Math.max(0, Math.min(1, 1 - factor));
@@ -354,4 +293,14 @@ export function darken(hex: string, factor: number): string {
       .toString(16)
       .padStart(2, "0");
   return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+const FRAME_TINT_DARKEN = 0.3;
+const FRAME_TINT_MAX_LUMINANCE = 0.45;
+export const FRAME_TINT_COLORLESS_MAX_LUMINANCE = 0.54;
+
+export function frameTint(hex: string, maxLuminance = FRAME_TINT_MAX_LUMINANCE): string {
+  const base = darken(hex, FRAME_TINT_DARKEN);
+  const lum = relativeLuminance(base);
+  return lum <= maxLuminance ? base : darken(base, 1 - maxLuminance / lum);
 }

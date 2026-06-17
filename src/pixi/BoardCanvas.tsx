@@ -23,6 +23,14 @@ import {
   Z_HAND_ACTIONS_MENU,
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
+import { useCardFaces } from "@/hooks/useCardFaces";
+import { useKeybindings } from "@/hooks/useKeybindings";
+import { useGameDevStore } from "@/stores/useGameDevStore";
+import { withAlpha } from "@/themes/gameTheme";
+import { RotateCw } from "lucide-react";
+
+// Width of the hand action panel (matches HandCardActions `w-[220px]`).
+const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
 import type {
@@ -36,20 +44,14 @@ import type {
 import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
 import type { BlockingRect } from "./board/types";
 
-/** One player's battlefield input for the unified canvas. Ordered: local
- *  first, then opponents left → right. */
 export interface BoardCanvasRegion {
   playerId: string;
   isLocal: boolean;
   state: BattlefieldState;
 }
 
-/** Region rectangles (canvas-local px == CSS px) reported so the parent can
- *  anchor React panels to each player's region. */
 export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
-  /** Y of the center band line between the opponents and the self region —
-   *  where the phase strip is centered. */
   dividerY: number;
   opponents: { playerId: string; rect: PlayZoneRect; orientation: RegionOrientation }[];
 }
@@ -58,31 +60,21 @@ interface BoardCanvasProps {
   regions: BoardCanvasRegion[];
   hand: HandState;
   arrowSpecs: ArrowSpec[];
-  /** Live source→cursor targeting arrow while casting, or null. */
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
-  /** Local player is declaring blockers — enables drag-to-block. */
   declareBlockers?: boolean;
   combatBlocks?: { blockerId: string; attackerId: string }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
   arrangement: BoardArrangement;
-  /** Fraction of usable height for the local player's bottom region (resize
-   *  grip). Defaults to the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
-  /** Per-opponent column width fractions (row arrangement resize grips).
-   *  Equal split when omitted. */
   opponentFractions?: number[];
-  /** Px the hand fan reserves at the bottom of the self region — subtracted
-   *  from its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
-  /** Bottom-corner keep-out widths for the hand fan (player cluster left, zone
-   *  tiles right) so the hand centers in the gap. */
   handInsets?: { left: number; right: number };
   isDropActive?: boolean;
-  /** Auto-arrange the battlefield into rows, ignoring manual drag placement. */
   autoSort?: boolean;
+  activePlayerId?: string | null;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: GameCard) => HandActionOption[];
   onSelectHandAction?: (card: GameCard, action: HandActionOption) => void;
@@ -113,6 +105,7 @@ export function BoardCanvas({
   handInsets,
   isDropActive,
   autoSort,
+  activePlayerId,
   sceneRef: externalSceneRef,
   getHandActions,
   onSelectHandAction,
@@ -128,6 +121,7 @@ export function BoardCanvas({
   const onLayoutRef = useRef(onLayout);
 
   const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
+  const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
@@ -244,7 +238,6 @@ export function BoardCanvas({
     };
   }, [initApp]);
 
-  // Configure regions + layout on size / player-set / arrangement / scale change.
   const players: BoardPlayerSpec[] = regions.map((r) => ({
     playerId: r.playerId,
     isLocal: r.isLocal,
@@ -267,9 +260,6 @@ export function BoardCanvas({
       selfHeightFraction,
       opponentFractions,
     );
-    // Size cards against the height actually free for permanents: the self
-    // region loses the hand fan at its bottom, so subtract that reserve before
-    // picking the scale (keeps ~3 rows visible in every region).
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
     const minHeight = Math.min(selfUsable, ...layout.opponents.map((o) => o.rect.height));
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
@@ -290,7 +280,6 @@ export function BoardCanvas({
     reconfigure();
   }, [reconfigure, scene]);
 
-  // Track container resize → resize renderer + reconfigure.
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;
     if (!parent || !scene) return;
@@ -307,7 +296,6 @@ export function BoardCanvas({
     return () => observer.disconnect();
   }, [scene, reconfigure]);
 
-  // Per-region battlefield state.
   useEffect(() => {
     if (!scene) return;
     for (const r of regions) scene.updateRegionState(r.playerId, r.state);
@@ -357,7 +345,10 @@ export function BoardCanvas({
     scene?.setAutoSort(autoSort ?? false);
   }, [scene, autoSort]);
 
-  // Re-apply theme when the preset / overrides change.
+  useEffect(() => {
+    scene?.setCardStyle(cardStyle);
+  }, [scene, cardStyle]);
+
   useEffect(() => {
     if (!scene) return;
     return usePreferencesStore.subscribe(() => {
@@ -370,36 +361,132 @@ export function BoardCanvas({
   const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
   const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
 
+  const hoverFaces = useCardFaces({
+    name: handHover?.card.name,
+    setCode: handHover?.card.setCode,
+    cardNumber: handHover?.card.cardNumber,
+  });
+  const [handFlipBack, setHandFlipBack] = useState(false);
+  const hoverCardId = handHover?.card.id ?? null;
+  useEffect(() => {
+    setHandFlipBack(false);
+  }, [hoverCardId]);
+  const showHandFlip = !!handHover && hoverFaces.isFlippable;
+  const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
+
+  useEffect(() => {
+    scene?.setHoverDebug(showHoverAreas);
+  }, [scene, showHoverAreas]);
+
+  useEffect(() => {
+    scene?.setActivePlayer(activePlayerId ?? null);
+  }, [scene, activePlayerId]);
+
+  const etbPreviewVersion = useGameDevStore((s) => s.etbGlowVersion);
+  useEffect(() => {
+    if (etbPreviewVersion > 0) scene?.previewEtb();
+  }, [scene, etbPreviewVersion]);
+
+  const toggleHandFlip = useCallback(() => {
+    setHandFlipBack((prev) => {
+      const next = !prev;
+      sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
+      return next;
+    });
+  }, [sceneRef]);
+
+  useKeybindings({
+    "flip-card": () => {
+      if (showHandFlip) toggleHandFlip();
+    },
+  });
+
   return (
     <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
-      {showActionPanel && (
+      {showHandFlip && (
         <div
+          className="pointer-events-none absolute flex justify-end p-1.5"
           style={{
-            position: "absolute",
-            left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+            left: handHover.bounds.x,
             top: handHover.bounds.y,
+            width: handHover.bounds.width,
             zIndex: Z_HAND_ACTIONS_MENU,
           }}
-          onMouseEnter={() => {
-            cancelHandHoverClear();
-            sceneRef.current?.holdHandHover();
-          }}
-          onMouseLeave={() => {
-            scheduleHandHoverClear();
-            sceneRef.current?.releaseHandHover();
-          }}
         >
-          <HandCardActions
-            actions={handActions}
-            onSelectAction={(action) => {
+          <button
+            type="button"
+            className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85"
+            title="Flip card to view the other face"
+            onMouseEnter={() => {
               cancelHandHoverClear();
+              sceneRef.current?.holdHandHover();
+            }}
+            onMouseLeave={() => {
+              scheduleHandHoverClear();
               sceneRef.current?.releaseHandHover();
-              setHandHover(null);
-              onSelectHandAction?.(handHover.card, action);
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleHandFlip();
+            }}
+          >
+            <RotateCw className="h-3 w-3" />
+            {handFlipBack ? "Front" : "Back"}
+          </button>
+        </div>
+      )}
+      {showActionPanel && (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              left: handHover.bounds.x + handHover.bounds.width,
+              top: handHover.bounds.y,
+              width: HAND_ACTIONS_GAP_PX + HAND_ACTIONS_PANEL_W,
+              height: handHover.bounds.height,
+              borderBottomRightRadius: "100%",
+              backgroundColor: showHoverAreas
+                ? withAlpha(getTheme().gameTheme.success, 0.28)
+                : "transparent",
+              zIndex: Z_HAND_ACTIONS_MENU - 1,
+            }}
+            onMouseEnter={() => {
+              cancelHandHoverClear();
+              sceneRef.current?.holdHandHover();
+            }}
+            onMouseLeave={() => {
+              scheduleHandHoverClear();
+              sceneRef.current?.releaseHandHover();
             }}
           />
-        </div>
+          <div
+            style={{
+              position: "absolute",
+              left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+              top: handHover.bounds.y,
+              zIndex: Z_HAND_ACTIONS_MENU,
+            }}
+            onMouseEnter={() => {
+              cancelHandHoverClear();
+              sceneRef.current?.holdHandHover();
+            }}
+            onMouseLeave={() => {
+              scheduleHandHoverClear();
+              sceneRef.current?.releaseHandHover();
+            }}
+          >
+            <HandCardActions
+              actions={handActions}
+              onSelectAction={(action) => {
+                cancelHandHoverClear();
+                sceneRef.current?.releaseHandHover();
+                setHandHover(null);
+                onSelectHandAction?.(handHover.card, action);
+              }}
+            />
+          </div>
+        </>
       )}
     </div>
   );

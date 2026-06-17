@@ -10,15 +10,17 @@ import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
-import { isHorizontalCard, isTwoHalfLayout } from "@/lib/cardLayout";
+import { isHorizontalCard } from "@/lib/cardLayout";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import { useCard } from "@/stores/useScryfallStore";
+import { useCardFaces } from "@/hooks/useCardFaces";
+import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface CardPreviewProps {
   card: GameCard;
@@ -27,13 +29,9 @@ interface CardPreviewProps {
   anchorRect?: DOMRect | null;
   placement?: "auto" | "top-center" | "pinned";
   showBackFace?: boolean;
-  /** Available actions for this card (cast options + activated abilities). */
   actions?: HandActionOption[];
-  /** Called when the user selects an action from the preview. */
   onSelectAction?: (action: HandActionOption) => void;
-  /** Called to dismiss the preview. */
   onDismiss?: () => void;
-  /** Toggle the back face of a double-faced card. */
   onFlip?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -124,6 +122,17 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
 
   return (
     <>
+      {damage > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: withAlpha(
+              themeColors.pt.lethal,
+              Math.min(0.5, (ptToughness > 0 ? damage / ptToughness : 1) * 0.5),
+            ),
+          }}
+        />
+      )}
       {showTopStrip && (
         <div className="absolute top-2 left-2 right-2 z-10 flex flex-col items-center gap-1 pointer-events-none">
           {statusBadges.length > 0 && (
@@ -182,17 +191,6 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
           >
             {card.power}/{card.toughness}
           </span>
-          {damage > 0 && (
-            <span
-              className="text-xs font-bold px-1.5 py-0.5 rounded shadow-md leading-none"
-              style={{
-                backgroundColor: withAlpha(themeColors.promptAction.attackAction, 0.92),
-                color: themeColors.textOnTinted,
-              }}
-            >
-              ⚔ {damage}
-            </span>
-          )}
         </div>
       )}
 
@@ -240,12 +238,6 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
   );
 }
 
-/**
- * Floating card preview rendered into document.body via portal.
- * Positions itself near the cursor or an anchor element, clamped to viewport edges.
- * When actions are available the preview becomes interactive and locks in place
- * until the user clicks an action, presses Escape, or clicks outside.
- */
 export function CardPreview({
   card,
   mouseX,
@@ -266,68 +258,38 @@ export function CardPreview({
   const hasActions = actions && actions.length > 0 && onSelectAction;
   const showSidePanel = hasActions;
   const themeColors = useTheme().gameTheme;
-  const ringColor = themeColors.cardRing; // matches battlefield playable color
+  const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
+  const ringColor = themeColors.cardRing;
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
-  // Deck-editor hover bypasses the game runtime: `gameDecks[ownerId]` is
-  // undefined and the hovered object is a `DeckCard` (uris already on it).
-  // Fall back to that case instead of going through `asDeckCard`.
   const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
-  const imageUrl = deckCard.uris[imageSize];
-  const scryfallEntry = useCard({
+  const cardFaces = useCardFaces({
     name: card.name,
     setCode: deckCard.setCode,
-    collectorNumber: deckCard.cardNumber,
+    cardNumber: deckCard.cardNumber,
   });
-  const faces = scryfallEntry?.info?.card_faces;
-  const facesHaveImages =
-    !!faces &&
-    faces.length >= 2 &&
-    !isTwoHalfLayout(card.layout) &&
-    !!faces[0].image_uris?.[imageSize] &&
-    !!faces[1].image_uris?.[imageSize];
-  const derivedBackImageUrl =
-    !facesHaveImages && deckCard.isDoubleFaced && imageUrl?.includes("/front/")
-      ? imageUrl.replace("/front/", "/back/")
-      : null;
-  const doubleFacedData = facesHaveImages
+  const front = cardFaces.faces[0];
+  const back = cardFaces.faces[1];
+  const imageUrl = deckCard.uris[imageSize] || front?.imageUris?.[imageSize];
+  const hasFlippableFaces =
+    cardFaces.isFlippable && !!front?.imageUris?.[imageSize] && !!back?.imageUris?.[imageSize];
+  const doubleFacedData = hasFlippableFaces
     ? {
-        frontImageUrl: faces![0].image_uris![imageSize],
-        backImageUrl: faces![1].image_uris![imageSize],
-        frontImageUrlLow: faces![0].image_uris!.normal,
-        backImageUrlLow: faces![1].image_uris!.normal,
-        frontName: faces![0].name,
-        backName: faces![1].name,
+        frontImageUrl: front!.imageUris![imageSize],
+        backImageUrl: back!.imageUris![imageSize],
+        frontImageUrlLow: front!.imageUris!.normal,
+        backImageUrlLow: back!.imageUris!.normal,
+        frontName: front!.name,
+        backName: back!.name,
       }
-    : derivedBackImageUrl
-      ? {
-          frontImageUrl: imageUrl,
-          backImageUrl: derivedBackImageUrl,
-          frontImageUrlLow: deckCard.uris.normal,
-          backImageUrlLow: deckCard.uris.normal?.includes("/front/")
-            ? deckCard.uris.normal.replace("/front/", "/back/")
-            : derivedBackImageUrl,
-          frontName: card.name,
-          backName: card.name,
-        }
-      : null;
-  const hasFlippableFaces = !!doubleFacedData;
+    : null;
 
-  useEffect(() => {
-    if (!onFlip || !hasFlippableFaces) return;
-    function handleFlipKey(e: KeyboardEvent) {
-      if (e.key.toLowerCase() === "f" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        const target = e.target as HTMLElement | null;
-        if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
-        e.preventDefault();
-        onFlip!();
-      }
-    }
-    window.addEventListener("keydown", handleFlipKey);
-    return () => window.removeEventListener("keydown", handleFlipKey);
-  }, [onFlip, hasFlippableFaces]);
+  useKeybindings({
+    "flip-card": () => {
+      if (onFlip && hasFlippableFaces) onFlip();
+    },
+  });
 
-  // Dismiss on Escape, outside click, or number key shortcut
   useEffect(() => {
     if (!hasActions || !onDismiss) return;
     function handleKey(e: KeyboardEvent) {
@@ -335,7 +297,6 @@ export function CardPreview({
         onDismiss!();
         return;
       }
-      // Number keys 1-9 activate the corresponding action
       const num = parseInt(e.key);
       if (num >= 1 && num <= actions!.length) {
         e.preventDefault();
@@ -379,14 +340,12 @@ export function CardPreview({
   } else if (placement === "top-center" && anchorRect) {
     cardLeft = anchorRect.left + anchorRect.width / 2 - cardWidth / 2;
     top = anchorRect.top - cardHeight - 12;
-    // Clamp to screen
     cardLeft = Math.max(8, Math.min(cardLeft, window.innerWidth - cardWidth - 8));
     top = Math.max(8, top);
 
     const spaceAfterCard = window.innerWidth - (cardLeft + cardWidth);
     actionsOnRight = spaceAfterCard >= ACTIONS_PANEL_W + 16;
   } else {
-    // Use anchorRect if available, otherwise fallback to mouse coordinates
     const anchorLeft = anchorRect ? anchorRect.left : mouseX;
     const anchorRight = anchorRect ? anchorRect.right : mouseX;
     const anchorTop = anchorRect ? anchorRect.top : mouseY;
@@ -437,7 +396,6 @@ export function CardPreview({
 
   return createPortal(
     <>
-      {/* Backdrop dim when interactive */}
       {hasActions && isSticky && (
         <div
           className="fixed inset-0 z-[9998] bg-black/30 animate-in fade-in duration-150"
@@ -462,7 +420,6 @@ export function CardPreview({
         onMouseLeave={onMouseLeave}
       >
         <div className="relative" style={{ width: cardWidth, height: cardHeight }}>
-          {/* Card image */}
           <div
             className={cn(
               "w-full h-full rounded-xl shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",
@@ -531,6 +488,12 @@ export function CardPreview({
                   </div>
                 )}
                 <CardDetailOverlay card={card} horizontal={horizontal} />
+                {showHoverAreas && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-30"
+                    style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
+                  />
+                )}
                 {hasDoubleFace && onFlip && (
                   <button
                     type="button"
@@ -587,7 +550,6 @@ export function CardPreview({
             )}
           </div>
 
-          {/* Actions + extra-info side panel */}
           {showSidePanel && (
             <div
               className="absolute top-0 flex flex-col gap-1.5"
@@ -597,7 +559,6 @@ export function CardPreview({
                   : { right: cardWidth + 10, width: ACTIONS_PANEL_W }
               }
             >
-              {/* Curved invisible bridge to maintain hover without blocking cards below */}
               <div
                 style={{
                   position: "absolute",
@@ -605,7 +566,9 @@ export function CardPreview({
                   left: actionsOnRight ? -10 - cardWidth : 0,
                   width: cardWidth + 10 + ACTIONS_PANEL_W,
                   height: cardHeight,
-                  backgroundColor: "transparent",
+                  backgroundColor: showHoverAreas
+                    ? withAlpha(themeColors.success, 0.28)
+                    : "transparent",
                   borderBottomRightRadius: actionsOnRight ? "100%" : "0",
                   borderBottomLeftRadius: actionsOnRight ? "0" : "100%",
                   zIndex: -1,

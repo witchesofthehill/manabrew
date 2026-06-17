@@ -61,6 +61,8 @@ export function BattlefieldKeywordDevControls() {
   const debugCardName = useGameDevStore((s) => s.debugCardName);
   const setDebugCardEnabled = useGameDevStore((s) => s.setDebugCardEnabled);
   const setDebugCardName = useGameDevStore((s) => s.setDebugCardName);
+  const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
+  const setShowHoverAreas = useGameDevStore((s) => s.setShowHoverAreas);
 
   const [draftName, setDraftName] = useState(debugCardName);
 
@@ -104,6 +106,27 @@ export function BattlefieldKeywordDevControls() {
             className={cn(
               "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
               debugCardEnabled ? "translate-x-4" : "translate-x-0.5",
+            )}
+          />
+        </button>
+      </label>
+
+      <label className="flex items-center justify-between gap-2 cursor-pointer">
+        <span className="text-xs">Show hover areas (hand, battlefield, preview)</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showHoverAreas}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+            showHoverAreas ? "border-primary bg-primary" : "border-border/70 bg-muted",
+          )}
+          onClick={() => setShowHoverAreas(!showHoverAreas)}
+        >
+          <span
+            className={cn(
+              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
+              showHoverAreas ? "translate-x-4" : "translate-x-0.5",
             )}
           />
         </button>

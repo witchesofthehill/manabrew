@@ -20,6 +20,7 @@ import type { DeckCard } from "@/types/manabrew";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
+import { cardFaceImageUris } from "@/lib/cardImage";
 
 export interface ScryfallCardLookup {
   id?: string;
@@ -56,31 +57,16 @@ interface ScryfallState {
   _fetchCardLookup: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
   cards: Record<string, ScryfallEntry>;
   sets: ScryfallSet[];
-  /** Lowercased set codes whose card metadata has already been hydrated.
-   *  Object-shaped (not `Set`) so immer can produce drafts without the
-   *  MapSet plugin. */
   hydratedSets: Record<string, true>;
   getCard: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
-  getCardTexture: (card: DeckCard) => Promise<Texture>;
+  getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
 
-  // Used for draft mode, where you think in terms of sets and not decks
   prefetchSet: (setCode: string) => Promise<void>;
 }
 
-/**
- * The single, canonical cache key for any card lookup. Every store
- * read, write, mirror, peek, and texture lookup goes through here —
- * if you find yourself building a `set:X::cn:Y` / `name:X` / `id:X`
- * string by hand, you're holding it wrong.
- *
- * Prefers `set:X::cn:Y` because every in-deck card, every engine
- * DTO, and every Scryfall response carries set + collector. Name is
- * the entry-point fallback (search box, "add by name"); id is the
- * last resort for raw Scryfall references.
- */
 export function cardKey(lookup: ScryfallCardLookup): string {
   const set = lookup.setCode?.toLowerCase();
   const cn = (lookup.collectorNumber ?? lookup.cardNumber)?.toLowerCase();
@@ -90,12 +76,6 @@ export function cardKey(lookup: ScryfallCardLookup): string {
   throw new Error("cardKey requires setCode+collectorNumber, name, or id");
 }
 
-/**
- * Mirror keys to write a fetched entry under, so a subsequent lookup
- * by either set+cn or name lands on the same printing. Tokens are
- * not mirrored under their name — many distinct tokens share the
- * same name and a name-only lookup would arbitrarily collapse them.
- */
 function mirrorCardKeys(entry: ScryfallEntry): string[] {
   const info = entry.card?.info;
   if (!info) return [];
@@ -104,17 +84,15 @@ function mirrorCardKeys(entry: ScryfallEntry): string[] {
     keys.push(cardKey({ setCode: info.set, collectorNumber: info.collector_number }));
   }
   const isToken = info.layout?.includes("token");
-  if (!isToken && info.name) keys.push(cardKey({ name: info.name }));
+  if (!isToken && info.name) {
+    keys.push(cardKey({ name: info.name }));
+    for (const face of info.card_faces ?? []) {
+      if (face.name) keys.push(cardKey({ name: face.name }));
+    }
+  }
   return keys;
 }
 
-/**
- * Synchronous cache read — returns the cached `ScryfallCard` info for a
- * given lookup, or `null` if not yet fetched. Callers that want reactive
- * updates should subscribe to `useScryfallStore(s => s.cards)` and pass
- * that bucket in. Use this when you have many cards to inspect in a
- * `useMemo` and can't call `useCard` per row.
- */
 export function peekCard(
   bucket: Record<string, ScryfallEntry>,
   lookup: ScryfallCardLookup,
@@ -154,9 +132,6 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
       return response.json() as Promise<TokenArchive>;
     })
     .then((archive) => {
-      // The archive stores DFC-style names (e.g. "Angel // Demon"); the
-      // engine and asDeckCard see only the front face, so collapse
-      // every token name here before indexing.
       const tokens = archive.tokens.map((t) => ({ ...t, name: frontFaceName(t.name) }));
       const byId = new Map<string, DeckCard>();
       const bySetAndNumber = new Map<string, DeckCard>();
@@ -298,7 +273,7 @@ export const chooseImageUrisForCard = (
   { frontOnly }: { frontOnly: boolean },
 ): ScryfallImageUris | null => {
   if (info.image_uris) {
-    return info.image_uris; // TODO: which one?
+    return info.image_uris;
   }
   if (info.card_faces) {
     for (const f of info.card_faces) {
@@ -307,7 +282,7 @@ export const chooseImageUrisForCard = (
       }
     }
   }
-  return null; //TODO:
+  return null;
 };
 
 const createTextureFromImage = (img: HTMLImageElement): Texture => {
@@ -316,9 +291,6 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
   return tex;
 };
 
-/** Pixi textures aren't React state — keep them in a plain module-level
- *  map keyed by print identity. Survives across game sessions; immutable
- *  per entry. */
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
 
@@ -346,9 +318,6 @@ export const useScryfallStore = create<ScryfallState>()(
         set((state) => {
           state.cards[key] = entry;
           for (const k of mirrorCardKeys(entry)) {
-            // Preserve pinnings (e.g. from `updatePrinting`) by only
-            // overwriting empty slots or slots already pointing at the
-            // same Scryfall printing.
             const existingId = state.cards[k]?.card?.info?.id;
             if (existingId == null || existingId === newId) state.cards[k] = entry;
           }
@@ -368,26 +337,35 @@ export const useScryfallStore = create<ScryfallState>()(
         });
         return pendingPromise;
       },
-      getCardTexture: async (deckCard) => {
-        const key = cardKey({
-          setCode: deckCard.setCode,
-          collectorNumber: deckCard.cardNumber,
-        });
-        const cached = textureCache.get(key);
-        if (cached) return cached;
+      getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
+        const pick = (u: ScryfallImageUris | undefined) =>
+          variant === "art" ? u?.art_crop : u?.border_crop;
+        let url = faceIndex === 0 ? pick(deckCard.uris) : undefined;
+        if (!url) {
+          const entry = await get().getCard({
+            name: deckCard.name,
+            setCode: deckCard.setCode || undefined,
+            collectorNumber: deckCard.cardNumber || undefined,
+          });
+          url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
+        }
+        if (!url) return Texture.EMPTY;
 
-        const pending = pendingTexturePromises.get(key);
+        const cached = textureCache.get(url);
+        if (cached) return cached;
+        const pending = pendingTexturePromises.get(url);
         if (pending) return pending;
 
+        const resolvedUrl = url;
         const promise = (async () => {
-          const htmlImage = await fetchImageElement(deckCard.uris.border_crop);
+          const htmlImage = await fetchImageElement(resolvedUrl);
           const texture = createTextureFromImage(htmlImage);
-          textureCache.set(key, texture);
+          textureCache.set(resolvedUrl, texture);
           return texture;
         })().finally(() => {
-          pendingTexturePromises.delete(key);
+          pendingTexturePromises.delete(resolvedUrl);
         });
-        pendingTexturePromises.set(key, promise);
+        pendingTexturePromises.set(resolvedUrl, promise);
         return promise;
       },
       getRulings: async (c) => {
@@ -417,11 +395,6 @@ export const useScryfallStore = create<ScryfallState>()(
             }
           });
         }
-        // Warm the browser HTTP cache for every card image — `<img>`
-        // tags in the deck-builder will then resolve instantly. We
-        // hit `normal` because that's what `CardThumbnail` renders;
-        // PIXI textures (`getCardTexture`) are reserved for the game
-        // canvas and would over-fetch here.
         if (typeof Image === "undefined") return;
         for (const entry of Object.values(get().cards)) {
           const info = entry.card?.info;
@@ -445,9 +418,6 @@ export const useScryfallStore = create<ScryfallState>()(
         const lowerName = print.name.toLowerCase();
         set((state) => {
           if (!token) {
-            // Invalidate every cache entry tied to this card name so
-            // stale prints (especially the name-only mirror) don't
-            // shadow the new one.
             for (const k of Object.keys(state.cards)) {
               if (state.cards[k].card?.info.name?.toLowerCase() === lowerName) {
                 delete state.cards[k];
@@ -488,8 +458,6 @@ export const useCard = (lookup: ScryfallCardLookup | null | undefined) => {
   const id = lookup?.id;
   const setCode = lookup?.setCode;
   const collectorNumber = lookup?.collectorNumber ?? lookup?.cardNumber;
-  // Some prompts have no source card (e.g. keyword-driven dice modifiers).
-  // Treat that as a no-op rather than throwing inside `cardKey`.
   const hasLookup = Boolean(id) || Boolean(name) || Boolean(setCode && collectorNumber);
   const key = hasLookup ? cardKey({ id, name, setCode, collectorNumber }) : null;
   const cached = useScryfallStore((s) => (key ? (s.cards[key]?.card ?? null) : null));

@@ -15,6 +15,8 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
 import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
+import { pulse } from "../effects/animation";
+import { EffectsLayer } from "../effects/EffectsLayer";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -64,31 +66,21 @@ import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
 type Point = ScreenPos;
 
 interface BoardRegionOptions {
-  /** Which screen edge this player is seated at. `left`/`right` rotate the
-   *  region container 90° so cards face the table center; `top` is mirrored;
-   *  `bottom` is the upright local player. */
   orientation: RegionOrientation;
 }
 
-/**
- * Renders one player's battlefield inside a region rect of the unified
- * board canvas: grid auto-layout, attachment stacking, name-grouping +
- * overflow, rings, combat staging, and per-frame animation. Reaches
- * orchestrator services through `RegionHost`.
- * Interaction (drag/marquee) is wired by the host and operates on this
- * region's exposed grid state.
- */
 export class BoardRegion {
   readonly container: Container;
   private host: RegionHost;
   private orientation: RegionOrientation;
   private mirrored: boolean;
-  /** Layout space the grid/cards live in (canvas-aligned for top/bottom; a
-   *  swapped-dimension rect at the origin for the rotated left/right sides). */
   private zone!: PlayZoneRect;
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private activeGlowGfx: Graphics;
+  private active = false;
+  private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
 
@@ -103,8 +95,6 @@ export class BoardRegion {
   private combatStaging: SceneCombatStaging | null = null;
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
-  // The cell under the cursor during a permanent cast-drag; committed to
-  // pendingDropSlot on release so the cast card lands where it was dropped.
   private lastDropCell: { col: number; row: number } | null = null;
   private hoveredCardId: string | null = null;
   private dropActive = false;
@@ -133,6 +123,15 @@ export class BoardRegion {
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
 
+    this.activeGlowGfx = new Graphics();
+    this.activeGlowGfx.zIndex = -9;
+    this.activeGlowGfx.eventMode = "none";
+    this.activeGlowGfx.visible = false;
+    this.container.addChild(this.activeGlowGfx);
+
+    this.effects.container.zIndex = 0;
+    this.container.addChild(this.effects.container);
+
     this.gridSkeletonGfx = new Graphics();
     this.gridSkeletonGfx.eventMode = "none";
     this.gridSkeletonGfx.visible = false;
@@ -148,8 +147,6 @@ export class BoardRegion {
     this.drawBackground();
   }
 
-  // ── Region geometry ────────────────────────────────────────────────
-
   setZone(zone: PlayZoneRect, orientation: RegionOrientation): void {
     this.orientation = orientation;
     this.mirrored = orientation !== "bottom";
@@ -159,10 +156,6 @@ export class BoardRegion {
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
-  /** Place the region's container so its layout space maps onto the on-screen
-   *  rect. Top/bottom keep canvas coords (identity transform); left/right
-   *  rotate 90° and swap the layout dimensions so the grid runs along the
-   *  column. */
   private applyOrientation(screenRect: PlayZoneRect): void {
     const c = this.container;
     if (this.orientation === "left") {
@@ -180,8 +173,6 @@ export class BoardRegion {
     }
   }
 
-  /** Map a region-local point to canvas coords through the container transform
-   *  (identity for top/bottom). */
   private localToCanvas(x: number, y: number): ScreenPos {
     const c = this.container;
     const cos = Math.cos(c.rotation);
@@ -189,7 +180,6 @@ export class BoardRegion {
     return { x: c.position.x + x * cos - y * sin, y: c.position.y + x * sin + y * cos };
   }
 
-  /** Inverse of {@link localToCanvas}: canvas coords back into region-local. */
   private canvasToLocal(x: number, y: number): ScreenPos {
     const c = this.container;
     const cos = Math.cos(c.rotation);
@@ -199,8 +189,6 @@ export class BoardRegion {
     return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos };
   }
 
-  /** Keep-out rects in region-local space (host supplies them in canvas
-   *  coords; ±90° rotations map an axis-aligned rect to an axis-aligned one). */
   private collectLocalBlockers(): BlockingRect[] {
     return this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
@@ -230,7 +218,6 @@ export class BoardRegion {
     if (active) {
       this.lastDropCell = null;
     } else {
-      // Drop released: land the cast card in the cell it was dropped on.
       this.pendingDropSlot = this.lastDropCell;
       this.lastDropCell = null;
       this.hideGridSkeleton();
@@ -248,7 +235,6 @@ export class BoardRegion {
     this.hoveredCardId = cardId;
   }
 
-  /** While true, cards not in combat fade out so attackers/blockers stand out. */
   setCombatDim(active: boolean): void {
     this.combatDim = active;
   }
@@ -262,8 +248,6 @@ export class BoardRegion {
   setPendingDropSlot(slot: { col: number; row: number } | null): void {
     this.pendingDropSlot = slot;
   }
-
-  // ── Exposed grid state (for the host's drag controller) ────────────
 
   getGridInfo(): GridLayoutInfo | null {
     return this.gridInfo;
@@ -281,7 +265,6 @@ export class BoardRegion {
     return this.userSlots;
   }
 
-  /** Canvas-local target position of a battlefield card, or null. */
   getCardPosition(cardId: string): ScreenPos | null {
     const entry = this.entries.get(cardId);
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
@@ -295,13 +278,9 @@ export class BoardRegion {
     return this.lastState !== null;
   }
 
-  /** Re-apply the base (non-selection) ring for one sprite — used by the
-   *  SelectionController when selection changes. */
   applyBaseRing(sprite: CardSprite): void {
     if (this.lastState) this.applyBattlefieldRing(sprite, this.lastState);
   }
-
-  // ── Combat staging ─────────────────────────────────────────────────
 
   setCombatStaging(staging: SceneCombatStaging | null): void {
     if (staging === null && this.combatStaging === null) return;
@@ -309,10 +288,9 @@ export class BoardRegion {
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
-  // ── Per-frame animation ────────────────────────────────────────────
-
   animate(): void {
     let exited: string[] | null = null;
+    const now = performance.now();
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
@@ -321,6 +299,7 @@ export class BoardRegion {
         if (s.alpha <= 0.05) (exited ??= []).push(id);
         continue;
       }
+      s.tickEffects(now);
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
       if (entry.shakeFrames > 0) {
@@ -332,12 +311,10 @@ export class BoardRegion {
       s.rotation = lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT);
       s.zIndex = entry.targetZIndex;
 
-      // Alpha is owned here (not in updateCard), so a state update mid-combat
+      // Alpha is owned here (not in updateCard), so a mid-combat state update
       // doesn't snap a dimmed/phased card back to 1 and re-fade it (flicker).
-      // Fade non-combatants during combat so attackers/blockers stand out;
-      // the hovered card stays lit so it can still be inspected.
-      // Combat dim darkens (tint) rather than fades, so overlapping stacked
-      // cards don't show through one another. Phased-out keeps a real fade.
+      // Combat dim darkens via tint rather than fade so overlapping stacked
+      // cards don't show through one another; phased-out keeps a real fade.
       const dimmed =
         this.combatDim &&
         this.hoveredCardId !== s.card.id &&
@@ -366,8 +343,8 @@ export class BoardRegion {
 
       const isHovered = this.hoveredCardId === s.card.id;
       const targetScale = this.cardScale * (isHovered ? HOVER_SCALE : 1);
-      const nextScale = lerp(s.scale.x, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
-      s.scale.set(nextScale);
+      entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
+      s.scale.set(entry.scaleBase);
 
       if (entry.overlay?.visible) {
         entry.overlay.x = s.x;
@@ -382,14 +359,14 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
+    if (this.active) this.activeGlowGfx.alpha = pulse(now, 1800, 0.3, 0.8);
+    this.effects.tick(now);
   }
-
-  // ── Battlefield layout ─────────────────────────────────────────────
 
   updateBattlefield(state: BattlefieldState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
-    const prevDamage = new Map<string, number>();
-    for (const c of this.lastState?.cards ?? []) prevDamage.set(c.id, c.damage ?? 0);
+    const prevCards = new Map<string, GameCard>();
+    for (const c of this.lastState?.cards ?? []) prevCards.set(c.id, c);
     const isFirstState = this.lastState === null;
     this.lastState = state;
     const cardMap = new Map<string, GameCard>(state.cards.map((c) => [c.id, c]));
@@ -490,23 +467,34 @@ export class BoardRegion {
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+      const dust = hexToNum(this.host.getTheme().gameTheme.canvas.neutral);
       const cardHalfH = (CARD_H * this.cardScale) / 2;
+      const now = performance.now();
       for (const card of state.cards) {
-        const delta = (card.damage ?? 0) - (prevDamage.get(card.id) ?? 0);
-        if (delta <= 0) continue;
         const entry = this.entries.get(card.id);
         if (!entry) continue;
-        entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
-        const c = this.localToCanvas(entry.targetX, entry.targetY);
-        this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
+        const prev = prevCards.get(card.id);
+        if (!prev) {
+          if (card.types?.some((t) => t.toLowerCase() === "creature")) {
+            this.effects.spawnStomp(now, entry.targetX, entry.targetY + cardHalfH, dust);
+          }
+          continue;
+        }
+        if (card.power !== prev.power || card.toughness !== prev.toughness) {
+          entry.sprite.playStatPop(now);
+        }
+        const delta = (card.damage ?? 0) - (prev.damage ?? 0);
+        if (delta > 0) {
+          entry.sprite.playDamageHit(now);
+          entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+          const c = this.localToCanvas(entry.targetX, entry.targetY);
+          this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
+        }
       }
     }
     this.emptyText.visible = state.cards.length === 0;
   }
 
-  /** Pull every committed attacker forward to the divider line (screen center)
-   *  so all attackers and blockers meet there — even before blocks are declared.
-   *  Staged attackers are already placed by applyCombatStaging. */
   private applyAttackLunge(state: BattlefieldState): void {
     if (this.orientation === "left" || this.orientation === "right") return;
     const staged = this.combatStaging?.attackerIds;
@@ -523,8 +511,6 @@ export class BoardRegion {
   private applyCombatStaging(): void {
     const staging = this.combatStaging;
     if (!staging) return;
-    // The front-edge / lane math is vertical; it isn't meaningful for the
-    // rotated side regions, so they keep their resting layout during combat.
     if (this.orientation === "left" || this.orientation === "right") return;
     const frontY = this.frontEdgeY();
     const fanStep = CARD_W * this.cardScale * COMBAT_STAGE_FAN_FRAC;
@@ -536,8 +522,6 @@ export class BoardRegion {
       entry.targetZIndex = Z_COMBAT_STAGED;
     }
 
-    // A blocker slides onto its attacker (overlapping its near edge, crossing
-    // the phase bar) rather than stopping at this region's front edge.
     const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
     for (const b of staging.blockers) {
       const entry = this.entries.get(b.id);
@@ -549,10 +533,6 @@ export class BoardRegion {
     }
   }
 
-  /** Staging target Y: the card rests just outside the phase-strip band on this
-   *  region's side — its near edge sits COMBAT_STAGE_PADDING_PX from the bar
-   *  border, as close to center as possible without overlapping the bar (at any
-   *  card scale / screen size). */
   private frontEdgeY(): number {
     const gap = STRIP_BAND_PX / 2 + COMBAT_STAGE_PADDING_PX + (CARD_H * this.cardScale) / 2;
     if (this.mirrored) {
@@ -795,7 +775,6 @@ export class BoardRegion {
     return positions;
   }
 
-  /** Canvas-local top-left of the next free slot (placement-ghost target). */
   getPlacementGhostCenter(): ScreenPos {
     const slot = this.findFirstFreeBattlefieldSlot();
     return {
@@ -832,10 +811,7 @@ export class BoardRegion {
     return { x: anchorX - grid.cardW / 2, y: anchorY - grid.cardH / 2 };
   }
 
-  // ── Entries ────────────────────────────────────────────────────────
-
   private pruneRemovedBattlefieldEntries(currentIds: Set<string>): void {
-    // Mark removed cards as exiting; animate() fades then destroys them.
     for (const [id, entry] of this.entries) {
       if (currentIds.has(id) || entry.exiting) continue;
       entry.exiting = true;
@@ -903,6 +879,7 @@ export class BoardRegion {
       targetZIndex: 1,
       targetRotation: sprite.rotation,
       etbGlowAlpha: isEntering ? 1 : 0,
+      scaleBase: sprite.scale.x,
       shakeFrames: 0,
       overlay: null,
     });
@@ -918,8 +895,6 @@ export class BoardRegion {
     }
     if (card.wouldDieInCombat) {
       sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
-    } else if (state.attackingCardIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.attackAction));
     } else if (state.pendingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.passAction));
     } else if (state.tappableLandIds?.includes(card.id)) {
@@ -932,23 +907,11 @@ export class BoardRegion {
           ? hexToNum(theme.gameTheme.arrow.hostileTarget)
           : hexToNum(theme.gameTheme.cardRing),
       );
-    } else if (this.isCreatureCard(card) && card.summoningSick) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.cancel), 0.6);
     } else {
       sprite.setRing(null);
     }
   }
 
-  private isCreatureCard(card: GameCard): boolean {
-    return card.types?.some((t) => t.toLowerCase() === "creature") ?? false;
-  }
-
-  // ── Background + helpers ───────────────────────────────────────────
-
-  /** The area actually free for permanents: the zone with its bottom trimmed
-   *  so it clears the hand fan (local player only). Drives the felt, the empty
-   *  label, and — crucially — the card grid, so there are never grid cells at
-   *  the hand's row level (left/right of the fan). */
   private usableZone(): PlayZoneRect {
     const zone = this.zone;
     const reserve = this.host.getHandReserveBottom();
@@ -969,6 +932,33 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
+    this.drawActiveGlow();
+  }
+
+  setActive(active: boolean): void {
+    if (this.active === active) return;
+    this.active = active;
+    this.activeGlowGfx.visible = active;
+    this.drawActiveGlow();
+  }
+
+  private drawActiveGlow(): void {
+    this.activeGlowGfx.clear();
+    if (!this.active) return;
+    const felt = this.usableZone();
+    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
+    const layers = 3;
+    for (let i = 0; i < layers; i++) {
+      const inset = i * 4;
+      this.activeGlowGfx.roundRect(
+        felt.x + inset,
+        felt.y + inset,
+        felt.width - 2 * inset,
+        felt.height - 2 * inset,
+        Math.max(0, TABLE_RADIUS - inset),
+      );
+      this.activeGlowGfx.stroke({ color, width: 3, alpha: 1 - i / layers });
+    }
   }
 
   private layoutEmptyText(): void {
@@ -994,7 +984,19 @@ export class BoardRegion {
     this.drawBackground();
   }
 
-  // ── Drag-commit + grid skeleton (driven by the host's drag gesture) ─
+  restyleCards(): void {
+    for (const entry of this.entries.values()) entry.sprite.restyle();
+  }
+
+  previewEtb(): void {
+    for (const entry of this.entries.values()) {
+      entry.etbGlowAlpha = 1;
+    }
+  }
+
+  redrawHoverDebug(): void {
+    for (const entry of this.entries.values()) entry.sprite.redrawHoverDebug();
+  }
 
   getEffectiveChildren(parentId: string): string[] {
     const parent = this.lastState?.cards.find((c) => c.id === parentId);
@@ -1182,8 +1184,6 @@ export class BoardRegion {
     gfx.visible = true;
   }
 
-  /** Faint grid overlay shown while a hand card is dragged over this region;
-   *  the cell under (localX, localY) brightens. */
   drawDropGrid(localX: number, localY: number): void {
     const grid = computeGridLayout(
       this.usableZone(),
@@ -1216,10 +1216,7 @@ export class BoardRegion {
     gfx.visible = true;
   }
 
-  /** Highlight the whole play zone (instant/sorcery cast drag — there's no
-   *  grid slot, the spell just goes to the stack). */
   drawDropField(): void {
-    // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
     this.lastDropCell = null;
     const zone = this.usableZone();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
@@ -1239,6 +1236,7 @@ export class BoardRegion {
   }
 
   destroy(): void {
+    this.effects.destroy();
     this.entries.clear();
   }
 }

@@ -34,18 +34,10 @@ function promptOf<TType extends PromptType>(
 
 const SELF_PANEL_SCALE = 0.85;
 const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
-/** Bottom-right footprint of the action cluster (`MainActionOverlay`:
- *  `right-12` + `w-[300px]`) plus a small gap — reserved so the split self
- *  zones and the hand fan stay left of the PASS / KEEP-MULLIGAN buttons. */
 const ACTION_CLUSTER_RESERVE_PX = 360;
-/** Minimum hand-fan width in the split (perimeter) self layout. Below this the
- *  right-side zones wrap to a 2-column grid to give the hand more room. Set
- *  high so the grid is the norm on laptop widths; only very wide displays keep
- *  the single zone row. */
 const HAND_MIN_WIDTH_PX = 820;
 
 interface GameBoardProps {
-  // Core game state
   me: Player;
   opponents: Player[];
   myPermanents: GameCard[];
@@ -58,48 +50,34 @@ interface GameBoardProps {
   priorityPlayerId: string;
   step: string;
 
-  // Prompt state
   promptType?: PromptType;
   currentPrompt: Prompt | null;
   boardTargets: BoardTargetBuckets | null;
 
-  // Combat state
   pendingAttackers: string[];
-  /** Attacker selected in attacker-first declare-blockers, awaiting blockers. */
   pendingAttacker?: string | null;
-  /** Blocker armed in blocker-first declare-blockers, awaiting its attacker. */
   pendingBlocker?: string | null;
-  /** Blockers chosen so far during damage-assignment ordering (in order). */
   damageOrder?: string[];
-  /** All blockers the engine wants ordered (drives selectable rings). */
   damageOrderBlockerIds?: string[];
   selectedAttackDefenderId?: string | null;
   blockAssignments: { blockerId: string; attackerId: string }[];
-  /** Locked-in blocker→attacker assignments from the engine; combined with
-   *  pending blockAssignments to drive unified-board combat staging. */
   combatAssignments?: { blockerId: string; attackerId: string }[];
-  /** Arrow specs for the unified board (attack/attach/placement). */
   arrowSpecs?: ArrowSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   playerIsTargetable: (playerId: string) => boolean;
 
-  // Per-player game-wide flags
   monarchId?: string | null;
   initiativeHolderId?: string | null;
 
-  // Flash state
   turnFlashPlayerId: string | null;
 
-  // Preferences
   zonePanelOrder: ZonePanelItem[];
 
-  // Battlefield drag state
   isOverBattlefield: boolean;
   draggingCardId?: string;
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
 
-  // Callbacks
   onHandCardDragStart: (card: GameCard, e: React.MouseEvent) => void;
   onHandCardClick: (card: GameCard, e?: React.MouseEvent) => void;
   onHoverCard: (
@@ -137,21 +115,12 @@ interface GameBoardProps {
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
 
-  /** Canvas-local keep-out rects (e.g. the StackDisplay panel when it is
-   *  mounted) so battlefield cards beneath them move into a free cell. */
   pixiExternalBlockers?: ScreenBounds[];
 
-  /** Out-ref populated with the live unified BoardScene so Game.tsx can read
-   *  its canvas for the stack-panel keep-out translation. */
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
-  /** Attached to the battlefield drop area so `useHandDrag` can detect when a
-   *  dragged hand card is over the board (drop-to-cast). */
   battlefieldContainerRef?: React.RefObject<HTMLDivElement | null>;
 
-  /** Mulligan-bottom selection overlay applied to the in-game hand so
-   *  the player picks cards to send to the bottom of the library
-   *  directly from the real hand fan instead of a separate modal. */
   handSelectionMode?: boolean;
   handSelectedIds?: Set<string>;
   onHandCardToggle?: (cardId: string) => void;
@@ -239,10 +208,6 @@ export function GameBoard({
     return Math.max(...xs) - Math.min(...xs) + cardW;
   }, [myHand.length, vScale]);
 
-  // Vertical space the hand fan occupies inside the self region (it peeks ~55%
-  // of a card above the zone bottom). Subtracted from the self region before
-  // computing the battlefield card scale so the "always 3 rows" guarantee is
-  // measured against the area actually free for permanents.
   const selfBottomReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
 
   const CLUSTER_GAP_FROM_HAND_PX = 12;
@@ -255,12 +220,8 @@ export function GameBoard({
   const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
-  // Blocker currently being dragged onto an attacker (mirrors the Pixi drag
-  // state) so the legal-attacker highlight applies during drag-to-block too.
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
 
-  // Cards currently attacking — gates combat staging so it self-clears when
-  // combat ends (combined with any mid-selection local blocks).
   const attackingCardIdSet = useMemo(() => {
     const s = new Set<string>();
     for (const c of myPermanents) if (c.isAttacking) s.add(c.id);
@@ -271,14 +232,7 @@ export function GameBoard({
   const combatAssignmentsAll = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
-    // Local pending blocks are merged regardless of prompt so they keep the
-    // spatial staging alive after the player submits, until the engine echoes
-    // the locked-in blocks (then `useCombatState` clears the local set).
     for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
-    // Only stage assignments whose attacker is still attacking: once combat
-    // ends the attacker drops `isAttacking`, so staging self-clears even if a
-    // stale local/engine assignment lingers (otherwise a blocker stays frozen
-    // at the divider instead of returning home).
     return [...byBlocker]
       .filter(([, attackerId]) => attackingCardIdSet.has(attackerId))
       .map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
@@ -312,11 +266,7 @@ export function GameBoard({
               : []),
           ]
         : promptType === "chooseBlockers"
-          ? // Highlight the legal counterparts of the current selection: a
-            // selected attacker lights its valid blockers; an armed blocker
-            // lights the attackers it may legally block; otherwise every
-            // available blocker.
-            pendingAttacker
+          ? pendingAttacker
             ? (chooseBlockersPrompt?.input.attackers.find(
                 (a) =>
                   a.attackerId === pendingAttacker && a.validBlockerIds.length >= a.minBlockers,
@@ -479,7 +429,6 @@ export function GameBoard({
   const toggleOpponentStop = usePhaseStopStore((s) => s.toggleOpponentStop);
 
   const pixiPhaseStrip = useMemo((): import("@/pixi/PhaseStripLayer").PhaseStripState => {
-    // Build per-opponent enabled phases map
     const oppEnabled = new Map<string, Set<string>>();
     for (const op of opponents) {
       oppEnabled.set(op.id, opponentStopsMap.get(op.id) ?? new Set(["end"]));
@@ -506,11 +455,8 @@ export function GameBoard({
 
   const boardRef = useRef<HTMLDivElement>(null);
 
-  // ── Unified single-canvas board ──
   const boardArrangementPref = usePreferencesStore((s) => s.boardArrangement);
   const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
-  // The wrap-around (perimeter) layout is gated behind a feature flag; until
-  // it's enabled the board is locked to the row arrangement.
   const boardArrangement = isFeatureEnabled("wraparoundBoardLayout") ? boardArrangementPref : "row";
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
@@ -535,9 +481,6 @@ export function GameBoard({
     window.addEventListener("pointerup", onUp);
   }, []);
 
-  // Per-opponent column widths (row arrangement resize grips). Equal split
-  // until the user drags a boundary; reset implicitly when the count changes
-  // (length mismatch → BoardCanvas falls back to equal).
   const [opponentSplits, setOpponentSplits] = useState<number[]>([]);
   const opponentFractions = opponentSplits.length === opponents.length ? opponentSplits : undefined;
 
@@ -601,25 +544,14 @@ export function GameBoard({
     hostileTargeting,
   ]);
 
-  // On the unified board the self region is offset (e.g. the perimeter
-  // arrangement puts it in the center column), so anchor the panel to the
-  // self region's left edge rather than the container corner.
   const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;
-  // The hand fan is centered in the self region; cap the cluster so its
-  // right edge stays left of the hand's left edge. Measured against the
-  // self region's half-width (not the board's), so it stays clear in the
-  // perimeter arrangement where the self column is narrower than the board.
   const selfHalfWidthPx = (unifiedLayout?.self?.width ?? 0) / 2;
   const clusterMaxWidthPx = Math.max(
     CLUSTER_MIN_WIDTH_PX,
     selfHalfWidthPx - handWidth / 2 - CLUSTER_GAP_FROM_HAND_PX - 8,
   );
-  // Perimeter (wrap-around) seats the self cluster MTGA-style: avatar + mana
-  // on the far left, zone tiles on the far right, hand centered between.
   const selfIsSplit = boardArrangement === "perimeter";
   const selfRect = unifiedLayout?.self;
-  // Keep the hand at least HAND_MIN_WIDTH_PX wide; if a single row of zones on
-  // the right would squeeze it below that, wrap them into a 2-column grid.
   const selfSplit = useMemo(() => {
     const off = { left: 0, right: 0, grid: false };
     if (boardArrangement !== "perimeter") return off;
@@ -641,10 +573,6 @@ export function GameBoard({
     [selfSplit.left, selfSplit.right],
   );
 
-  // Measure each player's React panel and feed it back as a per-player
-  // keep-out so battlefield cards never lay out under their own zones/avatar.
-  // Keyed "self" (its split sub-sections are measured individually) or by
-  // opponent id.
   const panelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const setPanelEl = useCallback((key: string, el: HTMLDivElement | null) => {
     if (el) panelElsRef.current.set(key, el);
@@ -666,16 +594,12 @@ export function GameBoard({
       const sections = el.querySelectorAll<HTMLElement>("[data-panel-section]");
       next[id] = sections.length > 0 ? [...sections].map(toRect) : [toRect(el)];
     }
-    // The action / PASS cluster (bottom-right, rendered outside this subtree)
-    // is a self-region keep-out so cards never lay out under the buttons.
     const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
     if (actionEl) (next[me.id] ??= []).push(toRect(actionEl));
     const json = JSON.stringify(next);
     if (json === lastPanelBlockersRef.current) return;
     lastPanelBlockersRef.current = json;
     scene.setPlayerBlockers(new Map(Object.entries(next)));
-    // Re-measure only when something that moves/resizes a panel changes —
-    // layout, opponent set, zone-tile counts, arrangement, or the grid wrap.
   }, [
     sceneRef,
     me.id,
@@ -688,8 +612,6 @@ export function GameBoard({
     selfSplit.grid,
     promptType,
   ]);
-  // Span from the self zone's left edge to just left of the action cluster so
-  // the right-anchored zones never sit under the PASS / KEEP-MULLIGAN buttons.
   const splitBoardWidth = selfRect ? 2 * selfRect.x + selfRect.width : 0;
   const splitPanelWidth = Math.max(
     CLUSTER_MIN_WIDTH_PX,
@@ -721,9 +643,6 @@ export function GameBoard({
         split={selfIsSplit}
         zonesGrid={selfSplit.grid}
         isActiveTurn={activePlayerId === me.id}
-        // Pulse only marks a *reaction window*: a non-active player handed
-        // priority to respond. This skips the constant self-glow during your
-        // own turn while still flagging when you (or an opponent) must react.
         isPriorityPlayer={priorityPlayerId === me.id && activePlayerId !== me.id}
         isTargetable={playerIsTargetable(me.id)}
         onTarget={() => onTargetPlayer(me.id)}
@@ -801,10 +720,6 @@ export function GameBoard({
     </div>
   );
 
-  // Reserve hand-fan space at the bottom corners so the centered hand clears
-  // the split self cluster (avatar left, zone tiles right). Row keeps the full
-  // width (the capped cluster handles its own clearance there).
-
   return (
     <div
       ref={boardRef}
@@ -829,6 +744,7 @@ export function GameBoard({
           handInsets={handInsets}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}
+          activePlayerId={activePlayerId}
           selfBottomReserve={selfBottomReserve}
           sceneRef={sceneRef}
           getHandActions={getHandActions}
@@ -841,8 +757,6 @@ export function GameBoard({
         const op = opponents.find((o) => o.id === playerId);
         if (!op) return null;
         const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
-        // Seat the panel against the player's edge: top opponents at the
-        // region's top-left, side opponents vertically centered on their column.
         const panelStyle: React.CSSProperties =
           orientation === "left"
             ? {
@@ -925,8 +839,6 @@ export function GameBoard({
           className="absolute z-50 w-10 cursor-row-resize flex items-center justify-center group"
           style={{
             left: unifiedLayout.self.x + 4,
-            // Center on the divider line (where the phase strip sits), not the
-            // self-region top, which is half a band below it.
             top: unifiedLayout.dividerY - STRIP_BAND_PX / 2,
             height: STRIP_BAND_PX,
           }}

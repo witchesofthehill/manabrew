@@ -40,11 +40,6 @@ interface PixiPerfStats {
   deltaMs: number;
 }
 
-/** Dev-only overrides applied to the local player's panel so every
- *  badge/visual state can be inspected without running a real game. All
- *  fields default to neutral (`false` / `null`) = pass the real game
- *  value through. When a numeric field is non-null it overrides the
- *  engine value unconditionally. */
 export interface DevPlayerOverrides {
   forceMonarch: boolean;
   forceInitiative: boolean;
@@ -154,12 +149,12 @@ interface GameDevState {
   playerOverrides: DevPlayerOverrides;
   cardOverrides: DevCardOverrides;
   etbGlowVersion: number;
-  /** Arrow type the operator has force-enabled to inspect on the live
-   *  board (combat / placement). Acts as a radio — one at a time. */
   debugArrowType: ArrowType | null;
   debugBattlefieldKeywords: string[];
   debugCardEnabled: boolean;
   debugCardName: string;
+  showHoverAreas: boolean;
+  setShowHoverAreas: (value: boolean) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
   setDevToolsEnabled: (value: boolean) => void;
   clearPromptActionOverride: () => void;
@@ -193,6 +188,8 @@ export const useGameDevStore = create<GameDevState>()(
       debugBattlefieldKeywords: [],
       debugCardEnabled: false,
       debugCardName: "Raging Goblin",
+      showHoverAreas: false,
+      setShowHoverAreas: (value) => set({ showHoverAreas: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
       setDevToolsEnabled: (value) => set({ devToolsEnabled: value }),
       clearPromptActionOverride: () => set({ promptActionOverride: null }),
@@ -231,6 +228,7 @@ export const useGameDevStore = create<GameDevState>()(
           debugBattlefieldKeywords: [],
           debugCardEnabled: false,
           debugCardName: "Raging Goblin",
+          showHoverAreas: false,
         }),
     }),
     { name: "gameDev", enabled: import.meta.env.DEV },

@@ -6,17 +6,15 @@ import type { BoardArrangement } from "@/pixi/board/boardLayout";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
+export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
 interface PreferencesState {
-  /** App color theme preset id */
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
-  /** Duration of card-play and turn-start flash animations in ms */
   flashDurationMs: number;
   setFlashDurationMs: (ms: number) => void;
 
-  /** Server connection defaults */
   serverHost: string;
   serverPort: number;
   serverUsername: string;
@@ -26,37 +24,31 @@ interface PreferencesState {
   setServerUsername: (username: string) => void;
   setServerPassword: (password: string) => void;
 
-  /** Battlefield zone column order */
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
 
-  /** Multiplayer board arrangement (opponents across the top vs wrapped
-   *  around). Only changes the 4-player layout. */
   boardArrangement: BoardArrangement;
   setBoardArrangement: (arrangement: BoardArrangement) => void;
 
-  /** Auto-arrange the battlefield into tidy rows, ignoring manual drag
-   *  placement (MTGA-style). Off = free placement (the default). */
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
-  /** Card preview trigger mode */
+  battlefieldCardStyle: BattlefieldCardStyle;
+  setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
-  /** Card hover preview delay in ms */
   cardHoverDelayMs: number;
   setCardHoverDelayMs: (ms: number) => void;
 
-  /** App theme color overrides (CSS variable name → HSL value) */
   appThemeColorOverrides: Record<string, string>;
   setAppThemeColorOverride: (key: string, hsl: string) => void;
   resetAppThemeColorOverrides: () => void;
 
-  /** Game UI color overrides by dot-path key */
   gameThemeColorOverrides: Record<string, string>;
   setGameThemeColorOverride: (path: string, color: string) => void;
   resetGameThemeColorOverrides: () => void;
@@ -73,6 +65,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "boardArrangement",
   "battlefieldAutoSort",
   "battlefieldCardScale",
+  "battlefieldCardStyle",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -93,7 +86,6 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   return next as Partial<PreferencesState>;
 }
 
-/** Stable per-browser guest handle. Generated once, persisted via zustand. */
 function generateGuestUsername(): string {
   return `player-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -131,6 +123,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>
             set({ battlefieldCardScale: Math.max(0, Math.min(1, battlefieldCardScale)) }),
+
+          battlefieldCardStyle: "realistic",
+          setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

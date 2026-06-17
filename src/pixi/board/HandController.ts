@@ -138,6 +138,12 @@ export class HandController {
     const bottomY = this.getBottomY();
     const hitZones: HandHitZone[] = [];
 
+    // The fan only reshapes for a drag that originates from the hand. A card
+    // dragged from a zone with no hand sprite (the command zone) sets
+    // `draggingCardId` too, but must not sink the hand out of the way.
+    const draggingInHand =
+      state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);
+
     for (let i = 0; i < state.cards.length; i++) {
       const card = state.cards[i]!;
       const l = layout[i]!;
@@ -161,9 +167,7 @@ export class HandController {
       const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
       const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
       const reshapeFan =
-        !selectionMode &&
-        state.draggingCardId != null &&
-        (state.draggingIsPermanent === true || this.dropActive);
+        !selectionMode && draggingInHand && (state.draggingIsPermanent === true || this.dropActive);
       const castOffset = reshapeFan
         ? Math.round(
             (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,

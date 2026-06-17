@@ -261,6 +261,9 @@ export function BoardCanvas({
   }));
   const playersKey = players.map((p) => `${p.playerId}:${p.isLocal ? 1 : 0}`).join(",");
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
+  // Stable content key so `reconfigure`'s identity (and the ResizeObserver that
+  // depends on it) doesn't churn when the parent re-creates this array prop.
+  const opponentFractionsKey = (opponentFractions ?? []).join(",");
 
   const reconfigure = useCallback(() => {
     const app = appRef.current;
@@ -294,7 +297,14 @@ export function BoardCanvas({
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, arrangement, fraction, selfHeightFraction, opponentFractions, selfBottomReserve]);
+  }, [
+    playersKey,
+    arrangement,
+    fraction,
+    selfHeightFraction,
+    opponentFractionsKey,
+    selfBottomReserve,
+  ]);
 
   useEffect(() => {
     reconfigure();

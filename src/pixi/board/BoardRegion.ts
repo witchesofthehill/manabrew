@@ -18,7 +18,6 @@ import { lerp, safeDestroy } from "./pixiHelpers";
 import { EffectsLayer } from "../effects/EffectsLayer";
 import { playStomp } from "../effects/stomp";
 import { animationsEnabled } from "../effects/enabled";
-import { TURN_GLOW } from "../effects/config";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -97,8 +96,6 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
-  private activeGlowGfx: Graphics;
-  private active = false;
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
@@ -143,12 +140,6 @@ export class BoardRegion {
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
-
-    this.activeGlowGfx = new Graphics();
-    this.activeGlowGfx.zIndex = -9;
-    this.activeGlowGfx.eventMode = "none";
-    this.activeGlowGfx.visible = false;
-    this.container.addChild(this.activeGlowGfx);
 
     // Transient ground effects (ETB stomp) sit above the felt, below the cards.
     this.effects.container.zIndex = 0;
@@ -1015,41 +1006,6 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
-    this.drawActiveGlow();
-  }
-
-  /** Highlight this region while its player holds the turn — a soft inner glow
-   *  on the felt edge, breathed in `animate`. */
-  setActive(active: boolean): void {
-    if (this.active === active) return;
-    this.active = active;
-    this.activeGlowGfx.visible = active;
-    this.drawActiveGlow();
-  }
-
-  private drawActiveGlow(): void {
-    this.activeGlowGfx.clear();
-    if (!this.active) return;
-    const felt = this.usableZone();
-    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
-    // Static, restrained rim — a quiet "it's this player's turn" cue, not a
-    // breathing pulse (which read as distracting).
-    const layers = TURN_GLOW.layers;
-    for (let i = 0; i < layers; i++) {
-      const inset = i * TURN_GLOW.insetStep;
-      this.activeGlowGfx.roundRect(
-        felt.x + inset,
-        felt.y + inset,
-        felt.width - 2 * inset,
-        felt.height - 2 * inset,
-        Math.max(0, TABLE_RADIUS - inset),
-      );
-      this.activeGlowGfx.stroke({
-        color,
-        width: TURN_GLOW.strokeWidth,
-        alpha: TURN_GLOW.maxAlpha * (1 - i / layers),
-      });
-    }
   }
 
   private layoutEmptyText(): void {

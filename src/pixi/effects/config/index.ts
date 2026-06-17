@@ -5,7 +5,6 @@
 export { CRACKLE } from "./crackle.const";
 export { DUST } from "./dust.const";
 export { STOMP } from "./stomp.const";
-export { TURN_GLOW } from "./turnGlow.const";
 export { EDGE_GLOW } from "./edgeGlow.const";
 export { DAMAGE_HIT } from "./damageHit.const";
 export { STAT_POP } from "./statPop.const";

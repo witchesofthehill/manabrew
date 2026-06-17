@@ -262,11 +262,6 @@ function getCounterColor(type: string): number {
   return hexToNum(key ? palette[key] : palette.default);
 }
 
-const COUNTER_TEXT_LABELS: Record<string, string> = {
-  P1P1: "+1/+1",
-  M1M1: "−1/−1",
-};
-
 const COUNTER_ICON_NAMES: Record<string, string> = {
   Loyalty: "vibrating-shield",
   Charge: "lightning-trio",
@@ -1104,7 +1099,12 @@ export class CardSprite extends Container {
     const counters = this.card.counters;
     if (!counters) return;
 
-    const present = Object.entries(counters).filter(([, n]) => n > 0);
+    // P1P1 / M1M1 are not shown as counter badges on the battlefield — the net
+    // buff/debuff is conveyed by the green/red P/T color (the full per-type
+    // breakdown stays in the card preview).
+    const present = Object.entries(counters).filter(
+      ([t, n]) => n > 0 && t !== "P1P1" && t !== "M1M1",
+    );
     if (present.length === 0) return;
     const entries = present.slice(0, MAX_VISIBLE_COUNTERS);
     const hiddenTypeCount = present.length - entries.length;
@@ -1119,22 +1119,9 @@ export class CardSprite extends Container {
 
     let offsetX = 3;
     for (const [type, count] of entries) {
-      // +1/+1 and −1/−1 collapse to a single signed number (green / red); the
-      // full per-type breakdown lives in the card preview.
-      const isPlus = type === "P1P1";
-      const isMinus = type === "M1M1";
-      const isPM = isPlus || isMinus;
-      const color = isPlus
-        ? hexToNum(activeTheme.gameTheme.pt.buffed)
-        : isMinus
-          ? hexToNum(activeTheme.gameTheme.pt.debuffed)
-          : getCounterColor(type);
-      const iconName = isPM ? undefined : COUNTER_ICON_NAMES[type];
-      const textLabel = isPlus
-        ? `+${count}`
-        : isMinus
-          ? `-${count}`
-          : (COUNTER_TEXT_LABELS[type] ?? type.slice(0, 3));
+      const color = getCounterColor(type);
+      const iconName = COUNTER_ICON_NAMES[type];
+      const textLabel = type.slice(0, 3);
 
       const badge = new Container();
       const bg = new Graphics();

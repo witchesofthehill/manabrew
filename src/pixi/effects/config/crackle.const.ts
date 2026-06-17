@@ -6,10 +6,10 @@
 export const CRACKLE = {
   color: 0xc7a35a,
   /** Radial arms: `armsMin` + up to `armsExtra` (random). */
-  armsMin: 8,
+  armsMin: 5,
   armsExtra: 4,
   /** Arm length in px: `lengthMin` + up to `lengthExtra`. */
-  lengthMin: 20,
+  lengthMin: 15,
   lengthExtra: 30,
   /** Segments per arm — more = more jagged. */
   segments: 4,

@@ -740,7 +740,6 @@ export function GameBoard({
           handInsets={handInsets}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}
-          activePlayerId={activePlayerId}
           selfBottomReserve={selfBottomReserve}
           sceneRef={sceneRef}
           getHandActions={getHandActions}

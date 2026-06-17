@@ -7,6 +7,7 @@ import {
   TextStyle,
   FillGradient,
   ColorMatrixFilter,
+  type DestroyOptions,
 } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
@@ -30,6 +31,7 @@ import { asDeckCard } from "@/lib/decks";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
+import { gsap } from "./effects/gsap";
 import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
 import { DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
@@ -868,6 +870,14 @@ export class CardSprite extends Container {
       this.hitFlashGfx.visible = false;
       this.hitFlashGfx.clear();
     }
+  }
+
+  destroy(options?: DestroyOptions): void {
+    // The entrance stomp tweens `fxScale` via GSAP; if the card is removed
+    // mid-stomp the tween would keep mutating a destroyed sprite's object
+    // forever. Kill it before teardown.
+    gsap.killTweensOf(this.fxScale);
+    super.destroy(options);
   }
 
   /** Color-matrix treatments that mirror the DOM card face: summoning-sick

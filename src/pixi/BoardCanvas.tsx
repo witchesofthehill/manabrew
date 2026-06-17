@@ -26,6 +26,7 @@ import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
 import { RotateCw } from "lucide-react";
 
@@ -408,6 +409,11 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setActivePlayer(activePlayerId ?? null);
   }, [scene, activePlayerId]);
+
+  const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
+  useEffect(() => {
+    setAnimationsEnabled(inGameAnimations);
+  }, [inGameAnimations]);
 
   const etbPreviewVersion = useGameDevStore((s) => s.etbGlowVersion);
   useEffect(() => {

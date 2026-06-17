@@ -50,6 +50,12 @@ interface PreferencesState {
   battlefieldCardStyle: BattlefieldCardStyle;
   setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
 
+  /** Decorative in-game board animations (entrance stomp, dust, stat/damage
+   *  pops, glow pulses). Off = a perf escape hatch for weaker hardware; the
+   *  board still functions (cards move, state indicators stay). */
+  inGameAnimations: boolean;
+  setInGameAnimations: (value: boolean) => void;
+
   /** Card preview trigger mode */
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
@@ -81,6 +87,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldAutoSort",
   "battlefieldCardScale",
   "battlefieldCardStyle",
+  "inGameAnimations",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -142,6 +149,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldCardStyle: "realistic",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
+
+          inGameAnimations: true,
+          setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

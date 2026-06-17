@@ -31,6 +31,7 @@ import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
 import { bump } from "./effects/easing";
+import { animationsEnabled } from "./effects/enabled";
 
 /**
  * Shared, mutable theme reference used by every `CardSprite` instance.
@@ -840,7 +841,9 @@ export class CardSprite extends Container {
    *  `now` is the shared frame timestamp. (The entrance squash lives in
    *  `fxScale`, driven by GSAP.) */
   tickEffects(now: number): void {
-    if (this.glowPulsing) this.edgeGlowGfx.alpha = pulse(now, 1600, 0.5, 0.95);
+    if (this.glowPulsing) {
+      this.edgeGlowGfx.alpha = animationsEnabled() ? pulse(now, 1600, 0.5, 0.95) : 0.85;
+    }
 
     const sp = oneShotProgress(this.statPopFx, now);
     if (sp != null) this.ptContainer.scale.set(1 + 0.35 * bump(sp));

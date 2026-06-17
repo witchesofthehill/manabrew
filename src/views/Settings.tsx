@@ -710,6 +710,31 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>In-game Animations</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={prefs.inGameAnimations ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setInGameAnimations(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.inGameAnimations ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setInGameAnimations(false)}
+                >
+                  Off
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Decorative board effects — creature entrance stomp + dust, stat and damage pops,
+                glow pulses. Turn these off to save performance on weaker hardware; the board still
+                works (cards move, state indicators and damage numbers stay).
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>
               <div className="flex items-center gap-2">
                 <Button

@@ -17,6 +17,7 @@ import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
 import { EffectsLayer } from "../effects/EffectsLayer";
 import { playStomp } from "../effects/stomp";
+import { animationsEnabled } from "../effects/enabled";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -519,13 +520,18 @@ export class BoardRegion {
           this.playEntranceFx(entry, card);
           continue;
         }
-        if (card.power !== prev.power || card.toughness !== prev.toughness) {
+        const fx = animationsEnabled();
+        if (fx && (card.power !== prev.power || card.toughness !== prev.toughness)) {
           entry.sprite.playStatPop(now);
         }
         const delta = (card.damage ?? 0) - (prev.damage ?? 0);
         if (delta > 0) {
-          entry.sprite.playDamageHit(now);
-          entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+          // The damage number always shows (it's info); the flash + shake are
+          // the decorative part that the animation toggle suppresses.
+          if (fx) {
+            entry.sprite.playDamageHit(now);
+            entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+          }
           const c = this.localToCanvas(entry.targetX, entry.targetY);
           this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
         }
@@ -1065,6 +1071,7 @@ export class BoardRegion {
   /** Creature entrances stomp (GSAP squash + a ground dust burst); other
    *  permanents just get the entry glow. Impact point = the card's foot. */
   private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
+    if (!animationsEnabled()) return;
     if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
     const theme = this.host.getTheme().gameTheme;
     const dust = hexToNum(theme.canvas.neutral);

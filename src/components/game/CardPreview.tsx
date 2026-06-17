@@ -296,21 +296,6 @@ export function CardPreview({
       }
     : null;
 
-  // TEMP DEBUG — remove once DFC flip is confirmed. Logs why the flip button
-  // does/doesn't show for the previewed card.
-  console.log("[dfc-debug]", {
-    name: card.name,
-    deckSetCode: deckCard.setCode,
-    deckCardNumber: deckCard.cardNumber,
-    isMultiFaced: cardFaces.isMultiFaced,
-    isFlippable: cardFaces.isFlippable,
-    faceCount: cardFaces.faces.length,
-    faceNames: cardFaces.faces.map((f) => f.name),
-    frontHasImage: !!front?.imageUris?.[imageSize],
-    backHasImage: !!back?.imageUris?.[imageSize],
-    hasFlippableFaces,
-  });
-
   useEffect(() => {
     if (!onFlip || !hasFlippableFaces) return;
     function handleFlipKey(e: KeyboardEvent) {

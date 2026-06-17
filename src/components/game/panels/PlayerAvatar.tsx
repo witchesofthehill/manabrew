@@ -24,6 +24,11 @@ export interface PlayerAvatarProps {
 }
 
 const AVATAR_PX = 72;
+// The floating life delta grows with the magnitude of the change, so a big hit
+// reads as a big number — a large loss fills the whole avatar face. Capped at
+// the avatar size.
+const LIFE_FLOAT_MIN_PX = 22;
+const LIFE_FLOAT_STEP_PX = 5;
 
 export function PlayerAvatar({
   player,
@@ -56,6 +61,10 @@ export function PlayerAvatar({
     setLifeFloatKey((k) => k + 1);
     setPrevLife(player.life);
   }
+  const lifeFloatSize = Math.min(
+    AVATAR_PX,
+    LIFE_FLOAT_MIN_PX + Math.abs(lifeDelta) * LIFE_FLOAT_STEP_PX,
+  );
   const targetableColor = withAlpha(themeColors.promptAction.attackAction, 0.9);
   const selectedTargetColor = themeColors.promptAction.attackAction;
   const priorityColor = themeColors.activeAction.priority;
@@ -85,7 +94,7 @@ export function PlayerAvatar({
           className="animate-life-float pointer-events-none absolute left-1/2 top-0 z-40 font-extrabold leading-none tabular-nums"
           style={{
             color: lifeDelta < 0 ? themeColors.pt.lethal : themeColors.life,
-            fontSize: fontSizes.life,
+            fontSize: lifeFloatSize,
             textShadow: "0 1px 3px rgba(0, 0, 0, 0.85)",
           }}
         >
@@ -122,6 +131,20 @@ export function PlayerAvatar({
             {getInitials(player.name)}
           </AvatarFallback>
         </Avatar>
+
+        {lifeLossKey > 0 && (
+          <span
+            key={lifeLossKey}
+            aria-hidden
+            className="animate-life-damage-wash pointer-events-none absolute inset-0 z-20 rounded-full"
+            style={{
+              background: `radial-gradient(circle at 50% 50%, transparent 48%, ${withAlpha(
+                themeColors.pt.lethal,
+                0.55,
+              )} 100%)`,
+            }}
+          />
+        )}
 
         {showPriority && (
           <span

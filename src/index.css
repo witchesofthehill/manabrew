@@ -139,6 +139,7 @@
   --animate-card-stack-flash-in: card-stack-flash-in 560ms cubic-bezier(0.18, 0.72, 0.25, 1) both;
   --animate-player-turn-flash: player-turn-flash var(--flash-duration, 1000ms) ease-out forwards;
   --animate-life-flash: life-flash 600ms ease-out;
+  --animate-life-damage-wash: life-damage-wash 550ms ease-out;
   --animate-player-targetable-pulse: player-targetable-pulse 1.5s ease-in-out infinite;
   --animate-player-priority-pulse: player-priority-pulse 1.6s ease-in-out infinite;
   --animate-life-float: life-float 900ms ease-out forwards;
@@ -249,6 +250,20 @@
     }
     100% {
       transform: scale(1);
+    }
+  }
+
+  /* Red wash over the whole avatar face when the player loses life — the
+     player-scale echo of the card damage wash. `--life-wash-color` set inline. */
+  @keyframes life-damage-wash {
+    0% {
+      opacity: 0;
+    }
+    18% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
     }
   }
 
@@ -415,6 +430,7 @@
   .animate-player-targetable-pulse,
   .animate-player-priority-pulse,
   .animate-life-float,
+  .animate-life-damage-wash,
   .animate-dice-roll {
     animation: none !important;
   }

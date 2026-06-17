@@ -245,10 +245,9 @@ export class BoardScene {
     // Multi-select is a normal-mode behavior — not while declaring blockers.
     if (this.declareBlockers) return;
     const pos = this.root.toLocal(e.global);
-    if (!e.shiftKey) {
-      selection.clear();
-      selection.refresh();
-    }
+    // Don't clear on press — endMarquee handles it on release (a zero-area
+    // no-shift marquee clears, a real drag replaces), so a stray press doesn't
+    // wipe the current selection before any movement.
     selection.startMarquee(pos.x, pos.y, e.shiftKey);
   }
 

@@ -29,7 +29,7 @@ Hand-tuned motion → a GSAP timeline (see `stomp.ts`), driving `fxScale` or oth
 
 ## Current effects
 
-- **Entrance stomp** (`stomp.ts`, creatures only, fired on landing) — one orchestrated beat: a tight GSAP squash-and-settle on the card's `fxScale` + the signature **impact ring** with a quiet low dust skirt (`EffectsLayer.stompGround`). Deliberately restrained — one bold cue, everything else quiet (no competing cloud/cracks/glow pile-up). Dev-previewable via the panel's "Flash ETB" button → `triggerEtbGlow` → `BoardScene.previewEtb`.
+- **Entrance stomp** (`stomp.ts`, creatures only) — GSAP squash-and-settle on the card's `fxScale` + a native-particle ground dust burst (`EffectsLayer.burstDust`) + the existing `etbGlow` fade. Dev-previewable via the panel's "Flash ETB" button → `triggerEtbGlow` → `BoardScene.previewEtb`.
 - **Stat pop** (`CardSprite.playStatPop`) — P/T badge bump on power/toughness change.
 - **Damage hit** (`playDamageHit`) — white flash, alongside the existing shake + `-N` floater.
 - **Active-turn rim** (`BoardRegion.setActive`) — a static, restrained felt-edge glow on the active player's region (plumbed `activePlayerId` → `BoardCanvas` → `BoardScene.setActivePlayer`).

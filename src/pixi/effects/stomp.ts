@@ -16,11 +16,10 @@ export interface StompOptions {
 
 export function playStomp({ fxScale, onImpact }: StompOptions): void {
   gsap.killTweensOf(fxScale);
-  // A weighty landing reads as: an instant squash on contact, then a tight
-  // settle with a single small overshoot — not a springy/rubbery wobble.
   gsap
     .timeline()
-    .set(fxScale, { x: 1.2, y: 0.84 }) // impact: wide + short
-    .call(onImpact)
-    .to(fxScale, { x: 1, y: 1, duration: 0.36, ease: "back.out(2)" });
+    .set(fxScale, { x: 0.92, y: 1.12 }) // falling: narrow + tall
+    .to(fxScale, { x: 1.28, y: 0.74, duration: 0.12, ease: "power2.in" }) // slam: wide + short
+    .call(onImpact, undefined, ">-0.02")
+    .to(fxScale, { x: 1, y: 1, duration: 0.62, ease: "elastic.out(1, 0.4)" }); // springy settle
 }

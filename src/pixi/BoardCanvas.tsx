@@ -327,10 +327,23 @@ export function BoardCanvas({
     return () => observer.disconnect();
   }, [scene, reconfigure]);
 
-  // Per-region battlefield state.
+  // Per-region battlefield state. Push only the regions whose state object
+  // actually changed (the parent may re-create the `regions` array on unrelated
+  // renders); reset on a new scene so it gets fully seeded.
+  const lastRegionStateRef = useRef(new Map<string, BattlefieldState>());
+  const lastRegionSceneRef = useRef<BoardScene | null>(null);
   useEffect(() => {
     if (!scene) return;
-    for (const r of regions) scene.updateRegionState(r.playerId, r.state);
+    const seeding = lastRegionSceneRef.current !== scene;
+    if (seeding) {
+      lastRegionStateRef.current.clear();
+      lastRegionSceneRef.current = scene;
+    }
+    for (const r of regions) {
+      if (!seeding && lastRegionStateRef.current.get(r.playerId) === r.state) continue;
+      lastRegionStateRef.current.set(r.playerId, r.state);
+      scene.updateRegionState(r.playerId, r.state);
+    }
   }, [scene, regions]);
 
   useEffect(() => {

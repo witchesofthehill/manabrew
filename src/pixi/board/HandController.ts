@@ -40,6 +40,7 @@ export class HandController {
   private targets = new Map<string, HandTarget>();
   private hitZones: HandHitZone[] = [];
   private hoveredIndex: number | null = null;
+  private hoveredCardId: string | null = null;
   private hoverHoldTimer: number | null = null;
   private pendingLeaveIndex: number | null = null;
   private lastState: HandState | null = null;
@@ -242,10 +243,25 @@ export class HandController {
     this.cancelHoverHoldTimer();
     this.host.getCallbacks().onHoverCard?.(null);
     this.host.getCallbacks().onHoverHandCard?.(null);
+    this.resetHoveredFace();
     if (this.hoveredIndex !== null) {
       this.hoveredIndex = null;
       this.recalcTargets();
     }
+  }
+
+  /** Restore the previously-hovered card to its real face (clears the in-hand
+   *  flip override). */
+  private resetHoveredFace(): void {
+    if (this.hoveredCardId === null) return;
+    this.sprites.get(this.hoveredCardId)?.setPreviewFace(null);
+    this.hoveredCardId = null;
+  }
+
+  /** Flip the currently-hovered hand card to a specific face (view-only). */
+  setHoveredPreviewFace(face: 0 | 1): void {
+    if (this.hoveredCardId === null) return;
+    this.sprites.get(this.hoveredCardId)?.setPreviewFace(face);
   }
 
   clearHover(): void {
@@ -402,7 +418,9 @@ export class HandController {
     this.cancelHoverHoldTimer();
     this.pendingLeaveIndex = null;
     if (this.hoveredIndex === hit.index) return;
+    this.resetHoveredFace();
     this.hoveredIndex = hit.index;
+    this.hoveredCardId = hit.card.id;
     this.recalcTargets();
     const sprite = this.sprites.get(hit.card.id);
     if (!sprite) return;
@@ -468,6 +486,7 @@ export class HandController {
     this.pendingLeaveIndex = null;
     if (this.host.isDestroyed()) return;
     if (idx === null || this.hoveredIndex !== idx) return;
+    this.resetHoveredFace();
     this.hoveredIndex = null;
     this.recalcTargets();
     this.host.getCallbacks().onHoverCard?.(null);

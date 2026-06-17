@@ -327,6 +327,9 @@ export class CardSprite extends Container {
   /** Custom battlefield styles (art / mini-frame) apply only to battlefield
    *  sprites. Hand cards always render the full printed image. */
   private readonly isBattlefield: boolean;
+  /** View-only face override for the in-hand flip button. `null` = follow the
+   *  card's real face (front, or back when transformed). */
+  private previewFace: 0 | 1 | null = null;
 
   constructor(card: GameCard, kind: "battlefield" | "hand" = "battlefield") {
     super();
@@ -514,7 +517,7 @@ export class CardSprite extends Container {
     const deck = useGameStore.getState().gameDecks[this.card.ownerId];
     const deckCard = asDeckCard(deck, this.card);
     const custom = this.isBattlefield && activeStyle !== "realistic";
-    const faceIndex = this.card.isTransformed ? 1 : 0;
+    const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     const tex = await useScryfallStore
       .getState()
       .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
@@ -528,6 +531,14 @@ export class CardSprite extends Container {
       this._imageLoaded = true;
     }
     this.renderFrame();
+  }
+
+  /** Show a specific face's image (view-only flip for hand cards). `null`
+   *  restores the card's real face. Reloads the texture only when it changes. */
+  setPreviewFace(face: 0 | 1 | null): void {
+    if (this.previewFace === face) return;
+    this.previewFace = face;
+    this.loadImage();
   }
 
   /** Scales the art-crop texture to cover the whole card slot (crop to fill),

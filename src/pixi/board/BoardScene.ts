@@ -332,6 +332,10 @@ export class BoardScene {
     this.hand?.releaseHover();
   }
 
+  setHandPreviewFace(face: 0 | 1): void {
+    this.hand?.setHoveredPreviewFace(face);
+  }
+
   setHandScale(scale: number): void {
     this.hand?.setScale(scale);
     this.hand?.relayout();

@@ -1780,10 +1780,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       {/* Hide when any overlay modal is open or a modal-based prompt is active.
           Allow-list approach: only show the preview for prompt types that do NOT
           open a modal (battlefield interaction, targeting, inline panel prompts).
-          Hand cards get the preview too (for double-faced flip + zoom), but with
-          no actions panel — the hand renders its own play-option panel beside the
-          lifted card, so passing actions here would duplicate it. */}
+          Also hide for hand cards since the hand displays its own lifted card +
+          action panel (and its own in-place flip button for double-faced cards). */}
       {preview.hoveredCard &&
+        preview.hoveredCard.zoneId !== "hand" &&
         !draggingHandCard &&
         !viewingZone &&
         !zoneTargetSelector &&
@@ -1793,7 +1793,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         (!promptType || HOVER_ALLOWED_PROMPTS.has(promptType)) && (
           <HoverCardPreview
             preview={preview}
-            actions={preview.hoveredCard.zoneId === "hand" ? undefined : hoveredCardActions}
+            actions={hoveredCardActions}
             onSelectAction={handlePreviewAction}
           />
         )}

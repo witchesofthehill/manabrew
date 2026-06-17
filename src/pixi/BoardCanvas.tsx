@@ -23,6 +23,8 @@ import {
   Z_HAND_ACTIONS_MENU,
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
+import { useCardFaces } from "@/hooks/useCardFaces";
+import { RotateCw } from "lucide-react";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
 import type {
@@ -374,9 +376,57 @@ export function BoardCanvas({
   const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
   const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
 
+  // In-hand double-faced flip: a button on the lifted card swaps its image to
+  // the back face (view-only). Resolved faces tell us whether the card flips.
+  const hoverFaces = useCardFaces({
+    name: handHover?.card.name,
+    setCode: handHover?.card.setCode,
+    cardNumber: handHover?.card.cardNumber,
+  });
+  const [handFlipBack, setHandFlipBack] = useState(false);
+  const hoverCardId = handHover?.card.id ?? null;
+  useEffect(() => {
+    setHandFlipBack(false);
+  }, [hoverCardId]);
+  const showHandFlip = !!handHover && hoverFaces.isFlippable;
+
   return (
     <div className={className} style={{ position: "relative", width: "100%", height: "100%" }}>
       <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block" }} />
+      {showHandFlip && (
+        <div
+          className="pointer-events-none absolute flex justify-end p-1.5"
+          style={{
+            left: handHover.bounds.x,
+            top: handHover.bounds.y,
+            width: handHover.bounds.width,
+            zIndex: Z_HAND_ACTIONS_MENU,
+          }}
+        >
+          <button
+            type="button"
+            className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85"
+            title="Flip card to view the other face"
+            onMouseEnter={() => {
+              cancelHandHoverClear();
+              sceneRef.current?.holdHandHover();
+            }}
+            onMouseLeave={() => {
+              scheduleHandHoverClear();
+              sceneRef.current?.releaseHandHover();
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const next = !handFlipBack;
+              setHandFlipBack(next);
+              sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
+            }}
+          >
+            <RotateCw className="h-3 w-3" />
+            {handFlipBack ? "Front" : "Back"}
+          </button>
+        </div>
+      )}
       {showActionPanel && (
         <div
           style={{

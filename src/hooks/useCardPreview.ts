@@ -103,12 +103,17 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
 
       const delay = options.useDelay ? cardHoverDelayMs : 0;
 
+      // TEMP DEBUG
+      console.log("[pv-enter]", { name: card.name, delay, hadHovered: !!hoveredCard });
+
       // If a card is already showing, switch instantly; only debounce the initial show
       if (hoveredCard || delay === 0) {
+        console.log("[pv-show-instant]", card.name);
         setHoveredCard(card);
         setShowBackFace(false);
       } else {
         hoverTimerRef.current = setTimeout(() => {
+          console.log("[pv-show-timer]", card.name);
           setHoveredCard(card);
           setShowBackFace(false);
           hoverTimerRef.current = null;

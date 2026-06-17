@@ -25,6 +25,12 @@ export function HoverCardPreview({
   slot,
   imageSize,
 }: HoverCardPreviewProps) {
+  // TEMP DEBUG
+  console.log("[pv-render]", {
+    hovered: preview.hoveredCard?.name ?? null,
+    pinned,
+    hasSlot: !!slot,
+  });
   if (!preview.hoveredCard) return null;
   if (pinned && !slot) return null;
 

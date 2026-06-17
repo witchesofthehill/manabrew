@@ -73,6 +73,10 @@ interface BoardRegionOptions {
   orientation: RegionOrientation;
 }
 
+/** Distance (px) from its slot at which an entering card counts as "landed",
+ *  triggering its stomp. */
+const ENTRANCE_LAND_PX = 8;
+
 /**
  * Renders one player's battlefield inside a region rect of the unified
  * board canvas: grid auto-layout, attachment stacking, name-grouping +
@@ -341,6 +345,14 @@ export class BoardRegion {
       s.tickEffects(now);
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
+      if (entry.pendingEntrance) {
+        const dx = s.x - entry.targetX;
+        const dy = s.y - entry.targetY;
+        if (dx * dx + dy * dy < ENTRANCE_LAND_PX * ENTRANCE_LAND_PX) {
+          entry.pendingEntrance = false;
+          this.playEntranceFx(entry, s.card);
+        }
+      }
       if (entry.shakeFrames > 0) {
         const amp = DAMAGE_SHAKE_AMP_PX * (entry.shakeFrames / DAMAGE_SHAKE_FRAMES);
         s.x += (Math.random() - 0.5) * 2 * amp;
@@ -517,7 +529,8 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          this.playEntranceFx(entry, card);
+          // Defer the stomp until the card lerps onto its slot (see animate).
+          entry.pendingEntrance = true;
           continue;
         }
         const fx = animationsEnabled();
@@ -941,6 +954,7 @@ export class BoardRegion {
       etbGlowAlpha: isEntering ? 1 : 0,
       scaleBase: sprite.scale.x,
       shakeFrames: 0,
+      pendingEntrance: false,
       overlay: null,
     });
   }

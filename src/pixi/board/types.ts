@@ -70,6 +70,9 @@ export interface SpriteEntry {
   scaleBase: number;
   /** Frames of damage-shake jitter remaining (0 = not shaking). */
   shakeFrames: number;
+  /** A freshly-entered card awaiting its landing stomp — fired once it lerps
+   *  onto its battlefield slot (not at spawn, while it's still sliding in). */
+  pendingEntrance: boolean;
   /** True while the card is fading out after leaving the battlefield. */
   exiting?: boolean;
   overlay: Container | null;

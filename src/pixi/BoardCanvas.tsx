@@ -25,7 +25,12 @@ import {
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
+import { useGameDevStore } from "@/stores/useGameDevStore";
+import { withAlpha } from "@/themes/gameTheme";
 import { RotateCw } from "lucide-react";
+
+/** Width of the hand action panel (matches HandCardActions `w-[220px]`). */
+const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
 import type {
@@ -390,6 +395,7 @@ export function BoardCanvas({
     setHandFlipBack(false);
   }, [hoverCardId]);
   const showHandFlip = !!handHover && hoverFaces.isFlippable;
+  const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
   const toggleHandFlip = useCallback(() => {
     setHandFlipBack((prev) => {
@@ -441,32 +447,60 @@ export function BoardCanvas({
         </div>
       )}
       {showActionPanel && (
-        <div
-          style={{
-            position: "absolute",
-            left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
-            top: handHover.bounds.y,
-            zIndex: Z_HAND_ACTIONS_MENU,
-          }}
-          onMouseEnter={() => {
-            cancelHandHoverClear();
-            sceneRef.current?.holdHandHover();
-          }}
-          onMouseLeave={() => {
-            scheduleHandHoverClear();
-            sceneRef.current?.releaseHandHover();
-          }}
-        >
-          <HandCardActions
-            actions={handActions}
-            onSelectAction={(action) => {
+        <>
+          {/* Curved hover bridge: its border-radius clips the hit region to a
+              curve, so the cursor can travel from the lifted hand card to the
+              action panel without dropping the hover — same idea as the card
+              preview's bridge. Transparent in play; tinted by the dev overlay. */}
+          <div
+            style={{
+              position: "absolute",
+              left: handHover.bounds.x + handHover.bounds.width,
+              top: handHover.bounds.y,
+              width: HAND_ACTIONS_GAP_PX + HAND_ACTIONS_PANEL_W,
+              height: handHover.bounds.height,
+              borderBottomLeftRadius: "100%",
+              backgroundColor: showHoverAreas
+                ? withAlpha(getTheme().gameTheme.success, 0.28)
+                : "transparent",
+              zIndex: Z_HAND_ACTIONS_MENU - 1,
+            }}
+            onMouseEnter={() => {
               cancelHandHoverClear();
+              sceneRef.current?.holdHandHover();
+            }}
+            onMouseLeave={() => {
+              scheduleHandHoverClear();
               sceneRef.current?.releaseHandHover();
-              setHandHover(null);
-              onSelectHandAction?.(handHover.card, action);
             }}
           />
-        </div>
+          <div
+            style={{
+              position: "absolute",
+              left: handHover.bounds.x + handHover.bounds.width + HAND_ACTIONS_GAP_PX,
+              top: handHover.bounds.y,
+              zIndex: Z_HAND_ACTIONS_MENU,
+            }}
+            onMouseEnter={() => {
+              cancelHandHoverClear();
+              sceneRef.current?.holdHandHover();
+            }}
+            onMouseLeave={() => {
+              scheduleHandHoverClear();
+              sceneRef.current?.releaseHandHover();
+            }}
+          >
+            <HandCardActions
+              actions={handActions}
+              onSelectAction={(action) => {
+                cancelHandHoverClear();
+                sceneRef.current?.releaseHandHover();
+                setHandHover(null);
+                onSelectHandAction?.(handHover.card, action);
+              }}
+            />
+          </div>
+        </>
       )}
     </div>
   );

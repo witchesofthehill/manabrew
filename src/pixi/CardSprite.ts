@@ -315,6 +315,7 @@ export class CardSprite extends Container {
   private frameScrimGrad: FillGradient | null = null;
   private frameScrimKey = "";
   private sickFilter: ColorMatrixFilter | null = null;
+  private lastFilterKey = "";
   private frameTypeBandH = 0;
   private frameNameBandH = 0;
   private frameCounterReserve = 0;
@@ -891,8 +892,13 @@ export class CardSprite extends Container {
       !!card.summoningSick &&
       (card.types?.some((t) => t.toLowerCase() === "creature") ?? false);
     const phased = this.isBattlefield && !!card.phasedOut;
-    if (!sick && !phased) {
-      if (this.filters) this.filters = [];
+    // Rebuild the (re-rendered-every-frame) color-matrix filter only when the
+    // state actually changes — updateCardContent runs on every state tick.
+    const key = sick ? "sick" : phased ? "phased" : "none";
+    if (key === this.lastFilterKey) return;
+    this.lastFilterKey = key;
+    if (key === "none") {
+      this.filters = [];
       return;
     }
     if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();

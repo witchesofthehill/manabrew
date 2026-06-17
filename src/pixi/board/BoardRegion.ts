@@ -551,7 +551,9 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          // Defer the stomp until the card lerps onto its slot (see animate).
+          // New permanent: light the entrance glow and defer the stomp until the
+          // card lerps onto its slot (see animate).
+          entry.etbGlowAlpha = 1;
           entry.pendingEntrance = true;
           continue;
         }
@@ -956,7 +958,6 @@ export class BoardRegion {
 
   private ensureBattlefieldEntry(card: GameCard): void {
     if (this.entries.has(card.id)) return;
-    const isEntering = this.entries.size > 0;
     const sprite = new CardSprite(card);
     this.host.wireSprite(sprite);
     this.container.addChild(sprite);
@@ -973,7 +974,10 @@ export class BoardRegion {
       targetY: sprite.y,
       targetZIndex: 1,
       targetRotation: sprite.rotation,
-      etbGlowAlpha: isEntering ? 1 : 0,
+      // Seeded to 0; the entrance glow is lit for genuinely-new cards in
+      // updateBattlefield (same `!prev` signal that fires the stomp), so the
+      // first card onto an empty board glows like every later one.
+      etbGlowAlpha: 0,
       scaleBase: sprite.scale.x,
       shakeFrames: 0,
       pendingEntrance: false,

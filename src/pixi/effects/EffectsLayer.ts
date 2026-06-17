@@ -117,10 +117,10 @@ export class EffectsLayer {
         g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5);
       }
     }
-    g.stroke({ color: CRACK_COLOR, width: 2.4, alpha: 0.95 });
-    g.ellipse(x, y, 7, 3.5).fill({ color: CRACK_COLOR, alpha: 0.5 });
+    g.stroke({ color: CRACK_COLOR, width: 1.1, alpha: 0.95 });
+    g.ellipse(x, y, 5, 2.5).fill({ color: CRACK_COLOR, alpha: 0.4 });
     this.container.addChildAt(g, 0); // under the dust particle container
-    this.crackles.push({ gfx: g, life: 0, max: 42 });
+    this.crackles.push({ gfx: g, life: 0, max: 22 });
   }
 
   tick(): void {
@@ -153,8 +153,8 @@ export class EffectsLayer {
       for (const c of this.crackles) {
         c.life += 1;
         const t = c.life / c.max;
-        // Snap in, brief hold, then fade.
-        c.gfx.alpha = t < 0.18 ? 1 : Math.max(0, 1 - (t - 0.18) / 0.82);
+        // Snap in, then fade out quickly.
+        c.gfx.alpha = t < 0.08 ? 1 : Math.max(0, 1 - (t - 0.08) / 0.92);
         if (c.life >= c.max) {
           this.container.removeChild(c.gfx);
           c.gfx.destroy();

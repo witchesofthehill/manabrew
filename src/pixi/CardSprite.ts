@@ -431,7 +431,9 @@ export class CardSprite extends Container {
     // Edge glow (attacking = red, summoning-sick = frosty pulse) — mirrors the
     // DOM card face's inset glow / aura. Clipped to the rounded card shape.
     this.edgeGlowMask = new Graphics();
-    this.edgeGlowMask.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS).fill(0xffffff);
+    this.edgeGlowMask
+      .roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS)
+      .fill(hexToNum(activeTheme.gameTheme.canvas.neutral));
     this.addChild(this.edgeGlowMask);
     this.edgeGlowGfx = new Graphics();
     this.edgeGlowGfx.visible = false;

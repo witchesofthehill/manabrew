@@ -35,6 +35,7 @@ function raster(code: ManaCode, size: number): void {
     const tex = Texture.from(c);
     texCache.set(key, tex);
     pendingSprites.get(key)?.forEach((spr) => {
+      if (spr.destroyed) return;
       spr.texture = tex;
       spr.width = size;
       spr.height = size;

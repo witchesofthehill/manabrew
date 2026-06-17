@@ -10,6 +10,8 @@ use crate::java_raw::{
     JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
+use manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput;
+
 use crate::prompt::{
     ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
     AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetRef,
@@ -291,20 +293,34 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         }),
         JavaRawPromptBody::ChooseConvoke {
             cards,
-            description,
+            description: _,
             source_card_name: _,
-        } => PromptInput::ChooseConvoke(manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput {
-            valid_card_ids: card_ids(&cards),
-            remaining_cost: description.unwrap_or_default(),
-        }),
+        } => {
+            let candidates: Vec<TargetRef> = card_ids(&cards)
+                .into_iter()
+                .map(|id| TargetRef::Card { id })
+                .collect();
+            let total = candidates.len() as i32;
+            PromptInput::ChooseBoardTargets(ChooseBoardTargetsInput {
+                label: Some("Tap creatures for Convoke".to_string()),
+                ..board_targets_input(candidates, TargetingIntent::Tap, 0, total, 0)
+            })
+        }
         JavaRawPromptBody::ChooseImprovise {
             cards,
-            description,
+            description: _,
             source_card_name: _,
-        } => PromptInput::ChooseImprovise(manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput {
-            valid_card_ids: card_ids(&cards),
-            remaining_cost: description.unwrap_or_default(),
-        }),
+        } => {
+            let candidates: Vec<TargetRef> = card_ids(&cards)
+                .into_iter()
+                .map(|id| TargetRef::Card { id })
+                .collect();
+            let total = candidates.len() as i32;
+            PromptInput::ChooseBoardTargets(ChooseBoardTargetsInput {
+                label: Some("Tap artifacts for Improvise".to_string()),
+                ..board_targets_input(candidates, TargetingIntent::Tap, 0, total, 0)
+            })
+        }
         JavaRawPromptBody::ReorderLibrary {
             cards,
             destination,
@@ -535,9 +551,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::DigDecision { chosen_card_ids } => JavaAction::DigDecision {
             chosen_card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::DelveDecision { chosen_card_ids }
-        | PlayerAction::ConvokeDecision { chosen_card_ids }
-        | PlayerAction::ImproviseDecision { chosen_card_ids } => JavaAction::ChooseCards {
+        PlayerAction::DelveDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
         PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
@@ -647,8 +661,6 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
         PlayerAction::ReplicateDecision { .. } => "replicateDecision",
         PlayerAction::AlternativeCostDecision { .. } => "alternativeCostDecision",
-        PlayerAction::ExertDecision { .. } => "exertDecision",
-        PlayerAction::EnlistDecision { .. } => "enlistDecision",
         PlayerAction::ExploreResponse { .. } => "exploreResponse",
         PlayerAction::AssistDecision { .. } => "assistDecision",
         PlayerAction::PayCombatCost => "payCombatCost",
@@ -1087,6 +1099,7 @@ fn board_targets_input(
         min_targets,
         max_targets,
         chosen_targets,
+        label: None,
     }
 }
 

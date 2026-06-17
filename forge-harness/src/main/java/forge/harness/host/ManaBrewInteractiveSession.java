@@ -1263,6 +1263,107 @@ public final class ManaBrewInteractiveSession {
         return null;
     }
 
+    /**
+     * Collect a sacrifice selection via the board-target flow (Sacrifice intent),
+     * mirroring the Rust engine's {@code choose_sacrifice}: the UI taps one
+     * permanent per response and ends with an empty choice once the minimum is
+     * met. Loops until {@code max} reached or the player stops.
+     */
+    CardCollection awaitSacrificeChoice(
+            final int playerId,
+            final SpellAbility sa,
+            final CardCollectionView valid,
+            final int min,
+            final int max,
+            final String message
+    ) {
+        requireAttached();
+        final CardCollection chosen = new CardCollection();
+        final CardCollection remaining = new CardCollection(valid);
+        final int cappedMax = Math.min(max, valid.size());
+        final int cappedMin = Math.min(min, cappedMax);
+        while (chosen.size() < cappedMax && !remaining.isEmpty() && !closed && !game.isGameOver()) {
+            final List<Pair<GameEntity, forge.game.GameObject>> candidates = new ArrayList<>();
+            for (final Card c : remaining) {
+                candidates.add(Pair.of((GameEntity) c, (forge.game.GameObject) c));
+            }
+            publishSacrificePrompt(playerId, sa, candidates, cappedMin, cappedMax, chosen.size());
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                break;
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                if (chosen.size() >= cappedMin) {
+                    break;
+                }
+                continue;
+            }
+            if (!"target_choice".equals(actionKind)) {
+                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+            }
+            final JsonObject target = action.has("target") && action.get("target").isJsonObject()
+                    ? action.getAsJsonObject("target")
+                    : action;
+            final String id = target.has("id") ? target.get("id").getAsString() : "";
+            if (id.isEmpty()) {
+                if (chosen.size() >= cappedMin) {
+                    break;
+                }
+                continue;
+            }
+            Card picked = null;
+            for (final Card c : remaining) {
+                if (SnapshotExtractor.javaCardId(c).equals(id)) {
+                    picked = c;
+                    break;
+                }
+            }
+            if (picked == null) {
+                throw new IllegalArgumentException("unknown sacrifice choice: " + id);
+            }
+            chosen.add(picked);
+            remaining.remove(picked);
+        }
+        return chosen;
+    }
+
+    private void publishSacrificePrompt(
+            final int playerId,
+            final SpellAbility sa,
+            final List<Pair<GameEntity, forge.game.GameObject>> candidates,
+            final int min,
+            final int max,
+            final int chosen
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "choose_target_card");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("optional", chosen >= min);
+        final Card source = sa == null ? null : sa.getHostCard();
+        if (source != null) {
+            prompt.addProperty("sourceCardId", SnapshotExtractor.javaCardId(source));
+            prompt.addProperty("sourceCardName", source.getName());
+        }
+        prompt.addProperty("api", "Sacrifice");
+        prompt.addProperty("minTargets", min);
+        prompt.addProperty("maxTargets", max);
+        prompt.addProperty("chosenTargets", chosen);
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        com.google.gson.JsonArray cards = new com.google.gson.JsonArray();
+        for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
+            JsonObject option = new JsonObject();
+            option.addProperty("id", targetId(candidate));
+            option.addProperty("label", candidate.getLeft().getName());
+            cards.add(option);
+        }
+        prompt.add("players", new com.google.gson.JsonArray());
+        prompt.add("cards", cards);
+        prompt.add("spells", new com.google.gson.JsonArray());
+        latestPromptJson = prompt.toString();
+    }
+
     Map<GameEntity, Integer> awaitDividedAllocation(
             final int playerId,
             final SpellAbility ability,

@@ -13,14 +13,10 @@ pub mod choose_card_name;
 pub mod choose_cards_for_effect;
 pub mod choose_color;
 pub mod choose_combat_damage_assignment;
-pub mod choose_convoke;
 pub mod choose_damage_assignment_order;
 pub mod choose_delve;
 pub mod choose_dice_to_reroll;
 pub mod choose_discard;
-pub mod choose_enlist_attackers;
-pub mod choose_exert_attackers;
-pub mod choose_improvise;
 pub mod choose_mode;
 pub mod choose_multikicker;
 pub mod choose_number;
@@ -81,12 +77,8 @@ pub enum PromptInput {
     ),
     PayCombatCost(pay_combat_cost::PayCombatCostInput),
     ChooseDelve(choose_delve::ChooseDelveInput),
-    ChooseConvoke(choose_convoke::ChooseConvokeInput),
-    ChooseImprovise(choose_improvise::ChooseImproviseInput),
     PayManaCost(pay_mana_cost::PayManaCostInput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
-    ChooseExertAttackers(choose_exert_attackers::ChooseExertAttackersInput),
-    ChooseEnlistAttackers(choose_enlist_attackers::ChooseEnlistAttackersInput),
     ReorderLibrary(reorder_library::ReorderLibraryInput),
     ExploreDecision(explore_decision::ExploreDecisionInput),
     HelpPayAssist(help_pay_assist::HelpPayAssistInput),
@@ -136,12 +128,8 @@ pub enum PromptOutput {
     ),
     PayCombatCost(pay_combat_cost::PayCombatCostOutput),
     ChooseDelve(choose_delve::ChooseDelveOutput),
-    ChooseConvoke(choose_convoke::ChooseConvokeOutput),
-    ChooseImprovise(choose_improvise::ChooseImproviseOutput),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
-    ChooseExertAttackers(choose_exert_attackers::ChooseExertAttackersOutput),
-    ChooseEnlistAttackers(choose_enlist_attackers::ChooseEnlistAttackersOutput),
     ReorderLibrary(reorder_library::ReorderLibraryOutput),
     ExploreDecision(explore_decision::ExploreDecisionOutput),
     HelpPayAssist(help_pay_assist::HelpPayAssistOutput),

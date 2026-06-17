@@ -246,36 +246,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   ),
 
   // $PROMPT_SHARED
-  chooseConvoke: ({ prompt, respond, ctx }) => (
-    <ChooseCardsModal
-      cards={(ctx.gameView?.battlefield ?? []).filter((c) =>
-        prompt.input.validCardIds.includes(c.id),
-      )}
-      minChoices={0}
-      maxChoices={prompt.input.validCardIds.length}
-      description={
-        prompt.input.remainingCost ? `Remaining cost: ${prompt.input.remainingCost}` : undefined
-      }
-      onConfirm={(chosenCardIds) => respond({ type: "convokeDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseImprovise: ({ prompt, respond, ctx }) => (
-    <ChooseCardsModal
-      cards={(ctx.gameView?.battlefield ?? []).filter((c) =>
-        prompt.input.validCardIds.includes(c.id),
-      )}
-      minChoices={0}
-      maxChoices={prompt.input.validCardIds.length}
-      description={
-        prompt.input.remainingCost ? `Remaining cost: ${prompt.input.remainingCost}` : undefined
-      }
-      onConfirm={(chosenCardIds) => respond({ type: "improviseDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
   chooseCardsForEffect: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.zoneCards as GameCard[]}
@@ -284,30 +254,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       sourceCardName={prompt.input.sourceCardName ?? ctx.sourceDeckCard?.name}
       optional={prompt.input.optional ?? false}
       onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseExertAttackers: ({ prompt, respond }) => (
-    <ChooseCardsModal
-      cards={prompt.input.attackerCards as GameCard[]}
-      minChoices={0}
-      maxChoices={prompt.input.attackerCards.length}
-      sourceCardName="Exert Attackers"
-      description="Choose which attacking creatures to exert. Exerted creatures won't untap during your next untap step."
-      onConfirm={(chosenAttackerIds) => respond({ type: "exertDecision", chosenAttackerIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseEnlistAttackers: ({ prompt, respond }) => (
-    <ChooseCardsModal
-      cards={prompt.input.attackerCards as GameCard[]}
-      minChoices={0}
-      maxChoices={prompt.input.attackerCards.length}
-      sourceCardName="Enlist Attackers"
-      description="Choose which attacking creatures to enlist. Enlisted creatures tap a non-attacking creature to add its power."
-      onConfirm={(chosenAttackerIds) => respond({ type: "enlistDecision", chosenAttackerIds })}
     />
   ),
 };

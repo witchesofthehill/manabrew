@@ -89,6 +89,7 @@ fn main() {
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
+            label: None,
         }),
         GameOver(game_over::GameOverInput {}),
         RevealCards(reveal_cards::RevealCardsInput {
@@ -186,14 +187,6 @@ fn main() {
             zone_cards: vec![],
             max_cards: 0,
         }),
-        ChooseConvoke(choose_convoke::ChooseConvokeInput {
-            valid_card_ids: vec![],
-            remaining_cost: String::new(),
-        }),
-        ChooseImprovise(choose_improvise::ChooseImproviseInput {
-            valid_card_ids: vec![],
-            remaining_cost: String::new(),
-        }),
         PayManaCost(pay_mana_cost::PayManaCostInput {
             card_id: String::new(),
             card_name: String::new(),
@@ -207,14 +200,6 @@ fn main() {
         SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput {
             available_colors: vec![],
             amount: 0,
-        }),
-        ChooseExertAttackers(choose_exert_attackers::ChooseExertAttackersInput {
-            attacker_ids: vec![],
-            attacker_cards: vec![],
-        }),
-        ChooseEnlistAttackers(choose_enlist_attackers::ChooseEnlistAttackersInput {
-            attacker_ids: vec![],
-            attacker_cards: vec![],
         }),
         ReorderLibrary(reorder_library::ReorderLibraryInput {
             card_ids: vec![],

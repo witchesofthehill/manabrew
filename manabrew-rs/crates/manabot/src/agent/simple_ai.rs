@@ -108,9 +108,13 @@ impl BotAgent for SimpleAi {
                 Some(PlayerAction::DeclareBlockers { assignments })
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
-                candidates, ..
+                candidates, min_targets, chosen_targets, ..
             }) => Some(PlayerAction::BoardTargets {
-                chosen: candidates.into_iter().take(1).collect(),
+                chosen: if chosen_targets < min_targets {
+                    candidates.into_iter().take(1).collect()
+                } else {
+                    Vec::new()
+                },
             }),
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { .. }) => Some(PlayerAction::ScryDecision {
                 bottom_card_ids: Vec::new(),
@@ -226,12 +230,6 @@ impl BotAgent for SimpleAi {
             }) => Some(PlayerAction::DelveDecision {
                 chosen_card_ids: valid_card_ids.into_iter().take(max_cards).collect(),
             }),
-            PromptInput::ChooseConvoke(manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput { .. }) => Some(PlayerAction::ConvokeDecision {
-                chosen_card_ids: vec![],
-            }),
-            PromptInput::ChooseImprovise(manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput { .. }) => Some(PlayerAction::ImproviseDecision {
-                chosen_card_ids: vec![],
-            }),
             PromptInput::SpecifyManaCombo(manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
                 available_colors,
                 amount,
@@ -245,12 +243,6 @@ impl BotAgent for SimpleAi {
                     chosen_colors: vec![color; amount],
                 })
             }
-            PromptInput::ChooseExertAttackers(manabrew_protocol::prompts::choose_exert_attackers::ChooseExertAttackersInput { .. }) => Some(PlayerAction::ExertDecision {
-                chosen_attacker_ids: vec![],
-            }),
-            PromptInput::ChooseEnlistAttackers(manabrew_protocol::prompts::choose_enlist_attackers::ChooseEnlistAttackersInput { .. }) => Some(PlayerAction::EnlistDecision {
-                chosen_attacker_ids: vec![],
-            }),
             PromptInput::ReorderLibrary(manabrew_protocol::prompts::reorder_library::ReorderLibraryInput { card_ids, .. }) => {
                 Some(PlayerAction::ReorderLibraryDecision {
                     ordered_card_ids: card_ids,

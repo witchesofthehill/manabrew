@@ -21,8 +21,62 @@ fn board_targets(
             min_targets: 1,
             max_targets: 1,
             chosen_targets: 0,
+            label: None,
         },
     )
+}
+
+pub(super) fn choose_board_targets_multi<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    valid: &[CardId],
+    intent: TargetingIntent,
+    label: &str,
+    source: Option<CardId>,
+) -> Vec<CardId> {
+    let total = valid.len() as i32;
+    let mut remaining: Vec<CardId> = valid.to_vec();
+    let mut chosen: Vec<CardId> = Vec::new();
+    while !remaining.is_empty() {
+        let candidates: Vec<TargetRef> = PromptAgent::<T>::card_ids(&remaining)
+            .into_iter()
+            .map(|id| TargetRef::Card { id })
+            .collect();
+        agent.send_prompt(
+            PromptInput::ChooseBoardTargets(
+                manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
+                    candidates,
+                    hostile: false,
+                    intent,
+                    min_targets: 0,
+                    max_targets: total,
+                    chosen_targets: chosen.len() as i32,
+                    label: Some(label.to_string()),
+                },
+            ),
+            source,
+        );
+        match agent.recv_action() {
+            PlayerAction::BoardTargets { chosen: picked } if !picked.is_empty() => {
+                let mut advanced = false;
+                for r in picked {
+                    if let TargetRef::Card { id } = r {
+                        if let Some(cid) = parse_card_id(&id) {
+                            if remaining.contains(&cid) {
+                                remaining.retain(|c| *c != cid);
+                                chosen.push(cid);
+                                advanced = true;
+                            }
+                        }
+                    }
+                }
+                if !advanced {
+                    break;
+                }
+            }
+            _ => break,
+        }
+    }
+    chosen
 }
 
 pub(super) fn choose_target_player<T: Responder>(

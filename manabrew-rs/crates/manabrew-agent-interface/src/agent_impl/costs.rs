@@ -6,6 +6,8 @@ use manabrew_engine::mana::ManaPool;
 use manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput;
 use manabrew_protocol::prompts::common::PromptPresentation;
 
+use crate::game_view_dto::TargetingIntent;
+
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{PlayerAction, PromptInput};
 
@@ -326,54 +328,30 @@ pub(super) fn choose_improvise<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     untapped_artifacts: &[CardId],
-    remaining_cost: &forge_foundation::ManaCost,
+    _remaining_cost: &forge_foundation::ManaCost,
     source: Option<CardId>,
 ) -> Vec<CardId> {
-    let valid_ids = PromptAgent::<T>::card_ids(untapped_artifacts);
-
-    agent.send_prompt(
-        PromptInput::ChooseImprovise(
-            manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput {
-                valid_card_ids: valid_ids,
-                remaining_cost: remaining_cost.to_string(),
-            },
-        ),
+    super::targeting::choose_board_targets_multi(
+        agent,
+        untapped_artifacts,
+        TargetingIntent::Tap,
+        "Tap artifacts for Improvise",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::ImproviseDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| untapped_artifacts.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    )
 }
 
 pub(super) fn choose_convoke<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
     untapped_creatures: &[CardId],
-    remaining_cost: &forge_foundation::ManaCost,
+    _remaining_cost: &forge_foundation::ManaCost,
     source: Option<CardId>,
 ) -> Vec<CardId> {
-    let valid_ids = PromptAgent::<T>::card_ids(untapped_creatures);
-
-    agent.send_prompt(
-        PromptInput::ChooseConvoke(
-            manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput {
-                valid_card_ids: valid_ids,
-                remaining_cost: remaining_cost.to_string(),
-            },
-        ),
+    super::targeting::choose_board_targets_multi(
+        agent,
+        untapped_creatures,
+        TargetingIntent::Tap,
+        "Tap creatures for Convoke",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::ConvokeDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| untapped_creatures.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    )
 }

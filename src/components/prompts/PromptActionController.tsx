@@ -15,6 +15,7 @@ import type { PromptType as PromptTypeValue } from "@/protocol";
 import type { PromptButtonLayout } from "./PromptActionButton";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useGameStore } from "@/stores/useGameStore";
 
 function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
   switch (promptType) {
@@ -138,6 +139,9 @@ export function PromptActionController({
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
   const promptModalHidden = useGameUIStore((s) => s.promptModalHidden);
   const showPromptModal = useGameUIStore((s) => s.showPromptModal);
+  const currentPromptInput = useGameStore((s) => s.currentPrompt?.input);
+  const boardTargetLabel =
+    currentPromptInput?.type === "chooseBoardTargets" ? currentPromptInput.label : undefined;
 
   const renderers: Record<PromptActionViewKey, () => ReactElement> = {
     chooseAction: () => (
@@ -227,7 +231,7 @@ export function PromptActionController({
       return (
         <PromptLabel
           buttonLayout={buttonLayout}
-          label={(promptType && labels[promptType]) || "Waiting..."}
+          label={boardTargetLabel || (promptType && labels[promptType]) || "Waiting..."}
           isWaitingForResponse={isWaitingForResponse}
           completionLabel={targetCompletionLabel ?? undefined}
           onCompleteTargets={onCompleteTargets ?? undefined}

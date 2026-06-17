@@ -791,7 +791,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             CardLists.sortByCmcDesc(sorted);
             return new CardCollection(sorted.subList(0, Math.max(min, Math.min(cappedMax, 1))));
         }
-        return session.awaitCardChoice("choose_cards_for_effect", me(), validTargets, min, cappedMax, sourceName(sa), message);
+        return session.awaitSacrificeChoice(me(), sa, validTargets, min, cappedMax, message);
     }
 
     @Override

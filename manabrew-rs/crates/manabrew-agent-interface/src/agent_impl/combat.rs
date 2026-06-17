@@ -2,7 +2,7 @@ use manabrew_engine::agent::CombatCostAction;
 use manabrew_engine::combat::DefenderId;
 use manabrew_engine::ids::{CardId, PlayerId};
 
-use crate::game_view_dto::CardDto;
+use crate::game_view_dto::{CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{BlockAssignment, PlayerAction, PromptInput};
 
@@ -258,31 +258,13 @@ pub(super) fn exert_attackers<T: Responder>(
     _player: PlayerId,
     attackers: &[CardId],
 ) -> Vec<CardId> {
-    let attacker_ids = PromptAgent::<T>::card_ids(attackers);
-    let view = agent.view();
-    let attacker_cards: Vec<CardDto> = attacker_ids
-        .iter()
-        .filter_map(|id| view.battlefield.iter().find(|c| c.id == *id).cloned())
-        .collect();
-    agent.send_prompt(
-        PromptInput::ChooseExertAttackers(
-            manabrew_protocol::prompts::choose_exert_attackers::ChooseExertAttackersInput {
-                attacker_ids,
-                attacker_cards,
-            },
-        ),
+    super::targeting::choose_board_targets_multi(
+        agent,
+        attackers,
+        TargetingIntent::Tap,
+        "Choose attackers to exert",
         None,
-    );
-    match agent.recv_action() {
-        PlayerAction::ExertDecision {
-            chosen_attacker_ids,
-        } => chosen_attacker_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| attackers.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    )
 }
 
 pub(super) fn enlist_attackers<T: Responder>(
@@ -290,29 +272,11 @@ pub(super) fn enlist_attackers<T: Responder>(
     _player: PlayerId,
     attackers: &[CardId],
 ) -> Vec<CardId> {
-    let attacker_ids = PromptAgent::<T>::card_ids(attackers);
-    let view = agent.view();
-    let attacker_cards: Vec<CardDto> = attacker_ids
-        .iter()
-        .filter_map(|id| view.battlefield.iter().find(|c| c.id == *id).cloned())
-        .collect();
-    agent.send_prompt(
-        PromptInput::ChooseEnlistAttackers(
-            manabrew_protocol::prompts::choose_enlist_attackers::ChooseEnlistAttackersInput {
-                attacker_ids,
-                attacker_cards,
-            },
-        ),
+    super::targeting::choose_board_targets_multi(
+        agent,
+        attackers,
+        TargetingIntent::Tap,
+        "Choose creatures to enlist",
         None,
-    );
-    match agent.recv_action() {
-        PlayerAction::EnlistDecision {
-            chosen_attacker_ids,
-        } => chosen_attacker_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| attackers.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    )
 }

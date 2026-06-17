@@ -160,16 +160,6 @@ pub enum PlayerAction {
     CombatDamageAssignmentDecision {
         assignments: Vec<CombatDamageAssignmentEntry>,
     },
-    /// Response to ChooseExertAttackers: IDs of attackers to exert.
-    ExertDecision {
-        #[serde(rename = "chosenAttackerIds")]
-        chosen_attacker_ids: Vec<String>,
-    },
-    /// Response to ChooseEnlistAttackers: IDs of attackers to enlist.
-    EnlistDecision {
-        #[serde(rename = "chosenAttackerIds")]
-        chosen_attacker_ids: Vec<String>,
-    },
     /// Response to ReorderLibrary: ordered card IDs (last = top of library).
     ReorderLibraryDecision {
         #[serde(rename = "orderedCardIds")]
@@ -201,16 +191,6 @@ pub enum PlayerAction {
     },
     /// Response to ChooseDelve: IDs of graveyard cards to exile.
     DelveDecision {
-        #[serde(rename = "chosenCardIds")]
-        chosen_card_ids: Vec<String>,
-    },
-    /// Response to ChooseConvoke: IDs of creatures to tap.
-    ConvokeDecision {
-        #[serde(rename = "chosenCardIds")]
-        chosen_card_ids: Vec<String>,
-    },
-    /// Response to ChooseImprovise: IDs of artifacts to tap.
-    ImproviseDecision {
         #[serde(rename = "chosenCardIds")]
         chosen_card_ids: Vec<String>,
     },

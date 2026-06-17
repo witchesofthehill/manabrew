@@ -15,6 +15,9 @@ pub struct ChooseBoardTargetsInput {
     pub min_targets: i32,
     pub max_targets: i32,
     pub chosen_targets: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

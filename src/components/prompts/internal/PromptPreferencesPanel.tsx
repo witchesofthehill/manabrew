@@ -32,26 +32,6 @@ const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
     description: "Skip the delve prompt — never exile cards from the graveyard.",
   },
   {
-    promptType: "chooseConvoke",
-    label: "Convoke",
-    description: "Skip the convoke prompt — never tap creatures for mana.",
-  },
-  {
-    promptType: "chooseImprovise",
-    label: "Improvise",
-    description: "Skip the improvise prompt — never tap artifacts for mana.",
-  },
-  {
-    promptType: "chooseExertAttackers",
-    label: "Exert",
-    description: "Skip the exert prompt — never exert attackers.",
-  },
-  {
-    promptType: "chooseEnlistAttackers",
-    label: "Enlist",
-    description: "Skip the enlist prompt — never enlist creatures.",
-  },
-  {
     promptType: "helpPayAssist",
     label: "Help pay (Assist)",
     description: "Skip the assist prompt — never offer to help pay.",

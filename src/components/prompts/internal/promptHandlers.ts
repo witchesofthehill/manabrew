@@ -50,14 +50,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseAction"]: { showByDefault: false },
   ["chooseAttackers"]: { showByDefault: false },
   ["chooseBlockers"]: { showByDefault: false },
-  ["chooseExertAttackers"]: {
-    showByDefault: true,
-    resolve: optionalCosts.skipExertEnlist,
-  },
-  ["chooseEnlistAttackers"]: {
-    showByDefault: true,
-    resolve: optionalCosts.skipExertEnlist,
-  },
   ["chooseDamageAssignmentOrder"]: {
     showByDefault: true,
     resolve: forced.singleBlockerOrder,
@@ -86,8 +78,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
     resolve: forced.singleAlternativeCost,
   },
   ["chooseDelve"]: { showByDefault: true, resolve: optionalCosts.skipDelve },
-  ["chooseConvoke"]: { showByDefault: true, resolve: optionalCosts.skipConvoke },
-  ["chooseImprovise"]: { showByDefault: true, resolve: optionalCosts.skipImprovise },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
   ["surveil"]: { showByDefault: true, resolve: forced.emptySurveil },
   ["dig"]: { showByDefault: true, resolve: forced.emptyDig },

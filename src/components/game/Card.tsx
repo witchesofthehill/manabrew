@@ -2,6 +2,7 @@ import type { GameCard } from "@/types/manabrew";
 import { cn } from "@/lib/utils";
 import { memo, useState, useMemo, type CSSProperties } from "react";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { PtBadge } from "@/components/game/PtBadge";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { KeywordChips } from "@/components/game/CardKeywords";
 import { withAlpha } from "@/themes/gameTheme";
@@ -100,7 +101,7 @@ function CardComponent({
   return (
     <div
       className={cn(
-        "relative rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer group overflow-hidden",
+        "relative @container rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer group overflow-hidden",
         horizontal ? "w-[210px] aspect-[7/5]" : "w-[150px] aspect-[5/7]",
         isTapped && "rotate-90",
         // Summoning-sickness ring: dashed outline in the theme's muted
@@ -170,22 +171,20 @@ function CardComponent({
           )}
           {/* P/T overlay — bottom-right, only for creatures */}
           {creature && card.power && card.toughness && (
-            <div className="absolute bottom-1 right-1 z-10 flex flex-col items-end gap-0.5">
-              <span
-                className={cn("text-[10px] font-bold px-1 py-0.5 rounded leading-none")}
-                style={ptStyle}
-              >
-                {card.power}/{card.toughness}
-              </span>
+            <PtBadge value={`${card.power}/${card.toughness}`} style={ptStyle}>
               {card.damage != null && card.damage > 0 && (
                 <span
-                  className="text-[9px] font-bold bg-black/60 px-1 py-0.5 rounded leading-none"
-                  style={{ color: withAlpha(themeColors.promptAction.attackAction, 0.9) }}
+                  className="font-bold bg-black/60 rounded leading-none"
+                  style={{
+                    fontSize: "0.9em",
+                    padding: "0.1em 0.35em",
+                    color: withAlpha(themeColors.promptAction.attackAction, 0.9),
+                  }}
                 >
                   ⚔{card.damage}
                 </span>
               )}
-            </div>
+            </PtBadge>
           )}
         </>
       ) : (

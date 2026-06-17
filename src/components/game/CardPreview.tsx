@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { Loader2, RotateCw } from "lucide-react";
 import type { DeckCard, GameCard } from "@/types/manabrew";
 import { CounterDisplay } from "@/components/game/CounterBadge";
+import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { TextWithMana } from "@/components/game/TextWithMana";
@@ -177,21 +178,17 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
       )}
 
       {showPT && (
-        <div className="absolute bottom-[5.5%] right-[5.5%] z-10 flex flex-col items-end gap-1 pointer-events-none">
-          {(ptState === "buffed" || ptState === "debuffed") &&
+        <PtBadge
+          value={`${card.power}/${card.toughness}`}
+          style={ptStyle}
+          baseValue={
+            (ptState === "buffed" || ptState === "debuffed") &&
             card.basePower != null &&
-            card.baseToughness != null && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/60 text-white/80 line-through leading-none">
-                {card.basePower}/{card.baseToughness}
-              </span>
-            )}
-          <span
-            className="text-lg font-bold px-3 py-1 rounded-md shadow-md leading-none"
-            style={ptStyle}
-          >
-            {card.power}/{card.toughness}
-          </span>
-        </div>
+            card.baseToughness != null
+              ? `${card.basePower}/${card.baseToughness}`
+              : null
+          }
+        />
       )}
 
       {showLoyalty && (
@@ -419,7 +416,7 @@ export function CardPreview({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <div className="relative" style={{ width: cardWidth, height: cardHeight }}>
+        <div className="relative @container" style={{ width: cardWidth, height: cardHeight }}>
           <div
             className={cn(
               "w-full h-full rounded-xl shadow-2xl overflow-hidden bg-black transition-shadow duration-200 relative",

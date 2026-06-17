@@ -3,6 +3,8 @@ import type { GameCard } from "@/types/manabrew";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { useCardPreview } from "@/hooks/useCardPreview";
+import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -62,6 +64,8 @@ function makeCard(spec: CardSpec): GameCard {
     supertypes: spec.supertypes ?? [],
     power: spec.power,
     toughness: spec.toughness,
+    basePower: spec.power != null ? parseInt(spec.power, 10) : undefined,
+    baseToughness: spec.toughness != null ? parseInt(spec.toughness, 10) : undefined,
     text: "Dev playground card.",
     isPlayable: false,
     isSelected: false,
@@ -87,6 +91,7 @@ export function BoardPlayground() {
   const [cards, setCards] = useState<GameCard[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
+  const preview = useCardPreview([cards]);
 
   const update = (id: string | null, fn: (c: GameCard) => GameCard) => {
     if (!id) return;
@@ -176,13 +181,25 @@ export function BoardPlayground() {
           arrowSpecs={[]}
           phaseStrip={PHASE_STRIP_STUB}
           arrangement="row"
-          activePlayerId={PLAYER_ID}
           callbacks={{
             onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
             onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
+            onHoverCard: (card, bounds) => {
+              if (card && bounds) {
+                const rect = new DOMRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                preview.handleMouseEnter(card, undefined, {
+                  useAnchor: true,
+                  anchorOverride: rect,
+                });
+              } else {
+                preview.dismiss();
+              }
+            },
+            onDismissHoverPreview: preview.dismiss,
           }}
         />
       </div>
+      <HoverCardPreview preview={preview} />
     </div>
   );
 }

@@ -1042,7 +1042,10 @@ export class CardSprite extends Container {
   private updatePT(): void {
     const card = this.card;
     const isCreature = card.types?.some((t) => t.toLowerCase() === "creature");
-    if (!isCreature || !card.power || !card.toughness) {
+    // Hand cards render the full printed image, which already carries the P/T at
+    // the real-card proportion — drawing our overlay on top would double it at a
+    // mismatched size. The badge is a battlefield-only thing (buff/debuff/damage).
+    if (!this.isBattlefield || !isCreature || !card.power || !card.toughness) {
       this.ptContainer.visible = false;
       return;
     }

@@ -364,3 +364,15 @@ export function darken(hex: string, factor: number): string {
       .padStart(2, "0");
   return `#${to(r)}${to(g)}${to(b)}`;
 }
+
+const FRAME_TINT_DARKEN = 0.3;
+const FRAME_TINT_MAX_LUMINANCE = 0.45;
+
+/** Identity color adjusted for a battlefield frame bar/border: darkened, and —
+ *  for light identities like white — darkened further to a luminance ceiling so
+ *  every bar is dark enough to carry the same light text as the other colors. */
+export function frameTint(hex: string): string {
+  const base = darken(hex, FRAME_TINT_DARKEN);
+  const lum = relativeLuminance(base);
+  return lum <= FRAME_TINT_MAX_LUMINANCE ? base : darken(base, 1 - FRAME_TINT_MAX_LUMINANCE / lum);
+}

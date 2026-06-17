@@ -8,6 +8,14 @@ import {
   type BattlefieldCardFaceVariant,
 } from "@/components/game/BattlefieldCardFace";
 
+type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
+
+const VARIANT_LABELS: Record<GalleryVariant, string> = {
+  realistic: "Realistic",
+  art: "Art-forward",
+  frame: "Mini-frame",
+};
+
 interface Spec {
   name: string;
   label: string;
@@ -27,7 +35,8 @@ const SPECS: Spec[] = [
     overrides: { counters: { P1P1: 2 }, power: "10", toughness: "10" },
   },
   { name: "Kitchen Finks", label: "Hybrid (G/W)" },
-  { name: "Wurmcoil Engine", label: "Colorless" },
+  { name: "Wurmcoil Engine", label: "Colorless · artifact" },
+  { name: "Thought-Knot Seer", label: "Colorless · Eldrazi" },
   {
     name: "Liliana of the Veil",
     label: "Planeswalker · loyalty",
@@ -48,7 +57,7 @@ function GalleryRow({
   showReal,
 }: {
   spec: Spec;
-  variant: BattlefieldCardFaceVariant;
+  variant: GalleryVariant;
   width: number;
   showReal: boolean;
 }) {
@@ -64,19 +73,29 @@ function GalleryRow({
     );
   }
   const card = scryfallToSampleGameCard(entry.info, spec.overrides);
+  const size = { width, height: width * (98 / 70) };
   return (
     <div className="flex items-start gap-2">
-      <BattlefieldCardFace
-        card={card}
-        artCrop={entry.uris.art_crop}
-        variant={variant}
-        width={width}
-      />
-      {showReal && (
+      {variant === "realistic" ? (
         <img
           src={entry.uris.normal}
           alt={card.name}
-          style={{ width, height: width * (98 / 70) }}
+          style={size}
+          className="rounded object-contain"
+        />
+      ) : (
+        <BattlefieldCardFace
+          card={card}
+          artCrop={entry.uris.art_crop}
+          variant={variant}
+          width={width}
+        />
+      )}
+      {showReal && variant !== "realistic" && (
+        <img
+          src={entry.uris.normal}
+          alt={card.name}
+          style={size}
           className="rounded object-contain opacity-90"
         />
       )}
@@ -85,7 +104,7 @@ function GalleryRow({
 }
 
 export default function CardMockGallery() {
-  const [variant, setVariant] = useState<BattlefieldCardFaceVariant>("art");
+  const [variant, setVariant] = useState<GalleryVariant>("art");
   const [showReal, setShowReal] = useState(false);
 
   return (
@@ -93,7 +112,7 @@ export default function CardMockGallery() {
       <header className="flex items-center gap-4 flex-wrap">
         <h1 className="text-xl font-bold">Battlefield card face — dev gallery</h1>
         <div className="inline-flex rounded-md border border-border overflow-hidden">
-          {(["art", "frame"] as BattlefieldCardFaceVariant[]).map((v) => (
+          {(["realistic", "art", "frame"] as GalleryVariant[]).map((v) => (
             <button
               key={v}
               onClick={() => setVariant(v)}
@@ -102,7 +121,7 @@ export default function CardMockGallery() {
                 variant === v ? "bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
               )}
             >
-              {v === "art" ? "Art-forward" : "Mini-frame"}
+              {VARIANT_LABELS[v]}
             </button>
           ))}
         </div>
@@ -120,7 +139,11 @@ export default function CardMockGallery() {
         <h2 className="text-sm font-semibold text-muted-foreground">Battlefield size (70×98)</h2>
         <div className="flex flex-wrap gap-4">
           {SPECS.map((spec, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
+            <div
+              key={i}
+              className="flex flex-col items-center gap-1"
+              style={{ width: Math.max(98, showReal ? 70 * 2 + 8 : 0) }}
+            >
               <GalleryRow spec={spec} variant={variant} width={70} showReal={showReal} />
               <span className="text-[10px] text-muted-foreground max-w-[70px] text-center leading-tight">
                 {spec.label}
@@ -136,7 +159,11 @@ export default function CardMockGallery() {
         </h2>
         <div className="flex flex-wrap gap-6">
           {SPECS.map((spec, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
+            <div
+              key={i}
+              className="flex flex-col items-center gap-1"
+              style={{ width: Math.max(294, showReal ? 210 * 2 + 8 : 0) }}
+            >
               <GalleryRow spec={spec} variant={variant} width={210} showReal={showReal} />
               <span className="text-xs text-muted-foreground">{spec.label}</span>
             </div>

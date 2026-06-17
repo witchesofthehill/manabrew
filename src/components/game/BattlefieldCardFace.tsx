@@ -2,7 +2,7 @@ import type { GameCard } from "@/types/manabrew";
 import type { ManaLetter } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { readableTextColor, withAlpha } from "@/themes/gameTheme";
+import { frameTint, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
@@ -38,8 +38,10 @@ export function BattlefieldCardFace({
   const height = width * (98 / 70);
 
   const colors = cardColors(card);
-  const tint = colors.length === 0 ? theme.mana.C : theme.mana[colors[0]];
-  const tintB = colors.length > 1 ? theme.mana[colors[1]] : tint;
+  const rawTint = colors.length === 0 ? theme.mana.C : theme.mana[colors[0]];
+  const rawTintB = colors.length > 1 ? theme.mana[colors[1]] : rawTint;
+  const tint = frameTint(rawTint);
+  const tintB = frameTint(rawTintB);
   const barText = readableTextColor(tint, theme.canvas.shadow, theme.textOnTinted);
   const barBg =
     colors.length > 1
@@ -62,6 +64,10 @@ export function BattlefieldCardFace({
   const fontPt = Math.max(7, 9 * u);
   const radius = 5 * u;
   const pad = 3 * u;
+  // Bottom inset that clears the mini-frame's type bar (font + its vertical
+  // padding) so bottom-anchored overlays don't sit on the type line.
+  const typeBarH = fontType + 3 * u;
+  const bottomOverlayInset = variant === "frame" ? typeBarH + 2 * u : pad;
 
   const typeLine =
     [...card.supertypes, ...card.types].join(" ") +
@@ -135,7 +141,7 @@ export function BattlefieldCardFace({
         </span>
       )}
       {card.counters && (
-        <div className="absolute z-10" style={{ left: pad, bottom: pad }}>
+        <div className="absolute z-10" style={{ left: pad, bottom: bottomOverlayInset }}>
           <CounterDisplay
             counters={Object.fromEntries(
               Object.entries(card.counters).filter(([k]) => k !== "Loyalty"),
@@ -230,7 +236,7 @@ export function BattlefieldCardFace({
   return (
     <div
       className={cn(
-        "relative overflow-hidden shadow-sm flex flex-col",
+        "relative overflow-hidden flex flex-col",
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
       )}
@@ -240,6 +246,7 @@ export function BattlefieldCardFace({
         borderRadius: radius,
         border: `${Math.max(1, 1.5 * u)}px solid ${tint}`,
         background: theme.cardPlaceholder.fill,
+        boxShadow: `0 ${1.5 * u}px ${3 * u}px ${withAlpha(theme.canvas.shadow, 0.5)}, inset 0 0 0 ${Math.max(0.5, 0.75 * u)}px ${withAlpha(theme.canvas.shadow, 0.4)}`,
       }}
     >
       <div
@@ -268,6 +275,35 @@ export function BattlefieldCardFace({
             className="absolute inset-0 w-full h-full object-cover"
           />
         )}
+        {pt && (
+          <span
+            className="absolute font-bold rounded leading-none"
+            style={{
+              ...ptStyle,
+              right: pad,
+              bottom: pad,
+              fontSize: fontPt,
+              padding: `${1.5 * u}px ${3 * u}px`,
+            }}
+          >
+            {card.power}/{card.toughness}
+          </span>
+        )}
+        {loyalty != null && (
+          <span
+            className="absolute font-bold rounded leading-none"
+            style={{
+              backgroundColor: theme.counter.loyalty,
+              color: theme.textOnTinted,
+              right: pad,
+              bottom: pad,
+              fontSize: fontPt,
+              padding: `${1.5 * u}px ${3 * u}px`,
+            }}
+          >
+            {loyalty}
+          </span>
+        )}
       </div>
 
       <div
@@ -279,35 +315,6 @@ export function BattlefieldCardFace({
         </span>
       </div>
 
-      {pt && (
-        <span
-          className="absolute font-bold rounded leading-none"
-          style={{
-            ...ptStyle,
-            right: pad,
-            bottom: pad,
-            fontSize: fontPt,
-            padding: `${1.5 * u}px ${3 * u}px`,
-          }}
-        >
-          {card.power}/{card.toughness}
-        </span>
-      )}
-      {loyalty != null && (
-        <span
-          className="absolute font-bold rounded leading-none"
-          style={{
-            backgroundColor: theme.counter.loyalty,
-            color: theme.textOnTinted,
-            right: pad,
-            bottom: pad,
-            fontSize: fontPt,
-            padding: `${1.5 * u}px ${3 * u}px`,
-          }}
-        >
-          {loyalty}
-        </span>
-      )}
       {Overlays}
     </div>
   );

@@ -3,7 +3,7 @@ import type { GameCard } from "@/types/manabrew";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import type { Theme } from "@/hooks/useTheme";
-import { readableTextColor, withAlpha } from "@/themes/gameTheme";
+import { frameTint, readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
@@ -308,6 +308,7 @@ export class CardSprite extends Container {
   private frameTypeText: Text;
   private frameScrimGrad: FillGradient | null = null;
   private frameScrimKey = "";
+  private frameTypeBandH = 0;
   private manaContainer: Container;
   private doomedGfx: Graphics;
   private ringGfx: Graphics;
@@ -622,10 +623,11 @@ export class CardSprite extends Container {
   private renderFrame(): void {
     if (!this.isBattlefield || activeStyle === "realistic") {
       this.frameContainer.visible = false;
+      this.frameTypeBandH = 0;
       return;
     }
     this.frameContainer.visible = true;
-    const tintHex = cardTintHex(this.card);
+    const tintHex = frameTint(cardTintHex(this.card));
     const tintNum = hexToNum(tintHex);
     const shadowHex = activeTheme.gameTheme.canvas.shadow;
     const lightText = activeTheme.gameTheme.textOnTinted;
@@ -635,6 +637,7 @@ export class CardSprite extends Container {
     this.frameTypeText.text = frameTypeLine(this.card);
 
     const pad = 3;
+    this.frameTypeBandH = 0;
     if (activeStyle === "art") {
       this.frameNameText.style.fill = lightText;
       this.frameTypeText.style.fill = lightText;
@@ -663,10 +666,13 @@ export class CardSprite extends Container {
       this.frameTypeText.x = pad;
       this.frameTypeText.y = CARD_H - 2.5;
       const typeBandH = this.frameTypeText.height + 5;
+      this.frameTypeBandH = typeBandH;
       this.frameGfx.rect(0, 0, CARD_W, nameBandH);
       this.frameGfx.fill({ color: tintNum, alpha: 0.92 });
       this.frameGfx.rect(0, CARD_H - typeBandH, CARD_W, typeBandH);
       this.frameGfx.fill({ color: tintNum, alpha: 0.85 });
+      this.frameGfx.roundRect(2.6, 2.6, CARD_W - 5.2, CARD_H - 5.2, CARD_RADIUS - 2.6);
+      this.frameGfx.stroke({ color: hexToNum(shadowHex), width: 0.6, alpha: 0.4 });
     }
 
     this.frameGfx.roundRect(1.5, 1.5, CARD_W - 3, CARD_H - 3, CARD_RADIUS - 1.5);
@@ -724,6 +730,7 @@ export class CardSprite extends Container {
       this.loadImage();
     }
 
+    this.renderFrame();
     this.updatePT();
     this.updateDamage();
     this.updateBadge();
@@ -731,7 +738,6 @@ export class CardSprite extends Container {
     this.updateKeywords();
     this.updateFoil();
     this.updateRingBearer();
-    this.renderFrame();
     this.updateMana();
   }
 
@@ -899,7 +905,7 @@ export class CardSprite extends Container {
     this.ptText.x = 3;
     this.ptText.y = 2;
     this.ptContainer.x = CARD_W - tw - 3;
-    this.ptContainer.y = CARD_H - th - 3;
+    this.ptContainer.y = CARD_H - th - 3 - (this.frameTypeBandH > 0 ? this.frameTypeBandH + 1 : 0);
   }
 
   private updateBadge(): void {
@@ -945,6 +951,8 @@ export class CardSprite extends Container {
 
     const iconSize = COUNTER_HEIGHT - 4;
     const fgHex = activeTheme.gameTheme.textOnTinted;
+    const counterY =
+      CARD_H - COUNTER_HEIGHT - 3 - (this.frameTypeBandH > 0 ? this.frameTypeBandH + 1 : 0);
 
     let offsetX = 3;
     for (const [type, count] of entries) {
@@ -993,7 +1001,7 @@ export class CardSprite extends Container {
       badge.addChild(glyph);
       if (countText) badge.addChild(countText);
       badge.x = offsetX;
-      badge.y = CARD_H - COUNTER_HEIGHT - 3;
+      badge.y = counterY;
       this.counterContainer.addChild(badge);
       offsetX += bw + 2;
     }
@@ -1013,7 +1021,7 @@ export class CardSprite extends Container {
       badge.addChild(bg);
       badge.addChild(label);
       badge.x = offsetX;
-      badge.y = CARD_H - COUNTER_HEIGHT - 3;
+      badge.y = counterY;
       this.counterContainer.addChild(badge);
     }
   }

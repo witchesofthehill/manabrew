@@ -902,8 +902,19 @@ export class BoardScene {
   }
 
   private captureStackSeeds(): void {
-    const canvasRect = this.app.canvas.getBoundingClientRect();
     const now = performance.now();
+    // Skip the per-node getBoundingClientRect scan (forces a layout reflow)
+    // whenever the stack is empty — the common case. A captured seed still
+    // persists via its TTL so a card that just left the stack can fly in.
+    if (document.querySelector("[data-stack-object-id]") === null) {
+      if (this.stackCardSeeds.size > 0) {
+        for (const [id, seed] of this.stackCardSeeds) {
+          if (now - seed.ts > STACK_SEED_TTL_MS) this.stackCardSeeds.delete(id);
+        }
+      }
+      return;
+    }
+    const canvasRect = this.app.canvas.getBoundingClientRect();
     const els = document.querySelectorAll<HTMLElement>("[data-stack-object-id][data-card-id]");
     for (const el of els) {
       const cardId = el.dataset["cardId"];

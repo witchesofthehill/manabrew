@@ -1,5 +1,6 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
+import { useScryfallStore, cardKey } from "@/stores/useScryfallStore";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -65,6 +66,23 @@ const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "payManaCost",
   "gameOver",
 ]);
+
+/** Front/back face names for a double-faced card, read from the cached Scryfall
+ *  entry. Used to label modal-DFC play options ("Cast <front>" / "Play <back>").
+ *  Returns null for single-faced cards or when the card isn't cached yet. */
+function dfcFaceNames(card: GameCard): { front: string; back: string } | null {
+  const info =
+    useScryfallStore.getState().cards[
+      cardKey({
+        name: card.name,
+        setCode: card.setCode || undefined,
+        collectorNumber: card.cardNumber || undefined,
+      })
+    ]?.card?.info;
+  const faces = info?.card_faces;
+  if (!faces || faces.length < 2 || !faces[1]?.name) return null;
+  return { front: faces[0]!.name, back: faces[1]!.name };
+}
 
 function isManualTabletopApi(
   runtime: GameRuntime,
@@ -303,6 +321,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [chooseActionInput?.actions]);
 
+  const playLandByCardId = useMemo(() => {
+    const map = new Map<string, HandActionOption[]>();
+    for (const a of chooseActionInput?.actions ?? []) {
+      if (a.type !== "playLand") continue;
+      const arr = map.get(a.cardId) ?? [];
+      arr.push({ kind: "cast" as const, cardId: a.cardId, label: "Play land", actionId: a.id });
+      map.set(a.cardId, arr);
+    }
+    return map;
+  }, [chooseActionInput?.actions]);
+
   const abilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
     for (const a of chooseActionInput?.actions ?? []) {
@@ -393,12 +422,33 @@ export default function Game({ exitTo }: GameProps = {}) {
     [manualApi, gameView?.players],
   );
 
+  // Cast + land-face play options for a card. Modal DFCs (a card that can be
+  // both cast and played as a land — e.g. Agadeem's Awakening) surface BOTH
+  // faces, labelled by face name; pure lands keep click-to-play with no option
+  // panel. The engines differ here (Rust emits the land face as a second cast,
+  // Java emits it as a `playLand`), so merging both kinds covers both.
+  const castAndLandOptions = useCallback(
+    (card: GameCard): HandActionOption[] => {
+      const casts = castOptionsByCardId.get(card.id) ?? [];
+      const lands = playLandByCardId.get(card.id) ?? [];
+      if (lands.length === 0 || casts.length === 0) return casts;
+      const fn = dfcFaceNames(card);
+      const castOpts = fn ? casts.map((o) => ({ ...o, label: `Cast ${fn.front}` })) : casts;
+      const landOpts = lands.map((o) => ({
+        ...o,
+        label: fn ? `Play ${fn.back}` : "Play land side",
+      }));
+      return [...castOpts, ...landOpts];
+    },
+    [castOptionsByCardId, playLandByCardId],
+  );
+
   const getHandActionOptions = useCallback(
     (card: GameCard): HandActionOption[] =>
       manualApi
         ? getManualCardActions(card)
-        : [...(castOptionsByCardId.get(card.id) ?? []), ...(abilitiesByCardId.get(card.id) ?? [])],
-    [manualApi, getManualCardActions, castOptionsByCardId, abilitiesByCardId],
+        : [...castAndLandOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
+    [manualApi, getManualCardActions, castAndLandOptions, abilitiesByCardId],
   );
 
   const getBattlefieldAbilityOptions = useCallback(
@@ -423,13 +473,13 @@ export default function Game({ exitTo }: GameProps = {}) {
         // Use explicit mana abilities emitted by the engine instead of inventing a generic land tap action.
         abilities.unshift(...manaAbilities);
       }
-      return [...(castOptionsByCardId.get(card.id) ?? []), ...abilities];
+      return [...castAndLandOptions(card), ...abilities];
     },
     [
       manualApi,
       getManualCardActions,
       promptType,
-      castOptionsByCardId,
+      castAndLandOptions,
       abilitiesByCardId,
       manaAbilitiesByCardId,
       tappableLandIdSet,

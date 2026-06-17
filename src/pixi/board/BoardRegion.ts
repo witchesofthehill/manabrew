@@ -16,6 +16,7 @@ import { hexToNum } from "../colorUtils";
 import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
 import { pulse } from "../effects/animation";
+import { EffectsLayer } from "../effects/EffectsLayer";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -92,6 +93,7 @@ export class BoardRegion {
   private backgroundGfx: Graphics;
   private activeGlowGfx: Graphics;
   private active = false;
+  private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
 
@@ -141,6 +143,10 @@ export class BoardRegion {
     this.activeGlowGfx.eventMode = "none";
     this.activeGlowGfx.visible = false;
     this.container.addChild(this.activeGlowGfx);
+
+    // Transient ground effects (ETB stomp) sit above the felt, below the cards.
+    this.effects.container.zIndex = 0;
+    this.container.addChild(this.effects.container);
 
     this.gridSkeletonGfx = new Graphics();
     this.gridSkeletonGfx.eventMode = "none";
@@ -377,8 +383,9 @@ export class BoardRegion {
 
       const isHovered = this.hoveredCardId === s.card.id;
       const targetScale = this.cardScale * (isHovered ? HOVER_SCALE : 1);
-      const nextScale = lerp(s.scale.x, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
-      s.scale.set(nextScale);
+      entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
+      const fx = s.getFxScale();
+      s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
 
       if (entry.overlay?.visible) {
         entry.overlay.x = s.x;
@@ -394,6 +401,7 @@ export class BoardRegion {
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
     if (this.active) this.activeGlowGfx.alpha = pulse(now, 1800, 0.3, 0.8);
+    this.effects.tick(now);
   }
 
   // ── Battlefield layout ─────────────────────────────────────────────
@@ -502,6 +510,7 @@ export class BoardRegion {
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+      const dust = hexToNum(this.host.getTheme().gameTheme.canvas.neutral);
       const cardHalfH = (CARD_H * this.cardScale) / 2;
       const now = performance.now();
       for (const card of state.cards) {
@@ -510,6 +519,9 @@ export class BoardRegion {
         const prev = prevCards.get(card.id);
         if (!prev) {
           entry.sprite.playEntrance(now);
+          if (card.types?.some((t) => t.toLowerCase() === "creature")) {
+            this.effects.spawnStomp(now, entry.targetX, entry.targetY + cardHalfH, dust);
+          }
           continue;
         }
         if (card.power !== prev.power || card.toughness !== prev.toughness) {
@@ -926,6 +938,7 @@ export class BoardRegion {
       targetZIndex: 1,
       targetRotation: sprite.rotation,
       etbGlowAlpha: isEntering ? 1 : 0,
+      scaleBase: sprite.scale.x,
       shakeFrames: 0,
       overlay: null,
     });
@@ -1302,6 +1315,7 @@ export class BoardRegion {
   }
 
   destroy(): void {
+    this.effects.destroy();
     this.entries.clear();
   }
 }

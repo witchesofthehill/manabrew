@@ -4,10 +4,11 @@ Shared, **pure** animation primitives for in-game board feedback (glows, pops, f
 
 ## Modules
 
-| File           | What it is                                                                                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `easing.ts`    | Pure easing functions (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` in 0..1 → eased value.                                                                |
-| `animation.ts` | Pure time math: `oneShot(now, dur)` + `oneShotProgress(s, now)` for transient tweens, `pulse(now, period, …)` for loops. Callers pass `now` in — nothing reads the clock. |
+| File              | What it is                                                                                                                                                                                                                               |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `easing.ts`       | Pure easing functions (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` in 0..1 → eased value.                                                                                                                               |
+| `animation.ts`    | Pure time math: `oneShot(now, dur)` + `oneShotProgress(s, now)` for transient tweens, `pulse(now, period, …)` for loops. Callers pass `now` in — nothing reads the clock.                                                                |
+| `EffectsLayer.ts` | A self-culling pool of transient canvas-space effects (the ETB ground stomp). Mounted by its owner (the board region, just above the felt / below cards) and ticked from that owner's animate loop. Drawing is pure (progress → shapes). |
 
 ## Principles
 
@@ -21,7 +22,7 @@ Transient (a one-shot on a card): add a `OneShot | null` field + a `play…(now)
 
 ## Current effects
 
-- **Entrance pop** (`CardSprite.playEntrance`) + the existing `etbGlow` fade — on enter; dev-previewable via `BoardScene.previewEtb` (the dev panel's "Flash ETB" button → `triggerEtbGlow`).
+- **Entrance stomp** (`CardSprite.playEntrance` squash-and-stretch via `getFxScale`, which the region composes with the base/hover scale so they don't fight) + the existing `etbGlow` fade + a ground **dust ring** (`EffectsLayer.spawnStomp`, creatures only). Dev-previewable via `BoardScene.previewEtb` (the dev panel's "Flash ETB" button → `triggerEtbGlow`).
 - **Stat pop** (`playStatPop`) — P/T badge bump on power/toughness change.
 - **Damage hit** (`playDamageHit`) — white flash, alongside the existing shake + `-N` floater.
 - **Active-turn glow** (`BoardRegion.setActive`) — breathing felt-edge glow on the active player's region; plumbed `activePlayerId` → `BoardCanvas` → `BoardScene.setActivePlayer`.

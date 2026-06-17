@@ -91,6 +91,8 @@ interface BoardCanvasProps {
   isDropActive?: boolean;
   /** Auto-arrange the battlefield into rows, ignoring manual drag placement. */
   autoSort?: boolean;
+  /** Player whose turn it is — their region gets a breathing glow. */
+  activePlayerId?: string | null;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
   getHandActions?: (card: GameCard) => HandActionOption[];
   onSelectHandAction?: (card: GameCard, action: HandActionOption) => void;
@@ -121,6 +123,7 @@ export function BoardCanvas({
   handInsets,
   isDropActive,
   autoSort,
+  activePlayerId,
   sceneRef: externalSceneRef,
   getHandActions,
   onSelectHandAction,
@@ -401,6 +404,15 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setHoverDebug(showHoverAreas);
   }, [scene, showHoverAreas]);
+
+  useEffect(() => {
+    scene?.setActivePlayer(activePlayerId ?? null);
+  }, [scene, activePlayerId]);
+
+  const etbPreviewVersion = useGameDevStore((s) => s.etbGlowVersion);
+  useEffect(() => {
+    if (etbPreviewVersion > 0) scene?.previewEtb();
+  }, [scene, etbPreviewVersion]);
 
   const toggleHandFlip = useCallback(() => {
     setHandFlipBack((prev) => {

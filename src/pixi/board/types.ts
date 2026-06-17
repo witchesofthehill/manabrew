@@ -65,6 +65,9 @@ export interface SpriteEntry {
   targetZIndex: number;
   targetRotation: number;
   etbGlowAlpha: number;
+  /** Lerp state for the base (card + hover) scale, kept separate from the
+   *  sprite's live scale so the entrance squash multiplier can compose with it. */
+  scaleBase: number;
   /** Frames of damage-shake jitter remaining (0 = not shaking). */
   shakeFrames: number;
   /** True while the card is fading out after leaving the battlefield. */

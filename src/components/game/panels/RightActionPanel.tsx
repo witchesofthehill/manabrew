@@ -41,6 +41,7 @@ export function RightActionPanel({
   const setPromptActionOverride = useGameDevStore((s) => s.setPromptActionOverride);
   const setDevToolsEnabled = useGameDevStore((s) => s.setDevToolsEnabled);
   const clearPromptActionOverride = useGameDevStore((s) => s.clearPromptActionOverride);
+  const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
 
   const [activeTab, setActiveTab] = useState<"log" | "snapshots" | "dev">("log");
 
@@ -141,6 +142,13 @@ export function RightActionPanel({
                 />
               </button>
             </div>
+            <button
+              type="button"
+              className="rounded-md border border-border/70 px-3 py-2 text-sm font-medium hover:bg-accent/50"
+              onClick={triggerEtbGlow}
+            >
+              Flash ETB on board
+            </button>
             <p className="text-xs text-muted-foreground">Force prompt action view (UI only).</p>
             <div className="grid grid-cols-2 gap-1.5">
               <button

@@ -29,6 +29,8 @@ import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asDeckCard } from "@/lib/decks";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
+import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
+import { bump } from "./effects/easing";
 
 /**
  * Shared, mutable theme reference used by every `CardSprite` instance.
@@ -322,6 +324,12 @@ export class CardSprite extends Container {
   private edgeGlowGfx: Graphics;
   private edgeGlowMask: Graphics;
   private glowPulsing = false;
+  private hitFlashGfx: Graphics;
+  private entranceFx: OneShot | null = null;
+  private statPopFx: OneShot | null = null;
+  private hitFlashFx: OneShot | null = null;
+  private fxScaleX = 1;
+  private fxScaleY = 1;
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -427,6 +435,11 @@ export class CardSprite extends Container {
     this.damageGfx = new Graphics();
     this.damageGfx.visible = false;
     this.addChild(this.damageGfx);
+
+    // One-shot white impact flash on taking damage (on top of the wash/shake).
+    this.hitFlashGfx = new Graphics();
+    this.hitFlashGfx.visible = false;
+    this.addChild(this.hitFlashGfx);
 
     // Edge glow (attacking = red, summoning-sick = frosty pulse) — mirrors the
     // DOM card face's inset glow / aura. Clipped to the rounded card shape.
@@ -811,12 +824,67 @@ export class CardSprite extends Container {
     this.glowPulsing = sick && !attacking;
   }
 
+  /** Entrance "stomp" — a squash-and-stretch on enter (the region also fires a
+   *  ground dust ring). Read by the region via {@link getFxScale}. */
+  playEntrance(now: number): void {
+    this.entranceFx = oneShot(now, 480);
+  }
+
+  /** Non-uniform scale multiplier from the entrance squash (1,1 when idle). The
+   *  region multiplies this into the base/hover scale so the two don't fight. */
+  getFxScale(): { x: number; y: number } {
+    return { x: this.fxScaleX, y: this.fxScaleY };
+  }
+
+  /** Stat "pop" — a brief bump of the P/T badge when power/toughness changes. */
+  playStatPop(now: number): void {
+    this.statPopFx = oneShot(now, 360);
+  }
+
+  /** White impact flash when the creature takes damage (with the existing
+   *  wash + shake + floater). */
+  playDamageHit(now: number): void {
+    this.hitFlashFx = oneShot(now, 260);
+  }
+
   /** Per-frame hook (driven by the board region's animate loop) — breathes the
-   *  summoning-sick aura. */
-  tickEffects(): void {
-    if (!this.glowPulsing) return;
-    const phase = (Math.sin(performance.now() / 400) + 1) / 2;
-    this.edgeGlowGfx.alpha = 0.5 + 0.45 * phase;
+   *  summoning-sick aura and advances the one-shot entrance / stat-pop / hit
+   *  animations. `now` is the shared frame timestamp. */
+  tickEffects(now: number): void {
+    if (this.glowPulsing) this.edgeGlowGfx.alpha = pulse(now, 1600, 0.5, 0.95);
+
+    const ep = oneShotProgress(this.entranceFx, now);
+    if (ep != null) {
+      const q = bump(ep) * 0.2;
+      this.fxScaleX = 1 + q;
+      this.fxScaleY = 1 - q;
+    } else if (this.entranceFx) {
+      this.entranceFx = null;
+      this.fxScaleX = 1;
+      this.fxScaleY = 1;
+    }
+
+    const sp = oneShotProgress(this.statPopFx, now);
+    if (sp != null) this.ptContainer.scale.set(1 + 0.35 * bump(sp));
+    else if (this.statPopFx) {
+      this.statPopFx = null;
+      this.ptContainer.scale.set(1);
+    }
+
+    const fp = oneShotProgress(this.hitFlashFx, now);
+    if (fp != null) {
+      this.hitFlashGfx.clear();
+      this.hitFlashGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+      this.hitFlashGfx.fill({
+        color: hexToNum(activeTheme.gameTheme.textOnTinted),
+        alpha: 0.5 * bump(fp),
+      });
+      this.hitFlashGfx.visible = true;
+    } else if (this.hitFlashFx) {
+      this.hitFlashFx = null;
+      this.hitFlashGfx.visible = false;
+      this.hitFlashGfx.clear();
+    }
   }
 
   /** Color-matrix treatments that mirror the DOM card face: summoning-sick
@@ -1008,8 +1076,11 @@ export class CardSprite extends Container {
 
     this.ptText.x = 3;
     this.ptText.y = 2;
-    this.ptContainer.x = CARD_W - tw - 3;
-    this.ptContainer.y = CARD_H - th - 3 - (this.frameTypeBandH > 0 ? this.frameTypeBandH + 1 : 0);
+    // Pivot at the badge center so the stat-pop scales in place (not from a corner).
+    this.ptContainer.pivot.set(tw / 2, th / 2);
+    this.ptContainer.x = CARD_W - tw - 3 + tw / 2;
+    this.ptContainer.y =
+      CARD_H - th - 3 - (this.frameTypeBandH > 0 ? this.frameTypeBandH + 1 : 0) + th / 2;
   }
 
   private updateBadge(): void {

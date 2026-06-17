@@ -27,7 +27,10 @@ pub enum AvailableActionKind {
         is_mana_ability: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        produced_colors: Option<Vec<String>>,
+        produced_mana: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        produced_mana_amount: Option<i32>,
     },
     UndoMana {
         card_id: String,
@@ -70,5 +73,14 @@ pub enum ChooseActionOutput {
     },
     Act {
         action_id: String,
+    },
+    TapLand {
+        card_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        ability_index: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        color: Option<String>,
     },
 }

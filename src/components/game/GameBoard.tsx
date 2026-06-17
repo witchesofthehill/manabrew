@@ -295,7 +295,8 @@ export function GameBoard({
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const manaAbilityOptions = chooseActionActions
     ? manaAbilityInfos(chooseActionActions)
-    : payManaCostPrompt?.input.manaAbilityOptions;
+    : (payCombatCostPrompt?.input.manaAbilityOptions ??
+      payManaCostPrompt?.input.manaAbilityOptions);
   const chooseActionAbilityCardIds = chooseActionActions
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);

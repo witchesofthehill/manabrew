@@ -1805,6 +1805,40 @@ pub(crate) fn resolve_mana_ability_amount(
     1
 }
 
+pub(crate) fn mana_ability_prompt_metadata(
+    game: &GameState,
+    card_id: CardId,
+    player: PlayerId,
+    ab: &crate::ability::activated::ActivatedAbility,
+) -> (Option<String>, Option<i32>) {
+    let produced_mana = ab.produced_ir.as_ref().map(|produced_ir| {
+        let chosen_colors = &game.card(card_id).chosen_colors;
+        let atoms = produced_ir.to_atoms(chosen_colors);
+        if atoms.is_empty() {
+            produced_ir.as_script_text().into_owned()
+        } else if matches!(produced_ir, ProducedMana::Chosen) {
+            atoms
+                .into_iter()
+                .map(|atom| ManaPool::atom_to_letter(atom).to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else if matches!(produced_ir, ProducedMana::Combo(ProducedManaCombo::Chosen)) {
+            format!(
+                "Combo {}",
+                atoms
+                    .into_iter()
+                    .map(|atom| ManaPool::atom_to_letter(atom).to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        } else {
+            produced_ir.as_script_text().into_owned()
+        }
+    });
+    let produced_mana_amount = Some(resolve_mana_ability_amount(game, card_id, player, ab));
+    (produced_mana, produced_mana_amount)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

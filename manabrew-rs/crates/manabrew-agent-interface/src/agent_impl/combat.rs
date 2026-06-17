@@ -1,4 +1,4 @@
-use manabrew_engine::agent::CombatCostAction;
+use manabrew_engine::agent::{CombatCostAction, ManaAbilityOption};
 use manabrew_engine::combat::DefenderId;
 use manabrew_engine::ids::{CardId, PlayerId};
 
@@ -6,7 +6,7 @@ use crate::game_view_dto::CardDto;
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{BlockAssignment, PlayerAction, PromptInput};
 
-use super::{PromptAgent, Responder};
+use super::{parse_express_mana_choice, PromptAgent, Responder};
 
 fn fallback_combat_assignment(
     blockers_in_order: &[CardId],
@@ -198,6 +198,7 @@ pub(super) fn pay_combat_cost<T: Responder>(
     attacker: CardId,
     cost: i32,
     description: &str,
+    mana_ability_options: &[ManaAbilityOption],
     tappable_lands: &[CardId],
     untappable_lands: &[CardId],
     mana_pool_total: i32,
@@ -219,6 +220,18 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 attacker_name,
                 cost,
                 description: description.to_string(),
+                mana_ability_options: mana_ability_options
+                    .iter()
+                    .map(|opt| crate::prompt::ActivatableAbilityInfo {
+                        card_id: card_id_str(opt.card_id),
+                        ability_index: opt.ability_index,
+                        description: opt.description.clone(),
+                        is_mana_ability: true,
+                        cost: opt.cost.clone(),
+                        produced_mana: opt.produced_mana.clone(),
+                        produced_mana_amount: opt.produced_mana_amount,
+                    })
+                    .collect(),
                 tappable_land_ids,
                 untappable_land_ids,
                 mana_pool_total,
@@ -227,8 +240,16 @@ pub(super) fn pay_combat_cost<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::TapLand { card_id, .. } => parse_card_id(&card_id)
-            .map(CombatCostAction::TapLand)
+        PlayerAction::TapLand {
+            card_id,
+            ability_index,
+            color,
+        } => parse_card_id(&card_id)
+            .map(|card_id| CombatCostAction::TapLand {
+                card_id,
+                mana_ability_index: ability_index,
+                express_choice: parse_express_mana_choice(color.as_deref()),
+            })
             .unwrap_or(CombatCostAction::Decline),
         PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
             .map(CombatCostAction::UntapLand)

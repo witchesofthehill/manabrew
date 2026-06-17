@@ -386,6 +386,15 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             mana_pool_total,
             can_confirm_from_pool,
         }),
+        JavaRawPromptBody::SpecifyManaCombo {
+            available_colors,
+            amount,
+        } => PromptInput::SpecifyManaCombo(
+            manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
+                available_colors,
+                amount,
+            },
+        ),
     };
     let deciding_player_id = if matches!(
         inner,
@@ -574,6 +583,9 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             card_id: card_id.clone(),
         },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
+        PlayerAction::ManaComboDecision { chosen_colors } => JavaAction::ManaComboDecision {
+            chosen_colors: chosen_colors.clone(),
+        },
         PlayerAction::PayLife => JavaAction::PayLife,
         PlayerAction::CancelManaCost => JavaAction::CancelMana,
         PlayerAction::Pass { until_phase } => JavaAction::Pass {
@@ -630,6 +642,8 @@ struct NormalizedAction {
     card_id: Option<String>,
     kind: Option<&'static str>,
     cost: Option<String>,
+    produced_mana: Option<String>,
+    produced_mana_amount: Option<i32>,
 }
 
 fn build_choose_action(
@@ -653,7 +667,8 @@ fn build_choose_action(
                 description: action.label.clone(),
                 cost: action.cost.clone(),
                 is_mana_ability: true,
-                produced_colors: action.cost.as_deref().and_then(parse_mana_colors),
+                produced_mana: action.produced_mana.clone(),
+                produced_mana_amount: action.produced_mana_amount,
             },
             Some("ability") => AvailableActionKind::ActivateAbility {
                 card_id: card_id.clone(),
@@ -661,7 +676,8 @@ fn build_choose_action(
                 description: action.label.clone(),
                 cost: None,
                 is_mana_ability: false,
-                produced_colors: None,
+                produced_mana: None,
+                produced_mana_amount: None,
             },
             Some("play") => AvailableActionKind::PlayLand {
                 card_id: card_id.clone(),
@@ -690,15 +706,6 @@ fn build_choose_action(
     PromptInput::ChooseAction(
         manabrew_protocol::prompts::choose_action::ChooseActionInput { actions: out },
     )
-}
-
-fn parse_mana_colors(s: &str) -> Option<Vec<String>> {
-    let colors: Vec<String> = ["W", "U", "B", "R", "G", "C"]
-        .into_iter()
-        .filter(|c| s.contains(*c))
-        .map(str::to_string)
-        .collect();
-    (!colors.is_empty()).then_some(colors)
 }
 
 fn build_game_view(
@@ -979,6 +986,8 @@ fn to_mana_ability_info(option: &JavaRawManaOption) -> ActivatableAbilityInfo {
         description: option.description.clone().unwrap_or_default(),
         is_mana_ability: true,
         cost: option.cost.clone(),
+        produced_mana: option.produced_mana.clone(),
+        produced_mana_amount: option.produced_mana_amount,
     }
 }
 
@@ -1013,6 +1022,8 @@ fn to_actions(actions: &[JavaRawAction]) -> Vec<NormalizedAction> {
                 card_id: action.card_id.clone(),
                 kind: java_action_kind(action.kind.as_deref()),
                 cost: action.cost.clone(),
+                produced_mana: action.produced_mana.clone(),
+                produced_mana_amount: action.produced_mana_amount,
             })
         })
         .collect()

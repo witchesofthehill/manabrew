@@ -50,7 +50,8 @@ fn main() {
                         description: "{T}: Add {G}.".into(),
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
-                        produced_colors: Some(vec!["G".into()]),
+                        produced_mana: Some("G".into()),
+                        produced_mana_amount: Some(1),
                     },
                 },
                 AvailableAction {
@@ -183,6 +184,7 @@ fn main() {
             attacker_name: String::new(),
             cost: 0,
             description: String::new(),
+            mana_ability_options: vec![],
             tappable_land_ids: vec![],
             untappable_land_ids: vec![],
             mana_pool_total: 0,

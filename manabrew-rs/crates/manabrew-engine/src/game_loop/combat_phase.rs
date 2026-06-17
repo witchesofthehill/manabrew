@@ -322,6 +322,8 @@ impl GameLoop {
                         let untappable_lands =
                             self.get_untappable_lands(game, controller, &pool_snapshot);
                         let pool_total = self.pool(controller).total_mana();
+                        let mana_payment_sources =
+                            crate::mana::collect_mana_payment_sources(game, controller, &[]);
 
                         agents[controller.index()].snapshot_state(game, &self.mana_pools);
                         let action = agents[controller.index()].pay_combat_cost(
@@ -329,13 +331,18 @@ impl GameLoop {
                             attacker_id,
                             cost,
                             &description,
+                            &mana_payment_sources.mana_ability_options,
                             &tappable_lands,
                             &untappable_lands,
                             pool_total,
                         );
 
                         match action {
-                            CombatCostAction::TapLand(land_id) => {
+                            CombatCostAction::TapLand {
+                                card_id: land_id,
+                                mana_ability_index,
+                                express_choice,
+                            } => {
                                 if !tappable_lands.contains(&land_id) {
                                     continue;
                                 }
@@ -345,10 +352,20 @@ impl GameLoop {
                                 // Use actual mana ability when available
                                 let mana_ab = {
                                     let c = game.card(land_id);
-                                    c.activated_abilities
-                                        .iter()
-                                        .find(|ab| ab.is_mana_ability)
-                                        .cloned()
+                                    if let Some(requested_idx) = mana_ability_index {
+                                        c.activated_abilities
+                                            .iter()
+                                            .find(|ab| {
+                                                ab.is_mana_ability
+                                                    && ab.ability_index == requested_idx
+                                            })
+                                            .cloned()
+                                    } else {
+                                        c.activated_abilities
+                                            .iter()
+                                            .find(|ab| ab.is_mana_ability)
+                                            .cloned()
+                                    }
                                 };
                                 if let Some(ab) = mana_ab {
                                     self.with_shared_state_mutation(
@@ -356,7 +373,12 @@ impl GameLoop {
                                         agents,
                                         |this, game, agents| {
                                             this.resolve_mana_ability(
-                                                game, agents, controller, land_id, &ab, None,
+                                                game,
+                                                agents,
+                                                controller,
+                                                land_id,
+                                                &ab,
+                                                express_choice,
                                             );
                                         },
                                     );

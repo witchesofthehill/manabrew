@@ -1,4 +1,3 @@
-use forge_foundation::ManaAtom;
 use manabrew_engine::agent::{ManaAbilityOption, ManaCostAction};
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
@@ -6,7 +5,7 @@ use manabrew_engine::mana::ManaPool;
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{PlayerAction, PromptInput};
 
-use super::{PromptAgent, Responder};
+use super::{parse_express_mana_choice, PromptAgent, Responder};
 
 pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     agent: &mut PromptAgent<T>,
@@ -164,7 +163,9 @@ pub(super) fn pay_mana_cost<T: Responder>(
                         ability_index: opt.ability_index,
                         description: opt.description.clone(),
                         is_mana_ability: true,
-                        cost: None,
+                        cost: opt.cost.clone(),
+                        produced_mana: opt.produced_mana.clone(),
+                        produced_mana_amount: opt.produced_mana_amount,
                     })
                     .collect(),
                 tappable_land_ids,
@@ -184,10 +185,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
             .map(|card_id| ManaCostAction::TapLand {
                 card_id,
                 mana_ability_index: ability_index,
-                express_choice: color
-                    .as_deref()
-                    .map(|color| ManaAtom::from_name(&color.to_ascii_lowercase()))
-                    .filter(|&atom| atom != 0),
+                express_choice: parse_express_mana_choice(color.as_deref()),
             })
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
         PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)

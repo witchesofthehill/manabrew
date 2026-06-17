@@ -243,7 +243,7 @@ impl ParityFormat for PlayerAction {
             PlayerAction::ActivateAbility(aref) => {
                 format!("ActivateAbility({})", aref.parity_fmt(ctx))
             }
-            PlayerAction::ActivateMana(cid, idx) => {
+            PlayerAction::ActivateMana(cid, idx, _express_choice) => {
                 format!("ActivateMana({}, {:?})", ctx.card(*cid), idx)
             }
             // For other variants, fall back to Debug but resolve card IDs where possible.
@@ -257,7 +257,7 @@ impl ParityFormat for PlayerAction {
 impl ParityFormat for CombatCostAction {
     fn parity_fmt(&self, ctx: &FmtCtx<'_>) -> String {
         match self {
-            CombatCostAction::TapLand(cid) => format!("TapLand({})", ctx.card(*cid)),
+            CombatCostAction::TapLand { card_id, .. } => format!("TapLand({})", ctx.card(*card_id)),
             CombatCostAction::UntapLand(cid) => format!("UntapLand({})", ctx.card(*cid)),
             CombatCostAction::Pay => "Pay".to_string(),
             CombatCostAction::Decline => "Decline".to_string(),

@@ -21,7 +21,7 @@ impl GameLoop {
             MainPhaseAction::Play(play) => {
                 format!("Play {}", card_name_or_id(play.card_id))
             }
-            MainPhaseAction::ActivateMana(card_id, _) => {
+            MainPhaseAction::ActivateMana(card_id, _, _) => {
                 format!("Activate mana ({})", card_name_or_id(card_id))
             }
             MainPhaseAction::UntapMana(card_id) => {
@@ -450,7 +450,7 @@ impl GameLoop {
                         );
                     }
                 }
-                MainPhaseAction::ActivateMana(land_id, requested_ability_idx) => {
+                MainPhaseAction::ActivateMana(land_id, requested_ability_idx, express_choice) => {
                     let action_space = action_space
                         .as_ref()
                         .expect("mana priority action requires action space");
@@ -564,7 +564,7 @@ impl GameLoop {
                                     priority_player,
                                     land_id,
                                     &ab,
-                                    None,
+                                    express_choice,
                                 );
                             });
                         }

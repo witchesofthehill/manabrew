@@ -269,6 +269,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       description: string;
       isManaAbility: boolean;
       cost?: string;
+      displayManaLetters?: string[];
+      colorChoice?: string;
     },
     actionId?: string,
   ): HandActionOption => ({
@@ -278,13 +280,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     label: a.description,
     isManaAbility: a.isManaAbility,
     cost: a.cost,
+    displayManaLetters: a.displayManaLetters,
+    colorChoice: a.colorChoice,
     actionId,
   });
-
-  const manaColorFromAction = (action: HandActionOption): string | null => {
-    const matches = action.label.match(/\{([WUBRGC])\}/);
-    return matches ? matches[1] : null;
-  };
 
   const castOptionsByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
@@ -320,12 +319,24 @@ export default function Game({ exitTo }: GameProps = {}) {
       for (const a of chooseActionInput.actions) {
         if (a.type !== "activateAbility" || !a.isManaAbility) continue;
         const arr = map.get(a.cardId) ?? [];
-        arr.push(toAbilityOption(a, a.id));
+        const expanded = getExpandedManaAbilities(a.cardId, [
+          {
+            cardId: a.cardId,
+            abilityIndex: a.abilityIndex,
+            description: a.description,
+            isManaAbility: true,
+            cost: a.cost,
+            producedMana: a.producedMana,
+            producedManaAmount: a.producedManaAmount,
+          },
+        ]);
+        arr.push(...expanded.map((ab) => toAbilityOption(ab, a.id)));
         map.set(a.cardId, arr);
       }
       return map;
     }
-    const rawOptions = payManaCostInput?.manaAbilityOptions ?? [];
+    const rawOptions =
+      payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions ?? [];
     if (rawOptions.length === 0) return map;
     const byCard = new Map<string, ActivatableAbilityInfo[]>();
     for (const ab of rawOptions) {
@@ -340,7 +351,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       );
     }
     return map;
-  }, [chooseActionInput, payManaCostInput?.manaAbilityOptions]);
+  }, [
+    chooseActionInput,
+    payCombatCostInput?.manaAbilityOptions,
+    payManaCostInput?.manaAbilityOptions,
+  ]);
 
   const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
 
@@ -437,6 +452,15 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const respondHandAction = (option: HandActionOption): boolean => {
+    if (option.kind === "ability" && option.isManaAbility) {
+      respond({
+        type: "tapLand",
+        cardId: option.cardId,
+        abilityIndex: option.abilityIndex,
+        color: option.colorChoice,
+      });
+      return true;
+    }
     if (option.actionId != null) {
       respond({ type: "act", actionId: option.actionId });
       return true;
@@ -621,11 +645,12 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   // Land tap/untap handler — shows interactive preview for multi-ability lands
   const handleTapLand = (card: GameCard) => {
-    if (payManaCostInput) {
-      const manaAbilities = getExpandedManaAbilities(
-        card.id,
-        payManaCostInput.manaAbilityOptions,
-      ).map((ab) => toAbilityOption(ab));
+    const paymentManaOptions =
+      payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions;
+    if (paymentManaOptions) {
+      const manaAbilities = getExpandedManaAbilities(card.id, paymentManaOptions).map((ab) =>
+        toAbilityOption(ab),
+      );
 
       if (manaAbilities.length > 1) {
         preview.showSticky(card);
@@ -636,7 +661,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           type: "tapLand",
           cardId: card.id,
           abilityIndex: manaAbilities[0].abilityIndex,
-          color: manaColorFromAction(manaAbilities[0]) ?? undefined,
+          color: manaAbilities[0].colorChoice,
         });
         return;
       }
@@ -646,6 +671,21 @@ export default function Game({ exitTo }: GameProps = {}) {
 
     if (promptType !== "chooseAction") {
       respond({ type: "tapLand", cardId: card.id });
+      return;
+    }
+
+    const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
+    if (manaAbilities.length > 1) {
+      preview.showSticky(card);
+      return;
+    }
+    if (manaAbilities.length === 1) {
+      respond({
+        type: "tapLand",
+        cardId: card.id,
+        abilityIndex: manaAbilities[0].abilityIndex,
+        color: manaAbilities[0].colorChoice,
+      });
       return;
     }
 
@@ -687,11 +727,17 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const tapResponse = (id: string) => {
-    const a = chooseActionInput?.actions.find(
-      (x) => x.type === "activateAbility" && x.isManaAbility && x.cardId === id,
-    );
-    if (a) respond({ type: "act", actionId: a.id });
-    else respond({ type: "tapLand", cardId: id });
+    const option = manaAbilitiesByCardId.get(id)?.[0];
+    if (option) {
+      respond({
+        type: "tapLand",
+        cardId: id,
+        abilityIndex: option.abilityIndex,
+        color: option.colorChoice,
+      });
+    } else {
+      respond({ type: "tapLand", cardId: id });
+    }
   };
   const untapResponse = (id: string) => {
     const a = chooseActionInput?.actions.find((x) => x.type === "undoMana" && x.cardId === id);
@@ -1456,17 +1502,6 @@ export default function Game({ exitTo }: GameProps = {}) {
               : undefined
           }
           onTapLandAbility={(cardId, abilityIndex, color) => {
-            const a = chooseActionInput?.actions.find(
-              (x) =>
-                x.type === "activateAbility" &&
-                x.isManaAbility &&
-                x.cardId === cardId &&
-                (abilityIndex == null || x.abilityIndex === abilityIndex),
-            );
-            if (a) {
-              respond({ type: "act", actionId: a.id });
-              return;
-            }
             respond({
               type: "tapLand",
               cardId,

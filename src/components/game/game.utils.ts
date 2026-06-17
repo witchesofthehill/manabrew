@@ -21,6 +21,8 @@ export function manaAbilityInfos(actions: AvailableAction[]): ActivatableAbility
             description: a.description,
             isManaAbility: true,
             cost: a.cost,
+            producedMana: a.producedMana,
+            producedManaAmount: a.producedManaAmount,
           },
         ]
       : [],

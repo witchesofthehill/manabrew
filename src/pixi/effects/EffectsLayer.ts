@@ -1,10 +1,3 @@
-/**
- * A small pool of transient, self-culling board effects (currently the ETB
- * ground stomp). Mounted by its owner — the board region mounts it just above
- * the felt, below the cards — and ticked from that owner's animate loop with
- * the shared frame `now`. Drawing is a pure function of progress.
- */
-
 import { Container, Graphics } from "pixi.js";
 import { type OneShot, oneShot, oneShotProgress } from "./animation";
 import { easeOutCubic } from "./easing";
@@ -28,8 +21,6 @@ export class EffectsLayer {
     this.container.eventMode = "none";
   }
 
-  /** A creature stomping onto the felt: an expanding, flattened dust ring with
-   *  radial cracks that fades out. `(x, y)` is the impact point (card foot). */
   spawnStomp(now: number, x: number, y: number, color: number): void {
     const gfx = new Graphics();
     this.container.addChild(gfx);
@@ -59,7 +50,6 @@ export class EffectsLayer {
   }
 }
 
-/** Flattened (ellipse) so it reads as lying on the ground in perspective. */
 function drawStomp(g: Graphics, cx: number, cy: number, p: number, color: number): void {
   g.clear();
   const ease = easeOutCubic(p);

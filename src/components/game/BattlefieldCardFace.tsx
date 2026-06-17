@@ -19,7 +19,6 @@ interface BattlefieldCardFaceProps {
   card: GameCard;
   artCrop?: string;
   variant: BattlefieldCardFaceVariant;
-  /** Tile width in px; height derives from the 5:7 ratio. */
   width?: number;
 }
 
@@ -78,8 +77,6 @@ export function BattlefieldCardFace({
     (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
-  // +1/+1 and −1/−1 collapse to a single signed pill (green / red); the full
-  // per-type breakdown stays in the card preview. Other counters keep chips.
   const p1p1 = card.counters?.P1P1 ?? 0;
   const m1m1 = card.counters?.M1M1 ?? 0;
   const otherCounters = card.counters
@@ -113,10 +110,6 @@ export function BattlefieldCardFace({
       </div>
     ) : null;
 
-  // Marked damage shows as a red wash whose strength tracks damage / toughness,
-  // capped so the art stays legible. In art mode it fills the whole card (the
-  // border is drawn as an overlay on top, not as the root's CSS border), so the
-  // wash shares the card's outer radius exactly — no corner gap.
   const damage = card.damage ?? 0;
   const toughForDamage = parseInt(card.toughness ?? "0", 10);
   const borderW = Math.max(1, 1.5 * u);

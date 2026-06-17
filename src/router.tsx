@@ -3,9 +3,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-// Dev-only battlefield card-face gallery. The dynamic import sits inside a
-// `import.meta.env.DEV` guard so it (and the view) is tree-shaken out of
-// production builds — the deployed WASM web app never bundles or routes to it.
 const CardMockGallery = import.meta.env.DEV ? lazy(() => import("@/views/CardMockGallery")) : null;
 import Lobby from "@/views/Lobby";
 import DeckEditor from "@/views/DeckEditor";

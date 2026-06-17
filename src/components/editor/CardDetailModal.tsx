@@ -100,7 +100,6 @@ export function CardDetailModal({
 
   const rulings = rulingsData?.data ?? [];
 
-  // Active face's type line drives orientation, not the parent layout.
   const isHorizontalActiveFace = activeFace
     ? isHorizontalCard({ typeLine: activeFace.type_line })
     : isHorizontalCard({ layout: card.layout, typeLine: card.type_line });
@@ -192,7 +191,6 @@ export function CardDetailModal({
                     </div>
                   )}
 
-                  {/* Flip button — only for double-faced cards */}
                   {isDoubleFaced && (
                     <Button
                       variant="outline"
@@ -356,7 +354,6 @@ export function CardDetailModal({
           <div className="flex w-full flex-wrap items-center justify-between gap-2">
             {deckEditorActions ? (
               <div className="flex items-center gap-1">
-                {/* +/- stepper */}
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
                     size="icon"
@@ -387,7 +384,6 @@ export function CardDetailModal({
                   </Button>
                 </div>
 
-                {/* Icon toolbar */}
                 <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
                   <Button
                     size="icon"
@@ -435,7 +431,6 @@ export function CardDetailModal({
                   )}
                 </div>
 
-                {/* Tag dropdown */}
                 {deckEditorActions.onTagCard && (
                   <div className="relative ml-1">
                     <Button

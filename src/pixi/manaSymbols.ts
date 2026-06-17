@@ -1,9 +1,3 @@
-/**
- * Rasterises Scryfall mana-symbol SVGs into Pixi textures for the battlefield
- * card frames. Mirrors `panelIcons` but sources remote SVG URLs (one per
- * symbol) instead of inline game-icon bodies.
- */
-
 import { Sprite, Texture } from "pixi.js";
 import type { ManaCode } from "@/types/scryfall";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
@@ -11,7 +5,6 @@ import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
 const texCache = new Map<string, Texture>();
 const pendingSprites = new Map<string, Set<Sprite>>();
 
-/** Parse a mana cost string (`{2}{R}` or `2 R`) into individual symbol codes. */
 export function parseManaCost(cost: string | undefined): ManaCode[] {
   if (!cost || cost === "no cost") return [];
   const tokens = cost.includes("{")
@@ -46,7 +39,6 @@ function raster(code: ManaCode, size: number): void {
   img.src = manaSymbolUrl(code);
 }
 
-/** Point `sprite` at the texture for `code`, rasterising + caching on first use. */
 export function applyManaSymbol(sprite: Sprite, code: ManaCode, size: number): void {
   sprite.width = size;
   sprite.height = size;

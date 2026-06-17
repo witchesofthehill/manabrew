@@ -12,8 +12,7 @@ function parseTypeLine(line: string) {
   return { supertypes, types, subtypes };
 }
 
-/** Builds a synthetic `GameCard` from a Scryfall card for previews and the
- *  battlefield-style gallery. Not for live game state — defaults are static. */
+// Not for live game state — defaults are static.
 export function scryfallToSampleGameCard(
   sc: ScryfallCard,
   overrides: Partial<GameCard> = {},

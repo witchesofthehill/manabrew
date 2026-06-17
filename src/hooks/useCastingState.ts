@@ -10,8 +10,6 @@ const CASTING_PROMPT_TYPES = new Set([
   "payManaCost",
   "payCombatCost",
   "chooseDelve",
-  "chooseConvoke",
-  "chooseImprovise",
   "specifyManaCombo",
 ]);
 

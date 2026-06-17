@@ -384,31 +384,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let untappable_land_ids: Vec<String> =
             untappable_lands.iter().map(|&c| card_id_str(c)).collect();
 
-        let view_ref = self.view();
-        let is_land = |cid: &str| {
-            view_ref
-                .all_zone_cards()
-                .find(|c| c.id == cid)
-                .map(|c| c.types.iter().any(|t| t == "Land"))
-                .unwrap_or(false)
-        };
         let mut actions: Vec<AvailableAction> = Vec::new();
         for (play, opt) in playable.iter().zip(playable_options.iter()) {
             let card_id = card_id_str(play.card_id);
-            let kind = if is_land(&card_id) {
-                AvailableActionKind::PlayLand {
-                    card_id: card_id.clone(),
-                }
-            } else {
-                AvailableActionKind::Cast {
+            actions.push(AvailableAction {
+                id: format!("cast:{card_id}:{}", opt.mode),
+                kind: AvailableActionKind::Cast {
                     card_id: card_id.clone(),
                     mode: opt.mode.clone(),
                     mode_label: opt.mode_label.clone(),
-                }
-            };
-            actions.push(AvailableAction {
-                id: format!("cast:{card_id}:{}", opt.mode),
-                kind,
+                },
             });
         }
         for a in action_space
@@ -520,7 +505,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     .map(EnginePlayerAction::CastSpell)
                     .unwrap_or(EnginePlayerAction::PassPriority)
             }
-            PlayerAction::TapLand {
+            PlayerAction::TapForMana {
                 card_id,
                 ability_index,
                 color: _,
@@ -573,7 +558,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     })
                 })
                 .unwrap_or(EnginePlayerAction::PassPriority),
-            PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
+            PlayerAction::Untap { card_id } => parse_card_id(&card_id)
                 .map(EnginePlayerAction::UndoMana)
                 .unwrap_or(EnginePlayerAction::PassPriority),
             _ => EnginePlayerAction::PassPriority,
@@ -934,15 +919,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         source: Option<CardId>,
     ) -> u32 {
         costs::choose_replicate(self, player, cost, max_replicates, source)
-    }
-
-    fn choose_alternative_cost(
-        &mut self,
-        player: PlayerId,
-        options: &[String],
-        source: Option<CardId>,
-    ) -> usize {
-        costs::choose_alternative_cost(self, player, options, source)
     }
 
     fn choose_color(&mut self, player: PlayerId, valid_colors: &[String]) -> Option<String> {

@@ -44,6 +44,7 @@ import forge.game.spellability.*;
 import forge.game.staticability.StaticAbility;
 import forge.game.staticability.StaticAbilityManaConvert;
 import forge.game.staticability.StaticAbilityMustTarget;
+import forge.game.trigger.TriggerType;
 import forge.game.trigger.WrappedAbility;
 import forge.game.zone.MagicStack;
 import forge.game.zone.PlayerZone;
@@ -487,7 +488,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final boolean mandatory,
             final boolean canFilterMustTarget) {
         if (tr.isRandomTarget() && numTargets == null) {
-            final List<GameEntity> candidates = tr.getAllCandidates(ability, true);
+            final List<GameEntity> candidates = tr.getAllCandidates(ability, false);
             final List<GameEntity> choices = new ArrayList<>();
             final int minTargets = ability.getMinTargets();
             final int top = Math.min(candidates.size(), ability.getMaxTargets());
@@ -511,6 +512,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             final List<Pair<GameEntity, GameObject>> valid =
                     targetCandidates(ability, tr, filter, mustTargetFiltered ? validCards : null);
+            valid.removeIf(pair -> ability.getTargets().contains(pair.getRight()));
             if (valid.isEmpty()) {
                 break;
             }
@@ -791,7 +793,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             CardLists.sortByCmcDesc(sorted);
             return new CardCollection(sorted.subList(0, Math.max(min, Math.min(cappedMax, 1))));
         }
-        return session.awaitCardChoice("choose_cards_for_effect", me(), validTargets, min, cappedMax, sourceName(sa), message);
+        return session.awaitSacrificeChoice(me(), sa, validTargets, min, cappedMax, message);
     }
 
     @Override
@@ -897,29 +899,10 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             return result;
         }
-        final String kind = artifacts && !creatures ? "choose_improvise" : "choose_convoke";
-        String error = null;
-        int guard = 0;
-        while (true) {
-            final ManaCostBeingPaid attempt = new ManaCostBeingPaid(manaCost);
-            final CardCollection selected = session.awaitCardChoice(
-                    kind, me(), untappedCards, 0, cap, sourceName(sa), manaCost.toString(), false, error);
-            result.clear();
-            Card unpayable = null;
-            for (final Card card : selected) {
-                final ManaCostShard shard = attempt.payManaViaConvoke(
-                        convokeColor(card, attempt, artifacts, false));
-                if (shard == null) {
-                    unpayable = card;
-                } else {
-                    result.put(card, shard);
-                }
-            }
-            if (unpayable == null || guard++ >= 512) {
-                return result;
-            }
-            error = unpayable.getName() + " cannot help pay this cost";
-        }
+        // Interactive play resolves convoke/improvise inside the mana-payment
+        // session (tap a creature/artifact as a mana source), so the upfront
+        // cost reduction is declined and the cost stays full into payment.
+        return result;
     }
 
     private byte convokeColor(
@@ -1750,6 +1733,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ManaCostBeingPaid unpaid, final SpellAbility sa, final boolean effect, final GameSnapshot sessionSnapshot) {
         final ManaPool pool = player.getManaPool();
         final Map<Integer, Card> sessionTapped = new LinkedHashMap<>();
+        final Map<Integer, ManaCostShard> sessionConvoke = new LinkedHashMap<>();
+        final Card host = sa.getHostCard();
+        final boolean convoke = sa.isSpell() && host != null
+                && (host.hasKeyword(Keyword.CONVOKE) || sa.hasParam("TapCreaturesForMana"));
+        final boolean improvise = sa.isSpell() && host != null && host.hasKeyword(Keyword.IMPROVISE);
         // CR 118.3c: a mandatory cost the pool can already cover may not be cancelled
         // (mirrors InputPayManaOfCostPayment's constructor).
         boolean mandatory = false;
@@ -1762,16 +1750,26 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         while (guard++ < 512) {
             final List<SpellAbility> sources = autoPay.manaSources(sa);
             final List<Card> untappable = sessionTappedCards(sessionTapped);
+            final List<Card> convokeSources = convoke || improvise
+                    ? convokePaymentSources(player, convoke, improvise)
+                    : new ArrayList<>();
             final boolean canConfirm = poolCanCover(pool, unpaid, sa);
             final boolean lifeInsteadBlack =
                     player.hasKeyword("PayLifeInsteadOf:B") && unpaid.hasAnyKind(ManaAtom.BLACK);
             final boolean canPayLife = (unpaid.containsPhyrexianMana() || lifeInsteadBlack)
                     && player.canPayLife(2, effect, sa);
             final ManaBrewInteractiveSession.ManaPaymentChoice choice = session.awaitManaPaymentChoice(
-                    me(), sa.getHostCard(), unpaid.toString(), sources, untappable, pool.totalMana(),
-                    canConfirm, !mandatory, canPayLife, 2);
+                    me(), sa.getHostCard(), unpaid.toString(), sources, untappable, convokeSources,
+                    pool.totalMana(), canConfirm, !mandatory, canPayLife, 2);
             switch (choice.kind()) {
                 case TAP: {
+                    if (choice.convokeCard() != null) {
+                        payConvoke(unpaid, sa, choice.convokeCard(), convoke, sessionTapped, sessionConvoke);
+                        if (unpaid.isPaid()) {
+                            return true;
+                        }
+                        break;
+                    }
                     final SpellAbility chosen = choice.tapAbility();
                     if (chosen == null) {
                         break;
@@ -1785,9 +1783,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     }
                     break;
                 }
-                case UNTAP:
-                    untapSource(choice.untapCard(), sessionTapped);
+                case UNTAP: {
+                    final Card untap = choice.untapCard();
+                    if (untap != null && sessionConvoke.containsKey(untap.getId())) {
+                        unpaid.increaseShard(sessionConvoke.remove(untap.getId()), 1);
+                        sa.getTappedForConvoke().remove(untap);
+                        untap.untap();
+                        sessionTapped.remove(untap.getId());
+                    } else {
+                        untapSource(untap, sessionTapped);
+                    }
                     break;
+                }
                 case PAY_LIFE: {
                     if (player.canPayLife(2, effect, sa)) {
                         if (unpaid.payPhyrexian()) {
@@ -1861,6 +1868,45 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final GameSnapshot snapshot = new GameSnapshot(getGame());
         snapshot.makeCopy();
         return snapshot;
+    }
+
+    private List<Card> convokePaymentSources(
+            final Player payer, final boolean convoke, final boolean improvise) {
+        final List<Card> out = new ArrayList<>();
+        for (final Card c : payer.getCardsIn(ZoneType.Battlefield)) {
+            if (c.isTapped()) {
+                continue;
+            }
+            if ((convoke && c.isCreature()) || (improvise && c.isArtifact())) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    private void payConvoke(
+            final ManaCostBeingPaid unpaid,
+            final SpellAbility sa,
+            final Card card,
+            final boolean convoke,
+            final Map<Integer, Card> sessionTapped,
+            final Map<Integer, ManaCostShard> sessionConvoke
+    ) {
+        final boolean asConvoke = convoke && card.isCreature();
+        final ManaCostShard shard = unpaid.payManaViaConvoke(convokeColor(card, unpaid, !asConvoke, false));
+        if (shard == null) {
+            return;
+        }
+        if (asConvoke) {
+            sa.addTappedForConvoke(card);
+        }
+        if (card.tap(true, sa, player)) {
+            final Map<AbilityKey, Object> runParams = AbilityKey.newMap();
+            runParams.put(AbilityKey.Cards, new CardCollection(card));
+            game.getTriggerHandler().runTrigger(TriggerType.TapAll, runParams, false);
+        }
+        sessionTapped.put(card.getId(), card);
+        sessionConvoke.put(card.getId(), shard);
     }
 
     private void untapSource(final Card source, final Map<Integer, Card> sessionTapped) {
@@ -2249,7 +2295,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final Predicate<GameObject> filter,
             final List<Card> mustTargetCards) {
         final List<Pair<GameEntity, GameObject>> valid = new ArrayList<>();
-        for (final GameEntity candidate : restrictions.getAllCandidates(ability, true)) {
+        for (final GameEntity candidate : restrictions.getAllCandidates(ability, false)) {
             if (mustTargetCards != null && (!(candidate instanceof Card) || !mustTargetCards.contains(candidate))) {
                 continue;
             }

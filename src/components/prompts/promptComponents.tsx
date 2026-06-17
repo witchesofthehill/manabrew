@@ -1,5 +1,4 @@
 import { Fragment, useState, type ReactNode } from "react";
-import { ChooseModeModal } from "./ChooseModeModal";
 import { ChooseOptionalTriggerModal } from "./ChooseOptionalTriggerModal";
 import { ChooseColorModal } from "./ChooseColorModal";
 import { ChooseTypeModal } from "./ChooseTypeModal";
@@ -13,17 +12,10 @@ import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
 import { LibraryPeekModal } from "./LibraryPeekModal";
 import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
-import { KickerModal } from "./KickerModal";
-import { BuybackModal } from "./BuybackModal";
+import { ChooseBooleanModal } from "./ChooseBooleanModal";
+import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
 import { MultikickerModal } from "./MultikickerModal";
 import { ReplicateModal } from "./ReplicateModal";
-import { AlternativeCostModal } from "./AlternativeCostModal";
-import { PhyrexianModal } from "./PhyrexianModal";
-import { ChooseRollToIgnoreModal } from "./ChooseRollToIgnoreModal";
-import { ChooseRollToSwapModal } from "./ChooseRollToSwapModal";
-import { ChooseRollToModifyModal } from "./ChooseRollToModifyModal";
-import { ChooseDiceToRerollModal } from "./ChooseDiceToRerollModal";
-import { ChooseRollSwapValueModal } from "./ChooseRollSwapValueModal";
 import { DiceRollFeedback, FirstPlayerRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
@@ -47,8 +39,6 @@ type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) =>
 
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   revealCards: ({ prompt, respond }) => <RevealCardsModal input={prompt.input} respond={respond} />,
-
-  chooseMode: ({ prompt, respond }) => <ChooseModeModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
   chooseOptionalTrigger: ({ prompt, respond, ctx }) => (
@@ -197,33 +187,13 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  chooseRollToIgnore: ({ prompt, respond }) => (
-    <ChooseRollToIgnoreModal input={prompt.input} respond={respond} />
+  chooseBoolean: ({ prompt, respond }) => (
+    <ChooseBooleanModal input={prompt.input} respond={respond} />
   ),
 
-  chooseRollToSwap: ({ prompt, respond }) => (
-    <ChooseRollToSwapModal input={prompt.input} respond={respond} />
+  chooseFromSelection: ({ prompt, respond }) => (
+    <ChooseFromSelectionModal input={prompt.input} respond={respond} />
   ),
-
-  chooseRollToModify: ({ prompt, respond }) => (
-    <ChooseRollToModifyModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseDiceToReroll: ({ prompt, respond }) => (
-    <ChooseDiceToRerollModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseRollSwapValue: ({ prompt, respond }) => (
-    <ChooseRollSwapValueModal input={prompt.input} respond={respond} />
-  ),
-
-  choosePhyrexian: ({ prompt, respond }) => (
-    <PhyrexianModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseKicker: ({ prompt, respond }) => <KickerModal input={prompt.input} respond={respond} />,
-
-  chooseBuyback: ({ prompt, respond }) => <BuybackModal input={prompt.input} respond={respond} />,
 
   chooseMultikicker: ({ prompt, respond }) => (
     <MultikickerModal input={prompt.input} respond={respond} />
@@ -231,10 +201,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseReplicate: ({ prompt, respond }) => (
     <ReplicateModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseAlternativeCost: ({ prompt, respond }) => (
-    <AlternativeCostModal input={prompt.input} respond={respond} />
   ),
 
   payCombatCost: ({ prompt, respond }) => (
@@ -252,36 +218,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   ),
 
   // $PROMPT_SHARED
-  chooseConvoke: ({ prompt, respond, ctx }) => (
-    <ChooseCardsModal
-      cards={(ctx.gameView?.battlefield ?? []).filter((c) =>
-        prompt.input.validCardIds.includes(c.id),
-      )}
-      minChoices={0}
-      maxChoices={prompt.input.validCardIds.length}
-      description={
-        prompt.input.remainingCost ? `Remaining cost: ${prompt.input.remainingCost}` : undefined
-      }
-      onConfirm={(chosenCardIds) => respond({ type: "convokeDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseImprovise: ({ prompt, respond, ctx }) => (
-    <ChooseCardsModal
-      cards={(ctx.gameView?.battlefield ?? []).filter((c) =>
-        prompt.input.validCardIds.includes(c.id),
-      )}
-      minChoices={0}
-      maxChoices={prompt.input.validCardIds.length}
-      description={
-        prompt.input.remainingCost ? `Remaining cost: ${prompt.input.remainingCost}` : undefined
-      }
-      onConfirm={(chosenCardIds) => respond({ type: "improviseDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
   chooseCardsForEffect: ({ prompt, respond, ctx }) => (
     <ChooseCardsModal
       cards={prompt.input.zoneCards as GameCard[]}
@@ -290,30 +226,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       sourceCardName={prompt.input.sourceCardName ?? ctx.sourceDeckCard?.name}
       optional={prompt.input.optional ?? false}
       onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseExertAttackers: ({ prompt, respond }) => (
-    <ChooseCardsModal
-      cards={prompt.input.attackerCards as GameCard[]}
-      minChoices={0}
-      maxChoices={prompt.input.attackerCards.length}
-      sourceCardName="Exert Attackers"
-      description="Choose which attacking creatures to exert. Exerted creatures won't untap during your next untap step."
-      onConfirm={(chosenAttackerIds) => respond({ type: "exertDecision", chosenAttackerIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseEnlistAttackers: ({ prompt, respond }) => (
-    <ChooseCardsModal
-      cards={prompt.input.attackerCards as GameCard[]}
-      minChoices={0}
-      maxChoices={prompt.input.attackerCards.length}
-      sourceCardName="Enlist Attackers"
-      description="Choose which attacking creatures to enlist. Enlisted creatures tap a non-attacking creature to add its power."
-      onConfirm={(chosenAttackerIds) => respond({ type: "enlistDecision", chosenAttackerIds })}
     />
   ),
 };

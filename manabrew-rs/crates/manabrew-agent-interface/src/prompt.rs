@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use manabrew_engine::player::actions::PlayerAction as EnginePlayerAction;
-use manabrew_protocol::prompts::choose_roll_swap_value::RollSwapValue;
 
 pub use manabrew_protocol::prompts::choose_action::{AvailableAction, AvailableActionKind};
 pub use manabrew_protocol::prompts::common::*;
@@ -60,16 +59,15 @@ pub enum PlayerAction {
     BoardTargets {
         chosen: Vec<TargetRef>,
     },
-    TapLand {
+    TapForMana {
         #[serde(rename = "cardId")]
         card_id: String,
         #[serde(rename = "abilityIndex")]
         ability_index: Option<usize>,
-        /// Optional color choice for 'any color' mana abilities.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         color: Option<String>,
     },
-    UntapLand {
+    Untap {
         #[serde(rename = "cardId")]
         card_id: String,
     },
@@ -107,24 +105,14 @@ pub enum PlayerAction {
     PayCostToPreventEffectDecision {
         accept: bool,
     },
-    /// Response to ChooseMode prompt: indices (0-based) of chosen modes.
-    ModeDecision {
+    /// Response to a generic ChooseBoolean prompt (kicker, buyback, phyrexian, …).
+    /// The handler that issued the prompt interprets `value` in context.
+    Decision {
+        value: bool,
+    },
+    SelectionDecision {
         #[serde(rename = "chosenIndices")]
         chosen_indices: Vec<usize>,
-    },
-    /// Response to ChoosePhyrexian prompt: whether to pay 2 life.
-    PhyrexianDecision {
-        #[serde(rename = "payLife")]
-        pay_life: bool,
-    },
-    /// Response to ChooseKicker prompt: whether the player pays the kicker.
-    KickerDecision {
-        kicked: bool,
-    },
-    /// Response to ChooseBuyback prompt.
-    BuybackDecision {
-        #[serde(rename = "buybackPaid")]
-        buyback_paid: bool,
     },
     /// Response to ChooseMultikicker prompt: how many times.
     MultikickerDecision {
@@ -135,11 +123,6 @@ pub enum PlayerAction {
     ReplicateDecision {
         #[serde(rename = "replicateCount")]
         replicate_count: u32,
-    },
-    /// Response to ChooseAlternativeCost prompt: index of chosen option.
-    AlternativeCostDecision {
-        #[serde(rename = "chosenIndex")]
-        chosen_index: usize,
     },
     /// Response to ChooseColor prompt: the chosen color name.
     ColorDecision {
@@ -168,16 +151,6 @@ pub enum PlayerAction {
     /// Response to ChooseCombatDamageAssignment: exact assignee→damage map.
     CombatDamageAssignmentDecision {
         assignments: Vec<CombatDamageAssignmentEntry>,
-    },
-    /// Response to ChooseExertAttackers: IDs of attackers to exert.
-    ExertDecision {
-        #[serde(rename = "chosenAttackerIds")]
-        chosen_attacker_ids: Vec<String>,
-    },
-    /// Response to ChooseEnlistAttackers: IDs of attackers to enlist.
-    EnlistDecision {
-        #[serde(rename = "chosenAttackerIds")]
-        chosen_attacker_ids: Vec<String>,
     },
     /// Response to ReorderLibrary: ordered card IDs (last = top of library).
     ReorderLibraryDecision {
@@ -213,16 +186,6 @@ pub enum PlayerAction {
         #[serde(rename = "chosenCardIds")]
         chosen_card_ids: Vec<String>,
     },
-    /// Response to ChooseConvoke: IDs of creatures to tap.
-    ConvokeDecision {
-        #[serde(rename = "chosenCardIds")]
-        chosen_card_ids: Vec<String>,
-    },
-    /// Response to ChooseImprovise: IDs of artifacts to tap.
-    ImproviseDecision {
-        #[serde(rename = "chosenCardIds")]
-        chosen_card_ids: Vec<String>,
-    },
     /// Response to SpecifyManaCombo: list of color letters chosen.
     ManaComboDecision {
         /// Color letters, e.g. ["W", "W", "U"], totaling the requested amount.
@@ -243,24 +206,5 @@ pub enum PlayerAction {
     DiceRolledAcknowledged,
     /// Acknowledge a `FirstPlayerRoll` display-only prompt.
     FirstPlayerRollAcknowledged,
-    /// Response to ChooseRollToIgnore.
-    RollToIgnoreDecision {
-        roll: Option<i32>,
-    },
-    /// Response to ChooseRollToSwap.
-    RollToSwapDecision {
-        roll: Option<i32>,
-    },
-    /// Response to ChooseRollToModify.
-    RollToModifyDecision {
-        roll: Option<i32>,
-    },
-    /// Response to ChooseDiceToReroll.
-    DiceToRerollDecision {
-        rolls: Vec<i32>,
-    },
-    RollSwapValueDecision {
-        choice: Option<RollSwapValue>,
-    },
     Concede,
 }

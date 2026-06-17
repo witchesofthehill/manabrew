@@ -201,12 +201,19 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             min,
             max,
             source_card_name,
-        } => PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options,
-            min_choices: min,
-            max_choices: max,
-            source_card_name,
-        }),
+        } => PromptInput::ChooseFromSelection(
+            manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
+                presentation: manabrew_protocol::prompts::common::PromptPresentation {
+                    title: source_card_name.unwrap_or_else(|| "Choose".to_string()),
+                    description: None,
+                    text: None,
+                    source_card_id: None,
+                },
+                options,
+                min_choices: min,
+                max_choices: max,
+            },
+        ),
         JavaRawPromptBody::ConfirmOrTrigger {
             description,
             source_card_name: _,
@@ -291,20 +298,42 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         }),
         JavaRawPromptBody::ChooseConvoke {
             cards,
-            description,
+            description: _,
             source_card_name: _,
-        } => PromptInput::ChooseConvoke(manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput {
-            valid_card_ids: card_ids(&cards),
-            remaining_cost: description.unwrap_or_default(),
-        }),
+        } => {
+            let candidates: Vec<TargetRef> = card_ids(&cards)
+                .into_iter()
+                .map(|id| TargetRef::Card { id })
+                .collect();
+            let total = candidates.len() as i32;
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
+                TargetingIntent::Tap,
+                0,
+                total,
+                0,
+                "Convoke".to_string(),
+            ))
+        }
         JavaRawPromptBody::ChooseImprovise {
             cards,
-            description,
+            description: _,
             source_card_name: _,
-        } => PromptInput::ChooseImprovise(manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput {
-            valid_card_ids: card_ids(&cards),
-            remaining_cost: description.unwrap_or_default(),
-        }),
+        } => {
+            let candidates: Vec<TargetRef> = card_ids(&cards)
+                .into_iter()
+                .map(|id| TargetRef::Card { id })
+                .collect();
+            let total = candidates.len() as i32;
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
+                TargetingIntent::Tap,
+                0,
+                total,
+                0,
+                "Improvise".to_string(),
+            ))
+        }
         JavaRawPromptBody::ReorderLibrary {
             cards,
             destination,
@@ -327,7 +356,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&players)
                     .into_iter()
@@ -337,6 +366,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetCard {
@@ -345,13 +375,13 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
-            zone: _,
+            zone,
             min_targets,
             max_targets,
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, zone.as_deref());
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&cards)
                     .into_iter()
@@ -361,6 +391,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetAny {
@@ -375,7 +406,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             let mut candidates: Vec<TargetRef> = target_ids(&players)
                 .into_iter()
                 .map(|id| TargetRef::Player { id })
@@ -387,6 +418,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetSpell {
@@ -400,7 +432,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&spells)
                     .into_iter()
@@ -410,6 +442,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::PayManaCost {
@@ -429,8 +462,8 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 .iter()
                 .map(to_mana_ability_info)
                 .collect(),
-            tappable_land_ids,
-            untappable_land_ids,
+            tappable_source_ids: tappable_land_ids,
+            untappable_source_ids: untappable_land_ids,
             mana_pool_total,
             can_confirm_from_pool,
         }),
@@ -507,7 +540,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::ChooseCardsDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::ModeDecision { chosen_indices } => JavaAction::ModeDecision {
+        PlayerAction::SelectionDecision { chosen_indices } => JavaAction::ModeDecision {
             indices: chosen_indices.clone(),
         },
         PlayerAction::OptionalTriggerDecision { accept }
@@ -535,9 +568,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::DigDecision { chosen_card_ids } => JavaAction::DigDecision {
             chosen_card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::DelveDecision { chosen_card_ids }
-        | PlayerAction::ConvokeDecision { chosen_card_ids }
-        | PlayerAction::ImproviseDecision { chosen_card_ids } => JavaAction::ChooseCards {
+        PlayerAction::DelveDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
         PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
@@ -609,7 +640,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             ability_index: index,
             ..
         } => JavaAction::ChooseAction { index: *index },
-        PlayerAction::TapLand {
+        PlayerAction::TapForMana {
             card_id,
             ability_index,
             color,
@@ -618,7 +649,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             mana_ability_index: *ability_index,
             color: color.clone(),
         },
-        PlayerAction::UntapLand { card_id } => JavaAction::UntapLand {
+        PlayerAction::Untap { card_id } => JavaAction::UntapLand {
             card_id: card_id.clone(),
         },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
@@ -640,17 +671,12 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
 fn player_action_label(action: &PlayerAction) -> &'static str {
     match action {
         PlayerAction::EngineAction { .. } => "engineAction",
-        PlayerAction::TapLand { .. } => "tapLand",
-        PlayerAction::UntapLand { .. } => "untapLand",
+        PlayerAction::TapForMana { .. } => "tapLand",
+        PlayerAction::Untap { .. } => "untapLand",
         PlayerAction::BoardTargets { .. } => "boardTargets",
-        PlayerAction::PhyrexianDecision { .. } => "phyrexianDecision",
-        PlayerAction::KickerDecision { .. } => "kickerDecision",
-        PlayerAction::BuybackDecision { .. } => "buybackDecision",
+        PlayerAction::Decision { .. } => "decision",
         PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
         PlayerAction::ReplicateDecision { .. } => "replicateDecision",
-        PlayerAction::AlternativeCostDecision { .. } => "alternativeCostDecision",
-        PlayerAction::ExertDecision { .. } => "exertDecision",
-        PlayerAction::EnlistDecision { .. } => "enlistDecision",
         PlayerAction::ExploreResponse { .. } => "exploreResponse",
         PlayerAction::AssistDecision { .. } => "assistDecision",
         PlayerAction::PayCombatCost => "payCombatCost",
@@ -662,11 +688,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::CancelManaCost => "cancelManaCost",
         PlayerAction::DiceRolledAcknowledged => "diceRolledAcknowledged",
         PlayerAction::FirstPlayerRollAcknowledged => "firstPlayerRollAcknowledged",
-        PlayerAction::RollToIgnoreDecision { .. } => "rollToIgnoreDecision",
-        PlayerAction::RollToSwapDecision { .. } => "rollToSwapDecision",
-        PlayerAction::RollToModifyDecision { .. } => "rollToModifyDecision",
-        PlayerAction::DiceToRerollDecision { .. } => "diceToRerollDecision",
-        PlayerAction::RollSwapValueDecision { .. } => "rollSwapValueDecision",
+        PlayerAction::SelectionDecision { .. } => "selectionDecision",
         _ => "unknown",
     }
 }
@@ -710,9 +732,6 @@ fn build_choose_action(
                 cost: None,
                 is_mana_ability: false,
                 produced_colors: None,
-            },
-            Some("play") => AvailableActionKind::PlayLand {
-                card_id: card_id.clone(),
             },
             _ => AvailableActionKind::Cast {
                 card_id: card_id.clone(),
@@ -934,6 +953,7 @@ fn intent_from_api(
     api: &Option<String>,
     destination: &Option<String>,
     counter_type: &Option<String>,
+    origin: Option<&str>,
 ) -> TargetingIntent {
     use TargetingIntent::*;
     let Some(api) = api.as_deref() else {
@@ -943,13 +963,19 @@ fn intent_from_api(
         "DealDamage" | "DamageAll" | "EachDamage" => Damage,
         "Destroy" | "DestroyAll" => Destroy,
         "Sacrifice" | "SacrificeAll" => Sacrifice,
-        "ChangeZone" | "ChangeZoneAll" => match destination.as_deref() {
-            Some("Exile") => Exile,
-            Some("Hand") | Some("Library") => Bounce,
-            Some("Graveyard") => Destroy,
-            Some("Battlefield") => Friendly,
-            _ => Hostile,
-        },
+        "ChangeZone" | "ChangeZoneAll" => {
+            // Pulling a card out of the graveyard/exile is recursion of your own
+            // cards (regrowth, reanimate), not a hostile bounce/blink.
+            let from_dead = matches!(origin, Some("Graveyard") | Some("Exile"));
+            match destination.as_deref() {
+                Some("Hand") | Some("Library") | Some("Battlefield") if from_dead => Friendly,
+                Some("Exile") => Exile,
+                Some("Hand") | Some("Library") => Bounce,
+                Some("Graveyard") => Destroy,
+                Some("Battlefield") => Friendly,
+                _ => Hostile,
+            }
+        }
         "Mill" => Mill,
         "Discard" => Discard,
         "Counter" => Counter,
@@ -1084,6 +1110,7 @@ fn board_targets_input(
     min_targets: i32,
     max_targets: i32,
     chosen_targets: i32,
+    label: String,
 ) -> manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
     manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
         candidates,
@@ -1092,6 +1119,7 @@ fn board_targets_input(
         min_targets,
         max_targets,
         chosen_targets,
+        label,
     }
 }
 

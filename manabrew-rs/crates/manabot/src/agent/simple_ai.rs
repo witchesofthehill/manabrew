@@ -2,7 +2,6 @@ use manabrew_agent_interface::prompt::{
     AgentPrompt, AttackAssignment, AvailableAction, AvailableActionKind, BlockAssignment,
     CombatDamageAssignmentEntry, PlayerAction, PromptInput,
 };
-use manabrew_protocol::prompts::choose_roll_swap_value::RollSwapValue;
 
 use super::BotAgent;
 
@@ -108,9 +107,13 @@ impl BotAgent for SimpleAi {
                 Some(PlayerAction::DeclareBlockers { assignments })
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
-                candidates, ..
+                candidates, min_targets, chosen_targets, ..
             }) => Some(PlayerAction::BoardTargets {
-                chosen: candidates.into_iter().take(1).collect(),
+                chosen: if chosen_targets < min_targets {
+                    candidates.into_iter().take(1).collect()
+                } else {
+                    Vec::new()
+                },
             }),
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { .. }) => Some(PlayerAction::ScryDecision {
                 bottom_card_ids: Vec::new(),
@@ -132,13 +135,6 @@ impl BotAgent for SimpleAi {
             }) => Some(PlayerAction::DiscardDecision {
                 discarded_card_ids: hand_card_ids.into_iter().take(num_to_discard).collect(),
             }),
-            PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-                options,
-                min_choices,
-                ..
-            }) => Some(PlayerAction::ModeDecision {
-                chosen_indices: (0..min_choices.min(options.len())).collect(),
-            }),
             PromptInput::RevealCards(manabrew_protocol::prompts::reveal_cards::RevealCardsInput { .. }) => Some(PlayerAction::RevealCardsAcknowledged),
             PromptInput::ChooseOptionalTrigger(manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput { .. }) => {
                 Some(PlayerAction::OptionalTriggerDecision { accept: true })
@@ -146,23 +142,19 @@ impl BotAgent for SimpleAi {
             PromptInput::PayCostToPreventEffect(manabrew_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput { .. }) => {
                 Some(PlayerAction::PayCostToPreventEffectDecision { accept: true })
             }
-            PromptInput::ChoosePhyrexian(manabrew_protocol::prompts::choose_phyrexian::ChoosePhyrexianInput { .. }) => {
-                Some(PlayerAction::PhyrexianDecision { pay_life: false })
+            PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput { .. }) => {
+                Some(PlayerAction::Decision { value: false })
             }
-            PromptInput::ChooseKicker(manabrew_protocol::prompts::choose_kicker::ChooseKickerInput { .. }) => {
-                Some(PlayerAction::KickerDecision { kicked: false })
+            PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput { options, min_choices, .. }) => {
+                Some(PlayerAction::SelectionDecision {
+                    chosen_indices: (0..min_choices.min(options.len())).collect(),
+                })
             }
-            PromptInput::ChooseBuyback(manabrew_protocol::prompts::choose_buyback::ChooseBuybackInput { .. }) => Some(PlayerAction::BuybackDecision {
-                buyback_paid: false,
-            }),
             PromptInput::ChooseMultikicker(manabrew_protocol::prompts::choose_multikicker::ChooseMultikickerInput { .. }) => {
                 Some(PlayerAction::MultikickerDecision { kick_count: 0 })
             }
             PromptInput::ChooseReplicate(manabrew_protocol::prompts::choose_replicate::ChooseReplicateInput { .. }) => {
                 Some(PlayerAction::ReplicateDecision { replicate_count: 0 })
-            }
-            PromptInput::ChooseAlternativeCost(manabrew_protocol::prompts::choose_alternative_cost::ChooseAlternativeCostInput { .. }) => {
-                Some(PlayerAction::AlternativeCostDecision { chosen_index: 0 })
             }
             PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, .. }) => {
                 Some(PlayerAction::ColorDecision {
@@ -207,16 +199,16 @@ impl BotAgent for SimpleAi {
                 Some(PlayerAction::CombatDamageAssignmentDecision { assignments })
             }
             PromptInput::PayCombatCost(manabrew_protocol::prompts::pay_combat_cost::PayCombatCostInput {
-                tappable_land_ids,
+                tappable_source_ids,
                 mana_pool_total,
                 cost,
                 ..
             }) => {
                 if mana_pool_total >= cost {
                     Some(PlayerAction::PayCombatCost)
-                } else if !tappable_land_ids.is_empty() {
-                    Some(PlayerAction::TapLand {
-                        card_id: tappable_land_ids[0].clone(),
+                } else if !tappable_source_ids.is_empty() {
+                    Some(PlayerAction::TapForMana {
+                        card_id: tappable_source_ids[0].clone(),
                         ability_index: None,
                         color: None,
                     })
@@ -232,12 +224,6 @@ impl BotAgent for SimpleAi {
             }) => Some(PlayerAction::DelveDecision {
                 chosen_card_ids: valid_card_ids.into_iter().take(max_cards).collect(),
             }),
-            PromptInput::ChooseConvoke(manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput { .. }) => Some(PlayerAction::ConvokeDecision {
-                chosen_card_ids: vec![],
-            }),
-            PromptInput::ChooseImprovise(manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput { .. }) => Some(PlayerAction::ImproviseDecision {
-                chosen_card_ids: vec![],
-            }),
             PromptInput::SpecifyManaCombo(manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
                 available_colors,
                 amount,
@@ -251,12 +237,6 @@ impl BotAgent for SimpleAi {
                     chosen_colors: vec![color; amount],
                 })
             }
-            PromptInput::ChooseExertAttackers(manabrew_protocol::prompts::choose_exert_attackers::ChooseExertAttackersInput { .. }) => Some(PlayerAction::ExertDecision {
-                chosen_attacker_ids: vec![],
-            }),
-            PromptInput::ChooseEnlistAttackers(manabrew_protocol::prompts::choose_enlist_attackers::ChooseEnlistAttackersInput { .. }) => Some(PlayerAction::EnlistDecision {
-                chosen_attacker_ids: vec![],
-            }),
             PromptInput::ReorderLibrary(manabrew_protocol::prompts::reorder_library::ReorderLibraryInput { card_ids, .. }) => {
                 Some(PlayerAction::ReorderLibraryDecision {
                     ordered_card_ids: card_ids,
@@ -275,29 +255,6 @@ impl BotAgent for SimpleAi {
             PromptInput::DiceRolled(manabrew_protocol::prompts::dice_rolled::DiceRolledInput { .. }) => Some(PlayerAction::DiceRolledAcknowledged),
             PromptInput::FirstPlayerRoll(manabrew_protocol::prompts::first_player_roll::FirstPlayerRollInput { .. }) => {
                 Some(PlayerAction::FirstPlayerRollAcknowledged)
-            }
-            PromptInput::ChooseRollToIgnore(manabrew_protocol::prompts::choose_roll_to_ignore::ChooseRollToIgnoreInput { rolls, .. }) => {
-                Some(PlayerAction::RollToIgnoreDecision {
-                    roll: rolls.first().copied(),
-                })
-            }
-            PromptInput::ChooseRollToSwap(manabrew_protocol::prompts::choose_roll_to_swap::ChooseRollToSwapInput { rolls, .. }) => {
-                Some(PlayerAction::RollToSwapDecision {
-                    roll: rolls.first().copied(),
-                })
-            }
-            PromptInput::ChooseRollToModify(manabrew_protocol::prompts::choose_roll_to_modify::ChooseRollToModifyInput { rolls, .. }) => {
-                Some(PlayerAction::RollToModifyDecision {
-                    roll: rolls.first().copied(),
-                })
-            }
-            PromptInput::ChooseDiceToReroll(manabrew_protocol::prompts::choose_dice_to_reroll::ChooseDiceToRerollInput { .. }) => {
-                Some(PlayerAction::DiceToRerollDecision { rolls: Vec::new() })
-            }
-            PromptInput::ChooseRollSwapValue(manabrew_protocol::prompts::choose_roll_swap_value::ChooseRollSwapValueInput { .. }) => {
-                Some(PlayerAction::RollSwapValueDecision {
-                    choice: Some(RollSwapValue::Power),
-                })
             }
         }
     }

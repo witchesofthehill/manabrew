@@ -3,10 +3,34 @@ use manabrew_engine::agent::{ManaAbilityOption, ManaCostAction};
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 
+use manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput;
+use manabrew_protocol::prompts::common::PromptPresentation;
+
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
+
+fn choose_boolean<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    presentation: PromptPresentation,
+    confirm_label: &str,
+    deny_label: &str,
+    source: Option<CardId>,
+) -> bool {
+    agent.send_prompt(
+        PromptInput::ChooseBoolean(ChooseBooleanInput {
+            presentation,
+            confirm_label: confirm_label.to_string(),
+            deny_label: deny_label.to_string(),
+        }),
+        source,
+    );
+    match agent.recv_action() {
+        PlayerAction::Decision { value } => value,
+        _ => false,
+    }
+}
 
 pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     agent: &mut PromptAgent<T>,
@@ -14,18 +38,27 @@ pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     color: &str,
     source: Option<CardId>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChoosePhyrexian(
-            manabrew_protocol::prompts::choose_phyrexian::ChoosePhyrexianInput {
-                phyrexian_color: color.to_string(),
-            },
-        ),
+    let shards: Vec<&str> = color.split(',').map(str::trim).collect();
+    let life_cost = shards.len() * 2;
+    let phyrexian_cost: String = shards.iter().map(|s| format!("{{{s}}}")).collect();
+    let mana_cost: String = shards
+        .iter()
+        .map(|s| format!("{{{}}}", s.replace("/P", "")))
+        .collect();
+    choose_boolean(
+        agent,
+        PromptPresentation {
+            title: "Pay Phyrexian?".to_string(),
+            description: Some(format!(
+                "Pay {phyrexian_cost} with {life_cost} life, or pay {mana_cost} mana instead?"
+            )),
+            text: None,
+            source_card_id: source.map(card_id_str),
+        },
+        &format!("Pay {life_cost} Life"),
+        "Pay Mana",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::PhyrexianDecision { pay_life } => pay_life,
-        _ => false,
-    }
+    )
 }
 
 pub(super) fn choose_kicker<T: Responder>(
@@ -34,18 +67,18 @@ pub(super) fn choose_kicker<T: Responder>(
     kicker_cost: &str,
     source: Option<CardId>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChooseKicker(
-            manabrew_protocol::prompts::choose_kicker::ChooseKickerInput {
-                kicker_cost: kicker_cost.to_string(),
-            },
-        ),
+    choose_boolean(
+        agent,
+        PromptPresentation {
+            title: "Pay Kicker?".to_string(),
+            description: Some(format!("Pay additional kicker cost: {kicker_cost}")),
+            text: None,
+            source_card_id: source.map(card_id_str),
+        },
+        "Pay Kicker",
+        "No",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::KickerDecision { kicked } => kicked,
-        _ => false,
-    }
+    )
 }
 
 pub(super) fn choose_buyback<T: Responder>(
@@ -54,18 +87,21 @@ pub(super) fn choose_buyback<T: Responder>(
     buyback_cost: &str,
     source: Option<CardId>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChooseBuyback(
-            manabrew_protocol::prompts::choose_buyback::ChooseBuybackInput {
-                buyback_cost: buyback_cost.to_string(),
-            },
-        ),
+    choose_boolean(
+        agent,
+        PromptPresentation {
+            title: "Pay Buyback?".to_string(),
+            description: Some(format!("Pay additional buyback cost: {buyback_cost}")),
+            text: Some(
+                "If paid, this spell returns to your hand instead of going to the graveyard."
+                    .to_string(),
+            ),
+            source_card_id: source.map(card_id_str),
+        },
+        "Pay Buyback",
+        "No",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::BuybackDecision { buyback_paid } => buyback_paid,
-        _ => false,
-    }
+    )
 }
 
 pub(super) fn choose_multikicker<T: Responder>(
@@ -112,28 +148,6 @@ pub(super) fn choose_replicate<T: Responder>(
     }
 }
 
-pub(super) fn choose_alternative_cost<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    options: &[String],
-    source: Option<CardId>,
-) -> usize {
-    agent.send_prompt(
-        PromptInput::ChooseAlternativeCost(
-            manabrew_protocol::prompts::choose_alternative_cost::ChooseAlternativeCostInput {
-                options: options.to_vec(),
-            },
-        ),
-        source,
-    );
-    match agent.recv_action() {
-        PlayerAction::AlternativeCostDecision { chosen_index } => {
-            chosen_index.min(options.len().saturating_sub(1))
-        }
-        _ => 0,
-    }
-}
-
 pub(super) fn pay_mana_cost<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
@@ -167,8 +181,8 @@ pub(super) fn pay_mana_cost<T: Responder>(
                         cost: None,
                     })
                     .collect(),
-                tappable_land_ids,
-                untappable_land_ids,
+                tappable_source_ids: tappable_land_ids,
+                untappable_source_ids: untappable_land_ids,
                 mana_pool_total: mana_pool.total_mana(),
                 can_confirm_from_pool,
             },
@@ -176,12 +190,12 @@ pub(super) fn pay_mana_cost<T: Responder>(
         Some(card_id),
     );
     match agent.recv_action() {
-        PlayerAction::TapLand {
+        PlayerAction::TapForMana {
             card_id,
             ability_index,
             color,
         } => parse_card_id(&card_id)
-            .map(|card_id| ManaCostAction::TapLand {
+            .map(|card_id| ManaCostAction::TapForMana {
                 card_id,
                 mana_ability_index: ability_index,
                 express_choice: color
@@ -190,8 +204,8 @@ pub(super) fn pay_mana_cost<T: Responder>(
                     .filter(|&atom| atom != 0),
             })
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
-            .map(ManaCostAction::UntapLand)
+        PlayerAction::Untap { card_id } => parse_card_id(&card_id)
+            .map(ManaCostAction::Untap)
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
         PlayerAction::PayManaCost { auto } => ManaCostAction::Pay { auto },
         PlayerAction::CancelManaCost => ManaCostAction::AttemptedAndFailed,
@@ -286,58 +300,26 @@ pub(super) fn choose_delve<T: Responder>(
     }
 }
 
+// Convoke and improvise are resolved interactively inside the mana-payment
+// session (tap a creature/artifact as a mana source), not as an upfront batch.
+// A human agent declines the batch reduction so the cost stays full until
+// payment, where `TapForMana` against a convoke source contributes mana.
 pub(super) fn choose_improvise<T: Responder>(
-    agent: &mut PromptAgent<T>,
+    _agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    untapped_artifacts: &[CardId],
-    remaining_cost: &forge_foundation::ManaCost,
-    source: Option<CardId>,
+    _untapped_artifacts: &[CardId],
+    _remaining_cost: &forge_foundation::ManaCost,
+    _source: Option<CardId>,
 ) -> Vec<CardId> {
-    let valid_ids = PromptAgent::<T>::card_ids(untapped_artifacts);
-
-    agent.send_prompt(
-        PromptInput::ChooseImprovise(
-            manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput {
-                valid_card_ids: valid_ids,
-                remaining_cost: remaining_cost.to_string(),
-            },
-        ),
-        source,
-    );
-    match agent.recv_action() {
-        PlayerAction::ImproviseDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| untapped_artifacts.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    Vec::new()
 }
 
 pub(super) fn choose_convoke<T: Responder>(
-    agent: &mut PromptAgent<T>,
+    _agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    untapped_creatures: &[CardId],
-    remaining_cost: &forge_foundation::ManaCost,
-    source: Option<CardId>,
+    _untapped_creatures: &[CardId],
+    _remaining_cost: &forge_foundation::ManaCost,
+    _source: Option<CardId>,
 ) -> Vec<CardId> {
-    let valid_ids = PromptAgent::<T>::card_ids(untapped_creatures);
-
-    agent.send_prompt(
-        PromptInput::ChooseConvoke(
-            manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput {
-                valid_card_ids: valid_ids,
-                remaining_cost: remaining_cost.to_string(),
-            },
-        ),
-        source,
-    );
-    match agent.recv_action() {
-        PlayerAction::ConvokeDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| untapped_creatures.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    Vec::new()
 }

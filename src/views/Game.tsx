@@ -1,7 +1,5 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
-import { useScryfallStore, cardKey } from "@/stores/useScryfallStore";
-import { resolveCardFaces } from "@/lib/cardFaces";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -66,20 +64,6 @@ const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "payManaCost",
   "gameOver",
 ]);
-
-function dfcFaceNames(card: GameCard): { front: string; back: string } | null {
-  const info =
-    useScryfallStore.getState().cards[
-      cardKey({
-        name: card.name,
-        setCode: card.setCode || undefined,
-        collectorNumber: card.cardNumber || undefined,
-      })
-    ]?.card?.info;
-  const resolved = resolveCardFaces(info);
-  if (!resolved.isMultiFaced || resolved.faces.length < 2) return null;
-  return { front: resolved.faces[0]!.name, back: resolved.faces[1]!.name };
-}
 
 function isManualTabletopApi(
   runtime: GameRuntime,
@@ -210,14 +194,14 @@ export default function Game({ exitTo }: GameProps = {}) {
         ? chooseActionInput.actions.flatMap((a) =>
             a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
           )
-        : (payCombatCostInput?.tappableLandIds ?? payManaCostInput?.tappableLandIds ?? []),
+        : (payCombatCostInput?.tappableSourceIds ?? payManaCostInput?.tappableSourceIds ?? []),
     [chooseActionInput, payCombatCostInput, payManaCostInput],
   );
   const untappableLandIds = useMemo<string[]>(
     () =>
       chooseActionInput
         ? chooseActionInput.actions.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : []))
-        : (payCombatCostInput?.untappableLandIds ?? payManaCostInput?.untappableLandIds ?? []),
+        : (payCombatCostInput?.untappableSourceIds ?? payManaCostInput?.untappableSourceIds ?? []),
     [chooseActionInput, payCombatCostInput, payManaCostInput],
   );
 
@@ -300,17 +284,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         label: a.modeLabel,
         actionId: a.id,
       });
-      map.set(a.cardId, arr);
-    }
-    return map;
-  }, [chooseActionInput?.actions]);
-
-  const playLandByCardId = useMemo(() => {
-    const map = new Map<string, HandActionOption[]>();
-    for (const a of chooseActionInput?.actions ?? []) {
-      if (a.type !== "playLand") continue;
-      const arr = map.get(a.cardId) ?? [];
-      arr.push({ kind: "cast" as const, cardId: a.cardId, label: "Play land", actionId: a.id });
       map.set(a.cardId, arr);
     }
     return map;
@@ -406,34 +379,17 @@ export default function Game({ exitTo }: GameProps = {}) {
     [manualApi, gameView?.players],
   );
 
-  const castAndLandOptions = useCallback(
-    (card: GameCard): HandActionOption[] => {
-      const casts = castOptionsByCardId.get(card.id) ?? [];
-      const lands = playLandByCardId.get(card.id) ?? [];
-      if (casts.length + lands.length <= 1) return casts;
-      const fn = dfcFaceNames(card);
-      if (casts.length === 0) {
-        return lands.map((o, i) => ({
-          ...o,
-          label: `Play ${(i === 0 ? fn?.front : fn?.back) ?? (i === 0 ? card.name : "back side")}`,
-        }));
-      }
-      const castOpts = fn ? casts.map((o) => ({ ...o, label: `Cast ${fn.front}` })) : casts;
-      const landOpts = lands.map((o) => ({
-        ...o,
-        label: fn ? `Play ${fn.back}` : "Play land side",
-      }));
-      return [...castOpts, ...landOpts];
-    },
-    [castOptionsByCardId, playLandByCardId],
+  const castOptions = useCallback(
+    (card: GameCard): HandActionOption[] => castOptionsByCardId.get(card.id) ?? [],
+    [castOptionsByCardId],
   );
 
   const getHandActionOptions = useCallback(
     (card: GameCard): HandActionOption[] =>
       manualApi
         ? getManualCardActions(card)
-        : [...castAndLandOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
-    [manualApi, getManualCardActions, castAndLandOptions, abilitiesByCardId],
+        : [...castOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
+    [manualApi, getManualCardActions, castOptions, abilitiesByCardId],
   );
 
   const getBattlefieldAbilityOptions = useCallback(
@@ -456,13 +412,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       if (isManaSource && manaAbilities.length > 0) {
         abilities.unshift(...manaAbilities);
       }
-      return [...castAndLandOptions(card), ...abilities];
+      return [...castOptions(card), ...abilities];
     },
     [
       manualApi,
       getManualCardActions,
       promptType,
-      castAndLandOptions,
+      castOptions,
       abilitiesByCardId,
       manaAbilitiesByCardId,
       tappableLandIdSet,
@@ -476,7 +432,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
     if (option.kind === "ability" && option.abilityIndex != null) {
       respond({
-        type: "tapLand",
+        type: "tapForMana",
         cardId: option.cardId,
         abilityIndex: option.abilityIndex >= 0 ? option.abilityIndex : undefined,
       });
@@ -509,7 +465,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       });
       return;
     }
-    const single = castActions[0] ?? acts.find((a) => a.type === "playLand" && a.cardId === cardId);
+    const single = castActions[0];
     if (single) respond({ type: "act", actionId: single.id });
   };
 
@@ -620,8 +576,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     cards: GameCard[],
     onClickCard?: (cardId: string) => void,
     clickableCardIds?: string[],
+    targetHostile?: boolean,
   ) {
-    openZoneViewer({ title, cards, onClickCard, clickableCardIds });
+    openZoneViewer({ title, cards, onClickCard, clickableCardIds, targetHostile });
   }
   function openManualZone(title: string, cards: GameCard[]) {
     openZoneViewer({
@@ -673,19 +630,19 @@ export default function Game({ exitTo }: GameProps = {}) {
       }
       if (manaAbilities.length === 1) {
         respond({
-          type: "tapLand",
+          type: "tapForMana",
           cardId: card.id,
           abilityIndex: manaAbilities[0].abilityIndex,
           color: manaColorFromAction(manaAbilities[0]) ?? undefined,
         });
         return;
       }
-      respond({ type: "tapLand", cardId: card.id });
+      respond({ type: "tapForMana", cardId: card.id });
       return;
     }
 
     if (promptType !== "chooseAction") {
-      respond({ type: "tapLand", cardId: card.id });
+      respond({ type: "tapForMana", cardId: card.id });
       return;
     }
 
@@ -707,7 +664,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       respond({ type: "act", actionId: undo.id });
       return;
     }
-    respond({ type: "untapLand", cardId: card.id });
+    respond({ type: "untap", cardId: card.id });
   };
 
   const pendingTapQueueRef = useRef<string[]>([]);
@@ -729,12 +686,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       (x) => x.type === "activateAbility" && x.isManaAbility && x.cardId === id,
     );
     if (a) respond({ type: "act", actionId: a.id });
-    else respond({ type: "tapLand", cardId: id });
+    else respond({ type: "tapForMana", cardId: id });
   };
   const untapResponse = (id: string) => {
     const a = chooseActionInput?.actions.find((x) => x.type === "undoMana" && x.cardId === id);
     if (a) respond({ type: "act", actionId: a.id });
-    else respond({ type: "untapLand", cardId: id });
+    else respond({ type: "untap", cardId: id });
   };
 
   const handleTapLands = (cardIds: string[]) =>
@@ -783,9 +740,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     activatePassUntilEot,
     libraryPeekModal,
     setLibraryPeekModal,
-    zoneTargetSelector,
-    dismissZoneTarget,
-    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -845,7 +799,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const preview = useCardPreview([
     viewingZone,
-    zoneTargetSelector,
     libraryPeekModal,
     spellStackModalOpen,
     abilityPickerState,
@@ -1275,9 +1228,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const promptPlayableIds = new Set(
     promptType === "chooseAction"
       ? (chooseActionInput?.actions ?? []).flatMap((a) =>
-          a.type === "cast" || a.type === "playLand" || a.type === "activateAbility"
-            ? [a.cardId]
-            : [],
+          a.type === "cast" || a.type === "activateAbility" ? [a.cardId] : [],
         )
       : [],
   );
@@ -1402,12 +1353,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           onAssignBlock={assignBlockPair}
           onUnassignBlock={unassignBlock}
           onTargetPlayer={handleTargetPlayer}
-          onOpenZone={(title, cards, onClickCard, clickableCardIds) => {
+          onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
             if (manualApi) {
               openManualZone(title, cards);
               return;
             }
-            openZone(title, cards, onClickCard, clickableCardIds);
+            openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
           }}
           onOpenZoneAndCast={(title, cards, onClickCard, clickableCardIds) =>
             openZoneAndCast(
@@ -1420,7 +1371,6 @@ export default function Game({ exitTo }: GameProps = {}) {
               clickableCardIds,
             )
           }
-          onReopenZoneTarget={reopenZoneTarget}
           onTargetFromZone={(cardId) => {
             closeZoneViewer();
             casting.wrappedTargetCard(cardId);
@@ -1451,7 +1401,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               return;
             }
             respond({
-              type: "tapLand",
+              type: "tapForMana",
               cardId,
               abilityIndex: abilityIndex ?? undefined,
               color: color ?? undefined,
@@ -1482,12 +1432,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
         snapshots={snapshots}
-        canRestoreSnapshots={
-          (!isMultiplayer || isHost) &&
-          (promptType === "chooseAction" ||
-            promptType === "chooseAttackers" ||
-            promptType === "chooseBlockers")
-        }
+        canRestoreSnapshots={(!isMultiplayer || isHost) && promptType === "chooseAction"}
         onRestoreSnapshot={restoreSnapshot}
       />
 
@@ -1625,12 +1570,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         revealedDeckCard={promptRevealedDeckCard}
         viewingZone={viewingZone}
         onCloseZone={closeZone}
-        zoneTargetSelector={zoneTargetSelector}
-        onSelectZoneTarget={(cardId) => {
-          casting.wrappedTargetCard(cardId);
-          dismissZoneTarget();
-        }}
-        onCancelZoneTarget={dismissZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "scry")
@@ -1698,7 +1637,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         preview.hoveredCard.zoneId !== "hand" &&
         !draggingHandCard &&
         !viewingZone &&
-        !zoneTargetSelector &&
         !libraryPeekModal &&
         !spellStackModalOpen &&
         !abilityPickerState &&

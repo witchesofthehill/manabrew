@@ -243,6 +243,7 @@ public final class ManaBrewInteractiveSession {
         private final SpellAbility tapAbility;
         private final String color;
         private final Card untapCard;
+        private final Card convokeCard;
         private final boolean auto;
 
         private ManaPaymentChoice(
@@ -250,12 +251,14 @@ public final class ManaBrewInteractiveSession {
                 final SpellAbility tapAbility,
                 final String color,
                 final Card untapCard,
+                final Card convokeCard,
                 final boolean auto
         ) {
             this.kind = kind;
             this.tapAbility = tapAbility;
             this.color = color;
             this.untapCard = untapCard;
+            this.convokeCard = convokeCard;
             this.auto = auto;
         }
 
@@ -275,6 +278,10 @@ public final class ManaBrewInteractiveSession {
             return untapCard;
         }
 
+        Card convokeCard() {
+            return convokeCard;
+        }
+
         boolean auto() {
             return auto;
         }
@@ -286,6 +293,7 @@ public final class ManaBrewInteractiveSession {
             final String remainingCost,
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
+            final List<Card> convokeSources,
             final int poolTotal,
             final boolean canConfirm,
             final boolean canCancel,
@@ -294,7 +302,7 @@ public final class ManaBrewInteractiveSession {
     ) {
         requireAttached();
         publishManaPaymentPrompt(
-                playerId, payingFor, remainingCost, tappableSources, untappableCards,
+                playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
                 poolTotal, canConfirm, canCancel, canPayLife, lifeToPay);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
@@ -302,39 +310,43 @@ public final class ManaBrewInteractiveSession {
                 action = actions.take();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
-                return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, false);
+                return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, false);
             }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             switch (kind) {
                 case "tap_land": {
                     final SpellAbility chosen = resolveTapSource(action, tappableSources);
-                    if (chosen == null) {
+                    if (chosen != null) {
+                        final String color = action.has("color") && !action.get("color").isJsonNull()
+                                ? action.get("color").getAsString()
+                                : null;
+                        return new ManaPaymentChoice(ManaPaymentKind.TAP, chosen, color, null, null, false);
+                    }
+                    final Card convokeCard = resolveConvokeSource(action, convokeSources);
+                    if (convokeCard == null) {
                         throw new IllegalArgumentException("tap_land did not match a tappable source");
                     }
-                    final String color = action.has("color") && !action.get("color").isJsonNull()
-                            ? action.get("color").getAsString()
-                            : null;
-                    return new ManaPaymentChoice(ManaPaymentKind.TAP, chosen, color, null, false);
+                    return new ManaPaymentChoice(ManaPaymentKind.TAP, null, null, null, convokeCard, false);
                 }
                 case "untap_land": {
                     final Card card = resolveUntapCard(action, untappableCards);
-                    return new ManaPaymentChoice(ManaPaymentKind.UNTAP, null, null, card, false);
+                    return new ManaPaymentChoice(ManaPaymentKind.UNTAP, null, null, card, null, false);
                 }
                 case "pay_mana": {
                     final boolean auto = action.has("auto") && action.get("auto").getAsBoolean();
-                    return new ManaPaymentChoice(ManaPaymentKind.PAY, null, null, null, auto);
+                    return new ManaPaymentChoice(ManaPaymentKind.PAY, null, null, null, null, auto);
                 }
                 case "pay_life":
-                    return new ManaPaymentChoice(ManaPaymentKind.PAY_LIFE, null, null, null, false);
+                    return new ManaPaymentChoice(ManaPaymentKind.PAY_LIFE, null, null, null, null, false);
                 case "cancel_mana":
                 case "pass":
                 case "pass_priority":
-                    return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, false);
+                    return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, false);
                 default:
                     throw new UnsupportedOperationException("unsupported mana-payment action kind: " + kind);
             }
         }
-        return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, false);
+        return new ManaPaymentChoice(ManaPaymentKind.CANCEL, null, null, null, null, false);
     }
 
     private SpellAbility resolveTapSource(final JsonObject action, final List<SpellAbility> tappableSources) {
@@ -361,6 +373,21 @@ public final class ManaBrewInteractiveSession {
             }
         }
         return firstForCard;
+    }
+
+    private Card resolveConvokeSource(final JsonObject action, final List<Card> convokeSources) {
+        final String cardId = action.has("cardId") && !action.get("cardId").isJsonNull()
+                ? action.get("cardId").getAsString()
+                : null;
+        if (cardId == null) {
+            return null;
+        }
+        for (final Card card : convokeSources) {
+            if (SnapshotExtractor.javaCardId(card).equals(cardId)) {
+                return card;
+            }
+        }
+        return null;
     }
 
     private Card resolveUntapCard(final JsonObject action, final List<Card> untappableCards) {
@@ -413,6 +440,7 @@ public final class ManaBrewInteractiveSession {
             final String remainingCost,
             final List<SpellAbility> tappableSources,
             final List<Card> untappableCards,
+            final List<Card> convokeSources,
             final int poolTotal,
             final boolean canConfirm,
             final boolean canCancel,
@@ -455,6 +483,10 @@ public final class ManaBrewInteractiveSession {
             options.add(option);
         }
         prompt.add("manaAbilityOptions", options);
+
+        for (final Card card : convokeSources) {
+            tappableIds.add(SnapshotExtractor.javaCardId(card));
+        }
 
         final com.google.gson.JsonArray tappable = new com.google.gson.JsonArray();
         for (final String id : tappableIds) {
@@ -1261,6 +1293,107 @@ public final class ManaBrewInteractiveSession {
             throw new IllegalArgumentException("unknown target choice: " + kind + " " + id);
         }
         return null;
+    }
+
+    /**
+     * Collect a sacrifice selection via the board-target flow (Sacrifice intent),
+     * mirroring the Rust engine's {@code choose_sacrifice}: the UI taps one
+     * permanent per response and ends with an empty choice once the minimum is
+     * met. Loops until {@code max} reached or the player stops.
+     */
+    CardCollection awaitSacrificeChoice(
+            final int playerId,
+            final SpellAbility sa,
+            final CardCollectionView valid,
+            final int min,
+            final int max,
+            final String message
+    ) {
+        requireAttached();
+        final CardCollection chosen = new CardCollection();
+        final CardCollection remaining = new CardCollection(valid);
+        final int cappedMax = Math.min(max, valid.size());
+        final int cappedMin = Math.min(min, cappedMax);
+        while (chosen.size() < cappedMax && !remaining.isEmpty() && !closed && !game.isGameOver()) {
+            final List<Pair<GameEntity, forge.game.GameObject>> candidates = new ArrayList<>();
+            for (final Card c : remaining) {
+                candidates.add(Pair.of((GameEntity) c, (forge.game.GameObject) c));
+            }
+            publishSacrificePrompt(playerId, sa, candidates, cappedMin, cappedMax, chosen.size());
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                break;
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
+                if (chosen.size() >= cappedMin) {
+                    break;
+                }
+                continue;
+            }
+            if (!"target_choice".equals(actionKind)) {
+                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+            }
+            final JsonObject target = action.has("target") && action.get("target").isJsonObject()
+                    ? action.getAsJsonObject("target")
+                    : action;
+            final String id = target.has("id") ? target.get("id").getAsString() : "";
+            if (id.isEmpty()) {
+                if (chosen.size() >= cappedMin) {
+                    break;
+                }
+                continue;
+            }
+            Card picked = null;
+            for (final Card c : remaining) {
+                if (SnapshotExtractor.javaCardId(c).equals(id)) {
+                    picked = c;
+                    break;
+                }
+            }
+            if (picked == null) {
+                throw new IllegalArgumentException("unknown sacrifice choice: " + id);
+            }
+            chosen.add(picked);
+            remaining.remove(picked);
+        }
+        return chosen;
+    }
+
+    private void publishSacrificePrompt(
+            final int playerId,
+            final SpellAbility sa,
+            final List<Pair<GameEntity, forge.game.GameObject>> candidates,
+            final int min,
+            final int max,
+            final int chosen
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "choose_target_card");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("optional", chosen >= min);
+        final Card source = sa == null ? null : sa.getHostCard();
+        if (source != null) {
+            prompt.addProperty("sourceCardId", SnapshotExtractor.javaCardId(source));
+            prompt.addProperty("sourceCardName", source.getName());
+        }
+        prompt.addProperty("api", "Sacrifice");
+        prompt.addProperty("minTargets", min);
+        prompt.addProperty("maxTargets", max);
+        prompt.addProperty("chosenTargets", chosen);
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        com.google.gson.JsonArray cards = new com.google.gson.JsonArray();
+        for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
+            JsonObject option = new JsonObject();
+            option.addProperty("id", targetId(candidate));
+            option.addProperty("label", candidate.getLeft().getName());
+            cards.add(option);
+        }
+        prompt.add("players", new com.google.gson.JsonArray());
+        prompt.add("cards", cards);
+        prompt.add("spells", new com.google.gson.JsonArray());
+        latestPromptJson = prompt.toString();
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(

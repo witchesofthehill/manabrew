@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
-import { partitionBoardTargets } from "@/lib/boardTargets";
 import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { GameCard, GameView } from "@/types/manabrew";
 
@@ -21,12 +20,6 @@ interface LibraryPeekState {
   cards: GameCard[];
   numToTake?: number;
   optional?: boolean;
-}
-
-interface ZoneTargetState {
-  title: string;
-  cards: GameCard[];
-  validCardIds: string[];
 }
 
 const AUTO_PASS_DELAY_MIN_MS = 250;
@@ -170,26 +163,6 @@ function computeAutoPassPlan(
   );
 }
 
-function computeZoneTarget(
-  currentPrompt: Prompt | null,
-  gameView: GameView | null,
-): ZoneTargetState | null {
-  if (currentPrompt?.input.type !== "chooseBoardTargets") return null;
-  const { zone } = partitionBoardTargets(currentPrompt.input, gameView);
-  if (!zone) return null;
-  const zoneNames: Record<string, string> = {
-    Graveyard: "Graveyard",
-    Exile: "Exile",
-    Hand: "Hand",
-    Command: "Command Zone",
-  };
-  return {
-    title: `Choose from ${zoneNames[zone.zone] || zone.zone}`,
-    cards: zone.cards,
-    validCardIds: zone.validCardIds,
-  };
-}
-
 export function usePromptEffects({
   currentPrompt,
   gameView,
@@ -261,20 +234,6 @@ export function usePromptEffects({
 
   const [libraryPeekModal, setLibraryPeekModal] = useState<LibraryPeekState | null>(null);
 
-  const zoneTargetFromPrompt = useMemo(
-    () => computeZoneTarget(currentPrompt, gameView),
-    [currentPrompt, gameView],
-  );
-  const [zoneTargetDismissedPrompt, setZoneTargetDismissedPrompt] = useState<Prompt | null>(null);
-  const zoneTargetSelector =
-    zoneTargetDismissedPrompt === currentPrompt ? null : zoneTargetFromPrompt;
-  const dismissZoneTarget = useCallback(() => {
-    setZoneTargetDismissedPrompt(currentPrompt);
-  }, [currentPrompt]);
-  const reopenZoneTarget = useCallback(() => {
-    setZoneTargetDismissedPrompt(null);
-  }, []);
-
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
   useEffect(() => {
@@ -298,9 +257,6 @@ export function usePromptEffects({
     activatePassUntilEot,
     libraryPeekModal,
     setLibraryPeekModal,
-    zoneTargetSelector,
-    dismissZoneTarget,
-    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   };

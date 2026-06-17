@@ -5,7 +5,7 @@ import { CounterDisplay } from "@/components/game/CounterBadge";
 import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { FLASH_CARD_SIZE } from "./game.styles";
 import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
@@ -601,12 +601,12 @@ export function CardPreview({
                     </span>
                     {action.cost && (
                       <span className="flex items-center gap-0.5 text-[11px] opacity-90">
-                        <TextWithMana text={action.cost} manaSize="sm" />
+                        <DynamicTextRender text={action.cost} />
                       </span>
                     )}
                   </span>
                   <span className="leading-snug text-[13px] font-semibold">
-                    <TextWithMana text={action.label} manaSize="sm" />
+                    <DynamicTextRender text={action.label} />
                   </span>
                 </button>
               ))}

@@ -11,14 +11,10 @@ interface OptionalCostRow {
 
 const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
   {
-    promptType: "chooseKicker",
-    label: "Kicker",
-    description: "Skip the kicker prompt — never pay the extra cost.",
-  },
-  {
-    promptType: "chooseBuyback",
-    label: "Buyback",
-    description: "Skip the buyback prompt — never pay the buyback cost.",
+    promptType: "chooseBoolean",
+    label: "Optional yes/no costs",
+    description:
+      "Skip yes/no cost prompts (kicker, buyback, Phyrexian) — never pay the extra cost.",
   },
   {
     promptType: "chooseMultikicker",
@@ -34,26 +30,6 @@ const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
     promptType: "chooseDelve",
     label: "Delve",
     description: "Skip the delve prompt — never exile cards from the graveyard.",
-  },
-  {
-    promptType: "chooseConvoke",
-    label: "Convoke",
-    description: "Skip the convoke prompt — never tap creatures for mana.",
-  },
-  {
-    promptType: "chooseImprovise",
-    label: "Improvise",
-    description: "Skip the improvise prompt — never tap artifacts for mana.",
-  },
-  {
-    promptType: "chooseExertAttackers",
-    label: "Exert",
-    description: "Skip the exert prompt — never exert attackers.",
-  },
-  {
-    promptType: "chooseEnlistAttackers",
-    label: "Enlist",
-    description: "Skip the enlist prompt — never enlist creatures.",
   },
   {
     promptType: "helpPayAssist",

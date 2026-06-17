@@ -99,6 +99,7 @@ interface GameBoardProps {
     cards: GameCard[],
     onClickCard?: (cardId: string) => void,
     clickableCardIds?: string[],
+    targetHostile?: boolean,
   ) => void;
   onOpenZoneAndCast: (
     title: string,
@@ -106,7 +107,6 @@ interface GameBoardProps {
     onClickCard: (cardId: string) => void,
     clickableCardIds?: string[],
   ) => void;
-  onReopenZoneTarget: () => void;
   onTargetFromZone: (cardId: string) => void;
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
@@ -174,7 +174,6 @@ export function GameBoard({
   onTargetPlayer,
   onOpenZone,
   onOpenZoneAndCast,
-  onReopenZoneTarget,
   onTargetFromZone,
   onCastSpell,
   onTapLand,
@@ -320,11 +319,12 @@ export function GameBoard({
         ? chooseActionActions
             .filter((a) => a.type === "activateAbility" && a.isManaAbility)
             .map((a) => a.cardId)
-        : (payCombatCostPrompt?.input.tappableLandIds ?? payManaCostPrompt?.input.tappableLandIds),
+        : (payCombatCostPrompt?.input.tappableSourceIds ??
+          payManaCostPrompt?.input.tappableSourceIds),
       untappableLandIds: chooseActionActions
         ? chooseActionActions.filter((a) => a.type === "undoMana").map((a) => a.cardId)
-        : (payCombatCostPrompt?.input.untappableLandIds ??
-          payManaCostPrompt?.input.untappableLandIds),
+        : (payCombatCostPrompt?.input.untappableSourceIds ??
+          payManaCostPrompt?.input.untappableSourceIds),
       manaAbilityOptions,
       hostileTargeting,
     }),
@@ -658,7 +658,13 @@ export function GameBoard({
         onOpenCommandZone={() => {
           if ((myCommandZone?.length ?? 0) > 0) {
             if (isTargetingPrompt && commandTargetIds.length > 0) {
-              onOpenZone("Your Command Zone", myCommandZone!, onTargetFromZone, commandTargetIds);
+              onOpenZone(
+                "Your Command Zone",
+                myCommandZone!,
+                onTargetFromZone,
+                commandTargetIds,
+                hostileTargeting,
+              );
               return;
             }
             if ((commandPlayableIds?.length ?? 0) > 0 && promptType === "chooseAction") {
@@ -675,11 +681,13 @@ export function GameBoard({
         }}
         onOpenGraveyard={() => {
           if (isTargetingPrompt && graveyardTargetIds.length > 0) {
-            onOpenZone("Your Graveyard", graveyard, onTargetFromZone, graveyardTargetIds);
-            return;
-          }
-          if (boardTargets?.zone?.zone === "Graveyard") {
-            onReopenZoneTarget();
+            onOpenZone(
+              "Your Graveyard",
+              graveyard,
+              onTargetFromZone,
+              graveyardTargetIds,
+              hostileTargeting,
+            );
             return;
           }
           if (graveyardPlayableIds.length > 0 && promptType === "chooseAction") {
@@ -690,11 +698,7 @@ export function GameBoard({
         }}
         onOpenExile={() => {
           if (isTargetingPrompt && exileTargetIds.length > 0) {
-            onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds);
-            return;
-          }
-          if (boardTargets?.zone?.zone === "Exile") {
-            onReopenZoneTarget();
+            onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds, hostileTargeting);
             return;
           }
           if (exilePlayableIds.length > 0 && promptType === "chooseAction") {

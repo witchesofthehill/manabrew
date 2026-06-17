@@ -27,16 +27,5 @@ pub struct ChooseAttackersInput {
 )]
 #[ts(export, export_to = "prompts/chooseAttackers.ts")]
 pub enum ChooseAttackersOutput {
-    Pass {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        until_phase: Option<String>,
-    },
-    RestoreSnapshot {
-        #[ts(type = "number")]
-        checkpoint_id: u64,
-    },
-    DeclareAttackers {
-        assignments: Vec<AttackAssignment>,
-    },
+    DeclareAttackers { assignments: Vec<AttackAssignment> },
 }

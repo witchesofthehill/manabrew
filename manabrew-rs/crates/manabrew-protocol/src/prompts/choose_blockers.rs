@@ -36,16 +36,5 @@ pub struct ChooseBlockersInput {
 )]
 #[ts(export, export_to = "prompts/chooseBlockers.ts")]
 pub enum ChooseBlockersOutput {
-    Pass {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        until_phase: Option<String>,
-    },
-    RestoreSnapshot {
-        #[ts(type = "number")]
-        checkpoint_id: u64,
-    },
-    DeclareBlockers {
-        assignments: Vec<BlockAssignment>,
-    },
+    DeclareBlockers { assignments: Vec<BlockAssignment> },
 }

@@ -117,7 +117,10 @@ where
     loop {
         let mana_sources =
             mana::collect_mana_payment_sources(game, session.player, session.reserved_sacrifices);
-        let tappable_lands = mana_sources.source_cards.clone();
+        let lands = mana_sources.source_cards.clone();
+        let convoke_sources = convoke_payment_sources(game, session.player, session.card_id);
+        let mut tappable_lands = lands;
+        tappable_lands.extend(convoke_sources.iter().copied());
         let mana_ability_options = mana_sources.mana_ability_options;
         let untappable_lands = undoable_mana_sources(game, mana_pools, session.player);
         let pool_ref = mana_pools[session.player.index()].clone();
@@ -146,11 +149,27 @@ where
         );
 
         match action {
-            ManaCostAction::TapLand {
+            ManaCostAction::TapForMana {
                 card_id: land_id,
                 mana_ability_index,
                 express_choice,
             } => {
+                if convoke_sources.contains(&land_id) {
+                    mana_loop_invalid_count = 0;
+                    let player_idx = session.player.index();
+                    let atom = express_choice
+                        .filter(|&a| a != 0)
+                        .unwrap_or_else(|| convoke_atom(game, land_id, session.mana_cost));
+                    game.tap(land_id);
+                    mana_pools[player_idx].add(atom, 1);
+                    game.card_mut(land_id).last_mana_produced = Some(vec![atom]);
+                    executed_actions.push(ManaCostAction::TapForMana {
+                        card_id: land_id,
+                        mana_ability_index: None,
+                        express_choice: Some(atom),
+                    });
+                    continue;
+                }
                 if !tappable_lands.contains(&land_id) {
                     mana_loop_invalid_count += 1;
                     if mana_loop_invalid_count > 3 {
@@ -214,7 +233,7 @@ where
                     let produced = mana_pools[player_idx].end_tap_tracking(&pool_snapshot);
                     let produced_count = produced.len();
                     if resolved {
-                        executed_actions.push(ManaCostAction::TapLand {
+                        executed_actions.push(ManaCostAction::TapForMana {
                             card_id: land_id,
                             mana_ability_index: Some(mana_ability_index.unwrap_or(0)),
                             express_choice,
@@ -225,7 +244,7 @@ where
                     }
                     finish_mana_undo(game, mana_pools, undo_record, produced_count);
                 } else if let Some(atom) = basic_land_mana_atom(game.card(land_id)) {
-                    executed_actions.push(ManaCostAction::TapLand {
+                    executed_actions.push(ManaCostAction::TapForMana {
                         card_id: land_id,
                         mana_ability_index: Some(0),
                         express_choice: None,
@@ -277,12 +296,12 @@ where
                     finish_mana_undo(game, mana_pools, undo_record, produced_count);
                 }
             }
-            ManaCostAction::UntapLand(land_id) => {
+            ManaCostAction::Untap(land_id) => {
                 if !untappable_lands.contains(&land_id) {
                     continue;
                 }
                 if undo_mana_action(game, mana_pools, session.player, land_id) {
-                    executed_actions.push(ManaCostAction::UntapLand(land_id));
+                    executed_actions.push(ManaCostAction::Untap(land_id));
                 }
             }
             ManaCostAction::Pay { auto } => {
@@ -576,4 +595,40 @@ impl GameLoop {
         self.invalidate_mana_undo_for_player(session.player);
         paid
     }
+}
+
+fn convoke_payment_sources(game: &GameState, player: PlayerId, spell: CardId) -> Vec<CardId> {
+    let card = game.card(spell);
+    let has_convoke = card.has_keyword("Convoke");
+    let has_improvise = card.has_keyword("Improvise");
+    if !has_convoke && !has_improvise {
+        return Vec::new();
+    }
+    game.cards_in_zone(ZoneType::Battlefield, player)
+        .iter()
+        .filter(|&&cid| {
+            if cid == spell {
+                return false;
+            }
+            let c = game.card(cid);
+            !c.tapped
+                && ((has_convoke && c.is_creature())
+                    || (has_improvise && c.type_line.is_artifact()))
+        })
+        .copied()
+        .collect()
+}
+
+fn convoke_atom(game: &GameState, source: CardId, cost: &ManaCost) -> u16 {
+    let card = game.card(source);
+    if !card.is_creature() {
+        return forge_foundation::ManaAtom::COLORLESS;
+    }
+    let colors = card.color.mask() as u16 & forge_foundation::ManaAtom::ALL_MANA_COLORS;
+    if colors == 0 {
+        return forge_foundation::ManaAtom::COLORLESS;
+    }
+    let needed = colors & (cost.color_profile() as u16);
+    let pick = if needed != 0 { needed } else { colors };
+    1u16 << pick.trailing_zeros()
 }

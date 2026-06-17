@@ -240,7 +240,7 @@ fn pay_mana_cost_for_effect(
                 result
                     .choices
                     .iter()
-                    .map(|choice| crate::agent::ManaCostAction::TapLand {
+                    .map(|choice| crate::agent::ManaCostAction::TapForMana {
                         card_id: choice.card_id,
                         mana_ability_index: Some(choice.mana_ability_index.unwrap_or(0)),
                         express_choice: choice.mana_ability_index.map(|_| choice.chosen_atom),

@@ -1,9 +1,11 @@
 package forge.harness.common;
 
+import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.card.mana.ManaAtom;
 import forge.card.mana.ManaCost;
 import forge.card.mana.ManaCostShard;
+import forge.game.ability.AbilityKey;
 import forge.game.ability.ApiType;
 import forge.game.card.Card;
 import forge.game.card.CardCollection;
@@ -14,18 +16,21 @@ import forge.game.card.CardUtil;
 import forge.game.cost.Cost;
 import forge.game.cost.CostPayment;
 import forge.game.cost.CostPart;
+import forge.game.keyword.Keyword;
 import forge.game.mana.Mana;
 import forge.game.mana.ManaCostBeingPaid;
 import forge.game.mana.ManaPool;
 import forge.game.player.Player;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.SpellAbility;
+import forge.game.trigger.TriggerType;
 import forge.game.zone.ZoneType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class AutoPay {
@@ -79,6 +84,10 @@ public final class AutoPay {
 
             pool.payManaFromAbility(saBeingPaid, unpaid, chosen.spellAbility);
             pool.payManaCostFromPool(unpaid, saBeingPaid, false, spentFromPool);
+        }
+
+        if (!unpaid.isPaid()) {
+            payConvokeImprovise(unpaid, saBeingPaid, steps);
         }
 
         // Pay remaining phyrexian (or PayLifeInsteadOf:B black) shards with life (2 each).
@@ -455,6 +464,66 @@ public final class AutoPay {
         if (!atoms.contains(atom)) {
             atoms.add(atom);
         }
+    }
+
+    private void payConvokeImprovise(
+            final ManaCostBeingPaid unpaid, final SpellAbility sa, final List<String> steps) {
+        final Card host = sa == null ? null : sa.getHostCard();
+        if (host == null || !sa.isSpell()) {
+            return;
+        }
+        final boolean convoke = host.hasKeyword(Keyword.CONVOKE) || sa.hasParam("TapCreaturesForMana");
+        final boolean improvise = host.hasKeyword(Keyword.IMPROVISE);
+        if (!convoke && !improvise) {
+            return;
+        }
+        for (final Card c : convokePaymentSources(convoke, improvise)) {
+            if (unpaid.isPaid()) {
+                break;
+            }
+            final boolean asConvoke = convoke && c.isCreature();
+            final ManaCostShard shard = unpaid.payManaViaConvoke(convokeColor(c, unpaid, !asConvoke));
+            if (shard == null) {
+                continue;
+            }
+            if (asConvoke) {
+                sa.addTappedForConvoke(c);
+            }
+            if (c.tap(true, sa, payer)) {
+                final Map<AbilityKey, Object> runParams = AbilityKey.newMap();
+                runParams.put(AbilityKey.Cards, new CardCollection(c));
+                payer.getGame().getTriggerHandler().runTrigger(TriggerType.TapAll, runParams, false);
+            }
+            steps.add("TapConvoke { card: " + c.getName() + "@" + ParityCardMap.parityId(c)
+                    + ", shard: " + shard + " }");
+        }
+    }
+
+    private List<Card> convokePaymentSources(final boolean convoke, final boolean improvise) {
+        final List<Card> out = new ArrayList<>();
+        for (final Card c : payer.getCardsIn(ZoneType.Battlefield)) {
+            if (c.isTapped()) {
+                continue;
+            }
+            if ((convoke && c.isCreature()) || (improvise && c.isArtifact())) {
+                out.add(c);
+            }
+        }
+        return ParityOrder.sortCardsByNameThenId(out);
+    }
+
+    private byte convokeColor(final Card card, final ManaCostBeingPaid remainingCost, final boolean artifacts) {
+        if (artifacts) {
+            return ManaCostShard.COLORLESS.getColorMask();
+        }
+        ColorSet colors = card.getColor();
+        if (colors.isMulticolor()) {
+            colors = ColorSet.fromMask(colors.getColor() & remainingCost.getUnpaidColors());
+        }
+        if (colors.isMulticolor()) {
+            return (byte) Integer.lowestOneBit(colors.getColor());
+        }
+        return colors.getColor();
     }
 
     private static String shortColor(final byte atom) {

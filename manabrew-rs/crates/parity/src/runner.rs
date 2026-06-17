@@ -871,7 +871,6 @@ impl PlayerAgent for CapturingAgent {
         fn choose_buyback(&mut self, player: PlayerId, buyback_cost: &str, source: Option<CardId>) -> bool => "choose_buyback";
         fn choose_multikicker(&mut self, player: PlayerId, cost: &str, max_kicks: u32, source: Option<CardId>) -> u32 => "choose_multikicker";
         fn choose_replicate(&mut self, player: PlayerId, cost: &str, max_replicates: u32, source: Option<CardId>) -> u32 => "choose_replicate";
-        fn choose_alternative_cost(&mut self, player: PlayerId, options: &[String], source: Option<CardId>) -> usize => "choose_alternative_cost";
         fn choose_single_replacement_effect(&mut self, player: PlayerId, descriptions: &[String]) -> usize => "choose_single_replacement_effect";
         fn choose_entities_for_effect(&mut self, player: PlayerId, candidates: &[GameEntity], min: usize, ax: usize) -> Vec<GameEntity> => "choose_entities_for_effect";
     }

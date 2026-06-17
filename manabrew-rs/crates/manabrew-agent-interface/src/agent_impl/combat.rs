@@ -2,7 +2,7 @@ use manabrew_engine::agent::CombatCostAction;
 use manabrew_engine::combat::DefenderId;
 use manabrew_engine::ids::{CardId, PlayerId};
 
-use crate::game_view_dto::CardDto;
+use crate::game_view_dto::{CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{BlockAssignment, PlayerAction, PromptInput};
 
@@ -57,10 +57,6 @@ pub(super) fn choose_attackers<T: Responder>(
         .copied()
         .unwrap_or(DefenderId::Player(PlayerId(1)));
     match agent.recv_action() {
-        PlayerAction::RestoreSnapshot { checkpoint_id } => {
-            agent.pending_restore_checkpoint = Some(checkpoint_id);
-            Vec::new()
-        }
         PlayerAction::DeclareAttackers { assignments } => assignments
             .iter()
             .filter_map(|a| {
@@ -107,10 +103,6 @@ pub(super) fn choose_blockers<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::RestoreSnapshot { checkpoint_id } => {
-            agent.pending_restore_checkpoint = Some(checkpoint_id);
-            Vec::new()
-        }
         PlayerAction::DeclareBlockers { assignments } => assignments
             .iter()
             .filter_map(
@@ -242,18 +234,18 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 attacker_name,
                 cost,
                 description: description.to_string(),
-                tappable_land_ids,
-                untappable_land_ids,
+                tappable_source_ids: tappable_land_ids,
+                untappable_source_ids: untappable_land_ids,
                 mana_pool_total,
             },
         ),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::TapLand { card_id, .. } => parse_card_id(&card_id)
+        PlayerAction::TapForMana { card_id, .. } => parse_card_id(&card_id)
             .map(CombatCostAction::TapLand)
             .unwrap_or(CombatCostAction::Decline),
-        PlayerAction::UntapLand { card_id } => parse_card_id(&card_id)
+        PlayerAction::Untap { card_id } => parse_card_id(&card_id)
             .map(CombatCostAction::UntapLand)
             .unwrap_or(CombatCostAction::Decline),
         PlayerAction::PayCombatCost => CombatCostAction::Pay,
@@ -266,31 +258,13 @@ pub(super) fn exert_attackers<T: Responder>(
     _player: PlayerId,
     attackers: &[CardId],
 ) -> Vec<CardId> {
-    let attacker_ids = PromptAgent::<T>::card_ids(attackers);
-    let view = agent.view();
-    let attacker_cards: Vec<CardDto> = attacker_ids
-        .iter()
-        .filter_map(|id| view.battlefield.iter().find(|c| c.id == *id).cloned())
-        .collect();
-    agent.send_prompt(
-        PromptInput::ChooseExertAttackers(
-            manabrew_protocol::prompts::choose_exert_attackers::ChooseExertAttackersInput {
-                attacker_ids,
-                attacker_cards,
-            },
-        ),
+    super::targeting::choose_board_targets_multi(
+        agent,
+        attackers,
+        TargetingIntent::Tap,
+        "Exert",
         None,
-    );
-    match agent.recv_action() {
-        PlayerAction::ExertDecision {
-            chosen_attacker_ids,
-        } => chosen_attacker_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| attackers.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    )
 }
 
 pub(super) fn enlist_attackers<T: Responder>(
@@ -298,29 +272,11 @@ pub(super) fn enlist_attackers<T: Responder>(
     _player: PlayerId,
     attackers: &[CardId],
 ) -> Vec<CardId> {
-    let attacker_ids = PromptAgent::<T>::card_ids(attackers);
-    let view = agent.view();
-    let attacker_cards: Vec<CardDto> = attacker_ids
-        .iter()
-        .filter_map(|id| view.battlefield.iter().find(|c| c.id == *id).cloned())
-        .collect();
-    agent.send_prompt(
-        PromptInput::ChooseEnlistAttackers(
-            manabrew_protocol::prompts::choose_enlist_attackers::ChooseEnlistAttackersInput {
-                attacker_ids,
-                attacker_cards,
-            },
-        ),
+    super::targeting::choose_board_targets_multi(
+        agent,
+        attackers,
+        TargetingIntent::Tap,
+        "Enlist",
         None,
-    );
-    match agent.recv_action() {
-        PlayerAction::EnlistDecision {
-            chosen_attacker_ids,
-        } => chosen_attacker_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| attackers.contains(cid))
-            .collect(),
-        _ => vec![],
-    }
+    )
 }

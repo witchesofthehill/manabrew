@@ -15,6 +15,7 @@ pub struct ChooseBoardTargetsInput {
     pub min_targets: i32,
     pub max_targets: i32,
     pub chosen_targets: i32,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

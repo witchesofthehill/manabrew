@@ -11,3 +11,4 @@ path = "src/bin/gen_protocol.rs"
 serde = { workspace = true }
 serde_json = { workspace = true }
 ts-rs = { workspace = true }
+strum_macros = "0.28.0"

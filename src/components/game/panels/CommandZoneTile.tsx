@@ -6,14 +6,8 @@ import { useTheme } from "@/hooks/useTheme";
 
 interface CommandZoneTileProps {
   commanders: GameCard[];
-  /** Invoked when the first commander is playable and the user clicks it
-   *  (no drag movement). Same semantic as a hand-card tap-to-cast. */
   onCastCommander?: (cardId: string) => void;
-  /** Begin a drag-to-cast gesture on mousedown. Mirrors the hand-card
-   *  drag: the handler decides whether the motion becomes a drag or
-   *  collapses to a click, so the tile just forwards the event. */
   onStartDrag?: (card: GameCard, e: React.MouseEvent) => void;
-  /** Fallback click (e.g. open zone modal) when no cast is available. */
   onOpenZone?: () => void;
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
 }
@@ -32,15 +26,8 @@ export function CommandZoneTile({
   const count = commanders.length;
   if (!first) return null;
 
-  // The commander stays put while being drag-cast — the placement arrow
-  // (anchored to its `data-card-id`) is the in-flight feedback. It leaves the
-  // zone only when the engine reports the cast, like any other zone change.
   const canCast = first.isPlayable && !!onCastCommander;
 
-  // Mousedown initiates the drag-to-cast flow when the commander is
-  // playable; the drag hook decides whether the gesture resolves as a
-  // cast (release over battlefield OR no movement). Non-playable state
-  // still supports a plain click to open the zone viewer.
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     if (canCast && onStartDrag) {

@@ -9,15 +9,12 @@ export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
 
 interface PreferencesState {
-  /** App color theme preset id */
   appThemePreset: string;
   setAppThemePreset: (id: string) => void;
 
-  /** Duration of card-play and turn-start flash animations in ms */
   flashDurationMs: number;
   setFlashDurationMs: (ms: number) => void;
 
-  /** Server connection defaults */
   serverHost: string;
   serverPort: number;
   serverUsername: string;
@@ -27,49 +24,39 @@ interface PreferencesState {
   setServerUsername: (username: string) => void;
   setServerPassword: (password: string) => void;
 
-  /** Battlefield zone column order */
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
 
-  /** Multiplayer board arrangement (opponents across the top vs wrapped
-   *  around). Only changes the 4-player layout. */
+  // Only changes the 4-player layout.
   boardArrangement: BoardArrangement;
   setBoardArrangement: (arrangement: BoardArrangement) => void;
 
-  /** Auto-arrange the battlefield into tidy rows, ignoring manual drag
-   *  placement. Off = free placement (the default). */
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
-  /** How battlefield cards are drawn: the full Scryfall image (realistic),
-   *  art-crop with a name/type overlay (art), or a framed mini-card. Only the
-   *  Pixi battlefield reads this; hand, stack, and modals always use the image. */
+  // Only the Pixi battlefield reads this; hand, stack, and modals always use
+  // the image.
   battlefieldCardStyle: BattlefieldCardStyle;
   setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
 
-  /** Decorative in-game board animations (entrance stomp, dust, stat/damage
-   *  pops, glow pulses). Off = a perf escape hatch for weaker hardware; the
-   *  board still functions (cards move, state indicators stay). */
+  // Perf escape hatch for weaker hardware; the board still functions when off
+  // (cards move, state indicators stay).
   inGameAnimations: boolean;
   setInGameAnimations: (value: boolean) => void;
 
-  /** Card preview trigger mode */
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
-  /** Card hover preview delay in ms */
   cardHoverDelayMs: number;
   setCardHoverDelayMs: (ms: number) => void;
 
-  /** App theme color overrides (CSS variable name → HSL value) */
   appThemeColorOverrides: Record<string, string>;
   setAppThemeColorOverride: (key: string, hsl: string) => void;
   resetAppThemeColorOverrides: () => void;
 
-  /** Game UI color overrides by dot-path key */
   gameThemeColorOverrides: Record<string, string>;
   setGameThemeColorOverride: (path: string, color: string) => void;
   resetGameThemeColorOverrides: () => void;
@@ -108,7 +95,6 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   return next as Partial<PreferencesState>;
 }
 
-/** Stable per-browser guest handle. Generated once, persisted via zustand. */
 function generateGuestUsername(): string {
   return `player-${Math.random().toString(36).slice(2, 8)}`;
 }

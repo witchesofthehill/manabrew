@@ -81,7 +81,7 @@ export class HandController {
 
   setScale(scale: number): void {
     // Shrink-only cap so a width-derived scale can't make the fan taller than
-    // its region (which would overflow the battlefield on a short window).
+    // its region and overflow the battlefield on a short window.
     const zoneH = this.host.getPlayZone().height;
     const maxScale =
       zoneH > 0 ? (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH : scale;
@@ -145,8 +145,8 @@ export class HandController {
     const hitZones: HandHitZone[] = [];
 
     // The fan only reshapes for a drag that originates from the hand. A card
-    // dragged from a zone with no hand sprite (the command zone) sets
-    // `draggingCardId` too, but must not sink the hand out of the way.
+    // dragged from the command zone sets `draggingCardId` too, but must not sink
+    // the hand out of the way.
     const draggingInHand =
       state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);
 

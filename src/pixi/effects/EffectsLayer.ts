@@ -1,13 +1,3 @@
-/**
- * Pooled transient board effects, GPU-batched via Pixi v8's native
- * `ParticleContainer` (no third-party emitter — `@pixi/particle-emitter` is
- * Pixi v7 only). The ETB stomp: an impact flash bloom + expanding shockwave
- * ring (the MTGA-style "pop") over a billowing dust cloud + radial ground
- * cracks. Mounted by its owner (the board region, above the felt / below the
- * cards) and ticked from that owner's animate loop. The sim is frame-based
- * (one step per tick).
- */
-
 import { Container, Graphics, ParticleContainer, Particle, Texture } from "pixi.js";
 import { CRACKLE, DUST, FLASH, SHOCKWAVE } from "./config";
 import { easeOutCubic } from "./easing";
@@ -27,8 +17,6 @@ interface Crackle {
   max: number;
 }
 
-/** A `Graphics` overlay redrawn each frame from its 0..1 progress, then culled.
- *  Used for the animated flash + shockwave (vs the static-then-fade crackle). */
 interface Decal {
   gfx: Graphics;
   life: number;
@@ -38,7 +26,6 @@ interface Decal {
 
 let dustTexture: Texture | null = null;
 
-/** A soft radial puff, generated once and tinted per particle. */
 function dustTex(): Texture {
   if (dustTexture) return dustTexture;
   const size = 32;
@@ -70,8 +57,6 @@ export class EffectsLayer {
     this.container.addChild(this.pc);
   }
 
-  /** The full ground reaction of a creature landing: an expanding shockwave +
-   *  radial cracks across the ground, a dust cloud, and a bright impact bloom. */
   stompGround(x: number, y: number): void {
     this.spawnShockwave(x, y);
     this.spawnCracks(x, y);
@@ -79,8 +64,6 @@ export class EffectsLayer {
     this.spawnFlash(x, y);
   }
 
-  /** Bright bloom at the impact point — the "pop" that makes the landing read.
-   *  Drawn on top of the dust. */
   private spawnFlash(x: number, y: number): void {
     const g = new Graphics();
     this.container.addChild(g);
@@ -99,8 +82,6 @@ export class EffectsLayer {
     });
   }
 
-  /** Thin ring expanding outward across the ground; thins + fades as it grows.
-   *  Drawn under the dust. */
   private spawnShockwave(x: number, y: number): void {
     const g = new Graphics();
     this.container.addChildAt(g, 0);
@@ -142,7 +123,6 @@ export class EffectsLayer {
       this.dust.push({
         p,
         vx: Math.cos(ang) * speed,
-        // Flattened spread + an upward billow that low gravity lets hang.
         vy:
           Math.sin(ang) * speed * DUST.flatten -
           (DUST.upwardMin + Math.random() * DUST.upwardExtra),
@@ -153,8 +133,6 @@ export class EffectsLayer {
     }
   }
 
-  /** Jagged radial cracks, flattened into ground perspective, drawn once and
-   *  faded over their life. Placed under the dust. */
   private spawnCracks(x: number, y: number): void {
     const g = new Graphics();
     const arms = CRACKLE.armsMin + Math.floor(Math.random() * CRACKLE.armsExtra);
@@ -174,7 +152,7 @@ export class EffectsLayer {
       color: CRACKLE.color,
       alpha: CRACKLE.blotchAlpha,
     });
-    this.container.addChildAt(g, 0); // under the dust particle container
+    this.container.addChildAt(g, 0);
     this.crackles.push({ gfx: g, life: 0, max: CRACKLE.lifeFrames });
   }
 
@@ -190,7 +168,7 @@ export class EffectsLayer {
         d.p.y += d.vy;
         const t = d.life / d.max;
         d.p.alpha = (1 - t) * DUST.alpha;
-        const s = d.s0 * (1 + t * DUST.growth); // billow outward as it dissipates
+        const s = d.s0 * (1 + t * DUST.growth);
         d.p.scaleX = s;
         d.p.scaleY = s;
         if (d.life >= d.max) {
@@ -208,7 +186,6 @@ export class EffectsLayer {
       for (const c of this.crackles) {
         c.life += 1;
         const t = c.life / c.max;
-        // Snap in, hold briefly, then fade out.
         const hold = CRACKLE.holdFraction;
         c.gfx.alpha = t < hold ? 1 : Math.max(0, 1 - (t - hold) / (1 - hold));
         if (c.life >= c.max) {

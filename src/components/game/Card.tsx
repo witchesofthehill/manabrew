@@ -15,7 +15,6 @@ import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 
-/** Special token types that get a more descriptive badge label. */
 const TOKEN_LABELS: Record<string, string> = {
   "Blood Token": "BLOOD",
   "Treasure Token": "TREASURE",
@@ -29,7 +28,6 @@ function getTokenLabel(name: string): string {
   return TOKEN_LABELS[name] ?? "TOKEN";
 }
 
-/** Top-center status badge overlay for a card (Exerted, Morph, Bestow, etc.) */
 function CardBadge({ label, style }: { label: string; style: string }) {
   return (
     <div className={CARD_BANNER_CONTAINER}>
@@ -70,7 +68,6 @@ function CardComponent({
   const lethal = isLethalDamage(card);
   const onBattlefield = card.zoneId === "battlefield";
 
-  // P/T color-coding: green if buffed above base, red if debuffed
   const ptStyle = useMemo(() => {
     const fg = themeColors.textOnTinted;
     if (lethal) return { backgroundColor: themeColors.pt.lethal, color: fg };
@@ -104,9 +101,6 @@ function CardComponent({
         "relative @container rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer group overflow-hidden",
         horizontal ? "w-[210px] aspect-[7/5]" : "w-[150px] aspect-[5/7]",
         isTapped && "rotate-90",
-        // Summoning-sickness ring: dashed outline in the theme's muted
-        // `prompt-action-cancel` colour, inset so it sits on the rounded
-        // card edge. Re-tints automatically per preset.
         creature &&
           card.summoningSick &&
           onBattlefield &&
@@ -139,7 +133,6 @@ function CardComponent({
               style={{ imageRendering: "auto" }}
             />
           )}
-          {/* Status badge — only the highest-priority one shows */}
           {card.exerted ? (
             <CardBadge {...CARD_BADGES.exerted} />
           ) : card.isFaceDown ? (
@@ -159,9 +152,7 @@ function CardComponent({
           ) : card.isToken ? (
             <CardBadge label={getTokenLabel(card.name)} style={CARD_BADGES.token.style} />
           ) : null}
-          {/* Keyword chips — all zones */}
           {card.keywords && card.keywords.length > 0 && <KeywordChips keywords={card.keywords} />}
-          {/* Counter overlay — bottom-left, clear of the P/T box at bottom-right */}
           {card.counters && (
             <CounterDisplay
               counters={card.counters}
@@ -169,7 +160,6 @@ function CardComponent({
               className="absolute bottom-1 left-1 z-10"
             />
           )}
-          {/* P/T overlay — bottom-right, only for creatures */}
           {creature && card.power && card.toughness && (
             <PtBadge value={`${card.power}/${card.toughness}`} style={ptStyle}>
               {card.damage != null && card.damage > 0 && (
@@ -226,7 +216,6 @@ function CardComponent({
               {card.text}
             </span>
           </div>
-          {/* Counters row in text fallback */}
           {card.counters && (
             <CounterDisplay counters={card.counters} size="sm" className="mb-0.5" />
           )}

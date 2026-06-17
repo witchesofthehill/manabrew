@@ -7,13 +7,6 @@ import { useCardPreview } from "@/hooks/useCardPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { Button } from "@/components/ui/button";
 
-/**
- * Dev-only Pixi board playground: spawn creatures/lands onto a live BoardScene
- * and poke them (tap / damage / +1/+1 / attack) to exercise the in-game
- * animations (ETB stomp, stat pop, damage flash, attack lunge, …) without a
- * real game. Reuses the real `BoardCanvas`, so what you see is what ships.
- */
-
 const PLAYER_ID = "dev-playground";
 
 interface CardSpec {

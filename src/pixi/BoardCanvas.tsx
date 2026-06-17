@@ -30,7 +30,7 @@ import { setAnimationsEnabled } from "./effects/enabled";
 import { withAlpha } from "@/themes/gameTheme";
 import { RotateCw } from "lucide-react";
 
-/** Width of the hand action panel (matches HandCardActions `w-[220px]`). */
+/** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameCard } from "@/types/manabrew";
@@ -45,20 +45,17 @@ import type {
 import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
 import type { BlockingRect } from "./board/types";
 
-/** One player's battlefield input for the unified canvas. Ordered: local
- *  first, then opponents left → right. */
 export interface BoardCanvasRegion {
   playerId: string;
   isLocal: boolean;
   state: BattlefieldState;
 }
 
-/** Region rectangles (canvas-local px == CSS px) reported so the parent can
- *  anchor React panels to each player's region. */
+/** Canvas-local px == CSS px, so the parent can anchor React panels to each
+ *  player's region. */
 export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
-  /** Y of the center band line between the opponents and the self region —
-   *  where the phase strip is centered. */
+  /** Y of the center band where the phase strip is centered. */
   dividerY: number;
   opponents: { playerId: string; rect: PlayZoneRect; orientation: RegionOrientation }[];
 }
@@ -67,7 +64,6 @@ interface BoardCanvasProps {
   regions: BoardCanvasRegion[];
   hand: HandState;
   arrowSpecs: ArrowSpec[];
-  /** Live source→cursor targeting arrow while casting, or null. */
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   /** Local player is declaring blockers — enables drag-to-block. */
   declareBlockers?: boolean;
@@ -75,19 +71,17 @@ interface BoardCanvasProps {
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
   arrangement: BoardArrangement;
-  /** Fraction of usable height for the local player's bottom region (resize
-   *  grip). Defaults to the layout's built-in fraction when omitted. */
+  /** Fraction of usable height for the local player's bottom region; defaults to
+   *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
-  /** Per-opponent column width fractions (row arrangement resize grips).
-   *  Equal split when omitted. */
+  /** Per-opponent column width fractions; equal split when omitted. */
   opponentFractions?: number[];
-  /** Px the hand fan reserves at the bottom of the self region — subtracted
-   *  from its height when sizing cards so ~3 rows always fit the free area. */
+  /** Px the hand fan reserves at the bottom of the self region — subtracted from
+   *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
   callbacks: GameCanvasCallbacks;
   externalBlockers?: BlockingRect[];
-  /** Bottom-corner keep-out widths for the hand fan (player cluster left, zone
-   *  tiles right) so the hand centers in the gap. */
+  /** Bottom-corner keep-out widths for the hand fan so it centers in the gap. */
   handInsets?: { left: number; right: number };
   isDropActive?: boolean;
   /** Auto-arrange the battlefield into rows, ignoring manual drag placement. */
@@ -254,15 +248,14 @@ export function BoardCanvas({
     };
   }, [initApp]);
 
-  // Configure regions + layout on size / player-set / arrangement / scale change.
   const players: BoardPlayerSpec[] = regions.map((r) => ({
     playerId: r.playerId,
     isLocal: r.isLocal,
   }));
   const playersKey = players.map((p) => `${p.playerId}:${p.isLocal ? 1 : 0}`).join(",");
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
-  // Stable content key so `reconfigure`'s identity (and the ResizeObserver that
-  // depends on it) doesn't churn when the parent re-creates this array prop.
+  // Stable content key so `reconfigure`'s identity doesn't churn when the parent
+  // re-creates this array prop.
   const opponentFractionsKey = (opponentFractions ?? []).join(",");
 
   const reconfigure = useCallback(() => {
@@ -280,9 +273,8 @@ export function BoardCanvas({
       selfHeightFraction,
       opponentFractions,
     );
-    // Size cards against the height actually free for permanents: the self
-    // region loses the hand fan at its bottom, so subtract that reserve before
-    // picking the scale (keeps ~3 rows visible in every region).
+    // Subtract the hand-fan reserve before picking the scale so ~3 rows stay
+    // visible in every region.
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
     const minHeight = Math.min(selfUsable, ...layout.opponents.map((o) => o.rect.height));
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
@@ -310,7 +302,6 @@ export function BoardCanvas({
     reconfigure();
   }, [reconfigure, scene]);
 
-  // Track container resize → resize renderer + reconfigure.
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;
     if (!parent || !scene) return;
@@ -327,9 +318,9 @@ export function BoardCanvas({
     return () => observer.disconnect();
   }, [scene, reconfigure]);
 
-  // Per-region battlefield state. Push only the regions whose state object
-  // actually changed (the parent may re-create the `regions` array on unrelated
-  // renders); reset on a new scene so it gets fully seeded.
+  // Push only the regions whose state object actually changed (the parent may
+  // re-create the `regions` array on unrelated renders); reset on a new scene so
+  // it gets fully seeded.
   const lastRegionStateRef = useRef(new Map<string, BattlefieldState>());
   const lastRegionSceneRef = useRef<BoardScene | null>(null);
   useEffect(() => {
@@ -394,7 +385,6 @@ export function BoardCanvas({
     scene?.setCardStyle(cardStyle);
   }, [scene, cardStyle]);
 
-  // Re-apply theme when the preset / overrides change.
   useEffect(() => {
     if (!scene) return;
     return usePreferencesStore.subscribe(() => {
@@ -407,8 +397,6 @@ export function BoardCanvas({
   const handActions = handHover && getHandActions ? getHandActions(handHover.card) : [];
   const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
 
-  // In-hand double-faced flip: a button on the lifted card swaps its image to
-  // the back face (view-only). Resolved faces tell us whether the card flips.
   const hoverFaces = useCardFaces({
     name: handHover?.card.name,
     setCode: handHover?.card.setCode,
@@ -487,10 +475,9 @@ export function BoardCanvas({
       )}
       {showActionPanel && (
         <>
-          {/* Curved hover bridge: its border-radius clips the hit region to a
-              curve, so the cursor can travel from the lifted hand card to the
-              action panel without dropping the hover — same idea as the card
-              preview's bridge. Transparent in play; tinted by the dev overlay. */}
+          {/* Curved hover bridge: its border-radius clips the hit region so the
+              cursor can travel from the lifted card to the action panel without
+              dropping the hover. Transparent in play; tinted by the dev overlay. */}
           <div
             style={{
               position: "absolute",

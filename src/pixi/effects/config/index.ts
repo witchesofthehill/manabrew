@@ -1,7 +1,3 @@
-/**
- * Per-effect tuning constants. One file per effect — edit the numbers there to
- * tweak feel; nothing else in the effect needs touching.
- */
 export { CRACKLE } from "./crackle.const";
 export { DUST } from "./dust.const";
 export { FLASH } from "./flash.const";

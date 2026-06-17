@@ -90,9 +90,7 @@ export function BattlefieldCardFace({
     (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
-  // P1P1 / M1M1 are not shown as counter badges on the battlefield — the net
-  // buff/debuff is conveyed by the green/red P/T color (the full per-type
-  // breakdown stays in the card preview).
+  // P1P1 / M1M1 are dropped here: the net buff/debuff shows in the P/T color.
   const otherCounters = card.counters
     ? Object.fromEntries(
         Object.entries(card.counters).filter(

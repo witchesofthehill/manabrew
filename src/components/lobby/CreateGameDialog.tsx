@@ -17,13 +17,9 @@ import { getDeckFingerprint } from "@/lib/decks";
 interface CreateGameDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Visual mode: full game creation (Play) or deck-only selection (Lobby). */
   mode?: "play" | "lobby";
-  /** Optional fixed format id (e.g. "standard" | "commander"). */
   forcedFormatId?: string;
-  /** Pre-select a saved deck by ID (e.g. when launched from MyDecks) */
   preSelectedDeckId?: string;
-  /** Called with the selected deck, format ID, optional commander name, and player count when Create is confirmed */
   onStart: (deck: Deck, formatId: string, commanderName?: string, playerCount?: number) => void;
 }
 
@@ -132,7 +128,6 @@ export function CreateGameDialog({
     ? formatUserDecks.filter((d) => d.name.toLowerCase().includes(searchLower))
     : formatUserDecks;
 
-  // Auto-populate commander when the selected deck changes
   useEffect(() => {
     const entry = allDecks.find((d) => d.id === selectedDeck);
     setSelectedCommander(entry?.commanderName ?? "");
@@ -213,13 +208,11 @@ export function CreateGameDialog({
         onKeyDown={(e) => {
           if (e.key !== "Enter") return;
           const target = e.target as HTMLElement;
-          // Let dropdowns / multiline inputs use Enter themselves.
           if (target.closest("[role='combobox'], [role='listbox'], textarea")) return;
           e.preventDefault();
           handleCreate();
         }}
       >
-        {/* ── Header ── */}
         <div className="px-6 py-4 border-b">
           <DialogTitle className="text-lg font-semibold">
             {isLobbyMode ? "Choose Deck" : "New Game"}
@@ -231,12 +224,9 @@ export function CreateGameDialog({
           </p>
         </div>
 
-        {/* ── Body: left panel (settings) + right panel (deck picker) ── */}
         <div className="flex min-h-0 overflow-hidden">
-          {/* Left panel — Format & options */}
           {!isLobbyMode && (
             <div className="w-48 border-r flex-shrink-0 p-4 space-y-5 overflow-y-auto bg-muted/20">
-              {/* Format */}
               <div>
                 <SectionLabel>Format</SectionLabel>
                 <div className="mt-2 space-y-2">
@@ -264,7 +254,6 @@ export function CreateGameDialog({
                 </div>
               </div>
 
-              {/* Rules summary */}
               <div>
                 <SectionLabel>Rules</SectionLabel>
                 <div className="mt-2 space-y-1.5">
@@ -290,7 +279,6 @@ export function CreateGameDialog({
                 </div>
               </div>
 
-              {/* Commander picker — only for Commander format */}
               {needsCommander && (
                 <div>
                   <SectionLabel>Commander</SectionLabel>
@@ -329,7 +317,6 @@ export function CreateGameDialog({
                 </div>
               )}
 
-              {/* DEV: player count */}
               <div>
                 <SectionLabel>
                   Opponents
@@ -358,9 +345,7 @@ export function CreateGameDialog({
             </div>
           )}
 
-          {/* Right panel — Deck picker */}
           <div className="flex-1 overflow-y-auto">
-            {/* Search bar */}
             <div className="px-4 pt-4 pb-2 sticky top-0 bg-background z-10">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -378,7 +363,6 @@ export function CreateGameDialog({
               </div>
             </div>
 
-            {/* User decks */}
             <div className="p-4 pt-2">
               <SectionLabel>Your Decks</SectionLabel>
               <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
@@ -426,10 +410,8 @@ export function CreateGameDialog({
               )}
             </div>
 
-            {/* Divider */}
             <div className="mx-4 border-t" />
 
-            {/* Preset decks */}
             <div className="p-4">
               <SectionLabel>Preset Decks</SectionLabel>
               <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
@@ -463,9 +445,7 @@ export function CreateGameDialog({
           </div>
         </div>
 
-        {/* ── Footer ── */}
         <div className="px-6 py-3 border-t flex items-center justify-between gap-4 bg-muted/10">
-          {/* Selected deck summary */}
           <div className="flex items-center gap-2 text-sm min-w-0">
             {!isLobbyMode && selectedDeckEntry ? (
               <>
@@ -505,8 +485,6 @@ export function CreateGameDialog({
     </Dialog>
   );
 }
-
-// ── Small helpers ──────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (

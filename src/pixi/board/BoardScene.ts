@@ -237,19 +237,14 @@ export class BoardScene {
     region.enableFeltMarquee((e) => this.onFeltDown(e));
   }
 
-  /** Pointer-down on the local player's empty felt starts a drag-marquee for
-   *  multi-select. Card sprites stop propagation, so this only fires off-card.
-   *  `onGlobalMove` / `onGlobalUp` already drive the active marquee. */
   private onFeltDown(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
     const selection = this.selection;
     if (!selection) return;
-    // Multi-select is a normal-mode behavior — not while declaring blockers.
     if (this.declareBlockers) return;
     const pos = this.root.toLocal(e.global);
-    // Don't clear on press — endMarquee handles it on release (a zero-area
-    // no-shift marquee clears, a real drag replaces), so a stray press doesn't
-    // wipe the current selection before any movement.
+    // Don't clear on press — endMarquee handles it on release, so a stray press
+    // doesn't wipe the current selection before any movement.
     selection.startMarquee(pos.x, pos.y, e.shiftKey);
   }
 
@@ -904,9 +899,8 @@ export class BoardScene {
 
   private captureStackSeeds(): void {
     const now = performance.now();
-    // Skip the per-node getBoundingClientRect scan (forces a layout reflow)
-    // whenever the stack is empty — the common case. A captured seed still
-    // persists via its TTL so a card that just left the stack can fly in.
+    // Skip the per-node getBoundingClientRect scan (forces a layout reflow) when
+    // the stack is empty — the common case. Captured seeds persist via their TTL.
     if (document.querySelector("[data-stack-object-id]") === null) {
       if (this.stackCardSeeds.size > 0) {
         for (const [id, seed] of this.stackCardSeeds) {
@@ -953,10 +947,9 @@ export class BoardScene {
       resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
     }
     if (this.castingArrow) {
-      // The casting source is the spell on the stack, marked `data-casting-card`
-      // (StackDisplay) — robust for casts from any zone, incl. the command zone,
-      // which has no battlefield/hand sprite for the generic card resolver to
-      // find. Fall back to the card resolver for battlefield ability sources.
+      // Resolve via the stack's `data-casting-card` marker first — robust for
+      // casts from any zone (incl. the command zone, which has no sprite); fall
+      // back to the card resolver for battlefield ability sources.
       const id = this.castingArrow.sourceCardId;
       const from =
         this.domCenterCanvasLocal(`[data-casting-card="${CSS.escape(id)}"]`, canvasRect) ??
@@ -990,8 +983,8 @@ export class BoardScene {
     }
     if (castDragging) {
       const id = this.hand?.getDraggingCardId();
-      // Hand cards resolve to a Pixi sprite; a permanent dragged from a zone with
-      // no sprite (the command zone) falls back to its React element by card id.
+      // A permanent dragged from a zone with no sprite (the command zone) falls
+      // back to its React element by card id.
       const from = id
         ? (this.hand?.getCardPosition(id) ??
           this.domCenterCanvasLocal(`[data-card-id="${CSS.escape(id)}"]`, canvasRect))

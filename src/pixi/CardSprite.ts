@@ -36,20 +36,8 @@ import { bump } from "./effects/easing";
 import { animationsEnabled } from "./effects/enabled";
 import { DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
 
-/**
- * Shared, mutable theme reference used by every `CardSprite` instance.
- * `BoardScene.setTheme` calls `setCardSpriteTheme` so every sprite
- * repaints against the active preset without needing to thread the
- * theme through the Container constructor.
- */
-// Seeded from the active preset so every sprite can draw correctly from
-// construction time; `setCardSpriteTheme` then keeps it in sync with live
-// preset / overrides changes.
 let activeTheme: Theme = getTheme();
 
-/** TextStyle instances whose `fill` tracks the theme's `textOnTinted` colour.
- *  Each call to `setCardSpriteTheme` updates them in place so already-rendered
- *  Text objects repaint without needing to be replaced. */
 const TINTED_TEXT_STYLES: TextStyle[] = [];
 
 export function setCardSpriteTheme(theme: Theme): void {
@@ -59,17 +47,12 @@ export function setCardSpriteTheme(theme: Theme): void {
   }
 }
 
-/** Active battlefield render style, seeded from the persisted preference and
- *  kept in sync by `setCardSpriteStyle`. Every sprite reads it on load and on
- *  `restyle()`. */
 let activeStyle: BattlefieldCardStyle = usePreferencesStore.getState().battlefieldCardStyle;
 
 export function setCardSpriteStyle(style: BattlefieldCardStyle): void {
   activeStyle = style;
 }
 
-/** Dev hover-area overlay flag, fanned out from `BoardScene.setHoverDebug` so a
- *  single store subscription drives every sprite instead of one per sprite. */
 let activeHoverDebug = false;
 
 export function setCardSpriteHoverDebug(on: boolean): void {
@@ -81,14 +64,8 @@ function registerTintedTextStyle(style: TextStyle): TextStyle {
   return style;
 }
 
-// Hand cards render at up to ~3.25× base scale (medium hover) and ~4.3× (large
-// hover). Rasterize text textures high enough that they remain sharp across
-// that range on top of the 3× canvas backing.
 const TEXT_RASTER_RESOLUTION = 5;
 
-// `tintedTextFill` is recomputed whenever the active theme changes; each
-// registered TextStyle has its `fill` rewritten in place so already-
-// rendered Text objects re-tint without being replaced.
 const tintedTextFill = (): string => activeTheme.gameTheme.textOnTinted;
 
 const PT_STYLE = registerTintedTextStyle(
@@ -158,12 +135,10 @@ const FOIL_STAR_STYLE = new TextStyle({
   fill: 0xffe27a,
 });
 
-/** Iridescent gold used for the foil ring + sparkle icon. Hard-coded
- *  rather than themed because foil treatment reads "metallic gold"
+/** Hard-coded rather than themed because foil treatment reads "metallic gold"
  *  across every preset; the surrounding card art carries the theme. */
 const FOIL_RING_COLOR = 0xffd87a;
 
-// ── Geometry ─────────────────────────────────────────────────────
 const CARD_RADIUS = 6;
 const RING_RADIUS = 8;
 const RING_INSET = 2;
@@ -188,18 +163,12 @@ const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
     fill: tintedTextFill(),
   }),
 );
-// Fraction of the card height occupied by the title line (card name +
-// mana cost). Badges sit just below this band so the mana cost stays
-// unobstructed regardless of hover scale.
 const BADGE_TITLE_BAND_FRAC = 0.1;
 
 const MAX_VISIBLE_COUNTERS = 4;
 
 const WUBRG = new Set(["W", "U", "B", "R", "G"]);
 
-/** Primary identity color for the frame tint. First WUBRG identity color, or
- *  colorless. Multicolor cards use their first color — gradients are out of
- *  scope for the battlefield tile. */
 function cardTintHex(card: GameCard): string {
   const mana = activeTheme.gameTheme.mana;
   const first = (card.colorIdentity ?? []).find((c) => WUBRG.has(c));
@@ -236,9 +205,6 @@ function badgeColor(key: CardStatusKey): number {
   return hexToNum(activeTheme.gameTheme.cardStatus[key]);
 }
 
-/** Static mapping from counter-type string (as it appears on the card
- *  state) to the `Theme.gameTheme.counter` key. Any type not listed here
- *  falls through to `counter.default`. */
 const COUNTER_TYPE_KEYS: Record<string, keyof Theme["gameTheme"]["counter"]> = {
   P1P1: "p1p1",
   M1M1: "m1m1",
@@ -355,11 +321,7 @@ export class CardSprite extends Container {
   private etbGlow: Graphics;
   private hoverDebugGfx: Graphics;
   private _imageLoaded = false;
-  /** Custom battlefield styles (art / mini-frame) apply only to battlefield
-   *  sprites. Hand cards always render the full printed image. */
   private readonly isBattlefield: boolean;
-  /** View-only face override for the in-hand flip button. `null` = follow the
-   *  card's real face (front, or back when transformed). */
   private previewFace: 0 | 1 | null = null;
 
   constructor(card: GameCard, kind: "battlefield" | "hand" = "battlefield") {
@@ -402,9 +364,6 @@ export class CardSprite extends Container {
     this.addChild(this.imageSpr);
     this.fitImageToSlot();
 
-    // Custom-frame chrome (name/type bars + colored border) for the art /
-    // mini-frame styles. Hidden in realistic mode. Masked to the rounded card
-    // shape so the opaque bars don't poke past the corners.
     this.frameContainer = new Container();
     this.frameContainer.visible = false;
     this.frameMask = new Graphics();
@@ -425,24 +384,18 @@ export class CardSprite extends Container {
     this.manaContainer = new Container();
     this.addChild(this.manaContainer);
 
-    // Red death wash; sits above the art (so it reads) but below P/T and badges.
     this.doomedGfx = new Graphics();
     this.doomedGfx.visible = false;
     this.addChild(this.doomedGfx);
 
-    // Marked-damage wash — same layer as the doomed wash, strength scales with
-    // damage / toughness. Replaces the old ⚔N badge.
     this.damageGfx = new Graphics();
     this.damageGfx.visible = false;
     this.addChild(this.damageGfx);
 
-    // One-shot white impact flash on taking damage (on top of the wash/shake).
     this.hitFlashGfx = new Graphics();
     this.hitFlashGfx.visible = false;
     this.addChild(this.hitFlashGfx);
 
-    // Edge glow (attacking = red, summoning-sick = frosty pulse) — mirrors the
-    // DOM card face's inset glow / aura. Clipped to the rounded card shape.
     this.edgeGlowMask = new Graphics();
     this.edgeGlowMask
       .roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS)
@@ -533,10 +486,6 @@ export class CardSprite extends Container {
     this.loadImage();
   }
 
-  /** Dev overlay tinting the card's hit area (the whole card rect). Hand cards
-   *  are excluded — their true hover region is the axis-aligned hit zone drawn
-   *  by HandController, not this rotated per-sprite rect. Driven by the module
-   *  flag (BoardScene fans the toggle out to every sprite). */
   redrawHoverDebug(): void {
     this.hoverDebugGfx.clear();
     if (!activeHoverDebug || !this.isBattlefield) return;
@@ -596,17 +545,12 @@ export class CardSprite extends Container {
     this.renderFrame();
   }
 
-  /** Show a specific face's image (view-only flip for hand cards). `null`
-   *  restores the card's real face. Reloads the texture only when it changes. */
   setPreviewFace(face: 0 | 1 | null): void {
     if (this.previewFace === face) return;
     this.previewFace = face;
     this.loadImage();
   }
 
-  /** Scales the art-crop texture to cover the whole card slot (crop to fill),
-   *  centered. Used by the art / mini-frame styles where the printed frame is
-   *  replaced by our own chrome. */
   private fitArtCover(): void {
     const tex = this.imageSpr.texture;
     if (tex.width === 0 || tex.height === 0) return;
@@ -620,20 +564,16 @@ export class CardSprite extends Container {
     else this.imageSpr.setSize(CARD_W, CARD_W / ar);
   }
 
-  /** Re-applies the active battlefield style: swaps the texture variant
-   *  (art-crop vs full image) and repaints the frame chrome + keyword strip. */
   restyle(): void {
-    // Repaint the frame chrome synchronously so it switches style in the same
-    // frame as the keyword/mana strips; loadImage repaints it again after the
-    // texture resolves. Otherwise the strips lead the bars/border by one async gap.
+    // Repaint synchronously so the frame switches style in the same frame as the
+    // keyword/mana strips; loadImage repaints again after the texture resolves.
+    // Otherwise the strips lead the bars/border by one async gap.
     this.renderFrame();
     this.loadImage();
     this.updateKeywords();
     this.updateMana();
   }
 
-  /** Mana-cost pips, top-right. Custom-style battlefield only — the realistic
-   *  image already shows the printed cost. */
   private updateMana(): void {
     this.manaContainer.removeChildren().forEach((c) => c.destroy());
     if (!this.isBattlefield || activeStyle === "realistic") return;
@@ -655,8 +595,6 @@ export class CardSprite extends Container {
     }
   }
 
-  /** Draws the name/type bars + colored border for the art / mini-frame
-   *  styles. No-op (hidden) in realistic mode. */
   private renderFrame(): void {
     if (!this.isBattlefield || activeStyle === "realistic") {
       this.frameContainer.visible = false;
@@ -728,10 +666,8 @@ export class CardSprite extends Container {
     this.frameGfx.stroke({ color: tintNum, width: 1.5 });
   }
 
-  /** Vertical fade for the art-forward caption — transparent at `top`, opaque
-   *  `canvas.shadow` at the card foot — mirroring the DOM scrim's CSS gradient.
-   *  Cached per (top, color) so the 256px gradient texture isn't rebuilt on
-   *  every state tick. */
+  /** Cached per (top, color) so the gradient texture isn't rebuilt on every
+   *  state tick. */
   private scrimGradient(top: number, shadowHex: string): FillGradient {
     const key = `${top.toFixed(2)}|${shadowHex}`;
     if (this.frameScrimKey !== key || !this.frameScrimGrad) {
@@ -792,9 +728,6 @@ export class CardSprite extends Container {
     this.updateEdgeGlow();
   }
 
-  /** Inset edge glow mirroring the DOM card face: red for attacking, frosty
-   *  (pulsing — see `tickEffects`) for summoning-sick creatures. Replaces the
-   *  old attacking / summoning-sick rings. No-op for hand cards. */
   private updateEdgeGlow(): void {
     const card = this.card;
     const attacking = this.isBattlefield && !!card.isAttacking;
@@ -834,21 +767,14 @@ export class CardSprite extends Container {
     this.glowPulsing = sick && !attacking;
   }
 
-  /** Stat "pop" — a brief bump of the P/T badge when power/toughness changes. */
   playStatPop(now: number): void {
     this.statPopFx = oneShot(now, STAT_POP.durationMs);
   }
 
-  /** White impact flash when the creature takes damage (with the existing
-   *  wash + shake + floater). */
   playDamageHit(now: number): void {
     this.hitFlashFx = oneShot(now, DAMAGE_HIT.durationMs);
   }
 
-  /** Per-frame hook (driven by the board region's animate loop) — breathes the
-   *  summoning-sick aura and advances the one-shot stat-pop / hit animations.
-   *  `now` is the shared frame timestamp. (The entrance squash lives in
-   *  `fxScale`, driven by GSAP.) */
   tickEffects(now: number): void {
     if (this.glowPulsing) {
       this.edgeGlowGfx.alpha = animationsEnabled()
@@ -880,17 +806,14 @@ export class CardSprite extends Container {
   }
 
   destroy(options?: DestroyOptions): void {
-    // The entrance stomp tweens `fxScale` via GSAP; if the card is removed
-    // mid-stomp the tween would keep mutating a destroyed sprite's object
-    // forever. Kill it before teardown.
+    // If the card is removed mid-stomp the GSAP tween would keep mutating a
+    // destroyed sprite's fxScale forever; kill it before teardown.
     gsap.killTweensOf(this.fxScale);
     super.destroy(options);
   }
 
-  /** Color-matrix treatments that mirror the DOM card face: summoning-sick
-   *  creatures are desaturated + dimmed ("just entered, can't act yet"), and
-   *  phased-out cards are desaturated (their alpha fade is owned by the board
-   *  tick). No-op for hand cards. */
+  /** Phased-out cards are desaturated here, but their alpha fade is owned by the
+   *  board tick. */
   private updateCardFilter(): void {
     const card = this.card;
     const sick =
@@ -898,8 +821,7 @@ export class CardSprite extends Container {
       !!card.summoningSick &&
       (card.types?.some((t) => t.toLowerCase() === "creature") ?? false);
     const phased = this.isBattlefield && !!card.phasedOut;
-    // Rebuild the (re-rendered-every-frame) color-matrix filter only when the
-    // state actually changes — updateCardContent runs on every state tick.
+    // Rebuild only when the state changes — updateCardContent runs every tick.
     const key = sick ? "sick" : phased ? "phased" : "none";
     if (key === this.lastFilterKey) return;
     this.lastFilterKey = key;
@@ -946,8 +868,6 @@ export class CardSprite extends Container {
 
   private updateKeywords(): void {
     this.keywordsContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
-    // The realistic style keeps the printed keywords in the card art, so the
-    // strip is battlefield custom-style only (plus the dev-preview card).
     const custom = this.isBattlefield && activeStyle !== "realistic";
     if (!custom && this.card.id !== DEBUG_KEYWORD_CARD_ID) return;
 
@@ -1022,7 +942,6 @@ export class CardSprite extends Container {
     this.stackCountContainer.y = 2;
   }
 
-  /** Damage-assignment order badge (1-based). null hides it. */
   setOrderBadge(n: number | null): void {
     if (n == null) {
       this.orderBadgeContainer.visible = false;
@@ -1064,9 +983,8 @@ export class CardSprite extends Container {
   private updatePT(): void {
     const card = this.card;
     const isCreature = card.types?.some((t) => t.toLowerCase() === "creature");
-    // Hand cards render the full printed image, which already carries the P/T at
-    // the real-card proportion — drawing our overlay on top would double it at a
-    // mismatched size. The badge is a battlefield-only thing (buff/debuff/damage).
+    // Hand cards already carry the printed P/T; drawing our overlay on top would
+    // double it at a mismatched size, so the badge is battlefield-only.
     if (!this.isBattlefield || !isCreature || !card.power || !card.toughness) {
       this.ptContainer.visible = false;
       return;
@@ -1084,7 +1002,7 @@ export class CardSprite extends Container {
 
     this.ptText.x = 3;
     this.ptText.y = 2;
-    // Pivot at the badge center so the stat-pop scales in place (not from a corner).
+    // Pivot at the badge center so the stat-pop scales in place, not from a corner.
     this.ptContainer.pivot.set(tw / 2, th / 2);
     this.ptContainer.x = CARD_W - tw - 3 + tw / 2;
     this.ptContainer.y =
@@ -1109,11 +1027,8 @@ export class CardSprite extends Container {
 
     this.badgeText.x = 2.5;
     this.badgeText.y = 1;
-    // Sit the badge just below the MTG title line instead of on top of it.
-    // A top-centered badge would otherwise cover the mana cost pip cluster
-    // (top-right of the card frame) when the hand hover scales the card up,
-    // and the mana cost is the piece of information the player most needs
-    // to read at a glance.
+    // Below the title line, not on top of it — a top-centered badge would cover
+    // the mana cost cluster when the hand hover scales the card up.
     const titleBandY = Math.round(CARD_H * BADGE_TITLE_BAND_FRAC);
     this.badgeContainer.x = (CARD_W - bw) / 2;
     this.badgeContainer.y = titleBandY;
@@ -1124,9 +1039,8 @@ export class CardSprite extends Container {
     const counters = this.card.counters;
     if (!counters) return;
 
-    // P1P1 / M1M1 are not shown as counter badges on the battlefield — the net
-    // buff/debuff is conveyed by the green/red P/T color (the full per-type
-    // breakdown stays in the card preview).
+    // P1P1 / M1M1 are deliberately excluded — the net buff/debuff is conveyed by
+    // the green/red P/T color instead.
     const present = Object.entries(counters).filter(
       ([t, n]) => n > 0 && t !== "P1P1" && t !== "M1M1",
     );
@@ -1225,8 +1139,8 @@ export class CardSprite extends Container {
     const alpha = Math.min(0.5, (tough > 0 ? dmg / tough : 1) * 0.5);
     this.damageGfx.visible = true;
     this.damageGfx.clear();
-    // Mini-frame: wash only the art window between the name/type bars so the
-    // bars stay clean. Art / realistic: wash the whole rounded card.
+    // Mini-frame washes only the art window between the bars so they stay clean;
+    // art / realistic washes the whole rounded card.
     if (this.frameNameBandH > 0) {
       const top = this.frameNameBandH;
       this.damageGfx.rect(0, top, CARD_W, CARD_H - top - this.frameTypeBandH);

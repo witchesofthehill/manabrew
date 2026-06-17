@@ -1,15 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
 
-/**
- * The realistic-overlay P/T badge (bottom-right of a card), shared by every DOM
- * card renderer so it is the same fraction of the card on every surface (hover
- * preview, stack, modals, zones) instead of each hard-coding its own px size.
- *
- * Sized in container units (`cqw`) + `em`, so the card root must establish a
- * container (`@container`). `clamp` floors the font so small cards stay legible.
- * `baseValue` renders a struck-through pre-buff P/T above; `children` render
- * below (e.g. a damage marker).
- */
 export function PtBadge({
   value,
   style,

@@ -1,7 +1,3 @@
-// Unified deck-source dispatcher. Parses URLs from multiple providers and
-// routes fetches to the matching provider-specific module. Both the CLI and
-// the in-app importer consume this.
-
 import {
   fetchArchidektDeck,
   fetchArchidektResult,
@@ -16,9 +12,6 @@ import type { DeckFormatId } from "@/types/manabrew";
 
 export type DeckSource = "archidekt" | "moxfield";
 
-/** Infer a deck format from a plain card list (no format metadata, e.g. a
- *  pasted list). A ~100-card singleton deck is treated as Commander; anything
- *  else falls back to standard. */
 export function inferImportedFormat(cardNames: string[]): DeckFormatId {
   if (cardNames.length < 90) return "standard";
   const counts = new Map<string, number>();
@@ -53,8 +46,6 @@ export interface ParsedDeckEntry {
 
 const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
 const MAYBEBOARD_LINE_REGEX = /^(maybeboard|maybe)\s*:?$/i;
-// Section headers that switch back to the mainboard (commander/companion still
-// land in the main list; the commander is detected downstream).
 const MAIN_SECTION_LINE_REGEX = /^(commander|command|mainboard|main|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
 const SET_SUFFIX_REGEX = /\s+\([A-Za-z0-9]{2,6}\)(?:\s+[\w-]+)?(?:\s+\*F\*)?$/i;

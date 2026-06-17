@@ -11,8 +11,6 @@ import { BadgeOrbit, type OrbitBadge } from "./BadgeOrbit";
 export interface PlayerAvatarProps {
   player: Player;
   badges: OrbitBadge[];
-  /** Per-seat theme colour. Drives the avatar fill and the active-turn
-   *  glow. Resolved by the parent from `themeColors.playerColors[seat]`. */
   seatColor: string;
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
@@ -24,9 +22,6 @@ export interface PlayerAvatarProps {
 }
 
 const AVATAR_PX = 72;
-// The floating life delta grows with the magnitude of the change, so a big hit
-// reads as a big number — a large loss fills the whole avatar face. Capped at
-// the avatar size.
 const LIFE_FLOAT_MIN_PX = 22;
 const LIFE_FLOAT_STEP_PX = 5;
 
@@ -46,13 +41,9 @@ export function PlayerAvatar({
   const themeColors = theme.gameTheme;
   const fontSizes = theme.gameTheme.fontSizes;
 
-  // Flash the life badge red when this player loses life. Bumping a key on
-  // each loss remounts the badge so the one-shot CSS animation replays; the
-  // animation self-clears, so no effect/timer is needed.
+  // Bumping a key remounts the badge so the one-shot CSS animation replays.
   const [prevLife, setPrevLife] = useState(player.life);
   const [lifeLossKey, setLifeLossKey] = useState(0);
-  // A floating "+N / −N" rises above the avatar on any life change; bumping a
-  // key remounts it so the one-shot animation replays.
   const [lifeFloatKey, setLifeFloatKey] = useState(0);
   const [lifeDelta, setLifeDelta] = useState(0);
   if (player.life !== prevLife) {
@@ -68,8 +59,6 @@ export function PlayerAvatar({
   const targetableColor = withAlpha(themeColors.promptAction.attackAction, 0.9);
   const selectedTargetColor = themeColors.promptAction.attackAction;
   const priorityColor = themeColors.activeAction.priority;
-  // Show the "waiting on this player" pulse only when the avatar isn't already
-  // carrying a target highlight (those take visual precedence).
   const showPriority = !!isPriorityPlayer && !isTargetable && !isSelectedTarget;
 
   const ringStyle: CSSProperties = isSelectedTarget

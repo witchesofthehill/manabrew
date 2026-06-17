@@ -346,6 +346,15 @@ export function withAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+export function relativeLuminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+export function readableTextColor(background: string, dark: string, light: string): string {
+  return relativeLuminance(background) > 0.6 ? dark : light;
+}
+
 export function darken(hex: string, factor: number): string {
   const { r, g, b } = hexToRgb(hex);
   const k = Math.max(0, Math.min(1, 1 - factor));

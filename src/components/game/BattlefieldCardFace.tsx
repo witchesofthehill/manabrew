@@ -2,7 +2,7 @@ import type { GameCard } from "@/types/manabrew";
 import type { ManaLetter } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { withAlpha } from "@/themes/gameTheme";
+import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
@@ -40,6 +40,7 @@ export function BattlefieldCardFace({
   const colors = cardColors(card);
   const tint = colors.length === 0 ? theme.mana.C : theme.mana[colors[0]];
   const tintB = colors.length > 1 ? theme.mana[colors[1]] : tint;
+  const barText = readableTextColor(tint, theme.canvas.shadow, theme.textOnTinted);
   const barBg =
     colors.length > 1
       ? `linear-gradient(105deg, ${tint} 0%, ${tint} 42%, ${tintB} 58%, ${tintB} 100%)`
@@ -62,7 +63,9 @@ export function BattlefieldCardFace({
   const radius = 5 * u;
   const pad = 3 * u;
 
-  const typeLine = [...card.supertypes, ...card.types].join(" ");
+  const typeLine =
+    [...card.supertypes, ...card.types].join(" ") +
+    (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
   const Overlays = (
@@ -245,7 +248,7 @@ export function BattlefieldCardFace({
       >
         <span
           className="font-semibold leading-tight truncate"
-          style={{ fontSize: fontName, color: theme.textOnTinted }}
+          style={{ fontSize: fontName, color: barText }}
         >
           {card.name}
         </span>
@@ -271,12 +274,8 @@ export function BattlefieldCardFace({
         className="flex items-center justify-between gap-1 shrink-0"
         style={{ background: withAlpha(tint, 0.9), padding: `${1.5 * u}px ${pad}px` }}
       >
-        <span
-          className="leading-none truncate"
-          style={{ fontSize: fontType, color: theme.textOnTinted }}
-        >
-          {[...card.supertypes, ...card.types].join(" ")}
-          {card.subtypes.length > 0 ? ` — ${card.subtypes.join(" ")}` : ""}
+        <span className="leading-none truncate" style={{ fontSize: fontType, color: barText }}>
+          {typeLine}
         </span>
       </div>
 

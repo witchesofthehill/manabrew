@@ -1,8 +1,9 @@
-import { Container, Sprite, Texture, Graphics, Text, TextStyle } from "pixi.js";
+import { Container, Sprite, Texture, Graphics, Text, TextStyle, FillGradient } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import type { Theme } from "@/hooks/useTheme";
+import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
@@ -117,28 +118,27 @@ const NAME_STYLE = registerTintedTextStyle(
   }),
 );
 
-const FRAME_NAME_STYLE = registerTintedTextStyle(
-  new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-    fontSize: 7,
-    fontWeight: "600",
-    fill: tintedTextFill(),
-    wordWrap: true,
-    wordWrapWidth: CARD_W - 6,
-    lineHeight: 8,
-  }),
-);
+// Not registered as a tinted style: the frame text color is contrast-aware
+// (dark on light tint bars, light on the dark art scrim) and set per-card in
+// `renderFrame`, so each frame Text gets its own cloned style instance.
+const FRAME_NAME_STYLE = new TextStyle({
+  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontSize: 7,
+  fontWeight: "600",
+  fill: tintedTextFill(),
+  wordWrap: true,
+  wordWrapWidth: CARD_W - 6,
+  lineHeight: 8,
+});
 
-const FRAME_TYPE_STYLE = registerTintedTextStyle(
-  new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-    fontSize: 5.5,
-    fill: tintedTextFill(),
-    wordWrap: true,
-    wordWrapWidth: CARD_W - 6,
-    lineHeight: 6.5,
-  }),
-);
+const FRAME_TYPE_STYLE = new TextStyle({
+  fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+  fontSize: 5.5,
+  fill: tintedTextFill(),
+  wordWrap: true,
+  wordWrapWidth: CARD_W - 6,
+  lineHeight: 6.5,
+});
 
 const FOIL_STAR_STYLE = new TextStyle({
   fontFamily: "Inter, system-ui, -apple-system, sans-serif",
@@ -196,7 +196,9 @@ function cardTintHex(card: GameCard): string {
 }
 
 function frameTypeLine(card: GameCard): string {
-  return [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
+  const left = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
+  const subtypes = card.subtypes ?? [];
+  return subtypes.length > 0 ? `${left} - ${subtypes.join(" ")}` : left;
 }
 
 type CardStatusKey = keyof Theme["gameTheme"]["cardStatus"];
@@ -304,6 +306,8 @@ export class CardSprite extends Container {
   private frameGfx: Graphics;
   private frameNameText: Text;
   private frameTypeText: Text;
+  private frameScrimGrad: FillGradient | null = null;
+  private frameScrimKey = "";
   private manaContainer: Container;
   private doomedGfx: Graphics;
   private ringGfx: Graphics;
@@ -392,9 +396,9 @@ export class CardSprite extends Container {
     this.frameContainer.mask = this.frameMask;
     this.frameGfx = new Graphics();
     this.frameContainer.addChild(this.frameGfx);
-    this.frameNameText = new Text({ text: "", style: FRAME_NAME_STYLE });
+    this.frameNameText = new Text({ text: "", style: FRAME_NAME_STYLE.clone() });
     this.frameNameText.resolution = TEXT_RASTER_RESOLUTION;
-    this.frameTypeText = new Text({ text: "", style: FRAME_TYPE_STYLE });
+    this.frameTypeText = new Text({ text: "", style: FRAME_TYPE_STYLE.clone() });
     this.frameTypeText.resolution = TEXT_RASTER_RESOLUTION;
     this.frameContainer.addChild(this.frameNameText);
     this.frameContainer.addChild(this.frameTypeText);
@@ -621,44 +625,75 @@ export class CardSprite extends Container {
       return;
     }
     this.frameContainer.visible = true;
-    const tintNum = hexToNum(cardTintHex(this.card));
-    const shadowNum = hexToNum(activeTheme.gameTheme.canvas.shadow);
+    const tintHex = cardTintHex(this.card);
+    const tintNum = hexToNum(tintHex);
+    const shadowHex = activeTheme.gameTheme.canvas.shadow;
+    const lightText = activeTheme.gameTheme.textOnTinted;
 
     this.frameGfx.clear();
     this.frameNameText.text = this.card.name;
     this.frameTypeText.text = frameTypeLine(this.card);
 
+    const pad = 3;
     if (activeStyle === "art") {
+      this.frameNameText.style.fill = lightText;
+      this.frameTypeText.style.fill = lightText;
       this.frameTypeText.anchor.set(0, 1);
       this.frameTypeText.alpha = 0.78;
-      this.frameTypeText.x = 3;
-      this.frameTypeText.y = CARD_H - 2;
+      this.frameTypeText.x = pad;
+      this.frameTypeText.y = CARD_H - pad;
       this.frameNameText.anchor.set(0, 1);
       this.frameNameText.alpha = 1;
-      this.frameNameText.x = 3;
+      this.frameNameText.x = pad;
       this.frameNameText.y = this.frameTypeText.y - this.frameTypeText.height - 1;
-      const scrimTop = this.frameNameText.y - this.frameNameText.height - 3;
+      const scrimTop = this.frameNameText.y - this.frameNameText.height - 8;
       this.frameGfx.rect(0, scrimTop, CARD_W, CARD_H - scrimTop);
-      this.frameGfx.fill({ color: shadowNum, alpha: 0.72 });
+      this.frameGfx.fill(this.scrimGradient(scrimTop, shadowHex));
     } else {
+      const barText = readableTextColor(tintHex, shadowHex, lightText);
+      this.frameNameText.style.fill = barText;
+      this.frameTypeText.style.fill = barText;
       this.frameNameText.anchor.set(0, 0);
       this.frameNameText.alpha = 1;
-      this.frameNameText.x = 3;
-      this.frameNameText.y = 2;
-      const nameBandH = this.frameNameText.height + 4;
+      this.frameNameText.x = pad;
+      this.frameNameText.y = 2.5;
+      const nameBandH = this.frameNameText.height + 5;
       this.frameTypeText.anchor.set(0, 1);
-      this.frameTypeText.alpha = 0.85;
-      this.frameTypeText.x = 3;
-      this.frameTypeText.y = CARD_H - 2;
-      const typeBandH = this.frameTypeText.height + 4;
+      this.frameTypeText.alpha = 1;
+      this.frameTypeText.x = pad;
+      this.frameTypeText.y = CARD_H - 2.5;
+      const typeBandH = this.frameTypeText.height + 5;
       this.frameGfx.rect(0, 0, CARD_W, nameBandH);
       this.frameGfx.fill({ color: tintNum, alpha: 0.92 });
       this.frameGfx.rect(0, CARD_H - typeBandH, CARD_W, typeBandH);
       this.frameGfx.fill({ color: tintNum, alpha: 0.85 });
     }
 
-    this.frameGfx.roundRect(0.75, 0.75, CARD_W - 1.5, CARD_H - 1.5, CARD_RADIUS);
-    this.frameGfx.stroke({ color: tintNum, width: 1.5, alpha: 0.95 });
+    this.frameGfx.roundRect(1.5, 1.5, CARD_W - 3, CARD_H - 3, CARD_RADIUS - 1.5);
+    this.frameGfx.stroke({ color: tintNum, width: 1.5 });
+  }
+
+  /** Vertical fade for the art-forward caption — transparent at `top`, opaque
+   *  `canvas.shadow` at the card foot — mirroring the DOM scrim's CSS gradient.
+   *  Cached per (top, color) so the 256px gradient texture isn't rebuilt on
+   *  every state tick. */
+  private scrimGradient(top: number, shadowHex: string): FillGradient {
+    const key = `${top.toFixed(2)}|${shadowHex}`;
+    if (this.frameScrimKey !== key || !this.frameScrimGrad) {
+      this.frameScrimGrad = new FillGradient({
+        type: "linear",
+        start: { x: 0, y: top },
+        end: { x: 0, y: CARD_H },
+        textureSpace: "global",
+        colorStops: [
+          { offset: 0, color: withAlpha(shadowHex, 0) },
+          { offset: 0.4, color: withAlpha(shadowHex, 0.6) },
+          { offset: 1, color: withAlpha(shadowHex, 0.94) },
+        ],
+      });
+      this.frameScrimKey = key;
+    }
+    return this.frameScrimGrad;
   }
 
   get imageLoaded(): boolean {

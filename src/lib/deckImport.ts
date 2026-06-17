@@ -48,9 +48,14 @@ export interface ParsedDeckEntry {
   name: string;
   count: number;
   side: boolean;
+  maybe: boolean;
 }
 
 const SIDEBOARD_LINE_REGEX = /^(sideboard|side)\s*:?$/i;
+const MAYBEBOARD_LINE_REGEX = /^(maybeboard|maybe)\s*:?$/i;
+// Section headers that switch back to the mainboard (commander/companion still
+// land in the main list; the commander is detected downstream).
+const MAIN_SECTION_LINE_REGEX = /^(commander|command|mainboard|main|deck|companion)\s*:?$/i;
 const DECK_LINE_REGEX = /^(\d+)x?\s+(.+)$/i;
 const SET_SUFFIX_REGEX = /\s+\([A-Za-z0-9]{2,6}\)(?:\s+[\w-]+)?(?:\s+\*F\*)?$/i;
 
@@ -59,18 +64,31 @@ export function parseDeckListText(text: string): ParsedDeckEntry[] {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
-  let inSide = false;
+  let section: "main" | "side" | "maybe" = "main";
   const entries: ParsedDeckEntry[] = [];
   for (const line of lines) {
     if (SIDEBOARD_LINE_REGEX.test(line)) {
-      inSide = true;
+      section = "side";
+      continue;
+    }
+    if (MAYBEBOARD_LINE_REGEX.test(line)) {
+      section = "maybe";
+      continue;
+    }
+    if (MAIN_SECTION_LINE_REGEX.test(line)) {
+      section = "main";
       continue;
     }
     const match = line.match(DECK_LINE_REGEX);
     if (!match) continue;
     const name = match[2].trim().replace(SET_SUFFIX_REGEX, "").trim();
     if (!name) continue;
-    entries.push({ count: parseInt(match[1], 10), name, side: inSide });
+    entries.push({
+      count: parseInt(match[1], 10),
+      name,
+      side: section === "side",
+      maybe: section === "maybe",
+    });
   }
   return entries;
 }

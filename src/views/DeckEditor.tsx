@@ -237,18 +237,20 @@ export default function DeckEditor() {
     onProgress(0.9);
     const cards: DeckCard[] = [];
     const sideboard: DeckCard[] = [];
+    const maybeboard: DeckCard[] = [];
     const notFound: string[] = [];
-    for (const { name: cardName, count, side } of entries) {
+    for (const { name: cardName, count, side, maybe } of entries) {
       const sc = scryfallMap.get(cardName.toLowerCase());
       if (!sc) {
         notFound.push(cardName);
         continue;
       }
+      const target = side ? sideboard : maybe ? maybeboard : cards;
       for (let i = 0; i < count; i++) {
-        (side ? sideboard : cards).push({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
+        target.push({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
       }
     }
-    if (cards.length === 0 && sideboard.length === 0) {
+    if (cards.length === 0 && sideboard.length === 0 && maybeboard.length === 0) {
       throw new Error("None of the cards could be found on Scryfall");
     }
     const id = addSavedDeck({
@@ -256,6 +258,7 @@ export default function DeckEditor() {
       format: inferImportedFormat(cards.map((c) => c.name)),
       cards,
       sideboard,
+      maybeboard,
       attractions: [],
       contraptions: [],
       schemes: [],
@@ -270,7 +273,7 @@ export default function DeckEditor() {
       toast.success(`Imported "${deckName}"`);
     }
     console.log(
-      `[import] built ${cards.length} main / ${sideboard.length} side, id=${id}, savedDeck.cards=${useDeckStore.getState().savedDecks.find((s) => s.id === id)?.deck.cards.length}`,
+      `[import] built ${cards.length} main / ${sideboard.length} side / ${maybeboard.length} maybe, id=${id}, savedDeck.cards=${useDeckStore.getState().savedDecks.find((s) => s.id === id)?.deck.cards.length}`,
     );
     handleSelectDeck(id);
   }

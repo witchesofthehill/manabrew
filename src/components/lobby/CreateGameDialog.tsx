@@ -378,43 +378,8 @@ export function CreateGameDialog({
               </div>
             </div>
 
-            {/* Preset decks */}
-            <div className="p-4 pt-2">
-              <SectionLabel>Preset Decks</SectionLabel>
-              <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
-                Pre-built themed decks — always legal, great for testing mechanics.
-              </p>
-              {filteredPresetEntries.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">
-                  No preset decks match your search.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {filteredPresetEntries.map((deck) => (
-                    <DeckSelectionCard
-                      key={deck.id}
-                      id={deck.id}
-                      name={deck.name}
-                      desc={deck.desc}
-                      color={deck.color}
-                      cards={deck.cards}
-                      cover={deck.cover}
-                      isPreset={deck.isPreset}
-                      isSelected={selectedDeck === deck.id}
-                      isLegal={true}
-                      onSelect={() => setSelectedDeck(deck.id)}
-                      onActivate={() => handleCreate(deck, deck.commanderName)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div className="mx-4 border-t" />
-
             {/* User decks */}
-            <div className="p-4">
+            <div className="p-4 pt-2">
               <SectionLabel>Your Decks</SectionLabel>
               <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
                 Decks you've built in the editor.
@@ -457,6 +422,41 @@ export function CreateGameDialog({
                       />
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="mx-4 border-t" />
+
+            {/* Preset decks */}
+            <div className="p-4">
+              <SectionLabel>Preset Decks</SectionLabel>
+              <p className="text-[11px] text-muted-foreground mt-0.5 mb-3">
+                Pre-built themed decks — always legal, great for testing mechanics.
+              </p>
+              {filteredPresetEntries.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  No preset decks match your search.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {filteredPresetEntries.map((deck) => (
+                    <DeckSelectionCard
+                      key={deck.id}
+                      id={deck.id}
+                      name={deck.name}
+                      desc={deck.desc}
+                      color={deck.color}
+                      cards={deck.cards}
+                      cover={deck.cover}
+                      isPreset={deck.isPreset}
+                      isSelected={selectedDeck === deck.id}
+                      isLegal={true}
+                      onSelect={() => setSelectedDeck(deck.id)}
+                      onActivate={() => handleCreate(deck, deck.commanderName)}
+                    />
+                  ))}
                 </div>
               )}
             </div>

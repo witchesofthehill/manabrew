@@ -49,8 +49,9 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const entries = useMemo(() => parseDeckListText(text), [text]);
-  const mainCount = entries.reduce((s, e) => (e.side ? s : s + e.count), 0);
+  const mainCount = entries.reduce((s, e) => (e.side || e.maybe ? s : s + e.count), 0);
   const sideCount = entries.reduce((s, e) => (e.side ? s + e.count : s), 0);
+  const maybeCount = entries.reduce((s, e) => (e.maybe ? s + e.count : s), 0);
   const valid = entries.length > 0;
   const dirty = text.trim().length > 0;
 
@@ -155,14 +156,15 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
 
               {valid ? (
                 <div
-                  key={mainCount + sideCount}
+                  key={mainCount + sideCount + maybeCount}
                   className="flex items-center gap-2 rounded-md border border-legality-legal/40 bg-legality-legal/10 px-3 py-2 text-legality-legal duration-300 animate-in fade-in zoom-in-95"
                 >
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
                   <span className="text-sm font-medium">Looks good!</span>
                   <span className="text-xs text-muted-foreground">
                     {mainCount} main
-                    {sideCount > 0 ? ` · ${sideCount} sideboard` : ""} · {entries.length} unique
+                    {sideCount > 0 ? ` · ${sideCount} sideboard` : ""}
+                    {maybeCount > 0 ? ` · ${maybeCount} maybeboard` : ""} · {entries.length} unique
                   </span>
                 </div>
               ) : dirty ? (
@@ -181,7 +183,7 @@ export function ImportDeckTextDialog({ open, onOpenChange, onImport }: ImportDec
                 className={cn("gap-1 transition-all", valid && "ring-2 ring-primary/40")}
               >
                 <Download className="h-3.5 w-3.5" />
-                Import{valid ? ` ${mainCount + sideCount} cards` : ""}
+                Import{valid ? ` ${mainCount + sideCount + maybeCount} cards` : ""}
               </Button>
             </div>
           </>

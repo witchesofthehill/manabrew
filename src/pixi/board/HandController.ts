@@ -372,8 +372,11 @@ export class HandController {
 
   destroy(): void {
     this.cancelHoverHoldTimer();
+    for (const sprite of this.sprites.values()) safeDestroy(sprite);
     this.sprites.clear();
+    this.targets.clear();
     this.hitZones = [];
+    this.container.destroy({ children: true });
   }
 
   private pruneRemovedSprites(currentIds: Set<string>): void {

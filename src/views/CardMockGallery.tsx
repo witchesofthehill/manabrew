@@ -8,6 +8,7 @@ import {
   type BattlefieldCardFaceVariant,
 } from "@/components/game/BattlefieldCardFace";
 import { BoardPlayground } from "@/components/dev/BoardPlayground";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
 
@@ -105,7 +106,10 @@ function GalleryRow({
 }
 
 export default function CardMockGallery() {
-  const [variant, setVariant] = useState<GalleryVariant>("art");
+  // Bound to the real preference so the one toggle drives both the DOM previews
+  // and the live Pixi board playground below (which reads the same pref).
+  const variant = usePreferencesStore((s) => s.battlefieldCardStyle) as GalleryVariant;
+  const setVariant = usePreferencesStore((s) => s.setBattlefieldCardStyle);
   const [showReal, setShowReal] = useState(false);
 
   return (

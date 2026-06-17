@@ -166,7 +166,8 @@ export function BoardPlayground() {
       </div>
       <p className="text-xs text-muted-foreground">
         Click a card to select it (the action buttons target the selection, else the last card).
-        Card style + the In-game Animations toggle come from Settings.
+        Card style follows the Realistic / Art-forward / Mini-frame toggle above; the In-game
+        Animations toggle lives in Settings.
       </p>
       <div className="relative h-[480px] overflow-hidden rounded-lg border border-border bg-black/40">
         <BoardCanvas

@@ -621,6 +621,10 @@ export class CardSprite extends Container {
   /** Re-applies the active battlefield style: swaps the texture variant
    *  (art-crop vs full image) and repaints the frame chrome + keyword strip. */
   restyle(): void {
+    // Repaint the frame chrome synchronously so it switches style in the same
+    // frame as the keyword/mana strips; loadImage repaints it again after the
+    // texture resolves. Otherwise the strips lead the bars/border by one async gap.
+    this.renderFrame();
     this.loadImage();
     this.updateKeywords();
     this.updateMana();

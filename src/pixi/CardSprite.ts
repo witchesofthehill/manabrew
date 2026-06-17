@@ -305,6 +305,7 @@ export class CardSprite extends Container {
   private frameScrimGrad: FillGradient | null = null;
   private frameScrimKey = "";
   private frameTypeBandH = 0;
+  private frameNameBandH = 0;
   private frameCounterReserve = 0;
   private manaContainer: Container;
   private doomedGfx: Graphics;
@@ -616,6 +617,7 @@ export class CardSprite extends Container {
     if (!this.isBattlefield || activeStyle === "realistic") {
       this.frameContainer.visible = false;
       this.frameTypeBandH = 0;
+      this.frameNameBandH = 0;
       this.frameCounterReserve = 0;
       return;
     }
@@ -635,6 +637,7 @@ export class CardSprite extends Container {
 
     const pad = 3;
     this.frameTypeBandH = 0;
+    this.frameNameBandH = 0;
     this.frameCounterReserve = 0;
     if (activeStyle === "art") {
       this.frameNameText.style.fill = lightText;
@@ -667,6 +670,7 @@ export class CardSprite extends Container {
       this.frameTypeText.y = CARD_H - 2.5;
       const typeBandH = this.frameTypeText.height + 5;
       this.frameTypeBandH = typeBandH;
+      this.frameNameBandH = nameBandH;
       this.frameCounterReserve = typeBandH;
       this.frameGfx.rect(0, 0, CARD_W, nameBandH);
       this.frameGfx.fill({ color: tintNum, alpha: 0.92 });
@@ -1038,7 +1042,14 @@ export class CardSprite extends Container {
     const alpha = Math.min(0.5, (tough > 0 ? dmg / tough : 1) * 0.5);
     this.damageGfx.visible = true;
     this.damageGfx.clear();
-    this.damageGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    // Mini-frame: wash only the art window between the name/type bars so the
+    // bars stay clean. Art / realistic: wash the whole rounded card.
+    if (this.frameNameBandH > 0) {
+      const top = this.frameNameBandH;
+      this.damageGfx.rect(0, top, CARD_W, CARD_H - top - this.frameTypeBandH);
+    } else {
+      this.damageGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    }
     this.damageGfx.fill({ color: hexToNum(activeTheme.gameTheme.pt.lethal), alpha });
   }
 

@@ -56,6 +56,7 @@ export function BattlefieldCardFace({
       : tint;
 
   const creature = isCreature(card);
+  const summoned = creature && !!card.summoningSick;
   const lethal = isLethalDamage(card);
   const pt = creature && card.power != null && card.toughness != null;
   const loyalty = card.counters?.Loyalty;
@@ -141,12 +142,12 @@ export function BattlefieldCardFace({
           )}
         </div>
       )}
-      {card.summoningSick && creature && (
+      {summoned && (
         <div
-          className="absolute inset-0 rounded-[inherit] pointer-events-none"
+          className="absolute inset-0 rounded-[inherit] pointer-events-none animate-pulse"
           style={{
-            outline: `${Math.max(1, 1.5 * u)}px dashed ${theme.promptAction.cancel}`,
-            outlineOffset: -2 * u,
+            boxShadow: `inset 0 0 0 ${Math.max(1, u)}px ${withAlpha(theme.textOnTinted, 0.85)}, inset 0 0 ${10 * u}px ${withAlpha(theme.textOnTinted, 0.55)}, inset 0 0 ${5 * u}px ${withAlpha(theme.promptAction.cancel, 0.65)}`,
+            background: `radial-gradient(circle at 50% 50%, transparent 55%, ${withAlpha(theme.textOnTinted, 0.18)} 100%)`,
           }}
         />
       )}
@@ -166,6 +167,7 @@ export function BattlefieldCardFace({
           "relative overflow-hidden shadow-sm",
           card.tapped && "rotate-90",
           card.phasedOut && "opacity-30 grayscale",
+          summoned && "opacity-80 grayscale-[0.85]",
         )}
         style={{
           width,
@@ -250,6 +252,7 @@ export function BattlefieldCardFace({
         "relative overflow-hidden flex flex-col",
         card.tapped && "rotate-90",
         card.phasedOut && "opacity-30 grayscale",
+        summoned && "opacity-80 grayscale-[0.85]",
       )}
       style={{
         width,
@@ -321,6 +324,7 @@ export function BattlefieldCardFace({
             {loyalty}
           </span>
         )}
+        {Overlays}
       </div>
 
       <div
@@ -331,8 +335,6 @@ export function BattlefieldCardFace({
           {typeLine}
         </span>
       </div>
-
-      {Overlays}
     </div>
   );
 }

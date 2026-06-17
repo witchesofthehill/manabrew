@@ -16,6 +16,7 @@ import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useGameStore } from "@/stores/useGameStore";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import { asDeckCard } from "@/lib/decks";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCardFaces } from "@/hooks/useCardFaces";
@@ -266,6 +267,7 @@ export function CardPreview({
   const hasActions = actions && actions.length > 0 && onSelectAction;
   const showSidePanel = hasActions;
   const themeColors = useTheme().gameTheme;
+  const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing; // matches battlefield playable color
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   // Deck-editor hover bypasses the game runtime: `gameDecks[ownerId]` is
@@ -514,6 +516,12 @@ export function CardPreview({
                   </div>
                 )}
                 <CardDetailOverlay card={card} horizontal={horizontal} />
+                {showHoverAreas && (
+                  <div
+                    className="pointer-events-none absolute inset-0 z-30"
+                    style={{ backgroundColor: withAlpha(themeColors.success, 0.28) }}
+                  />
+                )}
                 {hasDoubleFace && onFlip && (
                   <button
                     type="button"

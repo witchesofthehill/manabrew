@@ -160,6 +160,10 @@ interface GameDevState {
   debugBattlefieldKeywords: string[];
   debugCardEnabled: boolean;
   debugCardName: string;
+  /** Dev overlay: tint every card's hover / hit area (hand, battlefield, and
+   *  the hover preview) so the interactive region is visible. */
+  showHoverAreas: boolean;
+  setShowHoverAreas: (value: boolean) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
   setDevToolsEnabled: (value: boolean) => void;
   clearPromptActionOverride: () => void;
@@ -193,6 +197,8 @@ export const useGameDevStore = create<GameDevState>()(
       debugBattlefieldKeywords: [],
       debugCardEnabled: false,
       debugCardName: "Raging Goblin",
+      showHoverAreas: false,
+      setShowHoverAreas: (value) => set({ showHoverAreas: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
       setDevToolsEnabled: (value) => set({ devToolsEnabled: value }),
       clearPromptActionOverride: () => set({ promptActionOverride: null }),
@@ -231,6 +237,7 @@ export const useGameDevStore = create<GameDevState>()(
           debugBattlefieldKeywords: [],
           debugCardEnabled: false,
           debugCardName: "Raging Goblin",
+          showHoverAreas: false,
         }),
     }),
     { name: "gameDev", enabled: import.meta.env.DEV },

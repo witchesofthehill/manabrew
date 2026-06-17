@@ -12,7 +12,7 @@ import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePref
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asDeckCard } from "@/lib/decks";
-import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
+import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 
 /**
@@ -323,6 +323,8 @@ export class CardSprite extends Container {
   private orderBadgeBg: Graphics;
   private orderBadgeText: Text;
   private etbGlow: Graphics;
+  private hoverDebugGfx: Graphics;
+  private devUnsub: (() => void) | null = null;
   private _imageLoaded = false;
   /** Custom battlefield styles (art / mini-frame) apply only to battlefield
    *  sprites. Hand cards always render the full printed image. */
@@ -475,12 +477,34 @@ export class CardSprite extends Container {
     this.etbGlow.visible = false;
     this.addChild(this.etbGlow);
 
+    this.hoverDebugGfx = new Graphics();
+    this.hoverDebugGfx.eventMode = "none";
+    this.addChild(this.hoverDebugGfx);
+    this.drawHoverDebug(useGameDevStore.getState().showHoverAreas);
+    this.devUnsub = useGameDevStore.subscribe(() =>
+      this.drawHoverDebug(useGameDevStore.getState().showHoverAreas),
+    );
+
     this.hitArea = {
       contains: (x: number, y: number) => x >= 0 && x <= CARD_W && y >= 0 && y <= CARD_H,
     };
 
     this.pivot.set(CARD_W / 2, CARD_H / 2);
     this.loadImage();
+  }
+
+  /** Dev overlay tinting the card's hit area (the whole card rect). */
+  private drawHoverDebug(on: boolean): void {
+    this.hoverDebugGfx.clear();
+    if (!on) return;
+    this.hoverDebugGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    this.hoverDebugGfx.fill({ color: hexToNum(activeTheme.gameTheme.success), alpha: 0.28 });
+  }
+
+  override destroy(options?: Parameters<Container["destroy"]>[0]): void {
+    this.devUnsub?.();
+    this.devUnsub = null;
+    super.destroy(options);
   }
 
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate

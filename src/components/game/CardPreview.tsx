@@ -258,7 +258,9 @@ export function CardPreview({
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const ringColor = themeColors.cardRing;
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
-  const deckCard: DeckCard = deck ? asDeckCard(deck, card) : (card as unknown as DeckCard);
+  // `asDeckCard` handles a missing deck and always returns `uris` (real or `{}`);
+  // casting the raw GameCard instead left `uris` undefined → crash on index.
+  const deckCard: DeckCard = asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const cardFaces = useCardFaces({
     name: card.name,

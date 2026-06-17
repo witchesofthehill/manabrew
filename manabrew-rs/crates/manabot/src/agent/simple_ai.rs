@@ -146,15 +146,9 @@ impl BotAgent for SimpleAi {
             PromptInput::PayCostToPreventEffect(manabrew_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput { .. }) => {
                 Some(PlayerAction::PayCostToPreventEffectDecision { accept: true })
             }
-            PromptInput::ChoosePhyrexian(manabrew_protocol::prompts::choose_phyrexian::ChoosePhyrexianInput { .. }) => {
-                Some(PlayerAction::PhyrexianDecision { pay_life: false })
+            PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput { .. }) => {
+                Some(PlayerAction::Decision { value: false })
             }
-            PromptInput::ChooseKicker(manabrew_protocol::prompts::choose_kicker::ChooseKickerInput { .. }) => {
-                Some(PlayerAction::KickerDecision { kicked: false })
-            }
-            PromptInput::ChooseBuyback(manabrew_protocol::prompts::choose_buyback::ChooseBuybackInput { .. }) => Some(PlayerAction::BuybackDecision {
-                buyback_paid: false,
-            }),
             PromptInput::ChooseMultikicker(manabrew_protocol::prompts::choose_multikicker::ChooseMultikickerInput { .. }) => {
                 Some(PlayerAction::MultikickerDecision { kick_count: 0 })
             }

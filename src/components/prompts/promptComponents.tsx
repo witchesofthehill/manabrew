@@ -13,12 +13,10 @@ import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
 import { LibraryPeekModal } from "./LibraryPeekModal";
 import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
-import { KickerModal } from "./KickerModal";
-import { BuybackModal } from "./BuybackModal";
+import { ChooseBooleanModal } from "./ChooseBooleanModal";
 import { MultikickerModal } from "./MultikickerModal";
 import { ReplicateModal } from "./ReplicateModal";
 import { AlternativeCostModal } from "./AlternativeCostModal";
-import { PhyrexianModal } from "./PhyrexianModal";
 import { ChooseRollToIgnoreModal } from "./ChooseRollToIgnoreModal";
 import { ChooseRollToSwapModal } from "./ChooseRollToSwapModal";
 import { ChooseRollToModifyModal } from "./ChooseRollToModifyModal";
@@ -217,13 +215,9 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <ChooseRollSwapValueModal input={prompt.input} respond={respond} />
   ),
 
-  choosePhyrexian: ({ prompt, respond }) => (
-    <PhyrexianModal input={prompt.input} respond={respond} />
+  chooseBoolean: ({ prompt, respond }) => (
+    <ChooseBooleanModal input={prompt.input} respond={respond} />
   ),
-
-  chooseKicker: ({ prompt, respond }) => <KickerModal input={prompt.input} respond={respond} />,
-
-  chooseBuyback: ({ prompt, respond }) => <BuybackModal input={prompt.input} respond={respond} />,
 
   chooseMultikicker: ({ prompt, respond }) => (
     <MultikickerModal input={prompt.input} respond={respond} />

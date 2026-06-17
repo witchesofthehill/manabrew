@@ -8,7 +8,7 @@ pub mod choose_alternative_cost;
 pub mod choose_attackers;
 pub mod choose_blockers;
 pub mod choose_board_targets;
-pub mod choose_buyback;
+pub mod choose_boolean;
 pub mod choose_card_name;
 pub mod choose_cards_for_effect;
 pub mod choose_color;
@@ -21,12 +21,10 @@ pub mod choose_discard;
 pub mod choose_enlist_attackers;
 pub mod choose_exert_attackers;
 pub mod choose_improvise;
-pub mod choose_kicker;
 pub mod choose_mode;
 pub mod choose_multikicker;
 pub mod choose_number;
 pub mod choose_optional_trigger;
-pub mod choose_phyrexian;
 pub mod choose_replicate;
 pub mod choose_roll_swap_value;
 pub mod choose_roll_to_ignore;
@@ -60,6 +58,7 @@ pub enum PromptInput {
     ChooseAttackers(choose_attackers::ChooseAttackersInput),
     ChooseBlockers(choose_blockers::ChooseBlockersInput),
     ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput),
+    ChooseBoolean(choose_boolean::ChooseBooleanInput),
     GameOver(game_over::GameOverInput),
     RevealCards(reveal_cards::RevealCardsInput),
     Scry(scry::ScryInput),
@@ -69,9 +68,6 @@ pub enum PromptInput {
     ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerInput),
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectInput),
     ChooseMode(choose_mode::ChooseModeInput),
-    ChoosePhyrexian(choose_phyrexian::ChoosePhyrexianInput),
-    ChooseKicker(choose_kicker::ChooseKickerInput),
-    ChooseBuyback(choose_buyback::ChooseBuybackInput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerInput),
     ChooseReplicate(choose_replicate::ChooseReplicateInput),
     ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostInput),
@@ -118,6 +114,7 @@ pub enum PromptOutput {
     ChooseAttackers(choose_attackers::ChooseAttackersOutput),
     ChooseBlockers(choose_blockers::ChooseBlockersOutput),
     ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsOutput),
+    ChooseBoolean(choose_boolean::ChooseBooleanOutput),
     RevealCards(reveal_cards::RevealCardsOutput),
     Scry(scry::ScryOutput),
     Surveil(surveil::SurveilOutput),
@@ -126,9 +123,6 @@ pub enum PromptOutput {
     ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerOutput),
     PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectOutput),
     ChooseMode(choose_mode::ChooseModeOutput),
-    ChoosePhyrexian(choose_phyrexian::ChoosePhyrexianOutput),
-    ChooseKicker(choose_kicker::ChooseKickerOutput),
-    ChooseBuyback(choose_buyback::ChooseBuybackOutput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerOutput),
     ChooseReplicate(choose_replicate::ChooseReplicateOutput),
     ChooseAlternativeCost(choose_alternative_cost::ChooseAlternativeCostOutput),

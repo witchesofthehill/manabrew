@@ -78,8 +78,7 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseType"]: { showByDefault: true, resolve: forced.singleLegalType },
   ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },
   ["chooseCardName"]: { showByDefault: true, resolve: forced.singleLegalName },
-  ["chooseKicker"]: { showByDefault: true, resolve: optionalCosts.skipKicker },
-  ["chooseBuyback"]: { showByDefault: true, resolve: optionalCosts.skipBuyback },
+  ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseMultikicker"]: { showByDefault: true, resolve: optionalCosts.skipMultikicker },
   ["chooseReplicate"]: { showByDefault: true, resolve: optionalCosts.skipReplicate },
   ["chooseAlternativeCost"]: {

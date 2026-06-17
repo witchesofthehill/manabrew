@@ -38,8 +38,10 @@ fn main() {
                 },
                 AvailableAction {
                     id: "1".into(),
-                    kind: AvailableActionKind::PlayLand {
+                    kind: AvailableActionKind::Cast {
                         card_id: "card-2".into(),
+                        mode: "normal".into(),
+                        mode_label: "Play land".into(),
                     },
                 },
                 AvailableAction {
@@ -132,15 +134,6 @@ fn main() {
             max_choices: 0,
             source_card_name: None,
         }),
-        ChoosePhyrexian(choose_phyrexian::ChoosePhyrexianInput {
-            phyrexian_color: String::new(),
-        }),
-        ChooseKicker(choose_kicker::ChooseKickerInput {
-            kicker_cost: String::new(),
-        }),
-        ChooseBuyback(choose_buyback::ChooseBuybackInput {
-            buyback_cost: String::new(),
-        }),
         ChooseMultikicker(choose_multikicker::ChooseMultikickerInput {
             cost: String::new(),
             max_kicks: 0,
@@ -228,6 +221,19 @@ fn main() {
             cards: vec![],
             destination: None,
             top_of_deck: true,
+        }),
+        ChooseBoolean(choose_boolean::ChooseBooleanInput {
+            presentation: common::PromptPresentation {
+                title: "Pay Buyback?".to_string(),
+                description: Some("Pay additional buyback cost: {3}{G}".to_string()),
+                text: Some(
+                    "If paid, this spell returns to your hand instead of going to the graveyard."
+                        .to_string(),
+                ),
+                source_card_id: None,
+            },
+            confirm_label: "Pay Buyback".to_string(),
+            deny_label: "No".to_string(),
         }),
         ExploreDecision(explore_decision::ExploreDecisionInput {
             revealed_card_name: String::new(),

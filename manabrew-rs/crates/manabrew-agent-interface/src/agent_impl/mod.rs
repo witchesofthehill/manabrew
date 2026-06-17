@@ -384,31 +384,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         let untappable_land_ids: Vec<String> =
             untappable_lands.iter().map(|&c| card_id_str(c)).collect();
 
-        let view_ref = self.view();
-        let is_land = |cid: &str| {
-            view_ref
-                .all_zone_cards()
-                .find(|c| c.id == cid)
-                .map(|c| c.types.iter().any(|t| t == "Land"))
-                .unwrap_or(false)
-        };
         let mut actions: Vec<AvailableAction> = Vec::new();
         for (play, opt) in playable.iter().zip(playable_options.iter()) {
             let card_id = card_id_str(play.card_id);
-            let kind = if is_land(&card_id) {
-                AvailableActionKind::PlayLand {
-                    card_id: card_id.clone(),
-                }
-            } else {
-                AvailableActionKind::Cast {
+            actions.push(AvailableAction {
+                id: format!("cast:{card_id}:{}", opt.mode),
+                kind: AvailableActionKind::Cast {
                     card_id: card_id.clone(),
                     mode: opt.mode.clone(),
                     mode_label: opt.mode_label.clone(),
-                }
-            };
-            actions.push(AvailableAction {
-                id: format!("cast:{card_id}:{}", opt.mode),
-                kind,
+                },
             });
         }
         for a in action_space

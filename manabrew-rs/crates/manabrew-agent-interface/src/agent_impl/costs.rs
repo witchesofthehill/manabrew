@@ -3,10 +3,34 @@ use manabrew_engine::agent::{ManaAbilityOption, ManaCostAction};
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 
+use manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput;
+use manabrew_protocol::prompts::common::PromptPresentation;
+
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
+
+fn choose_boolean<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    presentation: PromptPresentation,
+    confirm_label: &str,
+    deny_label: &str,
+    source: Option<CardId>,
+) -> bool {
+    agent.send_prompt(
+        PromptInput::ChooseBoolean(ChooseBooleanInput {
+            presentation,
+            confirm_label: confirm_label.to_string(),
+            deny_label: deny_label.to_string(),
+        }),
+        source,
+    );
+    match agent.recv_action() {
+        PlayerAction::Decision { value } => value,
+        _ => false,
+    }
+}
 
 pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     agent: &mut PromptAgent<T>,
@@ -14,18 +38,27 @@ pub(super) fn choose_phyrexian_pay_life<T: Responder>(
     color: &str,
     source: Option<CardId>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChoosePhyrexian(
-            manabrew_protocol::prompts::choose_phyrexian::ChoosePhyrexianInput {
-                phyrexian_color: color.to_string(),
-            },
-        ),
+    let shards: Vec<&str> = color.split(',').map(str::trim).collect();
+    let life_cost = shards.len() * 2;
+    let phyrexian_cost: String = shards.iter().map(|s| format!("{{{s}}}")).collect();
+    let mana_cost: String = shards
+        .iter()
+        .map(|s| format!("{{{}}}", s.replace("/P", "")))
+        .collect();
+    choose_boolean(
+        agent,
+        PromptPresentation {
+            title: "Pay Phyrexian?".to_string(),
+            description: Some(format!(
+                "Pay {phyrexian_cost} with {life_cost} life, or pay {mana_cost} mana instead?"
+            )),
+            text: None,
+            source_card_id: source.map(card_id_str),
+        },
+        &format!("Pay {life_cost} Life"),
+        "Pay Mana",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::PhyrexianDecision { pay_life } => pay_life,
-        _ => false,
-    }
+    )
 }
 
 pub(super) fn choose_kicker<T: Responder>(
@@ -34,18 +67,18 @@ pub(super) fn choose_kicker<T: Responder>(
     kicker_cost: &str,
     source: Option<CardId>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChooseKicker(
-            manabrew_protocol::prompts::choose_kicker::ChooseKickerInput {
-                kicker_cost: kicker_cost.to_string(),
-            },
-        ),
+    choose_boolean(
+        agent,
+        PromptPresentation {
+            title: "Pay Kicker?".to_string(),
+            description: Some(format!("Pay additional kicker cost: {kicker_cost}")),
+            text: None,
+            source_card_id: source.map(card_id_str),
+        },
+        "Pay Kicker",
+        "No",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::KickerDecision { kicked } => kicked,
-        _ => false,
-    }
+    )
 }
 
 pub(super) fn choose_buyback<T: Responder>(
@@ -54,18 +87,21 @@ pub(super) fn choose_buyback<T: Responder>(
     buyback_cost: &str,
     source: Option<CardId>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChooseBuyback(
-            manabrew_protocol::prompts::choose_buyback::ChooseBuybackInput {
-                buyback_cost: buyback_cost.to_string(),
-            },
-        ),
+    choose_boolean(
+        agent,
+        PromptPresentation {
+            title: "Pay Buyback?".to_string(),
+            description: Some(format!("Pay additional buyback cost: {buyback_cost}")),
+            text: Some(
+                "If paid, this spell returns to your hand instead of going to the graveyard."
+                    .to_string(),
+            ),
+            source_card_id: source.map(card_id_str),
+        },
+        "Pay Buyback",
+        "No",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::BuybackDecision { buyback_paid } => buyback_paid,
-        _ => false,
-    }
+    )
 }
 
 pub(super) fn choose_multikicker<T: Responder>(

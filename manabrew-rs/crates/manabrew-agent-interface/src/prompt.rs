@@ -112,19 +112,10 @@ pub enum PlayerAction {
         #[serde(rename = "chosenIndices")]
         chosen_indices: Vec<usize>,
     },
-    /// Response to ChoosePhyrexian prompt: whether to pay 2 life.
-    PhyrexianDecision {
-        #[serde(rename = "payLife")]
-        pay_life: bool,
-    },
-    /// Response to ChooseKicker prompt: whether the player pays the kicker.
-    KickerDecision {
-        kicked: bool,
-    },
-    /// Response to ChooseBuyback prompt.
-    BuybackDecision {
-        #[serde(rename = "buybackPaid")]
-        buyback_paid: bool,
+    /// Response to a generic ChooseBoolean prompt (kicker, buyback, phyrexian, …).
+    /// The handler that issued the prompt interprets `value` in context.
+    Decision {
+        value: bool,
     },
     /// Response to ChooseMultikicker prompt: how many times.
     MultikickerDecision {

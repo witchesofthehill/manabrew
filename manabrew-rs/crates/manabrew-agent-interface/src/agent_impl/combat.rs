@@ -57,10 +57,6 @@ pub(super) fn choose_attackers<T: Responder>(
         .copied()
         .unwrap_or(DefenderId::Player(PlayerId(1)));
     match agent.recv_action() {
-        PlayerAction::RestoreSnapshot { checkpoint_id } => {
-            agent.pending_restore_checkpoint = Some(checkpoint_id);
-            Vec::new()
-        }
         PlayerAction::DeclareAttackers { assignments } => assignments
             .iter()
             .filter_map(|a| {
@@ -107,10 +103,6 @@ pub(super) fn choose_blockers<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::RestoreSnapshot { checkpoint_id } => {
-            agent.pending_restore_checkpoint = Some(checkpoint_id);
-            Vec::new()
-        }
         PlayerAction::DeclareBlockers { assignments } => assignments
             .iter()
             .filter_map(

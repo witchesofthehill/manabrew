@@ -1,20 +1,11 @@
 import { isToggledOff, type PromptResolver } from "./promptHandlers";
 
-export const skipKicker: PromptResolver<"chooseKicker"> = (_prompt, ctx) => {
-  if (!isToggledOff("chooseKicker", ctx)) return { kind: "force-show" };
+export const skipBoolean: PromptResolver<"chooseBoolean"> = (_prompt, ctx) => {
+  if (!isToggledOff("chooseBoolean", ctx)) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "kickerDecision", kicked: false },
-    reason: "kicker prompt toggled off; defaulting to skip",
-  };
-};
-
-export const skipBuyback: PromptResolver<"chooseBuyback"> = (_prompt, ctx) => {
-  if (!isToggledOff("chooseBuyback", ctx)) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "buybackDecision", buybackPaid: false },
-    reason: "buyback prompt toggled off; defaulting to skip",
+    respond: { type: "decision", value: false },
+    reason: "boolean prompt toggled off; defaulting to decline",
   };
 };
 

@@ -476,7 +476,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       });
       return;
     }
-    const single = castActions[0] ?? acts.find((a) => a.type === "playLand" && a.cardId === cardId);
+    const single = castActions[0];
     if (single) respond({ type: "act", actionId: single.id });
   };
 
@@ -1298,9 +1298,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const promptPlayableIds = new Set(
     promptType === "chooseAction"
       ? (chooseActionInput?.actions ?? []).flatMap((a) =>
-          a.type === "cast" || a.type === "playLand" || a.type === "activateAbility"
-            ? [a.cardId]
-            : [],
+          a.type === "cast" || a.type === "activateAbility" ? [a.cardId] : [],
         )
       : [],
   );
@@ -1512,12 +1510,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
         resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
         snapshots={snapshots}
-        canRestoreSnapshots={
-          (!isMultiplayer || isHost) &&
-          (promptType === "chooseAction" ||
-            promptType === "chooseAttackers" ||
-            promptType === "chooseBlockers")
-        }
+        canRestoreSnapshots={(!isMultiplayer || isHost) && promptType === "chooseAction"}
         onRestoreSnapshot={restoreSnapshot}
       />
 

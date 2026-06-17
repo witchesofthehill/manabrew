@@ -11,14 +11,10 @@ interface OptionalCostRow {
 
 const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
   {
-    promptType: "chooseKicker",
-    label: "Kicker",
-    description: "Skip the kicker prompt — never pay the extra cost.",
-  },
-  {
-    promptType: "chooseBuyback",
-    label: "Buyback",
-    description: "Skip the buyback prompt — never pay the buyback cost.",
+    promptType: "chooseBoolean",
+    label: "Optional yes/no costs",
+    description:
+      "Skip yes/no cost prompts (kicker, buyback, Phyrexian) — never pay the extra cost.",
   },
   {
     promptType: "chooseMultikicker",

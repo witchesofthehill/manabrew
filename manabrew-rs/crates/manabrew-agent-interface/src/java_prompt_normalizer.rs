@@ -643,9 +643,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::TapLand { .. } => "tapLand",
         PlayerAction::UntapLand { .. } => "untapLand",
         PlayerAction::BoardTargets { .. } => "boardTargets",
-        PlayerAction::PhyrexianDecision { .. } => "phyrexianDecision",
-        PlayerAction::KickerDecision { .. } => "kickerDecision",
-        PlayerAction::BuybackDecision { .. } => "buybackDecision",
+        PlayerAction::Decision { .. } => "decision",
         PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
         PlayerAction::ReplicateDecision { .. } => "replicateDecision",
         PlayerAction::AlternativeCostDecision { .. } => "alternativeCostDecision",
@@ -710,9 +708,6 @@ fn build_choose_action(
                 cost: None,
                 is_mana_ability: false,
                 produced_colors: None,
-            },
-            Some("play") => AvailableActionKind::PlayLand {
-                card_id: card_id.clone(),
             },
             _ => AvailableActionKind::Cast {
                 card_id: card_id.clone(),

@@ -169,7 +169,7 @@ export function BoardPlayground() {
         Card style follows the Realistic / Art-forward / Mini-frame toggle above; the In-game
         Animations toggle lives in Settings.
       </p>
-      <div className="relative h-[480px] overflow-hidden rounded-lg border border-border bg-black/40">
+      <div className="relative h-[85vh] overflow-hidden rounded-lg border border-border bg-black/40">
         <BoardCanvas
           regions={regions}
           hand={{ cards: [] }}

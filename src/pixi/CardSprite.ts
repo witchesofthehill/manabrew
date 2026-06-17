@@ -325,11 +325,8 @@ export class CardSprite extends Container {
   private edgeGlowMask: Graphics;
   private glowPulsing = false;
   private hitFlashGfx: Graphics;
-  private entranceFx: OneShot | null = null;
   private statPopFx: OneShot | null = null;
   private hitFlashFx: OneShot | null = null;
-  private fxScaleX = 1;
-  private fxScaleY = 1;
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -824,18 +821,6 @@ export class CardSprite extends Container {
     this.glowPulsing = sick && !attacking;
   }
 
-  /** Entrance "stomp" — a squash-and-stretch on enter (the region also fires a
-   *  ground dust ring). Read by the region via {@link getFxScale}. */
-  playEntrance(now: number): void {
-    this.entranceFx = oneShot(now, 480);
-  }
-
-  /** Non-uniform scale multiplier from the entrance squash (1,1 when idle). The
-   *  region multiplies this into the base/hover scale so the two don't fight. */
-  getFxScale(): { x: number; y: number } {
-    return { x: this.fxScaleX, y: this.fxScaleY };
-  }
-
   /** Stat "pop" — a brief bump of the P/T badge when power/toughness changes. */
   playStatPop(now: number): void {
     this.statPopFx = oneShot(now, 360);
@@ -848,21 +833,10 @@ export class CardSprite extends Container {
   }
 
   /** Per-frame hook (driven by the board region's animate loop) — breathes the
-   *  summoning-sick aura and advances the one-shot entrance / stat-pop / hit
-   *  animations. `now` is the shared frame timestamp. */
+   *  summoning-sick aura and advances the one-shot stat-pop / hit animations.
+   *  `now` is the shared frame timestamp. */
   tickEffects(now: number): void {
     if (this.glowPulsing) this.edgeGlowGfx.alpha = pulse(now, 1600, 0.5, 0.95);
-
-    const ep = oneShotProgress(this.entranceFx, now);
-    if (ep != null) {
-      const q = bump(ep) * 0.2;
-      this.fxScaleX = 1 + q;
-      this.fxScaleY = 1 - q;
-    } else if (this.entranceFx) {
-      this.entranceFx = null;
-      this.fxScaleX = 1;
-      this.fxScaleY = 1;
-    }
 
     const sp = oneShotProgress(this.statPopFx, now);
     if (sp != null) this.ptContainer.scale.set(1 + 0.35 * bump(sp));

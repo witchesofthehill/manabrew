@@ -22,7 +22,7 @@ Transient (a one-shot on a card): add a `OneShot | null` field + a `play…(now)
 
 ## Current effects
 
-- **Entrance stomp** (`CardSprite.playEntrance` squash-and-stretch via `getFxScale`, which the region composes with the base/hover scale so they don't fight) + the existing `etbGlow` fade + a ground **dust ring** (`EffectsLayer.spawnStomp`, creatures only). Dev-previewable via `BoardScene.previewEtb` (the dev panel's "Flash ETB" button → `triggerEtbGlow`).
+- **Entrance** — the `etbGlow` fade + a ground **dust ring** (`EffectsLayer.spawnStomp`, creatures only). Dev-previewable via `BoardScene.previewEtb` (the dev panel's "Flash ETB" button → `triggerEtbGlow`).
 - **Stat pop** (`playStatPop`) — P/T badge bump on power/toughness change.
 - **Damage hit** (`playDamageHit`) — white flash, alongside the existing shake + `-N` floater.
 - **Active-turn glow** (`BoardRegion.setActive`) — breathing felt-edge glow on the active player's region; plumbed `activePlayerId` → `BoardCanvas` → `BoardScene.setActivePlayer`.

@@ -384,8 +384,7 @@ export class BoardRegion {
       const isHovered = this.hoveredCardId === s.card.id;
       const targetScale = this.cardScale * (isHovered ? HOVER_SCALE : 1);
       entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
-      const fx = s.getFxScale();
-      s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
+      s.scale.set(entry.scaleBase);
 
       if (entry.overlay?.visible) {
         entry.overlay.x = s.x;
@@ -518,7 +517,6 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          entry.sprite.playEntrance(now);
           if (card.types?.some((t) => t.toLowerCase() === "creature")) {
             this.effects.spawnStomp(now, entry.targetX, entry.targetY + cardHalfH, dust);
           }
@@ -1059,10 +1057,8 @@ export class BoardRegion {
 
   /** Dev: replay the ETB flash on every current card (no state change). */
   previewEtb(): void {
-    const now = performance.now();
     for (const entry of this.entries.values()) {
       entry.etbGlowAlpha = 1;
-      entry.sprite.playEntrance(now);
     }
   }
 

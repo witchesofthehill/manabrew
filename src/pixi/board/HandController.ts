@@ -44,6 +44,7 @@ export class HandController {
   private hoveredIndex: number | null = null;
   private hoveredCardId: string | null = null;
   private hoverHoldTimer: number | null = null;
+  private hoverHeld = false;
   private pendingLeaveIndex: number | null = null;
   private lastState: HandState | null = null;
   private vScale = 1;
@@ -283,6 +284,7 @@ export class HandController {
 
   resetHover(): void {
     this.cancelHoverHoldTimer();
+    this.hoverHeld = false;
     this.host.getCallbacks().onHoverCard?.(null);
     this.host.getCallbacks().onHoverHandCard?.(null);
     this.resetHoveredFace();
@@ -309,6 +311,11 @@ export class HandController {
   clearHover(): void {
     const idx = this.hoveredIndex;
     if (idx === null) return;
+    // The cursor is parked on an HTML overlay that owns the hover (action
+    // panel / curved bridge); ignore the canvas leaving until it releases.
+    // Order-independent with holdHover, so the race between the canvas
+    // pointer-leave and the overlay's mouse-enter can't drop the lift.
+    if (this.hoverHeld) return;
     if (this.pendingLeaveIndex === idx && this.hoverHoldTimer !== null) return;
     // Defer the leave (and its onHover(null) callbacks) so a flickering
     // hit-test doesn't tear the preview / action panel down between frames.
@@ -317,13 +324,16 @@ export class HandController {
     this.scheduleHoverCommit(idx);
   }
 
-  /** Called when the HTML action menu receives the cursor. */
+  /** Called when an HTML overlay (action panel / hover bridge) takes the
+   *  cursor. Pins the hover so the lifted card stays raised. */
   holdHover(): void {
+    this.hoverHeld = true;
     this.cancelHoverHoldTimer();
   }
 
-  /** Called when the cursor leaves the HTML action menu. */
+  /** Called when the cursor leaves the HTML overlay. */
   releaseHover(): void {
+    this.hoverHeld = false;
     if (this.hoveredIndex === null) return;
     this.scheduleHoverCommit(this.hoveredIndex);
   }
@@ -526,6 +536,7 @@ export class HandController {
 
   private commitHoverLeave(): void {
     this.hoverHoldTimer = null;
+    this.hoverHeld = false;
     const idx = this.pendingLeaveIndex;
     this.pendingLeaveIndex = null;
     if (this.host.isDestroyed()) return;

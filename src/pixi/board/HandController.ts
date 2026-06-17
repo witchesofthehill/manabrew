@@ -173,14 +173,28 @@ export class HandController {
         scaleY: (l.scaleH / CARD_H) * castScale,
         zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
       });
-      hitZones.push({
-        index: i,
-        card,
-        x: centerX + base.x,
-        y: bottomY + base.drop - dims.cardH / 2 + selectedDrop,
-        width: dims.cardW,
-        height: dims.cardH,
-      });
+      // The hovered card lifts above its resting slot; extend its hit zone to
+      // the lifted bounds so the cursor can reach overlays on the raised card
+      // (the double-faced flip button) without leaving the zone and dropping it.
+      hitZones.push(
+        isHovered
+          ? {
+              index: i,
+              card,
+              x: centerX + l.x,
+              y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
+              width: l.scaleW,
+              height: l.scaleH,
+            }
+          : {
+              index: i,
+              card,
+              x: centerX + base.x,
+              y: bottomY + base.drop - dims.cardH / 2 + selectedDrop,
+              width: dims.cardW,
+              height: dims.cardH,
+            },
+      );
 
       this.applyHighlight(sprite, card, isHovered, selectionMode, isSelected);
     }

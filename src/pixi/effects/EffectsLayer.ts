@@ -95,7 +95,7 @@ export class EffectsLayer {
         // Flattened spread + an upward billow that low gravity lets hang.
         vy: Math.sin(ang) * speed * 0.55 - (0.4 + Math.random() * 0.9),
         life: 0,
-        max: 50 + Math.random() * 40,
+        max: 26 + Math.random() * 20,
         s0,
       });
     }
@@ -120,7 +120,7 @@ export class EffectsLayer {
     g.stroke({ color: CRACK_COLOR, width: 2.4, alpha: 0.95 });
     g.ellipse(x, y, 7, 3.5).fill({ color: CRACK_COLOR, alpha: 0.5 });
     this.container.addChildAt(g, 0); // under the dust particle container
-    this.crackles.push({ gfx: g, life: 0, max: 78 });
+    this.crackles.push({ gfx: g, life: 0, max: 42 });
   }
 
   tick(): void {
@@ -128,9 +128,9 @@ export class EffectsLayer {
       const survivors: DustParticle[] = [];
       for (const d of this.dust) {
         d.life += 1;
-        d.vy += 0.025; // low gravity → the cloud lingers
-        d.vx *= 0.9;
-        d.vy *= 0.92;
+        d.vy += 0.04;
+        d.vx *= 0.88;
+        d.vy *= 0.9;
         d.p.x += d.vx;
         d.p.y += d.vy;
         const t = d.life / d.max;
@@ -153,8 +153,8 @@ export class EffectsLayer {
       for (const c of this.crackles) {
         c.life += 1;
         const t = c.life / c.max;
-        // Snap in, hold, then fade — held long enough to read clearly.
-        c.gfx.alpha = t < 0.3 ? 1 : Math.max(0, 1 - (t - 0.3) / 0.7);
+        // Snap in, brief hold, then fade.
+        c.gfx.alpha = t < 0.18 ? 1 : Math.max(0, 1 - (t - 0.18) / 0.82);
         if (c.life >= c.max) {
           this.container.removeChild(c.gfx);
           c.gfx.destroy();

@@ -501,7 +501,7 @@ public final class ActionSpace {
                 }
                 final int minTargets = current.getMinTargets();
                 if (minTargets > 0) {
-                    final List<GameEntity> candidates = tr.getAllCandidates(current, true);
+                    final List<GameEntity> candidates = tr.getAllCandidates(current, false);
                     final List<Pair<GameEntity, GameObject>> stackCandidates = getStackTargetCandidates(current);
                     boolean hasEnoughCandidates = candidates.size() + stackCandidates.size() >= minTargets;
                     if (tr.isDifferentControllers() || tr.isForEachPlayer()) {
@@ -519,6 +519,10 @@ public final class ActionSpace {
                         hasEnoughCandidates &= controllers.size() >= minTargets;
                     }
                     if (!hasEnoughCandidates) {
+                        HarnessDebug.log("[HARNESS-ACTIONSPACE] dropped "
+                                + sa.getHostCard().getName() + " (" + current.getApi()
+                                + ") minTargets=" + minTargets + " candidates=" + candidates.size()
+                                + " stackCandidates=" + stackCandidates.size());
                         return false;
                     }
                 }

@@ -856,6 +856,12 @@ fn run_hosted_engine_game_inner(
                 let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
                 let player_index = raw.player;
+                eprintln!(
+                    "[NODE-PROMPT] harness published kind={} player={} local_player={:?}",
+                    raw.body.kind_label(),
+                    player_index,
+                    local_player_index,
+                );
                 debug!(
                     player_index,
                     prompt_kind = raw.body.kind_label(),

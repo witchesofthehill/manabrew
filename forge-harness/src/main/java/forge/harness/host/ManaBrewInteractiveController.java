@@ -487,7 +487,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final boolean mandatory,
             final boolean canFilterMustTarget) {
         if (tr.isRandomTarget() && numTargets == null) {
-            final List<GameEntity> candidates = tr.getAllCandidates(ability, true);
+            final List<GameEntity> candidates = tr.getAllCandidates(ability, false);
             final List<GameEntity> choices = new ArrayList<>();
             final int minTargets = ability.getMinTargets();
             final int top = Math.min(candidates.size(), ability.getMaxTargets());
@@ -2249,7 +2249,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final Predicate<GameObject> filter,
             final List<Card> mustTargetCards) {
         final List<Pair<GameEntity, GameObject>> valid = new ArrayList<>();
-        for (final GameEntity candidate : restrictions.getAllCandidates(ability, true)) {
+        for (final GameEntity candidate : restrictions.getAllCandidates(ability, false)) {
             if (mustTargetCards != null && (!(candidate instanceof Card) || !mustTargetCards.contains(candidate))) {
                 continue;
             }

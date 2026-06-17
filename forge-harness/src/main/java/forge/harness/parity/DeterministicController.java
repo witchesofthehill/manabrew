@@ -404,7 +404,7 @@ public class DeterministicController extends PlayerController implements Harness
         }
 
         while (!currentAbility.isTargetNumberValid()) {
-            final List<GameEntity> candidates = tr.getAllCandidates(currentAbility, true);
+            final List<GameEntity> candidates = tr.getAllCandidates(currentAbility, false);
             final List<Pair<GameEntity, GameObject>> valid = new ArrayList<>();
             for (final GameEntity candidate : candidates) {
                 final GameObject normalized = normalizeStackTargetCandidate(candidate);

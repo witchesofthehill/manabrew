@@ -377,6 +377,10 @@ export const useGameStore = create<GameState>()(
       },
 
       respond: async (action) => {
+        console.log(`[RESPONSE] sending`, action, {
+          forPromptType: get().currentPrompt?.input.type,
+          sourceCardId: get().currentPrompt?.sourceCardId,
+        });
         // Single-prompt invariant: the engine sends exactly one prompt
         // at a time per agent and expects exactly one response. If a
         // response is already in flight, drop the duplicate — the modal

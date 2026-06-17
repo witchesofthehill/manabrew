@@ -1,6 +1,12 @@
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
-import { CardSprite, setCardSpriteTheme } from "../CardSprite";
+import {
+  CardSprite,
+  setCardSpriteTheme,
+  setCardSpriteStyle,
+  setCardSpriteHoverDebug,
+} from "../CardSprite";
+import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
@@ -20,11 +26,13 @@ import {
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
   FLOATER_RISE_PER_FRAME,
+  FPS_SAMPLE_INTERVAL_MS,
   PHASE_STRIP_COMBAT_ALPHA,
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
   Z_STAGED_REGION,
 } from "../constants";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
   ArrowEndpoint,
   ArrowSpec,
@@ -50,7 +58,6 @@ import type {
   StagedBlocker,
 } from "./types";
 
-/** One player's region assignment for the unified board. */
 export interface BoardPlayerSpec {
   playerId: string;
   isLocal: boolean;
@@ -62,22 +69,18 @@ interface RegionRecord {
   isLocal: boolean;
 }
 
-/**
- * Orchestrates the unified board canvas: one Pixi `Application` hosting a
- * `BoardRegion` per player (positioned via `boardLayout`), the local-player
- * controllers (`HandController` / `SelectionController` / `BattlefieldOverlay`
- * + the `DragHandler` gesture), and the phase strip. Arrow specs are
- * resolved via `getArrowDefs` and drawn by the separate `BoardArrowsCanvas`
- * overlay. A single set of stage pointer handlers routes to marquee /
- * hand-hover / drag. Each region gets a `RegionHost` (local = full
- * interaction; opponents = tap-to-target + hover only).
- */
 export class BoardScene {
   private app: Application;
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
   private destroyed = false;
+  private perfFrames = 0;
+  private perfTotalDelta = 0;
+  private perfMinFps = Infinity;
+  private perfMaxFps = 0;
+  private perfLastFlush = 0;
+  private activePlayerId: string | null = null;
 
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
@@ -104,12 +107,10 @@ export class BoardScene {
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
   private externalBlockers: BlockingRect[] = [];
 
-  // Drag-gesture transient state (local region).
   private hoveredCell: GridCell | null = null;
   private stackTargetId: string | null = null;
   private dropActive = false;
 
-  // Battlefield hover (one card across all regions).
   private hoveredCardId: string | null = null;
   private hoveredRegionRef: BoardRegion | null = null;
   private hoverClearTimer: number | null = null;
@@ -150,8 +151,6 @@ export class BoardScene {
     this.phaseStrip.container.zIndex = 7000;
     this.root.addChild(this.phaseStrip.container);
 
-    // Floating damage/life numbers live in canvas space above every region so
-    // they read upright regardless of a seat's rotation.
     this.floaterLayer = new Container();
     this.floaterLayer.eventMode = "none";
     this.floaterLayer.zIndex = 9000;
@@ -181,14 +180,6 @@ export class BoardScene {
     return this.app.canvas as HTMLCanvasElement;
   }
 
-  // ── Region lifecycle + layout ──────────────────────────────────────
-
-  /**
-   * Create / update / remove regions for the given players and position them
-   * via `layout`. Opponents map to `layout.opponents` in array order; the
-   * one local player gets `layout.self`. Establishes the local controllers
-   * the first time a local region appears.
-   */
   configure(players: BoardPlayerSpec[], layout: BoardLayout, cardScale: number): void {
     if (this.destroyed) return;
     this.cardScale = cardScale;
@@ -216,6 +207,7 @@ export class BoardScene {
       );
       region.container.zIndex = spec.isLocal ? 100 : 50;
       region.setAutoSort(this.autoSort);
+      region.setActive(spec.playerId === this.activePlayerId);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -253,9 +245,6 @@ export class BoardScene {
     this.drawRegionDividers(layout);
   }
 
-  /** Draw full-height divider lines between the side columns and the center in
-   *  the perimeter arrangement so each player's battlefield reads as its own
-   *  area. Row keeps the phase-strip line + resize grips as its separators. */
   private drawRegionDividers(layout: BoardLayout): void {
     const g = this.regionDividerGfx;
     g.clear();
@@ -271,9 +260,6 @@ export class BoardScene {
     g.stroke({ color: hexToNum(this.theme.gameTheme.canvas.neutral), width: 2, alpha: 0.12 });
   }
 
-  /** Fill the center strip band with the same felt as the battlefield
-   *  regions so the divider reads as part of the board. Spans only the self
-   *  column so it doesn't cut across the rotated side regions in perimeter. */
   private drawStripBackground(layout: BoardLayout): void {
     const g = this.stripBackgroundGfx;
     g.clear();
@@ -290,21 +276,15 @@ export class BoardScene {
     return this.localPlayerId ? (this.regions.get(this.localPlayerId)?.zone ?? null) : null;
   }
 
-  // ── State updates ──────────────────────────────────────────────────
-
   updateBattlefield(playerId: string, cards: GameCard[]): void {
     this.regions.get(playerId)?.region.updateBattlefield({ cards } as BattlefieldState);
   }
 
-  /** Apply a full battlefield state (with selectable / tappable id lists) to
-   *  one player's region. */
   updateRegionState(playerId: string, state: BattlefieldState): void {
     this.regions.get(playerId)?.region.updateBattlefield(state);
     this.refreshPhaseStripDim();
   }
 
-  /** Fade the phase strip whenever combat is happening (any attacker on the
-   *  board), so cards crossing the center band read clearly over it. */
   private refreshPhaseStripDim(): void {
     let active = false;
     for (const rec of this.regions.values()) {
@@ -321,8 +301,6 @@ export class BoardScene {
     this.hand?.updateHand(state);
   }
 
-  /** Keep the hand-hover preview alive while the cursor is over the HTML
-   *  action menu (and release it on leave). */
   holdHandHover(): void {
     this.hand?.holdHover();
   }
@@ -331,14 +309,15 @@ export class BoardScene {
     this.hand?.releaseHover();
   }
 
+  setHandPreviewFace(face: 0 | 1): void {
+    this.hand?.setHoveredPreviewFace(face);
+  }
+
   setHandScale(scale: number): void {
     this.hand?.setScale(scale);
     this.hand?.relayout();
   }
 
-  /** Reserve horizontal space at the bottom corners of the self zone (player
-   *  cluster on the left, zone tiles on the right) so the hand fan centers in
-   *  the gap between them instead of overlapping. */
   setHandInsets(left: number, right: number): void {
     if (this.handInsetLeft === left && this.handInsetRight === right) return;
     this.handInsetLeft = left;
@@ -350,12 +329,6 @@ export class BoardScene {
     this.regions.get(playerId)?.region.setCombatStaging(staging);
   }
 
-  /**
-   * MTGA-style combat staging across regions: each attacker stays at its x
-   * and its blockers line up beneath it. Because every region shares one
-   * canvas, the attacker's lane is its own canvas-local x (passed as a
-   * viewport x so each region's `screenXToLocalX` resolves it back).
-   */
   applyCombatBlocks(blocks: { blockerId: string; attackerId: string }[]): void {
     if (this.destroyed) return;
     const canvasLeft = this.app.canvas.getBoundingClientRect().left;
@@ -417,8 +390,6 @@ export class BoardScene {
           ? { attackerIds: a!.attackerIds, blockers: a!.blockers, blockerIds: a!.blockerIds }
           : null,
       );
-      // Lift a staging region above the phase strip so its cards read on top
-      // of the center band as they converge on the divider.
       rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
     this.refreshPhaseStripDim();
@@ -428,21 +399,15 @@ export class BoardScene {
     this.arrowSpecs = specs;
   }
 
-  /** Live source→cursor targeting arrow while casting a spell/ability, or null
-   *  when not targeting. Drawn by `getArrowDefs` against the current cursor. */
   setCastingArrow(arrow: { sourceCardId: string; hostile: boolean } | null): void {
     this.castingArrow = arrow;
   }
 
-  /** Whether the local player is declaring blockers — enables drag-to-block
-   *  (press a blocker, drag onto an attacker). */
   setDeclareBlockers(active: boolean): void {
     this.declareBlockers = active;
     if (!active) this.setBlockDragId(null);
   }
 
-  /** Set the in-progress block-drag blocker and notify the UI so it can
-   *  highlight the attackers this blocker may legally block. */
   private setBlockDragId(id: string | null): void {
     if (this.blockDragBlockerId === id) return;
     this.blockDragBlockerId = id;
@@ -464,8 +429,6 @@ export class BoardScene {
     if (local) local.updateBattlefield(local.getLastState() ?? ({ cards: [] } as BattlefieldState));
   }
 
-  /** Per-player keep-out rects (canvas coords) for that player's React panel,
-   *  so battlefield cards never lay out under their own zones / avatar. */
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
     this.playerBlockers = blockers;
     for (const rec of this.regions.values()) {
@@ -485,8 +448,31 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.setAutoSort(value);
   }
 
+  setActivePlayer(playerId: string | null): void {
+    if (this.activePlayerId === playerId) return;
+    this.activePlayerId = playerId;
+    for (const [pid, rec] of this.regions) rec.region.setActive(pid === playerId);
+  }
+
+  previewEtb(): void {
+    for (const rec of this.regions.values()) rec.region.previewEtb();
+  }
+
   setPendingDropSlot(slot: { col: number; row: number } | null): void {
     this.localRegion()?.setPendingDropSlot(slot);
+  }
+
+  setCardStyle(style: BattlefieldCardStyle): void {
+    if (this.destroyed) return;
+    setCardSpriteStyle(style);
+    for (const rec of this.regions.values()) rec.region.restyleCards();
+  }
+
+  setHoverDebug(on: boolean): void {
+    if (this.destroyed) return;
+    setCardSpriteHoverDebug(on);
+    for (const rec of this.regions.values()) rec.region.redrawHoverDebug();
+    this.hand?.setHoverDebug(on);
   }
 
   setTheme(theme: Theme): void {
@@ -506,8 +492,6 @@ export class BoardScene {
     this.app.renderer.resize(width, height);
     this.dragHandler.setContainerSize(width, height);
   }
-
-  // ── Hosts ──────────────────────────────────────────────────────────
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {
     return {
@@ -529,7 +513,6 @@ export class BoardScene {
     };
   }
 
-  /** Spawn a rising/fading number (e.g. "-3") at a canvas-space point. */
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void {
     if (this.destroyed) return;
     const text = new Text({
@@ -566,7 +549,6 @@ export class BoardScene {
     this.floaters = survivors;
   }
 
-  /** Depth (px) the hand fan overlaps the bottom of the local self zone. */
   private handReserveBottom(): number {
     const rect = this.hand?.getBlockerRect();
     const zone = this.localZone();
@@ -596,7 +578,6 @@ export class BoardScene {
     }
     const stack = this.stackCardSeeds.get(cardId);
     if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
-    // Opponent / no-hand fallback: enter from the region's far (top) edge.
     const zone = this.regions.get(playerId)?.zone;
     const scale = this.cardScale;
     if (!zone) return { x: 0, y: 0, scaleX: scale, scaleY: scale };
@@ -661,8 +642,6 @@ export class BoardScene {
     };
   }
 
-  // ── Sprite interaction wiring ──────────────────────────────────────
-
   private wireSprite(sprite: CardSprite, playerId: string, isLocal: boolean): void {
     sprite.eventMode = "static";
     sprite.cursor = "pointer";
@@ -701,6 +680,7 @@ export class BoardScene {
   }
 
   private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite): void {
+    if (this.hand?.hasActiveHover()) return;
     this.cancelHoverClear();
     if (this.hoveredCardId === sprite.card.id) return;
     const prevRegion = this.hoveredRegionRef;
@@ -744,16 +724,11 @@ export class BoardScene {
     }
   }
 
-  // ── Drag + marquee gesture (local region) ──────────────────────────
-
   private onBattlefieldCardDown(sprite: CardSprite, e: FederatedPointerEvent): void {
     if (this.destroyed) return;
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;
-    // Drag-to-block: while declaring blockers, pressing an available blocker
-    // arms a block-drag (an arrow to the cursor) instead of a grid move. The
-    // drop is resolved by the attacker sprite's pointerup.
     if (this.declareBlockers && local.getLastState()?.selectableCardIds?.includes(sprite.card.id)) {
       this.setBlockDragId(sprite.card.id);
       this.callbacks.onHoverCard?.(null);
@@ -832,9 +807,6 @@ export class BoardScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
-    // A live block-drag released off an attacker (the attacker's own pointerup
-    // handles a hit). Dragging a staged blocker back to open space unblocks it;
-    // onUnassignBlock is a no-op when the blocker wasn't assigned.
     if (this.blockDragBlockerId) {
       this.callbacks.onUnassignBlock?.(this.blockDragBlockerId);
       this.setBlockDragId(null);
@@ -868,10 +840,9 @@ export class BoardScene {
     if (state) local.updateBattlefield(state);
   }
 
-  // ── Per-frame ──────────────────────────────────────────────────────
-
   private tick = (): void => {
     if (this.destroyed) return;
+    if (import.meta.env.DEV) this.samplePerf();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
@@ -892,11 +863,33 @@ export class BoardScene {
           this.cursorViewportY - canvasRect.top,
         );
       } else {
-        // Instant/sorcery cast: highlight the whole play zone, not grid cells.
         local?.drawDropField();
       }
     }
   };
+
+  private samplePerf(): void {
+    const ticker = this.app.ticker;
+    this.perfFrames += 1;
+    this.perfTotalDelta += ticker.deltaMS;
+    const fps = ticker.FPS;
+    if (fps < this.perfMinFps) this.perfMinFps = fps;
+    if (fps > this.perfMaxFps) this.perfMaxFps = fps;
+    const now = performance.now();
+    if (this.perfLastFlush === 0) this.perfLastFlush = now;
+    if (now - this.perfLastFlush < FPS_SAMPLE_INTERVAL_MS) return;
+    useGameDevStore.getState().setPixiPerfStats({
+      fps: this.perfFrames / ((now - this.perfLastFlush) / 1000),
+      minFps: this.perfMinFps === Infinity ? 0 : this.perfMinFps,
+      maxFps: this.perfMaxFps,
+      deltaMs: this.perfTotalDelta / Math.max(1, this.perfFrames),
+    });
+    this.perfFrames = 0;
+    this.perfTotalDelta = 0;
+    this.perfMinFps = Infinity;
+    this.perfMaxFps = 0;
+    this.perfLastFlush = now;
+  }
 
   private captureStackSeeds(): void {
     const canvasRect = this.app.canvas.getBoundingClientRect();
@@ -919,8 +912,6 @@ export class BoardScene {
     }
   }
 
-  /** Resolve the current arrow specs to canvas-local ArrowDefs. Drawn by the
-   *  separate overlay canvas (above the React panels), not in this canvas. */
   getArrowDefs(): ArrowDef[] {
     if (this.destroyed) return [];
     const castDragging = this.hand?.isDraggingPermanent() ?? false;
@@ -956,7 +947,6 @@ export class BoardScene {
         });
       }
     }
-    // Drag-to-block: an arrow from the armed blocker to the cursor.
     if (this.blockDragBlockerId) {
       const from = this.resolveArrowEndpoint(
         { kind: "card", id: this.blockDragBlockerId },
@@ -972,8 +962,6 @@ export class BoardScene {
         });
       }
     }
-    // Drag-to-cast a permanent from hand: a "drop here" arrow from the lifted
-    // hand card to the cursor (mirrors the old board's cast-drag arrow).
     if (castDragging) {
       const id = this.hand?.getDraggingCardId();
       const from = id ? (this.hand?.getCardPosition(id) ?? null) : null;
@@ -1031,6 +1019,7 @@ export class BoardScene {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("mousemove", this.cursorListener);
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);

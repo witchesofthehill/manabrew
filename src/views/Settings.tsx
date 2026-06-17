@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
@@ -18,31 +19,10 @@ import { Navigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/**
- * Production builds set VITE_MANAGED_RELAY=1; the relay host/port/password
- * are baked into the bundle and shouldn't be editable. Username stays
- * configurable because each player still picks their own handle.
- */
 const MANAGED_RELAY = !!import.meta.env.VITE_MANAGED_RELAY;
 
-/** Human-readable labels for theme color keys */
-/**
- * Canonical key unions. These drive the typed colour-description maps
- * below so a typo in a description key fails at compile time and adding
- * a new token to the schema shows up as a missing-description TS error
- * (via the `Record<…>` form used on the descriptions themselves — not
- * `Partial<Record<…>>` — so exhaustiveness is enforced).
- */
 type AppThemeKey = keyof ThemeColors;
 
-/**
- * Dot-notation string keys for every leaf in `GameThemeColors`.
- * Produces `"pointer.hostile" | "mana.W" | "textOnTinted" | …` at the
- * TS level; `Partial<Record<GameThemePath, string>>` on the description
- * map catches typos without forcing every leaf to be documented at
- * once. Add new tokens to the schema first — the description keys are
- * then type-checked against the live shape.
- */
 type GameThemePath = {
   [K in keyof GameThemeColors & string]: GameThemeColors[K] extends string
     ? K
@@ -51,8 +31,6 @@ type GameThemePath = {
       : never;
 }[keyof GameThemeColors & string];
 
-/** Human-readable description for each Radix (app chrome) colour token.
- *  Shown as the `title` attribute of a small `?` icon next to the label. */
 const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   background: "Page / window background fill.",
   foreground: "Default body text colour.",
@@ -80,9 +58,6 @@ const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   overlay: "Modal / dialog backdrop dim.",
 };
 
-/** Human-readable description for each game-surface colour token.
- *  Keys are type-checked against the live `GameThemeColors` schema —
- *  a typo or renamed schema field fails compilation here. */
 const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   "activeAction.priority": "Highlight surrounding the player who currently has priority.",
   "activeAction.active": "Active-turn ring, turn-text colour, and general 'your turn' cue.",
@@ -148,14 +123,6 @@ const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   cardRing: "Default card selection / focus ring.",
 };
 
-/**
- * Small `?` hover-help icon shown next to a picker label. Renders a
- * custom CSS tooltip below the icon on hover / focus — native `title`
- * attributes don't always fire reliably and are slow to appear, so we
- * drive the popover with tailwind `group-hover` + `group-focus-within`.
- * An invisible native `title` + `aria-label` remain for screen readers
- * and for users who expect the OS tooltip as a fallback.
- */
 function HelpMark({ description }: { description: string | undefined }) {
   if (!description) return null;
   return (
@@ -209,9 +176,6 @@ const APP_THEME_COLOR_LABELS: Record<AppThemeKey, string> = {
   overlay: "Overlay",
 };
 
-/** Group the app-chrome Radix tokens by semantic role so the picker
- *  reads like "surfaces → brand → state → structure" instead of a
- *  flat list ordered by schema declaration. */
 const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKey[] }[] = [
   {
     heading: "Surfaces & Foregrounds",
@@ -249,10 +213,6 @@ const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKe
   },
 ];
 
-/** Group the game-surface tokens by prefix so related entries sit
- *  together (all `pointer.*` in one block, all `counter.*` in another,
- *  …). Keys are matched by prefix; anything not covered falls into
- *  the "Miscellaneous" group at the end. */
 const GAME_THEME_GROUPS: {
   heading: string;
   description: string;
@@ -404,7 +364,6 @@ export default function Settings() {
     prefs.setServerUsername(username);
     prefs.setServerPassword(password);
 
-    // Always disconnect first (kills any existing WS connection)
     await server.disconnect();
 
     if (username) {
@@ -598,30 +557,52 @@ export default function Settings() {
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Battlefield Card Size ({Math.round(battlefieldSizeFraction * 100)}%)</Label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={Math.round(battlefieldSizeFraction * 100)}
-                onChange={(e) => setBattlefieldSizeFraction(Number(e.target.value) / 100)}
-                className="w-full accent-primary"
-              />
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(0)}>
-                  Smallest
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(0.5)}>
-                  Default
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setBattlefieldSizeFraction(1)}>
-                  Largest
-                </Button>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-2">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={Math.round(battlefieldSizeFraction * 100)}
+                    onChange={(e) => setBattlefieldSizeFraction(Number(e.target.value) / 100)}
+                    className="w-full accent-primary"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBattlefieldSizeFraction(0)}
+                    >
+                      Smallest
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBattlefieldSizeFraction(0.5)}
+                    >
+                      Default
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBattlefieldSizeFraction(1)}
+                    >
+                      Largest
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Controls the size of cards on the battlefield. The largest setting still keeps
+                    at least 3 rows visible on any display.
+                  </p>
+                </div>
+                <div className="w-[120px] shrink-0 flex justify-center">
+                  <BattlefieldStylePreview
+                    style={prefs.battlefieldCardStyle}
+                    width={Math.round(48 + battlefieldSizeFraction * 72)}
+                  />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Controls the size of cards on the battlefield. The largest setting still keeps at
-                least 3 rows visible on any display.
-              </p>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
@@ -646,6 +627,44 @@ export default function Settings() {
                 "Free placement" lets you drag cards anywhere. "Auto-arrange" keeps the battlefield
                 tidy in rows (creatures, then others, then lands) and ignores manual placement.
               </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Battlefield Card Style</Label>
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={prefs.battlefieldCardStyle === "realistic" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => prefs.setBattlefieldCardStyle("realistic")}
+                    >
+                      Realistic
+                    </Button>
+                    <Button
+                      variant={prefs.battlefieldCardStyle === "art" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => prefs.setBattlefieldCardStyle("art")}
+                    >
+                      Art-forward
+                    </Button>
+                    <Button
+                      variant={prefs.battlefieldCardStyle === "frame" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => prefs.setBattlefieldCardStyle("frame")}
+                    >
+                      Mini-frame
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    How cards are drawn on the battlefield. "Realistic" uses the full printed card
+                    image. "Art-forward" shows the art with a crisp name/type overlay. "Mini-frame"
+                    frames the art with name and type bars. Hand, stack, and previews always use the
+                    full card image.
+                  </p>
+                </div>
+                <BattlefieldStylePreview style={prefs.battlefieldCardStyle} />
+              </div>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
@@ -756,7 +775,6 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          {/* end preferences grid */}
         </section>
       )}
 
@@ -890,7 +908,6 @@ export default function Settings() {
               </p>
             </div>
           </div>
-          {/* end top-level mode/preset grid */}
 
           <div className="pt-2">
             <Input
@@ -976,7 +993,6 @@ export default function Settings() {
                 );
               })}
             </div>
-            {/* end app theme grid */}
             <p className="text-xs text-muted-foreground">
               Override individual colors from the active preset.
             </p>
@@ -1115,7 +1131,6 @@ export default function Settings() {
                   ));
               })()}
             </div>
-            {/* end game theme grid */}
             <p className="text-xs text-muted-foreground">
               Generated from game theme keys. Defaults come from the active preset.
             </p>

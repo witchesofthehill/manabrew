@@ -1,5 +1,7 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
+import { useScryfallStore, cardKey } from "@/stores/useScryfallStore";
+import { resolveCardFaces } from "@/lib/cardFaces";
 import { partitionBoardTargets } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -56,7 +58,6 @@ import { applyManualTabletopAction, getSelectedGameRuntime } from "@/game";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
-/** Prompt types where hover card preview is allowed (no modal overlay). */
 const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "chooseAction",
   "chooseAttackers",
@@ -65,6 +66,20 @@ const HOVER_ALLOWED_PROMPTS = new Set<PromptType>([
   "payManaCost",
   "gameOver",
 ]);
+
+function dfcFaceNames(card: GameCard): { front: string; back: string } | null {
+  const info =
+    useScryfallStore.getState().cards[
+      cardKey({
+        name: card.name,
+        setCode: card.setCode || undefined,
+        collectorNumber: card.cardNumber || undefined,
+      })
+    ]?.card?.info;
+  const resolved = resolveCardFaces(info);
+  if (!resolved.isMultiFaced || resolved.faces.length < 2) return null;
+  return { front: resolved.faces[0]!.name, back: resolved.faces[1]!.name };
+}
 
 function isManualTabletopApi(
   runtime: GameRuntime,
@@ -98,7 +113,6 @@ function buildDebugKeywordCard(controllerId: string, name: string, keywords: str
 }
 
 interface GameProps {
-  /** When provided, redirect here instead of /lobby when the game ends. */
   exitTo?: string;
 }
 
@@ -137,15 +151,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   const devExtraOpponents =
     (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
-  // Live unified BoardScene, populated by BoardCanvas. Used here to translate
-  // the StackDisplay panel into canvas-local coords for the keep-out rect.
   const boardSceneRef = useRef<BoardScene | null>(null);
 
-  // Rect of the StackDisplay panel in canvas-local coords, or null when the
-  // stack isn't rendered. Fed to the Pixi scene as an external blocker so
-  // battlefield cards beneath it relocate to a free grid cell (keeping them
-  // reachable for targeting). A rAF loop keeps up with the CSS `right` /
-  // `left` transitions the stack animates on hover and action-panel toggles.
   const [stackBlockerRect, setStackBlockerRect] = useState<{
     x: number;
     y: number;
@@ -214,10 +221,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [chooseActionInput, payCombatCostInput, payManaCostInput],
   );
 
-  // When the engine asks the player to pick cards to put on the bottom
-  // of the library we drive that decision from the real in-game hand
-  // instead of a separate modal. The hook bundles the selection state,
-  // toggle, reset-on-prompt-change, and the put-back dispatch.
   const mulliganPutBack = useMulliganSelection(activePrompt, (cardIds) =>
     respond({ type: "mulliganPutBackDecision", cardIds }),
   );
@@ -235,7 +238,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [activePrompt, gameView],
   );
 
-  // UI state from Zustand store (modals, panels)
   const {
     abilityPicker: abilityPickerState,
     playModePicker,
@@ -298,6 +300,17 @@ export default function Game({ exitTo }: GameProps = {}) {
         label: a.modeLabel,
         actionId: a.id,
       });
+      map.set(a.cardId, arr);
+    }
+    return map;
+  }, [chooseActionInput?.actions]);
+
+  const playLandByCardId = useMemo(() => {
+    const map = new Map<string, HandActionOption[]>();
+    for (const a of chooseActionInput?.actions ?? []) {
+      if (a.type !== "playLand") continue;
+      const arr = map.get(a.cardId) ?? [];
+      arr.push({ kind: "cast" as const, cardId: a.cardId, label: "Play land", actionId: a.id });
       map.set(a.cardId, arr);
     }
     return map;
@@ -393,12 +406,34 @@ export default function Game({ exitTo }: GameProps = {}) {
     [manualApi, gameView?.players],
   );
 
+  const castAndLandOptions = useCallback(
+    (card: GameCard): HandActionOption[] => {
+      const casts = castOptionsByCardId.get(card.id) ?? [];
+      const lands = playLandByCardId.get(card.id) ?? [];
+      if (casts.length + lands.length <= 1) return casts;
+      const fn = dfcFaceNames(card);
+      if (casts.length === 0) {
+        return lands.map((o, i) => ({
+          ...o,
+          label: `Play ${(i === 0 ? fn?.front : fn?.back) ?? (i === 0 ? card.name : "back side")}`,
+        }));
+      }
+      const castOpts = fn ? casts.map((o) => ({ ...o, label: `Cast ${fn.front}` })) : casts;
+      const landOpts = lands.map((o) => ({
+        ...o,
+        label: fn ? `Play ${fn.back}` : "Play land side",
+      }));
+      return [...castOpts, ...landOpts];
+    },
+    [castOptionsByCardId, playLandByCardId],
+  );
+
   const getHandActionOptions = useCallback(
     (card: GameCard): HandActionOption[] =>
       manualApi
         ? getManualCardActions(card)
-        : [...(castOptionsByCardId.get(card.id) ?? []), ...(abilitiesByCardId.get(card.id) ?? [])],
-    [manualApi, getManualCardActions, castOptionsByCardId, abilitiesByCardId],
+        : [...castAndLandOptions(card), ...(abilitiesByCardId.get(card.id) ?? [])],
+    [manualApi, getManualCardActions, castAndLandOptions, abilitiesByCardId],
   );
 
   const getBattlefieldAbilityOptions = useCallback(
@@ -406,7 +441,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [abilitiesByCardId],
   );
 
-  /** All available actions for a card (cast + activated + mana abilities). */
   const getCardActions = useCallback(
     (card: GameCard): HandActionOption[] => {
       if (manualApi) return getManualCardActions(card);
@@ -420,16 +454,15 @@ export default function Game({ exitTo }: GameProps = {}) {
       const isManaSource = tappableLandIdSet.has(card.id);
 
       if (isManaSource && manaAbilities.length > 0) {
-        // Use explicit mana abilities emitted by the engine instead of inventing a generic land tap action.
         abilities.unshift(...manaAbilities);
       }
-      return [...(castOptionsByCardId.get(card.id) ?? []), ...abilities];
+      return [...castAndLandOptions(card), ...abilities];
     },
     [
       manualApi,
       getManualCardActions,
       promptType,
-      castOptionsByCardId,
+      castAndLandOptions,
       abilitiesByCardId,
       manaAbilitiesByCardId,
       tappableLandIdSet,
@@ -452,7 +485,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return false;
   };
 
-  // Wraps castSpell: if a card has multiple play modes, show picker first
   const handleCastSpell = (cardId: string) => {
     const acts = chooseActionInput?.actions ?? [];
     const castActions = acts.flatMap((a) => (a.type === "cast" && a.cardId === cardId ? [a] : []));
@@ -498,7 +530,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       return;
     }
 
-    // Multiple actions — show the interactive preview without sending anything to the engine
     preview.showSticky(card, e?.clientX, e?.clientY);
   };
 
@@ -523,12 +554,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       return respondHandAction(abilities[0]);
     }
 
-    // Multiple abilities — show the interactive preview without sending anything
     preview.showSticky(card, e?.clientX, e?.clientY);
     return true;
   };
 
-  // Combat state + battlefield/targeting click handlers
   const {
     pendingAttackers,
     pendingAttacker,
@@ -585,7 +614,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     };
   }, [activePrompt, declineTargets]);
 
-  // Zone viewer helpers (wrap store actions)
   function openZone(
     title: string,
     cards: GameCard[],
@@ -631,7 +659,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
   }
 
-  // Land tap/untap handler — shows interactive preview for multi-ability lands
   const handleTapLand = (card: GameCard) => {
     if (payManaCostInput) {
       const manaAbilities = getExpandedManaAbilities(
@@ -682,11 +709,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     respond({ type: "untap", cardId: card.id });
   };
 
-  // Queues for tapping/untapping multiple selected lands across prompt cycles
   const pendingTapQueueRef = useRef<string[]>([]);
   const pendingUntapQueueRef = useRef<string[]>([]);
 
-  /** Start a batch land action: execute the first immediately, queue the rest. */
   const startBatchLandAction = (
     cardIds: string[],
     queueRef: React.MutableRefObject<string[]>,
@@ -717,7 +742,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const handleUntapLands = (cardIds: string[]) =>
     startBatchLandAction(cardIds, pendingUntapQueueRef, untapResponse);
 
-  /** Drain the next item from a land action queue if still valid. Returns true if an action was taken. */
   const drainQueue = (
     queueRef: React.MutableRefObject<string[]>,
     validIds: string[],
@@ -736,7 +760,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return true;
   };
 
-  // Process pending tap/untap queues when a new prompt arrives
   useEffect(() => {
     if (isWaitingForResponse) return;
     if (!promptType) return;
@@ -750,7 +773,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePrompt, isWaitingForResponse, promptType, tappableLandIds, untappableLandIds]);
 
-  // Prompt-driven effects: auto-pass, passUntilEot, library peek, zone target, spell stack
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
   const {
@@ -828,7 +850,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     abilityPickerState,
   ]);
 
-  // Hand drag-to-play
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag } = useHandDrag({
     battlefieldContainerRef,
@@ -843,7 +864,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const hoveredCardActions = preview.hoveredCard ? getCardActions(preview.hoveredCard) : [];
 
-  /** Handle an action selected from the hover preview. */
   const handlePreviewAction = (action: HandActionOption) => {
     preview.dismiss();
     if (action.kind === "manual-move" && action.toZoneId) {
@@ -874,10 +894,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     respondHandAction(action);
   };
 
-  // Display flash queue
   const activeFlash = useFlashQueue(flashDurationMs);
 
-  // Debounced priority highlight to avoid rapid border strobing during autopass.
   const [priorityHighlightPlayerId, setPriorityHighlightPlayerId] = useState<string | null>(null);
   useEffect(() => {
     const next = gameView?.priorityPlayerId ?? null;
@@ -892,11 +910,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => clearTimeout(timer);
   }, [gameView?.priorityPlayerId, priorityHighlightPlayerId]);
 
-  // Set up event listeners on mount
   useGameEventListeners();
   useGamePrefetch();
 
-  // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.repeat) return;
@@ -918,7 +934,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [manualApi, promptType]);
 
-  // Targeting / combat arrows — must be called unconditionally (Rules of Hooks)
   const me =
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??
     gameView?.players?.find((p) => p.isHuman) ??
@@ -927,9 +942,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
     [gameView?.players, me?.id],
   );
-  const opponent = opponents[0]; // alias for arrows hook + game-over screen
+  const opponent = opponents[0];
 
-  // Map each player's id → their seat color for stack card glows
   const playerColorMap = useMemo(() => {
     const map = new Map<string, string>();
     if (me) map.set(me.id, themeColors.playerColors.self);
@@ -939,10 +953,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     });
     return map;
   }, [me, opponents, themeColors.playerColors]);
-  // DEV: pad with simulated opponents to test multi-player layout. Memoized so
-  // the array identity is stable across renders — it flows into the board's
-  // region set and panel-measurement, which would otherwise relayout/measure
-  // on every render.
   const displayOpponents = useMemo(
     () => [
       ...opponents,
@@ -966,7 +976,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     ],
     [opponents, devExtraOpponents],
   );
-  // Stabilize attackerIds so useGameArrows' useEffect doesn't re-run every render
   const attackerIds = useMemo(
     () => chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -979,10 +988,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
-  // Walk every visible permanent for the locked-in attacker→defender
-  // pairs (engine fills `attackingPlayerId` once the attack is committed).
-  // This drives the persistent painterly arrow shown all the way through
-  // combat, regardless of whose prompt is active.
   const activeAttackers = useMemo(
     () =>
       (gameView?.battlefield ?? [])
@@ -1024,9 +1029,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     ],
   );
 
-  // Dev-only: append a single force-rendered arrow spec for the type
-  // selected in the dev panel. Anchored player → player so it always
-  // resolves, even with an empty battlefield.
   const debugArrowType = useGameDevStore((s) => s.debugArrowType);
   const arrowSpecs = useMemo(() => {
     if (!debugArrowType || !me?.id || !opponent?.id) return liveArrowSpecs;
@@ -1060,9 +1062,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView, debugCardEnabled, debugCardName, debugBattlefieldKeywords, me?.id]);
 
-  // Memoized so the board's region set has stable inputs and doesn't relayout
-  // every render. Pending attackers render as tapped for an immediate
-  // "selected" signal; tap state flips for real engine-side once committed.
   const myPermanents = useMemo<GameCard[]>(() => {
     if (!gameView || !me) return [];
     const pendingSet = new Set(pendingAttackers);
@@ -1150,18 +1149,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       return;
     }
     if (card === null) {
-      // Use handleMouseLeave so the 250ms grace period allows the user
-      // to move the mouse from the card to the preview popup.
       preview.handleMouseLeave();
     } else {
       preview.handleMouseEnter(card, e, { ...options, useDelay: true });
     }
   };
 
-  // Suppress native browser tooltips inside the game view by stripping `title`
-  // attributes as they appear. We move the value to `data-title` so it's still
-  // accessible to custom tooltip components if needed, but the browser won't
-  // show the default tooltip on hover.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -1206,9 +1199,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     }
   }, [draggingHandCard, preview]);
 
-  // If the previewed card leaves all visible zones (e.g. removed from the game),
-  // close the preview. We use visibleCardsById so that cards in graveyard, exile,
-  // and command zones can still be previewed (e.g. in ZoneViewer modals).
   const hoverableCardIds = useMemo(() => {
     return new Set(visibleCardsById.keys());
   }, [visibleCardsById]);
@@ -1239,16 +1229,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players],
   );
 
-  // Live battlefield/zone GameCard for activated/triggered ability sources;
-  // otherwise the stack-resident view synthesized in `stackCardsBySourceId`.
-  // Every entry in `gameView.stack` has a corresponding entry in
-  // `stackCardsBySourceId`, so this never returns undefined.
   const resolveStackCard = (stackItem: StackObject): GameCard =>
     visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
 
-  // Card-flash animation reuses the live GameCard for the flashed source.
-  // If the source is no longer in any visible zone or on the stack, skip the
-  // flash rather than synthesize a stub.
   const activeFlashCard: GameCard | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
     return (
@@ -1258,7 +1241,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     );
   }, [activeFlash, visibleCardsById, stackCardsBySourceId]);
 
-  // Auto-return to play menu when game is over.
   useEffect(() => {
     if (!gameView?.gameOver && activePrompt?.input.type !== "gameOver") return;
     const timer = setTimeout(() => endGame(), 3000);
@@ -1274,9 +1256,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     void useLimitedStore
       .getState()
       .recordGauntletOutcome(pending.gauntletId, humanWon, true, humanWon)
-      .catch(() => {
-        /* surfaced via lastError on the gauntlet view */
-      })
+      .catch(() => {})
       .finally(() => {
         navigate(`/gauntlet/${pending.gauntletId}`);
       });
@@ -1284,10 +1264,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
 
-  // Loading. The prefetch gate keeps the loading screen up through the
-  // initial critical-card prefetch even if the engine has already pushed a
-  // gameView via the event listener — otherwise the UI would flip to the
-  // board before its hand textures are decoded.
   if (!gameView || isPrefetchingCards) {
     return <GameLoadingScreen debugInfo={debugInfo} />;
   }
@@ -1305,7 +1281,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const markIfPlayable = (c: GameCard): GameCard =>
     promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c;
 
-  // Game over overlay
   if (gameView.gameOver || promptType === "gameOver") {
     return (
       <GameOverScreen
@@ -1327,9 +1302,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const targetingCursorActive =
     casting.showArrow && !casting.targetId && !intentPrefersArrow(casting.arrowIntent);
 
-  // Intents that read better as a line draw a live source→cursor arrow (the
-  // cursor-glyph affordance handles the rest). Closes the gap left when the
-  // legacy pointer/casting-arrow overlay was removed.
   const castingArrow =
     casting.showArrow &&
     casting.castingCardId &&
@@ -1349,13 +1321,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           "--playable-glow-color": withAlpha(themeColors.cardRing, 0.3),
           "--playable-ring-color-strong": themeColors.cardRing,
           "--playable-glow-color-strong": withAlpha(themeColors.cardRing, 0.6),
-          // Casting pulse: friendly-intent glow around the spell being cast.
           "--casting-ring-color": withAlpha(themeColors.arrow.friendlyTarget, 0.7),
           "--casting-ring-color-strong": themeColors.arrow.friendlyTarget,
           "--casting-glow-color": withAlpha(themeColors.arrow.friendlyTarget, 0.3),
           "--casting-glow-color-strong": withAlpha(themeColors.arrow.friendlyTarget, 0.6),
-          // Rejection flash: hostile-intent glow used when a card is
-          // dismissed from the mulligan / selection pool.
           "--rejecting-ring-color": withAlpha(themeColors.pointer.hostile, 0.9),
           "--rejecting-ring-color-strong": themeColors.pointer.hostile,
           "--rejecting-glow-color": withAlpha(themeColors.pointer.hostile, 0.5),
@@ -1573,10 +1542,6 @@ export default function Game({ exitTo }: GameProps = {}) {
                 }
               : null
           }
-          // Wrapped in an arrow so the MouseEvent the button forwards
-          // doesn't clobber the `auto` default (truthy event ⇒ auto=true,
-          // which would route to the wand path even when the player
-          // meant to commit the already-tapped pool).
           onPayManaCost={() => respond({ type: "payManaCost", auto: false })}
           onAutoManaCost={() => respond({ type: "payManaCost", auto: true })}
           onCancelManaCost={() => respond({ type: "cancelManaCost" })}
@@ -1699,7 +1664,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         />
       )}
 
-      {/* ── Targeting cursor (follows pointer, rides above modals) ─ */}
       <TargetingCursor
         active={targetingCursorActive}
         intent={casting.arrowIntent}
@@ -1722,11 +1686,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           document.body,
         )}
 
-      {/* ── Hover card preview ────────────────────────────── */}
-      {/* Hide when any overlay modal is open or a modal-based prompt is active.
-          Allow-list approach: only show the preview for prompt types that do NOT
-          open a modal (battlefield interaction, targeting, inline panel prompts).
-          Also hide for hand cards since the hand displays its own actions/preview. */}
       {preview.hoveredCard &&
         preview.hoveredCard.zoneId !== "hand" &&
         !draggingHandCard &&

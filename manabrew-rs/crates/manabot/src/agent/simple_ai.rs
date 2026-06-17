@@ -70,33 +70,37 @@ impl BotAgent for SimpleAi {
                 )
             }
             PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
-                available_attacker_ids,
-                possible_defender_ids,
+                attackers,
+                attack_targets,
                 ..
             }) => {
-                let default_defender = possible_defender_ids
+                let default_target = attack_targets
                     .first()
-                    .map(|d| d.id.clone())
+                    .map(|t| t.id.clone())
                     .unwrap_or_else(|| "player-1".to_string());
                 Some(PlayerAction::DeclareAttackers {
-                    assignments: available_attacker_ids
+                    assignments: attackers
                         .into_iter()
-                        .map(|attacker_id| AttackAssignment {
-                            attacker_id,
-                            defender_id: default_defender.clone(),
+                        .map(|a| AttackAssignment {
+                            attacker_id: a.attacker_id,
+                            target_id: a
+                                .valid_target_ids
+                                .first()
+                                .cloned()
+                                .unwrap_or_else(|| default_target.clone()),
                         })
                         .collect(),
                 })
             }
             PromptInput::ChooseBlockers(manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
-                attacker_ids,
+                attackers,
                 available_blocker_ids,
                 ..
             }) => {
-                let assignments = if !attacker_ids.is_empty() && !available_blocker_ids.is_empty() {
+                let assignments = if !attackers.is_empty() && !available_blocker_ids.is_empty() {
                     vec![BlockAssignment {
                         blocker_id: available_blocker_ids[0].clone(),
-                        attacker_id: attacker_ids[0].clone(),
+                        attacker_id: attackers[0].attacker_id.clone(),
                     }]
                 } else {
                     Vec::new()

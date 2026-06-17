@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder;
 import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.game.Game;
+import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
 import forge.game.card.CounterEnumType;
 import forge.game.card.CounterType;
@@ -188,11 +189,28 @@ public final class InteractiveSnapshotExtractor {
         out.put("attachmentIds", attachmentIds);
 
         final Combat combat = game.getCombat();
-        if (combat != null && combat.isAttacking(card)) {
-            out.put("isAttacking", true);
-            final Player defender = combat.getDefenderPlayerByAttacker(card);
-            if (defender != null) {
-                out.put("attackingPlayerId", "player-" + SnapshotExtractor.playerIndex(game, defender));
+        if (combat != null) {
+            final boolean attacking = combat.isAttacking(card);
+            if (attacking) {
+                out.put("isAttacking", true);
+                final Player defender = combat.getDefenderPlayerByAttacker(card);
+                if (defender != null) {
+                    out.put("attackingPlayerId",
+                            "player-" + SnapshotExtractor.playerIndex(game, defender));
+                }
+            }
+            // AI combat eval invoked from snapshot extraction, a context Forge
+            // never calls it from; an escaped exception kills the game thread.
+            if (attacking || combat.isBlocking(card)) {
+                boolean wouldDie = false;
+                try {
+                    wouldDie = ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat);
+                } catch (final RuntimeException ignored) {
+                    wouldDie = false;
+                }
+                if (wouldDie) {
+                    out.put("wouldDieInCombat", true);
+                }
             }
         }
         if (castable) {

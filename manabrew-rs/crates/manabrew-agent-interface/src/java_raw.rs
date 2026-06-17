@@ -387,6 +387,25 @@ pub struct JavaRawCardOption {
     #[serde(rename = "cardNumber")]
     pub card_number: Option<String>,
     pub owner: Option<u64>,
+    // ── Combat-legality fields (populated only for attack/block prompts) ──
+    /// Attack-target kind for a defender option: `player` / `planeswalker` /
+    /// `battle`.
+    pub kind: Option<String>,
+    /// choose_attackers: the targets this attacker may legally attack.
+    #[serde(rename = "validTargetIds")]
+    pub valid_target_ids: Option<Vec<String>>,
+    /// choose_blockers: the blockers that may legally block this attacker.
+    #[serde(rename = "validBlockerIds")]
+    pub valid_blocker_ids: Option<Vec<String>>,
+    /// choose_blockers: minimum blockers required for this attacker (menace).
+    #[serde(rename = "minBlockers")]
+    pub min_blockers: Option<u32>,
+    /// choose_blockers: maximum blockers allowed for this attacker, when capped.
+    #[serde(rename = "maxBlockers")]
+    pub max_blockers: Option<u32>,
+    /// choose_blockers: this attacker must be blocked if able (lure).
+    #[serde(rename = "mustBeBlocked")]
+    pub must_be_blocked: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -570,6 +589,8 @@ pub struct JavaRawCardData {
     pub foil: bool,
     #[serde(rename = "effectiveManaCost")]
     pub effective_mana_cost: Option<String>,
+    #[serde(default, rename = "wouldDieInCombat")]
+    pub would_die_in_combat: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -11,8 +11,8 @@ use crate::java_raw::{
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
 use crate::prompt::{
-    ActivatableAbilityInfo, AgentPrompt, AvailableAction, AvailableActionKind, DefenderIdDto,
-    PlayerAction, PromptInput, StateUpdate, TargetRef,
+    ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
+    AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetRef,
 };
 
 pub fn make_java_game_over_prompt() -> AgentPrompt {
@@ -101,17 +101,65 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::ChooseAttackers {
             attackers,
             defenders,
-        } => PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
-            available_attacker_ids: card_ids(&attackers),
-            possible_defender_ids: defender_ids(&defenders),
-        }),
+        } => {
+            use manabrew_protocol::prompts::choose_attackers::AttackerOptionDto;
+            let attack_targets = attack_targets(&defenders);
+            let all_target_ids: Vec<String> =
+                attack_targets.iter().map(|t| t.id.clone()).collect();
+            let attackers = attackers
+                .iter()
+                .filter_map(|a| {
+                    let attacker_id = a.id.clone()?;
+                    Some(AttackerOptionDto {
+                        attacker_id,
+                        // Forge sends per-attacker legal targets; fall back to
+                        // every target when it doesn't restrict them.
+                        valid_target_ids: a
+                            .valid_target_ids
+                            .clone()
+                            .unwrap_or_else(|| all_target_ids.clone()),
+                    })
+                })
+                .collect();
+            PromptInput::ChooseAttackers(
+                manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
+                    attackers,
+                    attack_targets,
+                },
+            )
+        }
         JavaRawPromptBody::ChooseBlockers {
             attackers,
             blockers,
-        } => PromptInput::ChooseBlockers(manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
-            attacker_ids: card_ids(&attackers),
-            available_blocker_ids: card_ids(&blockers),
-        }),
+        } => {
+            use manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto;
+            let available_blocker_ids = card_ids(&blockers);
+            let attackers = attackers
+                .iter()
+                .filter_map(|a| {
+                    let attacker_id = a.id.clone()?;
+                    Some(BlockableAttackerDto {
+                        attacker_id,
+                        // Forge sends per-attacker legal blockers / menace /
+                        // lure; fall back to permissive defaults when absent.
+                        valid_blocker_ids: a
+                            .valid_blocker_ids
+                            .clone()
+                            .unwrap_or_else(|| available_blocker_ids.clone()),
+                        min_blockers: a.min_blockers.unwrap_or(1),
+                        max_blockers: a.max_blockers,
+                        must_be_blocked: a.must_be_blocked.unwrap_or(false),
+                    })
+                })
+                .collect();
+            PromptInput::ChooseBlockers(
+                manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
+                    attackers,
+                    available_blocker_ids,
+                    error: None,
+                },
+            )
+        }
         JavaRawPromptBody::ChooseDamageAssignmentOrder {
             attacker_id,
             blockers,
@@ -544,7 +592,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                 .iter()
                 .map(|assignment| JavaAttackAssignment {
                     attacker_id: assignment.attacker_id.clone(),
-                    defender_id: assignment.defender_id.clone(),
+                    defender_id: assignment.target_id.clone(),
                 })
                 .collect(),
         },
@@ -862,6 +910,7 @@ fn to_card(
         kicker_cost: keyword_cost(&card.keywords, "Kicker"),
         madness_cost: keyword_cost(&card.keywords, "Madness"),
         effective_mana_cost: card.effective_mana_cost.clone(),
+        would_die_in_combat: card.would_die_in_combat,
         name,
         ..CardDto::default()
     }
@@ -1080,13 +1129,21 @@ fn index_view_cards(view: &GameViewDto) -> HashMap<String, CardDto> {
     index
 }
 
-fn defender_ids(defenders: &[JavaRawCardOption]) -> Vec<DefenderIdDto> {
+fn attack_targets(defenders: &[JavaRawCardOption]) -> Vec<AttackTargetDto> {
     defenders
         .iter()
         .filter_map(|defender| {
             let id = defender.id.clone()?;
             let label = defender.label.clone().unwrap_or_else(|| id.clone());
-            Some(DefenderIdDto { id, label })
+            let kind = match defender.kind.as_deref() {
+                Some("player") => AttackTargetKind::Player,
+                Some("battle") => AttackTargetKind::Battle,
+                Some("planeswalker") => AttackTargetKind::Planeswalker,
+                // Fall back to the id prefix when the harness omits a kind.
+                _ if id.starts_with("player-") => AttackTargetKind::Player,
+                _ => AttackTargetKind::Planeswalker,
+            };
+            Some(AttackTargetDto { id, label, kind })
         })
         .collect()
 }

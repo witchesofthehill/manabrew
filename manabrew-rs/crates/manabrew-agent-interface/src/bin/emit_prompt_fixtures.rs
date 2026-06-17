@@ -62,12 +62,13 @@ fn main() {
             ],
         }),
         ChooseAttackers(choose_attackers::ChooseAttackersInput {
-            available_attacker_ids: vec![],
-            possible_defender_ids: vec![],
+            attackers: vec![],
+            attack_targets: vec![],
         }),
         ChooseBlockers(choose_blockers::ChooseBlockersInput {
-            attacker_ids: vec![],
+            attackers: vec![],
             available_blocker_ids: vec![],
+            error: None,
         }),
         ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput {
             candidates: vec![

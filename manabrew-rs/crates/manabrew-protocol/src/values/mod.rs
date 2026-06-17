@@ -157,6 +157,8 @@ pub struct CardDto {
     pub is_warp_exiled: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub foil: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub would_die_in_combat: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

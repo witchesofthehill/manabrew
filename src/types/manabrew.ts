@@ -61,6 +61,9 @@ export interface GameCard extends CardIdentity, CardRulesSummary {
   attackingPlayerId?: string;
   counters?: Record<string, number>;
   damage?: number;
+  /** Engine combat prediction: this creature would be destroyed by the current
+   *  (committed) combat. Populated by the Forge harness. */
+  wouldDieInCombat?: boolean;
   summoningSick?: boolean;
   isToken?: boolean;
   isCopy?: boolean;

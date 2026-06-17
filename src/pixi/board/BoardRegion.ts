@@ -911,12 +911,12 @@ export class BoardRegion {
   private applyBattlefieldRing(sprite: CardSprite, state: BattlefieldState): void {
     const theme = this.host.getTheme();
     const card = sprite.card;
-    sprite.setDoomed(state.doomedCardIds?.includes(card.id) ?? false);
+    sprite.setDoomed(card.wouldDieInCombat ?? false);
     if (this.host.isSelected(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
       return;
     }
-    if (state.doomedCardIds?.includes(card.id)) {
+    if (card.wouldDieInCombat) {
       sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
     } else if (state.attackingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.attackAction));

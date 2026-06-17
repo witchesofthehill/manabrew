@@ -147,19 +147,24 @@ impl<R: Responder> PromptAgent<R> {
         players.iter().map(|&p| player_id_str(p)).collect()
     }
 
-    pub(crate) fn defender_ids_to_dtos(
+    pub(crate) fn attack_targets_to_dtos(
         defenders: &[DefenderId],
-    ) -> Vec<crate::prompt::DefenderIdDto> {
+    ) -> Vec<crate::prompt::AttackTargetDto> {
+        use crate::prompt::AttackTargetKind;
         defenders
             .iter()
             .map(|d| match d {
-                DefenderId::Player(pid) => crate::prompt::DefenderIdDto {
+                DefenderId::Player(pid) => crate::prompt::AttackTargetDto {
                     id: format!("player-{}", pid.0),
                     label: format!("Player {}", pid.0),
+                    kind: AttackTargetKind::Player,
                 },
-                DefenderId::Permanent(cid) => crate::prompt::DefenderIdDto {
+                // The Rust engine can't distinguish a planeswalker from a
+                // battle yet; approximate any permanent target as a walker.
+                DefenderId::Permanent(cid) => crate::prompt::AttackTargetDto {
                     id: format!("card-{}", cid.0),
                     label: format!("Permanent {}", cid.0),
+                    kind: AttackTargetKind::Planeswalker,
                 },
             })
             .collect()

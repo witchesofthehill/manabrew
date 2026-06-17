@@ -31,13 +31,23 @@ pub(super) fn choose_attackers<T: Responder>(
     available: &[CardId],
     possible_defenders: &[DefenderId],
 ) -> Vec<(CardId, DefenderId)> {
-    let available_attacker_ids = PromptAgent::<T>::card_ids(available);
-    let possible_defender_dtos = PromptAgent::<T>::defender_ids_to_dtos(possible_defenders);
+    use manabrew_protocol::prompts::choose_attackers::AttackerOptionDto;
+    let attack_targets = PromptAgent::<T>::attack_targets_to_dtos(possible_defenders);
+    // The Rust engine doesn't restrict which target each attacker may hit, so
+    // every attacker is offered every target.
+    let all_target_ids: Vec<String> = attack_targets.iter().map(|t| t.id.clone()).collect();
+    let attackers = PromptAgent::<T>::card_ids(available)
+        .into_iter()
+        .map(|attacker_id| AttackerOptionDto {
+            attacker_id,
+            valid_target_ids: all_target_ids.clone(),
+        })
+        .collect();
     agent.send_prompt(
         PromptInput::ChooseAttackers(
             manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
-                available_attacker_ids,
-                possible_defender_ids: possible_defender_dtos,
+                attackers,
+                attack_targets,
             },
         ),
         None,
@@ -56,7 +66,7 @@ pub(super) fn choose_attackers<T: Responder>(
             .filter_map(|a| {
                 let attacker = parse_card_id(&a.attacker_id)?;
                 let defender =
-                    PromptAgent::<T>::parse_defender_id(&a.defender_id, possible_defenders)
+                    PromptAgent::<T>::parse_defender_id(&a.target_id, possible_defenders)
                         .unwrap_or(default_defender);
                 Some((attacker, defender))
             })
@@ -72,13 +82,26 @@ pub(super) fn choose_blockers<T: Responder>(
     available_blockers: &[CardId],
     _max_blockers: Option<usize>,
 ) -> Vec<(CardId, CardId)> {
-    let attacker_ids = PromptAgent::<T>::card_ids(attackers);
+    use manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto;
     let available_blocker_ids = PromptAgent::<T>::card_ids(available_blockers);
+    // The Rust engine doesn't surface per-attacker block legality yet, so every
+    // available blocker may block every attacker (min 1, no must-block).
+    let attackers = PromptAgent::<T>::card_ids(attackers)
+        .into_iter()
+        .map(|attacker_id| BlockableAttackerDto {
+            attacker_id,
+            valid_blocker_ids: available_blocker_ids.clone(),
+            min_blockers: 1,
+            max_blockers: None,
+            must_be_blocked: false,
+        })
+        .collect();
     agent.send_prompt(
         PromptInput::ChooseBlockers(
             manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
-                attacker_ids,
+                attackers,
                 available_blocker_ids,
+                error: None,
             },
         ),
         None,

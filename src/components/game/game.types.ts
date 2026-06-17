@@ -59,6 +59,8 @@ export interface MainActionOverlayProps {
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
   pendingAttacker: string | null;
   pendingBlocker: string | null;
+  blockError?: string | null;
+  blockRequirementError?: string | null;
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;

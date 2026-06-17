@@ -17,9 +17,11 @@ import forge.game.card.CardCollection;
 import forge.game.card.CardCollectionView;
 import forge.game.card.CardView;
 import forge.game.combat.Combat;
+import forge.game.combat.CombatUtil;
 import forge.game.player.Player;
 import forge.game.player.PlayerView;
 import forge.game.spellability.SpellAbility;
+import forge.game.staticability.StaticAbilityCantAttackBlock;
 import forge.game.zone.ZoneType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -1840,11 +1842,11 @@ public final class ManaBrewInteractiveSession {
             option.addProperty("index", i);
             option.addProperty("id", SnapshotExtractor.javaCardId(a));
             option.addProperty("label", a.getName());
-            com.google.gson.JsonArray validDefenderIds = new com.google.gson.JsonArray();
+            com.google.gson.JsonArray validTargetIds = new com.google.gson.JsonArray();
             for (final GameEntity d : CombatChoiceSpace.legalDefendersForAttacker(a, combat)) {
-                validDefenderIds.add(defenderId(d));
+                validTargetIds.add(defenderId(d));
             }
-            option.add("validDefenderIds", validDefenderIds);
+            option.add("validTargetIds", validTargetIds);
             attackers.add(option);
         }
         prompt.add("attackers", attackers);
@@ -1854,6 +1856,7 @@ public final class ManaBrewInteractiveSession {
             JsonObject option = new JsonObject();
             option.addProperty("id", defenderId(defender));
             option.addProperty("label", defender.getName());
+            option.addProperty("kind", defenderKind(defender));
             defenders.add(option);
         }
         prompt.add("defenders", defenders);
@@ -1875,6 +1878,7 @@ public final class ManaBrewInteractiveSession {
             prompt.addProperty("error", error);
         }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        final Player defendingPlayer = game.getPlayers().get(playerId);
         com.google.gson.JsonArray attackerOptions = new com.google.gson.JsonArray();
         for (int i = 0; i < attackers.size(); i++) {
             final Card attacker = attackers.get(i);
@@ -1887,6 +1891,12 @@ public final class ManaBrewInteractiveSession {
                 validBlockerIds.add(SnapshotExtractor.javaCardId(blocker));
             }
             option.add("validBlockerIds", validBlockerIds);
+            option.addProperty("minBlockers", CombatUtil.getMinNumBlockersForAttacker(attacker, defendingPlayer));
+            final int maxBlockers =
+                    StaticAbilityCantAttackBlock.getMinMaxBlocker(attacker, defendingPlayer).getRight();
+            if (maxBlockers < Integer.MAX_VALUE) {
+                option.addProperty("maxBlockers", maxBlockers);
+            }
             attackerOptions.add(option);
         }
         prompt.add("attackers", attackerOptions);
@@ -2132,6 +2142,22 @@ public final class ManaBrewInteractiveSession {
             return "player-" + SnapshotExtractor.playerIndex(game, (Player) defender);
         }
         return "defender-" + defender.getId();
+    }
+
+    private String defenderKind(final GameEntity defender) {
+        if (defender instanceof Player) {
+            return "player";
+        }
+        if (defender instanceof Card) {
+            final Card c = (Card) defender;
+            if (c.isBattle()) {
+                return "battle";
+            }
+            if (c.isPlaneswalker()) {
+                return "planeswalker";
+            }
+        }
+        return "planeswalker";
     }
 
     private GameEntity findDefenderByPublishedId(final Combat combat, final String id) {

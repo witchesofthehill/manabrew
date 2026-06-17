@@ -403,6 +403,9 @@ pub fn card_to_dto(
             .any(|kw| kw.starts_with(manabrew_engine::card::KEYWORD_PLOTTED_PREFIX)),
         is_warp_exiled: card.has_keyword(manabrew_engine::card::KEYWORD_WARP_EXILED),
         foil: card.paper_foil,
+        // Combat death prediction is computed by the Forge harness only; the
+        // Rust engine doesn't surface it yet.
+        would_die_in_combat: false,
     }
 }
 

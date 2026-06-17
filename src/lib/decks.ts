@@ -41,7 +41,16 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
   // emits empty setCode/cardNumber for every card — so the exact match misses
   // deck cards pinned to a specific printing (e.g. a commander). Fall back to
   // a name match; the singleton deck makes this unambiguous for non-basics.
-  const byName = pool.find((c) => c.name === gameCard.name);
+  //
+  // Double-faced cards: the engine sends the *current face* name ("Agadeem's
+  // Awakening", or the back name once transformed), while the deck stores the
+  // combined Scryfall name ("Agadeem's Awakening // Agadeem, the Underworld").
+  // Match either face, mirroring the engine's own `get_by_card_name` which
+  // splits on " // " (see manabrew-rs AGENTS). Split cards already match
+  // directly since both sides send the full combined name.
+  const matchesName = (deckName: string) =>
+    deckName === gameCard.name || deckName.split(" // ").includes(gameCard.name);
+  const byName = pool.find((c) => matchesName(c.name));
   if (byName) return byName;
   // The engine can surface cards that were never in the deck (tokens already
   // handled above, plus engine-internal objects like effects/emblems). Render

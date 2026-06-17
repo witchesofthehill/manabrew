@@ -220,10 +220,13 @@ export function StackDisplay({
         {flashCard && flashStackIndex < 0 && showPreStackFlash && (
           <div
             key={flashToken ?? flashCard.id}
-            className="absolute left-0 top-0 pointer-events-none animate-card-flash"
+            className="absolute top-0 pointer-events-none animate-card-flash"
             style={{
               zIndex: 200,
-              left: "0px",
+              // Align with the top of the pile (the newest card's slot) rather
+              // than the container corner, so it doesn't sit off to the side /
+              // overlap the top-left card when the stack is non-empty.
+              left: `${stack.length > 0 ? (lefts[stack.length - 1] ?? 0) + xShift : 0}px`,
               top: "0px",
               width: `${STACK_UI.cardWidth}px`,
               height: `${cardHeight}px`,

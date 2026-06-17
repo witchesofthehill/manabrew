@@ -175,7 +175,9 @@ export function ZoneActionColumn({
 }: ZoneActionColumnProps) {
   const themeColors = useTheme().gameTheme;
   const fontSizes = useTheme().gameTheme.fontSizes;
-  const targetColor = targetHostile ? themeColors.arrow.hostileTarget : themeColors.cardRing;
+  const targetColor = targetHostile
+    ? themeColors.arrow.hostileTarget
+    : themeColors.arrow.friendlyTarget;
   const graveyardTop =
     graveyard && graveyard.length > 0 ? graveyard[graveyard.length - 1] : undefined;
   const exileTop = exile && exile.length > 0 ? exile[exile.length - 1] : undefined;

@@ -15,11 +15,9 @@ interface GameModalsProps {
     cards: GameCard[];
     onClickCard?: (cardId: string) => void;
     clickableCardIds?: string[];
+    targetHostile?: boolean;
   } | null;
   onCloseZone: () => void;
-  zoneTargetSelector: { title: string; cards: GameCard[]; validCardIds: string[] } | null;
-  onSelectZoneTarget: (cardId: string) => void;
-  onCancelZoneTarget: () => void;
   libraryPeekModal: {
     mode: LibraryPeekMode;
     cards: GameCard[];
@@ -44,9 +42,6 @@ export function GameModals({
   revealedDeckCard,
   viewingZone,
   onCloseZone,
-  zoneTargetSelector,
-  onSelectZoneTarget,
-  onCancelZoneTarget,
   libraryPeekModal,
   onLibraryPeekConfirm,
   spellStackModalOpen,
@@ -66,9 +61,6 @@ export function GameModals({
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}
-        zoneTargetSelector={zoneTargetSelector}
-        onSelectZoneTarget={onSelectZoneTarget}
-        onCancelZoneTarget={onCancelZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={onLibraryPeekConfirm}
         spellStackModalOpen={spellStackModalOpen}

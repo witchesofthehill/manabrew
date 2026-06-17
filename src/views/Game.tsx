@@ -591,8 +591,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     cards: GameCard[],
     onClickCard?: (cardId: string) => void,
     clickableCardIds?: string[],
+    targetHostile?: boolean,
   ) {
-    openZoneViewer({ title, cards, onClickCard, clickableCardIds });
+    openZoneViewer({ title, cards, onClickCard, clickableCardIds, targetHostile });
   }
   function openManualZone(title: string, cards: GameCard[]) {
     openZoneViewer({
@@ -760,9 +761,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     activatePassUntilEot,
     libraryPeekModal,
     setLibraryPeekModal,
-    zoneTargetSelector,
-    dismissZoneTarget,
-    reopenZoneTarget,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -822,7 +820,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const preview = useCardPreview([
     viewingZone,
-    zoneTargetSelector,
     libraryPeekModal,
     spellStackModalOpen,
     abilityPickerState,
@@ -1430,12 +1427,12 @@ export default function Game({ exitTo }: GameProps = {}) {
           onAssignBlock={assignBlockPair}
           onUnassignBlock={unassignBlock}
           onTargetPlayer={handleTargetPlayer}
-          onOpenZone={(title, cards, onClickCard, clickableCardIds) => {
+          onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
             if (manualApi) {
               openManualZone(title, cards);
               return;
             }
-            openZone(title, cards, onClickCard, clickableCardIds);
+            openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
           }}
           onOpenZoneAndCast={(title, cards, onClickCard, clickableCardIds) =>
             openZoneAndCast(
@@ -1448,7 +1445,6 @@ export default function Game({ exitTo }: GameProps = {}) {
               clickableCardIds,
             )
           }
-          onReopenZoneTarget={reopenZoneTarget}
           onTargetFromZone={(cardId) => {
             closeZoneViewer();
             casting.wrappedTargetCard(cardId);
@@ -1652,12 +1648,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         revealedDeckCard={promptRevealedDeckCard}
         viewingZone={viewingZone}
         onCloseZone={closeZone}
-        zoneTargetSelector={zoneTargetSelector}
-        onSelectZoneTarget={(cardId) => {
-          casting.wrappedTargetCard(cardId);
-          dismissZoneTarget();
-        }}
-        onCancelZoneTarget={dismissZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "scry")
@@ -1731,7 +1721,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         preview.hoveredCard.zoneId !== "hand" &&
         !draggingHandCard &&
         !viewingZone &&
-        !zoneTargetSelector &&
         !libraryPeekModal &&
         !spellStackModalOpen &&
         !abilityPickerState &&

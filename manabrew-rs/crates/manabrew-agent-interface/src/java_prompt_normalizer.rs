@@ -350,7 +350,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&players)
                     .into_iter()
@@ -368,13 +368,13 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
-            zone: _,
+            zone,
             min_targets,
             max_targets,
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, zone.as_deref());
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&cards)
                     .into_iter()
@@ -398,7 +398,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             let mut candidates: Vec<TargetRef> = target_ids(&players)
                 .into_iter()
                 .map(|id| TargetRef::Player { id })
@@ -423,7 +423,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&spells)
                     .into_iter()
@@ -943,6 +943,7 @@ fn intent_from_api(
     api: &Option<String>,
     destination: &Option<String>,
     counter_type: &Option<String>,
+    origin: Option<&str>,
 ) -> TargetingIntent {
     use TargetingIntent::*;
     let Some(api) = api.as_deref() else {
@@ -952,13 +953,19 @@ fn intent_from_api(
         "DealDamage" | "DamageAll" | "EachDamage" => Damage,
         "Destroy" | "DestroyAll" => Destroy,
         "Sacrifice" | "SacrificeAll" => Sacrifice,
-        "ChangeZone" | "ChangeZoneAll" => match destination.as_deref() {
-            Some("Exile") => Exile,
-            Some("Hand") | Some("Library") => Bounce,
-            Some("Graveyard") => Destroy,
-            Some("Battlefield") => Friendly,
-            _ => Hostile,
-        },
+        "ChangeZone" | "ChangeZoneAll" => {
+            // Pulling a card out of the graveyard/exile is recursion of your own
+            // cards (regrowth, reanimate), not a hostile bounce/blink.
+            let from_dead = matches!(origin, Some("Graveyard") | Some("Exile"));
+            match destination.as_deref() {
+                Some("Hand") | Some("Library") | Some("Battlefield") if from_dead => Friendly,
+                Some("Exile") => Exile,
+                Some("Hand") | Some("Library") => Bounce,
+                Some("Graveyard") => Destroy,
+                Some("Battlefield") => Friendly,
+                _ => Hostile,
+            }
+        }
         "Mill" => Mill,
         "Discard" => Discard,
         "Counter" => Counter,

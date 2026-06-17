@@ -512,6 +512,11 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             }
             final List<Pair<GameEntity, GameObject>> valid =
                     targetCandidates(ability, tr, filter, mustTargetFiltered ? validCards : null);
+            // Already-chosen targets are still returned by getAllCandidates (the
+            // GUI toggles them); drop them here so a "may select up to N" with
+            // fewer than N legal targets terminates instead of re-offering the
+            // same card forever (TargetChoices is a Set, so add() of a dup no-ops).
+            valid.removeIf(pair -> ability.getTargets().contains(pair.getRight()));
             if (valid.isEmpty()) {
                 break;
             }

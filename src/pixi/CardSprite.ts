@@ -561,7 +561,9 @@ export class CardSprite extends Container {
       this.imageSpr.anchor.set(0.5, 0.5);
       this.imageSpr.x = CARD_W / 2;
       this.imageSpr.y = CARD_H / 2;
-      this.imageSpr.rotation = -Math.PI / 2;
+      // +90° (clockwise) to match the DOM renderers (CardPreview/Card use
+      // `rotate-90`); -90° here rendered horizontal cards upside-down.
+      this.imageSpr.rotation = Math.PI / 2;
       const preHeight = CARD_W;
       const preWidth = Math.round((preHeight * 5) / 7);
       this.imageSpr.setSize(preWidth, preHeight);

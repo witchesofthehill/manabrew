@@ -704,6 +704,12 @@ export class BoardScene {
   }
 
   private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite): void {
+    // While a hand card is hovered (its lift + action panel + curved hover
+    // bridge are showing), a battlefield card that peeks through the bridge's
+    // curved cut-out must not steal the hover — that would make the UI think
+    // the hand card is no longer hovered. Ignore battlefield hovers until the
+    // hand hover fully releases.
+    if (this.hand?.hasActiveHover()) return;
     this.cancelHoverClear();
     if (this.hoveredCardId === sprite.card.id) return;
     const prevRegion = this.hoveredRegionRef;

@@ -1,6 +1,11 @@
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
-import { CardSprite, setCardSpriteTheme, setCardSpriteStyle } from "../CardSprite";
+import {
+  CardSprite,
+  setCardSpriteTheme,
+  setCardSpriteStyle,
+  setCardSpriteHoverDebug,
+} from "../CardSprite";
 import type { BattlefieldCardStyle } from "@/stores/usePreferencesStore";
 import { hexToNum } from "../colorUtils";
 import type { Theme } from "@/hooks/useTheme";
@@ -490,6 +495,13 @@ export class BoardScene {
     if (this.destroyed) return;
     setCardSpriteStyle(style);
     for (const rec of this.regions.values()) rec.region.restyleCards();
+  }
+
+  setHoverDebug(on: boolean): void {
+    if (this.destroyed) return;
+    setCardSpriteHoverDebug(on);
+    for (const rec of this.regions.values()) rec.region.redrawHoverDebug();
+    this.hand?.setHoverDebug(on);
   }
 
   setTheme(theme: Theme): void {

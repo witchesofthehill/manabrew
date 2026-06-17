@@ -2,7 +2,6 @@ import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
-import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
 import { hexToNum } from "../colorUtils";
 import { computeBaseLayout, computeHandLayout, HAND_FAN_PARAMS } from "../HandLayout";
@@ -50,7 +49,7 @@ export class HandController {
   private vScale = 1;
   private dropActive = false;
   private hoverDebugGfx: Graphics;
-  private devUnsub: (() => void) | null = null;
+  private hoverDebug = false;
 
   constructor(host: HandHost, parent: Container) {
     this.host = host;
@@ -64,14 +63,19 @@ export class HandController {
     this.hoverDebugGfx.eventMode = "none";
     this.hoverDebugGfx.zIndex = Z_HAND_HOVERED + 1;
     this.container.addChild(this.hoverDebugGfx);
-    this.devUnsub = useGameDevStore.subscribe(() => this.drawHoverDebug());
+  }
+
+  /** Toggle the dev hit-zone overlay (driven by BoardScene.setHoverDebug). */
+  setHoverDebug(on: boolean): void {
+    this.hoverDebug = on;
+    this.drawHoverDebug();
   }
 
   /** Dev overlay: tint each hand card's actual hit zone (axis-aligned, the same
    *  rects `hitAt` tests) so the hoverable region is visible. */
   private drawHoverDebug(): void {
     this.hoverDebugGfx.clear();
-    if (!useGameDevStore.getState().showHoverAreas) return;
+    if (!this.hoverDebug) return;
     const color = hexToNum(getTheme().gameTheme.success);
     for (const zone of this.hitZones) {
       this.hoverDebugGfx.rect(
@@ -422,8 +426,6 @@ export class HandController {
 
   destroy(): void {
     this.cancelHoverHoldTimer();
-    this.devUnsub?.();
-    this.devUnsub = null;
     this.sprites.clear();
     this.hitZones = [];
   }

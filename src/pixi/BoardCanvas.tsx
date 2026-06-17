@@ -397,6 +397,10 @@ export function BoardCanvas({
   const showHandFlip = !!handHover && hoverFaces.isFlippable;
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
+  useEffect(() => {
+    scene?.setHoverDebug(showHoverAreas);
+  }, [scene, showHoverAreas]);
+
   const toggleHandFlip = useCallback(() => {
     setHandFlipBack((prev) => {
       const next = !prev;

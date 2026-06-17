@@ -12,7 +12,7 @@ import { usePreferencesStore, type BattlefieldCardStyle } from "@/stores/usePref
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 import { applyManaSymbol, parseManaCost } from "./manaSymbols";
 import { asDeckCard } from "@/lib/decks";
-import { DEBUG_KEYWORD_CARD_ID, useGameDevStore } from "@/stores/useGameDevStore";
+import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 
 /**
@@ -45,6 +45,14 @@ let activeStyle: BattlefieldCardStyle = usePreferencesStore.getState().battlefie
 
 export function setCardSpriteStyle(style: BattlefieldCardStyle): void {
   activeStyle = style;
+}
+
+/** Dev hover-area overlay flag, fanned out from `BoardScene.setHoverDebug` so a
+ *  single store subscription drives every sprite instead of one per sprite. */
+let activeHoverDebug = false;
+
+export function setCardSpriteHoverDebug(on: boolean): void {
+  activeHoverDebug = on;
 }
 
 function registerTintedTextStyle(style: TextStyle): TextStyle {
@@ -324,7 +332,6 @@ export class CardSprite extends Container {
   private orderBadgeText: Text;
   private etbGlow: Graphics;
   private hoverDebugGfx: Graphics;
-  private devUnsub: (() => void) | null = null;
   private _imageLoaded = false;
   /** Custom battlefield styles (art / mini-frame) apply only to battlefield
    *  sprites. Hand cards always render the full printed image. */
@@ -480,10 +487,7 @@ export class CardSprite extends Container {
     this.hoverDebugGfx = new Graphics();
     this.hoverDebugGfx.eventMode = "none";
     this.addChild(this.hoverDebugGfx);
-    this.drawHoverDebug(useGameDevStore.getState().showHoverAreas);
-    this.devUnsub = useGameDevStore.subscribe(() =>
-      this.drawHoverDebug(useGameDevStore.getState().showHoverAreas),
-    );
+    this.redrawHoverDebug();
 
     this.hitArea = {
       contains: (x: number, y: number) => x >= 0 && x <= CARD_W && y >= 0 && y <= CARD_H,
@@ -495,18 +499,13 @@ export class CardSprite extends Container {
 
   /** Dev overlay tinting the card's hit area (the whole card rect). Hand cards
    *  are excluded — their true hover region is the axis-aligned hit zone drawn
-   *  by HandController, not this rotated per-sprite rect. */
-  private drawHoverDebug(on: boolean): void {
+   *  by HandController, not this rotated per-sprite rect. Driven by the module
+   *  flag (BoardScene fans the toggle out to every sprite). */
+  redrawHoverDebug(): void {
     this.hoverDebugGfx.clear();
-    if (!on || !this.isBattlefield) return;
+    if (!activeHoverDebug || !this.isBattlefield) return;
     this.hoverDebugGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
     this.hoverDebugGfx.fill({ color: hexToNum(activeTheme.gameTheme.success), alpha: 0.28 });
-  }
-
-  override destroy(options?: Parameters<Container["destroy"]>[0]): void {
-    this.devUnsub?.();
-    this.devUnsub = null;
-    super.destroy(options);
   }
 
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate

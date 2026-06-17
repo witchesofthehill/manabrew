@@ -38,12 +38,7 @@ export function BattlefieldCardFace({
   const height = width * (98 / 70);
 
   const colors = cardColors(card);
-  const tint =
-    colors.length === 0
-      ? theme.mana.C
-      : colors.length === 1
-        ? theme.mana[colors[0]]
-        : theme.mana[colors[0]];
+  const tint = colors.length === 0 ? theme.mana.C : theme.mana[colors[0]];
   const tintB = colors.length > 1 ? theme.mana[colors[1]] : tint;
   const barBg =
     colors.length > 1

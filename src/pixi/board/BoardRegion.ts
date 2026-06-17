@@ -998,6 +998,10 @@ export class BoardRegion {
     for (const entry of this.entries.values()) entry.sprite.restyle();
   }
 
+  redrawHoverDebug(): void {
+    for (const entry of this.entries.values()) entry.sprite.redrawHoverDebug();
+  }
+
   // ── Drag-commit + grid skeleton (driven by the host's drag gesture) ─
 
   getEffectiveChildren(parentId: string): string[] {

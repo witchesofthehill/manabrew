@@ -78,12 +78,40 @@ export function BattlefieldCardFace({
     (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
-  const counterBadges = card.counters ? (
-    <CounterDisplay
-      counters={Object.fromEntries(Object.entries(card.counters).filter(([k]) => k !== "Loyalty"))}
-      size="sm"
-    />
-  ) : null;
+  // +1/+1 and −1/−1 collapse to a single signed pill (green / red); the full
+  // per-type breakdown stays in the card preview. Other counters keep chips.
+  const p1p1 = card.counters?.P1P1 ?? 0;
+  const m1m1 = card.counters?.M1M1 ?? 0;
+  const otherCounters = card.counters
+    ? Object.fromEntries(
+        Object.entries(card.counters).filter(
+          ([k]) => k !== "Loyalty" && k !== "P1P1" && k !== "M1M1",
+        ),
+      )
+    : {};
+  const signedPill = (text: string, color: string) => (
+    <span
+      className="font-bold rounded leading-none"
+      style={{
+        fontSize: Math.max(6, 8 * u),
+        padding: `${0.5 * u}px ${2 * u}px`,
+        backgroundColor: color,
+        color: theme.textOnTinted,
+      }}
+    >
+      {text}
+    </span>
+  );
+  const counterBadges =
+    p1p1 > 0 || m1m1 > 0 || Object.keys(otherCounters).length > 0 ? (
+      <div className="flex items-center" style={{ gap: 1 * u }}>
+        {p1p1 > 0 && signedPill(`+${p1p1}`, theme.pt.buffed)}
+        {m1m1 > 0 && signedPill(`-${m1m1}`, theme.pt.debuffed)}
+        {Object.keys(otherCounters).length > 0 && (
+          <CounterDisplay counters={otherCounters} size="sm" />
+        )}
+      </div>
+    ) : null;
 
   // Marked damage shows as a red wash whose strength tracks damage / toughness,
   // capped so the art stays legible. In art mode it fills the whole card (the

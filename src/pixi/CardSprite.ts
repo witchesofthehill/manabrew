@@ -1,4 +1,13 @@
-import { Container, Sprite, Texture, Graphics, Text, TextStyle, FillGradient } from "pixi.js";
+import {
+  Container,
+  Sprite,
+  Texture,
+  Graphics,
+  Text,
+  TextStyle,
+  FillGradient,
+  ColorMatrixFilter,
+} from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { isHorizontalCard } from "@/lib/cardLayout";
@@ -304,11 +313,15 @@ export class CardSprite extends Container {
   private frameTypeText: Text;
   private frameScrimGrad: FillGradient | null = null;
   private frameScrimKey = "";
+  private sickFilter: ColorMatrixFilter | null = null;
   private frameTypeBandH = 0;
   private frameNameBandH = 0;
   private frameCounterReserve = 0;
   private manaContainer: Container;
   private doomedGfx: Graphics;
+  private edgeGlowGfx: Graphics;
+  private edgeGlowMask: Graphics;
+  private glowPulsing = false;
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -414,6 +427,16 @@ export class CardSprite extends Container {
     this.damageGfx = new Graphics();
     this.damageGfx.visible = false;
     this.addChild(this.damageGfx);
+
+    // Edge glow (attacking = red, summoning-sick = frosty pulse) — mirrors the
+    // DOM card face's inset glow / aura. Clipped to the rounded card shape.
+    this.edgeGlowMask = new Graphics();
+    this.edgeGlowMask.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS).fill(0xffffff);
+    this.addChild(this.edgeGlowMask);
+    this.edgeGlowGfx = new Graphics();
+    this.edgeGlowGfx.visible = false;
+    this.edgeGlowGfx.mask = this.edgeGlowMask;
+    this.addChild(this.edgeGlowGfx);
 
     this.badgeContainer = new Container();
     this.badgeBg = new Graphics();
@@ -744,6 +767,80 @@ export class CardSprite extends Container {
     this.updateFoil();
     this.updateRingBearer();
     this.updateMana();
+    this.updateCardFilter();
+    this.updateEdgeGlow();
+  }
+
+  /** Inset edge glow mirroring the DOM card face: red for attacking, frosty
+   *  (pulsing — see `tickEffects`) for summoning-sick creatures. Replaces the
+   *  old attacking / summoning-sick rings. No-op for hand cards. */
+  private updateEdgeGlow(): void {
+    const card = this.card;
+    const attacking = this.isBattlefield && !!card.isAttacking;
+    const sick =
+      this.isBattlefield &&
+      !!card.summoningSick &&
+      (card.types?.some((t) => t.toLowerCase() === "creature") ?? false);
+    this.edgeGlowGfx.clear();
+    if (!attacking && !sick) {
+      this.edgeGlowGfx.visible = false;
+      this.glowPulsing = false;
+      return;
+    }
+    const color = attacking
+      ? hexToNum(activeTheme.gameTheme.pt.lethal)
+      : hexToNum(activeTheme.gameTheme.textOnTinted);
+    const maxAlpha = attacking ? 0.9 : 0.7;
+    const layers = 6;
+    const step = 1.6;
+    for (let i = 0; i < layers; i++) {
+      const inset = i * step;
+      this.edgeGlowGfx.roundRect(
+        inset,
+        inset,
+        CARD_W - 2 * inset,
+        CARD_H - 2 * inset,
+        Math.max(0, CARD_RADIUS - inset),
+      );
+      this.edgeGlowGfx.stroke({ color, width: 2.2, alpha: maxAlpha * (1 - i / layers) });
+    }
+    this.edgeGlowGfx.visible = true;
+    this.edgeGlowGfx.alpha = 1;
+    this.glowPulsing = sick && !attacking;
+  }
+
+  /** Per-frame hook (driven by the board region's animate loop) — breathes the
+   *  summoning-sick aura. */
+  tickEffects(): void {
+    if (!this.glowPulsing) return;
+    const phase = (Math.sin(performance.now() / 400) + 1) / 2;
+    this.edgeGlowGfx.alpha = 0.5 + 0.45 * phase;
+  }
+
+  /** Color-matrix treatments that mirror the DOM card face: summoning-sick
+   *  creatures are desaturated + dimmed ("just entered, can't act yet"), and
+   *  phased-out cards are desaturated (their alpha fade is owned by the board
+   *  tick). No-op for hand cards. */
+  private updateCardFilter(): void {
+    const card = this.card;
+    const sick =
+      this.isBattlefield &&
+      !!card.summoningSick &&
+      (card.types?.some((t) => t.toLowerCase() === "creature") ?? false);
+    const phased = this.isBattlefield && !!card.phasedOut;
+    if (!sick && !phased) {
+      if (this.filters) this.filters = [];
+      return;
+    }
+    if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();
+    const f = this.sickFilter;
+    if (sick) {
+      f.saturate(-1.3, false);
+      f.brightness(0.78, true);
+    } else {
+      f.saturate(-1.5, false);
+    }
+    this.filters = [f];
   }
 
   private updateRingBearer(): void {
@@ -961,9 +1058,22 @@ export class CardSprite extends Container {
 
     let offsetX = 3;
     for (const [type, count] of entries) {
-      const color = getCounterColor(type);
-      const iconName = COUNTER_ICON_NAMES[type];
-      const textLabel = COUNTER_TEXT_LABELS[type] ?? type.slice(0, 3);
+      // +1/+1 and −1/−1 collapse to a single signed number (green / red); the
+      // full per-type breakdown lives in the card preview.
+      const isPlus = type === "P1P1";
+      const isMinus = type === "M1M1";
+      const isPM = isPlus || isMinus;
+      const color = isPlus
+        ? hexToNum(activeTheme.gameTheme.pt.buffed)
+        : isMinus
+          ? hexToNum(activeTheme.gameTheme.pt.debuffed)
+          : getCounterColor(type);
+      const iconName = isPM ? undefined : COUNTER_ICON_NAMES[type];
+      const textLabel = isPlus
+        ? `+${count}`
+        : isMinus
+          ? `-${count}`
+          : (COUNTER_TEXT_LABELS[type] ?? type.slice(0, 3));
 
       const badge = new Container();
       const bg = new Graphics();
@@ -988,7 +1098,7 @@ export class CardSprite extends Container {
 
       let countText: Text | null = null;
       let countWidth = 0;
-      if (count > 1) {
+      if (count > 1 && !isPM) {
         countText = new Text({ text: ` ${count}`, style: COUNTER_STYLE });
         countText.resolution = TEXT_RASTER_RESOLUTION;
         countText.anchor.set(0, 0.5);

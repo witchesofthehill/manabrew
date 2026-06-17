@@ -315,6 +315,7 @@ export class BoardRegion {
     let exited: string[] | null = null;
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
+      s.tickEffects();
       if (entry.exiting) {
         s.alpha = lerp(s.alpha, 0, EXIT_FADE_LERP, 0.02);
         s.scale.set(s.scale.x * EXIT_SHRINK);
@@ -916,10 +917,10 @@ export class BoardRegion {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
       return;
     }
+    // Attacking and summoning-sickness are shown by the card's own edge glow
+    // (`CardSprite.updateEdgeGlow`), mirroring the DOM face — not by a ring.
     if (card.wouldDieInCombat) {
       sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
-    } else if (state.attackingCardIds?.includes(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.attackAction));
     } else if (state.pendingCardIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.passAction));
     } else if (state.tappableLandIds?.includes(card.id)) {
@@ -932,15 +933,9 @@ export class BoardRegion {
           ? hexToNum(theme.gameTheme.arrow.hostileTarget)
           : hexToNum(theme.gameTheme.cardRing),
       );
-    } else if (this.isCreatureCard(card) && card.summoningSick) {
-      sprite.setRing(hexToNum(theme.gameTheme.promptAction.cancel), 0.6);
     } else {
       sprite.setRing(null);
     }
-  }
-
-  private isCreatureCard(card: GameCard): boolean {
-    return card.types?.some((t) => t.toLowerCase() === "creature") ?? false;
   }
 
   // ── Background + helpers ───────────────────────────────────────────

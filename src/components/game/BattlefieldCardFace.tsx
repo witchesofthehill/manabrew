@@ -2,7 +2,12 @@ import type { GameCard } from "@/types/manabrew";
 import type { ManaLetter } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import { frameTint, readableTextColor, withAlpha } from "@/themes/gameTheme";
+import {
+  FRAME_TINT_COLORLESS_MAX_LUMINANCE,
+  frameTint,
+  readableTextColor,
+  withAlpha,
+} from "@/themes/gameTheme";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
@@ -38,10 +43,12 @@ export function BattlefieldCardFace({
   const height = width * (98 / 70);
 
   const colors = cardColors(card);
-  const rawTint = colors.length === 0 ? theme.mana.C : theme.mana[colors[0]];
+  const colorless = colors.length === 0;
+  const rawTint = colorless ? theme.mana.C : theme.mana[colors[0]];
   const rawTintB = colors.length > 1 ? theme.mana[colors[1]] : rawTint;
-  const tint = frameTint(rawTint);
-  const tintB = frameTint(rawTintB);
+  const tintMax = colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined;
+  const tint = frameTint(rawTint, tintMax);
+  const tintB = frameTint(rawTintB, tintMax);
   const barText = readableTextColor(tint, theme.canvas.shadow, theme.textOnTinted);
   const barBg =
     colors.length > 1
@@ -64,15 +71,39 @@ export function BattlefieldCardFace({
   const fontPt = Math.max(7, 9 * u);
   const radius = 5 * u;
   const pad = 3 * u;
-  // Bottom inset that clears the mini-frame's type bar (font + its vertical
-  // padding) so bottom-anchored overlays don't sit on the type line.
-  const typeBarH = fontType + 3 * u;
-  const bottomOverlayInset = variant === "frame" ? typeBarH + 2 * u : pad;
 
   const typeLine =
     [...card.supertypes, ...card.types].join(" ") +
     (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
+
+  const counterBadges = card.counters ? (
+    <CounterDisplay
+      counters={Object.fromEntries(Object.entries(card.counters).filter(([k]) => k !== "Loyalty"))}
+      size="sm"
+    />
+  ) : null;
+
+  // Marked damage shows as a red wash whose strength tracks damage / toughness,
+  // capped so the art stays legible. In art mode it fills the whole card (the
+  // border is drawn as an overlay on top, not as the root's CSS border), so the
+  // wash shares the card's outer radius exactly — no corner gap.
+  const damage = card.damage ?? 0;
+  const toughForDamage = parseInt(card.toughness ?? "0", 10);
+  const borderW = Math.max(1, 1.5 * u);
+  const damageEffect =
+    damage > 0 ? (
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          borderRadius: variant === "art" ? radius : 0,
+          background: withAlpha(
+            theme.pt.lethal,
+            Math.min(0.5, (toughForDamage > 0 ? damage / toughForDamage : 1) * 0.5),
+          ),
+        }}
+      />
+    ) : null;
 
   const Overlays = (
     <>
@@ -125,31 +156,6 @@ export function BattlefieldCardFace({
           style={{ boxShadow: `inset 0 0 ${6 * u}px ${withAlpha(theme.pt.lethal, 0.9)}` }}
         />
       )}
-      {card.damage != null && card.damage > 0 && (
-        <span
-          className="absolute font-bold rounded leading-none z-10"
-          style={{
-            left: pad,
-            top: pad,
-            fontSize: Math.max(6, 8 * u),
-            padding: `${1 * u}px ${2.5 * u}px`,
-            color: theme.textOnTinted,
-            backgroundColor: withAlpha(theme.pt.lethal, 0.85),
-          }}
-        >
-          ⚔{card.damage}
-        </span>
-      )}
-      {card.counters && (
-        <div className="absolute z-10" style={{ left: pad, bottom: bottomOverlayInset }}>
-          <CounterDisplay
-            counters={Object.fromEntries(
-              Object.entries(card.counters).filter(([k]) => k !== "Loyalty"),
-            )}
-            size="sm"
-          />
-        </div>
-      )}
     </>
   );
 
@@ -165,7 +171,6 @@ export function BattlefieldCardFace({
           width,
           height,
           borderRadius: radius,
-          border: `${Math.max(1, 1.5 * u)}px solid ${tint}`,
           background: theme.cardPlaceholder.fill,
         }}
       >
@@ -176,6 +181,7 @@ export function BattlefieldCardFace({
             className="absolute inset-0 w-full h-full object-cover"
           />
         )}
+        {damageEffect}
         <div
           className="absolute top-0 right-0 flex items-center"
           style={{ transform: `scale(${0.6 * u})`, transformOrigin: "top right", padding: pad }}
@@ -190,7 +196,8 @@ export function BattlefieldCardFace({
             background: `linear-gradient(to top, ${withAlpha(theme.canvas.shadow, 0.94)} 0%, ${withAlpha(theme.canvas.shadow, 0.6)} 60%, transparent 100%)`,
           }}
         >
-          <div className="min-w-0 flex flex-col" style={{ gap: 1 * u }}>
+          <div className="min-w-0 flex flex-col items-start" style={{ gap: 1 * u }}>
+            {counterBadges}
             <span
               className="font-semibold leading-tight break-words"
               style={{ fontSize: fontName, color: theme.textOnTinted }}
@@ -229,6 +236,10 @@ export function BattlefieldCardFace({
           )}
         </div>
         {Overlays}
+        <div
+          className="absolute inset-0 rounded-[inherit] pointer-events-none"
+          style={{ border: `${borderW}px solid ${tint}` }}
+        />
       </div>
     );
   }
@@ -244,7 +255,7 @@ export function BattlefieldCardFace({
         width,
         height,
         borderRadius: radius,
-        border: `${Math.max(1, 1.5 * u)}px solid ${tint}`,
+        border: `${borderW}px solid ${tint}`,
         background: theme.cardPlaceholder.fill,
         boxShadow: `0 ${1.5 * u}px ${3 * u}px ${withAlpha(theme.canvas.shadow, 0.5)}, inset 0 0 0 ${Math.max(0.5, 0.75 * u)}px ${withAlpha(theme.canvas.shadow, 0.4)}`,
       }}
@@ -274,6 +285,12 @@ export function BattlefieldCardFace({
             alt={card.name}
             className="absolute inset-0 w-full h-full object-cover"
           />
+        )}
+        {damageEffect}
+        {counterBadges && (
+          <div className="absolute z-10" style={{ left: pad, bottom: pad }}>
+            {counterBadges}
+          </div>
         )}
         {pt && (
           <span

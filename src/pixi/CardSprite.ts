@@ -3,7 +3,12 @@ import type { GameCard } from "@/types/manabrew";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import type { Theme } from "@/hooks/useTheme";
-import { frameTint, readableTextColor, withAlpha } from "@/themes/gameTheme";
+import {
+  FRAME_TINT_COLORLESS_MAX_LUMINANCE,
+  frameTint,
+  readableTextColor,
+  withAlpha,
+} from "@/themes/gameTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { DOOMED_FILL_ALPHA } from "./constants";
@@ -98,15 +103,6 @@ const COUNTER_STYLE = registerTintedTextStyle(
   }),
 );
 
-const DAMAGE_STYLE = registerTintedTextStyle(
-  new TextStyle({
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-    fontSize: 9,
-    fontWeight: "bold",
-    fill: tintedTextFill(),
-  }),
-);
-
 const NAME_STYLE = registerTintedTextStyle(
   new TextStyle({
     fontFamily: "Inter, system-ui, -apple-system, sans-serif",
@@ -182,7 +178,7 @@ const KEYWORD_CHIP_STYLE = registerTintedTextStyle(
 // unobstructed regardless of hover scale.
 const BADGE_TITLE_BAND_FRAC = 0.1;
 
-const ON_FIELD_COUNTER_TYPES = new Set(["Loyalty", "Charge"]);
+const MAX_VISIBLE_COUNTERS = 4;
 
 const WUBRG = new Set(["W", "U", "B", "R", "G"]);
 
@@ -309,15 +305,14 @@ export class CardSprite extends Container {
   private frameScrimGrad: FillGradient | null = null;
   private frameScrimKey = "";
   private frameTypeBandH = 0;
+  private frameCounterReserve = 0;
   private manaContainer: Container;
   private doomedGfx: Graphics;
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
-  private damageContainer: Container;
-  private damageBg: Graphics;
-  private damageText: Text;
+  private damageGfx: Graphics;
   private badgeContainer: Container;
   private badgeBg: Graphics;
   private badgeText: Text;
@@ -413,6 +408,12 @@ export class CardSprite extends Container {
     this.doomedGfx.visible = false;
     this.addChild(this.doomedGfx);
 
+    // Marked-damage wash — same layer as the doomed wash, strength scales with
+    // damage / toughness. Replaces the old ⚔N badge.
+    this.damageGfx = new Graphics();
+    this.damageGfx.visible = false;
+    this.addChild(this.damageGfx);
+
     this.badgeContainer = new Container();
     this.badgeBg = new Graphics();
     this.badgeText = new Text({ text: "", style: BADGE_STYLE });
@@ -436,15 +437,6 @@ export class CardSprite extends Container {
     this.ptContainer.addChild(this.ptText);
     this.ptContainer.visible = false;
     this.addChild(this.ptContainer);
-
-    this.damageContainer = new Container();
-    this.damageBg = new Graphics();
-    this.damageText = new Text({ text: "", style: DAMAGE_STYLE });
-    this.damageText.resolution = TEXT_RASTER_RESOLUTION;
-    this.damageContainer.addChild(this.damageBg);
-    this.damageContainer.addChild(this.damageText);
-    this.damageContainer.visible = false;
-    this.addChild(this.damageContainer);
 
     this.foilRing = new Graphics();
     this.foilRing.visible = false;
@@ -624,10 +616,15 @@ export class CardSprite extends Container {
     if (!this.isBattlefield || activeStyle === "realistic") {
       this.frameContainer.visible = false;
       this.frameTypeBandH = 0;
+      this.frameCounterReserve = 0;
       return;
     }
     this.frameContainer.visible = true;
-    const tintHex = frameTint(cardTintHex(this.card));
+    const colorless = !(this.card.colorIdentity ?? []).some((c) => WUBRG.has(c));
+    const tintHex = frameTint(
+      cardTintHex(this.card),
+      colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined,
+    );
     const tintNum = hexToNum(tintHex);
     const shadowHex = activeTheme.gameTheme.canvas.shadow;
     const lightText = activeTheme.gameTheme.textOnTinted;
@@ -638,6 +635,7 @@ export class CardSprite extends Container {
 
     const pad = 3;
     this.frameTypeBandH = 0;
+    this.frameCounterReserve = 0;
     if (activeStyle === "art") {
       this.frameNameText.style.fill = lightText;
       this.frameTypeText.style.fill = lightText;
@@ -649,7 +647,9 @@ export class CardSprite extends Container {
       this.frameNameText.alpha = 1;
       this.frameNameText.x = pad;
       this.frameNameText.y = this.frameTypeText.y - this.frameTypeText.height - 1;
-      const scrimTop = this.frameNameText.y - this.frameNameText.height - 8;
+      const captionTop = this.frameNameText.y - this.frameNameText.height;
+      this.frameCounterReserve = CARD_H - captionTop;
+      const scrimTop = captionTop - 8;
       this.frameGfx.rect(0, scrimTop, CARD_W, CARD_H - scrimTop);
       this.frameGfx.fill(this.scrimGradient(scrimTop, shadowHex));
     } else {
@@ -667,6 +667,7 @@ export class CardSprite extends Container {
       this.frameTypeText.y = CARD_H - 2.5;
       const typeBandH = this.frameTypeText.height + 5;
       this.frameTypeBandH = typeBandH;
+      this.frameCounterReserve = typeBandH;
       this.frameGfx.rect(0, 0, CARD_W, nameBandH);
       this.frameGfx.fill({ color: tintNum, alpha: 0.92 });
       this.frameGfx.rect(0, CARD_H - typeBandH, CARD_W, typeBandH);
@@ -941,18 +942,18 @@ export class CardSprite extends Container {
     const counters = this.card.counters;
     if (!counters) return;
 
-    const entries = Object.entries(counters).filter(
-      ([type, n]) => n > 0 && ON_FIELD_COUNTER_TYPES.has(type),
-    );
-    const hiddenTypeCount = Object.entries(counters).filter(
-      ([type, n]) => n > 0 && !ON_FIELD_COUNTER_TYPES.has(type),
-    ).length;
-    if (entries.length === 0 && hiddenTypeCount === 0) return;
+    const present = Object.entries(counters).filter(([, n]) => n > 0);
+    if (present.length === 0) return;
+    const entries = present.slice(0, MAX_VISIBLE_COUNTERS);
+    const hiddenTypeCount = present.length - entries.length;
 
     const iconSize = COUNTER_HEIGHT - 4;
     const fgHex = activeTheme.gameTheme.textOnTinted;
     const counterY =
-      CARD_H - COUNTER_HEIGHT - 3 - (this.frameTypeBandH > 0 ? this.frameTypeBandH + 1 : 0);
+      CARD_H -
+      COUNTER_HEIGHT -
+      3 -
+      (this.frameCounterReserve > 0 ? this.frameCounterReserve + 1 : 0);
 
     let offsetX = 3;
     for (const [type, count] of entries) {
@@ -1030,26 +1031,15 @@ export class CardSprite extends Container {
     const card = this.card;
     const dmg = card.damage ?? 0;
     if (dmg <= 0) {
-      this.damageContainer.visible = false;
+      this.damageGfx.visible = false;
       return;
     }
-    this.damageContainer.visible = true;
-    this.damageText.text = `⚔${dmg}`;
-
-    const tw = this.damageText.width + 6;
-    const th = this.damageText.height + 3;
-    this.damageBg.clear();
-    this.damageBg.roundRect(0, 0, tw, th, CHIP_RADIUS);
-    this.damageBg.fill({
-      color: hexToNum(activeTheme.gameTheme.promptAction.attackAction),
-      alpha: 0.92,
-    });
-
-    this.damageText.x = 3;
-    this.damageText.y = 1.5;
-    const ptH = this.ptText.height + 4;
-    this.damageContainer.x = CARD_W - tw - 3;
-    this.damageContainer.y = CARD_H - ptH - th - 5;
+    const tough = parseInt(card.toughness ?? "0", 10);
+    const alpha = Math.min(0.5, (tough > 0 ? dmg / tough : 1) * 0.5);
+    this.damageGfx.visible = true;
+    this.damageGfx.clear();
+    this.damageGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
+    this.damageGfx.fill({ color: hexToNum(activeTheme.gameTheme.pt.lethal), alpha });
   }
 
   setRing(color: number | null, alpha = 1): void {

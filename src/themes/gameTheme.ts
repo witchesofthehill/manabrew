@@ -367,12 +367,16 @@ export function darken(hex: string, factor: number): string {
 
 const FRAME_TINT_DARKEN = 0.3;
 const FRAME_TINT_MAX_LUMINANCE = 0.45;
+/** Colorless sits a touch lighter than the WUBRG bars (notably black) so the
+ *  achromatic grey reads as distinct rather than "just another dark bar". Still
+ *  below the 0.6 dark-text threshold, so it keeps the same light text. */
+export const FRAME_TINT_COLORLESS_MAX_LUMINANCE = 0.54;
 
 /** Identity color adjusted for a battlefield frame bar/border: darkened, and —
  *  for light identities like white — darkened further to a luminance ceiling so
  *  every bar is dark enough to carry the same light text as the other colors. */
-export function frameTint(hex: string): string {
+export function frameTint(hex: string, maxLuminance = FRAME_TINT_MAX_LUMINANCE): string {
   const base = darken(hex, FRAME_TINT_DARKEN);
   const lum = relativeLuminance(base);
-  return lum <= FRAME_TINT_MAX_LUMINANCE ? base : darken(base, 1 - FRAME_TINT_MAX_LUMINANCE / lum);
+  return lum <= maxLuminance ? base : darken(base, 1 - maxLuminance / lum);
 }

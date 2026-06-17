@@ -126,6 +126,17 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
 
   return (
     <>
+      {damage > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: withAlpha(
+              themeColors.pt.lethal,
+              Math.min(0.5, (ptToughness > 0 ? damage / ptToughness : 1) * 0.5),
+            ),
+          }}
+        />
+      )}
       {showTopStrip && (
         <div className="absolute top-2 left-2 right-2 z-10 flex flex-col items-center gap-1 pointer-events-none">
           {statusBadges.length > 0 && (
@@ -184,17 +195,6 @@ function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: b
           >
             {card.power}/{card.toughness}
           </span>
-          {damage > 0 && (
-            <span
-              className="text-xs font-bold px-1.5 py-0.5 rounded shadow-md leading-none"
-              style={{
-                backgroundColor: withAlpha(themeColors.promptAction.attackAction, 0.92),
-                color: themeColors.textOnTinted,
-              }}
-            >
-              ⚔ {damage}
-            </span>
-          )}
         </div>
       )}
 

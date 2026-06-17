@@ -26,11 +26,13 @@ import {
   FLOATER_FONT_SIZE,
   FLOATER_LIFETIME_FRAMES,
   FLOATER_RISE_PER_FRAME,
+  FPS_SAMPLE_INTERVAL_MS,
   PHASE_STRIP_COMBAT_ALPHA,
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
   Z_STAGED_REGION,
 } from "../constants";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
   ArrowEndpoint,
   ArrowSpec,
@@ -84,6 +86,11 @@ export class BoardScene {
   private theme: Theme;
   private root: Container;
   private destroyed = false;
+  private perfFrames = 0;
+  private perfTotalDelta = 0;
+  private perfMinFps = Infinity;
+  private perfMaxFps = 0;
+  private perfLastFlush = 0;
 
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
@@ -901,6 +908,7 @@ export class BoardScene {
 
   private tick = (): void => {
     if (this.destroyed) return;
+    if (import.meta.env.DEV) this.samplePerf();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
@@ -926,6 +934,31 @@ export class BoardScene {
       }
     }
   };
+
+  /** Dev-only: accumulate Pixi ticker FPS and flush to the dev store every
+   *  `FPS_SAMPLE_INTERVAL_MS` so the Dev panel's FPS counter has live data. */
+  private samplePerf(): void {
+    const ticker = this.app.ticker;
+    this.perfFrames += 1;
+    this.perfTotalDelta += ticker.deltaMS;
+    const fps = ticker.FPS;
+    if (fps < this.perfMinFps) this.perfMinFps = fps;
+    if (fps > this.perfMaxFps) this.perfMaxFps = fps;
+    const now = performance.now();
+    if (this.perfLastFlush === 0) this.perfLastFlush = now;
+    if (now - this.perfLastFlush < FPS_SAMPLE_INTERVAL_MS) return;
+    useGameDevStore.getState().setPixiPerfStats({
+      fps: this.perfFrames / ((now - this.perfLastFlush) / 1000),
+      minFps: this.perfMinFps === Infinity ? 0 : this.perfMinFps,
+      maxFps: this.perfMaxFps,
+      deltaMs: this.perfTotalDelta / Math.max(1, this.perfFrames),
+    });
+    this.perfFrames = 0;
+    this.perfTotalDelta = 0;
+    this.perfMinFps = Infinity;
+    this.perfMaxFps = 0;
+    this.perfLastFlush = now;
+  }
 
   private captureStackSeeds(): void {
     const canvasRect = this.app.canvas.getBoundingClientRect();
@@ -1060,6 +1093,7 @@ export class BoardScene {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    if (import.meta.env.DEV) useGameDevStore.getState().setPixiPerfStats(null);
     this.cancelHoverClear();
     window.removeEventListener("mousemove", this.cursorListener);
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);

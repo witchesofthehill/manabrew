@@ -30,7 +30,7 @@ import { asDeckCard } from "@/lib/decks";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
-import { bump } from "./effects/easing";
+import { bump, easeOutCubic } from "./effects/easing";
 
 /**
  * Shared, mutable theme reference used by every `CardSprite` instance.
@@ -827,7 +827,7 @@ export class CardSprite extends Container {
   /** Entrance "stomp" — a squash-and-stretch on enter (the region also fires a
    *  ground dust ring). Read by the region via {@link getFxScale}. */
   playEntrance(now: number): void {
-    this.entranceFx = oneShot(now, 480);
+    this.entranceFx = oneShot(now, 240);
   }
 
   /** Non-uniform scale multiplier from the entrance squash (1,1 when idle). The
@@ -855,9 +855,9 @@ export class CardSprite extends Container {
 
     const ep = oneShotProgress(this.entranceFx, now);
     if (ep != null) {
-      const q = bump(ep) * 0.2;
-      this.fxScaleX = 1 + q;
-      this.fxScaleY = 1 - q;
+      const s = 1 + 0.06 * (1 - easeOutCubic(ep));
+      this.fxScaleX = s;
+      this.fxScaleY = s;
     } else if (this.entranceFx) {
       this.entranceFx = null;
       this.fxScaleX = 1;

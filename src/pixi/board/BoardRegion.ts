@@ -15,7 +15,6 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
 import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
-import { pulse } from "../effects/animation";
 import { EffectsLayer } from "../effects/EffectsLayer";
 import {
   applyCardOverrides,
@@ -400,7 +399,6 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
-    if (this.active) this.activeGlowGfx.alpha = pulse(now, 1800, 0.3, 0.8);
     this.effects.tick(now);
   }
 
@@ -510,7 +508,6 @@ export class BoardRegion {
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
-      const dust = hexToNum(this.host.getTheme().gameTheme.canvas.neutral);
       const cardHalfH = (CARD_H * this.cardScale) / 2;
       const now = performance.now();
       for (const card of state.cards) {
@@ -519,9 +516,6 @@ export class BoardRegion {
         const prev = prevCards.get(card.id);
         if (!prev) {
           entry.sprite.playEntrance(now);
-          if (card.types?.some((t) => t.toLowerCase() === "creature")) {
-            this.effects.spawnStomp(now, entry.targetX, entry.targetY + cardHalfH, dust);
-          }
           continue;
         }
         if (card.power !== prev.power || card.toughness !== prev.toughness) {
@@ -1016,9 +1010,11 @@ export class BoardRegion {
     if (!this.active) return;
     const felt = this.usableZone();
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
+    // Static, restrained rim — a quiet "it's this player's turn" cue, not a
+    // breathing pulse (which read as distracting).
     const layers = 3;
     for (let i = 0; i < layers; i++) {
-      const inset = i * 4;
+      const inset = i * 3;
       this.activeGlowGfx.roundRect(
         felt.x + inset,
         felt.y + inset,
@@ -1026,7 +1022,7 @@ export class BoardRegion {
         felt.height - 2 * inset,
         Math.max(0, TABLE_RADIUS - inset),
       );
-      this.activeGlowGfx.stroke({ color, width: 3, alpha: 1 - i / layers });
+      this.activeGlowGfx.stroke({ color, width: 2, alpha: 0.32 * (1 - i / layers) });
     }
   }
 

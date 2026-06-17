@@ -1195,6 +1195,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       anchorOverride?: DOMRect;
     } = {},
   ) => {
+    // TEMP DEBUG — remove once DFC flip is confirmed. Fires on every hover
+    // entry so we can see whether hand hovers reach the preview at all.
+    console.log("[dfc-hover]", { name: card?.name ?? null, dragging: !!draggingHandCard });
     if (draggingHandCard) {
       preview.dismiss();
       return;

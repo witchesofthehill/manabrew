@@ -14,19 +14,11 @@
       "cardNumber": "260",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {
@@ -46,19 +38,11 @@
       "cardNumber": "269",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -73,24 +57,16 @@
     },
     {
       "name": "Swamp",
-      "count": 8,
+      "count": 9,
       "set": "m21",
       "cardNumber": "266",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -112,9 +88,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -145,15 +119,9 @@
       "cardNumber": "263",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {R}, {W}, or {B}.",
@@ -177,9 +145,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
@@ -201,14 +167,9 @@
       "cardNumber": "366",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.",
@@ -230,14 +191,9 @@
       "cardNumber": "382",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
@@ -259,14 +215,9 @@
       "cardNumber": "64",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}.",
@@ -290,9 +241,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -316,9 +265,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -340,14 +287,9 @@
       "cardNumber": "314",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {R}{W}.",
@@ -369,14 +311,9 @@
       "cardNumber": "323",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {W}{B}.",
@@ -398,14 +335,9 @@
       "cardNumber": "250",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {B}{R}.",
@@ -429,12 +361,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
       "layout": "normal",
@@ -457,12 +385,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
       "layout": "normal",
@@ -482,16 +406,10 @@
       "set": "dka",
       "cardNumber": "87",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -512,18 +430,10 @@
       "set": "otc",
       "cardNumber": "245",
       "manaCost": "{R}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "You gain 2 life. Then you may discard two cards. If you do, draw three cards.",
@@ -544,16 +454,10 @@
       "set": "dsc",
       "cardNumber": "156",
       "manaCost": "{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target player draws two cards and loses 2 life.",
@@ -574,16 +478,10 @@
       "set": "soc",
       "cardNumber": "221",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "You draw two cards and lose 2 life.",
@@ -604,27 +502,12 @@
       "set": "mh3",
       "cardNumber": "290",
       "manaCost": "{1}{R}{W}{B}",
-      "colors": [
-        "B",
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colors": ["B", "R", "W"],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Cleric"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Cleric"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever Kaalia attacks an opponent, you may put an Angel, Demon, or Dragon creature card from your hand onto the battlefield tapped and attacking that opponent.",
       "layout": "normal",
       "power": "2",
@@ -645,20 +528,11 @@
       "set": "soc",
       "cardNumber": "151",
       "manaCost": "{3}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel",
-        "Spirit"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel", "Spirit"],
       "supertypes": [],
       "text": "Flying, protection from black\nEcho {3}{W}{W} (At the beginning of your upkeep, if this came under your control since the beginning of your last upkeep, sacrifice it unless you pay its echo cost.)\nWhen this creature enters, return target creature card from your graveyard to the battlefield.",
       "layout": "normal",
@@ -680,19 +554,11 @@
       "set": "cmm",
       "cardNumber": "137",
       "manaCost": "{6}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon"],
       "supertypes": [],
       "text": "Flying\nYour opponents can't gain life.\nAt the beginning of each end step, each opponent loses life equal to the life that player lost this turn. (Damage causes loss of life.)",
       "layout": "normal",
@@ -714,19 +580,11 @@
       "set": "mh2",
       "cardNumber": "75",
       "manaCost": "{6}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Archon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Archon"],
       "supertypes": [],
       "text": "Flying\nWhenever this creature enters or attacks, target opponent sacrifices a creature or planeswalker of their choice, discards a card, and loses 3 life. You draw a card and gain 3 life.",
       "layout": "normal",
@@ -748,21 +606,11 @@
       "set": "uma",
       "cardNumber": "196",
       "manaCost": "{3}{W}{W}{B}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, destroy target permanent.",
       "layout": "normal",
@@ -784,19 +632,11 @@
       "set": "inr",
       "cardNumber": "479",
       "manaCost": "{5}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying\nWhenever this creature deals combat damage to a player, it deals that much damage to each creature that player controls.",
       "layout": "normal",
@@ -814,23 +654,15 @@
     },
     {
       "name": "Animate Dead",
-      "count": 2,
+      "count": 1,
       "set": "soc",
       "cardNumber": "207",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Enchant creature card in a graveyard\nWhen this Aura enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with this Aura.\" Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.",
       "layout": "normal",
@@ -850,16 +682,10 @@
       "set": "dsc",
       "cardNumber": "155",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",

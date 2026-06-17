@@ -7,6 +7,7 @@ import {
   BattlefieldCardFace,
   type BattlefieldCardFaceVariant,
 } from "@/components/game/BattlefieldCardFace";
+import { BoardPlayground } from "@/components/dev/BoardPlayground";
 
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
 
@@ -134,6 +135,13 @@ export default function CardMockGallery() {
           show real Scryfall card beside
         </label>
       </header>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          Pixi board playground — spawn cards + poke them to test in-game effects
+        </h2>
+        <BoardPlayground />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Battlefield size (70×98)</h2>

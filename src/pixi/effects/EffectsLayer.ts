@@ -1,14 +1,16 @@
 /**
  * Pooled transient board effects, GPU-batched via Pixi v8's native
  * `ParticleContainer` (no third-party emitter — `@pixi/particle-emitter` is
- * Pixi v7 only). Currently the ETB stomp: a billowing dust cloud + radial
- * ground cracks. Mounted by its owner (the board region, above the felt /
- * below the cards) and ticked from that owner's animate loop. The sim is
- * frame-based (one step per tick).
+ * Pixi v7 only). The ETB stomp: an impact flash bloom + expanding shockwave
+ * ring (the MTGA-style "pop") over a billowing dust cloud + radial ground
+ * cracks. Mounted by its owner (the board region, above the felt / below the
+ * cards) and ticked from that owner's animate loop. The sim is frame-based
+ * (one step per tick).
  */
 
 import { Container, Graphics, ParticleContainer, Particle, Texture } from "pixi.js";
-import { CRACKLE, DUST } from "./config";
+import { CRACKLE, DUST, FLASH, SHOCKWAVE } from "./config";
+import { easeOutCubic } from "./easing";
 
 interface DustParticle {
   p: Particle;
@@ -23,6 +25,15 @@ interface Crackle {
   gfx: Graphics;
   life: number;
   max: number;
+}
+
+/** A `Graphics` overlay redrawn each frame from its 0..1 progress, then culled.
+ *  Used for the animated flash + shockwave (vs the static-then-fade crackle). */
+interface Decal {
+  gfx: Graphics;
+  life: number;
+  max: number;
+  draw: (g: Graphics, t: number) => void;
 }
 
 let dustTexture: Texture | null = null;
@@ -52,17 +63,62 @@ export class EffectsLayer {
   });
   private dust: DustParticle[] = [];
   private crackles: Crackle[] = [];
+  private decals: Decal[] = [];
 
   constructor() {
     this.container.eventMode = "none";
     this.container.addChild(this.pc);
   }
 
-  /** The full ground reaction of a creature landing: radial cracks snap in
-   *  (under the dust) and a billowing dust cloud rises from the foot. */
+  /** The full ground reaction of a creature landing: an expanding shockwave +
+   *  radial cracks across the ground, a dust cloud, and a bright impact bloom. */
   stompGround(x: number, y: number): void {
+    this.spawnShockwave(x, y);
     this.spawnCracks(x, y);
     this.burstDust(x, y);
+    this.spawnFlash(x, y);
+  }
+
+  /** Bright bloom at the impact point — the "pop" that makes the landing read.
+   *  Drawn on top of the dust. */
+  private spawnFlash(x: number, y: number): void {
+    const g = new Graphics();
+    this.container.addChild(g);
+    this.decals.push({
+      gfx: g,
+      life: 0,
+      max: FLASH.lifeFrames,
+      draw: (gg, t) => {
+        const r = FLASH.startRadius + (FLASH.endRadius - FLASH.startRadius) * easeOutCubic(t);
+        gg.clear();
+        gg.ellipse(x, y, r, r * FLASH.flatten).fill({
+          color: FLASH.color,
+          alpha: (1 - t) * FLASH.alpha,
+        });
+      },
+    });
+  }
+
+  /** Thin ring expanding outward across the ground; thins + fades as it grows.
+   *  Drawn under the dust. */
+  private spawnShockwave(x: number, y: number): void {
+    const g = new Graphics();
+    this.container.addChildAt(g, 0);
+    this.decals.push({
+      gfx: g,
+      life: 0,
+      max: SHOCKWAVE.lifeFrames,
+      draw: (gg, t) => {
+        const r =
+          SHOCKWAVE.startRadius + (SHOCKWAVE.endRadius - SHOCKWAVE.startRadius) * easeOutCubic(t);
+        gg.clear();
+        gg.ellipse(x, y, r, r * SHOCKWAVE.flatten).stroke({
+          color: SHOCKWAVE.color,
+          width: SHOCKWAVE.strokeWidth * (1 - t),
+          alpha: (1 - t) * SHOCKWAVE.alpha,
+        });
+      },
+    });
   }
 
   private burstDust(x: number, y: number, count = DUST.count): void {
@@ -164,12 +220,29 @@ export class EffectsLayer {
       }
       this.crackles = survivors;
     }
+
+    if (this.decals.length > 0) {
+      const survivors: Decal[] = [];
+      for (const d of this.decals) {
+        d.life += 1;
+        if (d.life >= d.max) {
+          this.container.removeChild(d.gfx);
+          d.gfx.destroy();
+          continue;
+        }
+        d.draw(d.gfx, d.life / d.max);
+        survivors.push(d);
+      }
+      this.decals = survivors;
+    }
   }
 
   destroy(): void {
     this.dust = [];
     for (const c of this.crackles) c.gfx.destroy();
     this.crackles = [];
+    for (const d of this.decals) d.gfx.destroy();
+    this.decals = [];
     this.container.destroy({ children: true });
   }
 }

@@ -37,7 +37,7 @@ interface PreferencesState {
   setBoardArrangement: (arrangement: BoardArrangement) => void;
 
   /** Auto-arrange the battlefield into tidy rows, ignoring manual drag
-   *  placement (MTGA-style). Off = free placement (the default). */
+   *  placement. Off = free placement (the default). */
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 

@@ -31,7 +31,7 @@ export interface BuildArrowSpecsOptions {
   /** If set, treat this stack object as the "active" source for the
    *  placement arrow (usually the hovered one) instead of the top-of-stack. */
   activeStackObjectId?: string | null;
-  /** When true, block relationships are conveyed by MTGA-style spatial
+  /** When true, block relationships are conveyed by style spatial
    *  staging (blockers line up under their attacker) instead of arrows, so
    *  no `block` arrows are emitted. Attack arrows are unaffected. */
   stageBlockers?: boolean;

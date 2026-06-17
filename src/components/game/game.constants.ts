@@ -88,7 +88,7 @@ export const CARD_GAP = 8;
 
 /** Downward slide (px) applied to the opponent battlefield canvas during
  *  combat staging so staged attackers descend over the center seam and sit
- *  just on top of the blockers facing them (MTGA-style). Roughly the phase
+ *  just on top of the blockers facing them (style). Roughly the phase
  *  strip height (80px) plus the staged edge insets, with a little overlap. */
 export const COMBAT_STAGE_OPPONENT_SHIFT = 100;
 

@@ -1110,30 +1110,33 @@ export default function Game({ exitTo }: GameProps = {}) {
     return asDeckCard(gameDecks[rc.ownerId], rc as GameCard);
   }, [exploreInput?.revealedCard, gameDecks]);
 
-  const handleLogCardHover = (
-    cardId: string | null,
-    e?: React.MouseEvent,
-    options: {
-      useAnchor?: boolean;
-      placement?: "auto" | "top-center";
-      anchorOverride?: DOMRect;
-    } = {},
-  ) => {
-    if (draggingHandCard) {
-      preview.dismiss();
-      return;
-    }
-    if (!cardId) {
-      preview.dismiss();
-      return;
-    }
-    const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
-    if (!card) {
-      preview.dismiss();
-      return;
-    }
-    preview.handleMouseEnter(card, e, { ...options, useDelay: true });
-  };
+  const handleLogCardHover = useCallback(
+    (
+      cardId: string | null,
+      e?: React.MouseEvent,
+      options: {
+        useAnchor?: boolean;
+        placement?: "auto" | "top-center";
+        anchorOverride?: DOMRect;
+      } = {},
+    ) => {
+      if (draggingHandCard) {
+        preview.dismiss();
+        return;
+      }
+      if (!cardId) {
+        preview.dismiss();
+        return;
+      }
+      const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
+      if (!card) {
+        preview.dismiss();
+        return;
+      }
+      preview.handleMouseEnter(card, e, { ...options, useDelay: true });
+    },
+    [draggingHandCard, preview, visibleCardsById, stackCardsBySourceId],
+  );
 
   const handleHoverCardGuarded = useCallback(
     (

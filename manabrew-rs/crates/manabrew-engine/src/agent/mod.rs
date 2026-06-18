@@ -773,9 +773,18 @@ pub trait PlayerAgent {
         valid_names.first().cloned()
     }
 
-    /// Choose a number (for ChooseNumber effect).
+    /// Choose a number within `[min, max]`. `title`/`description` present the
+    /// choice and `source` is the card driving it (shown in the prompt).
     /// Default: pick the minimum.
-    fn choose_number(&mut self, _player: PlayerId, min: i32, _max: i32) -> Option<i32> {
+    fn choose_number(
+        &mut self,
+        _player: PlayerId,
+        _source: Option<CardId>,
+        _title: &str,
+        _description: Option<&str>,
+        min: i32,
+        _max: i32,
+    ) -> Option<i32> {
         Some(min)
     }
 
@@ -859,29 +868,6 @@ pub trait PlayerAgent {
     /// Default: always call heads.
     fn flip_coin_call(&mut self, _player: PlayerId) -> bool {
         true
-    }
-
-    /// Choose the value of X for an X-cost spell.
-    /// `max_x` is the maximum affordable value.
-    /// Returns the chosen X value (0 to max_x).
-    /// Default: spend all available mana (max_x).
-    fn choose_x_value(&mut self, _player: PlayerId, max_x: u32, _source: Option<CardId>) -> u32 {
-        max_x
-    }
-
-    /// Announce the value of a variable (`announce`, e.g. "X") in a spell's
-    /// cost before payment, within `[min, max]`.
-    /// Mirrors Java's `PlayerController.announceRequirements`.
-    /// Returns None to cancel the cast.
-    fn announce_requirements(
-        &mut self,
-        _player: PlayerId,
-        _announce: &str,
-        min: i32,
-        _max: i32,
-        _source: Option<CardId>,
-    ) -> Option<i32> {
-        Some(min)
     }
 
     /// Choose whether to pay life instead of mana for a Phyrexian mana shard.

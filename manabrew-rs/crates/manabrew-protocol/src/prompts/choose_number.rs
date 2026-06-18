@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompts::common::PromptPresentation;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/chooseNumber.ts")]
 pub struct ChooseNumberInput {
+    pub presentation: PromptPresentation,
     pub min: i32,
     pub max: i32,
 }

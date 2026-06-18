@@ -852,57 +852,28 @@ pub(super) fn flip_coin_call<T: Responder>(agent: &mut PromptAgent<T>, player: P
     )
 }
 
-pub(super) fn choose_x_value<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    max_x: u32,
-    source: Option<CardId>,
-) -> u32 {
-    agent.send_prompt(
-        PromptInput::ChooseNumber(
-            manabrew_protocol::prompts::choose_number::ChooseNumberInput {
-                min: 0,
-                max: max_x as i32,
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::NumberDecision { chosen_number } => {
-            chosen_number.unwrap_or(max_x as i32).max(0) as u32
-        }
-        _ => max_x,
-    }
-}
-
 pub(super) fn choose_number<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    min: i32,
-    max: i32,
-) -> Option<i32> {
-    agent.send_prompt(
-        PromptInput::ChooseNumber(
-            manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, max },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::NumberDecision { chosen_number } => chosen_number,
-        _ => Some(min),
-    }
-}
-
-pub(super) fn announce_requirements<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    min: i32,
-    max: i32,
     source: Option<CardId>,
+    title: &str,
+    description: Option<&str>,
+    min: i32,
+    max: i32,
 ) -> Option<i32> {
     agent.send_prompt(
         PromptInput::ChooseNumber(
-            manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, max },
+            manabrew_protocol::prompts::choose_number::ChooseNumberInput {
+                presentation: PromptPresentation {
+                    title: title.to_string(),
+                    description: description.map(str::to_string),
+                    text: None,
+                    source_card_id: source.map(card_id_str),
+                    targets: Vec::new(),
+                },
+                min,
+                max,
+            },
         ),
         source,
     );
@@ -1127,23 +1098,22 @@ pub(super) fn choose_explore_put_in_graveyard<T: Responder>(
 
 pub(super) fn help_pay_assist<T: Responder>(
     agent: &mut PromptAgent<T>,
-    _player: PlayerId,
+    player: PlayerId,
     card_name: &str,
     max_generic: u32,
 ) -> u32 {
-    agent.send_prompt(
-        PromptInput::HelpPayAssist(
-            manabrew_protocol::prompts::help_pay_assist::HelpPayAssistInput {
-                card_name: card_name.to_string(),
-                max_generic,
-            },
-        ),
+    let description = format!("Pay generic mana to help cast {card_name}.");
+    choose_number(
+        agent,
+        player,
         None,
-    );
-    match agent.recv_action() {
-        PlayerAction::AssistDecision { amount_to_pay } => amount_to_pay.min(max_generic),
-        _ => 0,
-    }
+        "Assist",
+        Some(&description),
+        0,
+        max_generic as i32,
+    )
+    .unwrap_or(0)
+    .clamp(0, max_generic as i32) as u32
 }
 
 pub(super) fn choose_random_discard<T: Responder>(

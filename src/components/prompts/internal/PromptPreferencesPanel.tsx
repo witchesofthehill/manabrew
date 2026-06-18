@@ -19,24 +19,9 @@ const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
       "Skip yes/no cost prompts (kicker, buyback, Phyrexian) — never pay the extra cost.",
   },
   {
-    promptType: "chooseMultikicker",
-    label: "Multikicker",
-    description: "Skip the multikicker prompt — default to 0 kicks.",
-  },
-  {
-    promptType: "chooseReplicate",
-    label: "Replicate",
-    description: "Skip the replicate prompt — default to 0 copies.",
-  },
-  {
     promptType: "chooseDelve",
     label: "Delve",
     description: "Skip the delve prompt — never exile cards from the graveyard.",
-  },
-  {
-    promptType: "helpPayAssist",
-    label: "Help pay (Assist)",
-    description: "Skip the assist prompt — never offer to help pay.",
   },
 ];
 

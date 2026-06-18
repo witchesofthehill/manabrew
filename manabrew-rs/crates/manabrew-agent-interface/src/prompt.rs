@@ -107,16 +107,6 @@ pub enum PlayerAction {
         #[serde(rename = "chosenIndices")]
         chosen_indices: Vec<usize>,
     },
-    /// Response to ChooseMultikicker prompt: how many times.
-    MultikickerDecision {
-        #[serde(rename = "kickCount")]
-        kick_count: u32,
-    },
-    /// Response to ChooseReplicate prompt: how many times.
-    ReplicateDecision {
-        #[serde(rename = "replicateCount")]
-        replicate_count: u32,
-    },
     /// Response to ChooseColor prompt: the chosen color name.
     ColorDecision {
         color: Option<String>,
@@ -154,11 +144,6 @@ pub enum PlayerAction {
     ExploreResponse {
         #[serde(rename = "putInGraveyard")]
         put_in_graveyard: bool,
-    },
-    /// Response to HelpPayAssist: amount of generic mana to pay.
-    AssistDecision {
-        #[serde(rename = "amountToPay")]
-        amount_to_pay: u32,
     },
     /// Response to ChooseCardsForEffect prompt: IDs of chosen cards.
     ChooseCardsDecision {

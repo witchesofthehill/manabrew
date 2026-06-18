@@ -1,24 +1,33 @@
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Minus, Plus } from "lucide-react";
+
 import { Modal } from "@/components/game/modals/Modal";
+import { Button } from "@/components/ui/button";
+import { MODAL_INPUT } from "@/components/game/game.styles";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useCallback, useRef } from "react";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
-import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
-import { MODAL_CARD_THUMBNAIL, MODAL_INPUT } from "@/components/game/game.styles";
-import type { DeckCard } from "@/types/manabrew";
+import { PromptPresentation } from "./internal/PromptPresentation";
+import type { PromptProps } from "./internal/promptProps";
+import type { ChooseNumberInput, ChooseNumberOutput } from "@/protocol";
 
-interface ChooseNumberModalProps {
-  min: number;
-  max: number;
-  sourceCard?: DeckCard;
-  onConfirm: (chosenNumber: number | null) => void;
-}
-
-export function ChooseNumberModal({ min, max, sourceCard, onConfirm }: ChooseNumberModalProps) {
+export function ChooseNumberModal({
+  input,
+  respond,
+}: PromptProps<ChooseNumberInput, ChooseNumberOutput>) {
+  const { min, max, presentation } = input;
   const range = max - min + 1;
-  const useButtons = range <= 20;
+  const useButtons = range <= 10;
   const [inputValue, setInputValue] = useState(String(min));
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const parsed = parseInt(inputValue, 10);
+  const isValid = !isNaN(parsed) && parsed >= min && parsed <= max;
+  const showError = inputValue.trim() !== "" && !isValid;
+
+  const confirm = useCallback(
+    (chosenNumber: number) => respond({ type: "numberDecision", chosenNumber }),
+    [respond],
+  );
 
   useEffect(() => {
     if (!useButtons) {
@@ -27,11 +36,14 @@ export function ChooseNumberModal({ min, max, sourceCard, onConfirm }: ChooseNum
   }, [min, max, useButtons]);
 
   const handleInputConfirm = useCallback(() => {
-    const num = parseInt(inputValue, 10);
-    if (!isNaN(num) && num >= min && num <= max) {
-      onConfirm(num);
+    if (isValid) {
+      confirm(parsed);
     }
-  }, [inputValue, min, max, onConfirm]);
+  }, [isValid, parsed, confirm]);
+
+  const current = isNaN(parsed) ? min : Math.min(max, Math.max(min, parsed));
+  const step = (delta: number) =>
+    setInputValue(String(Math.min(max, Math.max(min, current + delta))));
 
   useModalKeyboard({ onEnter: !useButtons ? handleInputConfirm : undefined }, [
     useButtons,
@@ -40,66 +52,85 @@ export function ChooseNumberModal({ min, max, sourceCard, onConfirm }: ChooseNum
 
   const numbers = useButtons ? Array.from({ length: range }, (_, i) => min + i) : [];
 
+  const controls = useButtons ? (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Number choices">
+      {numbers.map((num) => (
+        <button
+          key={num}
+          onClick={() => confirm(num)}
+          className={cn(
+            "w-10 h-10 rounded-md border text-sm font-bold transition-all",
+            "hover:border-primary hover:bg-primary/10",
+            "border-border bg-background",
+          )}
+        >
+          {num}
+        </button>
+      ))}
+    </div>
+  ) : (
+    <div className="flex w-full flex-col gap-1.5">
+      <div className="flex items-stretch gap-2">
+        <button
+          type="button"
+          aria-label="Decrease"
+          onClick={() => step(-1)}
+          disabled={current <= min}
+          className={cn(
+            "flex h-20 w-14 items-center justify-center rounded-md border transition-all",
+            "hover:border-primary hover:bg-primary/10 disabled:opacity-40 disabled:hover:border-border disabled:hover:bg-transparent",
+            "border-border bg-background",
+          )}
+        >
+          <Minus className="h-6 w-6" />
+        </button>
+        <input
+          ref={inputRef}
+          type="number"
+          min={min}
+          max={max}
+          value={inputValue}
+          aria-invalid={showError}
+          onChange={(e) => setInputValue(e.target.value)}
+          className={cn(
+            MODAL_INPUT,
+            "h-20 w-24 text-center text-3xl font-bold",
+            "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+            showError && "border-destructive",
+          )}
+        />
+        <button
+          type="button"
+          aria-label="Increase"
+          onClick={() => step(1)}
+          disabled={current >= max}
+          className={cn(
+            "flex h-20 w-14 items-center justify-center rounded-md border transition-all",
+            "hover:border-primary hover:bg-primary/10 disabled:opacity-40 disabled:hover:border-border disabled:hover:bg-transparent",
+            "border-border bg-background",
+          )}
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+        <Button
+          aria-label="Confirm"
+          onClick={handleInputConfirm}
+          disabled={!isValid}
+          className="h-20 w-20"
+        >
+          <Check className="h-7 w-7" />
+        </Button>
+      </div>
+      <p className={cn("text-xs", showError ? "text-destructive" : "text-muted-foreground")}>
+        Enter a number between {min} and {max}.
+      </p>
+    </div>
+  );
+
   return (
-    <Modal maxWidth="max-w-sm" maxHeight="" className="outline-none">
-      <div role="dialog" aria-modal="true" aria-labelledby="choose-number-title">
-        <Modal.Header>
-          <div className="flex items-center gap-3">
-            {sourceCard && (
-              <CardImageThumbnail card={sourceCard} className={MODAL_CARD_THUMBNAIL} />
-            )}
-            <div>
-              <h2 id="choose-number-title" className="font-semibold text-base">
-                Choose a Number
-              </h2>
-              <p className="text-xs text-muted-foreground font-medium">{sourceCard?.name}</p>
-              <p className="text-xs text-muted-foreground">
-                Between {min} and {max}
-              </p>
-            </div>
-          </div>
-        </Modal.Header>
-
-        <Modal.Instructions>
-          {useButtons ? "Click a number." : "Enter a number and confirm."}
-        </Modal.Instructions>
-
-        {useButtons ? (
-          <div
-            className="p-4 flex flex-wrap gap-2 justify-center"
-            role="group"
-            aria-label="Number choices"
-          >
-            {numbers.map((num) => (
-              <button
-                key={num}
-                onClick={() => onConfirm(num)}
-                className={cn(
-                  "w-10 h-10 rounded-md border text-sm font-bold transition-all",
-                  "hover:border-primary hover:bg-primary/10",
-                  "border-border bg-background",
-                )}
-              >
-                {num}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="p-4 flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="number"
-              min={min}
-              max={max}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              className={cn(MODAL_INPUT, "flex-1")}
-            />
-            <Button size="sm" onClick={handleInputConfirm}>
-              Confirm
-            </Button>
-          </div>
-        )}
+    <Modal maxWidth="max-w-2xl" maxHeight="">
+      <div className="p-6">
+        <PromptPresentation presentation={presentation} forceHorizontal actions={controls} />
       </div>
     </Modal>
   );

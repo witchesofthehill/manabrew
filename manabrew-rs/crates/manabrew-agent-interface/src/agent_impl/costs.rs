@@ -109,46 +109,44 @@ pub(super) fn choose_buyback<T: Responder>(
 
 pub(super) fn choose_multikicker<T: Responder>(
     agent: &mut PromptAgent<T>,
-    _player: PlayerId,
+    player: PlayerId,
     cost: &str,
     max_kicks: u32,
     source: Option<CardId>,
 ) -> u32 {
-    agent.send_prompt(
-        PromptInput::ChooseMultikicker(
-            manabrew_protocol::prompts::choose_multikicker::ChooseMultikickerInput {
-                cost: cost.to_string(),
-                max_kicks,
-            },
-        ),
+    let description = format!("Pay {cost} for each additional kicker.");
+    super::choices::choose_number(
+        agent,
+        player,
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::MultikickerDecision { kick_count } => kick_count.min(max_kicks),
-        _ => 0,
-    }
+        "Multikicker",
+        Some(&description),
+        0,
+        max_kicks as i32,
+    )
+    .unwrap_or(0)
+    .clamp(0, max_kicks as i32) as u32
 }
 
 pub(super) fn choose_replicate<T: Responder>(
     agent: &mut PromptAgent<T>,
-    _player: PlayerId,
+    player: PlayerId,
     cost: &str,
     max_replicates: u32,
     source: Option<CardId>,
 ) -> u32 {
-    agent.send_prompt(
-        PromptInput::ChooseReplicate(
-            manabrew_protocol::prompts::choose_replicate::ChooseReplicateInput {
-                cost: cost.to_string(),
-                max_replicates,
-            },
-        ),
+    let description = format!("Pay {cost} for each copy.");
+    super::choices::choose_number(
+        agent,
+        player,
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::ReplicateDecision { replicate_count } => replicate_count.min(max_replicates),
-        _ => 0,
-    }
+        "Replicate",
+        Some(&description),
+        0,
+        max_replicates as i32,
+    )
+    .unwrap_or(0)
+    .clamp(0, max_replicates as i32) as u32
 }
 
 pub(super) fn pay_mana_cost<T: Responder>(

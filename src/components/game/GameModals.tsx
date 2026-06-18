@@ -1,6 +1,7 @@
 import { PromptModalHost } from "@/components/prompts/promptComponents";
 // import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
 // import { ChooseBooleanModalPreview } from "@/components/prompts/dev/ChooseBooleanModalPreview";
+// import { ChooseNumberModalPreview } from "@/components/prompts/dev/ChooseNumberModalPreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
@@ -60,6 +61,7 @@ export function GameModals({
       <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard, revealedDeckCard }} />
       {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}

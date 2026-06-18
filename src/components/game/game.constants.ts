@@ -35,8 +35,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["revealCards"]: "Look at cards",
   ["chooseBoolean"]: "Make a choice",
   ["chooseFromSelection"]: "Choose from options",
-  ["chooseMultikicker"]: "Choose multikicker count",
-  ["chooseReplicate"]: "Choose replicate count",
   ["scry"]: "Scry: choose cards to put on the bottom",
   ["surveil"]: "Surveil: choose cards to send to graveyard",
   ["dig"]: "Dig: choose cards to take",
@@ -54,7 +52,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseCardsForEffect"]: "Choose cards for effect",
   ["reorderLibrary"]: "Reorder the top of your library",
   ["exploreDecision"]: "Explore: put in graveyard or on top?",
-  ["helpPayAssist"]: "Help pay for a spell?",
   ["gameOver"]: "Game Over",
 };
 

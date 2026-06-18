@@ -274,12 +274,24 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::ChooseNumber {
             min,
             max,
-            source_card_name: _,
-            description: _,
-        } => PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput {
-            min: min as i32,
-            max: max as i32,
-        }),
+            source_card_id,
+            description,
+        } => {
+            let title = description
+                .filter(|d| !d.trim().is_empty())
+                .unwrap_or_else(|| "Choose a number".to_string());
+            PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput {
+                presentation: manabrew_protocol::prompts::common::PromptPresentation {
+                    title,
+                    description: None,
+                    text: None,
+                    source_card_id,
+                    targets: Vec::new(),
+                },
+                min: min as i32,
+                max: max as i32,
+            })
+        }
         JavaRawPromptBody::ChooseColor {
             options,
             source_card_name: _,
@@ -712,10 +724,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::Untap { .. } => "untapLand",
         PlayerAction::BoardTargets { .. } => "boardTargets",
         PlayerAction::Decision { .. } => "decision",
-        PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
-        PlayerAction::ReplicateDecision { .. } => "replicateDecision",
         PlayerAction::ExploreResponse { .. } => "exploreResponse",
-        PlayerAction::AssistDecision { .. } => "assistDecision",
         PlayerAction::PayCombatCost => "payCombatCost",
         PlayerAction::DeclineCombatCost => "declineCombatCost",
         PlayerAction::RestoreSnapshot { .. } => "restoreSnapshot",

@@ -16,16 +16,13 @@ pub mod choose_damage_assignment_order;
 pub mod choose_delve;
 pub mod choose_discard;
 pub mod choose_from_selection;
-pub mod choose_multikicker;
 pub mod choose_number;
-pub mod choose_replicate;
 pub mod choose_type;
 pub mod dice_rolled;
 pub mod dig;
 pub mod explore_decision;
 pub mod first_player_roll;
 pub mod game_over;
-pub mod help_pay_assist;
 pub mod mulligan;
 pub mod mulligan_put_back;
 pub mod pay_combat_cost;
@@ -54,8 +51,6 @@ pub enum PromptInput {
     Surveil(surveil::SurveilInput),
     Dig(dig::DigInput),
     ChooseDiscard(choose_discard::ChooseDiscardInput),
-    ChooseMultikicker(choose_multikicker::ChooseMultikickerInput),
-    ChooseReplicate(choose_replicate::ChooseReplicateInput),
     ChooseColor(choose_color::ChooseColorInput),
     ChooseType(choose_type::ChooseTypeInput),
     ChooseNumber(choose_number::ChooseNumberInput),
@@ -70,7 +65,6 @@ pub enum PromptInput {
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ReorderLibrary(reorder_library::ReorderLibraryInput),
     ExploreDecision(explore_decision::ExploreDecisionInput),
-    HelpPayAssist(help_pay_assist::HelpPayAssistInput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollInput),
     DiceRolled(dice_rolled::DiceRolledInput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput),
@@ -97,8 +91,6 @@ pub enum PromptOutput {
     Surveil(surveil::SurveilOutput),
     Dig(dig::DigOutput),
     ChooseDiscard(choose_discard::ChooseDiscardOutput),
-    ChooseMultikicker(choose_multikicker::ChooseMultikickerOutput),
-    ChooseReplicate(choose_replicate::ChooseReplicateOutput),
     ChooseColor(choose_color::ChooseColorOutput),
     ChooseType(choose_type::ChooseTypeOutput),
     ChooseNumber(choose_number::ChooseNumberOutput),
@@ -113,7 +105,6 @@ pub enum PromptOutput {
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ReorderLibrary(reorder_library::ReorderLibraryOutput),
     ExploreDecision(explore_decision::ExploreDecisionOutput),
-    HelpPayAssist(help_pay_assist::HelpPayAssistOutput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectOutput),

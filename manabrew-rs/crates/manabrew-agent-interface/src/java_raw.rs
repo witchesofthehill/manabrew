@@ -142,8 +142,8 @@ pub enum JavaRawPromptBody {
         min: i64,
         #[serde(default)]
         max: i64,
-        #[serde(rename = "sourceCardName")]
-        source_card_name: Option<String>,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
         description: Option<String>,
     },
     ChooseColor {

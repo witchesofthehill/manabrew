@@ -144,12 +144,6 @@ impl BotAgent for SimpleAi {
                     chosen_indices: (0..min_choices.min(options.len())).collect(),
                 })
             }
-            PromptInput::ChooseMultikicker(manabrew_protocol::prompts::choose_multikicker::ChooseMultikickerInput { .. }) => {
-                Some(PlayerAction::MultikickerDecision { kick_count: 0 })
-            }
-            PromptInput::ChooseReplicate(manabrew_protocol::prompts::choose_replicate::ChooseReplicateInput { .. }) => {
-                Some(PlayerAction::ReplicateDecision { replicate_count: 0 })
-            }
             PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, .. }) => {
                 Some(PlayerAction::ColorDecision {
                     color: valid_colors.first().cloned(),
@@ -239,9 +233,6 @@ impl BotAgent for SimpleAi {
             PromptInput::ExploreDecision(manabrew_protocol::prompts::explore_decision::ExploreDecisionInput { .. }) => Some(PlayerAction::ExploreResponse {
                 put_in_graveyard: false,
             }),
-            PromptInput::HelpPayAssist(manabrew_protocol::prompts::help_pay_assist::HelpPayAssistInput { .. }) => {
-                Some(PlayerAction::AssistDecision { amount_to_pay: 0 })
-            }
             PromptInput::GameOver(manabrew_protocol::prompts::game_over::GameOverInput { .. }) => None,
             // Display-only acknowledgements: the engine `await`s these so
             // every transport must produce an ack — keeps the engine's

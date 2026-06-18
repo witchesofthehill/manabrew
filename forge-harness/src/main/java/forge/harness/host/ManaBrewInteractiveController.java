@@ -18,6 +18,7 @@ import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilCost;
+import forge.ai.ComputerUtilMana;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.MagicColor.Color;
@@ -1302,7 +1303,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public int chooseNumber(final SpellAbility sa, final String title, final int min, final int max) {
-        return session.awaitNumberChoice(me(), min, max, sourceName(sa), title);
+        return session.awaitNumberChoice(me(), min, max, sourceCardId(sa), title);
     }
 
     @Override
@@ -1327,7 +1328,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public int chooseNumberForKeywordCost(
             final SpellAbility sa, final Cost cost, final KeywordInterface keyword, final String prompt, final int max) {
-        return session.awaitNumberChoice(me(), 0, Math.max(0, max), sourceName(sa), prompt == null ? "Choose count" : prompt);
+        return session.awaitNumberChoice(me(), 0, Math.max(0, max), sourceCardId(sa), prompt == null ? "Choose count" : prompt);
     }
 
     @Override
@@ -1338,13 +1339,21 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         bounds[0] = Math.max(bounds[0], min);
         bounds[1] = Math.min(bounds[1], max);
+        final Cost cost = ability.getPayCosts();
+        final boolean manaX = "X".equals(announce)
+                && cost != null
+                && cost.getCostMana() != null
+                && cost.getCostMana().getAmountOfX() > 0;
+        if (manaX) {
+            bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
+        }
         if (bounds[0] >= bounds[1]) {
             return bounds[0];
         }
         if (ability.getPayCosts() != null && ability.getPayCosts().isMandatory()) {
-            return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
+            return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
         }
-        return session.awaitCancellableNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
+        return session.awaitCancellableNumberChoice(me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
     }
 
     @Override

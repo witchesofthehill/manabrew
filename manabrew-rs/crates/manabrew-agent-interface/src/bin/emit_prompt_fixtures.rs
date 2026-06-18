@@ -116,14 +116,6 @@ fn main() {
             hand_card_ids: vec![],
             num_to_discard: 0,
         }),
-        ChooseMultikicker(choose_multikicker::ChooseMultikickerInput {
-            cost: String::new(),
-            max_kicks: 0,
-        }),
-        ChooseReplicate(choose_replicate::ChooseReplicateInput {
-            cost: String::new(),
-            max_replicates: 0,
-        }),
         ChooseColor(choose_color::ChooseColorInput {
             valid_colors: vec![],
         }),
@@ -131,7 +123,17 @@ fn main() {
             type_category: String::new(),
             valid_types: vec![],
         }),
-        ChooseNumber(choose_number::ChooseNumberInput { min: 0, max: 0 }),
+        ChooseNumber(choose_number::ChooseNumberInput {
+            presentation: common::PromptPresentation {
+                title: "Choose a number".to_string(),
+                description: Some("Pay {2} for each replicate.".to_string()),
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
+            min: 0,
+            max: 5,
+        }),
         ChooseCardName(choose_card_name::ChooseCardNameInput {
             valid_names: vec![],
         }),
@@ -217,10 +219,6 @@ fn main() {
         ExploreDecision(explore_decision::ExploreDecisionInput {
             revealed_card_name: String::new(),
             revealed_card: None,
-        }),
-        HelpPayAssist(help_pay_assist::HelpPayAssistInput {
-            card_name: String::new(),
-            max_generic: 0,
         }),
         FirstPlayerRoll(first_player_roll::FirstPlayerRollInput {
             sides: 0,

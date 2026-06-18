@@ -1009,23 +1009,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         choices::choose_card_name(self, player, valid_names)
     }
 
-    fn choose_x_value(&mut self, player: PlayerId, max_x: u32, source: Option<CardId>) -> u32 {
-        choices::choose_x_value(self, player, max_x, source)
-    }
-
-    fn announce_requirements(
+    fn choose_number(
         &mut self,
         player: PlayerId,
-        _announce: &str,
+        source: Option<CardId>,
+        title: &str,
+        description: Option<&str>,
         min: i32,
         max: i32,
-        source: Option<CardId>,
     ) -> Option<i32> {
-        choices::announce_requirements(self, player, min, max, source)
-    }
-
-    fn choose_number(&mut self, player: PlayerId, min: i32, max: i32) -> Option<i32> {
-        choices::choose_number(self, player, min, max)
+        choices::choose_number(self, player, source, title, description, min, max)
     }
 
     fn choose_number_from_list(

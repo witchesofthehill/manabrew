@@ -14,8 +14,6 @@ import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
 import { ChooseBooleanModal } from "./ChooseBooleanModal";
 import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
-import { MultikickerModal } from "./MultikickerModal";
-import { ReplicateModal } from "./ReplicateModal";
 import { DiceRollFeedback, FirstPlayerRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
@@ -45,13 +43,8 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   chooseType: ({ prompt, respond }) => <ChooseTypeModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
-  chooseNumber: ({ prompt, respond, ctx }) => (
-    <ChooseNumberModal
-      min={prompt.input.min}
-      max={prompt.input.max}
-      sourceCard={ctx.sourceDeckCard}
-      onConfirm={(chosenNumber) => respond({ type: "numberDecision", chosenNumber })}
-    />
+  chooseNumber: ({ prompt, respond }) => (
+    <ChooseNumberModal input={prompt.input} respond={respond} />
   ),
 
   chooseCardName: ({ prompt, respond }) => (
@@ -125,16 +118,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   ),
 
   // $PROMPT_SHARED
-  helpPayAssist: ({ prompt, respond, ctx }) => (
-    <ChooseNumberModal
-      min={0}
-      max={prompt.input.maxGeneric}
-      sourceCard={ctx.sourceDeckCard}
-      onConfirm={(n) => respond({ type: "assistDecision", amountToPay: n ?? 0 })}
-    />
-  ),
-
-  // $PROMPT_SHARED
   firstPlayerRoll: ({ prompt, respond, ctx }) => (
     <FirstPlayerRollFeedback
       sides={prompt.input.sides}
@@ -165,14 +148,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseFromSelection: ({ prompt, respond }) => (
     <ChooseFromSelectionModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseMultikicker: ({ prompt, respond }) => (
-    <MultikickerModal input={prompt.input} respond={respond} />
-  ),
-
-  chooseReplicate: ({ prompt, respond }) => (
-    <ReplicateModal input={prompt.input} respond={respond} />
   ),
 
   payCombatCost: ({ prompt, respond }) => (

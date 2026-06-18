@@ -838,8 +838,6 @@ impl PlayerAgent for CapturingAgent {
         fn choose_spell_abilities_for_effect(&mut self, player: PlayerId, abilities: &[manabrew_engine::spellability::SpellAbility], num: usize) -> Vec<usize> => "choose_spell_abilities_for_effect";
         fn choose_single_entity_for_effect(&mut self, player: PlayerId, valid: &[GameEntity], is_optional: bool) -> Option<GameEntity> => "choose_single_entity_for_effect";
         fn get_ability_to_play(&mut self, player: PlayerId, abilities: &[manabrew_engine::spellability::SpellAbility]) -> Option<usize> => "get_ability_to_play";
-        fn choose_x_value(&mut self, player: PlayerId, max_x: u32, source: Option<CardId>) -> u32 => "choose_x_value";
-        fn announce_requirements(&mut self, player: PlayerId, announce: &str, min: i32, max: i32, source: Option<CardId>) -> Option<i32> => "announce_requirements";
         fn choose_optional_trigger(&mut self, player: PlayerId, description: &str, source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>) -> bool => "choose_optional_trigger";
         fn choose_land_or_spell(&mut self, player: PlayerId) -> Option<bool> => "choose_land_or_spell";
         fn confirm_action(&mut self, player: PlayerId, mode: Option<&str>, message: &str, options: &[String], source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>) -> bool => "confirm_action";
@@ -850,7 +848,7 @@ impl PlayerAgent for CapturingAgent {
         fn choose_color(&mut self, player: PlayerId, valid_colors: &[String]) -> Option<String> => "choose_color";
         fn choose_colors(&mut self, player: PlayerId, valid_colors: &[String], min: usize, max: usize) -> Vec<String> => "choose_colors";
         fn choose_card_name(&mut self, player: PlayerId, valid_names: &[String]) -> Option<String> => "choose_card_name";
-        fn choose_number(&mut self, player: PlayerId, min: i32, max: i32) -> Option<i32> => "choose_number";
+        fn choose_number(&mut self, player: PlayerId, source: Option<CardId>, title: &str, description: Option<&str>, min: i32, max: i32) -> Option<i32> => "choose_number";
         fn choose_number_for_keyword_cost(&mut self, player: PlayerId, max: i32, prompt: &str, source: Option<CardId>) -> i32 => "choose_number_for_keyword_cost";
         fn choose_number_from_list(&mut self, player: PlayerId, choices: &[i32], message: &str, source_card_id: Option<CardId>) -> Option<i32> => "choose_number_from_list";
         fn choose_roll_to_ignore(&mut self, player: PlayerId, rolls: &[i32], source: Option<CardId>) -> Option<i32> => "choose_roll_to_ignore";

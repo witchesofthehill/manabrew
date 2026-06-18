@@ -957,27 +957,27 @@ public final class ManaBrewInteractiveSession {
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description
     ) {
-        return awaitNumberChoice(playerId, min, max, sourceName, description, false);
+        return awaitNumberChoice(playerId, min, max, sourceCardId, description, false);
     }
 
     Integer awaitCancellableNumberChoice(
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description
     ) {
-        return awaitNumberChoice(playerId, min, max, sourceName, description, true);
+        return awaitNumberChoice(playerId, min, max, sourceCardId, description, true);
     }
 
     private Integer awaitNumberChoice(
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean canCancel
     ) {
@@ -988,7 +988,7 @@ public final class ManaBrewInteractiveSession {
         if (min == max) {
             return min;
         }
-        publishNumberPrompt(playerId, min, max, sourceName, description, canCancel);
+        publishNumberPrompt(playerId, min, max, sourceCardId, description, canCancel);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1876,7 +1876,7 @@ public final class ManaBrewInteractiveSession {
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean canCancel
     ) {
@@ -1887,8 +1887,8 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("min", min);
         prompt.addProperty("max", max);
         prompt.addProperty("canCancel", canCancel);
-        if (sourceName != null) {
-            prompt.addProperty("sourceCardName", sourceName);
+        if (sourceCardId != null) {
+            prompt.addProperty("sourceCardId", sourceCardId);
         }
         if (description != null) {
             prompt.addProperty("description", description);

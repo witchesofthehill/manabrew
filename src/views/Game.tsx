@@ -1224,6 +1224,38 @@ export default function Game({ exitTo }: GameProps = {}) {
       });
   }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate]);
 
+  const promptPlayableIds = useMemo(
+    () =>
+      new Set(
+        promptType === "chooseAction"
+          ? (chooseActionInput?.actions ?? []).flatMap((a) =>
+              a.type === "cast" || a.type === "activateAbility" ? [a.cardId] : [],
+            )
+          : [],
+      ),
+    [promptType, chooseActionInput],
+  );
+  const markIfPlayable = useCallback(
+    (c: GameCard): GameCard => (promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c),
+    [promptPlayableIds],
+  );
+  const myHandMarked = useMemo(
+    () => (me?.hand ?? []).map(markIfPlayable),
+    [me?.hand, markIfPlayable],
+  );
+  const graveyardMarked = useMemo(
+    () => (me?.graveyard ?? []).map(markIfPlayable),
+    [me?.graveyard, markIfPlayable],
+  );
+  const exileMarked = useMemo(
+    () => (me?.exile ?? []).map(markIfPlayable),
+    [me?.exile, markIfPlayable],
+  );
+  const commandZoneMarked = useMemo(
+    () => (me?.commandZone ?? []).map(markIfPlayable),
+    [me?.commandZone, markIfPlayable],
+  );
+
   if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
 
   if (!gameView || isPrefetchingCards) {
@@ -1232,16 +1264,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   if (!me) {
     return <GameLoadingScreen debugInfo={debugInfo || "Waiting for player state..."} />;
   }
-
-  const promptPlayableIds = new Set(
-    promptType === "chooseAction"
-      ? (chooseActionInput?.actions ?? []).flatMap((a) =>
-          a.type === "cast" || a.type === "activateAbility" ? [a.cardId] : [],
-        )
-      : [],
-  );
-  const markIfPlayable = (c: GameCard): GameCard =>
-    promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c;
 
   if (gameView.gameOver || promptType === "gameOver") {
     return (
@@ -1306,10 +1328,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           opponents={displayOpponents}
           myPermanents={myPermanents}
           opponentPermanentsByPlayer={opponentPermanentsByPlayer}
-          myHand={(me?.hand ?? []).map(markIfPlayable)}
-          graveyard={(me?.graveyard ?? []).map(markIfPlayable)}
-          exile={(me?.exile ?? []).map(markIfPlayable)}
-          myCommandZone={(me?.commandZone ?? []).map(markIfPlayable)}
+          myHand={myHandMarked}
+          graveyard={graveyardMarked}
+          exile={exileMarked}
+          myCommandZone={commandZoneMarked}
           activePlayerId={gameView.activePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}

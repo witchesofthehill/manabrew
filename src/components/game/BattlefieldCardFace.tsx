@@ -60,11 +60,24 @@ export function BattlefieldCardFace({
   const pt = creature && card.power != null && card.toughness != null;
   const loyalty = card.counters?.Loyalty;
 
-  const ptStyle = lethal
-    ? { backgroundColor: theme.pt.lethal, color: theme.textOnTinted }
-    : card.basePower != null && card.power != null && parseInt(card.power, 10) > card.basePower
-      ? { backgroundColor: theme.pt.buffed, color: theme.textOnTinted }
-      : { backgroundColor: withAlpha(theme.pt.neutral, 0.85), color: theme.textOnTinted };
+  const curP = card.power != null ? parseInt(card.power, 10) : null;
+  const curT = card.toughness != null ? parseInt(card.toughness, 10) : null;
+  const buffed =
+    card.basePower != null &&
+    ((curP != null && curP > card.basePower) ||
+      (curT != null && card.baseToughness != null && curT > card.baseToughness));
+  const debuffed =
+    card.basePower != null &&
+    ((curP != null && curP < card.basePower) ||
+      (curT != null && card.baseToughness != null && curT < card.baseToughness));
+  const ptBg = lethal
+    ? theme.pt.lethal
+    : buffed
+      ? theme.pt.buffed
+      : debuffed
+        ? theme.pt.debuffed
+        : withAlpha(theme.pt.neutral, 0.85);
+  const ptStyle = { backgroundColor: ptBg, color: theme.textOnTinted };
 
   const fontName = Math.max(5, 7 * u);
   const fontType = Math.max(4, 5.5 * u);
@@ -77,8 +90,7 @@ export function BattlefieldCardFace({
     (card.subtypes.length > 0 ? ` - ${card.subtypes.join(" ")}` : "");
   const { shown: keywords, hidden: hiddenKeywords } = battlefieldKeywords(card.keywords);
 
-  const p1p1 = card.counters?.P1P1 ?? 0;
-  const m1m1 = card.counters?.M1M1 ?? 0;
+  // P1P1 / M1M1 are dropped here: the net buff/debuff shows in the P/T color.
   const otherCounters = card.counters
     ? Object.fromEntries(
         Object.entries(card.counters).filter(
@@ -86,27 +98,10 @@ export function BattlefieldCardFace({
         ),
       )
     : {};
-  const signedPill = (text: string, color: string) => (
-    <span
-      className="font-bold rounded leading-none"
-      style={{
-        fontSize: Math.max(6, 8 * u),
-        padding: `${0.5 * u}px ${2 * u}px`,
-        backgroundColor: color,
-        color: theme.textOnTinted,
-      }}
-    >
-      {text}
-    </span>
-  );
   const counterBadges =
-    p1p1 > 0 || m1m1 > 0 || Object.keys(otherCounters).length > 0 ? (
+    Object.keys(otherCounters).length > 0 ? (
       <div className="flex items-center" style={{ gap: 1 * u }}>
-        {p1p1 > 0 && signedPill(`+${p1p1}`, theme.pt.buffed)}
-        {m1m1 > 0 && signedPill(`-${m1m1}`, theme.pt.debuffed)}
-        {Object.keys(otherCounters).length > 0 && (
-          <CounterDisplay counters={otherCounters} size="sm" />
-        )}
+        <CounterDisplay counters={otherCounters} size="sm" />
       </div>
     ) : null;
 

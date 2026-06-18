@@ -26,11 +26,11 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
       cardNumber: gameCard.cardNumber,
     });
     if (token) return token;
-    throw new Error(
-      `Token archive has no entry for ${gameCard.name} (${gameCard.setCode}#${gameCard.cardNumber})`,
-    );
+    // Not a real token: a copy of a nontoken card (e.g. Prepare's copied
+    // spell, Spark Double) is flagged isToken but keeps the source card's
+    // identity, so it resolves by name via Scryfall like any other card.
   }
-  // Match either face, mirroring the engine's own `get_by_card_name` which splits on " // ".
+  // Mirrors the engine's `get_by_card_name`, which splits on " // ".
   const matchesName = (deckName: string) =>
     deckName === gameCard.name || deckName.split(" // ").includes(gameCard.name);
   const byName = pool.find((c) => matchesName(c.name));

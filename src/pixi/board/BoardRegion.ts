@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
@@ -15,8 +15,9 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { hexToNum } from "../colorUtils";
 import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
-import { pulse } from "../effects/animation";
 import { EffectsLayer } from "../effects/EffectsLayer";
+import { playStomp } from "../effects/stomp";
+import { animationsEnabled } from "../effects/enabled";
 import {
   applyCardOverrides,
   useGameDevStore,
@@ -69,17 +70,38 @@ interface BoardRegionOptions {
   orientation: RegionOrientation;
 }
 
+const ENTRANCE_LAND_PX = 8;
+
+/** Keyed by the card object. The engine mints fresh `GameCard` objects per state
+ *  update, so a real change recomputes; the many re-layout passes that reuse the
+ *  same objects (resize, blockers, combat staging) hit the cache. */
+const stackKeyCache = new WeakMap<GameCard, string>();
+
+/** Derived from the whole engine DTO rather than a hand-picked field list, so
+ *  every property the engine reports splits the stack automatically. Only `id`
+ *  (always unique) and `isSelected` (selecting must not pop a card out of its
+ *  group) are excluded. */
+function stackIdentityKey(c: GameCard): string {
+  const cached = stackKeyCache.get(c);
+  if (cached !== undefined) return cached;
+  const key = JSON.stringify(c, (k, value) =>
+    k === "id" || k === "isSelected" ? undefined : value,
+  );
+  stackKeyCache.set(c, key);
+  return key;
+}
+
 export class BoardRegion {
   readonly container: Container;
   private host: RegionHost;
   private orientation: RegionOrientation;
   private mirrored: boolean;
+  /** Canvas-aligned for top/bottom; a swapped-dimension rect at the origin for
+   *  the rotated left/right sides. */
   private zone!: PlayZoneRect;
   private cardScale: number;
 
   private backgroundGfx: Graphics;
-  private activeGlowGfx: Graphics;
-  private active = false;
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
@@ -123,12 +145,7 @@ export class BoardRegion {
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
 
-    this.activeGlowGfx = new Graphics();
-    this.activeGlowGfx.zIndex = -9;
-    this.activeGlowGfx.eventMode = "none";
-    this.activeGlowGfx.visible = false;
-    this.container.addChild(this.activeGlowGfx);
-
+    // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
     this.container.addChild(this.effects.container);
 
@@ -147,6 +164,13 @@ export class BoardRegion {
     this.drawBackground();
   }
 
+  /** Card sprites sit above and stop propagation, so this fires only on empty
+   *  felt. */
+  enableFeltMarquee(onDown: (e: FederatedPointerEvent) => void): void {
+    this.backgroundGfx.eventMode = "static";
+    this.backgroundGfx.on("pointerdown", onDown);
+  }
+
   setZone(zone: PlayZoneRect, orientation: RegionOrientation): void {
     this.orientation = orientation;
     this.mirrored = orientation !== "bottom";
@@ -156,6 +180,8 @@ export class BoardRegion {
     if (this.lastState) this.updateBattlefield(this.lastState);
   }
 
+  /** Top/bottom keep canvas coords (identity transform); left/right rotate 90°
+   *  and swap the layout dimensions so the grid runs along the column. */
   private applyOrientation(screenRect: PlayZoneRect): void {
     const c = this.container;
     if (this.orientation === "left") {
@@ -302,6 +328,14 @@ export class BoardRegion {
       s.tickEffects(now);
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
+      if (entry.pendingEntrance) {
+        const dx = s.x - entry.targetX;
+        const dy = s.y - entry.targetY;
+        if (dx * dx + dy * dy < ENTRANCE_LAND_PX * ENTRANCE_LAND_PX) {
+          entry.pendingEntrance = false;
+          this.playEntranceFx(entry, s.card);
+        }
+      }
       if (entry.shakeFrames > 0) {
         const amp = DAMAGE_SHAKE_AMP_PX * (entry.shakeFrames / DAMAGE_SHAKE_FRAMES);
         s.x += (Math.random() - 0.5) * 2 * amp;
@@ -311,9 +345,9 @@ export class BoardRegion {
       s.rotation = lerp(s.rotation, entry.targetRotation, ROTATION_LERP, SNAP_ROT);
       s.zIndex = entry.targetZIndex;
 
-      // Alpha is owned here (not in updateCard), so a mid-combat state update
+      // Alpha is owned here (not in updateCard), so a state update mid-combat
       // doesn't snap a dimmed/phased card back to 1 and re-fade it (flicker).
-      // Combat dim darkens via tint rather than fade so overlapping stacked
+      // Combat dim darkens via tint rather than alpha so overlapping stacked
       // cards don't show through one another; phased-out keeps a real fade.
       const dimmed =
         this.combatDim &&
@@ -344,7 +378,8 @@ export class BoardRegion {
       const isHovered = this.hoveredCardId === s.card.id;
       const targetScale = this.cardScale * (isHovered ? HOVER_SCALE : 1);
       entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
-      s.scale.set(entry.scaleBase);
+      const fx = s.fxScale;
+      s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
 
       if (entry.overlay?.visible) {
         entry.overlay.x = s.x;
@@ -359,8 +394,7 @@ export class BoardRegion {
       }
     }
     if (exited) for (const id of exited) this.destroyEntry(id);
-    if (this.active) this.activeGlowGfx.alpha = pulse(now, 1800, 0.3, 0.8);
-    this.effects.tick(now);
+    this.effects.tick();
   }
 
   updateBattlefield(state: BattlefieldState): void {
@@ -467,7 +501,6 @@ export class BoardRegion {
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
-      const dust = hexToNum(this.host.getTheme().gameTheme.canvas.neutral);
       const cardHalfH = (CARD_H * this.cardScale) / 2;
       const now = performance.now();
       for (const card of state.cards) {
@@ -475,18 +508,22 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          if (card.types?.some((t) => t.toLowerCase() === "creature")) {
-            this.effects.spawnStomp(now, entry.targetX, entry.targetY + cardHalfH, dust);
-          }
+          entry.etbGlowAlpha = 1;
+          entry.pendingEntrance = true;
           continue;
         }
-        if (card.power !== prev.power || card.toughness !== prev.toughness) {
+        const fx = animationsEnabled();
+        if (fx && (card.power !== prev.power || card.toughness !== prev.toughness)) {
           entry.sprite.playStatPop(now);
         }
         const delta = (card.damage ?? 0) - (prev.damage ?? 0);
         if (delta > 0) {
-          entry.sprite.playDamageHit(now);
-          entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+          // The damage number always shows (it's info); only the flash + shake
+          // are suppressed by the animation toggle.
+          if (fx) {
+            entry.sprite.playDamageHit(now);
+            entry.shakeFrames = DAMAGE_SHAKE_FRAMES;
+          }
           const c = this.localToCanvas(entry.targetX, entry.targetY);
           this.host.spawnFloatingText(c.x, c.y - cardHalfH, `-${delta}`, lethal);
         }
@@ -511,6 +548,8 @@ export class BoardRegion {
   private applyCombatStaging(): void {
     const staging = this.combatStaging;
     if (!staging) return;
+    // The front-edge / lane math is vertical, so the rotated side regions keep
+    // their resting layout during combat.
     if (this.orientation === "left" || this.orientation === "right") return;
     const frontY = this.frontEdgeY();
     const fanStep = CARD_W * this.cardScale * COMBAT_STAGE_FAN_FRAC;
@@ -557,16 +596,16 @@ export class BoardRegion {
       (!c.attachmentIds || c.attachmentIds.length === 0) &&
       !this.userPlacedCards.has(c.id);
 
-    const byNameAndTap = new Map<string, GameCard[]>();
+    const byIdentity = new Map<string, GameCard[]>();
     for (const c of topLevel) {
       if (!isStackable(c)) continue;
-      const key = `${c.tapped ? "t" : "u"}:${c.name}`;
-      const list = byNameAndTap.get(key);
+      const key = stackIdentityKey(c);
+      const list = byIdentity.get(key);
       if (list) list.push(c);
-      else byNameAndTap.set(key, [c]);
+      else byIdentity.set(key, [c]);
     }
 
-    for (const group of byNameAndTap.values()) {
+    for (const group of byIdentity.values()) {
       if (group.length < 2) continue;
       const parent = group[0]!;
       for (let i = 1; i < group.length; i++) {
@@ -861,7 +900,6 @@ export class BoardRegion {
 
   private ensureBattlefieldEntry(card: GameCard): void {
     if (this.entries.has(card.id)) return;
-    const isEntering = this.entries.size > 0;
     const sprite = new CardSprite(card);
     this.host.wireSprite(sprite);
     this.container.addChild(sprite);
@@ -878,9 +916,10 @@ export class BoardRegion {
       targetY: sprite.y,
       targetZIndex: 1,
       targetRotation: sprite.rotation,
-      etbGlowAlpha: isEntering ? 1 : 0,
+      etbGlowAlpha: 0,
       scaleBase: sprite.scale.x,
       shakeFrames: 0,
+      pendingEntrance: false,
       overlay: null,
     });
   }
@@ -893,6 +932,8 @@ export class BoardRegion {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
       return;
     }
+    // Attacking and summoning-sickness are shown by the card's own edge glow
+    // (CardSprite.updateEdgeGlow), not by a ring.
     if (card.wouldDieInCombat) {
       sprite.setRing(hexToNum(theme.gameTheme.pt.lethal));
     } else if (state.pendingCardIds?.includes(card.id)) {
@@ -912,6 +953,9 @@ export class BoardRegion {
     }
   }
 
+  /** The zone with its bottom trimmed so it clears the hand fan (local player
+   *  only). Drives the felt, the empty label, and the card grid, so there are
+   *  never grid cells at the hand's row level. */
   private usableZone(): PlayZoneRect {
     const zone = this.zone;
     const reserve = this.host.getHandReserveBottom();
@@ -932,33 +976,6 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
-    this.drawActiveGlow();
-  }
-
-  setActive(active: boolean): void {
-    if (this.active === active) return;
-    this.active = active;
-    this.activeGlowGfx.visible = active;
-    this.drawActiveGlow();
-  }
-
-  private drawActiveGlow(): void {
-    this.activeGlowGfx.clear();
-    if (!this.active) return;
-    const felt = this.usableZone();
-    const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
-    const layers = 3;
-    for (let i = 0; i < layers; i++) {
-      const inset = i * 4;
-      this.activeGlowGfx.roundRect(
-        felt.x + inset,
-        felt.y + inset,
-        felt.width - 2 * inset,
-        felt.height - 2 * inset,
-        Math.max(0, TABLE_RADIUS - inset),
-      );
-      this.activeGlowGfx.stroke({ color, width: 3, alpha: 1 - i / layers });
-    }
   }
 
   private layoutEmptyText(): void {
@@ -991,7 +1008,19 @@ export class BoardRegion {
   previewEtb(): void {
     for (const entry of this.entries.values()) {
       entry.etbGlowAlpha = 1;
+      this.playEntranceFx(entry, entry.sprite.card);
     }
+  }
+
+  private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
+    if (!animationsEnabled()) return;
+    if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
+    const footX = entry.targetX;
+    const footY = entry.targetY + (CARD_H * this.cardScale) / 2;
+    playStomp({
+      fxScale: entry.sprite.fxScale,
+      onImpact: () => this.effects.stompGround(footX, footY),
+    });
   }
 
   redrawHoverDebug(): void {
@@ -1217,6 +1246,7 @@ export class BoardRegion {
   }
 
   drawDropField(): void {
+    // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
     this.lastDropCell = null;
     const zone = this.usableZone();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);

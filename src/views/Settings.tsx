@@ -19,10 +19,31 @@ import { Navigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Production builds set VITE_MANAGED_RELAY=1; the relay host/port/password
+ * are baked into the bundle and shouldn't be editable. Username stays
+ * configurable because each player still picks their own handle.
+ */
 const MANAGED_RELAY = !!import.meta.env.VITE_MANAGED_RELAY;
 
+/** Human-readable labels for theme color keys */
+/**
+ * Canonical key unions. These drive the typed colour-description maps
+ * below so a typo in a description key fails at compile time and adding
+ * a new token to the schema shows up as a missing-description TS error
+ * (via the `Record<…>` form used on the descriptions themselves — not
+ * `Partial<Record<…>>` — so exhaustiveness is enforced).
+ */
 type AppThemeKey = keyof ThemeColors;
 
+/**
+ * Dot-notation string keys for every leaf in `GameThemeColors`.
+ * Produces `"pointer.hostile" | "mana.W" | "textOnTinted" | …` at the
+ * TS level; `Partial<Record<GameThemePath, string>>` on the description
+ * map catches typos without forcing every leaf to be documented at
+ * once. Add new tokens to the schema first — the description keys are
+ * then type-checked against the live shape.
+ */
 type GameThemePath = {
   [K in keyof GameThemeColors & string]: GameThemeColors[K] extends string
     ? K
@@ -31,6 +52,8 @@ type GameThemePath = {
       : never;
 }[keyof GameThemeColors & string];
 
+/** Human-readable description for each Radix (app chrome) colour token.
+ *  Shown as the `title` attribute of a small `?` icon next to the label. */
 const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   background: "Page / window background fill.",
   foreground: "Default body text colour.",
@@ -58,6 +81,9 @@ const APP_THEME_COLOR_DESCRIPTIONS: Record<AppThemeKey, string> = {
   overlay: "Modal / dialog backdrop dim.",
 };
 
+/** Human-readable description for each game-surface colour token.
+ *  Keys are type-checked against the live `GameThemeColors` schema —
+ *  a typo or renamed schema field fails compilation here. */
 const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   "activeAction.priority": "Highlight surrounding the player who currently has priority.",
   "activeAction.active": "Active-turn ring, turn-text colour, and general 'your turn' cue.",
@@ -123,6 +149,14 @@ const GAME_THEME_COLOR_DESCRIPTIONS: Partial<Record<GameThemePath, string>> = {
   cardRing: "Default card selection / focus ring.",
 };
 
+/**
+ * Small `?` hover-help icon shown next to a picker label. Renders a
+ * custom CSS tooltip below the icon on hover / focus — native `title`
+ * attributes don't always fire reliably and are slow to appear, so we
+ * drive the popover with tailwind `group-hover` + `group-focus-within`.
+ * An invisible native `title` + `aria-label` remain for screen readers
+ * and for users who expect the OS tooltip as a fallback.
+ */
 function HelpMark({ description }: { description: string | undefined }) {
   if (!description) return null;
   return (
@@ -176,6 +210,9 @@ const APP_THEME_COLOR_LABELS: Record<AppThemeKey, string> = {
   overlay: "Overlay",
 };
 
+/** Group the app-chrome Radix tokens by semantic role so the picker
+ *  reads like "surfaces → brand → state → structure" instead of a
+ *  flat list ordered by schema declaration. */
 const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKey[] }[] = [
   {
     heading: "Surfaces & Foregrounds",
@@ -213,6 +250,10 @@ const APP_THEME_GROUPS: { heading: string; description: string; keys: AppThemeKe
   },
 ];
 
+/** Group the game-surface tokens by prefix so related entries sit
+ *  together (all `pointer.*` in one block, all `counter.*` in another,
+ *  …). Keys are matched by prefix; anything not covered falls into
+ *  the "Miscellaneous" group at the end. */
 const GAME_THEME_GROUPS: {
   heading: string;
   description: string;
@@ -364,6 +405,7 @@ export default function Settings() {
     prefs.setServerUsername(username);
     prefs.setServerPassword(password);
 
+    // Always disconnect first (kills any existing WS connection)
     await server.disconnect();
 
     if (username) {
@@ -668,6 +710,31 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>In-game Animations</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={prefs.inGameAnimations ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setInGameAnimations(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.inGameAnimations ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setInGameAnimations(false)}
+                >
+                  Off
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Decorative board effects — creature entrance stomp + dust, stat and damage pops,
+                glow pulses. Turn these off to save performance on weaker hardware; the board still
+                works (cards move, state indicators and damage numbers stay).
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>
               <div className="flex items-center gap-2">
                 <Button
@@ -775,6 +842,7 @@ export default function Settings() {
               </p>
             </div>
           </div>
+          {/* end preferences grid */}
         </section>
       )}
 
@@ -908,6 +976,7 @@ export default function Settings() {
               </p>
             </div>
           </div>
+          {/* end top-level mode/preset grid */}
 
           <div className="pt-2">
             <Input
@@ -993,6 +1062,7 @@ export default function Settings() {
                 );
               })}
             </div>
+            {/* end app theme grid */}
             <p className="text-xs text-muted-foreground">
               Override individual colors from the active preset.
             </p>
@@ -1131,6 +1201,7 @@ export default function Settings() {
                   ));
               })()}
             </div>
+            {/* end game theme grid */}
             <p className="text-xs text-muted-foreground">
               Generated from game theme keys. Defaults come from the active preset.
             </p>

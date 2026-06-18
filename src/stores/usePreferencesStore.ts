@@ -27,6 +27,7 @@ interface PreferencesState {
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
 
+  // Only changes the 4-player layout.
   boardArrangement: BoardArrangement;
   setBoardArrangement: (arrangement: BoardArrangement) => void;
 
@@ -36,8 +37,15 @@ interface PreferencesState {
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
+  // Only the Pixi battlefield reads this; hand, stack, and modals always use
+  // the image.
   battlefieldCardStyle: BattlefieldCardStyle;
   setBattlefieldCardStyle: (style: BattlefieldCardStyle) => void;
+
+  // Perf escape hatch for weaker hardware; the board still functions when off
+  // (cards move, state indicators stay).
+  inGameAnimations: boolean;
+  setInGameAnimations: (value: boolean) => void;
 
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
@@ -66,6 +74,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldAutoSort",
   "battlefieldCardScale",
   "battlefieldCardStyle",
+  "inGameAnimations",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -126,6 +135,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldCardStyle: "realistic",
           setBattlefieldCardStyle: (battlefieldCardStyle) => set({ battlefieldCardStyle }),
+
+          inGameAnimations: true,
+          setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

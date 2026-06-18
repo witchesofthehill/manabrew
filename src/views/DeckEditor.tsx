@@ -120,7 +120,6 @@ export default function DeckEditor() {
   });
   // True when readonly was triggered by an in-page preset click (no route
   // navigation), so Back restores the grid instead of popping history.
-  //
   const [readonlyEnteredInPage, setReadonlyEnteredInPage] = useState(false);
   const view = isReadOnly ? "editor" : stateView;
   const setView = setStateView;
@@ -180,8 +179,6 @@ export default function DeckEditor() {
     setSearchParams({ deck: currentDeckId }, { replace: true });
   }, [currentDeckId, stateView, isReadOnly, searchParams, setSearchParams]);
 
-  // ── Deck list handlers ────────────────────────────────────────────────────
-
   function toggleColor(color: string) {
     setColorFilter((prev) =>
       prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color],
@@ -217,8 +214,7 @@ export default function DeckEditor() {
     onProgress(0.05);
     const scryfallMap = await fetchCardCollection(entries.map((e) => ({ name: e.name })));
     onProgress(0.55);
-    // Theres some cards that have name variants. These are going to fail,
-    // we collect them and try again with fuzzy search
+    // Cards with name variants miss the exact lookup; retry them with fuzzy search.
     const stragglers = [
       ...new Set(entries.map((e) => e.name).filter((n) => !scryfallMap.get(n.toLowerCase()))),
     ];
@@ -237,18 +233,20 @@ export default function DeckEditor() {
     onProgress(0.9);
     const cards: DeckCard[] = [];
     const sideboard: DeckCard[] = [];
+    const maybeboard: DeckCard[] = [];
     const notFound: string[] = [];
-    for (const { name: cardName, count, side } of entries) {
+    for (const { name: cardName, count, side, maybe } of entries) {
       const sc = scryfallMap.get(cardName.toLowerCase());
       if (!sc) {
         notFound.push(cardName);
         continue;
       }
+      const target = side ? sideboard : maybe ? maybeboard : cards;
       for (let i = 0; i < count; i++) {
-        (side ? sideboard : cards).push({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
+        target.push({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
       }
     }
-    if (cards.length === 0 && sideboard.length === 0) {
+    if (cards.length === 0 && sideboard.length === 0 && maybeboard.length === 0) {
       throw new Error("None of the cards could be found on Scryfall");
     }
     const id = addSavedDeck({
@@ -256,6 +254,7 @@ export default function DeckEditor() {
       format: inferImportedFormat(cards.map((c) => c.name)),
       cards,
       sideboard,
+      maybeboard,
       attractions: [],
       contraptions: [],
       schemes: [],
@@ -270,7 +269,7 @@ export default function DeckEditor() {
       toast.success(`Imported "${deckName}"`);
     }
     console.log(
-      `[import] built ${cards.length} main / ${sideboard.length} side, id=${id}, savedDeck.cards=${useDeckStore.getState().savedDecks.find((s) => s.id === id)?.deck.cards.length}`,
+      `[import] built ${cards.length} main / ${sideboard.length} side / ${maybeboard.length} maybe, id=${id}, savedDeck.cards=${useDeckStore.getState().savedDecks.find((s) => s.id === id)?.deck.cards.length}`,
     );
     handleSelectDeck(id);
   }
@@ -320,8 +319,6 @@ export default function DeckEditor() {
     setRenamingId(null);
     toast.success("Deck renamed");
   }
-
-  // ── DnD handlers ─────────────────────────────────────────────────────────
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
@@ -406,8 +403,6 @@ export default function DeckEditor() {
     }
   }
 
-  // ── List view ─────────────────────────────────────────────────────────────
-
   if (view === "list") {
     return (
       <>
@@ -429,9 +424,7 @@ export default function DeckEditor() {
 
           <ScrollArea className="flex-1">
             <div className="p-4">
-              {/* Grid: first cell = New Deck button, then valid decks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {/* New Deck / Import slot */}
                 <div className="group relative">
                   <button
                     type="button"
@@ -471,7 +464,6 @@ export default function DeckEditor() {
                 ))}
               </div>
 
-              {/* Drafts section */}
               {filteredDrafts.length > 0 && (
                 <div className={cn("mt-4", filteredValid.length > 0 && "border-t pt-4")}>
                   <div className="flex items-center gap-2 mb-3">
@@ -496,7 +488,6 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {/* Preset Decks section — readonly browse + import */}
               {presetSavedDecks.length > 0 && (
                 <div
                   className={cn(
@@ -525,7 +516,6 @@ export default function DeckEditor() {
                 </div>
               )}
 
-              {/* Empty state */}
               {filteredValid.length === 0 &&
                 filteredDrafts.length === 0 &&
                 presetSavedDecks.length === 0 &&
@@ -544,7 +534,6 @@ export default function DeckEditor() {
           onImport={handleTextImport}
         />
 
-        {/* Rename dialog */}
         <Dialog
           open={renamingId !== null}
           onOpenChange={(open) => {
@@ -577,8 +566,6 @@ export default function DeckEditor() {
       </>
     );
   }
-
-  // ── Editor view ───────────────────────────────────────────────────────────
 
   return (
     <>
@@ -619,7 +606,6 @@ export default function DeckEditor() {
         </DragOverlay>
       </DndContext>
 
-      {/* Unsaved changes — back to list */}
       {showBackConfirm && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
           <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">
@@ -648,7 +634,6 @@ export default function DeckEditor() {
         </div>
       )}
 
-      {/* Unsaved changes — route navigation */}
       {blocker.state === "blocked" && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-overlay/50 backdrop-blur-sm">
           <div className="bg-card border rounded-xl shadow-xl p-6 max-w-sm space-y-4">

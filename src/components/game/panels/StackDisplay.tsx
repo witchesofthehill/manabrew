@@ -14,19 +14,14 @@ interface StackDisplayProps {
   flashToken?: string | null;
   showPreStackFlash?: boolean;
   rightPanelCollapsed?: boolean;
-  /** Extra CSS length added to the stack's right offset — used to push it off
-   *  the right side column (right opponent's seat) in the perimeter board. */
   rightInsetExtra?: string;
   playerColorMap?: Map<string, string>;
   validSpellIds?: string[];
   onTargetSpell?: (spellId: string) => void;
 }
 
-// Stack UI tuning (single source of truth for size/placement)
-const STACK_CARD_ASPECT = 7 / 5; // MTG card ratio: 5:7 (w:h)
-// Right inset when the action panel is open (panel is w-72 = 288px + its
-// own right-1.5 gap ≈ 6px). Add a small breathing gap so the stack cards
-// don't touch the panel edge.
+const STACK_CARD_ASPECT = 7 / 5;
+// w-72 panel (288px) + its right-1.5 gap (~6px) + a breathing gap.
 const STACK_RIGHT_WHEN_PANEL_OPEN = 288 + 6 + 8;
 const STACK_RIGHT_WHEN_PANEL_COLLAPSED = 10;
 const STACK_UI = {
@@ -56,8 +51,6 @@ export function StackDisplay({
   const themeColors = useTheme().gameTheme;
   const targetingActive = (validSpellIds?.length ?? 0) > 0;
   const validSpellIdSet = new Set(validSpellIds ?? []);
-  // Track previous render's stack ids and per-id layout to drive enter animations
-  // and skip transitions when positions haven't changed.
   const stackIdsKey = stack.map((obj) => obj.id).join(",");
   const [prevStackIds, setPrevStackIds] = useState<Set<string>>(
     () => new Set(stack.map((obj) => obj.id)),
@@ -83,7 +76,7 @@ export function StackDisplay({
           const pushSign = (idx < hoveredIndex ? -1 : 1) * directionSign;
           return baseLefts[idx] + pushSign * STACK_UI.hoverPushX;
         });
-  // Stable bounds by direction so hover transitions don't snap/rebase.
+  // Bounds fixed by direction so hover transitions don't snap/rebase.
   const fixedMinLeft =
     STACK_UI.direction === "right" ? -STACK_UI.hoverPushX : -spanX - STACK_UI.hoverPushX;
   const fixedMaxLeft =
@@ -92,7 +85,6 @@ export function StackDisplay({
   const pileWidth = fixedMaxLeft - fixedMinLeft + STACK_UI.cardWidth;
   const top = `calc(50% - ${pileHeight / 2}px + ${STACK_UI.centerOffsetY}px)`;
 
-  // Snapshot previous stack ids after render so the next render can detect new entries.
   const [prevStackIdsKey, setPrevStackIdsKey] = useState(stackIdsKey);
   if (prevStackIdsKey !== stackIdsKey) {
     setPrevStackIdsKey(stackIdsKey);
@@ -101,7 +93,6 @@ export function StackDisplay({
 
   const topForIndex = (idx: number) => (stack.length - 1 - idx) * STACK_UI.offsetY;
 
-  // Snapshot previous layout (left/top per id) for transition decisions.
   const [prevLayout, setPrevLayout] = useState<Record<string, { left: number; top: number }>>({});
   const layoutKey = stack.map((obj, idx) => `${obj.id}:${lefts[idx] + xShift}:${idx}`).join("|");
   const [prevLayoutKey, setPrevLayoutKey] = useState(layoutKey);
@@ -220,10 +211,12 @@ export function StackDisplay({
         {flashCard && flashStackIndex < 0 && showPreStackFlash && (
           <div
             key={flashToken ?? flashCard.id}
-            className="absolute left-0 top-0 pointer-events-none animate-card-flash"
+            className="absolute top-0 pointer-events-none animate-card-flash"
             style={{
               zIndex: 200,
-              left: "0px",
+              // Align with the newest card's slot, not the container corner, so
+              // it doesn't overlap the top card when the stack is non-empty.
+              left: `${stack.length > 0 ? (lefts[stack.length - 1] ?? 0) + xShift : 0}px`,
               top: "0px",
               width: `${STACK_UI.cardWidth}px`,
               height: `${cardHeight}px`,

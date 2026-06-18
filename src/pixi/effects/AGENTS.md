@@ -1,28 +1,35 @@
 # Board effects — `src/pixi/effects/`
 
-Shared, **pure** animation primitives for in-game board feedback (glows, pops, flashes, the active-turn glow). These make the game easy to follow; they live in-game only (Pixi) and are **not** card-face style, so the DOM-parity rule in `src/components/game/AGENTS.md` does not apply here.
+In-game board feedback (entrances, glows, pops, flashes, the active-turn cue). Lives in-game only (Pixi), so the card-face DOM-parity rule in `src/components/game/AGENTS.md` does not apply here.
+
+Two complementary timing systems:
+
+- **GSAP** (`gsap.ts`) for transient, hand-tuned **feel** (anticipation → overshoot → springy settle, sequenced timelines). Import `gsap` from `gsap.ts` (never `"gsap"` directly) so `PixiPlugin` is registered against our Pixi v8 first.
+- **Pure `now`-driven math** (`easing.ts`, `animation.ts`) for simple loops/one-shots advanced from the existing tick — when a full GSAP timeline is overkill.
 
 ## Modules
 
-| File              | What it is                                                                                                                                                                                                                               |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `easing.ts`       | Pure easing functions (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` in 0..1 → eased value.                                                                                                                               |
-| `animation.ts`    | Pure time math: `oneShot(now, dur)` + `oneShotProgress(s, now)` for transient tweens, `pulse(now, period, …)` for loops. Callers pass `now` in — nothing reads the clock.                                                                |
-| `EffectsLayer.ts` | A self-culling pool of transient canvas-space effects (the ETB ground stomp). Mounted by its owner (the board region, just above the felt / below cards) and ticked from that owner's animate loop. Drawing is pure (progress → shapes). |
+| File              | What it is                                                                                                                                                                                                                                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gsap.ts`         | GSAP + `PixiPlugin` registered for Pixi v8. Re-exports `gsap`.                                                                                                                                                                                                                                              |
+| `easing.ts`       | Pure easings (`easeOutCubic`, `easeInOutSine`, `easeOutBack`, `bump`). `t` 0..1 → eased value.                                                                                                                                                                                                              |
+| `animation.ts`    | Pure time math: `oneShot`/`oneShotProgress` (transient), `pulse` (loops). Callers pass `now`.                                                                                                                                                                                                               |
+| `EffectsLayer.ts` | Pooled transient effects via Pixi v8's native `ParticleContainer` (the ETB dust burst). `@pixi/particle-emitter` is v7-only, so we don't use it. Mounted above the felt / below cards; ticked from the region's animate loop.                                                                               |
+| `stomp.ts`        | The creature-ETB stomp: a GSAP squash-and-settle timeline + a dust burst.                                                                                                                                                                                                                                   |
+| `config/`         | One `*.const.ts` per effect (`CRACKLE`, `DUST`, `FLASH`, `SHOCKWAVE`, `STOMP`, `EDGE_GLOW`, `DAMAGE_HIT`, `STAT_POP`, `SUMMONING_FILTER`), re-exported from `config/index.ts`. **All tunable numbers live here** — colors are still theme tokens at the call site. Tweak feel here, not in the effect body. |
 
 ## Principles
 
-- **One tick.** Every effect is advanced from the existing loop: `BoardScene.tick → BoardRegion.animate(now)`, which calls `CardSprite.tickEffects(now)` per card and pulses region-level glows. No new tickers, no per-effect `requestAnimationFrame`.
-- **Pure math, mutable edges.** Timing/easing are pure functions of `now`. The only mutable state is the small set of `OneShot | null` fields on a sprite (and the region's `active` flag).
-- **No animated filters.** Animating a value under a render-to-texture filter re-runs the filter every frame (see the summoning-sick desaturate filter). Keep one-shots to cheap alpha/scale/Graphics redraws.
+- **One Pixi tick.** Per-frame board state is advanced from `BoardScene.tick → BoardRegion.animate(now)` (→ `CardSprite.tickEffects(now)` + `EffectsLayer.tick()`). GSAP runs its own rAF ticker, but it only mutates plain data (e.g. a sprite's `fxScale`) that the region reads each Pixi frame — it never drives the Pixi clock.
+- **Compose, don't fight.** The region owns a sprite's final scale (card + hover, via `entry.scaleBase`). Effects that scale a card write a **multiplier** (`CardSprite.fxScale`) the region multiplies in — they never set `sprite.scale` directly.
+- **No animated render-to-texture filters.** Animating under a filter re-renders it every frame (see the summoning-sick desaturate filter). For motion use particles / GSAP transforms; filters only as cheap static or very short one-shots.
 
 ## Adding an effect
 
-Transient (a one-shot on a card): add a `OneShot | null` field + a `play…(now)` trigger on `CardSprite`, advance it in `tickEffects` via `oneShotProgress`, and fire the trigger from `BoardRegion.updateBattlefield`'s state diff (it already diffs entries/power/toughness/damage). Looping (a breathing glow): keep a flag + draw once, and `pulse()` its alpha in `animate`.
+Hand-tuned motion → a GSAP timeline (see `stomp.ts`), driving `fxScale` or other plain props. Simple loop (breathing glow) → a flag + `pulse()` in `animate`. Particles → `EffectsLayer`. Fire it from `BoardRegion.updateBattlefield`'s state diff (it already diffs new entries / power / toughness / damage).
 
 ## Current effects
 
-- **Entrance** — the `etbGlow` fade + a ground **dust ring** (`EffectsLayer.spawnStomp`, creatures only). Dev-previewable via `BoardScene.previewEtb` (the dev panel's "Flash ETB" button → `triggerEtbGlow`).
-- **Stat pop** (`playStatPop`) — P/T badge bump on power/toughness change.
+- **Entrance stomp** (`stomp.ts`, creatures only) — GSAP squash-and-settle on the card's `fxScale` + the `EffectsLayer.stompGround` reaction (impact flash bloom + expanding shockwave ring + radial cracks + native-particle dust burst) + the existing `etbGlow` fade. The flash/shockwave are the MTGA-style "pop"; cracks/dust carry the weight. Dev-previewable via the panel's "Flash ETB" button → `triggerEtbGlow` → `BoardScene.previewEtb`.
+- **Stat pop** (`CardSprite.playStatPop`) — P/T badge bump on power/toughness change.
 - **Damage hit** (`playDamageHit`) — white flash, alongside the existing shake + `-N` floater.
-- **Active-turn glow** (`BoardRegion.setActive`) — breathing felt-edge glow on the active player's region; plumbed `activePlayerId` → `BoardCanvas` → `BoardScene.setActivePlayer`.

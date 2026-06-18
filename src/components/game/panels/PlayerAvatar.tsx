@@ -11,8 +11,6 @@ import { BadgeOrbit, type OrbitBadge } from "./BadgeOrbit";
 export interface PlayerAvatarProps {
   player: Player;
   badges: OrbitBadge[];
-  /** Per-seat theme colour. Drives the avatar fill and the active-turn
-   *  glow. Resolved by the parent from `themeColors.playerColors[seat]`. */
   seatColor: string;
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
@@ -24,6 +22,8 @@ export interface PlayerAvatarProps {
 }
 
 const AVATAR_PX = 72;
+const LIFE_FLOAT_MIN_PX = 22;
+const LIFE_FLOAT_STEP_PX = 5;
 
 export function PlayerAvatar({
   player,
@@ -41,13 +41,9 @@ export function PlayerAvatar({
   const themeColors = theme.gameTheme;
   const fontSizes = theme.gameTheme.fontSizes;
 
-  // Flash the life badge red when this player loses life. Bumping a key on
-  // each loss remounts the badge so the one-shot CSS animation replays; the
-  // animation self-clears, so no effect/timer is needed.
+  // Bumping a key remounts the badge so the one-shot CSS animation replays.
   const [prevLife, setPrevLife] = useState(player.life);
   const [lifeLossKey, setLifeLossKey] = useState(0);
-  // A floating "+N / −N" rises above the avatar on any life change; bumping a
-  // key remounts it so the one-shot animation replays.
   const [lifeFloatKey, setLifeFloatKey] = useState(0);
   const [lifeDelta, setLifeDelta] = useState(0);
   if (player.life !== prevLife) {
@@ -56,11 +52,13 @@ export function PlayerAvatar({
     setLifeFloatKey((k) => k + 1);
     setPrevLife(player.life);
   }
+  const lifeFloatSize = Math.min(
+    AVATAR_PX,
+    LIFE_FLOAT_MIN_PX + Math.abs(lifeDelta) * LIFE_FLOAT_STEP_PX,
+  );
   const targetableColor = withAlpha(themeColors.promptAction.attackAction, 0.9);
   const selectedTargetColor = themeColors.promptAction.attackAction;
   const priorityColor = themeColors.activeAction.priority;
-  // Show the "waiting on this player" pulse only when the avatar isn't already
-  // carrying a target highlight (those take visual precedence).
   const showPriority = !!isPriorityPlayer && !isTargetable && !isSelectedTarget;
 
   const ringStyle: CSSProperties = isSelectedTarget
@@ -85,7 +83,7 @@ export function PlayerAvatar({
           className="animate-life-float pointer-events-none absolute left-1/2 top-0 z-40 font-extrabold leading-none tabular-nums"
           style={{
             color: lifeDelta < 0 ? themeColors.pt.lethal : themeColors.life,
-            fontSize: fontSizes.life,
+            fontSize: lifeFloatSize,
             textShadow: "0 1px 3px rgba(0, 0, 0, 0.85)",
           }}
         >
@@ -122,6 +120,20 @@ export function PlayerAvatar({
             {getInitials(player.name)}
           </AvatarFallback>
         </Avatar>
+
+        {lifeLossKey > 0 && (
+          <span
+            key={lifeLossKey}
+            aria-hidden
+            className="animate-life-damage-wash pointer-events-none absolute inset-0 z-20 rounded-full"
+            style={{
+              background: `radial-gradient(circle at 50% 50%, transparent 48%, ${withAlpha(
+                themeColors.pt.lethal,
+                0.55,
+              )} 100%)`,
+            }}
+          />
+        )}
 
         {showPriority && (
           <span

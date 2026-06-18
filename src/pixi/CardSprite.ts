@@ -7,6 +7,7 @@ import {
   TextStyle,
   FillGradient,
   ColorMatrixFilter,
+  type DestroyOptions,
 } from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
@@ -30,7 +31,10 @@ import { asDeckCard } from "@/lib/decks";
 import { DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { applyIcon } from "./panelIcons";
 import { type OneShot, oneShot, oneShotProgress, pulse } from "./effects/animation";
+import { gsap } from "./effects/gsap";
 import { bump } from "./effects/easing";
+import { animationsEnabled } from "./effects/enabled";
+import { DAMAGE_HIT, EDGE_GLOW, STAT_POP, SUMMONING_FILTER } from "./effects/config";
 
 let activeTheme: Theme = getTheme();
 
@@ -102,6 +106,9 @@ const NAME_STYLE = registerTintedTextStyle(
   }),
 );
 
+// Not registered as a tinted style: the frame text color is contrast-aware
+// (dark on light tint bars, light on the dark art scrim) and set per-card in
+// `renderFrame`, so each frame Text gets its own cloned style instance.
 const FRAME_NAME_STYLE = new TextStyle({
   fontFamily: "Inter, system-ui, -apple-system, sans-serif",
   fontSize: 7,
@@ -128,6 +135,8 @@ const FOIL_STAR_STYLE = new TextStyle({
   fill: 0xffe27a,
 });
 
+/** Hard-coded rather than themed because foil treatment reads "metallic gold"
+ *  across every preset; the surrounding card art carries the theme. */
 const FOIL_RING_COLOR = 0xffd87a;
 
 const CARD_RADIUS = 6;
@@ -221,11 +230,6 @@ function getCounterColor(type: string): number {
   return hexToNum(key ? palette[key] : palette.default);
 }
 
-const COUNTER_TEXT_LABELS: Record<string, string> = {
-  P1P1: "+1/+1",
-  M1M1: "−1/−1",
-};
-
 const COUNTER_ICON_NAMES: Record<string, string> = {
   Loyalty: "vibrating-shield",
   Charge: "lightning-trio",
@@ -277,6 +281,7 @@ export class CardSprite extends Container {
   private frameScrimGrad: FillGradient | null = null;
   private frameScrimKey = "";
   private sickFilter: ColorMatrixFilter | null = null;
+  private lastFilterKey = "";
   private frameTypeBandH = 0;
   private frameNameBandH = 0;
   private frameCounterReserve = 0;
@@ -288,6 +293,9 @@ export class CardSprite extends Container {
   private hitFlashGfx: Graphics;
   private statPopFx: OneShot | null = null;
   private hitFlashFx: OneShot | null = null;
+  /** Squash multiplier driven by GSAP (entrance stomp); the region multiplies
+   *  it into the base/hover scale each frame so the two don't fight. */
+  readonly fxScale = { x: 1, y: 1 };
   private ringGfx: Graphics;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -485,6 +493,8 @@ export class CardSprite extends Container {
     this.hoverDebugGfx.fill({ color: hexToNum(activeTheme.gameTheme.success), alpha: 0.28 });
   }
 
+  // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
+  // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
     const key = `name:${this.card.name.toLowerCase()}`;
     const sf = useScryfallStore.getState().cards[key]?.card?.info;
@@ -500,7 +510,9 @@ export class CardSprite extends Container {
       this.imageSpr.anchor.set(0.5, 0.5);
       this.imageSpr.x = CARD_W / 2;
       this.imageSpr.y = CARD_H / 2;
-      this.imageSpr.rotation = -Math.PI / 2;
+      // +90° (clockwise) to match the DOM renderers (CardPreview/Card use
+      // `rotate-90`); -90° here rendered horizontal cards upside-down.
+      this.imageSpr.rotation = Math.PI / 2;
       const preHeight = CARD_W;
       const preWidth = Math.round((preHeight * 5) / 7);
       this.imageSpr.setSize(preWidth, preHeight);
@@ -553,6 +565,10 @@ export class CardSprite extends Container {
   }
 
   restyle(): void {
+    // Repaint synchronously so the frame switches style in the same frame as the
+    // keyword/mana strips; loadImage repaints again after the texture resolves.
+    // Otherwise the strips lead the bars/border by one async gap.
+    this.renderFrame();
     this.loadImage();
     this.updateKeywords();
     this.updateMana();
@@ -650,6 +666,8 @@ export class CardSprite extends Container {
     this.frameGfx.stroke({ color: tintNum, width: 1.5 });
   }
 
+  /** Cached per (top, color) so the gradient texture isn't rebuilt on every
+   *  state tick. */
   private scrimGradient(top: number, shadowHex: string): FillGradient {
     const key = `${top.toFixed(2)}|${shadowHex}`;
     if (this.frameScrimKey !== key || !this.frameScrimGrad) {
@@ -673,9 +691,13 @@ export class CardSprite extends Container {
     return this._imageLoaded;
   }
 
-  // Must not touch `rotation` or `alpha`: the board/hand animation ticks own
-  // those; writing them here would snap them back to defaults on every state
-  // update, causing a re-lerp flicker.
+  /**
+   * Updates the card's visible content (art, P/T, badges, counters, keywords)
+   * but does NOT touch `rotation` or `alpha` — the board/hand animation ticks
+   * own those (the hand lerps rotation to the fan angle; the battlefield owns
+   * alpha for combat dim / phased-out / exit fade). Writing them here would snap
+   * them back to defaults on every state update, causing a re-lerp flicker.
+   */
   updateCardContent(card: GameCard): void {
     const nameChanged =
       card.name !== this.card.name ||
@@ -722,9 +744,9 @@ export class CardSprite extends Container {
     const color = attacking
       ? hexToNum(activeTheme.gameTheme.pt.lethal)
       : hexToNum(activeTheme.gameTheme.textOnTinted);
-    const maxAlpha = attacking ? 0.9 : 0.7;
-    const layers = 6;
-    const step = 1.6;
+    const maxAlpha = attacking ? EDGE_GLOW.attackingMaxAlpha : EDGE_GLOW.sickMaxAlpha;
+    const layers = EDGE_GLOW.layers;
+    const step = EDGE_GLOW.insetStep;
     for (let i = 0; i < layers; i++) {
       const inset = i * step;
       this.edgeGlowGfx.roundRect(
@@ -734,7 +756,11 @@ export class CardSprite extends Container {
         CARD_H - 2 * inset,
         Math.max(0, CARD_RADIUS - inset),
       );
-      this.edgeGlowGfx.stroke({ color, width: 2.2, alpha: maxAlpha * (1 - i / layers) });
+      this.edgeGlowGfx.stroke({
+        color,
+        width: EDGE_GLOW.strokeWidth,
+        alpha: maxAlpha * (1 - i / layers),
+      });
     }
     this.edgeGlowGfx.visible = true;
     this.edgeGlowGfx.alpha = 1;
@@ -742,18 +768,22 @@ export class CardSprite extends Container {
   }
 
   playStatPop(now: number): void {
-    this.statPopFx = oneShot(now, 360);
+    this.statPopFx = oneShot(now, STAT_POP.durationMs);
   }
 
   playDamageHit(now: number): void {
-    this.hitFlashFx = oneShot(now, 260);
+    this.hitFlashFx = oneShot(now, DAMAGE_HIT.durationMs);
   }
 
   tickEffects(now: number): void {
-    if (this.glowPulsing) this.edgeGlowGfx.alpha = pulse(now, 1600, 0.5, 0.95);
+    if (this.glowPulsing) {
+      this.edgeGlowGfx.alpha = animationsEnabled()
+        ? pulse(now, EDGE_GLOW.pulsePeriodMs, EDGE_GLOW.pulseMin, EDGE_GLOW.pulseMax)
+        : EDGE_GLOW.staticAlpha;
+    }
 
     const sp = oneShotProgress(this.statPopFx, now);
-    if (sp != null) this.ptContainer.scale.set(1 + 0.35 * bump(sp));
+    if (sp != null) this.ptContainer.scale.set(1 + STAT_POP.bumpScale * bump(sp));
     else if (this.statPopFx) {
       this.statPopFx = null;
       this.ptContainer.scale.set(1);
@@ -765,7 +795,7 @@ export class CardSprite extends Container {
       this.hitFlashGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
       this.hitFlashGfx.fill({
         color: hexToNum(activeTheme.gameTheme.textOnTinted),
-        alpha: 0.5 * bump(fp),
+        alpha: DAMAGE_HIT.maxAlpha * bump(fp),
       });
       this.hitFlashGfx.visible = true;
     } else if (this.hitFlashFx) {
@@ -775,6 +805,15 @@ export class CardSprite extends Container {
     }
   }
 
+  destroy(options?: DestroyOptions): void {
+    // If the card is removed mid-stomp the GSAP tween would keep mutating a
+    // destroyed sprite's fxScale forever; kill it before teardown.
+    gsap.killTweensOf(this.fxScale);
+    super.destroy(options);
+  }
+
+  /** Phased-out cards are desaturated here, but their alpha fade is owned by the
+   *  board tick. */
   private updateCardFilter(): void {
     const card = this.card;
     const sick =
@@ -782,17 +821,21 @@ export class CardSprite extends Container {
       !!card.summoningSick &&
       (card.types?.some((t) => t.toLowerCase() === "creature") ?? false);
     const phased = this.isBattlefield && !!card.phasedOut;
-    if (!sick && !phased) {
-      if (this.filters) this.filters = [];
+    // Rebuild only when the state changes — updateCardContent runs every tick.
+    const key = sick ? "sick" : phased ? "phased" : "none";
+    if (key === this.lastFilterKey) return;
+    this.lastFilterKey = key;
+    if (key === "none") {
+      this.filters = [];
       return;
     }
     if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();
     const f = this.sickFilter;
     if (sick) {
-      f.saturate(-1.3, false);
-      f.brightness(0.78, true);
+      f.saturate(SUMMONING_FILTER.sickSaturate, false);
+      f.brightness(SUMMONING_FILTER.sickBrightness, true);
     } else {
-      f.saturate(-1.5, false);
+      f.saturate(SUMMONING_FILTER.phasedSaturate, false);
     }
     this.filters = [f];
   }
@@ -940,7 +983,9 @@ export class CardSprite extends Container {
   private updatePT(): void {
     const card = this.card;
     const isCreature = card.types?.some((t) => t.toLowerCase() === "creature");
-    if (!isCreature || !card.power || !card.toughness) {
+    // Hand cards already carry the printed P/T; drawing our overlay on top would
+    // double it at a mismatched size, so the badge is battlefield-only.
+    if (!this.isBattlefield || !isCreature || !card.power || !card.toughness) {
       this.ptContainer.visible = false;
       return;
     }
@@ -957,6 +1002,7 @@ export class CardSprite extends Container {
 
     this.ptText.x = 3;
     this.ptText.y = 2;
+    // Pivot at the badge center so the stat-pop scales in place, not from a corner.
     this.ptContainer.pivot.set(tw / 2, th / 2);
     this.ptContainer.x = CARD_W - tw - 3 + tw / 2;
     this.ptContainer.y =
@@ -981,6 +1027,8 @@ export class CardSprite extends Container {
 
     this.badgeText.x = 2.5;
     this.badgeText.y = 1;
+    // Below the title line, not on top of it — a top-centered badge would cover
+    // the mana cost cluster when the hand hover scales the card up.
     const titleBandY = Math.round(CARD_H * BADGE_TITLE_BAND_FRAC);
     this.badgeContainer.x = (CARD_W - bw) / 2;
     this.badgeContainer.y = titleBandY;
@@ -991,7 +1039,11 @@ export class CardSprite extends Container {
     const counters = this.card.counters;
     if (!counters) return;
 
-    const present = Object.entries(counters).filter(([, n]) => n > 0);
+    // P1P1 / M1M1 are deliberately excluded — the net buff/debuff is conveyed by
+    // the green/red P/T color instead.
+    const present = Object.entries(counters).filter(
+      ([t, n]) => n > 0 && t !== "P1P1" && t !== "M1M1",
+    );
     if (present.length === 0) return;
     const entries = present.slice(0, MAX_VISIBLE_COUNTERS);
     const hiddenTypeCount = present.length - entries.length;
@@ -1006,20 +1058,9 @@ export class CardSprite extends Container {
 
     let offsetX = 3;
     for (const [type, count] of entries) {
-      const isPlus = type === "P1P1";
-      const isMinus = type === "M1M1";
-      const isPM = isPlus || isMinus;
-      const color = isPlus
-        ? hexToNum(activeTheme.gameTheme.pt.buffed)
-        : isMinus
-          ? hexToNum(activeTheme.gameTheme.pt.debuffed)
-          : getCounterColor(type);
-      const iconName = isPM ? undefined : COUNTER_ICON_NAMES[type];
-      const textLabel = isPlus
-        ? `+${count}`
-        : isMinus
-          ? `-${count}`
-          : (COUNTER_TEXT_LABELS[type] ?? type.slice(0, 3));
+      const color = getCounterColor(type);
+      const iconName = COUNTER_ICON_NAMES[type];
+      const textLabel = type.slice(0, 3);
 
       const badge = new Container();
       const bg = new Graphics();
@@ -1044,7 +1085,7 @@ export class CardSprite extends Container {
 
       let countText: Text | null = null;
       let countWidth = 0;
-      if (count > 1 && !isPM) {
+      if (count > 1) {
         countText = new Text({ text: ` ${count}`, style: COUNTER_STYLE });
         countText.resolution = TEXT_RASTER_RESOLUTION;
         countText.anchor.set(0, 0.5);
@@ -1098,6 +1139,8 @@ export class CardSprite extends Container {
     const alpha = Math.min(0.5, (tough > 0 ? dmg / tough : 1) * 0.5);
     this.damageGfx.visible = true;
     this.damageGfx.clear();
+    // Mini-frame washes only the art window between the bars so they stay clean;
+    // art / realistic washes the whole rounded card.
     if (this.frameNameBandH > 0) {
       const top = this.frameNameBandH;
       this.damageGfx.rect(0, top, CARD_W, CARD_H - top - this.frameTypeBandH);

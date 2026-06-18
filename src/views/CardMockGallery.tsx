@@ -7,6 +7,8 @@ import {
   BattlefieldCardFace,
   type BattlefieldCardFaceVariant,
 } from "@/components/game/BattlefieldCardFace";
+import { BoardPlayground } from "@/components/dev/BoardPlayground";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 type GalleryVariant = BattlefieldCardFaceVariant | "realistic";
 
@@ -104,7 +106,10 @@ function GalleryRow({
 }
 
 export default function CardMockGallery() {
-  const [variant, setVariant] = useState<GalleryVariant>("art");
+  // Bound to the real preference so the one toggle drives both the DOM previews
+  // and the live Pixi board playground below (which reads the same pref).
+  const variant = usePreferencesStore((s) => s.battlefieldCardStyle) as GalleryVariant;
+  const setVariant = usePreferencesStore((s) => s.setBattlefieldCardStyle);
   const [showReal, setShowReal] = useState(false);
 
   return (
@@ -134,6 +139,13 @@ export default function CardMockGallery() {
           show real Scryfall card beside
         </label>
       </header>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          Pixi board playground — spawn cards + poke them to test in-game effects
+        </h2>
+        <BoardPlayground />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Battlefield size (70×98)</h2>

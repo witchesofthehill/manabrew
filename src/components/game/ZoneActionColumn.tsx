@@ -11,9 +11,8 @@ import type { ZonePanelItem } from "@/stores/usePreferencesStore";
 
 export interface ZoneActionColumnProps {
   libraryCount: number;
-  /** Full graveyard cards — top card (last element) renders as the tile's art. */
+  // Last element is the top card, rendered as the tile's art.
   graveyard?: GameCard[];
-  /** Full exile cards — top card (last element) renders as the tile's art. */
   exile?: GameCard[];
   order?: ZonePanelItem[];
   onOpenLibrary?: () => void;
@@ -24,30 +23,16 @@ export interface ZoneActionColumnProps {
   hasTargetInGraveyard?: boolean;
   hasTargetInExile?: boolean;
   targetHostile?: boolean;
-  /** Commander cards to render in a leading tile. When absent or empty, no command zone tile is shown. */
   commanders?: GameCard[];
   onOpenCommandZone?: () => void;
-  /** Cast the commander on tap (only meaningful for the local player). */
   onCastCommander?: (cardId: string) => void;
-  /** Begin a drag-to-cast gesture on the commander card (mirrors the
-   *  hand-card drag flow). Local player only. */
   onCommanderDragStart?: (card: GameCard, e: React.MouseEvent) => void;
-  /** Id of the card currently being drag-cast — passed through to the
-   *  command zone tile so it can render empty while the drag is live. */
-  draggingCardId?: string | null;
-  /** Hover preview for the commander card. */
   onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
-  /** Layout direction. Defaults to "vertical" for backwards compatibility. */
   orientation?: "vertical" | "horizontal";
-  /** Horizontal-only: wrap the tiles into this many columns (e.g. 2 → a 2×2
-   *  grid). Overrides `wrap`. */
+  // Horizontal-only: wrap the tiles into this many columns. Overrides `wrap`.
   columns?: number;
-  /** Off for opponents so the panel keeps a fixed height the board can reserve. */
+  // Off for opponents so the panel keeps a fixed height the board can reserve.
   wrap?: boolean;
-  /** Horizontal-only: rendered as the first flex item so it wraps
-   *  alongside the tiles when the row runs out of width. Used by
-   *  `PlayerPanel` to pack the avatar into the same `flex-wrap` as
-   *  the zones. */
   leading?: ReactNode;
 }
 
@@ -166,7 +151,6 @@ export function ZoneActionColumn({
   onOpenCommandZone,
   onCastCommander,
   onCommanderDragStart,
-  draggingCardId,
   onHoverCard,
   orientation = "vertical",
   columns,
@@ -238,7 +222,6 @@ export function ZoneActionColumn({
           onStartDrag={onCommanderDragStart}
           onOpenZone={onOpenCommandZone}
           onHoverCard={onHoverCard}
-          draggingCardId={draggingCardId}
         />
       )}
       {order.map((item) => items[item])}

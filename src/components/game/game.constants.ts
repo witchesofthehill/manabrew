@@ -17,7 +17,6 @@ export const PHASES = [
 
 export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
 
-/** Width reserved for the Pixi player column on the left of the battlefield. */
 export const ZONE_COLUMN_RESERVED_PX = 120;
 
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
@@ -59,7 +58,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["gameOver"]: "Game Over",
 };
 
-/** Card status badge definitions — label + Tailwind color classes */
 export const CARD_BADGES = {
   exerted: { label: "EXERTED", style: "bg-card-status-exerted/90 text-text-on-tinted" },
   morph: { label: "MORPH", style: "bg-card-status-morph/90 text-text-on-tinted" },
@@ -72,15 +70,10 @@ export const CARD_BADGES = {
   copy: { label: "COPY", style: "bg-card-status-copy/90 text-text-on-tinted" },
 } as const;
 
-/** Logical footprint of battlefield cards. */
 export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;
 
-/** Downward slide (px) applied to the opponent battlefield canvas during
- *  combat staging so staged attackers descend over the center seam and sit
- *  just on top of the blockers facing them (MTGA-style). Roughly the phase
- *  strip height (80px) plus the staged edge insets, with a little overlap. */
 export const COMBAT_STAGE_OPPONENT_SHIFT = 100;
 
 export const RING_ABILITIES: readonly string[] = [

@@ -1,13 +1,3 @@
-/**
- * Pure helpers for producing `ArrowSpec[]` from the current game state.
- *
- * Arrows are reserved for combat declarations (attack/block) and the
- * placement preview when casting a permanent spell.
- *
- * The Pixi renderer resolves these specs to canvas-local coordinates
- * every tick so arrows follow animating sprites.
- */
-
 import type { ArrowSpec } from "@/pixi/types";
 import type { StackObject, StackTarget } from "@/types/manabrew";
 import { TargetingIntent } from "@/types/promptType";
@@ -19,21 +9,12 @@ export interface BuildArrowSpecsOptions {
   blockAssignments: { blockerId: string; attackerId: string }[];
   combatAssignments: { blockerId: string; attackerId: string }[];
   battlefieldAttachments?: { childId: string; parentId: string }[];
-  /** Locked-in attackers from the engine's battlefield state — every
-   *  battlefield card with `isAttacking && attackingPlayerId`. Drives
-   *  the persistent attack arrow shown throughout combat (after
-   *  declaration, during blockers, during damage). Pre-commit pending
-   *  attackers are signalled via card-tap visuals only (Game.tsx),
-   *  never an arrow — multiple opponents / planeswalkers / sieges make
-   *  any "default" destination misleading. */
+  // Pre-commit pending attackers are signalled via card-tap visuals only
+  // (Game.tsx), never an arrow — multiple opponents / planeswalkers / sieges
+  // make any "default" destination misleading.
   activeAttackers: { attackerId: string; defenderId: string }[];
   stack?: StackObject[];
-  /** If set, treat this stack object as the "active" source for the
-   *  placement arrow (usually the hovered one) instead of the top-of-stack. */
   activeStackObjectId?: string | null;
-  /** When true, block relationships are conveyed by MTGA-style spatial
-   *  staging (blockers line up under their attacker) instead of arrows, so
-   *  no `block` arrows are emitted. Attack arrows are unaffected. */
   stageBlockers?: boolean;
 }
 
@@ -73,8 +54,6 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     }
   }
 
-  // Locked-in attackers: persist throughout combat (declared → blockers →
-  // damage) using the engine's per-card attacking state.
   for (const { attackerId, defenderId } of activeAttackers) {
     specs.push({
       from: { kind: "card", id: attackerId },
@@ -83,10 +62,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     });
   }
 
-  // Block relationships are shown by spatial staging, not arrows, when
-  // `stageBlockers` is on (blockers line up beneath their attacker).
   if (!stageBlockers) {
-    // Mid-selection block assignments while ChooseBlockers is active.
     if (promptType === "chooseBlockers") {
       for (const { blockerId, attackerId } of blockAssignments) {
         specs.push({
@@ -97,8 +73,6 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
       }
     }
 
-    // Locked-in block assignments from the engine combat state (persist
-    // through damage assignment / end of combat).
     for (const { blockerId, attackerId } of combatAssignments) {
       specs.push({
         from: { kind: "card", id: blockerId },
@@ -108,8 +82,6 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     }
   }
 
-  // Placement ghost preview stays as an arrow (dashed marching-ants) — it
-  // signals "drop here" rather than a targeting relationship.
   const activeObj = getActiveStackObject(stack, activeStackObjectId);
   if (activeObj && activeObj.isPermanentSpell === true) {
     const hasTargets =
@@ -126,10 +98,6 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     }
   }
 
-  // Attach relationships: any stack object whose chosen targets carry the
-  // `Attach` intent (Equipment / Aura targeting) emits a rune-style
-  // arrow from the spell to its target. Pointer specs deliberately skip
-  // these intents so we don't double-render.
   if (activeObj) {
     const objAny = activeObj as unknown as Record<string, unknown>;
     const targets = Array.isArray(objAny.targets) ? (objAny.targets as StackTarget[]) : [];

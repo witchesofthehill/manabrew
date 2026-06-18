@@ -449,7 +449,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       const gc =
         myPlayer?.hand.find((c) => c.id === cardId) ??
         myPlayer?.graveyard.find((c) => c.id === cardId) ??
-        myPlayer?.exile.find((c) => c.id === cardId);
+        myPlayer?.exile.find((c) => c.id === cardId) ??
+        myPlayer?.commandZone.find((c) => c.id === cardId);
       if (!gc) throw new Error(`No game card to cast: ${cardId}`);
       const card = asDeckCard(gameDecks[gc.ownerId], gc);
       openPlayModePicker({

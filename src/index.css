@@ -139,6 +139,7 @@
   --animate-card-stack-flash-in: card-stack-flash-in 560ms cubic-bezier(0.18, 0.72, 0.25, 1) both;
   --animate-player-turn-flash: player-turn-flash var(--flash-duration, 1000ms) ease-out forwards;
   --animate-life-flash: life-flash 600ms ease-out;
+  --animate-life-damage-wash: life-damage-wash 550ms ease-out;
   --animate-player-targetable-pulse: player-targetable-pulse 1.5s ease-in-out infinite;
   --animate-player-priority-pulse: player-priority-pulse 1.6s ease-in-out infinite;
   --animate-life-float: life-float 900ms ease-out forwards;
@@ -252,6 +253,20 @@
     }
   }
 
+  /* Red wash over the whole avatar face when the player loses life — the
+     player-scale echo of the card damage wash. `--life-wash-color` set inline. */
+  @keyframes life-damage-wash {
+    0% {
+      opacity: 0;
+    }
+    18% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
   @keyframes player-turn-flash {
     0% {
       box-shadow: 0 0 0 0 transparent;
@@ -324,11 +339,8 @@
     }
   }
 
-  /*
-   * Dice roll animation. Per-die randomization (rotation amount, fall delay)
-   * is applied via inline CSS variables — see `DiceRollAnimation.tsx`.
-   * Phases: spawn+tumble → settle pop → bounce decay → dwell.
-   */
+  /* Per-die randomization (rotation amount, fall delay) is applied via inline
+     CSS variables — see `DiceRollAnimation.tsx`. */
   @keyframes dice-roll {
     0% {
       opacity: 0;
@@ -402,9 +414,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Kill the companion tap flash and stack flashes for users with vestibular
-     sensitivity. Keep functional opacity transitions but skip the keyframed
-     decorative ones. */
   .animate-companion-tap-flash,
   .animate-companion-die-tumble,
   .animate-card-flash,
@@ -415,6 +424,7 @@
   .animate-player-targetable-pulse,
   .animate-player-priority-pulse,
   .animate-life-float,
+  .animate-life-damage-wash,
   .animate-dice-roll {
     animation: none !important;
   }
@@ -450,7 +460,6 @@
 }
 
 @layer base {
-  /* ── Light theme — clean slate-tinted Material ──────────────── */
   :root {
     --background: 214 22% 96%; /* #EFF1F5 — light slate wash */
     --foreground: 220 18% 14%; /* #1D2030 — near-black slate */
@@ -480,7 +489,6 @@
     --overlay: 0 0% 0%; /* black — card overlays */
   }
 
-  /* ── Dark theme — deep charcoal + slate accents, no navy ────── */
   .dark {
     --background: 220 7% 8%; /* #121316 — near-black charcoal */
     --foreground: 214 12% 92%; /* #E6E8EC — cool off-white */
@@ -537,18 +545,13 @@
   font-size-adjust: none;
 }
 
-/* While a targeting glyph is following the cursor, hide the native OS
-   pointer everywhere inside the board so the floating glyph reads as
-   the cursor itself. Toggled by `Game.tsx` via the
-   `targeting-cursor-hidden` class. */
+/* Hide the OS pointer so the floating glyph reads as the cursor itself.
+   Toggled by `Game.tsx`. */
 .targeting-cursor-hidden,
 .targeting-cursor-hidden * {
   cursor: none !important;
 }
 
-/* Animated targeting glyph: a pulsing colored glow under a gently floating
-   intent icon — the "flare" of the cursor, ported from the Pixi pointer layer
-   (1400 ms pulse / sine float) into the DOM cursor. */
 @keyframes targeting-cursor-pulse {
   0%,
   100% {
@@ -576,7 +579,6 @@
   animation: targeting-cursor-float 1600ms ease-in-out infinite;
 }
 
-/* Playable card border highlight in hand */
 .playable-card {
   /* Both vars are always set by `Game.tsx` from the active theme — no
      literal rgba fallback needed. */

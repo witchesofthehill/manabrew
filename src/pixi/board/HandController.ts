@@ -19,6 +19,7 @@ import {
   SNAP_HAND_SCALE,
   SNAP_PX,
   SNAP_ROT,
+  HAND_MAX_ZONE_HEIGHT_FRACTION,
   Z_HAND_CONTAINER,
   Z_HAND_HOVERED,
 } from "../constants";
@@ -79,7 +80,12 @@ export class HandController {
   }
 
   setScale(scale: number): void {
-    this.vScale = scale;
+    // Shrink-only cap so a width-derived scale can't make the fan taller than
+    // its region and overflow the battlefield on a short window.
+    const zoneH = this.host.getPlayZone().height;
+    const maxScale =
+      zoneH > 0 ? (zoneH * HAND_MAX_ZONE_HEIGHT_FRACTION) / HAND_CARD_BASE.cardH : scale;
+    this.vScale = Math.min(scale, maxScale);
   }
 
   setDropActive(active: boolean): void {
@@ -138,6 +144,12 @@ export class HandController {
     const bottomY = this.getBottomY();
     const hitZones: HandHitZone[] = [];
 
+    // The fan only reshapes for a drag that originates from the hand. A card
+    // dragged from the command zone sets `draggingCardId` too, but must not sink
+    // the hand out of the way.
+    const draggingInHand =
+      state.draggingCardId != null && state.cards.some((c) => c.id === state.draggingCardId);
+
     for (let i = 0; i < state.cards.length; i++) {
       const card = state.cards[i]!;
       const l = layout[i]!;
@@ -161,9 +173,7 @@ export class HandController {
       const isCastingPermanent = isCastDrag && state.draggingIsPermanent === true;
       const isCastingSpell = isCastDrag && state.draggingIsPermanent !== true;
       const reshapeFan =
-        !selectionMode &&
-        state.draggingCardId != null &&
-        (state.draggingIsPermanent === true || this.dropActive);
+        !selectionMode && draggingInHand && (state.draggingIsPermanent === true || this.dropActive);
       const castOffset = reshapeFan
         ? Math.round(
             (isCastingPermanent ? CAST_DRAG_CARD_DROP_PX : CAST_DRAG_HAND_SINK_PX) * this.vScale,
@@ -368,8 +378,11 @@ export class HandController {
 
   destroy(): void {
     this.cancelHoverHoldTimer();
+    for (const sprite of this.sprites.values()) safeDestroy(sprite);
     this.sprites.clear();
+    this.targets.clear();
     this.hitZones = [];
+    this.container.destroy({ children: true });
   }
 
   private pruneRemovedSprites(currentIds: Set<string>): void {

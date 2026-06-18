@@ -80,7 +80,6 @@ export class BoardScene {
   private perfMinFps = Infinity;
   private perfMaxFps = 0;
   private perfLastFlush = 0;
-  private activePlayerId: string | null = null;
 
   private regions = new Map<string, RegionRecord>();
   private localPlayerId: string | null = null;
@@ -124,6 +123,8 @@ export class BoardScene {
   private cursorViewportY = 0;
   private cursorListener: (e: MouseEvent) => void;
   private canvasLeaveListener: () => void;
+  private onStageMove = (e: FederatedPointerEvent): void => this.onGlobalMove(e);
+  private onStageUp = (): void => this.onGlobalUp();
 
   constructor(app: Application, callbacks: GameCanvasCallbacks) {
     this.app = app;
@@ -156,9 +157,9 @@ export class BoardScene {
     this.floaterLayer.zIndex = 9000;
     this.root.addChild(this.floaterLayer);
 
-    app.stage.on("pointermove", (e: FederatedPointerEvent) => this.onGlobalMove(e));
-    app.stage.on("pointerup", () => this.onGlobalUp());
-    app.stage.on("pointerupoutside", () => this.onGlobalUp());
+    app.stage.on("pointermove", this.onStageMove);
+    app.stage.on("pointerup", this.onStageUp);
+    app.stage.on("pointerupoutside", this.onStageUp);
 
     this.cursorListener = (e: MouseEvent) => {
       this.cursorViewportX = e.clientX;
@@ -207,7 +208,6 @@ export class BoardScene {
       );
       region.container.zIndex = spec.isLocal ? 100 : 50;
       region.setAutoSort(this.autoSort);
-      region.setActive(spec.playerId === this.activePlayerId);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -234,6 +234,18 @@ export class BoardScene {
     this.hand = new HandController(this.makeHandHost(), this.root);
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
+    region.enableFeltMarquee((e) => this.onFeltDown(e));
+  }
+
+  private onFeltDown(e: FederatedPointerEvent): void {
+    if (this.destroyed) return;
+    const selection = this.selection;
+    if (!selection) return;
+    if (this.declareBlockers) return;
+    const pos = this.root.toLocal(e.global);
+    // Don't clear on press — endMarquee handles it on release, so a stray press
+    // doesn't wipe the current selection before any movement.
+    selection.startMarquee(pos.x, pos.y, e.shiftKey);
   }
 
   private positionPhaseStrip(layout: BoardLayout): void {
@@ -446,12 +458,6 @@ export class BoardScene {
   setAutoSort(value: boolean): void {
     this.autoSort = value;
     for (const rec of this.regions.values()) rec.region.setAutoSort(value);
-  }
-
-  setActivePlayer(playerId: string | null): void {
-    if (this.activePlayerId === playerId) return;
-    this.activePlayerId = playerId;
-    for (const [pid, rec] of this.regions) rec.region.setActive(pid === playerId);
   }
 
   previewEtb(): void {
@@ -892,8 +898,18 @@ export class BoardScene {
   }
 
   private captureStackSeeds(): void {
-    const canvasRect = this.app.canvas.getBoundingClientRect();
     const now = performance.now();
+    // Skip the per-node getBoundingClientRect scan (forces a layout reflow) when
+    // the stack is empty — the common case. Captured seeds persist via their TTL.
+    if (document.querySelector("[data-stack-object-id]") === null) {
+      if (this.stackCardSeeds.size > 0) {
+        for (const [id, seed] of this.stackCardSeeds) {
+          if (now - seed.ts > STACK_SEED_TTL_MS) this.stackCardSeeds.delete(id);
+        }
+      }
+      return;
+    }
+    const canvasRect = this.app.canvas.getBoundingClientRect();
     const els = document.querySelectorAll<HTMLElement>("[data-stack-object-id][data-card-id]");
     for (const el of els) {
       const cardId = el.dataset["cardId"];
@@ -931,10 +947,13 @@ export class BoardScene {
       resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
     }
     if (this.castingArrow) {
-      const from = this.resolveArrowEndpoint(
-        { kind: "card", id: this.castingArrow.sourceCardId },
-        canvasRect,
-      );
+      // Resolve via the stack's `data-casting-card` marker first — robust for
+      // casts from any zone (incl. the command zone, which has no sprite); fall
+      // back to the card resolver for battlefield ability sources.
+      const id = this.castingArrow.sourceCardId;
+      const from =
+        this.domCenterCanvasLocal(`[data-casting-card="${CSS.escape(id)}"]`, canvasRect) ??
+        this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
         const t = this.theme.gameTheme.pointer;
         resolved.push({
@@ -964,7 +983,12 @@ export class BoardScene {
     }
     if (castDragging) {
       const id = this.hand?.getDraggingCardId();
-      const from = id ? (this.hand?.getCardPosition(id) ?? null) : null;
+      // A permanent dragged from a zone with no sprite (the command zone) falls
+      // back to its React element by card id.
+      const from = id
+        ? (this.hand?.getCardPosition(id) ??
+          this.domCenterCanvasLocal(`[data-card-id="${CSS.escape(id)}"]`, canvasRect))
+        : null;
       if (from) {
         resolved.push({
           fromX: from.x,
@@ -1024,9 +1048,9 @@ export class BoardScene {
     window.removeEventListener("mousemove", this.cursorListener);
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);
-    this.app.stage.off("pointermove");
-    this.app.stage.off("pointerup");
-    this.app.stage.off("pointerupoutside");
+    this.app.stage.off("pointermove", this.onStageMove);
+    this.app.stage.off("pointerup", this.onStageUp);
+    this.app.stage.off("pointerupoutside", this.onStageUp);
     try {
       this.dragHandler.destroy();
       this.phaseStrip.destroy();

@@ -143,7 +143,15 @@ export default function Game({ exitTo }: GameProps = {}) {
     width: number;
     height: number;
   } | null>(null);
+  // Only poll the panel rect while the stack is on screen — otherwise this rAF
+  // would run a getBoundingClientRect + querySelector reflow every frame for the
+  // whole game.
+  const hasStack = (gameView?.stack?.length ?? 0) > 0;
   useEffect(() => {
+    if (!hasStack) {
+      setStackBlockerRect(null);
+      return;
+    }
     let raf = 0;
     let lastKey = "";
     const tick = () => {
@@ -172,7 +180,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [hasStack]);
 
   const activePrompt = manualApi || isWaitingForResponse ? null : currentPrompt;
   const promptType = activePrompt?.input.type;

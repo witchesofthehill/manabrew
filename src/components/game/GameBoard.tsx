@@ -132,7 +132,12 @@ interface GameBoardProps {
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
-  onTapLandAbility?: (cardId: string, abilityIndex: number, color?: string) => void;
+  onTapLandAbility?: (
+    cardId: string,
+    abilityIndex: number,
+    color?: string,
+    actionId?: string,
+  ) => void;
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
 

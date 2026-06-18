@@ -20,7 +20,7 @@ import type { BoardScene } from "@/pixi/board/BoardScene";
 import { PERIMETER_SIDE_FRACTION } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
-import { getExpandedManaAbilities } from "@/components/game/manaUtils";
+import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { useHandScale } from "@/hooks/useHandScale";
@@ -319,7 +319,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       for (const a of chooseActionInput.actions) {
         if (a.type !== "activateAbility" || !a.isManaAbility) continue;
         const arr = map.get(a.cardId) ?? [];
-        const expanded = getExpandedManaAbilities(a.cardId, [
+        const displayed = getDisplayedManaAbilities(a.cardId, [
           {
             cardId: a.cardId,
             abilityIndex: a.abilityIndex,
@@ -327,10 +327,10 @@ export default function Game({ exitTo }: GameProps = {}) {
             isManaAbility: true,
             cost: a.cost,
             producedMana: a.producedMana,
-            producedManaAmount: a.producedManaAmount,
+            actionId: a.id,
           },
         ]);
-        arr.push(...expanded.map((ab) => toAbilityOption(ab, a.id)));
+        arr.push(...displayed.map((ab) => toAbilityOption(ab, ab.actionId)));
         map.set(a.cardId, arr);
       }
       return map;
@@ -347,7 +347,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     for (const [cardId, abilities] of byCard) {
       map.set(
         cardId,
-        getExpandedManaAbilities(cardId, abilities).map((ab) => toAbilityOption(ab)),
+        getDisplayedManaAbilities(cardId, abilities).map((ab) => toAbilityOption(ab)),
       );
     }
     return map;
@@ -452,6 +452,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const respondHandAction = (option: HandActionOption): boolean => {
+    if (option.actionId != null) {
+      respond({ type: "act", actionId: option.actionId });
+      return true;
+    }
     if (option.kind === "ability" && option.isManaAbility) {
       respond({
         type: "tapLand",
@@ -459,10 +463,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         abilityIndex: option.abilityIndex,
         color: option.colorChoice,
       });
-      return true;
-    }
-    if (option.actionId != null) {
-      respond({ type: "act", actionId: option.actionId });
       return true;
     }
     if (option.kind === "ability" && option.abilityIndex != null) {
@@ -648,7 +648,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     const paymentManaOptions =
       payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions;
     if (paymentManaOptions) {
-      const manaAbilities = getExpandedManaAbilities(card.id, paymentManaOptions).map((ab) =>
+      const manaAbilities = getDisplayedManaAbilities(card.id, paymentManaOptions).map((ab) =>
         toAbilityOption(ab),
       );
 
@@ -680,12 +680,16 @@ export default function Game({ exitTo }: GameProps = {}) {
       return;
     }
     if (manaAbilities.length === 1) {
-      respond({
-        type: "tapLand",
-        cardId: card.id,
-        abilityIndex: manaAbilities[0].abilityIndex,
-        color: manaAbilities[0].colorChoice,
-      });
+      const actionId =
+        manaAbilities[0].actionId ??
+        chooseActionInput?.actions.find(
+          (a) =>
+            a.type === "activateAbility" &&
+            a.isManaAbility &&
+            a.cardId === card.id &&
+            a.abilityIndex === manaAbilities[0].abilityIndex,
+        )?.id;
+      if (actionId) respond({ type: "act", actionId });
       return;
     }
 
@@ -728,13 +732,20 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const tapResponse = (id: string) => {
     const option = manaAbilitiesByCardId.get(id)?.[0];
-    if (option) {
+    if (option?.actionId) {
+      respond({ type: "act", actionId: option.actionId });
+    } else if (option) {
       respond({
         type: "tapLand",
         cardId: id,
         abilityIndex: option.abilityIndex,
         color: option.colorChoice,
       });
+    } else if (promptType === "chooseAction") {
+      const action = chooseActionInput?.actions.find(
+        (a) => a.type === "activateAbility" && a.isManaAbility && a.cardId === id,
+      );
+      if (action) respond({ type: "act", actionId: action.id });
     } else {
       respond({ type: "tapLand", cardId: id });
     }
@@ -1501,13 +1512,17 @@ export default function Game({ exitTo }: GameProps = {}) {
               ? handleTapLands
               : undefined
           }
-          onTapLandAbility={(cardId, abilityIndex, color) => {
-            respond({
-              type: "tapLand",
-              cardId,
-              abilityIndex: abilityIndex ?? undefined,
-              color: color ?? undefined,
-            });
+          onTapLandAbility={(cardId, abilityIndex, color, actionId) => {
+            if (actionId) {
+              respond({ type: "act", actionId });
+            } else {
+              respond({
+                type: "tapLand",
+                cardId,
+                abilityIndex: abilityIndex ?? undefined,
+                color: color ?? undefined,
+              });
+            }
           }}
           onUntapLand={
             promptType === "chooseAction" ||

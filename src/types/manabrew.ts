@@ -250,7 +250,7 @@ export interface ActivatableAbilityInfo {
   isManaAbility: boolean;
   cost?: string;
   producedMana?: string;
-  producedManaAmount?: number;
+  color?: string;
 }
 
 export interface ClientCallback {

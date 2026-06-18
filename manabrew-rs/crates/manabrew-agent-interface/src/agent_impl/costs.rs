@@ -3,6 +3,7 @@ use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 
 use crate::ids_codec::{card_id_str, parse_card_id};
+use crate::mana_action_id::payment_mana_ability_options;
 use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{parse_express_mana_choice, PromptAgent, Responder};
@@ -158,14 +159,15 @@ pub(super) fn pay_mana_cost<T: Responder>(
                 mana_cost: mana_cost_display.to_string(),
                 mana_ability_options: mana_ability_options
                     .iter()
-                    .map(|opt| crate::prompt::ActivatableAbilityInfo {
-                        card_id: card_id_str(opt.card_id),
-                        ability_index: opt.ability_index,
-                        description: opt.description.clone(),
-                        is_mana_ability: true,
-                        cost: opt.cost.clone(),
-                        produced_mana: opt.produced_mana.clone(),
-                        produced_mana_amount: opt.produced_mana_amount,
+                    .flat_map(|opt| {
+                        payment_mana_ability_options(
+                            &card_id_str(opt.card_id),
+                            opt.ability_index,
+                            &opt.description,
+                            opt.cost.clone(),
+                            opt.produced_mana.clone(),
+                            opt.produced_mana_amount,
+                        )
                     })
                     .collect(),
                 tappable_land_ids,

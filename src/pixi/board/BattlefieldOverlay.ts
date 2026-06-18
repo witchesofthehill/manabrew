@@ -9,7 +9,12 @@ import {
 import type { GameCard } from "@/types/manabrew";
 import type { BattlefieldState } from "../types";
 import { hexToNum } from "../colorUtils";
-import { extractManaLetters, getExpandedManaAbilities } from "@/components/game/manaUtils";
+import {
+  extractManaLetters,
+  getDisplayedManaAbilities,
+  type ExpandedManaAbilityInfo,
+  type ManaAbilityActionInfo,
+} from "@/components/game/manaUtils";
 import { manaColorFor } from "../manaColors";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
 import { OVERLAY_LABEL_STYLE } from "../textStyles";
@@ -68,9 +73,7 @@ export class BattlefieldOverlay {
     };
 
     if (kind.isTappable) {
-      const expandedMana = state.manaAbilityOptions
-        ? getExpandedManaAbilities(card.id, state.manaAbilityOptions)
-        : [];
+      const expandedMana = this.manaAbilitiesForCard(card.id, state.manaAbilityOptions);
       if (expandedMana.length > 1) {
         this.host.getCallbacks().onClickCard?.(card);
         return;
@@ -105,10 +108,9 @@ export class BattlefieldOverlay {
     const overlay = this.ensureContainer(entry);
     overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
 
-    const expandedMana =
-      kind.isTappable && state.manaAbilityOptions
-        ? getExpandedManaAbilities(card.id, state.manaAbilityOptions)
-        : [];
+    const expandedMana = kind.isTappable
+      ? this.manaAbilitiesForCard(card.id, state.manaAbilityOptions)
+      : [];
 
     if (kind.isTappable && expandedMana.length > 0) {
       this.drawManaGrid(overlay, card, state, expandedMana);
@@ -117,6 +119,14 @@ export class BattlefieldOverlay {
     }
 
     overlay.visible = true;
+  }
+
+  private manaAbilitiesForCard(
+    cardId: string,
+    options: ManaAbilityActionInfo[] | undefined,
+  ): ExpandedManaAbilityInfo[] {
+    if (!options) return [];
+    return getDisplayedManaAbilities(cardId, options);
   }
 
   refreshAll(): void {
@@ -147,7 +157,7 @@ export class BattlefieldOverlay {
     overlay: Container,
     card: GameCard,
     state: BattlefieldState,
-    abilities: ReturnType<typeof getExpandedManaAbilities>,
+    abilities: ExpandedManaAbilityInfo[],
   ): void {
     const entries = abilities.map((ab) => {
       const letters =
@@ -231,7 +241,9 @@ export class BattlefieldOverlay {
               });
               return;
             }
-            this.host.getCallbacks().onTapLandAbility?.(card.id, ab.abilityIndex, ab.colorChoice);
+            this.host
+              .getCallbacks()
+              .onTapLandAbility?.(card.id, ab.abilityIndex, ab.colorChoice, ab.actionId);
           },
           (highlighted) => {
             paintBtn(highlighted);

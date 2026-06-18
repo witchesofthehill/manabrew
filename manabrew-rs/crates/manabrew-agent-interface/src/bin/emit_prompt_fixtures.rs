@@ -51,7 +51,6 @@ fn main() {
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
                         produced_mana: Some("G".into()),
-                        produced_mana_amount: Some(1),
                     },
                 },
                 AvailableAction {

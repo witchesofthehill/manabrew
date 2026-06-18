@@ -10,6 +10,9 @@ use crate::java_raw::{
     JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot, JavaRawSnapshotPlayer, JavaRawStackEntry,
     JavaRawStackTarget, JavaTarget, JavaTargetKind,
 };
+use crate::mana_action_id::{
+    parse_tap_action_id, payment_mana_ability_options, priority_mana_actions,
+};
 use crate::prompt::{
     ActivatableAbilityInfo, AgentPrompt, AvailableAction, AvailableActionKind, DefenderIdDto,
     PlayerAction, PromptInput, StateUpdate, TargetRef,
@@ -379,7 +382,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             mana_cost: mana_cost.unwrap_or_default(),
             mana_ability_options: mana_ability_options
                 .iter()
-                .map(to_mana_ability_info)
+                .flat_map(to_mana_ability_info)
                 .collect(),
             tappable_land_ids,
             untappable_land_ids,
@@ -422,13 +425,11 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             {
                 JavaAction::ChooseAction { index }
             } else if let Some(rest) = action_id.strip_prefix("tap:") {
-                let (card_id, idx) = rest
-                    .rsplit_once(':')
-                    .ok_or(JavaActionError { action_type: "act" })?;
+                let tap = parse_tap_action_id(rest);
                 JavaAction::TapLand {
-                    card_id: card_id.to_string(),
-                    mana_ability_index: idx.parse::<usize>().ok(),
-                    color: None,
+                    card_id: tap.card_id.to_string(),
+                    mana_ability_index: tap.ability_index,
+                    color: tap.color.map(str::to_string),
                 }
             } else if let Some(card_id) = action_id.strip_prefix("untap:") {
                 JavaAction::UntapLand {
@@ -660,16 +661,18 @@ fn build_choose_action(
         let Some(card_id) = action.card_id.clone() else {
             continue;
         };
+        if action.kind == Some("mana") {
+            out.extend(priority_mana_actions(
+                &card_id,
+                action.index,
+                &action.label,
+                action.cost.clone(),
+                action.produced_mana.clone(),
+                action.produced_mana_amount,
+            ));
+            continue;
+        }
         let kind = match action.kind {
-            Some("mana") => AvailableActionKind::ActivateAbility {
-                card_id: card_id.clone(),
-                ability_index: action.index,
-                description: action.label.clone(),
-                cost: action.cost.clone(),
-                is_mana_ability: true,
-                produced_mana: action.produced_mana.clone(),
-                produced_mana_amount: action.produced_mana_amount,
-            },
             Some("ability") => AvailableActionKind::ActivateAbility {
                 card_id: card_id.clone(),
                 ability_index: action.index,
@@ -677,7 +680,6 @@ fn build_choose_action(
                 cost: None,
                 is_mana_ability: false,
                 produced_mana: None,
-                produced_mana_amount: None,
             },
             Some("play") => AvailableActionKind::PlayLand {
                 card_id: card_id.clone(),
@@ -688,11 +690,7 @@ fn build_choose_action(
                 mode_label: action.label.clone(),
             },
         };
-        let id = if action.kind == Some("mana") {
-            format!("tap:{card_id}:{}", action.index)
-        } else {
-            format!("prompt-action-{}", action.index)
-        };
+        let id = format!("prompt-action-{}", action.index);
         out.push(AvailableAction { id, kind });
     }
 
@@ -979,16 +977,15 @@ fn to_stack_object(entry: &JavaRawStackEntry, index: usize, controller_id: &str)
     }
 }
 
-fn to_mana_ability_info(option: &JavaRawManaOption) -> ActivatableAbilityInfo {
-    ActivatableAbilityInfo {
-        card_id: option.card_id.clone().unwrap_or_default(),
-        ability_index: option.ability_index.unwrap_or(0),
-        description: option.description.clone().unwrap_or_default(),
-        is_mana_ability: true,
-        cost: option.cost.clone(),
-        produced_mana: option.produced_mana.clone(),
-        produced_mana_amount: option.produced_mana_amount,
-    }
+fn to_mana_ability_info(option: &JavaRawManaOption) -> Vec<ActivatableAbilityInfo> {
+    payment_mana_ability_options(
+        option.card_id.as_deref().unwrap_or_default(),
+        option.ability_index.unwrap_or(0),
+        option.description.as_deref().unwrap_or_default(),
+        option.cost.clone(),
+        option.produced_mana.clone(),
+        option.produced_mana_amount,
+    )
 }
 
 fn to_stack_target(target: &JavaRawStackTarget, target_index: usize) -> StackTargetDto {

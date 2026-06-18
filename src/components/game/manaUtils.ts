@@ -1,6 +1,10 @@
 import type { ActivatableAbilityInfo } from "@/types/manabrew";
 
-export interface ExpandedManaAbilityInfo extends ActivatableAbilityInfo {
+export interface ManaAbilityActionInfo extends ActivatableAbilityInfo {
+  actionId?: string;
+}
+
+export interface ExpandedManaAbilityInfo extends ManaAbilityActionInfo {
   displayManaLetters: string[];
   colorChoice?: string;
 }
@@ -41,25 +45,19 @@ function uniqueLetters(letters: string[]): string[] {
   return [...new Set(letters)];
 }
 
-function repeatLetters(letters: string[], amount: number): string[] {
-  if (amount <= 1) return letters;
-  return Array.from({ length: amount }, () => letters).flat();
-}
-
 function displayDescription(letters: string[]): string {
   return letters.length === 0
     ? "Add mana"
     : `Add ${letters.map((letter) => `{${letter}}`).join("")}`;
 }
 
-function expandFromProducedMana(ab: ActivatableAbilityInfo): ExpandedManaAbilityInfo[] | null {
+function displayFromProducedMana(ab: ManaAbilityActionInfo): ExpandedManaAbilityInfo | null {
   const tokens = producedManaTokens(ab.producedMana);
   if (tokens.length === 0) return null;
 
   const isCombo = tokens.includes("COMBO");
   const manaTokens = tokens.filter((token) => token !== "COMBO");
   const isAny = manaTokens.includes("ANY");
-  const amount = Math.max(1, ab.producedManaAmount ?? 1);
   const tokenLetters = manaTokens
     .map((token) => MANA_TOKEN_TO_LETTER[token])
     .filter((letter): letter is string => letter != null);
@@ -67,57 +65,28 @@ function expandFromProducedMana(ab: ActivatableAbilityInfo): ExpandedManaAbility
 
   if (letters.length === 0) return null;
 
-  if (isAny || isCombo) {
-    if (isCombo && amount > 1) {
-      return [
-        {
-          ...ab,
-          description: displayDescription(letters),
-          displayManaLetters: letters,
-        },
-      ];
-    }
-    return letters.map((letter) => ({
-      ...ab,
-      description: displayDescription([letter]),
-      displayManaLetters: [letter],
-      colorChoice: letter,
-    }));
-  }
-
-  const displayManaLetters = repeatLetters(tokenLetters, amount);
-  return [
-    {
-      ...ab,
-      description: displayDescription(displayManaLetters),
-      displayManaLetters,
-    },
-  ];
+  return {
+    ...ab,
+    description: displayDescription(letters),
+    displayManaLetters: letters,
+    colorChoice: ab.color,
+  };
 }
 
-function expandFromDescription(ab: ActivatableAbilityInfo): ExpandedManaAbilityInfo[] {
-  const letters = extractManaLetters(ab.description);
-  if (letters.length === 0) {
-    return [{ ...ab, displayManaLetters: [] }];
-  }
-  const unique = uniqueLetters(letters);
-  if (unique.length > 1) {
-    return unique.map((letter) => ({
-      ...ab,
-      description: displayDescription([letter]),
-      displayManaLetters: [letter],
-      colorChoice: letter,
-    }));
-  }
-  return [{ ...ab, displayManaLetters: letters }];
+function displayFromDescription(ab: ManaAbilityActionInfo): ExpandedManaAbilityInfo {
+  return {
+    ...ab,
+    displayManaLetters: extractManaLetters(ab.description),
+    colorChoice: ab.color,
+  };
 }
 
-export const getExpandedManaAbilities = (
+export const getDisplayedManaAbilities = (
   cardId: string,
-  options: ActivatableAbilityInfo[],
+  options: ManaAbilityActionInfo[],
 ): ExpandedManaAbilityInfo[] => {
   const cardAbs = options.filter((a) => a.cardId === cardId);
   if (cardAbs.length === 0) return [];
 
-  return cardAbs.flatMap((ab) => expandFromProducedMana(ab) ?? expandFromDescription(ab));
+  return cardAbs.map((ab) => displayFromProducedMana(ab) ?? displayFromDescription(ab));
 };

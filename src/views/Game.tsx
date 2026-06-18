@@ -1247,6 +1247,15 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => damageOrderInput?.blockerIds ?? [],
     [damageOrderInput?.blockerIds],
   );
+  const openSpellStack = useCallback(() => setSpellStackModalOpen(true), [setSpellStackModalOpen]);
+  const handleTargetSpell = useCallback(
+    (spellId: string) => {
+      casting.wrappedTargetSpell(spellId);
+      setSpellStackModalOpen(false);
+    },
+    [casting, setSpellStackModalOpen],
+  );
+  const validSpellIds = useMemo(() => boardTargets?.spellIds ?? [], [boardTargets?.spellIds]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1678,7 +1687,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       <StackDisplay
         stack={gameView.stack}
         resolveStackCard={resolveStackCard}
-        onOpenStack={() => setSpellStackModalOpen(true)}
+        onOpenStack={openSpellStack}
         flashCard={shouldRenderStackFlashCard ? activeFlashCard : null}
         flashToken={
           shouldRenderStackFlashCard
@@ -1691,11 +1700,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardArrangement === "perimeter" ? `${PERIMETER_SIDE_FRACTION * 100}%` : undefined
         }
         playerColorMap={playerColorMap}
-        validSpellIds={boardTargets?.spellIds ?? []}
-        onTargetSpell={(spellId) => {
-          casting.wrappedTargetSpell(spellId);
-          setSpellStackModalOpen(false);
-        }}
+        validSpellIds={validSpellIds}
+        onTargetSpell={handleTargetSpell}
       />
 
       <GameModals

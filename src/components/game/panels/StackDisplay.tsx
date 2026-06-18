@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { memo, useEffect, useState, type CSSProperties } from "react";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
@@ -33,7 +33,7 @@ const STACK_UI = {
   hoverPushX: 60,
 } as const;
 
-export function StackDisplay({
+function StackDisplayImpl({
   stack,
   resolveStackCard,
   onOpenStack,
@@ -229,3 +229,5 @@ export function StackDisplay({
     </div>
   );
 }
+
+export const StackDisplay = memo(StackDisplayImpl);

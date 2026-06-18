@@ -317,6 +317,9 @@ export class BoardRegion {
   animate(): void {
     let exited: string[] | null = null;
     const now = performance.now();
+    // Only built during combat (when `dimmed` can be true) so the per-card
+    // membership test is O(1) instead of an `Array.includes` scan per sprite.
+    const selectable = this.combatDim ? new Set(this.lastState?.selectableCardIds ?? []) : null;
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
@@ -353,7 +356,7 @@ export class BoardRegion {
         this.combatDim &&
         this.hoveredCardId !== s.card.id &&
         !this.isCombatant(s.card) &&
-        !this.lastState?.selectableCardIds?.includes(s.card.id);
+        !selectable?.has(s.card.id);
       const curBright = (s.tint & 0xff) / 255;
       const nextBright = lerp(
         curBright,

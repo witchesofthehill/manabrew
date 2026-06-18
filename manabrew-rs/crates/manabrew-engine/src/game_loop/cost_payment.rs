@@ -311,7 +311,11 @@ impl GameLoop {
         }
         let card_name = game.card(source).card_name.clone();
         let kind = Self::cost_part_kind(part);
-        let message = format!("Pay {} cost for {}?", kind, card_name);
+        let message = format!(
+            "Pay {} for {}?",
+            crate::ability::effects::cost_payment::effect_cost_part_display(part),
+            card_name
+        );
         agents[player.index()].confirm_payment(player, kind, &message, Some(source), api)
     }
 

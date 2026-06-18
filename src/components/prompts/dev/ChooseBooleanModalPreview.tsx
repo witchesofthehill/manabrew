@@ -37,8 +37,8 @@ export function ChooseBooleanModalPreview() {
   const input: ChooseBooleanInput = {
     presentation: {
       title: "Pay 2 {LIFE}?",
-      description: "To prevent:",
-      text: '"Destroy target creature. Its controller draws a card."',
+      description: undefined,
+      text: 'otherwise: "Enters tapped."',
       sourceCardId: cards[0]?.id,
       targets: [...cardTargets, ...playerTargets],
     },

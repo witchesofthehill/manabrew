@@ -28,7 +28,7 @@ export function DynamicTextRender({ text }: DynamicTextRenderProps) {
           return (
             <Heart
               key={i}
-              className="inline h-[1em] w-[1em] shrink-0"
+              className="inline h-[0.7em] w-[0.7em] shrink-0 mr-1"
               style={{ color: lifeColor, fill: lifeColor }}
             />
           );

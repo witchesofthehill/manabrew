@@ -1,6 +1,9 @@
+import { useState } from "react";
+
 import { Label } from "@/components/ui/label";
 import type { PromptType } from "@/protocol";
 import { usePromptPreferencesStore } from "@/stores/usePromptPreferencesStore";
+import { isPromptLoggingEnabled, setPromptLoggingEnabled } from "@/lib/debugPrompts";
 
 interface OptionalCostRow {
   promptType: PromptType;
@@ -41,6 +44,8 @@ export function PromptPreferencesPanel() {
   const showOverrides = usePromptPreferencesStore((s) => s.show);
   const setShow = usePromptPreferencesStore((s) => s.setShow);
   const clearShow = usePromptPreferencesStore((s) => s.clearShow);
+
+  const [logPrompts, setLogPrompts] = useState(isPromptLoggingEnabled);
 
   function setOptionalCostSkip(promptType: PromptType, skip: boolean) {
     if (skip) setShow(promptType, false);
@@ -83,6 +88,29 @@ export function PromptPreferencesPanel() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Debug</h3>
+        <div className="rounded-lg border bg-card/40 p-3 flex items-start gap-3">
+          <input
+            id="prompt-debug-log"
+            type="checkbox"
+            checked={logPrompts}
+            onChange={(e) => {
+              setPromptLoggingEnabled(e.target.checked);
+              setLogPrompts(e.target.checked);
+            }}
+            className="mt-1 accent-primary h-4 w-4"
+          />
+          <div className="space-y-1">
+            <Label htmlFor="prompt-debug-log">Log prompts to console</Label>
+            <p className="text-xs text-muted-foreground">
+              Print every prompt the UI receives (not state updates) to the dev console, including
+              the full JSON. Useful for reporting prompt issues.
+            </p>
+          </div>
         </div>
       </div>
     </section>

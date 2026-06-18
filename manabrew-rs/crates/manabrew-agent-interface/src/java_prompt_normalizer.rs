@@ -229,8 +229,8 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             };
             PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
                 presentation: manabrew_protocol::prompts::common::PromptPresentation {
-                    title: "Confirm".to_string(),
-                    description: Some(description.unwrap_or_else(|| "Confirm?".to_string())),
+                    title: description.unwrap_or_else(|| "Confirm?".to_string()),
+                    description: None,
                     text: None,
                     source_card_id,
                     targets: Vec::new(),
@@ -256,12 +256,14 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             } else {
                 format!("{cost_q}?")
             };
-            let effect = effect_text.filter(|t| !t.is_empty());
+            let effect = effect_text
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty());
             PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
                 presentation: manabrew_protocol::prompts::common::PromptPresentation {
                     title,
-                    description: effect.as_ref().map(|_| "To prevent:".to_string()),
-                    text: effect.map(|t| format!("\"{t}\"")),
+                    description: None,
+                    text: effect.map(|t| format!("otherwise: \"{t}\"")),
                     source_card_id,
                     targets: targets.into_iter().map(java_target_to_ref).collect(),
                 },

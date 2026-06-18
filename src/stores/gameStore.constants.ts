@@ -2,6 +2,7 @@ import type { GameState, DeferredSnapshot } from "./gameStore.types";
 import type { Prompt } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 import type { GameView } from "@/types/manabrew";
+import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
 function normalizeGameView(nextView: GameView, currentView: GameView | null): GameView {
   const incoming = (nextView ?? {}) as Partial<GameView>;
@@ -84,5 +85,8 @@ export function applyPrompt(
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,
 ) {
+  if (isPromptLoggingEnabled()) {
+    console.log(`[prompt:${source}] ${prompt.input.type}`, JSON.stringify(prompt, null, 2));
+  }
   route({ displayEvents: [], gameView: null, prompt }, `${source}: ${prompt.input.type}`, set, get);
 }

@@ -401,7 +401,6 @@ pub(super) fn choose_entities_for_effect<T: Responder>(
 fn send_boolean<T: Responder>(
     agent: &mut PromptAgent<T>,
     title: &str,
-    description: &str,
     confirm_label: &str,
     deny_label: &str,
     source: Option<CardId>,
@@ -412,7 +411,7 @@ fn send_boolean<T: Responder>(
             manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
                 presentation: PromptPresentation {
                     title: title.to_string(),
-                    description: (!description.is_empty()).then(|| description.to_string()),
+                    description: None,
                     text: None,
                     source_card_id: source.map(card_id_str),
                     targets: Vec::new(),
@@ -436,15 +435,7 @@ pub(super) fn choose_optional_trigger<T: Responder>(
     source: Option<CardId>,
     _api: Option<manabrew_engine::ability::api_type::ApiType>,
 ) -> bool {
-    send_boolean(
-        agent,
-        "Optional Trigger",
-        description,
-        "Accept",
-        "Decline",
-        source,
-        true,
-    )
+    send_boolean(agent, description, "Accept", "Decline", source, true)
 }
 
 /// Ask the player whether to apply an optional replacement effect
@@ -464,15 +455,7 @@ pub(super) fn confirm_replacement_effect<T: Responder>(
     } else {
         format!("{question}\n{effect_description}")
     };
-    send_boolean(
-        agent,
-        "Replacement Effect",
-        &message,
-        "Accept",
-        "Decline",
-        source,
-        true,
-    )
+    send_boolean(agent, &message, "Accept", "Decline", source, true)
 }
 
 pub(super) fn confirm_action<T: Responder>(
@@ -488,15 +471,7 @@ pub(super) fn confirm_action<T: Responder>(
         [deny, confirm, ..] => (deny.as_str(), confirm.as_str()),
         _ => ("Decline", "Accept"),
     };
-    send_boolean(
-        agent,
-        "Confirm Action",
-        message,
-        confirm,
-        deny,
-        source,
-        false,
-    )
+    send_boolean(agent, message, confirm, deny, source, false)
 }
 
 pub(super) fn confirm_payment<T: Responder>(
@@ -507,15 +482,7 @@ pub(super) fn confirm_payment<T: Responder>(
     source: Option<CardId>,
     _api: Option<manabrew_engine::ability::api_type::ApiType>,
 ) -> bool {
-    send_boolean(
-        agent,
-        "Confirm Payment",
-        message,
-        "Pay",
-        "Decline",
-        source,
-        false,
-    )
+    send_boolean(agent, message, "Pay", "Decline", source, false)
 }
 
 pub(super) fn reveal_cards<T: Responder>(
@@ -566,8 +533,9 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
             manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
                 presentation: PromptPresentation {
                     title: message.to_string(),
-                    description: (!effect_text.is_empty()).then(|| "To prevent:".to_string()),
-                    text: (!effect_text.is_empty()).then(|| format!("\"{}\"", effect_text)),
+                    description: None,
+                    text: (!effect_text.trim().is_empty())
+                        .then(|| format!("otherwise: \"{}\"", effect_text.trim())),
                     source_card_id: source.map(card_id_str),
                     targets: targets.iter().map(game_entity_to_target_ref).collect(),
                 },
@@ -606,7 +574,7 @@ pub(super) fn choose_binary<T: Responder>(
 ) -> bool {
     let (left, right) = kind.labels();
     // `true` maps to Java's first (left) choice.
-    send_boolean(agent, "Choose One", question, left, right, source, false)
+    send_boolean(agent, question, left, right, source, false)
 }
 
 pub(super) fn choose_color<T: Responder>(

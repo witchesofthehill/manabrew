@@ -154,7 +154,10 @@ export function TablesList({
     ? currentRoom.players.length >= minReady &&
       currentRoom.players.filter((p) => p.username !== controllerName).every((p) => p.ready)
     : false;
-  const canStart = allOtherPlayersReady;
+  const controllerHasDeck =
+    isOpenFormat ||
+    !!currentRoom?.players.find((p) => p.username === controllerName)?.selected_deck_name;
+  const canStart = allOtherPlayersReady && controllerHasDeck;
   const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
@@ -474,7 +477,13 @@ export function TablesList({
                       className="gap-1"
                       onClick={() => onStartGame()}
                       disabled={!canStart}
-                      title={!allOtherPlayersReady ? "All other players must be ready" : undefined}
+                      title={
+                        !controllerHasDeck
+                          ? "Select a deck before starting"
+                          : !allOtherPlayersReady
+                            ? "All other players must be ready"
+                            : undefined
+                      }
                     >
                       <Swords className="h-3 w-3" /> Start Game
                     </Button>

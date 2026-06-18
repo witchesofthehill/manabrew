@@ -75,6 +75,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final HarnessPlayPlumbing playPlumbing;
     private String passUntilPhase;
     private boolean probingPayability;
+    private boolean autoConfirmPayment;
 
     public ManaBrewInteractiveController(
             final Game game,
@@ -1124,7 +1125,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmPayment(final CostPart costPart, final String prompt, final SpellAbility sa) {
-        if (costPart == null || costPart instanceof CostPartMana || probingPayability) {
+        if (costPart == null || costPart instanceof CostPartMana || probingPayability
+                || autoConfirmPayment) {
             return true;
         }
         final String description = sourceNamePrompt(prompt == null ? "Confirm payment?" : prompt, sa);
@@ -1579,7 +1581,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (!accept) {
             return false;
         }
-        return costPlumbing.payWithControllerDecision(cost, sa, true);
+        return payAuthorizedCost(cost, sa);
     }
 
     @Override
@@ -1600,7 +1602,16 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "pay_cost_during_roll",
                 cost == null ? null : cost.getClass().getSimpleName(),
                 null);
-        return accept && costPlumbing.payWithControllerDecision(cost, sa, true);
+        return accept && payAuthorizedCost(cost, sa);
+    }
+
+    private boolean payAuthorizedCost(final Cost cost, final SpellAbility sa) {
+        autoConfirmPayment = true;
+        try {
+            return costPlumbing.payWithControllerDecision(cost, sa, true);
+        } finally {
+            autoConfirmPayment = false;
+        }
     }
 
     @Override

@@ -1,5 +1,4 @@
 import { Fragment, useState, type ReactNode } from "react";
-import { ChooseOptionalTriggerModal } from "./ChooseOptionalTriggerModal";
 import { ChooseColorModal } from "./ChooseColorModal";
 import { ChooseTypeModal } from "./ChooseTypeModal";
 import { ChooseNumberModal } from "./ChooseNumberModal";
@@ -23,7 +22,6 @@ export type PromptOf<T extends PromptType> = Extract<Prompt, { input: { type: T 
 
 export interface PromptModalContext {
   sourceDeckCard?: DeckCard;
-  revealedDeckCard?: DeckCard;
   gameView?: GameView | null;
 }
 
@@ -104,17 +102,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   specifyManaCombo: ({ prompt, respond }) => (
     <SpecifyManaComboModal input={prompt.input} respond={respond} />
-  ),
-
-  // $PROMPT_SHARED
-  exploreDecision: ({ prompt, respond, ctx }) => (
-    <ChooseOptionalTriggerModal
-      description={`Exploring revealed ${prompt.input.revealedCardName} (nonland). Put it in graveyard or leave on top of library?`}
-      sourceCard={ctx.revealedDeckCard}
-      promptKind="explore_decision"
-      optionLabels={["Put on top of library", "Put in graveyard"]}
-      onConfirm={(putInGraveyard) => respond({ type: "exploreResponse", putInGraveyard })}
-    />
   ),
 
   // $PROMPT_SHARED

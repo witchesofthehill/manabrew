@@ -724,7 +724,6 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::Untap { .. } => "untapLand",
         PlayerAction::BoardTargets { .. } => "boardTargets",
         PlayerAction::Decision { .. } => "decision",
-        PlayerAction::ExploreResponse { .. } => "exploreResponse",
         PlayerAction::PayCombatCost => "payCombatCost",
         PlayerAction::DeclineCombatCost => "declineCombatCost",
         PlayerAction::RestoreSnapshot { .. } => "restoreSnapshot",

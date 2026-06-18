@@ -863,7 +863,6 @@ impl PlayerAgent for CapturingAgent {
         fn choose_improvise(&mut self, player: PlayerId, untapped_artifacts: &[CardId], remaining_cost: &forge_foundation::ManaCost, source: Option<CardId>) -> Vec<CardId> => "choose_improvise";
         fn choose_convoke(&mut self, player: PlayerId, untapped_creatures: &[CardId], remaining_cost: &forge_foundation::ManaCost, source: Option<CardId>) -> Vec<CardId> => "choose_convoke";
         fn specify_mana_combo(&mut self, player: PlayerId, available_colors: &[String], amount: usize, source: Option<CardId>, express_choice: Option<u16>) -> Vec<String> => "specify_mana_combo";
-        fn choose_explore_put_in_graveyard(&mut self, game: &GameState, player: PlayerId, revealed_card_name: &str, revealed_cmc: i32, mana_producing_lands: usize, predicted_mana: usize, lands_in_hand: usize) -> bool => "choose_explore_put_in_graveyard";
         fn choose_kicker(&mut self, player: PlayerId, kicker_cost: &str, source: Option<CardId>) -> bool => "choose_kicker";
         fn help_pay_assist(&mut self, player: PlayerId, card_name: &str, max_generic: u32) -> u32 => "help_pay_assist";
         fn choose_buyback(&mut self, player: PlayerId, buyback_cost: &str, source: Option<CardId>) -> bool => "choose_buyback";

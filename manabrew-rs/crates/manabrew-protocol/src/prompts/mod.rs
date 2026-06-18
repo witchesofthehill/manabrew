@@ -20,7 +20,6 @@ pub mod choose_number;
 pub mod choose_type;
 pub mod dice_rolled;
 pub mod dig;
-pub mod explore_decision;
 pub mod first_player_roll;
 pub mod game_over;
 pub mod mulligan;
@@ -64,7 +63,6 @@ pub enum PromptInput {
     PayManaCost(pay_mana_cost::PayManaCostInput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ReorderLibrary(reorder_library::ReorderLibraryInput),
-    ExploreDecision(explore_decision::ExploreDecisionInput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollInput),
     DiceRolled(dice_rolled::DiceRolledInput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput),
@@ -104,7 +102,6 @@ pub enum PromptOutput {
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ReorderLibrary(reorder_library::ReorderLibraryOutput),
-    ExploreDecision(explore_decision::ExploreDecisionOutput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
     ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectOutput),

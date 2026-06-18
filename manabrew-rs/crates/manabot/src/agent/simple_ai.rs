@@ -230,9 +230,6 @@ impl BotAgent for SimpleAi {
                     ordered_card_ids: card_ids,
                 })
             }
-            PromptInput::ExploreDecision(manabrew_protocol::prompts::explore_decision::ExploreDecisionInput { .. }) => Some(PlayerAction::ExploreResponse {
-                put_in_graveyard: false,
-            }),
             PromptInput::GameOver(manabrew_protocol::prompts::game_over::GameOverInput { .. }) => None,
             // Display-only acknowledgements: the engine `await`s these so
             // every transport must produce an ack — keeps the engine's

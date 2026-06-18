@@ -187,7 +187,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     activePrompt?.input.type === "payCombatCost" ? activePrompt.input : null;
   const payManaCostInput = activePrompt?.input.type === "payManaCost" ? activePrompt.input : null;
   const mulliganInput = activePrompt?.input.type === "mulligan" ? activePrompt.input : null;
-  const exploreInput = activePrompt?.input.type === "exploreDecision" ? activePrompt.input : null;
   const tappableLandIds = useMemo<string[]>(
     () =>
       chooseActionInput
@@ -1058,12 +1057,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return asDeckCard(gameDecks[gc.ownerId], gc);
   }, [activePrompt?.sourceCardId, visibleCardsById, stackCardsBySourceId, gameDecks]);
 
-  const promptRevealedDeckCard = useMemo(() => {
-    const rc = exploreInput?.revealedCard;
-    if (!rc) return undefined;
-    return asDeckCard(gameDecks[rc.ownerId], rc as GameCard);
-  }, [exploreInput?.revealedCard, gameDecks]);
-
   const handleLogCardHover = (
     cardId: string | null,
     e?: React.MouseEvent,
@@ -1567,7 +1560,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       <GameModals
         currentPrompt={activePrompt}
         sourceDeckCard={promptSourceDeckCard}
-        revealedDeckCard={promptRevealedDeckCard}
         viewingZone={viewingZone}
         onCloseZone={closeZone}
         libraryPeekModal={libraryPeekModal}

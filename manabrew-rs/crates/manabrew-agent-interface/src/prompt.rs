@@ -140,11 +140,6 @@ pub enum PlayerAction {
         #[serde(rename = "orderedCardIds")]
         ordered_card_ids: Vec<String>,
     },
-    /// Response to ExploreDecision: whether to put in graveyard.
-    ExploreResponse {
-        #[serde(rename = "putInGraveyard")]
-        put_in_graveyard: bool,
-    },
     /// Response to ChooseCardsForEffect prompt: IDs of chosen cards.
     ChooseCardsDecision {
         #[serde(rename = "chosenCardIds")]

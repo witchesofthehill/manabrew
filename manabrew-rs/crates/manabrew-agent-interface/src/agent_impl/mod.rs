@@ -1204,27 +1204,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         library::choose_reorder_library(self, game, player, cards)
     }
 
-    fn choose_explore_put_in_graveyard(
-        &mut self,
-        _game: &GameState,
-        player: PlayerId,
-        revealed_card_name: &str,
-        revealed_cmc: i32,
-        mana_producing_lands: usize,
-        predicted_mana: usize,
-        lands_in_hand: usize,
-    ) -> bool {
-        choices::choose_explore_put_in_graveyard(
-            self,
-            player,
-            revealed_card_name,
-            revealed_cmc,
-            mana_producing_lands,
-            predicted_mana,
-            lands_in_hand,
-        )
-    }
-
     fn help_pay_assist(&mut self, player: PlayerId, card_name: &str, max_generic: u32) -> u32 {
         choices::help_pay_assist(self, player, card_name, max_generic)
     }

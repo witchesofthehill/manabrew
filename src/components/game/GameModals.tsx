@@ -11,7 +11,6 @@ import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUISto
 interface GameModalsProps {
   currentPrompt: Prompt | null;
   sourceDeckCard?: DeckCard;
-  revealedDeckCard?: DeckCard;
   viewingZone: {
     title: string;
     cards: GameCard[];
@@ -41,7 +40,6 @@ interface GameModalsProps {
 export function GameModals({
   currentPrompt,
   sourceDeckCard,
-  revealedDeckCard,
   viewingZone,
   onCloseZone,
   libraryPeekModal,
@@ -58,7 +56,7 @@ export function GameModals({
 }: GameModalsProps) {
   return (
     <>
-      <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard, revealedDeckCard }} />
+      <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />
       {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}

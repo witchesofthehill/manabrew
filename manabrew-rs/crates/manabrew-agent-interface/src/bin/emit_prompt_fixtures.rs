@@ -216,10 +216,6 @@ fn main() {
             min_choices: 1,
             max_choices: 2,
         }),
-        ExploreDecision(explore_decision::ExploreDecisionInput {
-            revealed_card_name: String::new(),
-            revealed_card: None,
-        }),
         FirstPlayerRoll(first_player_roll::FirstPlayerRollInput {
             sides: 0,
             rolls: vec![],

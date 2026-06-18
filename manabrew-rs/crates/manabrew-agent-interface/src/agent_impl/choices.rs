@@ -1072,30 +1072,6 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
     }
 }
 
-pub(super) fn choose_explore_put_in_graveyard<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    revealed_card_name: &str,
-    _revealed_cmc: i32,
-    _mana_producing_lands: usize,
-    _predicted_mana: usize,
-    _lands_in_hand: usize,
-) -> bool {
-    agent.send_prompt(
-        PromptInput::ExploreDecision(
-            manabrew_protocol::prompts::explore_decision::ExploreDecisionInput {
-                revealed_card_name: revealed_card_name.to_string(),
-                revealed_card: None,
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::ExploreResponse { put_in_graveyard } => put_in_graveyard,
-        _ => false,
-    }
-}
-
 pub(super) fn help_pay_assist<T: Responder>(
     agent: &mut PromptAgent<T>,
     player: PlayerId,

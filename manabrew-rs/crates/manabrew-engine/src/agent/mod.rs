@@ -470,32 +470,6 @@ pub trait PlayerAgent {
         }
     }
 
-    /// Choose whether to put a revealed nonland card into the graveyard during Explore.
-    /// Returns true to put in graveyard, false to keep on top of library.
-    fn choose_explore_put_in_graveyard(
-        &mut self,
-        _game: &GameState,
-        _player: PlayerId,
-        _revealed_card_name: &str,
-        revealed_cmc: i32,
-        mana_producing_lands: usize,
-        predicted_mana: usize,
-        lands_in_hand: usize,
-    ) -> bool {
-        // EXPLORE_MAX_CMC_DIFF_TO_PUT_IN_GRAVEYARD = 2
-        // EXPLORE_NUM_LANDS_TO_STILL_NEED_MORE = 2
-        const MAX_CMC_DIFF: i32 = 2;
-        const NUM_LANDS_TO_STILL_NEED_MORE: usize = 2;
-
-        if lands_in_hand == 0 && mana_producing_lands <= NUM_LANDS_TO_STILL_NEED_MORE {
-            return true;
-        }
-        if revealed_cmc - MAX_CMC_DIFF >= predicted_mana as i32 {
-            return true;
-        }
-        false
-    }
-
     /// Choose which legendary permanent to keep when the legend rule applies.
     /// `duplicates` contains all legendaries with the same name controlled by this player.
     /// Returns the CardId of the one to keep; the rest are sacrificed.

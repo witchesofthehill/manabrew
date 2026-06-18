@@ -51,7 +51,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseCombatDamageAssignment"]: "Assign combat damage",
   ["chooseCardsForEffect"]: "Choose cards for effect",
   ["reorderLibrary"]: "Reorder the top of your library",
-  ["exploreDecision"]: "Explore: put in graveyard or on top?",
   ["gameOver"]: "Game Over",
 };
 

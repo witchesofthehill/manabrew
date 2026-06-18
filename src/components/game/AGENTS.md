@@ -90,7 +90,7 @@ A card's look is produced by **three independent renderers**. They share no draw
 
 ## Prompt routing
 
-The engine sends a `Prompt` (from `@/protocol`) → `PromptModalHost` (in `prompts/promptComponents.tsx`) looks up `prompt.input.type` in the `PROMPT_MODALS` registry and renders that entry inside `PromptModalController`. Each registry entry receives `{ prompt, respond, ctx }` — it reads the typed `prompt.input`, renders a leaf modal from `modals/`, and answers by calling `respond(<PromptOutput>)` directly (no per-prompt store callback). `ctx` carries the misc UI extras the engine prompt doesn't (`sourceDeckCard`, `revealedDeckCard`); non-prompt overlays (zone viewer, spell stack, ability picker) live in `GameOverlays`, not the registry.
+The engine sends a `Prompt` (from `@/protocol`) → `PromptModalHost` (in `prompts/promptComponents.tsx`) looks up `prompt.input.type` in the `PROMPT_MODALS` registry and renders that entry inside `PromptModalController`. Each registry entry receives `{ prompt, respond, ctx }` — it reads the typed `prompt.input`, renders a leaf modal from `modals/`, and answers by calling `respond(<PromptOutput>)` directly (no per-prompt store callback). `ctx` carries the misc UI extras the engine prompt doesn't (`sourceDeckCard`); non-prompt overlays (zone viewer, spell stack, ability picker) live in `GameOverlays`, not the registry.
 
 To support a new prompt: add `src/protocol/prompts/<name>.ts` (`Type`/`Input`/`Output`), add it to the unions in `protocol/prompts/index.ts`, add a `PROMPT_MODALS` entry, and build the modal under `modals/`. The Rust counterpart lives in `manabrew-rs/crates/manabrew-agent-interface/src/prompt.rs`.
 

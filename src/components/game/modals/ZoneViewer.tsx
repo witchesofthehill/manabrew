@@ -17,6 +17,9 @@ interface ZoneViewerProps {
   onClose: () => void;
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];
+  /** When targeting, ring the legal targets in the intent colour (red hostile /
+   *  blue friendly) instead of the neutral card-ring used for browsing. */
+  targetHostile?: boolean;
 }
 
 export function ZoneViewer({
@@ -25,11 +28,17 @@ export function ZoneViewer({
   onClose,
   onClickCard,
   clickableCardIds,
+  targetHostile,
 }: ZoneViewerProps) {
   const preview = useCardPreview();
 
   const themeColors = useTheme().gameTheme;
-  const ringColor = themeColors.cardRing;
+  const ringColor =
+    targetHostile === undefined
+      ? themeColors.cardRing
+      : targetHostile
+        ? themeColors.arrow.hostileTarget
+        : themeColors.arrow.friendlyTarget;
   const clickableIdSet = clickableCardIds ? new Set(clickableCardIds) : null;
   const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
 

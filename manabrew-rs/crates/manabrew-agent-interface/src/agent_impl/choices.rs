@@ -5,11 +5,46 @@ use manabrew_engine::spellability::SpellAbility;
 
 use manabrew_engine::game::GameState;
 
+use manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput;
+use manabrew_protocol::prompts::common::PromptPresentation;
+
 use crate::game_view_dto::{card_to_dto, CardDto, TargetingIntent};
-use crate::ids_codec::parse_card_id;
+use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
+
+fn send_selection<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    title: &str,
+    description: Option<String>,
+    options: Vec<String>,
+    min: usize,
+    max: usize,
+    source: Option<CardId>,
+) {
+    agent.send_prompt(
+        PromptInput::ChooseFromSelection(ChooseFromSelectionInput {
+            presentation: PromptPresentation {
+                title: title.to_string(),
+                description,
+                text: None,
+                source_card_id: source.map(card_id_str),
+            },
+            options,
+            min_choices: min,
+            max_choices: max,
+        }),
+        source,
+    );
+}
+
+fn recv_selection<T: Responder>(agent: &mut PromptAgent<T>) -> Option<Vec<usize>> {
+    match agent.recv_action() {
+        PlayerAction::SelectionDecision { chosen_indices } => Some(chosen_indices),
+        _ => None,
+    }
+}
 
 fn card_name<T: Responder>(agent: &PromptAgent<T>, card_id: CardId) -> String {
     let id = crate::ids_codec::card_id_str(card_id);
@@ -173,19 +208,16 @@ pub(super) fn choose_mode<T: Responder>(
     max: usize,
     source_card_id: Option<CardId>,
 ) -> Vec<usize> {
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options: descriptions.to_vec(),
-            min_choices: min,
-            max_choices: max,
-            source_card_name: None,
-        }),
+    send_selection(
+        agent,
+        "Choose Mode",
+        None,
+        descriptions.to_vec(),
+        min,
+        max,
         source_card_id,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => chosen_indices,
-        _ => (0..min.min(descriptions.len())).collect(),
-    }
+    recv_selection(agent).unwrap_or_else(|| (0..min.min(descriptions.len())).collect())
 }
 
 pub(super) fn choose_spell_abilities_for_effect<T: Responder>(
@@ -203,22 +235,22 @@ pub(super) fn choose_spell_abilities_for_effect<T: Responder>(
         .map(|(index, ability)| ability_label(agent, ability, index))
         .collect();
     let source_card_id = abilities.first().and_then(|ability| ability.source);
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options,
-            min_choices: num.min(abilities.len()),
-            max_choices: num.min(abilities.len()),
-            source_card_name: None,
-        }),
+    send_selection(
+        agent,
+        "Choose ability",
+        None,
+        options,
+        num.min(abilities.len()),
+        num.min(abilities.len()),
         source_card_id,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => chosen_indices
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
             .into_iter()
             .filter(|index| *index < abilities.len())
             .take(num)
             .collect(),
-        _ => (0..num.min(abilities.len())).collect(),
+        None => (0..num.min(abilities.len())).collect(),
     }
 }
 
@@ -292,20 +324,20 @@ pub(super) fn choose_single_entity_for_effect<T: Responder>(
         .iter()
         .map(|entity| entity_label(agent, *entity))
         .collect();
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options,
-            min_choices: usize::from(!is_optional),
-            max_choices: 1,
-            source_card_name: Some("Choose entity".to_string()),
-        }),
+    send_selection(
+        agent,
+        "Choose entity",
+        None,
+        options,
+        usize::from(!is_optional),
+        1,
         None,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => chosen_indices
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
             .first()
             .and_then(|index| valid.get(*index).copied()),
-        _ => {
+        None => {
             if is_optional {
                 None
             } else {
@@ -346,22 +378,22 @@ pub(super) fn choose_entities_for_effect<T: Responder>(
         .iter()
         .map(|entity| entity_label(agent, *entity))
         .collect();
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options,
-            min_choices: min.min(valid.len()),
-            max_choices: max.min(valid.len()),
-            source_card_name: Some("Choose entities".to_string()),
-        }),
+    send_selection(
+        agent,
+        "Choose entities",
+        None,
+        options,
+        min.min(valid.len()),
+        max.min(valid.len()),
         None,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => chosen_indices
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
             .into_iter()
             .filter_map(|index| valid.get(index).copied())
             .take(max)
             .collect(),
-        _ => valid.iter().copied().take(max).collect(),
+        None => valid.iter().copied().take(max).collect(),
     }
 }
 
@@ -602,22 +634,22 @@ pub(super) fn choose_colors<T: Responder>(
     if valid_colors.is_empty() || max == 0 {
         return Vec::new();
     }
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options: valid_colors.to_vec(),
-            min_choices: min.min(valid_colors.len()),
-            max_choices: max.min(valid_colors.len()),
-            source_card_name: Some("Choose colors".to_string()),
-        }),
+    send_selection(
+        agent,
+        "Choose colors",
+        None,
+        valid_colors.to_vec(),
+        min.min(valid_colors.len()),
+        max.min(valid_colors.len()),
         None,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => chosen_indices
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
             .into_iter()
             .filter_map(|index| valid_colors.get(index).cloned())
             .take(max)
             .collect(),
-        _ => valid_colors
+        None => valid_colors
             .iter()
             .take(min.min(valid_colors.len()))
             .cloned()
@@ -673,27 +705,25 @@ pub(super) fn choose_number_from_list<T: Responder>(
     if choices.is_empty() {
         return None;
     }
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options: choices.iter().map(i32::to_string).collect(),
-            min_choices: 1,
-            max_choices: 1,
-            source_card_name: if source_card_id.is_some() || message.is_empty() {
-                None
-            } else {
-                Some(message.to_string())
-            },
-        }),
+    let title = if message.is_empty() {
+        "Choose a number"
+    } else {
+        message
+    };
+    send_selection(
+        agent,
+        title,
+        None,
+        choices.iter().map(i32::to_string).collect(),
+        1,
+        1,
         source_card_id,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => chosen_indices
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
             .first()
             .and_then(|index| choices.get(*index).copied()),
-        PlayerAction::NumberDecision { chosen_number } => {
-            chosen_number.filter(|number| choices.contains(number))
-        }
-        _ => choices.first().copied(),
+        None => choices.first().copied(),
     }
 }
 
@@ -720,17 +750,18 @@ pub(super) fn choose_roll_to_ignore<T: Responder>(
     if rolls.is_empty() {
         return None;
     }
-    agent.send_prompt(
-        PromptInput::ChooseRollToIgnore(
-            manabrew_protocol::prompts::choose_roll_to_ignore::ChooseRollToIgnoreInput {
-                rolls: rolls.to_vec(),
-            },
-        ),
+    send_selection(
+        agent,
+        "Choose a roll to ignore",
         None,
+        rolls.iter().map(i32::to_string).collect(),
+        0,
+        1,
+        source,
     );
-    match agent.recv_action() {
-        PlayerAction::RollToIgnoreDecision { roll } => roll.filter(|r| rolls.contains(r)),
-        _ => rolls.first().copied(),
+    match recv_selection(agent) {
+        Some(chosen) => chosen.first().and_then(|index| rolls.get(*index).copied()),
+        None => rolls.first().copied(),
     }
 }
 
@@ -743,17 +774,18 @@ pub(super) fn choose_roll_to_swap<T: Responder>(
     if rolls.is_empty() {
         return None;
     }
-    agent.send_prompt(
-        PromptInput::ChooseRollToSwap(
-            manabrew_protocol::prompts::choose_roll_to_swap::ChooseRollToSwapInput {
-                rolls: rolls.to_vec(),
-            },
-        ),
+    send_selection(
+        agent,
+        "Choose a roll to swap",
         None,
+        rolls.iter().map(i32::to_string).collect(),
+        0,
+        1,
+        source,
     );
-    match agent.recv_action() {
-        PlayerAction::RollToSwapDecision { roll } => roll.filter(|r| rolls.contains(r)),
-        _ => rolls.first().copied(),
+    match recv_selection(agent) {
+        Some(chosen) => chosen.first().and_then(|index| rolls.get(*index).copied()),
+        None => rolls.first().copied(),
     }
 }
 
@@ -766,17 +798,18 @@ pub(super) fn choose_roll_to_modify<T: Responder>(
     if rolls.is_empty() {
         return None;
     }
-    agent.send_prompt(
-        PromptInput::ChooseRollToModify(
-            manabrew_protocol::prompts::choose_roll_to_modify::ChooseRollToModifyInput {
-                rolls: rolls.to_vec(),
-            },
-        ),
+    send_selection(
+        agent,
+        "Choose a roll to modify",
         None,
+        rolls.iter().map(i32::to_string).collect(),
+        0,
+        1,
+        source,
     );
-    match agent.recv_action() {
-        PlayerAction::RollToModifyDecision { roll } => roll.filter(|r| rolls.contains(r)),
-        _ => rolls.first().copied(),
+    match recv_selection(agent) {
+        Some(chosen) => chosen.first().and_then(|index| rolls.get(*index).copied()),
+        None => rolls.first().copied(),
     }
 }
 
@@ -789,19 +822,21 @@ pub(super) fn choose_dice_to_reroll<T: Responder>(
     if rolls.is_empty() {
         return Vec::new();
     }
-    agent.send_prompt(
-        PromptInput::ChooseDiceToReroll(
-            manabrew_protocol::prompts::choose_dice_to_reroll::ChooseDiceToRerollInput {
-                rolls: rolls.to_vec(),
-            },
-        ),
+    send_selection(
+        agent,
+        "Choose dice to reroll",
         None,
+        rolls.iter().map(i32::to_string).collect(),
+        0,
+        rolls.len(),
+        source,
     );
-    match agent.recv_action() {
-        PlayerAction::DiceToRerollDecision { rolls: chosen } => {
-            chosen.into_iter().filter(|r| rolls.contains(r)).collect()
-        }
-        _ => Vec::new(),
+    match recv_selection(agent) {
+        Some(chosen) => chosen
+            .into_iter()
+            .filter_map(|index| rolls.get(index).copied())
+            .collect(),
+        None => Vec::new(),
     }
 }
 
@@ -813,27 +848,25 @@ pub(super) fn choose_roll_swap_value<T: Responder>(
     toughness: i32,
     source: Option<CardId>,
 ) -> Option<RollSwapChoice> {
-    agent.send_prompt(
-        PromptInput::ChooseRollSwapValue(
-            manabrew_protocol::prompts::choose_roll_swap_value::ChooseRollSwapValueInput {
-                current_result,
-                power,
-                toughness,
-            },
-        ),
-        None,
+    send_selection(
+        agent,
+        "Swap roll value",
+        Some(format!("Current roll is {current_result}. Swap it with:")),
+        vec![
+            format!("Power ({power})"),
+            format!("Toughness ({toughness})"),
+        ],
+        0,
+        1,
+        source,
     );
-    match agent.recv_action() {
-        PlayerAction::RollSwapValueDecision { choice } => match choice {
-            Some(manabrew_protocol::prompts::choose_roll_swap_value::RollSwapValue::Toughness) => {
-                Some(RollSwapChoice::Toughness)
-            }
-            Some(manabrew_protocol::prompts::choose_roll_swap_value::RollSwapValue::Power) => {
-                Some(RollSwapChoice::Power)
-            }
-            None => None,
+    match recv_selection(agent) {
+        Some(chosen) => match chosen.first().copied() {
+            Some(0) => Some(RollSwapChoice::Power),
+            Some(1) => Some(RollSwapChoice::Toughness),
+            _ => None,
         },
-        _ => Some(RollSwapChoice::Power),
+        None => Some(RollSwapChoice::Power),
     }
 }
 
@@ -1160,27 +1193,27 @@ pub(super) fn choose_land_or_spell<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
 ) -> Option<bool> {
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options: vec!["Land".to_string(), "Spell".to_string()],
-            min_choices: 1,
-            max_choices: 1,
-            source_card_name: Some("Choose land or spell".to_string()),
-        }),
+    send_selection(
+        agent,
+        "Choose land or spell",
+        None,
+        vec!["Land".to_string(), "Spell".to_string()],
+        1,
+        1,
         None,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => match chosen_indices.first().copied() {
+    match recv_selection(agent) {
+        Some(chosen_indices) => match chosen_indices.first().copied() {
             Some(0) => Some(true),
             Some(1) => Some(false),
             _ => None,
         },
-        _ => None,
+        None => None,
     }
 }
 
 /// Choose which replacement effect to apply when multiple effects match.
-/// Reuses the ChooseMode prompt — structurally identical (pick one from a list).
+/// Reuses ChooseFromSelection — structurally identical (pick one from a list).
 pub(super) fn choose_single_replacement_effect<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
@@ -1189,19 +1222,16 @@ pub(super) fn choose_single_replacement_effect<T: Responder>(
     if descriptions.is_empty() {
         return 0;
     }
-    agent.send_prompt(
-        PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options: descriptions.to_vec(),
-            min_choices: 1,
-            max_choices: 1,
-            source_card_name: Some("Replacement Effect".to_string()),
-        }),
+    send_selection(
+        agent,
+        "Replacement Effect",
+        None,
+        descriptions.to_vec(),
+        1,
+        1,
         None,
     );
-    match agent.recv_action() {
-        PlayerAction::ModeDecision { chosen_indices } => {
-            chosen_indices.first().copied().unwrap_or(0)
-        }
-        _ => 0,
-    }
+    recv_selection(agent)
+        .and_then(|chosen| chosen.first().copied())
+        .unwrap_or(0)
 }

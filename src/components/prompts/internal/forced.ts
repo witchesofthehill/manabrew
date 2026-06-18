@@ -36,7 +36,7 @@ export const singleLegalBoardTarget: PromptResolver<"chooseBoardTargets"> = (pro
   };
 };
 
-export const forcedAllModes: PromptResolver<"chooseMode"> = (prompt) => {
+export const forcedAllSelections: PromptResolver<"chooseFromSelection"> = (prompt) => {
   const opts = prompt.input.options;
   const min = prompt.input.minChoices;
   const max = prompt.input.maxChoices;
@@ -44,8 +44,8 @@ export const forcedAllModes: PromptResolver<"chooseMode"> = (prompt) => {
   if (min !== max || min !== opts.length) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "modeDecision", chosenIndices: opts.map((_, i) => i) },
-    reason: `must pick all ${opts.length} modes`,
+    respond: { type: "selectionDecision", chosenIndices: opts.map((_, i) => i) },
+    reason: `must pick all ${opts.length} options`,
   };
 };
 
@@ -102,16 +102,6 @@ export const allCardsForced: PromptResolver<"chooseCardsForEffect"> = (prompt) =
     kind: "auto",
     respond: { type: "chooseCardsDecision", chosenCardIds: ids },
     reason: `must pick all ${ids.length} cards`,
-  };
-};
-
-export const singleAlternativeCost: PromptResolver<"chooseAlternativeCost"> = (prompt) => {
-  const opts = prompt.input.options;
-  if (opts.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "alternativeCostDecision", chosenIndex: 0 },
-    reason: "only one castable cost option",
   };
 };
 

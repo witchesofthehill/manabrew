@@ -50,14 +50,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseAction"]: { showByDefault: false },
   ["chooseAttackers"]: { showByDefault: false },
   ["chooseBlockers"]: { showByDefault: false },
-  ["chooseExertAttackers"]: {
-    showByDefault: true,
-    resolve: optionalCosts.skipExertEnlist,
-  },
-  ["chooseEnlistAttackers"]: {
-    showByDefault: true,
-    resolve: optionalCosts.skipExertEnlist,
-  },
   ["chooseDamageAssignmentOrder"]: {
     showByDefault: true,
     resolve: forced.singleBlockerOrder,
@@ -69,7 +61,7 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseBoardTargets"]: { showByDefault: true, resolve: forced.singleLegalBoardTarget },
 
   ["revealCards"]: { showByDefault: true, resolve: informational.ackReveal },
-  ["chooseMode"]: { showByDefault: true, resolve: forced.forcedAllModes },
+  ["chooseFromSelection"]: { showByDefault: true, resolve: forced.forcedAllSelections },
   ["chooseOptionalTrigger"]: {
     showByDefault: true,
     resolve: triggerMemory.optionalTriggerMemory,
@@ -78,17 +70,10 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseType"]: { showByDefault: true, resolve: forced.singleLegalType },
   ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },
   ["chooseCardName"]: { showByDefault: true, resolve: forced.singleLegalName },
-  ["chooseKicker"]: { showByDefault: true, resolve: optionalCosts.skipKicker },
-  ["chooseBuyback"]: { showByDefault: true, resolve: optionalCosts.skipBuyback },
+  ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseMultikicker"]: { showByDefault: true, resolve: optionalCosts.skipMultikicker },
   ["chooseReplicate"]: { showByDefault: true, resolve: optionalCosts.skipReplicate },
-  ["chooseAlternativeCost"]: {
-    showByDefault: true,
-    resolve: forced.singleAlternativeCost,
-  },
   ["chooseDelve"]: { showByDefault: true, resolve: optionalCosts.skipDelve },
-  ["chooseConvoke"]: { showByDefault: true, resolve: optionalCosts.skipConvoke },
-  ["chooseImprovise"]: { showByDefault: true, resolve: optionalCosts.skipImprovise },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
   ["surveil"]: { showByDefault: true, resolve: forced.emptySurveil },
   ["dig"]: { showByDefault: true, resolve: forced.emptyDig },

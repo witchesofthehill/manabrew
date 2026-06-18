@@ -19,17 +19,17 @@ export function passOutput(prompt: Prompt | null, untilPhase: string | null): Pr
 export function declareAttackersOutput(
   prompt: Prompt | null,
   attackerIds: string[],
-  defenderId?: string,
+  targetId?: string,
 ): PromptOutput {
-  const defaultDefender =
+  const defaultTarget =
     prompt?.input.type === "chooseAttackers"
-      ? (prompt.input.possibleDefenderIds[0]?.id ?? "player-1")
+      ? (prompt.input.attackTargets[0]?.id ?? "player-1")
       : "player-1";
   return {
     type: "declareAttackers",
     assignments: attackerIds.map((id) => ({
       attackerId: id,
-      defenderId: defenderId ?? defaultDefender,
+      targetId: targetId ?? defaultTarget,
     })),
   };
 }

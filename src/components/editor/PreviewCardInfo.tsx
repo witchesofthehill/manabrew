@@ -1,6 +1,6 @@
 import { Bookmark, Gem, Sparkles } from "lucide-react";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
 import type { CardRulesSummary } from "@/types/manabrew";
@@ -49,7 +49,7 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
           <div className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
             {card.text.split("\n").map((line, i) => (
               <p key={i}>
-                <TextWithMana text={line} manaSize="sm" />
+                <DynamicTextRender text={line} />
               </p>
             ))}
           </div>

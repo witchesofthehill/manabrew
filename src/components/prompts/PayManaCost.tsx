@@ -1,5 +1,5 @@
 import { Ban, Check, WandSparkles } from "lucide-react";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { ManaPool } from "@/components/game/panels/ManaPool";
 import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
@@ -39,7 +39,7 @@ export function PayManaCost({
         <>
           <p className="text-xs text-muted-foreground">
             Cast <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
-            for <TextWithMana text={payManaCostInfo.manaCost} manaSize="sm" />
+            for <DynamicTextRender text={payManaCostInfo.manaCost} />
           </p>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Mana pool:</span>

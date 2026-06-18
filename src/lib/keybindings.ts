@@ -1,6 +1,5 @@
 export interface KeyCombo {
   key: string;
-  // Primary command modifier: Cmd on Apple, Ctrl elsewhere.
   mod?: boolean;
   meta?: boolean;
   ctrl?: boolean;
@@ -94,22 +93,25 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Card search",
     defaultCombo: { key: "/" },
   },
+  {
+    id: "flip-card",
+    label: "Flip double-faced card (preview / hand)",
+    category: "Game",
+    defaultCombo: { key: "f" },
+  },
 ];
 
 export const IS_APPLE =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 
-// Resolve the platform-agnostic `mod` flag to a concrete modifier.
 export function normalizeCombo(c: KeyCombo): KeyCombo {
   if (!c.mod) return c;
   return IS_APPLE ? { ...c, mod: undefined, meta: true } : { ...c, mod: undefined, ctrl: true };
 }
 
 export function comboFromEvent(e: KeyboardEvent): KeyCombo | null {
-  // Derive the key from the physical `code` for letters/digits so it stays
-  // stable when Option/Alt produces a different character on macOS
-  // (Option+P → "π"). Fall back to `key` for everything else (arrows,
-  // punctuation, space, enter).
+  // Derive the key from the physical `code` so it stays stable when Option/Alt
+  // produces a different character on macOS (Option+P → "π").
   let key: string;
   if (/^Key[A-Z]$/.test(e.code)) {
     key = e.code.slice(3).toLowerCase();

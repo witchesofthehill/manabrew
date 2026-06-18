@@ -32,7 +32,6 @@ export const MULLIGAN_CARD_SIZE = "w-[160px] h-[222px]" as const;
 
 // ── Modal shared styles ────────────────────────────────────────────────────
 
-/** Small card thumbnail used in modal headers (e.g., ChooseModeModal, AbilityPickerModal) */
 export const MODAL_CARD_THUMBNAIL =
   "w-[60px] h-[84px] rounded-md object-cover shrink-0 shadow-md" as const;
 

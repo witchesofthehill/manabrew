@@ -35,7 +35,6 @@
     "parity": "node scripts/parity.mjs",
     "parity:gui": "cargo run -p parity-debugger",
     "parity:test": "node scripts/harness.mjs ensure && cargo run --profile parity -p parity --bin parity -- --java-jar forge-harness/target/forge-harness-jar-with-dependencies.jar",
-    "audit:prompts": "node scripts/audit-prompt-contract.mjs",
     "scan": "node scan_structure.cjs",
     "import-deck": "tsx scripts/import-deck.ts",
     "enrich-presets": "node scripts/enrich-preset-decks.mjs",

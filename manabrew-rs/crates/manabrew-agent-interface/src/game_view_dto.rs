@@ -60,7 +60,18 @@ pub fn targeting_intent_of(sa: &SpellAbility) -> TargetingIntent {
 
 /// Distinguish Exile vs Bounce vs generic Hostile for ChangeZone effects.
 fn classify_change_zone(sa: &SpellAbility) -> TargetingIntent {
+    // Returning a card out of the graveyard/exile is recursion of your own
+    // cards (regrowth, reanimate), not a hostile bounce/blink.
+    let from_dead = matches!(
+        sa.ir.origin_zone,
+        Some(ZoneType::Graveyard) | Some(ZoneType::Exile)
+    );
     match sa.ir.destination_zone {
+        Some(ZoneType::Hand) | Some(ZoneType::Library) | Some(ZoneType::Battlefield)
+            if from_dead =>
+        {
+            TargetingIntent::Friendly
+        }
         Some(ZoneType::Exile) => TargetingIntent::Exile,
         Some(ZoneType::Hand) | Some(ZoneType::Library) => TargetingIntent::Bounce,
         Some(ZoneType::Graveyard) => TargetingIntent::Destroy,
@@ -403,6 +414,9 @@ pub fn card_to_dto(
             .any(|kw| kw.starts_with(manabrew_engine::card::KEYWORD_PLOTTED_PREFIX)),
         is_warp_exiled: card.has_keyword(manabrew_engine::card::KEYWORD_WARP_EXILED),
         foil: card.paper_foil,
+        // Combat death prediction is computed by the Forge harness only; the
+        // Rust engine doesn't surface it yet.
+        would_die_in_combat: false,
     }
 }
 

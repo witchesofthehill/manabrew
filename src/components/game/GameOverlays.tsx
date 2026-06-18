@@ -1,6 +1,5 @@
 import { ZoneViewer, SpellStackModal, AbilityPickerModal } from "@/components/game/modals";
 import { LibraryPeekModal, type LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
-import { ZoneTargetSelector } from "@/components/game/ZoneTargetSelector";
 import type { GameCard, StackObject } from "@/types/manabrew";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
 
@@ -10,11 +9,9 @@ interface GameOverlaysProps {
     cards: GameCard[];
     onClickCard?: (cardId: string) => void;
     clickableCardIds?: string[];
+    targetHostile?: boolean;
   } | null;
   onCloseZone: () => void;
-  zoneTargetSelector: { title: string; cards: GameCard[]; validCardIds: string[] } | null;
-  onSelectZoneTarget: (cardId: string) => void;
-  onCancelZoneTarget: () => void;
   libraryPeekModal: {
     mode: LibraryPeekMode;
     cards: GameCard[];
@@ -36,9 +33,6 @@ interface GameOverlaysProps {
 export function GameOverlays({
   viewingZone,
   onCloseZone,
-  zoneTargetSelector,
-  onSelectZoneTarget,
-  onCancelZoneTarget,
   libraryPeekModal,
   onLibraryPeekConfirm,
   spellStackModalOpen,
@@ -60,16 +54,7 @@ export function GameOverlays({
           onClose={onCloseZone}
           onClickCard={viewingZone.onClickCard}
           clickableCardIds={viewingZone.clickableCardIds}
-        />
-      )}
-
-      {zoneTargetSelector && (
-        <ZoneTargetSelector
-          title={zoneTargetSelector.title}
-          cards={zoneTargetSelector.cards}
-          validCardIds={zoneTargetSelector.validCardIds}
-          onSelect={onSelectZoneTarget}
-          onCancel={onCancelZoneTarget}
+          targetHostile={viewingZone.targetHostile}
         />
       )}
 

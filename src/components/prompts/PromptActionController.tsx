@@ -15,6 +15,7 @@ import type { PromptType as PromptTypeValue } from "@/protocol";
 import type { PromptButtonLayout } from "./PromptActionButton";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useGameStore } from "@/stores/useGameStore";
 
 function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
   switch (promptType) {
@@ -60,6 +61,8 @@ interface PromptActionControllerProps {
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
   pendingAttacker: string | null;
   pendingBlocker: string | null;
+  blockError?: string | null;
+  blockRequirementError?: string | null;
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
@@ -109,6 +112,8 @@ export function PromptActionController({
   onBeginAttackTargetPick,
   pendingAttacker,
   pendingBlocker,
+  blockError,
+  blockRequirementError,
   blockAssignments,
   onDeclareBlockers,
   damageOrderCount,
@@ -134,6 +139,9 @@ export function PromptActionController({
   const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
   const promptModalHidden = useGameUIStore((s) => s.promptModalHidden);
   const showPromptModal = useGameUIStore((s) => s.showPromptModal);
+  const currentPromptInput = useGameStore((s) => s.currentPrompt?.input);
+  const boardTargetLabel =
+    currentPromptInput?.type === "chooseBoardTargets" ? currentPromptInput.label : undefined;
 
   const renderers: Record<PromptActionViewKey, () => ReactElement> = {
     chooseAction: () => (
@@ -163,6 +171,8 @@ export function PromptActionController({
         isWaitingForResponse={isWaitingForResponse}
         pendingAttacker={pendingAttacker}
         pendingBlocker={pendingBlocker}
+        blockError={blockError}
+        blockRequirementError={blockRequirementError}
         blockAssignments={blockAssignments}
         onPassPriority={onPassPriority}
         onDeclareBlockers={onDeclareBlockers}
@@ -221,7 +231,7 @@ export function PromptActionController({
       return (
         <PromptLabel
           buttonLayout={buttonLayout}
-          label={(promptType && labels[promptType]) || "Waiting..."}
+          label={boardTargetLabel || (promptType && labels[promptType]) || "Waiting..."}
           isWaitingForResponse={isWaitingForResponse}
           completionLabel={targetCompletionLabel ?? undefined}
           onCompleteTargets={onCompleteTargets ?? undefined}

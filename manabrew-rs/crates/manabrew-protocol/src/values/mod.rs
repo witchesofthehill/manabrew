@@ -157,6 +157,8 @@ pub struct CardDto {
     pub is_warp_exiled: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub foil: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub would_die_in_combat: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -196,7 +198,9 @@ pub enum StackTargetKindDto {
     Stack,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,
+)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "values/index.ts")]
 pub enum TargetingIntent {

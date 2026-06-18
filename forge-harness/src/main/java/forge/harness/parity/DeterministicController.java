@@ -90,6 +90,7 @@ public class DeterministicController extends PlayerController implements Harness
     private final int[] verboseTurns;
     /** Current turn number, updated via game events. */
     private int currentTurn;
+    private boolean probingPayability;
 
     public DeterministicController(Game game, Player p, LobbyPlayer lp, CountingRandom rng, boolean preferActions, boolean deep) {
         this(game, p, lp, rng, preferActions, deep, null);
@@ -322,9 +323,15 @@ public class DeterministicController extends PlayerController implements Harness
             return null;
         }
         captureDeepCheckpoint("main_action");
+        final List<SpellAbility> possible;
+        probingPayability = true;
+        try {
+            possible = new ArrayList<>(ActionSpace.getPossibleActions(player, false));
+        } finally {
+            probingPayability = false;
+        }
         final List<SpellAbility> all = filterFailedPaymentActions(ChoiceSpace.sortNative(
-                new ArrayList<>(ActionSpace.getPossibleActions(player, false)),
-                ParityOrder.actionComparator()));
+                possible, ParityOrder.actionComparator()));
         if (!all.isEmpty()) {
             onCallback("$ACTION_SPACE", formatActionSpace(all, player));
         }
@@ -404,7 +411,7 @@ public class DeterministicController extends PlayerController implements Harness
         }
 
         while (!currentAbility.isTargetNumberValid()) {
-            final List<GameEntity> candidates = tr.getAllCandidates(currentAbility, true);
+            final List<GameEntity> candidates = tr.getAllCandidates(currentAbility, false);
             final List<Pair<GameEntity, GameObject>> valid = new ArrayList<>();
             for (final GameEntity candidate : candidates) {
                 final GameObject normalized = normalizeStackTargetCandidate(candidate);
@@ -1452,23 +1459,36 @@ public class DeterministicController extends PlayerController implements Harness
             boolean creatures,
             Integer maxReduction
     ) {
-        final String kind = artifacts && !creatures ? "choose_improvise" : "choose_convoke";
-        captureDeepCheckpoint(kind);
         final Map<Card, ManaCostShard> result = new LinkedHashMap<>();
-        if (untappedCards == null || untappedCards.isEmpty()) {
-            onCallback(kind, "[]", "0", maxReduction == null ? "none" : String.valueOf(maxReduction));
+        if (!probingPayability || untappedCards == null || untappedCards.isEmpty()) {
             return result;
         }
         final int cap = maxReduction == null ? untappedCards.size() : Math.max(0, Math.min(maxReduction, untappedCards.size()));
-        final int count = ChoiceSpace.pickCount(0, cap, untappedCards.size(), rng);
-        final List<Card> sortedUntapped = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(untappedCards));
-        final CardCollection pool = new CardCollection(sortedUntapped);
-        for (int i = 0; i < count && !pool.isEmpty(); i++) {
-            final Card chosen = pool.remove(ChoiceSpace.pickIndex(pool.size(), rng));
-            result.put(chosen, ManaCostShard.GENERIC);
+        final ManaCostBeingPaid remaining = new ManaCostBeingPaid(manaCost);
+        for (final Card card : ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(untappedCards))) {
+            if (result.size() >= cap) {
+                break;
+            }
+            final ManaCostShard shard = remaining.payManaViaConvoke(convokeColor(card, remaining, artifacts));
+            if (shard != null) {
+                result.put(card, shard);
+            }
         }
-        onCallback(kind, formatCards(result.keySet()), String.valueOf(untappedCards.size()), String.valueOf(cap));
         return result;
+    }
+
+    private byte convokeColor(final Card card, final ManaCostBeingPaid remainingCost, final boolean artifacts) {
+        if (artifacts) {
+            return ManaCostShard.COLORLESS.getColorMask();
+        }
+        ColorSet colors = card.getColor();
+        if (colors.isMulticolor()) {
+            colors = ColorSet.fromMask(colors.getColor() & remainingCost.getUnpaidColors());
+        }
+        if (colors.isMulticolor()) {
+            return (byte) Integer.lowestOneBit(colors.getColor());
+        }
+        return colors.getColor();
     }
 
     @Override

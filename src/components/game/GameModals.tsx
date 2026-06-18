@@ -1,4 +1,5 @@
 import { PromptModalHost } from "@/components/prompts/promptComponents";
+// import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
@@ -14,11 +15,9 @@ interface GameModalsProps {
     cards: GameCard[];
     onClickCard?: (cardId: string) => void;
     clickableCardIds?: string[];
+    targetHostile?: boolean;
   } | null;
   onCloseZone: () => void;
-  zoneTargetSelector: { title: string; cards: GameCard[]; validCardIds: string[] } | null;
-  onSelectZoneTarget: (cardId: string) => void;
-  onCancelZoneTarget: () => void;
   libraryPeekModal: {
     mode: LibraryPeekMode;
     cards: GameCard[];
@@ -43,9 +42,6 @@ export function GameModals({
   revealedDeckCard,
   viewingZone,
   onCloseZone,
-  zoneTargetSelector,
-  onSelectZoneTarget,
-  onCancelZoneTarget,
   libraryPeekModal,
   onLibraryPeekConfirm,
   spellStackModalOpen,
@@ -61,12 +57,10 @@ export function GameModals({
   return (
     <>
       <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard, revealedDeckCard }} />
+      {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}
-        zoneTargetSelector={zoneTargetSelector}
-        onSelectZoneTarget={onSelectZoneTarget}
-        onCancelZoneTarget={onCancelZoneTarget}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={onLibraryPeekConfirm}
         spellStackModalOpen={spellStackModalOpen}

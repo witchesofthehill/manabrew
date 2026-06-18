@@ -479,14 +479,9 @@ export const useGameStore = create<GameState>()(
         const { isMultiplayer, isHost } = get();
         if (isMultiplayer && !isHost) return;
         const promptType = get().currentPrompt?.input.type;
-        const safePrompt =
-          promptType === "chooseAction" ||
-          promptType === "chooseAttackers" ||
-          promptType === "chooseBlockers";
-        if (!safePrompt) {
+        if (promptType !== "chooseAction") {
           set({
-            debugInfo:
-              "Snapshot restore is only available during priority/combat declaration prompts.",
+            debugInfo: "Snapshot restore is only available during priority prompts.",
           });
           return;
         }

@@ -268,7 +268,7 @@ impl ParityFormat for CombatCostAction {
 impl ParityFormat for ManaCostAction {
     fn parity_fmt(&self, ctx: &FmtCtx<'_>) -> String {
         match self {
-            ManaCostAction::TapLand {
+            ManaCostAction::TapForMana {
                 card_id,
                 mana_ability_index,
                 express_choice,
@@ -291,7 +291,7 @@ impl ParityFormat for ManaCostAction {
                     "{action} {{ card: {card}, mana_ability_index: {idx}, express_choice: {express} }}"
                 )
             }
-            ManaCostAction::UntapLand(cid) => format!("UntapLand({})", ctx.card(*cid)),
+            ManaCostAction::Untap(cid) => format!("UntapLand({})", ctx.card(*cid)),
             ManaCostAction::Pay { auto } => {
                 if *auto {
                     "Pay { auto: true }".to_string()

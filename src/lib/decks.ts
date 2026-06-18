@@ -1,18 +1,11 @@
 import type { Deck, DeckCard, GameCard } from "@/types/manabrew";
 import { peekArchivedToken } from "@/stores/useScryfallStore";
 
-/** Engine emits token names with a "Token" suffix ("Map Token", "Blood
- *  Token"); Scryfall (and so the archive + user-pinned `deck.tokens`)
- *  stores them as bare names ("Map", "Blood"). Compare on the bare form. */
 function normalizeTokenName(name: string): string {
   return name.toLowerCase().replace(/\s+token$/i, "");
 }
 
 export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard {
-  // The deck can be missing (e.g. prompt cards carry no ownerId, so the
-  // gameDecks lookup misses, or a hosted opponent's deck isn't local). Match
-  // against an empty pool then fall through to a name/synthetic resolution
-  // rather than dereferencing an undefined deck and crashing the board.
   const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(
     (c) =>
@@ -37,15 +30,11 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
       `Token archive has no entry for ${gameCard.name} (${gameCard.setCode}#${gameCard.cardNumber})`,
     );
   }
-  // The engine may not carry the printing through — the hosted Forge backend
-  // emits empty setCode/cardNumber for every card — so the exact match misses
-  // deck cards pinned to a specific printing (e.g. a commander). Fall back to
-  // a name match; the singleton deck makes this unambiguous for non-basics.
-  const byName = pool.find((c) => c.name === gameCard.name);
+  // Match either face, mirroring the engine's own `get_by_card_name` which splits on " // ".
+  const matchesName = (deckName: string) =>
+    deckName === gameCard.name || deckName.split(" // ").includes(gameCard.name);
+  const byName = pool.find((c) => matchesName(c.name));
   if (byName) return byName;
-  // The engine can surface cards that were never in the deck (tokens already
-  // handled above, plus engine-internal objects like effects/emblems). Render
-  // them by name rather than crashing the whole board.
   console.warn(
     `asDeckCard: no deck match for "${gameCard.name}" (${gameCard.setCode}#${gameCard.cardNumber}), rendering by name`,
   );
@@ -53,8 +42,7 @@ export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard
     name: gameCard.name,
     setCode: gameCard.setCode,
     cardNumber: gameCard.cardNumber,
-    // `uris` must be present — renderers read `deckCard.uris[resolution]`
-    // directly. Empty means no art (renders by name) rather than a crash.
+    // `uris` must be present — renderers index `deckCard.uris[resolution]` directly.
     uris: {},
   } as DeckCard;
 }
@@ -72,7 +60,6 @@ export function getDeckCardPool(deck: Deck): DeckCard[] {
   ];
 }
 
-/** Cards whose `allParts` contributes to the deck's derived token list. */
 function getTokenSourceCards(deck: Deck): DeckCard[] {
   return [
     ...deck.cards,
@@ -87,9 +74,6 @@ function getTokenSourceCards(deck: Deck): DeckCard[] {
   ];
 }
 
-/** Set of lowercased token names produced by anything currently in the deck.
- *  Filtered to `component === "token"` so combo_piece / meld_part / meld_result
- *  entries don't keep an orphaned customized token alive. */
 export function collectAllPartsNames(deck: Deck): Set<string> {
   const out = new Set<string>();
   for (const card of getTokenSourceCards(deck)) {
@@ -101,10 +85,6 @@ export function collectAllPartsNames(deck: Deck): Set<string> {
   return out;
 }
 
-/** Derive the token list from each card's `allParts`. Filters to
- *  `component === "token"` (Scryfall also lists the source card itself,
- *  combo pieces, and meld parts/results — none of which are tokens).
- *  Resolves each name against the token archive. Deduped by name. */
 export function deriveTokens(deck: Deck): DeckCard[] {
   const seen = new Set<string>();
   const out: DeckCard[] = [];

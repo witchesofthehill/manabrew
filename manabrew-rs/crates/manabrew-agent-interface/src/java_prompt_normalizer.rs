@@ -14,8 +14,8 @@ use crate::mana_action_id::{
     parse_tap_action_id, payment_mana_ability_options, priority_mana_actions,
 };
 use crate::prompt::{
-    ActivatableAbilityInfo, AgentPrompt, AvailableAction, AvailableActionKind, DefenderIdDto,
-    PlayerAction, PromptInput, StateUpdate, TargetRef,
+    ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
+    AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetRef,
 };
 
 pub fn make_java_game_over_prompt() -> AgentPrompt {
@@ -104,17 +104,65 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::ChooseAttackers {
             attackers,
             defenders,
-        } => PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
-            available_attacker_ids: card_ids(&attackers),
-            possible_defender_ids: defender_ids(&defenders),
-        }),
+        } => {
+            use manabrew_protocol::prompts::choose_attackers::AttackerOptionDto;
+            let attack_targets = attack_targets(&defenders);
+            let all_target_ids: Vec<String> =
+                attack_targets.iter().map(|t| t.id.clone()).collect();
+            let attackers = attackers
+                .iter()
+                .filter_map(|a| {
+                    let attacker_id = a.id.clone()?;
+                    Some(AttackerOptionDto {
+                        attacker_id,
+                        // Forge sends per-attacker legal targets; fall back to
+                        // every target when it doesn't restrict them.
+                        valid_target_ids: a
+                            .valid_target_ids
+                            .clone()
+                            .unwrap_or_else(|| all_target_ids.clone()),
+                    })
+                })
+                .collect();
+            PromptInput::ChooseAttackers(
+                manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
+                    attackers,
+                    attack_targets,
+                },
+            )
+        }
         JavaRawPromptBody::ChooseBlockers {
             attackers,
             blockers,
-        } => PromptInput::ChooseBlockers(manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
-            attacker_ids: card_ids(&attackers),
-            available_blocker_ids: card_ids(&blockers),
-        }),
+        } => {
+            use manabrew_protocol::prompts::choose_blockers::BlockableAttackerDto;
+            let available_blocker_ids = card_ids(&blockers);
+            let attackers = attackers
+                .iter()
+                .filter_map(|a| {
+                    let attacker_id = a.id.clone()?;
+                    Some(BlockableAttackerDto {
+                        attacker_id,
+                        // Forge sends per-attacker legal blockers / menace /
+                        // lure; fall back to permissive defaults when absent.
+                        valid_blocker_ids: a
+                            .valid_blocker_ids
+                            .clone()
+                            .unwrap_or_else(|| available_blocker_ids.clone()),
+                        min_blockers: a.min_blockers.unwrap_or(1),
+                        max_blockers: a.max_blockers,
+                        must_be_blocked: a.must_be_blocked.unwrap_or(false),
+                    })
+                })
+                .collect();
+            PromptInput::ChooseBlockers(
+                manabrew_protocol::prompts::choose_blockers::ChooseBlockersInput {
+                    attackers,
+                    available_blocker_ids,
+                    error: None,
+                },
+            )
+        }
         JavaRawPromptBody::ChooseDamageAssignmentOrder {
             attacker_id,
             blockers,
@@ -156,12 +204,19 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             min,
             max,
             source_card_name,
-        } => PromptInput::ChooseMode(manabrew_protocol::prompts::choose_mode::ChooseModeInput {
-            options,
-            min_choices: min,
-            max_choices: max,
-            source_card_name,
-        }),
+        } => PromptInput::ChooseFromSelection(
+            manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
+                presentation: manabrew_protocol::prompts::common::PromptPresentation {
+                    title: source_card_name.unwrap_or_else(|| "Choose".to_string()),
+                    description: None,
+                    text: None,
+                    source_card_id: None,
+                },
+                options,
+                min_choices: min,
+                max_choices: max,
+            },
+        ),
         JavaRawPromptBody::ConfirmOrTrigger {
             description,
             source_card_name: _,
@@ -246,20 +301,42 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         }),
         JavaRawPromptBody::ChooseConvoke {
             cards,
-            description,
+            description: _,
             source_card_name: _,
-        } => PromptInput::ChooseConvoke(manabrew_protocol::prompts::choose_convoke::ChooseConvokeInput {
-            valid_card_ids: card_ids(&cards),
-            remaining_cost: description.unwrap_or_default(),
-        }),
+        } => {
+            let candidates: Vec<TargetRef> = card_ids(&cards)
+                .into_iter()
+                .map(|id| TargetRef::Card { id })
+                .collect();
+            let total = candidates.len() as i32;
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
+                TargetingIntent::Tap,
+                0,
+                total,
+                0,
+                "Convoke".to_string(),
+            ))
+        }
         JavaRawPromptBody::ChooseImprovise {
             cards,
-            description,
+            description: _,
             source_card_name: _,
-        } => PromptInput::ChooseImprovise(manabrew_protocol::prompts::choose_improvise::ChooseImproviseInput {
-            valid_card_ids: card_ids(&cards),
-            remaining_cost: description.unwrap_or_default(),
-        }),
+        } => {
+            let candidates: Vec<TargetRef> = card_ids(&cards)
+                .into_iter()
+                .map(|id| TargetRef::Card { id })
+                .collect();
+            let total = candidates.len() as i32;
+            PromptInput::ChooseBoardTargets(board_targets_input(
+                candidates,
+                TargetingIntent::Tap,
+                0,
+                total,
+                0,
+                "Improvise".to_string(),
+            ))
+        }
         JavaRawPromptBody::ReorderLibrary {
             cards,
             destination,
@@ -282,7 +359,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&players)
                     .into_iter()
@@ -292,6 +369,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetCard {
@@ -300,13 +378,13 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             api,
             destination,
             counter_type,
-            zone: _,
+            zone,
             min_targets,
             max_targets,
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, zone.as_deref());
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&cards)
                     .into_iter()
@@ -316,6 +394,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetAny {
@@ -330,7 +409,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             let mut candidates: Vec<TargetRef> = target_ids(&players)
                 .into_iter()
                 .map(|id| TargetRef::Player { id })
@@ -342,6 +421,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::ChooseTargetSpell {
@@ -355,7 +435,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             chosen_targets,
         } => {
             source_card_id = source;
-            let intent = intent_from_api(&api, &destination, &counter_type);
+            let intent = intent_from_api(&api, &destination, &counter_type, None);
             PromptInput::ChooseBoardTargets(board_targets_input(
                 target_ids(&spells)
                     .into_iter()
@@ -365,6 +445,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 min_targets,
                 max_targets,
                 chosen_targets,
+                intent.to_string(),
             ))
         }
         JavaRawPromptBody::PayManaCost {
@@ -384,8 +465,8 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 .iter()
                 .flat_map(to_mana_ability_info)
                 .collect(),
-            tappable_land_ids,
-            untappable_land_ids,
+            tappable_source_ids: tappable_land_ids,
+            untappable_source_ids: untappable_land_ids,
             mana_pool_total,
             can_confirm_from_pool,
         }),
@@ -469,7 +550,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::ChooseCardsDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::ModeDecision { chosen_indices } => JavaAction::ModeDecision {
+        PlayerAction::SelectionDecision { chosen_indices } => JavaAction::ModeDecision {
             indices: chosen_indices.clone(),
         },
         PlayerAction::OptionalTriggerDecision { accept }
@@ -497,9 +578,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::DigDecision { chosen_card_ids } => JavaAction::DigDecision {
             chosen_card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::DelveDecision { chosen_card_ids }
-        | PlayerAction::ConvokeDecision { chosen_card_ids }
-        | PlayerAction::ImproviseDecision { chosen_card_ids } => JavaAction::ChooseCards {
+        PlayerAction::DelveDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
         PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
@@ -554,7 +633,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                 .iter()
                 .map(|assignment| JavaAttackAssignment {
                     attacker_id: assignment.attacker_id.clone(),
-                    defender_id: assignment.defender_id.clone(),
+                    defender_id: assignment.target_id.clone(),
                 })
                 .collect(),
         },
@@ -571,7 +650,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             ability_index: index,
             ..
         } => JavaAction::ChooseAction { index: *index },
-        PlayerAction::TapLand {
+        PlayerAction::TapForMana {
             card_id,
             ability_index,
             color,
@@ -580,7 +659,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
             mana_ability_index: *ability_index,
             color: color.clone(),
         },
-        PlayerAction::UntapLand { card_id } => JavaAction::UntapLand {
+        PlayerAction::Untap { card_id } => JavaAction::UntapLand {
             card_id: card_id.clone(),
         },
         PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
@@ -605,17 +684,12 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
 fn player_action_label(action: &PlayerAction) -> &'static str {
     match action {
         PlayerAction::EngineAction { .. } => "engineAction",
-        PlayerAction::TapLand { .. } => "tapLand",
-        PlayerAction::UntapLand { .. } => "untapLand",
+        PlayerAction::TapForMana { .. } => "tapLand",
+        PlayerAction::Untap { .. } => "untapLand",
         PlayerAction::BoardTargets { .. } => "boardTargets",
-        PlayerAction::PhyrexianDecision { .. } => "phyrexianDecision",
-        PlayerAction::KickerDecision { .. } => "kickerDecision",
-        PlayerAction::BuybackDecision { .. } => "buybackDecision",
+        PlayerAction::Decision { .. } => "decision",
         PlayerAction::MultikickerDecision { .. } => "multikickerDecision",
         PlayerAction::ReplicateDecision { .. } => "replicateDecision",
-        PlayerAction::AlternativeCostDecision { .. } => "alternativeCostDecision",
-        PlayerAction::ExertDecision { .. } => "exertDecision",
-        PlayerAction::EnlistDecision { .. } => "enlistDecision",
         PlayerAction::ExploreResponse { .. } => "exploreResponse",
         PlayerAction::AssistDecision { .. } => "assistDecision",
         PlayerAction::PayCombatCost => "payCombatCost",
@@ -627,11 +701,7 @@ fn player_action_label(action: &PlayerAction) -> &'static str {
         PlayerAction::CancelManaCost => "cancelManaCost",
         PlayerAction::DiceRolledAcknowledged => "diceRolledAcknowledged",
         PlayerAction::FirstPlayerRollAcknowledged => "firstPlayerRollAcknowledged",
-        PlayerAction::RollToIgnoreDecision { .. } => "rollToIgnoreDecision",
-        PlayerAction::RollToSwapDecision { .. } => "rollToSwapDecision",
-        PlayerAction::RollToModifyDecision { .. } => "rollToModifyDecision",
-        PlayerAction::DiceToRerollDecision { .. } => "diceToRerollDecision",
-        PlayerAction::RollSwapValueDecision { .. } => "rollSwapValueDecision",
+        PlayerAction::SelectionDecision { .. } => "selectionDecision",
         _ => "unknown",
     }
 }
@@ -680,9 +750,6 @@ fn build_choose_action(
                 cost: None,
                 is_mana_ability: false,
                 produced_mana: None,
-            },
-            Some("play") => AvailableActionKind::PlayLand {
-                card_id: card_id.clone(),
             },
             _ => AvailableActionKind::Cast {
                 card_id: card_id.clone(),
@@ -867,6 +934,7 @@ fn to_card(
         kicker_cost: keyword_cost(&card.keywords, "Kicker"),
         madness_cost: keyword_cost(&card.keywords, "Madness"),
         effective_mana_cost: card.effective_mana_cost.clone(),
+        would_die_in_combat: card.would_die_in_combat,
         name,
         ..CardDto::default()
     }
@@ -890,6 +958,7 @@ fn intent_from_api(
     api: &Option<String>,
     destination: &Option<String>,
     counter_type: &Option<String>,
+    origin: Option<&str>,
 ) -> TargetingIntent {
     use TargetingIntent::*;
     let Some(api) = api.as_deref() else {
@@ -899,13 +968,19 @@ fn intent_from_api(
         "DealDamage" | "DamageAll" | "EachDamage" => Damage,
         "Destroy" | "DestroyAll" => Destroy,
         "Sacrifice" | "SacrificeAll" => Sacrifice,
-        "ChangeZone" | "ChangeZoneAll" => match destination.as_deref() {
-            Some("Exile") => Exile,
-            Some("Hand") | Some("Library") => Bounce,
-            Some("Graveyard") => Destroy,
-            Some("Battlefield") => Friendly,
-            _ => Hostile,
-        },
+        "ChangeZone" | "ChangeZoneAll" => {
+            // Pulling a card out of the graveyard/exile is recursion of your own
+            // cards (regrowth, reanimate), not a hostile bounce/blink.
+            let from_dead = matches!(origin, Some("Graveyard") | Some("Exile"));
+            match destination.as_deref() {
+                Some("Hand") | Some("Library") | Some("Battlefield") if from_dead => Friendly,
+                Some("Exile") => Exile,
+                Some("Hand") | Some("Library") => Bounce,
+                Some("Graveyard") => Destroy,
+                Some("Battlefield") => Friendly,
+                _ => Hostile,
+            }
+        }
         "Mill" => Mill,
         "Discard" => Discard,
         "Counter" => Counter,
@@ -1043,6 +1118,7 @@ fn board_targets_input(
     min_targets: i32,
     max_targets: i32,
     chosen_targets: i32,
+    label: String,
 ) -> manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
     manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
         candidates,
@@ -1051,6 +1127,7 @@ fn board_targets_input(
         min_targets,
         max_targets,
         chosen_targets,
+        label,
     }
 }
 
@@ -1088,13 +1165,21 @@ fn index_view_cards(view: &GameViewDto) -> HashMap<String, CardDto> {
     index
 }
 
-fn defender_ids(defenders: &[JavaRawCardOption]) -> Vec<DefenderIdDto> {
+fn attack_targets(defenders: &[JavaRawCardOption]) -> Vec<AttackTargetDto> {
     defenders
         .iter()
         .filter_map(|defender| {
             let id = defender.id.clone()?;
             let label = defender.label.clone().unwrap_or_else(|| id.clone());
-            Some(DefenderIdDto { id, label })
+            let kind = match defender.kind.as_deref() {
+                Some("player") => AttackTargetKind::Player,
+                Some("battle") => AttackTargetKind::Battle,
+                Some("planeswalker") => AttackTargetKind::Planeswalker,
+                // Fall back to the id prefix when the harness omits a kind.
+                _ if id.starts_with("player-") => AttackTargetKind::Player,
+                _ => AttackTargetKind::Planeswalker,
+            };
+            Some(AttackTargetDto { id, label, kind })
         })
         .collect()
 }

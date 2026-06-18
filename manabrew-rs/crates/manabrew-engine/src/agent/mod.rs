@@ -652,19 +652,6 @@ pub trait PlayerAgent {
         0
     }
 
-    /// Choose an alternative cost for a spell.
-    /// `options` describes available casting options (e.g. "Normal cost: 3BB", "Spectacle: BR").
-    /// Returns the index of the chosen option (0 = normal, 1+ = alternative).
-    /// Default: 0 (normal cost).
-    fn choose_alternative_cost(
-        &mut self,
-        _player: PlayerId,
-        _options: &[String],
-        _source: Option<CardId>,
-    ) -> usize {
-        0
-    }
-
     /// Choose a color (for ChooseColorEffect).
     /// `valid_colors` lists the legal color choices (e.g. ["White","Blue","Black","Red","Green"]).
     /// Default: pick the first valid color.

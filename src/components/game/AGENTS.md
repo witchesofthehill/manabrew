@@ -70,6 +70,23 @@ Use the standard size constants. Don't invent pixel values.
 | `MULLIGAN_CARD_SIZE` | `w-[160px] h-[222px]` — cards inside mulligan modals                                                                                        |
 | `FLASH_CARD_SIZE`    | `{ w: 310, h: 434 }` (numeric — for Pixi-rendered preview, not a Tailwind class)                                                            |
 
+## Card rendering — keep the three renderers in sync
+
+A card's look is produced by **three independent renderers**. They share no draw code, so any visual change must be applied to all three (or consciously skipped with a note):
+
+| Renderer                              | Tech | Where it shows                                                                                      |
+| ------------------------------------- | ---- | --------------------------------------------------------------------------------------------------- |
+| `@/pixi/CardSprite`                   | PIXI | In-game battlefield + hand (the real game)                                                          |
+| `components/game/BattlefieldCardFace` | DOM  | Custom battlefield styles (art-forward / mini-frame) — settings preview, dev gallery (`/card-mock`) |
+| `components/game/CardPreview`         | DOM  | Hover preview popup (and deck-editor hover)                                                         |
+
+**Rule:** when you add, restyle, or remove a card visual — counters, damage wash, summoning-sickness, P/T coloring, frame tint/bars, keyword chips, mana pips, foil, badges, etc. — change **every** renderer that should show it, in the same commit. A change that lands in only one drifts the others (this has bitten us repeatedly: FPS-style regressions, counter display, damage-wash corners, summoning sickness).
+
+- **Shared, theme-driven color math lives in `@/themes/gameTheme.ts`** (`frameTint`, `readableTextColor`, `withAlpha`, `darken`, `relativeLuminance`). Use these in both DOM and Pixi instead of re-deriving — that's what actually keeps the look identical across renderers. No hex literals (see Theme below).
+- **Geometry must match too.** A full-card overlay must trace the card's rounded corner: in the DOM the card border is drawn as an `inset-0 rounded-[inherit]` overlay (not a CSS `border`) so washes can fill to the outer radius; in Pixi the equivalent is a `roundRect(..., CARD_RADIUS)`.
+- **Attacking + summoning-sickness now match the DOM in Pixi too:** both draw an inset **edge glow** (`CardSprite.updateEdgeGlow`) — red for attacking, frosty + pulsing for summoning-sick (pulse driven per-frame by `BoardRegion.animate` → `tickEffects`); summoning-sick also keeps the grey desaturate/dim filter. Pixi's `setRing` is now reserved for **interaction/combat** states only (lethal, pending, tappable/untappable land, selectable/targeting).
+- **Known intentional divergences — do not "fix" without being asked:** some effects are **Pixi-only** (doomed wash, foil ring, ring-bearer, status badges `MORPH`/`EXERTED`/…, damage-order badge, stack count). The DOM face also currently lacks the _debuffed_ P/T color that Pixi has.
+
 ## Prompt routing
 
 The engine sends a `Prompt` (from `@/protocol`) → `PromptModalHost` (in `prompts/promptComponents.tsx`) looks up `prompt.input.type` in the `PROMPT_MODALS` registry and renders that entry inside `PromptModalController`. Each registry entry receives `{ prompt, respond, ctx }` — it reads the typed `prompt.input`, renders a leaf modal from `modals/`, and answers by calling `respond(<PromptOutput>)` directly (no per-prompt store callback). `ctx` carries the misc UI extras the engine prompt doesn't (`sourceDeckCard`, `revealedDeckCard`); non-prompt overlays (zone viewer, spell stack, ability picker) live in `GameOverlays`, not the registry.

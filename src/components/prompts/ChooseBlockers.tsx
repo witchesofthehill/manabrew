@@ -13,6 +13,8 @@ export function ChooseBlockers({
   isWaitingForResponse,
   pendingAttacker,
   pendingBlocker,
+  blockError,
+  blockRequirementError,
   blockAssignments,
   onPassPriority,
   onDeclareBlockers,
@@ -39,6 +41,14 @@ export function ChooseBlockers({
         >
           NO BLOCKERS
         </Button>
+        {(blockError || blockRequirementError) && (
+          <p
+            className="text-xs font-semibold text-center"
+            style={{ color: promptActionColors.attackAction }}
+          >
+            {blockError ?? blockRequirementError}
+          </p>
+        )}
         {hint && <p className="text-xs italic text-muted-foreground text-center">{hint}</p>}
         {blockAssignments.length > 0 && (
           <Button
@@ -46,7 +56,7 @@ export function ChooseBlockers({
             variant="outline"
             className="h-9 w-full rounded-lg text-sm font-black tracking-[0.12em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105 gap-1.5"
             onClick={() => onDeclareBlockers(blockAssignments)}
-            disabled={isWaitingForResponse}
+            disabled={isWaitingForResponse || !!blockRequirementError}
             style={defenseStyle}
           >
             <Shield className="h-3.5 w-3.5" />
@@ -68,6 +78,11 @@ export function ChooseBlockers({
         onClick={onPassPriority}
         disabled={isWaitingForResponse}
       />
+      {(blockError || blockRequirementError) && (
+        <p className="text-xs font-semibold" style={{ color: promptActionColors.attackAction }}>
+          {blockError ?? blockRequirementError}
+        </p>
+      )}
       {hint && <p className="text-xs italic text-muted-foreground">{hint}</p>}
       {blockAssignments.length > 0 && (
         <PromptActionButton
@@ -77,7 +92,7 @@ export function ChooseBlockers({
           className={BUTTON_CONFIRM_BLOCKS}
           baseColor={promptActionColors.defenseAction}
           onClick={() => onDeclareBlockers(blockAssignments)}
-          disabled={isWaitingForResponse}
+          disabled={isWaitingForResponse || !!blockRequirementError}
         />
       )}
     </div>

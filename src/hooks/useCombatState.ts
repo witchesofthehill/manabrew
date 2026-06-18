@@ -9,6 +9,13 @@ export interface CombatAssignment {
   attackerId: string;
 }
 
+export interface BlockRequirementViolation {
+  attackerId: string;
+  assigned: number;
+  kind: "min" | "max";
+  count: number;
+}
+
 interface UseCombatStateOptions {
   promptType: string | undefined;
   targetCard: (cardId: string) => void;
@@ -65,8 +72,44 @@ export function useCombatState({
   }
 
   const possibleDefenders =
-    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.possibleDefenderIds : [];
+    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackTargets : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
+
+  // Per-attacker block legality the engine reported; drives which blocker→
+  // attacker pairings are allowed (and the menace/error feedback in the UI).
+  const blockableAttackers =
+    currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.attackers : [];
+  const blockError =
+    currentPrompt?.input.type === "chooseBlockers" ? currentPrompt.input.error : undefined;
+  // An attacker whose minimum can't be met by its legal blockers can't be
+  // blocked at all (e.g. "all creatures must block it" while one is tapped).
+  // Treat it as unblockable so a partial assignment can't dead-end the
+  // declaration with the Block button stuck disabled.
+  const attackerIsBlockable = (a: { validBlockerIds: string[]; minBlockers: number }): boolean =>
+    a.validBlockerIds.length >= a.minBlockers;
+  const canBlock = (blockerId: string, attackerId: string): boolean => {
+    const attacker = blockableAttackers.find((a) => a.attackerId === attackerId);
+    return (
+      !!attacker && attackerIsBlockable(attacker) && attacker.validBlockerIds.includes(blockerId)
+    );
+  };
+
+  // First attacker whose current block count breaks its min/max requirement
+  // (menace, "can't be blocked unless all block it", "can't be blocked by more
+  // than N"). An attacker with zero blockers is fine — blocking is optional.
+  const blockRequirement: BlockRequirementViolation | null =
+    blockableAttackers.reduce<BlockRequirementViolation | null>((found, a) => {
+      if (found) return found;
+      const assigned = blockAssignments.filter((b) => b.attackerId === a.attackerId).length;
+      if (assigned === 0) return null;
+      if (assigned < a.minBlockers) {
+        return { attackerId: a.attackerId, assigned, kind: "min", count: a.minBlockers };
+      }
+      if (a.maxBlockers != null && assigned > a.maxBlockers) {
+        return { attackerId: a.attackerId, assigned, kind: "max", count: a.maxBlockers };
+      }
+      return null;
+    }, null);
 
   // Awaiting-defender state is implicit now: as soon as the user has at
   // least one pending attacker AND there's more than one legal defender
@@ -144,7 +187,7 @@ export function useCombatState({
     if (promptType === "chooseAttackers") {
       if (
         currentPrompt.input.type !== "chooseAttackers" ||
-        !currentPrompt.input.availableAttackerIds.includes(card.id)
+        !currentPrompt.input.attackers.some((a) => a.attackerId === card.id)
       ) {
         return;
       }
@@ -195,6 +238,8 @@ export function useCombatState({
   // blockers — multiple creatures may block one attacker; the engine enforces
   // legality like Menace).
   function assignBlock(blockerId: string, attackerId: string) {
+    // Honor the engine's per-attacker legality — illegal pairings are ignored.
+    if (!canBlock(blockerId, attackerId)) return;
     setBlockAssignments((prev) => {
       const alreadyOnAttacker = prev.some(
         (a) => a.blockerId === blockerId && a.attackerId === attackerId,
@@ -236,6 +281,8 @@ export function useCombatState({
     pendingBlocker,
     attackDefenderId,
     blockAssignments,
+    blockError,
+    blockRequirement,
     assignBlockPair,
     unassignBlock,
     damageOrder,

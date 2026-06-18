@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { TextWithMana } from "@/components/game/TextWithMana";
+import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
@@ -51,7 +51,7 @@ export function AbilityPickerModal({
               "hover:border-primary/50 hover:bg-muted/50 border-border bg-background",
             )}
           >
-            <TextWithMana text={ability.label} />
+            <DynamicTextRender text={ability.label} />
           </button>
         ))}
       </div>

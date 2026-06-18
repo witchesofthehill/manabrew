@@ -14,9 +14,6 @@ pub enum AvailableActionKind {
         mode: String,
         mode_label: String,
     },
-    PlayLand {
-        card_id: String,
-    },
     ActivateAbility {
         card_id: String,
         ability_index: usize,

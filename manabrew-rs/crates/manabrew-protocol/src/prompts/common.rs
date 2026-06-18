@@ -4,6 +4,22 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
+pub struct PromptPresentation {
+    pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub source_card_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
 pub struct PlayOptionDto {
     pub card_id: String,
     pub mode: String,
@@ -32,9 +48,19 @@ pub struct ActivatableAbilityInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
-pub struct DefenderIdDto {
+pub enum AttackTargetKind {
+    Player,
+    Planeswalker,
+    Battle,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct AttackTargetDto {
     pub id: String,
     pub label: String,
+    pub kind: AttackTargetKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -50,7 +76,7 @@ pub struct BlockAssignment {
 #[ts(export, export_to = "prompts/common.ts")]
 pub struct AttackAssignment {
     pub attacker_id: String,
-    pub defender_id: String,
+    pub target_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

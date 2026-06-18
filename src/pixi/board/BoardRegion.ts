@@ -705,7 +705,12 @@ export class BoardRegion {
         unplaced.push(c);
         continue;
       }
-      if (cell.blocked || occupied.has(cellKey(cell.col, cell.row))) {
+      // A card that already owns a slot keeps it even when a panel transiently
+      // overlaps the cell (`blocked`); only a real card-on-card collision evicts
+      // it. Fresh placement below still avoids blocked cells, so new cards never
+      // spawn under a panel — this just stops placed cards thrashing as the
+      // action cluster / zone panels resize between prompts.
+      if (occupied.has(cellKey(cell.col, cell.row))) {
         unplaced.push(c);
         continue;
       }

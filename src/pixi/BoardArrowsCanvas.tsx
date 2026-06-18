@@ -58,9 +58,14 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
         layerRef.current = layer;
         const parent = canvasRef.current?.parentElement;
         if (parent) app.renderer.resize(parent.clientWidth, parent.clientHeight);
+        app.ticker.remove(app.render, app);
+        let prevHadArrows = false;
         app.ticker.add(() => {
           const defs = sceneRefRef.current.current?.getArrowDefs() ?? [];
           layer.update(defs, app.ticker.deltaMS);
+          const hasArrows = defs.length > 0;
+          if (hasArrows || prevHadArrows) app.render();
+          prevHadArrows = hasArrows;
         });
       });
     return () => {

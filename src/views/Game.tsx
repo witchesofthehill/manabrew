@@ -6,7 +6,13 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ActivatableAbilityInfo, GameCard, Player, StackObject } from "@/types/manabrew";
+import type {
+  ActivatableAbilityInfo,
+  CombatAssignment,
+  GameCard,
+  Player,
+  StackObject,
+} from "@/types/manabrew";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
@@ -1259,6 +1265,64 @@ export default function Game({ exitTo }: GameProps = {}) {
     [casting, setSpellStackModalOpen],
   );
   const validSpellIds = useMemo(() => boardTargets?.spellIds ?? [], [boardTargets?.spellIds]);
+  const availableAttackerIds = useMemo(
+    () => chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? [],
+    [chooseAttackersInput],
+  );
+  const blockerAttackerIds = useMemo(
+    () => chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? [],
+    [chooseBlockersInput],
+  );
+  const payManaCostInfo = useMemo(
+    () =>
+      payManaCostInput
+        ? {
+            cardName: payManaCostInput.cardName,
+            manaCost: payManaCostInput.manaCost,
+            manaPool: gameView?.players.find((p) => p.isHuman)?.manaPool ?? {},
+            canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+          }
+        : null,
+    [payManaCostInput, gameView],
+  );
+  const handleDeclareAttackers = useCallback(
+    (attackerIds: string[], defenderId?: string) =>
+      respond(declareAttackersOutput(activePrompt, attackerIds, defenderId)),
+    [respond, activePrompt],
+  );
+  const handleDeclareBlockers = useCallback(
+    (assignments: CombatAssignment[]) => respond({ type: "declareBlockers", assignments }),
+    [respond],
+  );
+  const handleConfirmDamageOrder = useCallback(
+    () => respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder }),
+    [respond, damageOrder],
+  );
+  const handleDefaultDamageOrder = useCallback(
+    () =>
+      respond({
+        type: "damageAssignmentOrderDecision",
+        orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+      }),
+    [respond, damageOrderInput],
+  );
+  const handlePayManaCost = useCallback(
+    () => respond({ type: "payManaCost", auto: false }),
+    [respond],
+  );
+  const handleAutoManaCost = useCallback(
+    () => respond({ type: "payManaCost", auto: true }),
+    [respond],
+  );
+  const handleCancelManaCost = useCallback(() => respond({ type: "cancelManaCost" }), [respond]);
+  const handleMulliganKeep = useCallback(
+    () => respond({ type: "mulliganDecision", keep: true }),
+    [respond],
+  );
+  const handleMulliganDraw = useCallback(
+    () => respond({ type: "mulliganDecision", keep: false }),
+    [respond],
+  );
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1588,37 +1652,28 @@ export default function Game({ exitTo }: GameProps = {}) {
           isWaitingForResponse={isWaitingForResponse}
           isAutoPassing={isAutoPassing}
           isPassingUntilEot={isPassingUntilEot}
-          availableAttackerIds={chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []}
+          availableAttackerIds={availableAttackerIds}
           pendingAttackers={pendingAttackers}
           onPassPriority={unifiedPass}
           onPassUntilEot={activatePassUntilEot}
           selectedAttackDefenderId={attackDefenderId}
           selectedAttackDefenderLabel={selectedAttackDefender?.label}
           multipleAttackDefenders={multipleAttackDefenders}
-          onDeclareAttackers={(attackerIds, defenderId) =>
-            respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
-          }
+          onDeclareAttackers={handleDeclareAttackers}
           onBeginAttackTargetPick={selectAllAttackersForPick}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           blockError={blockError}
           blockRequirementError={blockRequirementError}
-          attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
+          attackerIds={blockerAttackerIds}
           blockAssignments={blockAssignments}
-          onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
+          onDeclareBlockers={handleDeclareBlockers}
           damageOrderCount={damageOrder.length}
           damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
-          onConfirmDamageOrder={() =>
-            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
-          }
+          onConfirmDamageOrder={handleConfirmDamageOrder}
           onUndoDamageOrder={undoDamageOrder}
-          onDefaultDamageOrder={() =>
-            respond({
-              type: "damageAssignmentOrderDecision",
-              orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
-            })
-          }
-          onOpenStack={() => setSpellStackModalOpen(true)}
+          onDefaultDamageOrder={handleDefaultDamageOrder}
+          onOpenStack={openSpellStack}
           targetCompletionLabel={targetCompletion?.label}
           onCompleteTargets={targetCompletion?.onComplete}
           onConcede={concede}
@@ -1631,22 +1686,13 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
           isMyTurn={gameView.activePlayerId === me.id}
           step={gameView.step}
-          payManaCostInfo={
-            payManaCostInput
-              ? {
-                  cardName: payManaCostInput.cardName,
-                  manaCost: payManaCostInput.manaCost,
-                  manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
-                  canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-                }
-              : null
-          }
-          onPayManaCost={() => respond({ type: "payManaCost", auto: false })}
-          onAutoManaCost={() => respond({ type: "payManaCost", auto: true })}
-          onCancelManaCost={() => respond({ type: "cancelManaCost" })}
+          payManaCostInfo={payManaCostInfo}
+          onPayManaCost={handlePayManaCost}
+          onAutoManaCost={handleAutoManaCost}
+          onCancelManaCost={handleCancelManaCost}
           mulliganCount={mulliganInput?.mulliganCount ?? 0}
-          onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
-          onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
+          onMulliganKeep={handleMulliganKeep}
+          onMulliganDraw={handleMulliganDraw}
           mulliganPutBackCount={mulliganPutBack.count}
           mulliganSelectedCount={mulliganPutBack.selected.size}
           onMulliganPutBackConfirm={mulliganPutBack.confirm}

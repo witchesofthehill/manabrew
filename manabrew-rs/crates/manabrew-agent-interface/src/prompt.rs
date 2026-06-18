@@ -77,15 +77,11 @@ pub enum PlayerAction {
         #[serde(rename = "abilityIndex")]
         ability_index: usize,
     },
-    /// Response to Scry prompt: IDs of cards the player wants on the bottom.
+    /// Response to a Scry prompt: per-zone ordered card IDs (parallel to the
+    /// prompt's `zones`; e.g. scry = [top, bottom], surveil = [top, graveyard]).
     ScryDecision {
-        #[serde(rename = "bottomCardIds")]
-        bottom_card_ids: Vec<String>,
-    },
-    /// Response to Surveil prompt: IDs of cards the player wants in the graveyard.
-    SurveilDecision {
-        #[serde(rename = "graveyardCardIds")]
-        graveyard_card_ids: Vec<String>,
+        #[serde(rename = "zoneCardIds")]
+        zone_card_ids: Vec<Vec<String>>,
     },
     /// Response to Dig prompt: IDs of the cards the player wants to take.
     DigDecision {
@@ -137,6 +133,11 @@ pub enum PlayerAction {
     },
     /// Response to ReorderLibrary: ordered card IDs (last = top of library).
     ReorderLibraryDecision {
+        #[serde(rename = "orderedCardIds")]
+        ordered_card_ids: Vec<String>,
+    },
+    /// Response to ReorderCards: cards in the chosen order.
+    ReorderDecision {
         #[serde(rename = "orderedCardIds")]
         ordered_card_ids: Vec<String>,
     },

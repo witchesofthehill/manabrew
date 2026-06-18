@@ -438,6 +438,34 @@
   }
 }
 
+/* Always-visible (classic) scrollbar, overriding macOS overlay auto-hide.
+   Do NOT set scrollbar-width/scrollbar-color: in Chrome/WebKit that switches
+   to the standardized auto-hiding scrollbar and ignores ::-webkit-scrollbar. */
+@utility always-scrollbar {
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-muted-foreground);
+    border-radius: 9999px;
+    /* transparent border + padding-box clip = even padding around the thumb */
+    border: 5px solid transparent;
+    background-clip: padding-box;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Inset a horizontal scrollbar's ends so it doesn't touch the side edges. */
+@utility scrollbar-inset-x {
+  &::-webkit-scrollbar-track {
+    margin-inline: 1.25rem;
+  }
+}
+
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;

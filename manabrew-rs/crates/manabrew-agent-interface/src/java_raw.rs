@@ -656,10 +656,7 @@ pub enum JavaAction {
         value: String,
     },
     ScryDecision {
-        bottom_card_ids: Vec<String>,
-    },
-    SurveilDecision {
-        graveyard_card_ids: Vec<String>,
+        zone_card_ids: Vec<Vec<String>>,
     },
     DigDecision {
         chosen_card_ids: Vec<String>,

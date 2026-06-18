@@ -1564,11 +1564,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         onCloseZone={closeZone}
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
-          if (libraryPeekModal!.mode === "scry")
-            respond({ type: "scryDecision", bottomCardIds: selectedIds });
-          else if (libraryPeekModal!.mode === "surveil")
-            respond({ type: "surveilDecision", graveyardCardIds: selectedIds });
-          else if (libraryPeekModal!.mode === "discard")
+          if (libraryPeekModal!.mode === "discard")
             respond({ type: "discardDecision", discardedCardIds: selectedIds });
           else respond({ type: "digDecision", chosenCardIds: selectedIds });
           setLibraryPeekModal(null);

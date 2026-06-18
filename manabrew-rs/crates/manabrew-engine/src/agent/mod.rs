@@ -326,26 +326,29 @@ pub trait PlayerAgent {
         valid.first().copied()
     }
 
-    /// Choose which of the top `cards` (from Scry) to put on the bottom of the library.
-    /// The rest will stay on top. Default: keep all on top (no cards sent to bottom).
+    /// Distribute the looked-at Scry cards across the zones. Returns one ordered
+    /// pile per zone — `[top, bottom]` — where the last id in each pile is placed
+    /// on top of that pile. Default: keep everything on top, nothing to bottom.
     fn choose_scry(
         &mut self,
         _game: &GameState,
         _player: PlayerId,
-        _cards: &[CardId],
-    ) -> Vec<CardId> {
-        vec![]
+        _source: Option<CardId>,
+        cards: &[CardId],
+    ) -> Vec<Vec<CardId>> {
+        vec![cards.to_vec(), vec![]]
     }
 
-    /// Choose which of the top `cards` (from Surveil) to put into the graveyard.
-    /// The rest will go on top. Default: keep all on top (nothing milled).
+    /// Distribute the looked-at Surveil cards: `[top, graveyard]` ordered piles.
+    /// Default: keep everything on top, nothing milled.
     fn choose_surveil(
         &mut self,
         _game: &GameState,
         _player: PlayerId,
-        _cards: &[CardId],
-    ) -> Vec<CardId> {
-        vec![]
+        _source: Option<CardId>,
+        cards: &[CardId],
+    ) -> Vec<Vec<CardId>> {
+        vec![cards.to_vec(), vec![]]
     }
 
     /// Choose up to `max` cards from `valid` to move to the destination zone (Dig effect).

@@ -312,14 +312,32 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => PromptInput::ChooseCardName(manabrew_protocol::prompts::choose_card_name::ChooseCardNameInput {
             valid_names: options,
         }),
-        JavaRawPromptBody::ChooseScry { cards } => PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput {
-            card_ids: card_ids(&cards),
-            cards: prompt_cards(&cards, &card_index),
-        }),
-        JavaRawPromptBody::ChooseSurveil { cards } => PromptInput::Surveil(manabrew_protocol::prompts::surveil::SurveilInput {
-            card_ids: card_ids(&cards),
-            cards: prompt_cards(&cards, &card_index),
-        }),
+        JavaRawPromptBody::ChooseScry { cards } => {
+            PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput {
+                presentation: scry_presentation(
+                    "Scry",
+                    "Put any number on the bottom; the rest on top in any order.",
+                ),
+                cards: prompt_cards(&cards, &card_index),
+                zones: vec![
+                    manabrew_protocol::prompts::scry::ScryDestination::LibraryTop,
+                    manabrew_protocol::prompts::scry::ScryDestination::LibraryBottom,
+                ],
+            })
+        }
+        JavaRawPromptBody::ChooseSurveil { cards } => {
+            PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput {
+                presentation: scry_presentation(
+                    "Surveil",
+                    "Put any number into your graveyard; the rest on top in any order.",
+                ),
+                cards: prompt_cards(&cards, &card_index),
+                zones: vec![
+                    manabrew_protocol::prompts::scry::ScryDestination::LibraryTop,
+                    manabrew_protocol::prompts::scry::ScryDestination::Graveyard,
+                ],
+            })
+        }
         JavaRawPromptBody::ChooseDig {
             cards,
             max,
@@ -600,11 +618,8 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::NumberDecision { chosen_number } => JavaAction::NumberDecision {
             number: chosen_number.unwrap_or_default(),
         },
-        PlayerAction::ScryDecision { bottom_card_ids } => JavaAction::ScryDecision {
-            bottom_card_ids: bottom_card_ids.clone(),
-        },
-        PlayerAction::SurveilDecision { graveyard_card_ids } => JavaAction::SurveilDecision {
-            graveyard_card_ids: graveyard_card_ids.clone(),
+        PlayerAction::ScryDecision { zone_card_ids } => JavaAction::ScryDecision {
+            zone_card_ids: zone_card_ids.clone(),
         },
         PlayerAction::DigDecision { chosen_card_ids } => JavaAction::DigDecision {
             chosen_card_ids: chosen_card_ids.clone(),
@@ -1192,6 +1207,19 @@ fn prompt_cards(cards: &[JavaRawCardOption], index: &HashMap<String, CardDto>) -
             })
         })
         .collect()
+}
+
+fn scry_presentation(
+    title: &str,
+    description: &str,
+) -> manabrew_protocol::prompts::common::PromptPresentation {
+    manabrew_protocol::prompts::common::PromptPresentation {
+        title: title.to_string(),
+        description: Some(description.to_string()),
+        text: None,
+        source_card_id: None,
+        targets: Vec::new(),
+    }
 }
 
 fn index_view_cards(view: &GameViewDto) -> HashMap<String, CardDto> {

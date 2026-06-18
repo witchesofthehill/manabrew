@@ -1255,16 +1255,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public ImmutablePair<CardCollection, CardCollection> arrangeForScry(final CardCollection topN) {
-        final Pair<CardCollection, CardCollection> decision = session.awaitCardIdListChoice(
-                "choose_scry", "scry_decision", "bottom_card_ids", me(), topN, sourceName(null));
-        return ImmutablePair.of(decision.getRight(), decision.getLeft());
+        // (top, bottom) — both ordered by the player.
+        final Pair<CardCollection, CardCollection> decision =
+                session.awaitScryDecision("choose_scry", me(), topN, sourceName(null));
+        return ImmutablePair.of(decision.getLeft(), decision.getRight());
     }
 
     @Override
     public ImmutablePair<CardCollection, CardCollection> arrangeForSurveil(final CardCollection topN) {
-        final Pair<CardCollection, CardCollection> decision = session.awaitCardIdListChoice(
-                "choose_surveil", "surveil_decision", "graveyard_card_ids", me(), topN, sourceName(null));
-        return ImmutablePair.of(decision.getRight(), decision.getLeft());
+        // (top, graveyard) — both ordered by the player.
+        final Pair<CardCollection, CardCollection> decision =
+                session.awaitScryDecision("choose_surveil", me(), topN, sourceName(null));
+        return ImmutablePair.of(decision.getLeft(), decision.getRight());
     }
 
     @Override

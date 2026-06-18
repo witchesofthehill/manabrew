@@ -9,6 +9,7 @@ pub mod choose_blockers;
 pub mod choose_board_targets;
 pub mod choose_boolean;
 pub mod choose_card_name;
+pub mod choose_cards;
 pub mod choose_cards_for_effect;
 pub mod choose_color;
 pub mod choose_combat_damage_assignment;
@@ -26,11 +27,11 @@ pub mod mulligan;
 pub mod mulligan_put_back;
 pub mod pay_combat_cost;
 pub mod pay_mana_cost;
+pub mod reorder_cards;
 pub mod reorder_library;
 pub mod reveal_cards;
 pub mod scry;
 pub mod specify_mana_combo;
-pub mod surveil;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -47,7 +48,6 @@ pub enum PromptInput {
     GameOver(game_over::GameOverInput),
     RevealCards(reveal_cards::RevealCardsInput),
     Scry(scry::ScryInput),
-    Surveil(surveil::SurveilInput),
     Dig(dig::DigInput),
     ChooseDiscard(choose_discard::ChooseDiscardInput),
     ChooseColor(choose_color::ChooseColorInput),
@@ -62,6 +62,8 @@ pub enum PromptInput {
     ChooseDelve(choose_delve::ChooseDelveInput),
     PayManaCost(pay_mana_cost::PayManaCostInput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
+    ChooseCards(choose_cards::ChooseCardsInput),
+    ReorderCards(reorder_cards::ReorderCardsInput),
     ReorderLibrary(reorder_library::ReorderLibraryInput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollInput),
     DiceRolled(dice_rolled::DiceRolledInput),
@@ -86,7 +88,6 @@ pub enum PromptOutput {
     ChooseFromSelection(choose_from_selection::ChooseFromSelectionOutput),
     RevealCards(reveal_cards::RevealCardsOutput),
     Scry(scry::ScryOutput),
-    Surveil(surveil::SurveilOutput),
     Dig(dig::DigOutput),
     ChooseDiscard(choose_discard::ChooseDiscardOutput),
     ChooseColor(choose_color::ChooseColorOutput),
@@ -101,6 +102,8 @@ pub enum PromptOutput {
     ChooseDelve(choose_delve::ChooseDelveOutput),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
+    ChooseCards(choose_cards::ChooseCardsOutput),
+    ReorderCards(reorder_cards::ReorderCardsOutput),
     ReorderLibrary(reorder_library::ReorderLibraryOutput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),

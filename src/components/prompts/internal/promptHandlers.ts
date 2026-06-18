@@ -67,7 +67,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseDelve"]: { showByDefault: true, resolve: optionalCosts.skipDelve },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
-  ["surveil"]: { showByDefault: true, resolve: forced.emptySurveil },
   ["dig"]: { showByDefault: true, resolve: forced.emptyDig },
   ["firstPlayerRoll"]: { showByDefault: true, resolve: informational.ackFirstPlayerRoll },
   ["diceRolled"]: { showByDefault: true, resolve: informational.ackDiceRolled },

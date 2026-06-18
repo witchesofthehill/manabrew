@@ -1040,10 +1040,13 @@ public final class ManaBrewInteractiveSession {
         return options.isEmpty() ? "" : options.get(0);
     }
 
-    Pair<CardCollection, CardCollection> awaitCardIdListChoice(
+    /**
+     * Publishes a scry/surveil prompt and awaits the `scry_decision` response.
+     * Returns `(top, other)` where `other` is the bottom-of-library (scry) or
+     * graveyard (surveil) pile, both in the order the player stacked them.
+     */
+    Pair<CardCollection, CardCollection> awaitScryDecision(
             final String promptKind,
-            final String responseKind,
-            final String responseField,
             final int playerId,
             final CardCollectionView cardsForPrompt,
             final String sourceName
@@ -1054,45 +1057,42 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
-                return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
+                return ImmutablePair.of(new CardCollection(cards), new CardCollection());
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
+                return ImmutablePair.of(new CardCollection(cards), new CardCollection());
             }
-            if (!responseKind.equals(actionKind)) {
+            if (!"scry_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
-            final CardCollection selected = new CardCollection();
-            if (action.has(responseField) && action.get(responseField).isJsonArray()) {
-                for (JsonElement element : action.getAsJsonArray(responseField)) {
-                    final Card card = findCardByPublishedId(cards, element.getAsString());
-                    if (card != null && !selected.contains(card)) {
-                        selected.add(card);
-                    }
-                }
-            }
-            final CardCollection top = new CardCollection();
+            final CardCollection top = parseScryZone(action, cards, 0);
+            final CardCollection other = parseScryZone(action, cards, 1);
+            // Any card not assigned anywhere stays on top.
             for (final Card card : cards) {
-                if (!selected.contains(card)) {
+                if (!top.contains(card) && !other.contains(card)) {
                     top.add(card);
                 }
             }
-            if (action.has("top_card_ids") && action.get("top_card_ids").isJsonArray()) {
-                final CardCollection orderedTop = new CardCollection();
-                for (JsonElement element : action.getAsJsonArray("top_card_ids")) {
+            return ImmutablePair.of(top, other);
+        }
+        return ImmutablePair.of(new CardCollection(cards), new CardCollection());
+    }
+
+    private CardCollection parseScryZone(final JsonObject action, final List<Card> cards, final int idx) {
+        final CardCollection result = new CardCollection();
+        if (action.has("zone_card_ids") && action.get("zone_card_ids").isJsonArray()) {
+            final com.google.gson.JsonArray zones = action.getAsJsonArray("zone_card_ids");
+            if (idx < zones.size() && zones.get(idx).isJsonArray()) {
+                for (JsonElement element : zones.get(idx).getAsJsonArray()) {
                     final Card card = findCardByPublishedId(cards, element.getAsString());
-                    if (card != null && !orderedTop.contains(card)) {
-                        orderedTop.add(card);
+                    if (card != null && !result.contains(card)) {
+                        result.add(card);
                     }
                 }
-                if (orderedTop.size() == top.size() && orderedTop.containsAll(top)) {
-                    return ImmutablePair.of(selected, orderedTop);
-                }
             }
-            return ImmutablePair.of(selected, top);
         }
-        return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
+        return result;
     }
 
     CardCollection awaitDigChoice(

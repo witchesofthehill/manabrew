@@ -115,12 +115,14 @@ impl BotAgent for SimpleAi {
                     Vec::new()
                 },
             }),
-            PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { .. }) => Some(PlayerAction::ScryDecision {
-                bottom_card_ids: Vec::new(),
-            }),
-            PromptInput::Surveil(manabrew_protocol::prompts::surveil::SurveilInput { .. }) => Some(PlayerAction::SurveilDecision {
-                graveyard_card_ids: Vec::new(),
-            }),
+            PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { cards, zones, .. }) => {
+                // Keep everything on top (zone 0), nothing elsewhere.
+                let mut zone_card_ids = vec![Vec::new(); zones.len()];
+                if let Some(first) = zone_card_ids.first_mut() {
+                    *first = cards.iter().map(|c| c.id.clone()).collect();
+                }
+                Some(PlayerAction::ScryDecision { zone_card_ids })
+            }
             PromptInput::Dig(manabrew_protocol::prompts::dig::DigInput {
                 card_ids,
                 num_to_take,
@@ -228,6 +230,16 @@ impl BotAgent for SimpleAi {
             PromptInput::ReorderLibrary(manabrew_protocol::prompts::reorder_library::ReorderLibraryInput { card_ids, .. }) => {
                 Some(PlayerAction::ReorderLibraryDecision {
                     ordered_card_ids: card_ids,
+                })
+            }
+            PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput { cards, min, .. }) => {
+                Some(PlayerAction::ChooseCardsDecision {
+                    chosen_card_ids: cards.iter().take(min).map(|c| c.id.clone()).collect(),
+                })
+            }
+            PromptInput::ReorderCards(manabrew_protocol::prompts::reorder_cards::ReorderCardsInput { cards, .. }) => {
+                Some(PlayerAction::ReorderDecision {
+                    ordered_card_ids: cards.iter().map(|c| c.id.clone()).collect(),
                 })
             }
             PromptInput::GameOver(manabrew_protocol::prompts::game_over::GameOverInput { .. }) => None,

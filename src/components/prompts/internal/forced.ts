@@ -153,22 +153,11 @@ export const forcedDiscard: PromptResolver<"chooseDiscard"> = (prompt) => {
 };
 
 export const emptyScry: PromptResolver<"scry"> = (prompt) => {
-  const cards = prompt.input.cardIds;
-  if (cards.length > 0) return { kind: "force-show" };
+  if (prompt.input.cards.length > 0) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "scryDecision", bottomCardIds: [] },
+    respond: { type: "scryDecision", zoneCardIds: prompt.input.zones.map(() => []) },
     reason: "scry with 0 revealed cards",
-  };
-};
-
-export const emptySurveil: PromptResolver<"surveil"> = (prompt) => {
-  const cards = prompt.input.cardIds;
-  if (cards.length > 0) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "surveilDecision", graveyardCardIds: [] },
-    reason: "surveil with 0 revealed cards",
   };
 };
 

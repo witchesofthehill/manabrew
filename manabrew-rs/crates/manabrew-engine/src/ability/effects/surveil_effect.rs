@@ -50,15 +50,9 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // Reverse to match Java's `getTopXCardsFromLibrary` top-to-bottom iteration order.
     top_n.reverse();
 
-    // Ask the agent which cards to send to the graveyard.
-    let gy_ids = ctx.agents[target.index()].choose_surveil(ctx.game, target, &top_n);
-
-    let graveyard: Vec<_> = gy_ids.into_iter().filter(|id| top_n.contains(id)).collect();
-    let keep_top: Vec<_> = top_n
-        .iter()
-        .copied()
-        .filter(|id| !graveyard.contains(id))
-        .collect();
+    // Ask the agent to distribute: piles[0] = top, piles[1] = graveyard.
+    let piles = ctx.agents[target.index()].choose_surveil(ctx.game, target, sa.source, &top_n);
+    let (keep_top, graveyard) = super::split_scry_piles(&top_n, &piles);
 
     // Move chosen cards to graveyard.
     for &id in &graveyard {
@@ -71,8 +65,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         );
     }
 
-    // `keep_top` is in top-to-bottom order, so iterate in reverse to restore
-    // the correct library order when appending to our bottom-to-top vec.
+    // Top pile is ordered top-to-bottom (first = top of library); iterate in
+    // reverse so the last append leaves the intended card on top.
     for &id in keep_top.iter().rev() {
         ctx.game.add_card_to_zone(ZoneType::Library, target, id);
     }
@@ -187,9 +181,10 @@ mod tests {
             &mut self,
             _game: &GameState,
             _player: PlayerId,
+            _source: Option<CardId>,
             cards: &[CardId],
-        ) -> Vec<CardId> {
-            cards.to_vec() // send all to graveyard
+        ) -> Vec<Vec<CardId>> {
+            vec![vec![], cards.to_vec()] // send all to graveyard
         }
         fn choose_targets_for(
             &mut self,

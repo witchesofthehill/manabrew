@@ -99,12 +99,18 @@ fn main() {
             message: String::new(),
         }),
         Scry(scry::ScryInput {
-            card_ids: vec![],
+            presentation: common::PromptPresentation {
+                title: "Scry".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards: vec![],
-        }),
-        Surveil(surveil::SurveilInput {
-            card_ids: vec![],
-            cards: vec![],
+            zones: vec![
+                scry::ScryDestination::LibraryTop,
+                scry::ScryDestination::LibraryBottom,
+            ],
         }),
         Dig(dig::DigInput {
             card_ids: vec![],

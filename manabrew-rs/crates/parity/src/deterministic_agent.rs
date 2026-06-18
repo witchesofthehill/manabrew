@@ -1907,32 +1907,40 @@ impl PlayerAgent for DeterministicAgent {
         &mut self,
         _game: &GameState,
         _player: PlayerId,
+        _source: Option<CardId>,
         cards: &[CardId],
-    ) -> Vec<CardId> {
-        let mut out = Vec::new();
+    ) -> Vec<Vec<CardId>> {
+        let mut top = Vec::new();
+        let mut bottom = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
             if gui_repro::pick_bool(&mut rng) {
-                out.push(cid);
+                bottom.push(cid);
+            } else {
+                top.push(cid);
             }
         }
-        out
+        vec![top, bottom]
     }
 
     fn choose_surveil(
         &mut self,
         _game: &GameState,
         _player: PlayerId,
+        _source: Option<CardId>,
         cards: &[CardId],
-    ) -> Vec<CardId> {
-        let mut out = Vec::new();
+    ) -> Vec<Vec<CardId>> {
+        let mut top = Vec::new();
+        let mut graveyard = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
             if gui_repro::pick_bool(&mut rng) {
-                out.push(cid);
+                graveyard.push(cid);
+            } else {
+                top.push(cid);
             }
         }
-        out
+        vec![top, graveyard]
     }
 
     fn choose_reorder_library(

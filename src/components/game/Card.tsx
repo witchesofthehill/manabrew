@@ -46,6 +46,9 @@ interface CardProps {
   onFlip?: () => void;
   showBackFace?: boolean;
   resolution?: ScryfallImageSize;
+  /** Render just the printed card image — no game-state overlays (keyword chips,
+   * counters, badges, P/T). For pickers showing library/hidden-zone cards. */
+  bare?: boolean;
 }
 
 function CardComponent({
@@ -54,6 +57,7 @@ function CardComponent({
   style,
   isTapped,
   onClick,
+  bare,
   resolution = "border_crop",
 }: CardProps) {
   const [hasError, setHasError] = useState(false);
@@ -133,6 +137,8 @@ function CardComponent({
               style={{ imageRendering: "auto" }}
             />
           )}
+          {!bare && (
+            <>
           {card.exerted ? (
             <CardBadge {...CARD_BADGES.exerted} />
           ) : card.isFaceDown ? (
@@ -175,6 +181,8 @@ function CardComponent({
                 </span>
               )}
             </PtBadge>
+          )}
+            </>
           )}
         </>
       ) : (

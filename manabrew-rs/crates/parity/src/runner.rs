@@ -823,8 +823,8 @@ impl PlayerAgent for CapturingAgent {
         fn choose_legend_keep(&mut self, player: PlayerId, duplicates: &[CardId]) -> CardId => "choose_legend_keep";
         fn choose_sacrifice(&mut self, player: PlayerId, valid: &[CardId], source: Option<CardId>) -> Option<CardId> => "choose_sacrifice";
         fn choose_type(&mut self, player: PlayerId, type_category: &str, valid_types: &[String]) -> Option<String> => "choose_type";
-        fn choose_scry(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_scry";
-        fn choose_surveil(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_surveil";
+        fn choose_scry(&mut self, game: &GameState, player: PlayerId, source: Option<CardId>, cards: &[CardId]) -> Vec<Vec<CardId>> => "choose_scry";
+        fn choose_surveil(&mut self, game: &GameState, player: PlayerId, source: Option<CardId>, cards: &[CardId]) -> Vec<Vec<CardId>> => "choose_surveil";
         fn choose_dig(&mut self, game: &GameState, player: PlayerId, valid: &[CardId], max: usize, optional: bool) -> Vec<CardId> => "choose_dig";
         fn choose_reorder_library(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> => "choose_reorder_library";
         fn choose_discard(&mut self, player: PlayerId, hand: &[CardId], num: usize) -> Vec<CardId> => "choose_discard";

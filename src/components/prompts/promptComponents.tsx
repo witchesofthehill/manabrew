@@ -3,12 +3,13 @@ import { ChooseColorModal } from "./ChooseColorModal";
 import { ChooseTypeModal } from "./ChooseTypeModal";
 import { ChooseNumberModal } from "./ChooseNumberModal";
 import { ChooseCardNameModal } from "./ChooseCardNameModal";
-import { ChooseCardsModal } from "./ChooseCardsModal";
+import { CardListModal } from "./CardListModal";
 import { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
 import { ReorderLibraryModal } from "./ReorderLibraryModal";
 import { RevealCardsModal } from "./RevealCardsModal";
 import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
 import { LibraryPeekModal } from "./LibraryPeekModal";
+import { ScryModal } from "./ScryModal";
 import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
 import { ChooseBooleanModal } from "./ChooseBooleanModal";
@@ -49,23 +50,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     <ChooseCardNameModal input={prompt.input} respond={respond} />
   ),
 
-  // $PROMPT_SHARED
-  scry: ({ prompt, respond }) => (
-    <LibraryPeekModal
-      mode="scry"
-      cards={prompt.input.cards as GameCard[]}
-      onConfirm={(bottomCardIds) => respond({ type: "scryDecision", bottomCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  surveil: ({ prompt, respond }) => (
-    <LibraryPeekModal
-      mode="surveil"
-      cards={prompt.input.cards as GameCard[]}
-      onConfirm={(graveyardCardIds) => respond({ type: "surveilDecision", graveyardCardIds })}
-    />
-  ),
+  scry: ({ prompt, respond }) => <ScryModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
   dig: ({ prompt, respond }) => (
@@ -143,7 +128,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   // $PROMPT_SHARED
   chooseDelve: ({ prompt, respond }) => (
-    <ChooseCardsModal
+    <CardListModal
       cards={prompt.input.zoneCards as GameCard[]}
       minChoices={0}
       maxChoices={prompt.input.maxCards}
@@ -153,7 +138,7 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   // $PROMPT_SHARED
   chooseCardsForEffect: ({ prompt, respond, ctx }) => (
-    <ChooseCardsModal
+    <CardListModal
       cards={prompt.input.zoneCards as GameCard[]}
       minChoices={prompt.input.minChoices}
       maxChoices={prompt.input.maxChoices}

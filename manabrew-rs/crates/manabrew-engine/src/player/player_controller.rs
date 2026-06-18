@@ -482,12 +482,14 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         self.agent.choose_card_name(self.player, valid_names)
     }
 
-    pub fn choose_scry(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_scry(self.game, self.player, cards)
+    pub fn choose_scry(&mut self, source: Option<CardId>, cards: &[CardId]) -> Vec<Vec<CardId>> {
+        self.agent
+            .choose_scry(self.game, self.player, source, cards)
     }
 
-    pub fn choose_surveil(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_surveil(self.game, self.player, cards)
+    pub fn choose_surveil(&mut self, source: Option<CardId>, cards: &[CardId]) -> Vec<Vec<CardId>> {
+        self.agent
+            .choose_surveil(self.game, self.player, source, cards)
     }
 
     pub fn choose_reorder_library(&mut self, cards: &[CardId]) -> Vec<CardId> {

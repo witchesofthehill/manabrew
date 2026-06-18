@@ -294,6 +294,22 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
 
+/** Release every cached card texture + its GPU source. Call on game end — the
+ *  cache is module-scoped and otherwise grows for the lifetime of the tab. Safe
+ *  only when no live sprite references these textures (i.e. the board is torn
+ *  down). */
+export function clearTextureCache(): void {
+  for (const tex of textureCache.values()) {
+    try {
+      tex.destroy(true);
+    } catch {
+      // already destroyed or a shared source — ignore
+    }
+  }
+  textureCache.clear();
+  pendingTexturePromises.clear();
+}
+
 export const useScryfallStore = create<ScryfallState>()(
   devtools(
     immer((set, get) => ({

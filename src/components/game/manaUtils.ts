@@ -60,13 +60,10 @@ function expandFromProducedMana(ab: ActivatableAbilityInfo): ExpandedManaAbility
   const manaTokens = tokens.filter((token) => token !== "COMBO");
   const isAny = manaTokens.includes("ANY");
   const amount = Math.max(1, ab.producedManaAmount ?? 1);
-  const letters = isAny
-    ? ANY_COLOR_LETTERS
-    : uniqueLetters(
-        manaTokens
-          .map((token) => MANA_TOKEN_TO_LETTER[token])
-          .filter((letter): letter is string => letter != null),
-      );
+  const tokenLetters = manaTokens
+    .map((token) => MANA_TOKEN_TO_LETTER[token])
+    .filter((letter): letter is string => letter != null);
+  const letters = isAny ? ANY_COLOR_LETTERS : isCombo ? uniqueLetters(tokenLetters) : tokenLetters;
 
   if (letters.length === 0) return null;
 
@@ -88,7 +85,7 @@ function expandFromProducedMana(ab: ActivatableAbilityInfo): ExpandedManaAbility
     }));
   }
 
-  const displayManaLetters = repeatLetters(letters, amount);
+  const displayManaLetters = repeatLetters(tokenLetters, amount);
   return [
     {
       ...ab,

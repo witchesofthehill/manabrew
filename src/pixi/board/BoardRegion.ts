@@ -1267,6 +1267,7 @@ export class BoardRegion {
 
   destroy(): void {
     this.effects.destroy();
-    this.entries.clear();
+    for (const id of [...this.entries.keys()]) this.destroyEntry(id);
+    this.container.destroy({ children: true });
   }
 }

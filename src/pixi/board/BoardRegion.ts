@@ -610,9 +610,14 @@ export class BoardRegion {
 
     for (const group of byIdentity.values()) {
       if (group.length < 2) continue;
-      const parent = group[0]!;
-      for (let i = 1; i < group.length; i++) {
-        const child = group[i]!;
+      // Anchor the stack on a stable member — prefer one that already holds a
+      // grid slot, else the lowest id — so the visible parent and its cell don't
+      // flip when the engine reports identical permanents in a different order.
+      const slotHolders = group.filter((c) => this.userSlots.has(c.id));
+      const pool = slotHolders.length > 0 ? slotHolders : group;
+      const parent = pool.reduce((best, c) => (c.id < best.id ? c : best));
+      for (const child of group) {
+        if (child.id === parent.id) continue;
         this.uiParent.set(child.id, parent.id);
         this.nameGroupChildren.add(child.id);
       }

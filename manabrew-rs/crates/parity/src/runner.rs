@@ -844,7 +844,7 @@ impl PlayerAgent for CapturingAgent {
         fn choose_land_or_spell(&mut self, player: PlayerId) -> Option<bool> => "choose_land_or_spell";
         fn confirm_action(&mut self, player: PlayerId, mode: Option<&str>, message: &str, options: &[String], source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>) -> bool => "confirm_action";
         fn confirm_payment(&mut self, player: PlayerId, cost_kind: &str, message: &str, source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>) -> bool => "confirm_payment";
-        fn pay_cost_to_prevent_effect(&mut self, player: PlayerId, cost_kind: &str, message: &str, source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>, can_pay: bool) -> bool => "pay_cost_to_prevent_effect";
+        fn pay_cost_to_prevent_effect(&mut self, player: PlayerId, cost_kind: &str, message: &str, source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>, can_pay: bool, targets: &[GameEntity], effect_text: &str) -> bool => "pay_cost_to_prevent_effect";
         fn confirm_replacement_effect(&mut self, player: PlayerId, question: &str, effect_description: &str, source: Option<CardId>) -> bool => "confirm_replacement_effect";
         fn choose_binary(&mut self, player: PlayerId, question: &str, kind: BinaryChoiceKind, default_choice: Option<bool>, source: Option<CardId>, api: Option<manabrew_engine::ability::api_type::ApiType>) -> bool => "choose_binary";
         fn choose_color(&mut self, player: PlayerId, valid_colors: &[String]) -> Option<String> => "choose_color";

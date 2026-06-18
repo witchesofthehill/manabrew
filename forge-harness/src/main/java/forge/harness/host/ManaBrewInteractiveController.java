@@ -1056,7 +1056,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "choose_optional_trigger",
                 me(),
                 sa == null ? "Resolve optional trigger?" : sa.getStackDescription(),
-                sa == null || sa.getHostCard() == null ? null : sa.getHostCard().getName(),
+                sourceCardId(sa),
                 "optional_trigger",
                 null,
                 sa == null || sa.getApi() == null ? null : sa.getApi().toString());
@@ -1075,7 +1075,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "confirm_action",
                 me(),
                 message == null ? "Confirm action?" : message,
-                cardToShow != null ? cardToShow.getName() : sourceName(sa),
+                cardToShow != null ? SnapshotExtractor.javaCardId(cardToShow) : sourceCardId(sa),
                 "confirm_action",
                 mode == null ? null : mode.toString(),
                 sa == null || sa.getApi() == null ? null : sa.getApi().toString(),
@@ -1089,7 +1089,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final String question = (string == null ? "Bid life? Current bid: " + bid : string)
                 + " Highest Bidder " + winner;
         return session.awaitBooleanChoice(
-                "confirm_action", me(), question, sourceName(sa), "confirm_bid", null, null);
+                "confirm_action", me(), question, sourceCardId(sa), "confirm_bid", null, null);
     }
 
     @Override
@@ -1097,8 +1097,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final ReplacementEffect replacementEffect, final SpellAbility effectSA, final GameEntity affected, final String question) {
         final String description = replacementEffect == null ? "Apply replacement effect?" : replacementEffect.getDescription();
         final String source = replacementEffect != null && replacementEffect.getHostCard() != null
-                ? replacementEffect.getHostCard().getName()
-                : sourceName(effectSA);
+                ? SnapshotExtractor.javaCardId(replacementEffect.getHostCard())
+                : sourceCardId(effectSA);
         return session.awaitBooleanChoice(
                 "choose_optional_trigger",
                 me(),
@@ -1116,7 +1116,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "confirm_action",
                 me(),
                 message == null ? "Apply static effect?" : message,
-                hostCard == null ? null : hostCard.getName(),
+                hostCard == null ? null : SnapshotExtractor.javaCardId(hostCard),
                 "static_application",
                 mode == null ? null : mode.toString(),
                 logic);
@@ -1132,7 +1132,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "confirm_action",
                 me(),
                 description,
-                sourceName(sa),
+                sourceCardId(sa),
                 "confirm_payment",
                 costPart.getClass().getSimpleName(),
                 sa == null || sa.getApi() == null ? null : sa.getApi().toString());
@@ -1145,7 +1145,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "confirm_action",
                 me(),
                 question == null ? "Choose" : question,
-                sourceName(sa),
+                sourceCardId(sa),
                 "binary",
                 kindOfChoice == null ? null : kindOfChoice.name(),
                 sa == null || sa.getApi() == null ? null : sa.getApi().toString(),
@@ -1185,7 +1185,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 ? Lists.newArrayList("heads", "tails")
                 : Lists.newArrayList("win the flip", "lose the flip");
         return session.awaitBooleanChoice(
-                "confirm_action", me(), "Choose a result", sourceName(sa), "flip_coin", null, null, labels, null);
+                "confirm_action", me(), "Choose a result", sourceCardId(sa), "flip_coin", null, null, labels, null);
     }
 
     @Override
@@ -1213,7 +1213,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public boolean willPutCardOnTop(final Card c) {
         return session.awaitBooleanChoice(
-                "confirm_action", me(), "Put on top of library?", c == null ? null : c.getName(), "put_on_top", null, null);
+                "confirm_action", me(), "Put on top of library?", c == null ? null : SnapshotExtractor.javaCardId(c), "put_on_top", null, null);
     }
 
     @Override
@@ -1553,14 +1553,29 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         } finally {
             probingPayability = false;
         }
+        final java.util.List<Card> targetCards = new java.util.ArrayList<>();
+        final java.util.List<Player> targetPlayers = new java.util.ArrayList<>();
+        if (sa != null && sa.getTargets() != null) {
+            for (final Card card : sa.getTargets().getTargetCards()) {
+                targetCards.add(card);
+            }
+            for (final Player target : sa.getTargets().getTargetPlayers()) {
+                targetPlayers.add(target);
+            }
+        }
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
                 cost == null ? "Pay cost?" : cost.toString(),
-                sourceName(sa),
+                sourceCardId(sa),
                 "pay_cost_to_prevent_effect",
                 cost == null ? null : cost.getClass().getSimpleName(),
-                sa == null || sa.getApi() == null ? null : sa.getApi().toString());
+                sa == null || sa.getApi() == null ? null : sa.getApi().toString(),
+                null,
+                null,
+                targetCards,
+                targetPlayers,
+                sa == null ? null : sa.getStackDescription());
         if (!accept) {
             return false;
         }
@@ -1581,7 +1596,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 "pay_cost_to_prevent_effect",
                 me(),
                 cost == null ? "Pay cost?" : cost.toString(),
-                sourceName(sa),
+                sourceCardId(sa),
                 "pay_cost_during_roll",
                 cost == null ? null : cost.getClass().getSimpleName(),
                 null);
@@ -2342,6 +2357,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     private static String sourceName(final SpellAbility sa) {
         return sa == null || sa.getHostCard() == null ? null : sa.getHostCard().getName();
+    }
+
+    private static String sourceCardId(final SpellAbility sa) {
+        return sa == null || sa.getHostCard() == null
+                ? null
+                : SnapshotExtractor.javaCardId(sa.getHostCard());
     }
 
     private static String sourceNamePrompt(final String prompt, final SpellAbility sa) {

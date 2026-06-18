@@ -1467,6 +1467,8 @@ impl PlayerAgent for DeterministicAgent {
         _source: Option<CardId>,
         _api: Option<manabrew_engine::ability::api_type::ApiType>,
         can_pay: bool,
+        _targets: &[GameEntity],
+        _effect_text: &str,
     ) -> bool {
         // Java DeterministicController.payCostToPreventEffect short-circuits
         // to false when ComputerUtilCost.canPayCost reports the cost as

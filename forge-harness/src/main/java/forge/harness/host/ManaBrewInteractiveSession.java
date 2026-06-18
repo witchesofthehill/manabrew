@@ -912,8 +912,29 @@ public final class ManaBrewInteractiveSession {
             final List<String> optionLabels,
             final Boolean passDefault
     ) {
+        return awaitBooleanChoice(
+                kind, playerId, description, sourceName, promptKind, mode, api, optionLabels, passDefault, null,
+                null, null);
+    }
+
+    boolean awaitBooleanChoice(
+            final String kind,
+            final int playerId,
+            final String description,
+            final String sourceName,
+            final String promptKind,
+            final String mode,
+            final String api,
+            final List<String> optionLabels,
+            final Boolean passDefault,
+            final List<Card> targetCards,
+            final List<Player> targetPlayers,
+            final String effectText
+    ) {
         requireAttached();
-        publishBooleanPrompt(kind, playerId, description, sourceName, promptKind, mode, api, optionLabels);
+        publishBooleanPrompt(
+                kind, playerId, description, sourceName, promptKind, mode, api, optionLabels, targetCards,
+                targetPlayers, effectText);
         final boolean onPass = passDefault != null && passDefault;
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -1732,7 +1753,10 @@ public final class ManaBrewInteractiveSession {
             final String promptKind,
             final String mode,
             final String api,
-            final List<String> optionLabels
+            final List<String> optionLabels,
+            final List<Card> targetCards,
+            final List<Player> targetPlayers,
+            final String effectText
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", kind);
@@ -1741,13 +1765,37 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("description", description);
         prompt.addProperty("promptKind", promptKind);
         if (sourceName != null) {
-            prompt.addProperty("sourceCardName", sourceName);
+            prompt.addProperty("sourceCardId", sourceName);
         }
         if (mode != null) {
             prompt.addProperty("mode", mode);
         }
         if (api != null) {
             prompt.addProperty("api", api);
+        }
+        if (effectText != null && !effectText.isEmpty()) {
+            prompt.addProperty("effectText", effectText);
+        }
+        if ((targetCards != null && !targetCards.isEmpty())
+                || (targetPlayers != null && !targetPlayers.isEmpty())) {
+            com.google.gson.JsonArray targets = new com.google.gson.JsonArray();
+            if (targetCards != null) {
+                for (final Card card : targetCards) {
+                    JsonObject target = new JsonObject();
+                    target.addProperty("kind", "card");
+                    target.addProperty("id", SnapshotExtractor.javaCardId(card));
+                    targets.add(target);
+                }
+            }
+            if (targetPlayers != null) {
+                for (final Player target : targetPlayers) {
+                    JsonObject entry = new JsonObject();
+                    entry.addProperty("kind", "player");
+                    entry.addProperty("id", "player-" + SnapshotExtractor.playerIndex(game, target));
+                    targets.add(entry);
+                }
+            }
+            prompt.add("targets", targets);
         }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray labels = new com.google.gson.JsonArray();

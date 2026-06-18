@@ -166,6 +166,7 @@ class TauriServerApi implements IServerApi {
   async spawnAiBot(params: SpawnAiBotParams): Promise<void> {
     return invoke<void>("server_spawn_ai_bot", {
       roomId: params.roomId,
+      roomPassword: params.roomPassword ?? null,
       username: params.username,
       deckName: params.deckName,
       deck: params.deck,

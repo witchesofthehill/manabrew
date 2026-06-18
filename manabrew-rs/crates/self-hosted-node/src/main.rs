@@ -334,6 +334,7 @@ fn spawn_bot(config: &Config, deck: &DeckSelection, room_id: String, bot_state: 
         username: config.bot_username.clone(),
         password: config.password.clone(),
         room_id,
+        room_password: config.room_password.clone(),
         deck_name: deck.name.clone(),
         deck: deck.deck.clone(),
         commander_name: deck.commander_name.clone(),

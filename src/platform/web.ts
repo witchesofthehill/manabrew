@@ -32,6 +32,9 @@ import type { Prompt, PromptOutput } from "@/protocol";
 import type { Deck } from "@/types/manabrew";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
+/** Flip to true to surface the noisy transport/multiplayer wire logs. */
+const DEBUG_TRANSPORT = false;
+
 // ============================================================================
 // Worker Message Types
 // ============================================================================
@@ -201,7 +204,8 @@ class WorkerBridge {
         Atomics.store(seat.signal, 0, 3); // ACKNOWLEDGED
         Atomics.notify(seat.signal, 0);
 
-        console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, jsonStr);
+        if (DEBUG_TRANSPORT)
+          console.log(`[transport←sab/seat ${playerSlot}] engine emitted:`, jsonStr);
         try {
           const msg = JSON.parse(jsonStr);
           this.eventBus.emit("game:relay_message", { forPlayer: playerSlot, msg });
@@ -230,7 +234,11 @@ class WorkerBridge {
       const fromPlayer = payload.state.fromPlayer as string | undefined;
       if (!fromPlayer) return;
       const seat = this.remoteSeats.get(fromPlayer);
-      console.log(`[MP] response← ${fromPlayer}`, seat ? "(routed to SAB)" : "(NO SEAT — dropped)");
+      if (DEBUG_TRANSPORT)
+        console.log(
+          `[MP] response← ${fromPlayer}`,
+          seat ? "(routed to SAB)" : "(NO SEAT — dropped)",
+        );
       if (!seat) return;
       const action = payload.state.action;
       if (!action) return;
@@ -449,7 +457,7 @@ class WebGameApi implements IGameApi {
         fromPlayer,
         action: params.action,
       };
-      console.log(`[MP] respond→ as ${fromPlayer}:`, params.action.type);
+      if (DEBUG_TRANSPORT) console.log(`[MP] respond→ as ${fromPlayer}:`, params.action.type);
       this.serverApi.broadcastState(envelope);
     } else if (this.bridge.gameBuffer) {
       // Host or single-player: write response to local SharedArrayBuffer
@@ -875,6 +883,7 @@ class WebServerApi implements IServerApi {
         username: params.username,
         password: this.serverPassword,
         roomId: params.roomId,
+        roomPassword: params.roomPassword ?? null,
         deckName: params.deckName,
         deck: params.deck,
         commanderName: params.commanderName,
@@ -932,7 +941,7 @@ class WebServerApi implements IServerApi {
   }
 
   private handleServerMessage(msg: Record<string, unknown>): void {
-    console.log("[transport←ws] received:", JSON.stringify(msg));
+    if (DEBUG_TRANSPORT) console.log("[transport←ws] received:", JSON.stringify(msg));
     const type = msg.type as string;
 
     if (type === "ServerShuttingDown") {

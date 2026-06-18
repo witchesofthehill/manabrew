@@ -150,9 +150,11 @@ export function TablesList({
   const isLimitedRoom = !!(currentRoom?.draft_config || currentRoom?.sealed_config);
   const isOpenFormat = currentRoom?.format === "Any" || isLimitedRoom;
   const minReady = isOpenFormat ? 1 : 2;
-  const allReady = currentRoom
-    ? currentRoom.players.length >= minReady && currentRoom.players.every((p) => p.ready)
+  const allOtherPlayersReady = currentRoom
+    ? currentRoom.players.length >= minReady &&
+      currentRoom.players.filter((p) => p.username !== controllerName).every((p) => p.ready)
     : false;
+  const canStart = allOtherPlayersReady;
   const readyDisabled = !isOpenFormat && !myPlayerHasDeck;
 
   const orderedPlayers = currentRoom
@@ -335,18 +337,21 @@ export function TablesList({
             <div className="grid gap-2 sm:grid-cols-2">
               {orderedPlayers.map((p) => {
                 const canRemove = mySpawnedBots.includes(p.username);
+                const isPlayerController = p.username === controllerName;
                 return (
                   <div
                     key={p.username}
                     className={cn(
                       "rounded-lg border px-3 py-2 flex items-center gap-2.5 transition-colors",
-                      p.ready ? "border-primary/30 bg-primary/5" : "bg-muted/30",
+                      p.ready || isPlayerController
+                        ? "border-primary/30 bg-primary/5"
+                        : "bg-muted/30",
                     )}
                   >
                     <div
                       className={cn(
                         "h-2 w-2 rounded-full shrink-0",
-                        p.ready ? "bg-primary" : "bg-muted-foreground/30",
+                        p.ready || isPlayerController ? "bg-primary" : "bg-muted-foreground/30",
                       )}
                     />
                     <div className="flex-1 min-w-0">
@@ -361,11 +366,13 @@ export function TablesList({
                         )}
                       </div>
                       <div className="text-[11px] text-muted-foreground truncate">
-                        {isOpenFormat
-                          ? p.ready
-                            ? "Ready"
-                            : "Waiting to ready up"
-                          : (p.selected_deck_name ?? "No deck selected")}
+                        {isPlayerController
+                          ? "Controls start"
+                          : isOpenFormat
+                            ? p.ready
+                              ? "Ready"
+                              : "Waiting to ready up"
+                            : (p.selected_deck_name ?? "No deck selected")}
                       </div>
                     </div>
                     {canRemove && isController ? (
@@ -383,11 +390,11 @@ export function TablesList({
                         variant={p.ready ? "default" : "outline"}
                         className={cn(
                           "text-[9px] px-1.5 shrink-0",
-                          p.ready &&
+                          (p.ready || isPlayerController) &&
                             "bg-primary border-primary text-primary-foreground hover:bg-primary",
                         )}
                       >
-                        {p.ready ? "Ready" : "Waiting"}
+                        {isPlayerController ? "Controller" : p.ready ? "Ready" : "Waiting"}
                       </Badge>
                     )}
                   </div>
@@ -416,20 +423,6 @@ export function TablesList({
                   <Shield className="h-3 w-3" /> Select Deck
                 </Button>
               )}
-              {myPlayer && !myPlayer.ready ? (
-                <Button
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => onSetReady(true)}
-                  disabled={readyDisabled}
-                >
-                  Ready Up
-                </Button>
-              ) : myPlayer?.ready ? (
-                <Button size="sm" variant="outline" onClick={() => onSetReady(false)}>
-                  Unready
-                </Button>
-              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
@@ -446,7 +439,7 @@ export function TablesList({
                       variant="outline"
                       className="gap-1"
                       onClick={onStartTabletop}
-                      disabled={!allReady}
+                      disabled={!canStart}
                     >
                       <Hand className="h-3 w-3" /> Tabletop
                     </Button>
@@ -456,8 +449,8 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={onStartDraft}
-                      disabled={!allReady || startingLimited}
-                      title={!allReady ? "All players must be ready" : undefined}
+                      disabled={!canStart || startingLimited}
+                      title={!allOtherPlayersReady ? "All other players must be ready" : undefined}
                     >
                       <Swords className="h-3 w-3" />
                       {startingLimited ? "Starting…" : "Start Draft"}
@@ -468,8 +461,8 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={onStartSealed}
-                      disabled={!allReady || startingLimited}
-                      title={!allReady ? "All players must be ready" : undefined}
+                      disabled={!canStart || startingLimited}
+                      title={!allOtherPlayersReady ? "All other players must be ready" : undefined}
                     >
                       <Swords className="h-3 w-3" />
                       {startingLimited ? "Starting…" : "Start Sealed"}
@@ -480,17 +473,31 @@ export function TablesList({
                       size="sm"
                       className="gap-1"
                       onClick={() => onStartGame()}
-                      disabled={!allReady}
+                      disabled={!canStart}
+                      title={!allOtherPlayersReady ? "All other players must be ready" : undefined}
                     >
                       <Swords className="h-3 w-3" /> Start Game
                     </Button>
                   )}
                 </div>
               )}
-              {!isController && currentRoom.status === "Lobby" && (
-                <span className="ml-auto text-[11px] text-muted-foreground">
-                  {controllerName ? `Only ${controllerName} (host) can add bots & start` : null}
-                </span>
+              {!isController && currentRoom.status === "Lobby" && myPlayer && (
+                <div className="ml-auto flex items-center gap-2">
+                  {!myPlayer.ready ? (
+                    <Button
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => onSetReady(true)}
+                      disabled={readyDisabled}
+                    >
+                      Ready
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => onSetReady(false)}>
+                      UnReady
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>

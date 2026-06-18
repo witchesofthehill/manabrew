@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useResolveDeckCard } from "./usePromptSourceCard";
+import { PromptTargets } from "./PromptTargets";
 import type { PromptPresentation as PromptPresentationInput } from "@/protocol";
 
 export function PromptPresentation({
@@ -12,7 +13,7 @@ export function PromptPresentation({
   presentation: PromptPresentationInput;
   actions?: ReactNode;
 }) {
-  const { title, description, text, sourceCardId } = presentation;
+  const { title, description, text, sourceCardId, targets } = presentation;
   const sourceCard = useResolveDeckCard(sourceCardId ?? undefined);
 
   return (
@@ -21,7 +22,7 @@ export function PromptPresentation({
         <ScryfallImg
           src={sourceCard.uris.normal}
           alt={sourceCard.name}
-          className="w-[220px] h-auto rounded-xl shadow-lg shrink-0"
+          className="w-[220px] h-auto self-start object-contain rounded-xl shadow-lg shrink-0"
         />
       )}
       <div className="flex flex-1 flex-col gap-3 min-w-0">
@@ -38,6 +39,7 @@ export function PromptPresentation({
             <DynamicTextRender text={text} />
           </p>
         )}
+        <PromptTargets targets={targets} />
         {actions && <div className="mt-auto flex justify-end gap-2">{actions}</div>}
       </div>
     </div>

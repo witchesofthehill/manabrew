@@ -25,7 +25,6 @@ export interface ResolveCtx {
 
 export interface PromptPreferencesSnapshot {
   show: Partial<Record<PromptType, boolean>>;
-  triggerMemory: Record<string, "yes" | "no">;
 }
 
 export type PromptResolver<TType extends PromptKind = PromptKind> = {
@@ -40,7 +39,6 @@ export interface PromptHandler<TType extends PromptKind = PromptKind> {
 import * as informational from "./informational";
 import * as forced from "./forced";
 import * as optionalCosts from "./optionalCosts";
-import * as triggerMemory from "./triggerMemory";
 
 const DEFAULT_PROMPT_HANDLER: PromptHandler = { showByDefault: true };
 
@@ -62,10 +60,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
 
   ["revealCards"]: { showByDefault: true, resolve: informational.ackReveal },
   ["chooseFromSelection"]: { showByDefault: true, resolve: forced.forcedAllSelections },
-  ["chooseOptionalTrigger"]: {
-    showByDefault: true,
-    resolve: triggerMemory.optionalTriggerMemory,
-  },
   ["chooseColor"]: { showByDefault: true, resolve: forced.singleLegalColor },
   ["chooseType"]: { showByDefault: true, resolve: forced.singleLegalType },
   ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },

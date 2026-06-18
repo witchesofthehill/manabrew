@@ -117,8 +117,8 @@ pub enum JavaRawPromptBody {
     #[serde(rename = "choose_optional_trigger", alias = "confirm_action")]
     ConfirmOrTrigger {
         description: Option<String>,
-        #[serde(rename = "sourceCardName")]
-        source_card_name: Option<String>,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
         #[serde(rename = "promptKind")]
         prompt_kind: Option<String>,
         #[serde(rename = "optionLabels", default)]
@@ -129,9 +129,13 @@ pub enum JavaRawPromptBody {
     PayCostToPreventEffect {
         description: Option<String>,
         mode: Option<String>,
-        #[serde(rename = "sourceCardName")]
-        source_card_name: Option<String>,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
         api: Option<String>,
+        #[serde(default)]
+        targets: Vec<JavaRawStackTarget>,
+        #[serde(rename = "effectText")]
+        effect_text: Option<String>,
     },
     ChooseNumber {
         #[serde(default)]

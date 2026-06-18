@@ -34,8 +34,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseBlockers"]: "Declare blockers",
   ["chooseBoardTargets"]: "Choose a target",
   ["revealCards"]: "Look at cards",
-  ["chooseOptionalTrigger"]: "An optional ability would trigger",
-  ["payCostToPreventEffect"]: "Pay to prevent this effect?",
   ["chooseBoolean"]: "Make a choice",
   ["chooseFromSelection"]: "Choose from options",
   ["chooseMultikicker"]: "Choose multikicker count",

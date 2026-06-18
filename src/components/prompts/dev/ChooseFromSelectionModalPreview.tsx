@@ -17,6 +17,7 @@ const PREVIEW_INPUT: ChooseFromSelectionInput = {
     description: "Choose one or both —",
     text: undefined,
     sourceCardId: "card-34",
+    targets: [],
   },
   options: [
     "Destroy target artifact",

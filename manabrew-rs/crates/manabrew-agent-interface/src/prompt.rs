@@ -97,14 +97,7 @@ pub enum PlayerAction {
         #[serde(rename = "discardedCardIds")]
         discarded_card_ids: Vec<String>,
     },
-    /// Response to ChooseOptionalTrigger: whether the player accepts.
-    OptionalTriggerDecision {
-        accept: bool,
-    },
     RevealCardsAcknowledged,
-    PayCostToPreventEffectDecision {
-        accept: bool,
-    },
     /// Response to a generic ChooseBoolean prompt (kicker, buyback, phyrexian, …).
     /// The handler that issued the prompt interprets `value` in context.
     Decision {

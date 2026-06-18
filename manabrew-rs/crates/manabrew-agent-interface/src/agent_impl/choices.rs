@@ -30,6 +30,7 @@ fn send_selection<T: Responder>(
                 description,
                 text: None,
                 source_card_id: source.map(card_id_str),
+                targets: Vec::new(),
             },
             options,
             min_choices: min,
@@ -397,6 +398,37 @@ pub(super) fn choose_entities_for_effect<T: Responder>(
     }
 }
 
+fn send_boolean<T: Responder>(
+    agent: &mut PromptAgent<T>,
+    title: &str,
+    description: &str,
+    confirm_label: &str,
+    deny_label: &str,
+    source: Option<CardId>,
+    default: bool,
+) -> bool {
+    agent.send_prompt(
+        PromptInput::ChooseBoolean(
+            manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
+                presentation: PromptPresentation {
+                    title: title.to_string(),
+                    description: (!description.is_empty()).then(|| description.to_string()),
+                    text: None,
+                    source_card_id: source.map(card_id_str),
+                    targets: Vec::new(),
+                },
+                confirm_label: confirm_label.to_string(),
+                deny_label: deny_label.to_string(),
+            },
+        ),
+        source,
+    );
+    match agent.recv_action() {
+        PlayerAction::Decision { value } => value,
+        _ => default,
+    }
+}
+
 pub(super) fn choose_optional_trigger<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
@@ -404,23 +436,15 @@ pub(super) fn choose_optional_trigger<T: Responder>(
     source: Option<CardId>,
     _api: Option<manabrew_engine::ability::api_type::ApiType>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChooseOptionalTrigger(
-            manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
-                description: description.to_string(),
-                cards: Vec::new(),
-                prompt_kind: Some("optional_trigger".to_string()),
-                option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
-                mode: None,
-                api: None,
-            },
-        ),
+    send_boolean(
+        agent,
+        "Optional Trigger",
+        description,
+        "Accept",
+        "Decline",
         source,
-    );
-    match agent.recv_action() {
-        PlayerAction::OptionalTriggerDecision { accept } => accept,
-        _ => true,
-    }
+        true,
+    )
 }
 
 /// Ask the player whether to apply an optional replacement effect
@@ -440,84 +464,58 @@ pub(super) fn confirm_replacement_effect<T: Responder>(
     } else {
         format!("{question}\n{effect_description}")
     };
-    agent.send_prompt(
-        PromptInput::ChooseOptionalTrigger(
-            manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
-                description: message,
-                cards: Vec::new(),
-                prompt_kind: Some("confirm_replacement_effect".to_string()),
-                option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
-                mode: None,
-                api: None,
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::OptionalTriggerDecision { accept } => accept,
-        _ => true,
-    }
+    send_boolean(
+        agent,
+        "Replacement Effect",
+        &message,
+        "Accept",
+        "Decline",
+        source,
+        true,
+    )
 }
 
 pub(super) fn confirm_action<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    mode: Option<&str>,
+    _mode: Option<&str>,
     message: &str,
     options: &[String],
     source: Option<CardId>,
-    api: Option<manabrew_engine::ability::api_type::ApiType>,
+    _api: Option<manabrew_engine::ability::api_type::ApiType>,
 ) -> bool {
-    // Reuse the existing optional-trigger modal plumbing for generic confirms.
-    let option_labels = if options.is_empty() {
-        vec!["Decline".to_string(), "Accept".to_string()]
-    } else {
-        options.to_vec()
+    let (deny, confirm) = match options {
+        [deny, confirm, ..] => (deny.as_str(), confirm.as_str()),
+        _ => ("Decline", "Accept"),
     };
-    agent.send_prompt(
-        PromptInput::ChooseOptionalTrigger(
-            manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
-                description: message.to_string(),
-                cards: Vec::new(),
-                prompt_kind: Some("confirm_action".to_string()),
-                option_labels: Some(option_labels),
-                mode: mode.map(String::from),
-                api: api.map(|a| a.name().to_string()),
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::OptionalTriggerDecision { accept } => accept,
-        _ => false,
-    }
+    send_boolean(
+        agent,
+        "Confirm Action",
+        message,
+        confirm,
+        deny,
+        source,
+        false,
+    )
 }
 
 pub(super) fn confirm_payment<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    cost_kind: &str,
+    _cost_kind: &str,
     message: &str,
     source: Option<CardId>,
-    api: Option<manabrew_engine::ability::api_type::ApiType>,
+    _api: Option<manabrew_engine::ability::api_type::ApiType>,
 ) -> bool {
-    agent.send_prompt(
-        PromptInput::ChooseOptionalTrigger(
-            manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
-                description: message.to_string(),
-                cards: Vec::new(),
-                prompt_kind: Some("confirm_payment".to_string()),
-                option_labels: Some(vec!["Decline".to_string(), "Accept".to_string()]),
-                mode: Some(cost_kind.to_string()),
-                api: api.map(|a| a.name().to_string()),
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::OptionalTriggerDecision { accept } => accept,
-        _ => false,
-    }
+    send_boolean(
+        agent,
+        "Confirm Payment",
+        message,
+        "Pay",
+        "Decline",
+        source,
+        false,
+    )
 }
 
 pub(super) fn reveal_cards<T: Responder>(
@@ -554,25 +552,46 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
     cost_kind: &str,
     message: &str,
     source: Option<CardId>,
-    api: Option<manabrew_engine::ability::api_type::ApiType>,
+    _api: Option<manabrew_engine::ability::api_type::ApiType>,
     can_pay: bool,
+    targets: &[GameEntity],
+    effect_text: &str,
 ) -> bool {
     if !can_pay {
         return false;
     }
+    let _ = cost_kind;
     agent.send_prompt(
-        PromptInput::PayCostToPreventEffect(
-            manabrew_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput {
-                description: message.to_string(),
-                cost_kind: cost_kind.to_string(),
-                api: api.map(|a| a.name().to_string()),
+        PromptInput::ChooseBoolean(
+            manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
+                presentation: PromptPresentation {
+                    title: message.to_string(),
+                    description: (!effect_text.is_empty()).then(|| "To prevent:".to_string()),
+                    text: (!effect_text.is_empty()).then(|| format!("\"{}\"", effect_text)),
+                    source_card_id: source.map(card_id_str),
+                    targets: targets.iter().map(game_entity_to_target_ref).collect(),
+                },
+                confirm_label: "Pay".to_string(),
+                deny_label: "Decline".to_string(),
             },
         ),
-        None,
+        source,
     );
     match agent.recv_action() {
-        PlayerAction::PayCostToPreventEffectDecision { accept } => accept,
+        PlayerAction::Decision { value } => value,
         _ => false,
+    }
+}
+
+fn game_entity_to_target_ref(entity: &GameEntity) -> manabrew_protocol::prompts::common::TargetRef {
+    use manabrew_protocol::prompts::common::TargetRef;
+    match entity {
+        GameEntity::Card(id) => TargetRef::Card {
+            id: card_id_str(*id),
+        },
+        GameEntity::Player(id) => TargetRef::Player {
+            id: crate::ids_codec::player_id_str(*id),
+        },
     }
 }
 
@@ -583,28 +602,11 @@ pub(super) fn choose_binary<T: Responder>(
     kind: BinaryChoiceKind,
     _default_choice: Option<bool>,
     source: Option<CardId>,
-    api: Option<manabrew_engine::ability::api_type::ApiType>,
+    _api: Option<manabrew_engine::ability::api_type::ApiType>,
 ) -> bool {
     let (left, right) = kind.labels();
-    // In this modal pipeline, `accept=true` means "second button";
-    // reverse labels so `true` still maps to Java's first (left) choice.
-    agent.send_prompt(
-        PromptInput::ChooseOptionalTrigger(
-            manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
-                description: question.to_string(),
-                cards: Vec::new(),
-                prompt_kind: Some("choose_binary".to_string()),
-                option_labels: Some(vec![right.to_string(), left.to_string()]),
-                mode: Some(kind.as_str().to_string()),
-                api: api.map(|a| a.name().to_string()),
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::OptionalTriggerDecision { accept } => accept,
-        _ => false,
-    }
+    // `true` maps to Java's first (left) choice.
+    send_boolean(agent, "Choose One", question, left, right, source, false)
 }
 
 pub(super) fn choose_color<T: Responder>(

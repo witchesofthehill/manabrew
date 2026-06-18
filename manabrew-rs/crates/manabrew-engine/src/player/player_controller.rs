@@ -336,9 +336,19 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         source: Option<CardId>,
         api: Option<crate::ability::api_type::ApiType>,
         can_pay: bool,
+        targets: &[crate::agent::GameEntity],
+        effect_text: &str,
     ) -> bool {
-        self.agent
-            .pay_cost_to_prevent_effect(self.player, cost_kind, message, source, api, can_pay)
+        self.agent.pay_cost_to_prevent_effect(
+            self.player,
+            cost_kind,
+            message,
+            source,
+            api,
+            can_pay,
+            targets,
+            effect_text,
+        )
     }
 
     pub fn confirm_bid_action(

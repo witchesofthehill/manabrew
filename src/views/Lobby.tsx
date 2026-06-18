@@ -142,6 +142,7 @@ export default function Lobby() {
   const [mySpawnedBots, setMySpawnedBots] = useState<string[]>([]);
   const [botDeckTarget, setBotDeckTarget] = useState<string | null>(null);
   const [startingLimited, setStartingLimited] = useState(false);
+  const [roomPasswords, setRoomPasswords] = useState<Record<string, string>>({});
 
   const draftMode = useMultiplayerDraftStore((s) => s.mode);
   const draftSessionId = useMultiplayerDraftStore((s) => s.sessionId);
@@ -263,12 +264,21 @@ export default function Lobby() {
 
   async function handleJoinRoom(roomId: string, password?: string, format?: GameFormat) {
     await joinRoom(roomId, password);
+    if (password) {
+      setRoomPasswords((prev) => ({ ...prev, [roomId]: password }));
+    }
     if (format) await setFormat(format);
   }
 
   async function handleDeckSelection(deckName: string, deck: Deck, commanderName?: string) {
     try {
       await setDeckSelection(deckName, deck, commanderName);
+      const controllerName =
+        currentRoom?.players.find((player) => !player.is_bot)?.username ??
+        currentRoom?.players[0]?.username;
+      if (username && username === controllerName) {
+        await setReady(true);
+      }
     } catch (error) {
       toast.error(`Failed to set deck: ${String(error)}`);
     }
@@ -445,6 +455,7 @@ export default function Lobby() {
     try {
       await getPlatform().server!.spawnAiBot({
         roomId: room.room_id,
+        roomPassword: roomPasswords[room.room_id] ?? null,
         username: botName,
         deckName: deck.name,
         deck: deck.deck,
@@ -594,7 +605,7 @@ export default function Lobby() {
             currentPlayerId={playerId}
             currentUsername={myUsername}
             connectionState={connectionState}
-            onJoinRoom={joinRoom}
+            onJoinRoom={handleJoinRoom}
           />
         </div>
       )}
@@ -610,7 +621,7 @@ export default function Lobby() {
               currentPlayerId={playerId}
               currentUsername={myUsername}
               connectionState={connectionState}
-              onJoinRoom={joinRoom}
+              onJoinRoom={handleJoinRoom}
             />
           </SheetContent>
         </Sheet>

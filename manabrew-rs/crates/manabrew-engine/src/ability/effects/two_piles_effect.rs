@@ -74,7 +74,7 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         pile2_names.join(", "),
     );
     let choose_pile1 =
-        ctx.agents[opponent.index()].choose_optional_trigger(opponent, &prompt, None, None);
+        ctx.agents[opponent.index()].choose_optional_trigger(opponent, &prompt, sa.source, sa.api);
 
     let (chosen_pile, unchosen_pile) = if choose_pile1 {
         (pile1, pile2)

@@ -565,7 +565,10 @@ pub trait PlayerAgent {
         source: Option<CardId>,
         api: Option<crate::ability::api_type::ApiType>,
         can_pay: bool,
+        targets: &[GameEntity],
+        effect_text: &str,
     ) -> bool {
+        let _ = (targets, effect_text);
         if !can_pay {
             return false;
         }

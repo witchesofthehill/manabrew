@@ -100,6 +100,7 @@ export type BotAgentKind = "simple";
 export interface SpawnAiBotParams extends SetDeckSelectionParams {
   roomId: string;
   username: string;
+  roomPassword?: string | null;
   /** Defaults to `"simple"` when omitted. */
   agent?: BotAgentKind;
 }

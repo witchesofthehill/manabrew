@@ -979,7 +979,7 @@ fn pay_roll_cost(
                                 player,
                                 "Sacrifice",
                                 "Sacrifice for mana",
-                                None,
+                                Some(sacrifice_id),
                                 Some(crate::ability::api_type::ApiType::Mana),
                             ) {
                                 Some(sacrifice_id)
@@ -992,7 +992,7 @@ fn pay_roll_cost(
                                 player,
                                 "SubCounter",
                                 "Remove counter for mana",
-                                None,
+                                Some(source_id),
                                 Some(crate::ability::api_type::ApiType::Mana),
                             ) {
                                 Some(source_id)
@@ -1005,7 +1005,7 @@ fn pay_roll_cost(
                                 player,
                                 "Exile",
                                 "Exile for mana",
-                                None,
+                                Some(source_id),
                                 Some(crate::ability::api_type::ApiType::Mana),
                             ) {
                                 Some(source_id)
@@ -1018,7 +1018,7 @@ fn pay_roll_cost(
                                 player,
                                 "PayLife",
                                 "Pay life for mana",
-                                None,
+                                Some(source_id),
                                 Some(crate::ability::api_type::ApiType::Mana),
                             ) {
                                 Some(source_id)

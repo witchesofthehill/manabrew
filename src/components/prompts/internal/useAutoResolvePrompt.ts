@@ -11,13 +11,11 @@ export function useAutoResolvePrompt(paused = false): void {
   const respond = useGameStore((s) => s.respond);
 
   const showOverrides = usePromptPreferencesStore((s) => s.show);
-  const triggerMemory = usePromptPreferencesStore((s) => s.triggerMemory);
   const targetIntents = useTargetIntentStore((s) => s.intents);
 
   const wasActive = useRef(false);
   useEffect(() => {
     if (isGameActive && !wasActive.current) {
-      usePromptPreferencesStore.getState().resetForNewGame();
       useTargetIntentStore.getState().clearAll();
     }
     wasActive.current = isGameActive;
@@ -29,7 +27,7 @@ export function useAutoResolvePrompt(paused = false): void {
     if (isWaitingForResponse) return;
 
     const result = resolvePrompt(currentPrompt, {
-      prefs: { show: showOverrides, triggerMemory },
+      prefs: { show: showOverrides },
       targetIntents,
     });
     if (result.kind !== "auto") return;
@@ -39,15 +37,7 @@ export function useAutoResolvePrompt(paused = false): void {
     }
     appendAutoResolutionLog(currentPrompt.input.type, result.reason);
     void respond(result.respond);
-  }, [
-    paused,
-    currentPrompt,
-    isWaitingForResponse,
-    respond,
-    showOverrides,
-    triggerMemory,
-    targetIntents,
-  ]);
+  }, [paused, currentPrompt, isWaitingForResponse, respond, showOverrides, targetIntents]);
 }
 
 function appendAutoResolutionLog(promptType: string, reason: string): void {

@@ -18,7 +18,6 @@ pub mod choose_discard;
 pub mod choose_from_selection;
 pub mod choose_multikicker;
 pub mod choose_number;
-pub mod choose_optional_trigger;
 pub mod choose_replicate;
 pub mod choose_type;
 pub mod dice_rolled;
@@ -30,7 +29,6 @@ pub mod help_pay_assist;
 pub mod mulligan;
 pub mod mulligan_put_back;
 pub mod pay_combat_cost;
-pub mod pay_cost_to_prevent_effect;
 pub mod pay_mana_cost;
 pub mod reorder_library;
 pub mod reveal_cards;
@@ -56,8 +54,6 @@ pub enum PromptInput {
     Surveil(surveil::SurveilInput),
     Dig(dig::DigInput),
     ChooseDiscard(choose_discard::ChooseDiscardInput),
-    ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerInput),
-    PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectInput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerInput),
     ChooseReplicate(choose_replicate::ChooseReplicateInput),
     ChooseColor(choose_color::ChooseColorInput),
@@ -101,8 +97,6 @@ pub enum PromptOutput {
     Surveil(surveil::SurveilOutput),
     Dig(dig::DigOutput),
     ChooseDiscard(choose_discard::ChooseDiscardOutput),
-    ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerOutput),
-    PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectOutput),
     ChooseMultikicker(choose_multikicker::ChooseMultikickerOutput),
     ChooseReplicate(choose_replicate::ChooseReplicateOutput),
     ChooseColor(choose_color::ChooseColorOutput),

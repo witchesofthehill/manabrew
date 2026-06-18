@@ -67,8 +67,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             Some("Fight"),
             "Would you like those creatures to fight?",
             &[],
-            None,
-            None,
+            sa.source,
+            sa.api,
         ) {
             return;
         }

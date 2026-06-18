@@ -140,6 +140,8 @@ impl PlayerAgent for RecordingAgent {
         _: Option<CardId>,
         _: Option<manabrew_engine::ability::api_type::ApiType>,
         _can_pay: bool,
+        _: &[manabrew_engine::agent::GameEntity],
+        _: &str,
     ) -> bool {
         let mut state = self.state.borrow_mut();
         state

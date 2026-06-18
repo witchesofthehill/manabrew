@@ -136,12 +136,6 @@ impl BotAgent for SimpleAi {
                 discarded_card_ids: hand_card_ids.into_iter().take(num_to_discard).collect(),
             }),
             PromptInput::RevealCards(manabrew_protocol::prompts::reveal_cards::RevealCardsInput { .. }) => Some(PlayerAction::RevealCardsAcknowledged),
-            PromptInput::ChooseOptionalTrigger(manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput { .. }) => {
-                Some(PlayerAction::OptionalTriggerDecision { accept: true })
-            }
-            PromptInput::PayCostToPreventEffect(manabrew_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput { .. }) => {
-                Some(PlayerAction::PayCostToPreventEffectDecision { accept: true })
-            }
             PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput { .. }) => {
                 Some(PlayerAction::Decision { value: false })
             }

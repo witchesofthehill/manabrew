@@ -125,16 +125,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             Some(sa),
         );
         let cost_kind = cost.to_simple_string();
-        let source_name = ctx.game.card(source_id).card_name.clone();
-        let prompt = format!(
-            "Pay {} to prevent {}?",
-            if cost_kind.is_empty() {
-                "this cost"
-            } else {
-                cost_kind.as_str()
-            },
-            source_name
-        );
+        let cost_display = crate::cost::to_prompt_string(&cost);
+        let prompt = if cost_display.is_empty() {
+            "Pay this cost?".to_string()
+        } else {
+            format!("Pay {}?", cost_display)
+        };
         ctx.agents[controller.index()].snapshot_state(ctx.game, ctx.mana_pools);
         let wants_to_pay = ctx.agents[controller.index()].pay_cost_to_prevent_effect(
             controller,
@@ -147,6 +143,12 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             Some(source_id),
             sa.api,
             true,
+            &[],
+            &if sa.stack_description.is_empty() {
+                sa.rebuilt_description()
+            } else {
+                sa.stack_description.clone()
+            },
         );
         let paid =
             wants_to_pay && can_pay && super::try_pay_echo(ctx, sa, source_id, controller, &cost);

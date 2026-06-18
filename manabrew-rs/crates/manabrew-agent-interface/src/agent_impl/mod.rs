@@ -858,8 +858,20 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         source: Option<CardId>,
         api: Option<manabrew_engine::ability::api_type::ApiType>,
         can_pay: bool,
+        targets: &[manabrew_engine::agent::GameEntity],
+        effect_text: &str,
     ) -> bool {
-        choices::pay_cost_to_prevent_effect(self, player, cost_kind, message, source, api, can_pay)
+        choices::pay_cost_to_prevent_effect(
+            self,
+            player,
+            cost_kind,
+            message,
+            source,
+            api,
+            can_pay,
+            targets,
+            effect_text,
+        )
     }
 
     fn choose_binary(

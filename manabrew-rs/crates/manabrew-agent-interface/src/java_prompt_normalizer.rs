@@ -208,6 +208,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                     description: None,
                     text: None,
                     source_card_id: None,
+                    targets: Vec::new(),
                 },
                 options,
                 min_choices: min,
@@ -216,29 +217,58 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         ),
         JavaRawPromptBody::ConfirmOrTrigger {
             description,
-            source_card_name: _,
-            prompt_kind,
+            source_card_id,
+            prompt_kind: _,
             option_labels,
-            mode,
-            api,
-        } => PromptInput::ChooseOptionalTrigger(manabrew_protocol::prompts::choose_optional_trigger::ChooseOptionalTriggerInput {
-            description: description.unwrap_or_else(|| "Confirm?".to_string()),
-            cards: Vec::new(),
-            prompt_kind,
-            option_labels: Some(option_labels),
-            mode,
-            api,
-        }),
+            mode: _,
+            api: _,
+        } => {
+            let (deny, confirm) = match option_labels.as_slice() {
+                [deny, confirm, ..] => (deny.clone(), confirm.clone()),
+                _ => ("Decline".to_string(), "Accept".to_string()),
+            };
+            PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
+                presentation: manabrew_protocol::prompts::common::PromptPresentation {
+                    title: "Confirm".to_string(),
+                    description: Some(description.unwrap_or_else(|| "Confirm?".to_string())),
+                    text: None,
+                    source_card_id,
+                    targets: Vec::new(),
+                },
+                confirm_label: confirm,
+                deny_label: deny,
+            })
+        }
         JavaRawPromptBody::PayCostToPreventEffect {
             description,
-            mode,
-            source_card_name: _,
-            api,
-        } => PromptInput::PayCostToPreventEffect(manabrew_protocol::prompts::pay_cost_to_prevent_effect::PayCostToPreventEffectInput {
-            description: description.unwrap_or_else(|| "Pay cost?".to_string()),
-            cost_kind: mode.unwrap_or_else(|| "Cost".to_string()),
-            api,
-        }),
+            mode: _,
+            source_card_id,
+            api: _,
+            targets,
+            effect_text,
+        } => {
+            let cost_q = description
+                .unwrap_or_else(|| "Pay cost".to_string())
+                .replace(" Life", " {LIFE}")
+                .replace(" life", " {LIFE}");
+            let title = if cost_q.ends_with('?') {
+                cost_q
+            } else {
+                format!("{cost_q}?")
+            };
+            let effect = effect_text.filter(|t| !t.is_empty());
+            PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
+                presentation: manabrew_protocol::prompts::common::PromptPresentation {
+                    title,
+                    description: effect.as_ref().map(|_| "To prevent:".to_string()),
+                    text: effect.map(|t| format!("\"{t}\"")),
+                    source_card_id,
+                    targets: targets.into_iter().map(java_target_to_ref).collect(),
+                },
+                confirm_label: "Pay".to_string(),
+                deny_label: "Decline".to_string(),
+            })
+        }
         JavaRawPromptBody::ChooseNumber {
             min,
             max,
@@ -543,10 +573,7 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::SelectionDecision { chosen_indices } => JavaAction::ModeDecision {
             indices: chosen_indices.clone(),
         },
-        PlayerAction::OptionalTriggerDecision { accept }
-        | PlayerAction::PayCostToPreventEffectDecision { accept } => {
-            JavaAction::BooleanDecision { accept: *accept }
-        }
+        PlayerAction::Decision { value } => JavaAction::BooleanDecision { accept: *value },
         PlayerAction::ColorDecision { color } => JavaAction::StringDecision {
             value: color.clone().unwrap_or_default(),
         },
@@ -666,6 +693,14 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         }
     };
     Ok(java)
+}
+
+fn java_target_to_ref(target: crate::java_raw::JavaRawStackTarget) -> TargetRef {
+    match target.kind.as_str() {
+        "player" => TargetRef::Player { id: target.id },
+        "spell" => TargetRef::Spell { id: target.id },
+        _ => TargetRef::Card { id: target.id },
+    }
 }
 
 fn player_action_label(action: &PlayerAction) -> &'static str {

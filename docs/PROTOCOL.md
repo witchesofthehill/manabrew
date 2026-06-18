@@ -246,7 +246,6 @@ non-fatal and MAY surface them to a debug channel).
 - `chooseConvoke` — tap creatures for Convoke
 - `chooseImprovise` — tap artifacts for Improvise
 - `helpPayAssist` — help pay for a spell with Assist
-- `payCostToPreventEffect` — pay a cost to prevent an effect (Fog effects, etc.)
 
 #### Library manipulation
 
@@ -270,7 +269,7 @@ non-fatal and MAY surface them to a debug channel).
 
 #### Triggered abilities
 
-- `chooseOptionalTrigger` — yes/no on an optional trigger
+- optional triggers, replacement effects, generic confirms, and binary choices are all `chooseBoolean` (yes/no)
 
 #### Explore
 
@@ -687,7 +686,6 @@ following action types, grouped by the prompt family they answer.
 - `alternativeCostDecision` — choose alternative cost by index
 - `delveDecision`, `convokeDecision`, `improviseDecision` — choose cards/permanents to tap or exile
 - `assistDecision` — `{ "kind": "assistDecision", "amountToPay": <int> }`
-- `payCostToPreventEffectDecision` — `{ "kind": "payCostToPreventEffectDecision", "accept": <bool> }`
 
 #### Library manipulation
 
@@ -709,7 +707,6 @@ following action types, grouped by the prompt family they answer.
 
 #### Triggered abilities / explore
 
-- `optionalTriggerDecision` — `{ "kind": "optionalTriggerDecision", "accept": <bool> }`
 - `exploreResponse` — `{ "kind": "exploreResponse", "putInGraveyard": <bool> }`
 
 #### Dice

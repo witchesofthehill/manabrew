@@ -116,19 +116,6 @@ fn main() {
             hand_card_ids: vec![],
             num_to_discard: 0,
         }),
-        ChooseOptionalTrigger(choose_optional_trigger::ChooseOptionalTriggerInput {
-            description: String::new(),
-            cards: vec![],
-            prompt_kind: None,
-            option_labels: None,
-            mode: None,
-            api: None,
-        }),
-        PayCostToPreventEffect(pay_cost_to_prevent_effect::PayCostToPreventEffectInput {
-            description: String::new(),
-            cost_kind: String::new(),
-            api: None,
-        }),
         ChooseMultikicker(choose_multikicker::ChooseMultikickerInput {
             cost: String::new(),
             max_kicks: 0,
@@ -207,6 +194,7 @@ fn main() {
                         .to_string(),
                 ),
                 source_card_id: None,
+                targets: Vec::new(),
             },
             confirm_label: "Pay Buyback".to_string(),
             deny_label: "No".to_string(),
@@ -217,6 +205,7 @@ fn main() {
                 description: Some("Choose one or both —".to_string()),
                 text: None,
                 source_card_id: None,
+                targets: Vec::new(),
             },
             options: vec![
                 "Destroy target artifact".to_string(),

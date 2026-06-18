@@ -14,6 +14,8 @@ pub struct BotConfig {
     pub username: String,
     pub password: String,
     pub room_id: String,
+    #[serde(default)]
+    pub room_password: Option<String>,
     pub deck_name: String,
     pub deck: Deck,
     #[serde(default)]
@@ -72,7 +74,7 @@ impl BotState {
                         room_id: self.config.room_id.clone(),
                         observe: false,
                         as_bot: true,
-                        password: None,
+                        password: self.config.room_password.clone(),
                     }]
                 } else {
                     self.fail(format!("authentication failed: {:?}", error))

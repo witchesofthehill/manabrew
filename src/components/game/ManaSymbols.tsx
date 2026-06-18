@@ -51,7 +51,7 @@ export function ManaSymbols({ cost, size = "md", className }: ManaSymbolsProps) 
   const sizeClass = SIZE_CLASSES[size];
 
   return (
-    <span className={cn("inline-flex items-center gap-0.5", className)}>
+    <span className={cn("inline-flex items-center gap-0.5 ml-2 mr-2", className)}>
       {symbols.map((sym, i) => (
         <ScryfallImg
           key={`${sym}-${i}`}

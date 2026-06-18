@@ -1,5 +1,8 @@
+import { Heart } from "lucide-react";
+
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 
 interface DynamicTextRenderProps {
   text: string;
@@ -16,10 +19,20 @@ const PT_MODIFIER = /^[+-]\d+\/[+-]\d+$/;
  * become colored P/T pills; plain text is rendered as-is.
  */
 export function DynamicTextRender({ text }: DynamicTextRenderProps) {
+  const lifeColor = useTheme().gameTheme.life;
   const parts = text.split(TOKEN);
   return (
     <span className="inline-flex items-center gap-0.5 flex-wrap">
       {parts.map((part, i) => {
+        if (part === "{LIFE}") {
+          return (
+            <Heart
+              key={i}
+              className="inline h-[1em] w-[1em] shrink-0"
+              style={{ color: lifeColor, fill: lifeColor }}
+            />
+          );
+        }
         if (part.startsWith("{")) {
           return <ManaSymbols key={i} cost={part} size="em" />;
         }

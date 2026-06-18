@@ -15,6 +15,8 @@ pub struct PromptPresentation {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub source_card_id: Option<String>,
+    #[serde(default)]
+    pub targets: Vec<TargetRef>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

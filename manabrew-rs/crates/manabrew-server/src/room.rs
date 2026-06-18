@@ -129,7 +129,13 @@ impl Room {
 
     pub fn all_ready(&self) -> bool {
         let min_players = if self.is_limited_session() { 1 } else { 2 };
-        self.players.len() >= min_players && self.players.iter().all(|p| p.ready)
+        let controller_id = self.controller_id();
+        self.players.len() >= min_players
+            && self
+                .players
+                .iter()
+                .filter(|p| Some(p.player_id.as_str()) != controller_id)
+                .all(|p| p.ready)
     }
 
     pub fn add_player(

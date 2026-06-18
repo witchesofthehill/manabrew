@@ -660,6 +660,22 @@ pub fn to_simple_string(cost: &Cost) -> String {
     out.join(", ")
 }
 
+/// Cost rendered for a player-facing prompt. Life uses the `{LIFE}` token so the
+/// UI can draw a heart; mana keeps its `{...}` symbols.
+pub fn to_prompt_string(cost: &Cost) -> String {
+    let mut out = Vec::new();
+    for part in &cost.parts {
+        match part {
+            CostPart::Tap => out.push("{T}".to_string()),
+            CostPart::Untap => out.push("{Q}".to_string()),
+            CostPart::Mana { cost, .. } => out.push(format!("{}", cost)),
+            CostPart::PayLife(v) => out.push(format!("{} {{LIFE}}", v)),
+            _ => out.push(format!("{:?}", part)),
+        }
+    }
+    out.join(", ")
+}
+
 /// Parse a Cost$ value from the DSL.
 ///
 /// Examples:

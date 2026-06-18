@@ -40,34 +40,6 @@ type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) =>
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   revealCards: ({ prompt, respond }) => <RevealCardsModal input={prompt.input} respond={respond} />,
 
-  // $PROMPT_SHARED
-  chooseOptionalTrigger: ({ prompt, respond, ctx }) => (
-    <ChooseOptionalTriggerModal
-      description={prompt.input.description}
-      sourceCard={ctx.sourceDeckCard}
-      sourceCardId={prompt.sourceCardId}
-      cards={prompt.input.cards as GameCard[]}
-      promptKind={prompt.input.promptKind ?? undefined}
-      optionLabels={prompt.input.optionLabels ?? undefined}
-      mode={prompt.input.mode ?? undefined}
-      api={prompt.input.api ?? undefined}
-      onConfirm={(accept) => respond({ type: "optionalTriggerDecision", accept })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  payCostToPreventEffect: ({ prompt, respond, ctx }) => (
-    <ChooseOptionalTriggerModal
-      description={prompt.input.description}
-      sourceCard={ctx.sourceDeckCard}
-      promptKind="confirm_payment"
-      optionLabels={["Decline", "Accept"]}
-      mode={prompt.input.costKind}
-      api={prompt.input.api ?? undefined}
-      onConfirm={(accept) => respond({ type: "payCostToPreventEffectDecision", accept })}
-    />
-  ),
-
   chooseColor: ({ prompt, respond }) => <ChooseColorModal input={prompt.input} respond={respond} />,
 
   chooseType: ({ prompt, respond }) => <ChooseTypeModal input={prompt.input} respond={respond} />,

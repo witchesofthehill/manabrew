@@ -67,8 +67,8 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
             Some("Vote"),
             &format!("Vote: {}", choices.join(" or ")),
             &choices,
-            None,
-            None,
+            sa.source,
+            sa.api,
         );
 
         // confirm_action returns bool — map to first or second choice

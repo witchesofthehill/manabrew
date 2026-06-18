@@ -1191,8 +1191,23 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players],
   );
 
-  const resolveStackCard = (stackItem: StackObject): GameCard =>
-    visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
+  const resolveStackCard = useCallback(
+    (stackItem: StackObject): GameCard =>
+      visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!,
+    [visibleCardsById, stackCardsBySourceId],
+  );
+  const resolveCardName = useCallback(
+    (cardId: string) => cardNameById.get(cardId) ?? cardId,
+    [cardNameById],
+  );
+  const resolvePlayerName = useCallback(
+    (playerId: string) => playerNameById.get(playerId) ?? playerId,
+    [playerNameById],
+  );
+  const resolveCard = useCallback(
+    (cardId: string) => visibleCardsById.get(cardId),
+    [visibleCardsById],
+  );
 
   const activeFlashCard: GameCard | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
@@ -1459,8 +1474,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         onToggleCollapse={toggleActionPanel}
         gameLog={gameLog}
         onHoverLogCard={handleLogCardHover}
-        resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
-        resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
+        resolveCardName={resolveCardName}
+        resolvePlayerName={resolvePlayerName}
         snapshots={snapshots}
         canRestoreSnapshots={(!isMultiplayer || isHost) && promptType === "chooseAction"}
         onRestoreSnapshot={restoreSnapshot}
@@ -1506,8 +1521,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           targetCompletionLabel={targetCompletion?.label}
           onCompleteTargets={targetCompletion?.onComplete}
           onConcede={concede}
-          resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
-          resolveCard={(cardId) => visibleCardsById.get(cardId)}
+          resolveCardName={resolveCardName}
+          resolveCard={resolveCard}
           isMyPriority={gameView.priorityPlayerId === me.id}
           turn={gameView.turn}
           activePlayerName={

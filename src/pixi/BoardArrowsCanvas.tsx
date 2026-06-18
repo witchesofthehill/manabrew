@@ -8,7 +8,7 @@ import { ArrowLayer } from "./ArrowLayer";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
-import { PIXI_MAX_FPS } from "./constants";
+import { MAX_CANVAS_RESOLUTION, PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
 
 interface BoardArrowsCanvasProps {
@@ -43,7 +43,7 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(2, window.devicePixelRatio || 1),
+        resolution: Math.min(MAX_CANVAS_RESOLUTION, window.devicePixelRatio || 1),
       })
       .then(() => {
         if (!active || !app.renderer) {

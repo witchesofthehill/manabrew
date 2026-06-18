@@ -19,6 +19,7 @@ import { registerPixiApp } from "./visibility";
 import {
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
+  MAX_CANVAS_RESOLUTION,
   PIXI_MAX_FPS,
   Z_HAND_ACTIONS_MENU,
 } from "./constants";
@@ -171,7 +172,7 @@ export function BoardCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(3, window.devicePixelRatio || 1),
+        resolution: Math.min(MAX_CANVAS_RESOLUTION, window.devicePixelRatio || 1),
       });
     } catch (err) {
       console.error("[pixi] BoardCanvas init failed:", err);

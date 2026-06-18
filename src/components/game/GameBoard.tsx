@@ -604,7 +604,7 @@ export function GameBoard({
     sceneRef,
     me.id,
     unifiedLayout,
-    opponents,
+    opponents.length,
     myCommandZone?.length,
     graveyard.length,
     exile.length,

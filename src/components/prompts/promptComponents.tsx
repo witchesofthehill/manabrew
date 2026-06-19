@@ -11,7 +11,7 @@ import { ScryModal } from "./ScryModal";
 import { PromptModalController } from "./PromptModalController";
 import { ChooseBooleanModal } from "./ChooseBooleanModal";
 import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
-import { DiceRollFeedback, FirstPlayerRollFeedback } from "@/components/game/dice";
+import { DiceRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
 import type { DeckCard, GameView } from "@/types/manabrew";
@@ -85,24 +85,11 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   ),
 
   // $PROMPT_SHARED
-  firstPlayerRoll: ({ prompt, respond, ctx }) => (
-    <FirstPlayerRollFeedback
-      sides={prompt.input.sides}
-      rolls={prompt.input.firstPlayerRolls}
-      winnerPlayerId={prompt.input.winnerPlayerId}
-      players={(ctx.gameView?.players ?? []).map((p) => ({ id: p.id, isHuman: p.isHuman }))}
-      onAcknowledge={() => respond({ type: "firstPlayerRollAcknowledged" })}
-    />
-  ),
-
-  // $PROMPT_SHARED
   diceRolled: ({ prompt, respond, ctx }) => (
     <DiceRollFeedback
       sides={prompt.input.sides}
-      naturalResults={prompt.input.naturalResults}
-      finalResults={prompt.input.finalResults}
-      ignoredRolls={prompt.input.ignoredRolls}
-      playerId={prompt.input.playerId}
+      rolls={prompt.input.rolls}
+      title={prompt.input.title}
       players={(ctx.gameView?.players ?? []).map((p) => ({ id: p.id, isHuman: p.isHuman }))}
       sourceCard={ctx.sourceDeckCard}
       onAcknowledge={() => respond({ type: "diceRolledAcknowledged" })}

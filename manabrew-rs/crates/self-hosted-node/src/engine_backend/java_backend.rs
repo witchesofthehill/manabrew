@@ -35,7 +35,7 @@ use manabrew_agent_interface::java_raw::{
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{
-    ChooseActionDecision, ChooseActionOutput, FirstPlayerRollOutput, MulliganOutput,
+    ChooseActionDecision, ChooseActionOutput, DiceRolledOutput, MulliganOutput,
     MulliganPutBackOutput,
 };
 use serde::Serialize;
@@ -820,9 +820,7 @@ fn run_hosted_engine_game_inner(
         for (player_index, rx) in &mut remote_response_rxs {
             loop {
                 match rx.try_recv() {
-                    Ok(PromptOutput::FirstPlayerRoll(
-                        FirstPlayerRollOutput::FirstPlayerRollAcknowledged,
-                    )) => {
+                    Ok(PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged)) => {
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
                             if pending_roll_acks == 0 {

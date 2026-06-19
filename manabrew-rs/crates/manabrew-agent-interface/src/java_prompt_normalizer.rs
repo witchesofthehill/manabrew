@@ -92,18 +92,25 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             sides,
             rolls,
             winner_player_id,
-        } => PromptInput::FirstPlayerRoll(manabrew_protocol::prompts::first_player_roll::FirstPlayerRollInput {
-            sides,
-            rolls: rolls
-                .iter()
-                .map(|roll| crate::prompt::FirstPlayerRollEntry {
-                    player_id: roll.player_id.clone(),
-                    player_name: roll.player_name.clone(),
-                    value: roll.value,
-                })
-                .collect(),
-            winner_player_id: winner_player_id.unwrap_or_else(|| format!("player-{player}")),
-        }),
+        } => {
+            let winner_id = winner_player_id.unwrap_or_else(|| format!("player-{player}"));
+            PromptInput::DiceRolled(manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
+                sides,
+                rolls: rolls
+                    .iter()
+                    .map(|roll| manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
+                        label: Some(roll.player_name.clone()),
+                        highlighted: roll.player_id == winner_id,
+                        player_id: Some(roll.player_id.clone()),
+                        natural_results: vec![roll.value],
+                        final_results: vec![roll.value],
+                        ignored_rolls: vec![],
+                    })
+                    .collect(),
+                title: Some("Roll for first player".to_string()),
+                source_card_name: None,
+            })
+        }
         JavaRawPromptBody::ChooseAttackers {
             attackers,
             defenders,
@@ -559,9 +566,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
     };
     let deciding_player_id = if matches!(
         inner,
-        PromptInput::FirstPlayerRoll(
-            manabrew_protocol::prompts::first_player_roll::FirstPlayerRollInput { .. }
-        )
+        PromptInput::DiceRolled(manabrew_protocol::prompts::dice_rolled::DiceRolledInput { .. })
     ) {
         String::new()
     } else {
@@ -610,7 +615,7 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
         PromptOutput::RevealCards(RevealCardsOutput::RevealCardsAcknowledged) => {
             JavaAction::RevealCardsAcknowledged
         }
-        PromptOutput::FirstPlayerRoll(FirstPlayerRollOutput::FirstPlayerRollAcknowledged) => {
+        PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged) => {
             JavaAction::FirstPlayerRollAcknowledged
         }
         PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {

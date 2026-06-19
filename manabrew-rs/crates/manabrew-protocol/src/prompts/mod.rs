@@ -17,7 +17,6 @@ pub mod choose_from_selection;
 pub mod choose_number;
 pub mod choose_type;
 pub mod dice_rolled;
-pub mod first_player_roll;
 pub mod game_over;
 pub mod mulligan;
 pub mod mulligan_put_back;
@@ -48,8 +47,7 @@ pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOut
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
 pub use choose_type::{ChooseTypeInput, ChooseTypeOutput};
 pub use common::ManaSourceAction;
-pub use dice_rolled::{DiceRolledInput, DiceRolledOutput};
-pub use first_player_roll::{FirstPlayerRollInput, FirstPlayerRollOutput};
+pub use dice_rolled::{DiceRollEntry, DiceRolledInput, DiceRolledOutput};
 pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
@@ -86,7 +84,6 @@ pub enum PromptInput {
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ChooseCards(choose_cards::ChooseCardsInput),
     ReorderCards(reorder_cards::ReorderCardsInput),
-    FirstPlayerRoll(first_player_roll::FirstPlayerRollInput),
     DiceRolled(dice_rolled::DiceRolledInput),
 }
 
@@ -116,6 +113,5 @@ pub enum PromptOutput {
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
     ReorderCards(reorder_cards::ReorderCardsOutput),
-    FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
 }

@@ -136,12 +136,3 @@ pub enum ManaSourceAction {
         card_id: String,
     },
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "prompts/common.ts")]
-pub struct FirstPlayerRollEntry {
-    pub player_id: String,
-    pub player_name: String,
-    pub value: i32,
-}

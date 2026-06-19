@@ -1291,6 +1291,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 winner,
             } => {
                 let view = self.view();
+                let winner_id = player_id_str(winner);
                 let entries = rolls
                     .into_iter()
                     .map(|(pid, value)| {
@@ -1301,19 +1302,23 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                             .find(|p| p.id == id)
                             .map(|p| p.name.clone())
                             .unwrap_or_else(|| id.clone());
-                        crate::prompt::FirstPlayerRollEntry {
-                            player_id: id,
-                            player_name: name,
-                            value,
+                        manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
+                            label: Some(name),
+                            highlighted: id == winner_id,
+                            player_id: Some(id),
+                            natural_results: vec![value],
+                            final_results: vec![value],
+                            ignored_rolls: vec![],
                         }
                     })
                     .collect();
                 self.present_prompt(
-                    PromptInput::FirstPlayerRoll(
-                        manabrew_protocol::prompts::first_player_roll::FirstPlayerRollInput {
+                    PromptInput::DiceRolled(
+                        manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
                             sides,
                             rolls: entries,
-                            winner_player_id: player_id_str(winner),
+                            title: Some("Roll for first player".to_string()),
+                            source_card_name: None,
                         },
                     ),
                     None,
@@ -1337,11 +1342,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 self.present_prompt(
                     PromptInput::DiceRolled(
                         manabrew_protocol::prompts::dice_rolled::DiceRolledInput {
-                            player_id: player_id_str(player),
                             sides,
-                            natural_results,
-                            final_results,
-                            ignored_rolls,
+                            rolls: vec![manabrew_protocol::prompts::dice_rolled::DiceRollEntry {
+                                label: None,
+                                player_id: Some(player_id_str(player)),
+                                natural_results,
+                                final_results,
+                                ignored_rolls,
+                                highlighted: false,
+                            }],
+                            title: None,
                             source_card_name,
                         },
                     ),

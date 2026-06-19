@@ -17,12 +17,3 @@ export const ackDiceRolled: PromptResolver<"diceRolled"> = (_prompt, ctx) => {
     reason: "DiceRolled toggled off; auto-ack",
   };
 };
-
-export const ackFirstPlayerRoll: PromptResolver<"firstPlayerRoll"> = (_prompt, ctx) => {
-  if (!isToggledOff("firstPlayerRoll", ctx)) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "firstPlayerRollAcknowledged" },
-    reason: "FirstPlayerRoll toggled off; auto-ack",
-  };
-};

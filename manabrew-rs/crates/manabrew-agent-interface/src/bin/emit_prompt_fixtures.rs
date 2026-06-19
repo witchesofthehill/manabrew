@@ -194,17 +194,10 @@ fn main() {
             min_choices: 1,
             max_choices: 2,
         }),
-        FirstPlayerRoll(first_player_roll::FirstPlayerRollInput {
+        DiceRolled(dice_rolled::DiceRolledInput {
             sides: 0,
             rolls: vec![],
-            winner_player_id: String::new(),
-        }),
-        DiceRolled(dice_rolled::DiceRolledInput {
-            player_id: String::new(),
-            sides: 0,
-            natural_results: vec![],
-            final_results: vec![],
-            ignored_rolls: vec![],
+            title: None,
             source_card_name: None,
         }),
         ChooseCards(choose_cards::ChooseCardsInput {

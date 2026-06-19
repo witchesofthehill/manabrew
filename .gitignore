@@ -69,6 +69,7 @@ forge-harness/target/
 *.war
 .mvn/
 
+
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
@@ -77,3 +78,5 @@ forge-harness/target/
 
 .zed/
 .vscode/
+
+src/components/prompts/dev/

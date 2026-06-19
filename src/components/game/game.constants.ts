@@ -42,7 +42,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseType"]: "Choose a type",
   ["chooseNumber"]: "Choose a number",
   ["chooseCardName"]: "Choose a card name",
-  ["specifyManaCombo"]: "Choose mana colors",
   ["chooseDamageAssignmentOrder"]: "Order blockers for damage assignment",
   ["chooseCombatDamageAssignment"]: "Assign combat damage",
   ["reorderCards"]: "Reorder the cards",

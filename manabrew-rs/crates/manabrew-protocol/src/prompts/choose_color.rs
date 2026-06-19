@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -6,6 +8,8 @@ use ts_rs::TS;
 #[ts(export, export_to = "prompts/chooseColor.ts")]
 pub struct ChooseColorInput {
     pub valid_colors: Vec<String>,
+    pub amount: u32,
+    pub repeat_allowed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -16,5 +20,7 @@ pub struct ChooseColorInput {
 )]
 #[ts(export, export_to = "prompts/chooseColor.ts")]
 pub enum ChooseColorOutput {
-    ColorDecision { color: Option<String> },
+    ColorDecision {
+        chosen_colors: BTreeMap<String, u32>,
+    },
 }

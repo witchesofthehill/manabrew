@@ -609,11 +609,15 @@ pub(super) fn choose_color<T: Responder>(
     agent.send_prompt(
         PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
             valid_colors: valid_colors.to_vec(),
+            amount: 1,
+            repeat_allowed: false,
         }),
         None,
     );
     match agent.recv_action() {
-        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { color }) => color,
+        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { chosen_colors }) => {
+            chosen_colors.into_keys().next()
+        }
         _ => valid_colors.first().cloned(),
     }
 }

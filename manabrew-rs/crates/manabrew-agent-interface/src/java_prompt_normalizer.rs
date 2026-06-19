@@ -313,6 +313,8 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             source_card_name: _,
         } => PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
             valid_colors: options,
+            amount: 1,
+            repeat_allowed: false,
         }),
         JavaRawPromptBody::ChooseType {
             options,
@@ -557,12 +559,11 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         JavaRawPromptBody::SpecifyManaCombo {
             available_colors,
             amount,
-        } => PromptInput::SpecifyManaCombo(
-            manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
-                available_colors,
-                amount,
-            },
-        ),
+        } => PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+            valid_colors: available_colors,
+            amount: amount as u32,
+            repeat_allowed: true,
+        }),
     };
     let deciding_player_id = if matches!(
         inner,
@@ -631,9 +632,19 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
         PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => {
             JavaAction::BooleanDecision { accept: *value }
         }
-        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { color }) => {
-            JavaAction::StringDecision {
-                value: color.clone().unwrap_or_default(),
+        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { chosen_colors }) => {
+            let total: u32 = chosen_colors.values().copied().sum();
+            if total <= 1 {
+                JavaAction::StringDecision {
+                    value: chosen_colors.keys().next().cloned().unwrap_or_default(),
+                }
+            } else {
+                JavaAction::ManaComboDecision {
+                    chosen_colors: chosen_colors
+                        .iter()
+                        .flat_map(|(c, n)| std::iter::repeat(c.clone()).take(*n as usize))
+                        .collect(),
+                }
             }
         }
         PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision { chosen_type }) => {
@@ -746,11 +757,6 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
         PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto })) => {
             JavaAction::PayMana { auto: *auto }
         }
-        PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision {
-            chosen_colors,
-        }) => JavaAction::ManaComboDecision {
-            chosen_colors: chosen_colors.clone(),
-        },
         PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::PayLife)) => {
             JavaAction::PayLife
         }
@@ -804,9 +810,6 @@ fn player_action_label(action: &PromptOutput) -> &'static str {
         PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
             ChooseActionDecision::RestoreSnapshot { .. },
         )) => "restoreSnapshot",
-        PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision { .. }) => {
-            "manaComboDecision"
-        }
         PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged) => {
             "diceRolledAcknowledged"
         }

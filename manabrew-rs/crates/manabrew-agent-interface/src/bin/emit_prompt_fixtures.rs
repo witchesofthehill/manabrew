@@ -114,6 +114,8 @@ fn main() {
         }),
         ChooseColor(choose_color::ChooseColorInput {
             valid_colors: vec![],
+            amount: 1,
+            repeat_allowed: false,
         }),
         ChooseType(choose_type::ChooseTypeInput {
             type_category: String::new(),
@@ -160,10 +162,6 @@ fn main() {
             delve_source_ids: vec![],
             mana_pool_total: 0,
             can_confirm_from_pool: false,
-        }),
-        SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput {
-            available_colors: vec![],
-            amount: 0,
         }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {
             presentation: common::PromptPresentation {

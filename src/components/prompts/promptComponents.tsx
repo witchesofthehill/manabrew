@@ -6,7 +6,6 @@ import { ChooseCardNameModal } from "./ChooseCardNameModal";
 import { ChooseCardsModal } from "./ChooseCardsModal";
 import { ReorderCardsModal } from "./ReorderCardsModal";
 import { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
-import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
 import { ScryModal } from "./ScryModal";
 import { PromptModalController } from "./PromptModalController";
 import { ChooseBooleanModal } from "./ChooseBooleanModal";
@@ -78,10 +77,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   reorderCards: ({ prompt, respond }) => (
     <ReorderCardsModal input={prompt.input} respond={respond} />
-  ),
-
-  specifyManaCombo: ({ prompt, respond }) => (
-    <SpecifyManaComboModal input={prompt.input} respond={respond} />
   ),
 
   // $PROMPT_SHARED

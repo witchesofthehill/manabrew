@@ -50,12 +50,13 @@ export const forcedAllSelections: PromptResolver<"chooseFromSelection"> = (promp
 };
 
 export const singleLegalColor: PromptResolver<"chooseColor"> = (prompt) => {
-  const colors = prompt.input.validColors;
-  if (colors.length !== 1) return { kind: "force-show" };
+  const { validColors, amount } = prompt.input;
+  // Only auto-resolve a plain single pick with exactly one legal colour.
+  if (amount !== 1 || validColors.length !== 1) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "colorDecision", color: colors[0] },
-    reason: `only legal colour: ${colors[0]}`,
+    respond: { type: "colorDecision", chosenColors: { [validColors[0]]: 1 } },
+    reason: `only legal colour: ${validColors[0]}`,
   };
 };
 

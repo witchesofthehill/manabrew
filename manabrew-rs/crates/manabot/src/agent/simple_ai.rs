@@ -178,9 +178,19 @@ impl BotAgent for SimpleAi {
                     chosen_indices: (0..take.min(options.len())).collect(),
                 }))
             }
-            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, .. }) => {
+            PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, amount, repeat_allowed }) => {
+                let mut chosen: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
+                if repeat_allowed {
+                    if let Some(c) = valid_colors.first() {
+                        chosen.insert(c.clone(), amount);
+                    }
+                } else {
+                    for c in valid_colors.iter().take(amount as usize) {
+                        chosen.insert(c.clone(), 1);
+                    }
+                }
                 Some(PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision {
-                    color: valid_colors.first().cloned(),
+                    chosen_colors: chosen,
                 }))
             }
             PromptInput::ChooseType(manabrew_protocol::prompts::choose_type::ChooseTypeInput { valid_types, .. }) => Some(PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision {
@@ -229,19 +239,6 @@ impl BotAgent for SimpleAi {
                 } else {
                     Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Cancel)))
                 }
-            }
-            PromptInput::SpecifyManaCombo(manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
-                available_colors,
-                amount,
-                ..
-            }) => {
-                let color = available_colors
-                    .first()
-                    .cloned()
-                    .unwrap_or_else(|| "C".to_string());
-                Some(PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision {
-                    chosen_colors: vec![color; amount],
-                }))
             }
             PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
                 presentation,

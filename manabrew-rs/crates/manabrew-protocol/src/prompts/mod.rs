@@ -24,7 +24,6 @@ pub mod pay_mana_cost;
 pub mod reorder_cards;
 pub mod reveal;
 pub mod scry;
-pub mod specify_mana_combo;
 
 pub use choose_action::{
     AvailableAction, AvailableActionKind, ChooseActionDecision, ChooseActionInput,
@@ -55,7 +54,6 @@ pub use pay_mana_cost::{DelveAction, ManaPayment, PayManaCostInput, PayManaCostO
 pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
 pub use scry::{ScryInput, ScryOutput};
-pub use specify_mana_combo::{SpecifyManaComboInput, SpecifyManaComboOutput};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -81,7 +79,6 @@ pub enum PromptInput {
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput,
     ),
     PayManaCost(pay_mana_cost::PayManaCostInput),
-    SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ChooseCards(choose_cards::ChooseCardsInput),
     ReorderCards(reorder_cards::ReorderCardsInput),
     DiceRolled(dice_rolled::DiceRolledInput),
@@ -110,7 +107,6 @@ pub enum PromptOutput {
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentOutput,
     ),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
-    SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
     ReorderCards(reorder_cards::ReorderCardsOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),

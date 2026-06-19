@@ -237,25 +237,21 @@ pub(super) fn specify_mana_combo<T: Responder>(
     }
 
     agent.send_prompt(
-        PromptInput::SpecifyManaCombo(
-            manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
-                available_colors: available_colors.to_vec(),
-                amount,
-            },
-        ),
+        PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput {
+            valid_colors: available_colors.to_vec(),
+            amount: amount as u32,
+            repeat_allowed: true,
+        }),
         source,
     );
     let action = agent.recv_action();
     match action {
-        PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision {
-            chosen_colors,
-        }) => {
-            // Validate: only return valid colors, pad/truncate to amount
+        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { chosen_colors }) => {
             let mut result: Vec<String> = chosen_colors
                 .into_iter()
-                .filter(|c| available_colors.contains(c))
+                .filter(|(c, _)| available_colors.contains(c))
+                .flat_map(|(c, n)| std::iter::repeat(c).take(n as usize))
                 .collect();
-            // Pad with first available color if needed
             while result.len() < amount {
                 result.push(available_colors.first().cloned().unwrap_or("C".to_string()));
             }

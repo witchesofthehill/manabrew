@@ -101,10 +101,7 @@ export function ReorderCardsModal({
       </DndContext>
 
       <Modal.Footer className="justify-end">
-        <Button
-          size="sm"
-          onClick={() => respond({ type: "reorderDecision", orderedCardIds: ids })}
-        >
+        <Button size="sm" onClick={() => respond({ type: "reorderDecision", orderedCardIds: ids })}>
           Confirm Order
         </Button>
       </Modal.Footer>

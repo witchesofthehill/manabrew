@@ -8,7 +8,7 @@ import { ArrowLayer } from "./ArrowLayer";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
-import { PIXI_MAX_FPS } from "./constants";
+import { MAX_CANVAS_RESOLUTION, PIXI_MAX_FPS } from "./constants";
 import type { BoardScene } from "./board/BoardScene";
 
 interface BoardArrowsCanvasProps {
@@ -43,7 +43,7 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(2, window.devicePixelRatio || 1),
+        resolution: Math.min(MAX_CANVAS_RESOLUTION, window.devicePixelRatio || 1),
       })
       .then(() => {
         if (!active || !app.renderer) {
@@ -58,9 +58,14 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
         layerRef.current = layer;
         const parent = canvasRef.current?.parentElement;
         if (parent) app.renderer.resize(parent.clientWidth, parent.clientHeight);
+        app.ticker.remove(app.render, app);
+        let prevHadArrows = false;
         app.ticker.add(() => {
           const defs = sceneRefRef.current.current?.getArrowDefs() ?? [];
           layer.update(defs, app.ticker.deltaMS);
+          const hasArrows = defs.length > 0;
+          if (hasArrows || prevHadArrows) app.render();
+          prevHadArrows = hasArrows;
         });
       });
     return () => {

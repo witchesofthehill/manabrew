@@ -297,6 +297,7 @@ export class CardSprite extends Container {
    *  it into the base/hover scale each frame so the two don't fight. */
   readonly fxScale = { x: 1, y: 1 };
   private ringGfx: Graphics;
+  private contentContainer: Container;
   private ptContainer: Container;
   private ptBg: Graphics;
   private ptText: Text;
@@ -333,6 +334,9 @@ export class CardSprite extends Container {
 
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
+
+    this.contentContainer = new Container();
+    this.addChild(this.contentContainer);
 
     this.placeholderGfx = new Graphics();
     this.placeholderGfx.roundRect(0, 0, CARD_W, CARD_H, CARD_RADIUS);
@@ -481,6 +485,15 @@ export class CardSprite extends Container {
     this.hitArea = {
       contains: (x: number, y: number) => x >= 0 && x <= CARD_W && y >= 0 && y <= CARD_H,
     };
+
+    // Everything except the selection/target ring lives under contentContainer so
+    // the summoning-sick / phased desaturate filter greys the card body but leaves
+    // the interaction ring at full color.
+    for (const child of [...this.children]) {
+      if (child !== this.ringGfx && child !== this.contentContainer) {
+        this.contentContainer.addChild(child);
+      }
+    }
 
     this.pivot.set(CARD_W / 2, CARD_H / 2);
     this.loadImage();
@@ -826,7 +839,7 @@ export class CardSprite extends Container {
     if (key === this.lastFilterKey) return;
     this.lastFilterKey = key;
     if (key === "none") {
-      this.filters = [];
+      this.contentContainer.filters = [];
       return;
     }
     if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();
@@ -837,7 +850,7 @@ export class CardSprite extends Container {
     } else {
       f.saturate(SUMMONING_FILTER.phasedSaturate, false);
     }
-    this.filters = [f];
+    this.contentContainer.filters = [f];
   }
 
   private updateRingBearer(): void {

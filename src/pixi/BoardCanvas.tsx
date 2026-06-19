@@ -19,6 +19,7 @@ import { registerPixiApp } from "./visibility";
 import {
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
+  MAX_CANVAS_RESOLUTION,
   PIXI_MAX_FPS,
   Z_HAND_ACTIONS_MENU,
 } from "./constants";
@@ -171,7 +172,7 @@ export function BoardCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(3, window.devicePixelRatio || 1),
+        resolution: Math.min(MAX_CANVAS_RESOLUTION, window.devicePixelRatio || 1),
       });
     } catch (err) {
       console.error("[pixi] BoardCanvas init failed:", err);
@@ -209,7 +210,11 @@ export function BoardCanvas({
           cancelHandHoverClear();
           setHandHover({ card, bounds });
         } else {
-          scheduleHandHoverClear();
+          // Pixi already held the card for HAND_HOVER_HOLD_MS (moving onto the flip
+          // button / panel cancels it), so a null here means the cursor truly left —
+          // clear in sync with the card instead of adding a second grace.
+          cancelHandHoverClear();
+          setHandHover(null);
         }
       },
     });
@@ -221,7 +226,7 @@ export function BoardCanvas({
     const parent = canvasRef.current.parentElement;
     if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
     setScene(newScene);
-  }, [cancelHandHoverClear, scheduleHandHoverClear]);
+  }, [cancelHandHoverClear]);
 
   useEffect(() => {
     let active = true;

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { PanelRightOpen, PanelRightClose } from "lucide-react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
@@ -24,7 +24,7 @@ const DEV_LABELS: Record<DevPromptActionOverride, string> = {
   noAction: "NoAction",
 };
 
-export function RightActionPanel({
+function RightActionPanelImpl({
   collapsed,
   onToggleCollapse: rawToggle,
   gameLog,
@@ -186,6 +186,8 @@ export function RightActionPanel({
     </aside>
   );
 }
+
+export const RightActionPanel = memo(RightActionPanelImpl);
 
 function PixiFpsCounter() {
   const stats = useGameDevStore((s) => s.pixiPerfStats);

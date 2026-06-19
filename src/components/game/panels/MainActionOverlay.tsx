@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,7 +12,7 @@ import { PromptActionController } from "@/components/prompts/PromptActionControl
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
 
-export function MainActionOverlay({
+function MainActionOverlayImpl({
   promptType,
   isWaitingForResponse,
   isAutoPassing,
@@ -174,3 +175,5 @@ export function MainActionOverlay({
     </>
   );
 }
+
+export const MainActionOverlay = memo(MainActionOverlayImpl);

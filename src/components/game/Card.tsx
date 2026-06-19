@@ -139,49 +139,51 @@ function CardComponent({
           )}
           {!bare && (
             <>
-          {card.exerted ? (
-            <CardBadge {...CARD_BADGES.exerted} />
-          ) : card.isFaceDown ? (
-            <CardBadge {...CARD_BADGES.morph} />
-          ) : card.isBestowed ? (
-            <CardBadge {...CARD_BADGES.bestow} />
-          ) : card.isTransformed ? (
-            <CardBadge {...CARD_BADGES.transformed} />
-          ) : card.isPlotted ? (
-            <CardBadge {...CARD_BADGES.plotted} />
-          ) : card.isMadnessExiled ? (
-            <CardBadge {...CARD_BADGES.madnessExiled} />
-          ) : card.isWarpExiled ? (
-            <CardBadge {...CARD_BADGES.warpExiled} />
-          ) : card.isCopy ? (
-            <CardBadge {...CARD_BADGES.copy} />
-          ) : card.isToken ? (
-            <CardBadge label={getTokenLabel(card.name)} style={CARD_BADGES.token.style} />
-          ) : null}
-          {card.keywords && card.keywords.length > 0 && <KeywordChips keywords={card.keywords} />}
-          {card.counters && (
-            <CounterDisplay
-              counters={card.counters}
-              size="sm"
-              className="absolute bottom-1 left-1 z-10"
-            />
-          )}
-          {creature && card.power && card.toughness && (
-            <PtBadge value={`${card.power}/${card.toughness}`} style={ptStyle}>
-              {card.damage != null && card.damage > 0 && (
-                <span
-                  className="font-bold bg-black/60 rounded leading-none"
-                  style={{
-                    fontSize: "0.9em",
-                    padding: "0.1em 0.35em",
-                    color: withAlpha(themeColors.promptAction.attackAction, 0.9),
-                  }}
-                >
-                  ⚔{card.damage}
-                </span>
+              {card.exerted ? (
+                <CardBadge {...CARD_BADGES.exerted} />
+              ) : card.isFaceDown ? (
+                <CardBadge {...CARD_BADGES.morph} />
+              ) : card.isBestowed ? (
+                <CardBadge {...CARD_BADGES.bestow} />
+              ) : card.isTransformed ? (
+                <CardBadge {...CARD_BADGES.transformed} />
+              ) : card.isPlotted ? (
+                <CardBadge {...CARD_BADGES.plotted} />
+              ) : card.isMadnessExiled ? (
+                <CardBadge {...CARD_BADGES.madnessExiled} />
+              ) : card.isWarpExiled ? (
+                <CardBadge {...CARD_BADGES.warpExiled} />
+              ) : card.isCopy ? (
+                <CardBadge {...CARD_BADGES.copy} />
+              ) : card.isToken ? (
+                <CardBadge label={getTokenLabel(card.name)} style={CARD_BADGES.token.style} />
+              ) : null}
+              {card.keywords && card.keywords.length > 0 && (
+                <KeywordChips keywords={card.keywords} />
               )}
-            </PtBadge>
-          )}
+              {card.counters && (
+                <CounterDisplay
+                  counters={card.counters}
+                  size="sm"
+                  className="absolute bottom-1 left-1 z-10"
+                />
+              )}
+              {creature && card.power && card.toughness && (
+                <PtBadge value={`${card.power}/${card.toughness}`} style={ptStyle}>
+                  {card.damage != null && card.damage > 0 && (
+                    <span
+                      className="font-bold bg-black/60 rounded leading-none"
+                      style={{
+                        fontSize: "0.9em",
+                        padding: "0.1em 0.35em",
+                        color: withAlpha(themeColors.promptAction.attackAction, 0.9),
+                      }}
+                    >
+                      ⚔{card.damage}
+                    </span>
+                  )}
+                </PtBadge>
+              )}
             </>
           )}
         </>

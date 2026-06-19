@@ -575,7 +575,9 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
 
 pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction, JavaActionError> {
     let java = match action {
-        PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
+        PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+            ChooseActionDecision::Act { action_id },
+        )) => {
             if let Some(index) = action_id
                 .strip_prefix("prompt-action-")
                 .and_then(|s| s.parse::<usize>().ok())
@@ -721,25 +723,22 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
                     .collect(),
             }
         }
-        PromptOutput::ManaSource(ManaSourceAction::TapForMana {
+        PromptOutput::ChooseAction(ChooseActionOutput::ManaSourceAction(source))
+        | PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(source))
+        | PromptOutput::PayCombatCost(PayCombatCostOutput::ManaSourceAction(source)) => {
+            mana_source_to_java(source)
+        }
+        PromptOutput::PayManaCost(PayManaCostOutput::DelveAction(DelveAction::Delve {
             card_id,
-            ability_index,
-            color,
-        }) => JavaAction::TapLand {
-            card_id: card_id.clone(),
-            mana_ability_index: *ability_index,
-            color: color.clone(),
-        },
-        PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => JavaAction::UntapLand {
+        })) => JavaAction::Delve {
             card_id: card_id.clone(),
         },
-        PromptOutput::ManaSource(ManaSourceAction::Delve { card_id }) => JavaAction::Delve {
+        PromptOutput::PayManaCost(PayManaCostOutput::DelveAction(DelveAction::Undelve {
+            card_id,
+        })) => JavaAction::Undelve {
             card_id: card_id.clone(),
         },
-        PromptOutput::ManaSource(ManaSourceAction::Undelve { card_id }) => JavaAction::Undelve {
-            card_id: card_id.clone(),
-        },
-        PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto }) => {
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto })) => {
             JavaAction::PayMana { auto: *auto }
         }
         PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision {
@@ -747,14 +746,20 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
         }) => JavaAction::ManaComboDecision {
             chosen_colors: chosen_colors.clone(),
         },
-        PromptOutput::PayManaCost(PayManaCostOutput::PayLife) => JavaAction::PayLife,
-        PromptOutput::PayManaCost(PayManaCostOutput::CancelManaCost) => JavaAction::CancelMana,
-        PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase }) => JavaAction::Pass {
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::PayLife)) => {
+            JavaAction::PayLife
+        }
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Cancel)) => {
+            JavaAction::CancelMana
+        }
+        PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+            ChooseActionDecision::Pass { until_phase },
+        )) => JavaAction::Pass {
             until_phase: until_phase.clone(),
         },
-        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => {
-            JavaAction::Pass { until_phase: None }
-        }
+        PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+            ChooseActionDecision::Concede,
+        )) => JavaAction::Pass { until_phase: None },
         other => {
             return Err(JavaActionError {
                 action_type: player_action_label(other),
@@ -762,6 +767,23 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
         }
     };
     Ok(java)
+}
+
+fn mana_source_to_java(source: &ManaSourceAction) -> JavaAction {
+    match source {
+        ManaSourceAction::TapForMana {
+            card_id,
+            ability_index,
+            color,
+        } => JavaAction::TapLand {
+            card_id: card_id.clone(),
+            mana_ability_index: *ability_index,
+            color: color.clone(),
+        },
+        ManaSourceAction::Untap { card_id } => JavaAction::UntapLand {
+            card_id: card_id.clone(),
+        },
+    }
 }
 
 fn java_target_to_ref(target: crate::java_raw::JavaRawStackTarget) -> TargetRef {
@@ -774,12 +796,18 @@ fn java_target_to_ref(target: crate::java_raw::JavaRawStackTarget) -> TargetRef 
 
 fn player_action_label(action: &PromptOutput) -> &'static str {
     match action {
-        PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { .. }) => "restoreSnapshot",
+        PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+            ChooseActionDecision::RestoreSnapshot { .. },
+        )) => "restoreSnapshot",
         PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision { .. }) => {
             "manaComboDecision"
         }
-        PromptOutput::PayCombatCost(PayCombatCostOutput::PayCombatCost) => "payCombatCost",
-        PromptOutput::PayCombatCost(PayCombatCostOutput::DeclineCombatCost) => "declineCombatCost",
+        PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Pay)) => {
+            "payCombatCost"
+        }
+        PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Decline)) => {
+            "declineCombatCost"
+        }
         PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged) => {
             "diceRolledAcknowledged"
         }

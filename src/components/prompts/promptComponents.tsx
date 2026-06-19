@@ -26,7 +26,7 @@ export interface PromptModalContext {
 
 export interface PromptComponentProps<T extends PromptType> {
   prompt: PromptOf<T>;
-  respond: (output: PromptOutput) => void;
+  respond: (output: PromptOutput["output"]) => void;
   ctx: PromptModalContext;
 }
 

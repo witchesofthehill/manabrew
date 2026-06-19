@@ -451,7 +451,9 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             None,
         );
         match self.recv_action() {
-            PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+                ChooseActionDecision::Act { action_id },
+            )) => {
                 if let Some(rest) = action_id.strip_prefix("cast:") {
                     let (id_part, mode) = rest.split_once(':').unwrap_or((rest, "normal"));
                     let resolved = parse_card_id(id_part).and_then(|cid| {
@@ -498,8 +500,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
             // Only the priority-loop branch acts on Concede; other recv_action
             // sites discard it and concede re-enters at the next priority window.
-            PromptOutput::ChooseAction(ChooseActionOutput::Concede) => EnginePlayerAction::Concede,
-            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase }) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+                ChooseActionDecision::Concede,
+            )) => EnginePlayerAction::Concede,
+            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+                ChooseActionDecision::Pass { until_phase },
+            )) => {
                 // Only store a fast-forward declaration when there's a target phase.
                 // None = atomic single pass, no fast-forward.
                 if until_phase.is_some() {
@@ -507,15 +513,19 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 }
                 EnginePlayerAction::PassPriority
             }
-            PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { checkpoint_id }) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+                ChooseActionDecision::RestoreSnapshot { checkpoint_id },
+            )) => {
                 self.pending_restore_checkpoint = Some(checkpoint_id);
                 EnginePlayerAction::PassPriority
             }
-            PromptOutput::ManaSource(ManaSourceAction::TapForMana {
-                card_id,
-                ability_index,
-                color,
-            }) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::ManaSourceAction(
+                ManaSourceAction::TapForMana {
+                    card_id,
+                    ability_index,
+                    color,
+                },
+            )) => {
                 let parsed = parse_card_id(&card_id);
                 match parsed {
                     Some(cid) => {
@@ -560,11 +570,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     None => EnginePlayerAction::PassPriority,
                 }
             }
-            PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => {
-                parse_card_id(&card_id)
-                    .map(EnginePlayerAction::UndoMana)
-                    .unwrap_or(EnginePlayerAction::PassPriority)
-            }
+            PromptOutput::ChooseAction(ChooseActionOutput::ManaSourceAction(
+                ManaSourceAction::Untap { card_id },
+            )) => parse_card_id(&card_id)
+                .map(EnginePlayerAction::UndoMana)
+                .unwrap_or(EnginePlayerAction::PassPriority),
             _ => EnginePlayerAction::PassPriority,
         }
     }

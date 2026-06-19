@@ -2,7 +2,10 @@ import type { Prompt, PromptOutput } from "@/protocol";
 
 // "Pass" means decline whatever the current prompt asks: during combat
 // declaration that's an empty attacker/blocker set; otherwise a priority pass.
-export function passOutput(prompt: Prompt | null, untilPhase: string | null): PromptOutput | null {
+export function passOutput(
+  prompt: Prompt | null,
+  untilPhase: string | null,
+): PromptOutput["output"] | null {
   if (!prompt) return null;
   switch (prompt.input.type) {
     case "chooseAttackers":
@@ -20,7 +23,7 @@ export function declareAttackersOutput(
   prompt: Prompt | null,
   attackerIds: string[],
   targetId?: string,
-): PromptOutput {
+): PromptOutput["output"] {
   const defaultTarget =
     prompt?.input.type === "chooseAttackers"
       ? (prompt.input.attackTargets[0]?.id ?? "player-1")

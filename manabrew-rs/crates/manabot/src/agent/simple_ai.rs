@@ -90,8 +90,8 @@ impl BotAgent for SimpleAi {
                 self.last_choose_action_signature = Some(signature);
                 self.last_choose_action_choice = pick.clone();
                 Some(PromptOutput::ChooseAction(
-                    pick.map(|action_id| ChooseActionOutput::Act { action_id })
-                        .unwrap_or(ChooseActionOutput::Pass { until_phase: None }),
+                    pick.map(|action_id| ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act { action_id }))
+                        .unwrap_or(ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass { until_phase: None })),
                 ))
             }
             PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
@@ -220,18 +220,18 @@ impl BotAgent for SimpleAi {
                 ..
             }) => {
                 if mana_pool_total >= cost {
-                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::PayCombatCost))
+                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Pay)))
                 } else if !tappable_source_ids.is_empty() {
-                    Some(PromptOutput::ManaSource(ManaSourceAction::TapForMana {
+                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
                         card_id: tappable_source_ids[0].clone(),
                         ability_index: None,
                         color: None,
-                    }))
+                    })))
                 } else {
-                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::DeclineCombatCost))
+                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Decline)))
                 }
             }
-            PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput { .. }) => Some(PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto: true })),
+            PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput { .. }) => Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto: true }))),
             PromptInput::SpecifyManaCombo(manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
                 available_colors,
                 amount,

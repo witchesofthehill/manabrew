@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompts::common::ManaSourceAction;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
@@ -54,7 +56,7 @@ pub struct ChooseActionInput {
     rename_all_fields = "camelCase"
 )]
 #[ts(export, export_to = "prompts/chooseAction.ts")]
-pub enum ChooseActionOutput {
+pub enum ChooseActionDecision {
     Pass {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -68,4 +70,12 @@ pub enum ChooseActionOutput {
     Act {
         action_id: String,
     },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(untagged)]
+#[ts(export, export_to = "prompts/chooseAction.ts")]
+pub enum ChooseActionOutput {
+    ChooseActionDecision(ChooseActionDecision),
+    ManaSourceAction(ManaSourceAction),
 }

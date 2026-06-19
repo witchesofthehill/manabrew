@@ -161,11 +161,13 @@ pub fn choose_pay_mana_cost_action(
                     .iter()
                     .any(|color| color == needed)
         }) {
-            return Some(PromptOutput::ManaSource(ManaSourceAction::TapForMana {
-                card_id: ability.card_id.clone(),
-                ability_index: Some(ability.ability_index),
-                color: Some(needed.clone()),
-            }));
+            return Some(PromptOutput::PayManaCost(
+                PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
+                    card_id: ability.card_id.clone(),
+                    ability_index: Some(ability.ability_index),
+                    color: Some(needed.clone()),
+                }),
+            ));
         }
         if let Some(card_id) = tappable_land_ids.iter().find(|card_id| {
             battlefield_by_id
@@ -173,36 +175,42 @@ pub fn choose_pay_mana_cost_action(
                 .map(|card| card_mana_colors(card).iter().any(|color| color == needed))
                 .unwrap_or(false)
         }) {
-            return Some(PromptOutput::ManaSource(ManaSourceAction::TapForMana {
-                card_id: card_id.clone(),
-                ability_index: None,
-                color: Some(needed.clone()),
-            }));
+            return Some(PromptOutput::PayManaCost(
+                PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
+                    card_id: card_id.clone(),
+                    ability_index: None,
+                    color: Some(needed.clone()),
+                }),
+            ));
         }
     }
 
     if can_pay_mana_cost(&player_pool, mana_cost, player_life) {
-        return Some(PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost {
-            auto: true,
-        }));
+        return Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(
+            ManaPayment::Pay { auto: true },
+        )));
     }
 
     if let Some(ability) = mana_ability_options
         .iter()
         .find(|ability| tappable_land_ids.contains(&ability.card_id))
     {
-        return Some(PromptOutput::ManaSource(ManaSourceAction::TapForMana {
-            card_id: ability.card_id.clone(),
-            ability_index: Some(ability.ability_index),
-            color: None,
-        }));
+        return Some(PromptOutput::PayManaCost(
+            PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
+                card_id: ability.card_id.clone(),
+                ability_index: Some(ability.ability_index),
+                color: None,
+            }),
+        ));
     }
 
     tappable_land_ids.first().map(|card_id| {
-        PromptOutput::ManaSource(ManaSourceAction::TapForMana {
-            card_id: card_id.clone(),
-            ability_index: None,
-            color: None,
-        })
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
+            ManaSourceAction::TapForMana {
+                card_id: card_id.clone(),
+                ability_index: None,
+                color: None,
+            },
+        ))
     })
 }

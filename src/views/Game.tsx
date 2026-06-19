@@ -825,9 +825,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   payManaPrimaryRef.current = () => {
     if (promptType !== "payManaCost") return;
     if (activePrompt?.input.canConfirmFromPool) {
-      respond({ type: "payManaCost", auto: false });
+      respond({ type: "pay", auto: false });
     } else {
-      respond({ type: "payManaCost", auto: true });
+      respond({ type: "pay", auto: true });
     }
   };
   const confirmPromptRef = useRef<() => boolean>(() => false);
@@ -1618,9 +1618,9 @@ export default function Game({ exitTo }: GameProps = {}) {
                 }
               : null
           }
-          onPayManaCost={() => respond({ type: "payManaCost", auto: false })}
-          onAutoManaCost={() => respond({ type: "payManaCost", auto: true })}
-          onCancelManaCost={() => respond({ type: "cancelManaCost" })}
+          onPayManaCost={() => respond({ type: "pay", auto: false })}
+          onAutoManaCost={() => respond({ type: "pay", auto: true })}
+          onCancelManaCost={() => respond({ type: "cancel" })}
           mulliganCount={mulliganInput?.mulliganCount ?? 0}
           onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
           onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}

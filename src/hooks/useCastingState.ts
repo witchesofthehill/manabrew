@@ -14,7 +14,7 @@ const CASTING_PROMPT_TYPES = new Set([
 
 interface UseCastingStateOptions {
   currentPrompt: Prompt | null | undefined;
-  respond: (output: PromptOutput) => void;
+  respond: (output: PromptOutput["output"]) => void;
 }
 
 export function useCastingState({ currentPrompt, respond }: UseCastingStateOptions) {

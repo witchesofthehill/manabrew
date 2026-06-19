@@ -168,7 +168,9 @@ pub(super) fn mulligan_decision_recv<T: Responder>(
     // so a torn-down session exits cleanly.
     match agent.recv_action() {
         PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => keep,
-        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => true,
+        PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+            ChooseActionDecision::Concede,
+        )) => true,
         other => panic!("mulligan_decision_recv expected MulliganDecision, got {other:?}"),
     }
 }

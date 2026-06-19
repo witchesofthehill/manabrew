@@ -29,7 +29,8 @@ pub mod scry;
 pub mod specify_mana_combo;
 
 pub use choose_action::{
-    AvailableAction, AvailableActionKind, ChooseActionInput, ChooseActionOutput,
+    AvailableAction, AvailableActionKind, ChooseActionDecision, ChooseActionInput,
+    ChooseActionOutput,
 };
 pub use choose_attackers::{ChooseAttackersInput, ChooseAttackersOutput};
 pub use choose_blockers::{ChooseBlockersInput, ChooseBlockersOutput};
@@ -53,8 +54,8 @@ pub use first_player_roll::{FirstPlayerRollInput, FirstPlayerRollOutput};
 pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
-pub use pay_combat_cost::{PayCombatCostInput, PayCombatCostOutput};
-pub use pay_mana_cost::{PayManaCostInput, PayManaCostOutput};
+pub use pay_combat_cost::{CombatPayment, PayCombatCostInput, PayCombatCostOutput};
+pub use pay_mana_cost::{DelveAction, ManaPayment, PayManaCostInput, PayManaCostOutput};
 pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
 pub use scry::{ScryInput, ScryOutput};
@@ -93,7 +94,7 @@ pub enum PromptInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(untagged)]
+#[serde(tag = "type", content = "output", rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/promptOutput.ts")]
 pub enum PromptOutput {
     Mulligan(mulligan::MulliganOutput),
@@ -116,7 +117,6 @@ pub enum PromptOutput {
     ),
     PayCombatCost(pay_combat_cost::PayCombatCostOutput),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
-    ManaSource(common::ManaSourceAction),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
     ReorderCards(reorder_cards::ReorderCardsOutput),

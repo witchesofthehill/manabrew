@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::ActivatableAbilityInfo;
+use crate::prompts::common::{ActivatableAbilityInfo, ManaSourceAction};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +17,7 @@ pub struct PayCombatCostInput {
     pub mana_pool_total: i32,
 }
 
+/// Payment-control answers specific to a combat-cost payment session.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
@@ -24,7 +25,15 @@ pub struct PayCombatCostInput {
     rename_all_fields = "camelCase"
 )]
 #[ts(export, export_to = "prompts/payCombatCost.ts")]
+pub enum CombatPayment {
+    Pay,
+    Decline,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(untagged)]
+#[ts(export, export_to = "prompts/payCombatCost.ts")]
 pub enum PayCombatCostOutput {
-    PayCombatCost,
-    DeclineCombatCost,
+    ManaSourceAction(ManaSourceAction),
+    CombatPayment(CombatPayment),
 }

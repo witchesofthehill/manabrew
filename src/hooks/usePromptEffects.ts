@@ -8,7 +8,7 @@ interface UsePromptEffectsOptions {
   currentPrompt: Prompt | null;
   gameView: GameView | null;
   isWaitingForResponse: boolean;
-  respond: (output: PromptOutput) => void;
+  respond: (output: PromptOutput["output"]) => void;
   myPlayerId: string;
   turn: number;
   stackLength: number;

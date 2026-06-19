@@ -7,7 +7,7 @@ import type {
   PromptType as PromptKind,
 } from "@/protocol";
 
-export type RespondPayload = PromptOutput;
+export type RespondPayload = PromptOutput["output"];
 type PromptOf<TType extends PromptKind> = PromptRequest<Extract<PromptInput, { type: TType }>>;
 
 export type AutoResolution =

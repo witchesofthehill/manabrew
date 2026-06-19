@@ -71,7 +71,7 @@ export interface GameState {
     localIsHost: boolean,
     startingLife: number,
   ) => Promise<void>;
-  respond: (action: PromptOutput) => Promise<void>;
+  respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;
   endGame: () => Promise<void>;
   setMultiplayerState: (

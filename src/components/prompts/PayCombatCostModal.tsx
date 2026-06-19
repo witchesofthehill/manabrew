@@ -12,8 +12,8 @@ export function PayCombatCostModal({
   const manaPool = useGameStore((s) => s.gameView?.players?.[0]?.manaPool) ?? {};
   const manaPoolTotal = Object.values(manaPool).reduce((a, b) => a + b, 0);
   const canPay = manaPoolTotal >= input.cost;
-  const pay = () => respond({ type: "payCombatCost" });
-  const decline = () => respond({ type: "declineCombatCost" });
+  const pay = () => respond({ type: "pay" });
+  const decline = () => respond({ type: "decline" });
   useModalKeyboard({ onSpace: canPay ? pay : undefined }, [canPay, respond]);
 
   return createPortal(

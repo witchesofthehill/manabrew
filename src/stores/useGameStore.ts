@@ -17,7 +17,7 @@ import { getPlatform } from "@/platform";
 import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
-import type { Prompt } from "@/protocol";
+import type { Prompt, PromptOutput } from "@/protocol";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
 import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
@@ -376,7 +376,13 @@ export const useGameStore = create<GameState>()(
         }
       },
 
-      respond: async (action) => {
+      respond: async (output) => {
+        const promptType = get().currentPrompt?.input.type;
+        if (!promptType) {
+          console.warn("[store] respond() called with no active prompt");
+          return;
+        }
+        const action = { type: promptType, output } as PromptOutput;
         // Single-prompt invariant: the engine sends exactly one prompt
         // at a time per agent and expects exactly one response. If a
         // response is already in flight, drop the duplicate — the modal
@@ -387,16 +393,16 @@ export const useGameStore = create<GameState>()(
         //
         // Concede is the one exception: it must always go through to
         // tear down the session even mid-prompt.
-        if (get().isWaitingForResponse && action.type !== "concede") {
-          console.warn(`[store] respond(${action.type}) ignored — already waiting for a response`);
+        if (get().isWaitingForResponse && output.type !== "concede") {
+          console.warn(`[store] respond(${output.type}) ignored — already waiting for a response`);
           return;
         }
         try {
           // Only explicit player actions (not passes) cancel auto-pass.
-          if (action.type !== "pass") {
+          if (output.type !== "pass") {
             usePhaseStopStore.getState().clearPassUntil();
           }
-          set({ isWaitingForResponse: true, debugInfo: `Responding: ${action.type}` });
+          set({ isWaitingForResponse: true, debugInfo: `Responding: ${output.type}` });
           const { myPlayerSlot } = get();
           const runtime = getSelectedGameRuntime();
           await runtime.api.respond({ action, playerSlot: myPlayerSlot });

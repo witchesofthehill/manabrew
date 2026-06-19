@@ -20,7 +20,7 @@ interface UseCombatStateOptions {
   promptType: string | undefined;
   targetCard: (cardId: string) => void;
   targetPlayer: (playerId: string) => void;
-  respond: (output: PromptOutput) => void;
+  respond: (output: PromptOutput["output"]) => void;
   currentPrompt: Prompt | null;
   /** Board-target candidate ids for the active `chooseBoardTargets` prompt,
    *  partitioned from `gameView` (battlefield cards / players). */

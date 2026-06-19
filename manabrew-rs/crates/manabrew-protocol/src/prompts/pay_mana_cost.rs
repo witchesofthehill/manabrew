@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::ActivatableAbilityInfo;
+use crate::prompts::common::{ActivatableAbilityInfo, ManaSourceAction};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -25,11 +25,32 @@ pub struct PayManaCostInput {
     rename_all_fields = "camelCase"
 )]
 #[ts(export, export_to = "prompts/payManaCost.ts")]
-pub enum PayManaCostOutput {
-    PayManaCost {
+pub enum DelveAction {
+    Delve { card_id: String },
+    Undelve { card_id: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "prompts/payManaCost.ts")]
+pub enum ManaPayment {
+    Pay {
         #[serde(default)]
         auto: bool,
     },
     PayLife,
-    CancelManaCost,
+    Cancel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(untagged)]
+#[ts(export, export_to = "prompts/payManaCost.ts")]
+pub enum PayManaCostOutput {
+    ManaSourceAction(ManaSourceAction),
+    DelveAction(DelveAction),
+    ManaPayment(ManaPayment),
 }

@@ -35,7 +35,8 @@ use manabrew_agent_interface::java_raw::{
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{
-    ChooseActionOutput, FirstPlayerRollOutput, MulliganOutput, MulliganPutBackOutput,
+    ChooseActionDecision, ChooseActionOutput, FirstPlayerRollOutput, MulliganOutput,
+    MulliganPutBackOutput,
 };
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
@@ -1070,9 +1071,11 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                                until_phase: None,
-                            })))
+                            Ok(Some(PromptOutput::ChooseAction(
+                                ChooseActionOutput::ChooseActionDecision(
+                                    ChooseActionDecision::Pass { until_phase: None },
+                                ),
+                            )))
                         }
                     }
                     other => Err(format!(
@@ -1114,7 +1117,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass { until_phase: None }))))
                         }
                     }
                     other => Err(format!(
@@ -1369,9 +1372,11 @@ fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<Prom
         .get("mode")
         .and_then(Value::as_str)
         .ok_or_else(|| format!("playable option for '{card_name}' is missing mode"))?;
-    Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Act {
-        action_id: mode.to_string(),
-    })))
+    Ok(Some(PromptOutput::ChooseAction(
+        ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act {
+            action_id: mode.to_string(),
+        }),
+    )))
 }
 
 #[cfg(feature = "java-forge")]

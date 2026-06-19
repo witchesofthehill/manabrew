@@ -192,24 +192,28 @@ pub(super) fn pay_mana_cost<T: Responder>(
         Some(card_id),
     );
     match agent.recv_action() {
-        PromptOutput::ManaSource(ManaSourceAction::TapForMana {
-            card_id,
-            ability_index,
-            color,
-        }) => parse_card_id(&card_id)
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
+            ManaSourceAction::TapForMana {
+                card_id,
+                ability_index,
+                color,
+            },
+        )) => parse_card_id(&card_id)
             .map(|card_id| ManaCostAction::TapForMana {
                 card_id,
                 mana_ability_index: ability_index,
                 express_choice: parse_express_mana_choice(color.as_deref()),
             })
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => parse_card_id(&card_id)
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
+            ManaSourceAction::Untap { card_id },
+        )) => parse_card_id(&card_id)
             .map(ManaCostAction::Untap)
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto }) => {
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto })) => {
             ManaCostAction::Pay { auto }
         }
-        PromptOutput::PayManaCost(PayManaCostOutput::CancelManaCost) => {
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Cancel)) => {
             ManaCostAction::AttemptedAndFailed
         }
         _ => ManaCostAction::AttemptedAndFailed,

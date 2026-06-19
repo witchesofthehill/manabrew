@@ -13,7 +13,6 @@ pub mod choose_cards;
 pub mod choose_color;
 pub mod choose_combat_damage_assignment;
 pub mod choose_damage_assignment_order;
-pub mod choose_delve;
 pub mod choose_from_selection;
 pub mod choose_number;
 pub mod choose_type;
@@ -46,7 +45,6 @@ pub use choose_combat_damage_assignment::{
 pub use choose_damage_assignment_order::{
     ChooseDamageAssignmentOrderInput, ChooseDamageAssignmentOrderOutput,
 };
-pub use choose_delve::{ChooseDelveInput, ChooseDelveOutput};
 pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
 pub use choose_type::{ChooseTypeInput, ChooseTypeOutput};
@@ -89,7 +87,6 @@ pub enum PromptInput {
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput,
     ),
     PayCombatCost(pay_combat_cost::PayCombatCostInput),
-    ChooseDelve(choose_delve::ChooseDelveInput),
     PayManaCost(pay_mana_cost::PayManaCostInput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ChooseCards(choose_cards::ChooseCardsInput),
@@ -122,7 +119,6 @@ pub enum PromptOutput {
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentOutput,
     ),
     PayCombatCost(pay_combat_cost::PayCombatCostOutput),
-    ChooseDelve(choose_delve::ChooseDelveOutput),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     ManaSource(common::ManaSourceAction),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),

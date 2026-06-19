@@ -192,14 +192,6 @@ pub enum JavaRawPromptBody {
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
     },
-    ChooseDelve {
-        #[serde(default)]
-        cards: Vec<JavaRawCardOption>,
-        #[serde(default)]
-        max: usize,
-        #[serde(rename = "sourceCardName")]
-        source_card_name: Option<String>,
-    },
     ChooseConvoke {
         #[serde(default)]
         cards: Vec<JavaRawCardOption>,
@@ -371,7 +363,6 @@ impl JavaRawPromptBody {
             JavaRawPromptBody::ChooseScry { .. } => "choose_scry",
             JavaRawPromptBody::ChooseSurveil { .. } => "choose_surveil",
             JavaRawPromptBody::ChooseDig { .. } => "choose_dig",
-            JavaRawPromptBody::ChooseDelve { .. } => "choose_delve",
             JavaRawPromptBody::ChooseConvoke { .. } => "choose_convoke",
             JavaRawPromptBody::ChooseImprovise { .. } => "choose_improvise",
             JavaRawPromptBody::ReorderLibrary { .. } => "reorder_library",

@@ -877,7 +877,8 @@ pub trait PlayerAgent {
 
     /// Choose graveyard cards to exile for Delve (reduces generic cost).
     /// `valid` lists graveyard card IDs, `max` is the maximum that can be exiled.
-    /// Default: exile max cards (AI default — maximize cost reduction).
+    /// Default: exile max cards (maximize cost reduction). The interactive UI
+    /// resolves delve inside the mana-payment session, not via this callback.
     fn choose_delve(
         &mut self,
         _player: PlayerId,

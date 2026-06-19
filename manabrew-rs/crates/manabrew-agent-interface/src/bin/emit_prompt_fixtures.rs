@@ -165,11 +165,6 @@ fn main() {
             untappable_source_ids: vec![],
             mana_pool_total: 0,
         }),
-        ChooseDelve(choose_delve::ChooseDelveInput {
-            valid_card_ids: vec![],
-            zone_cards: vec![],
-            max_cards: 0,
-        }),
         PayManaCost(pay_mana_cost::PayManaCostInput {
             card_id: String::new(),
             card_name: String::new(),

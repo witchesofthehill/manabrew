@@ -368,15 +368,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             num_to_take: max,
             optional,
         }),
-        JavaRawPromptBody::ChooseDelve {
-            cards,
-            max,
-            source_card_name: _,
-        } => PromptInput::ChooseDelve(manabrew_protocol::prompts::choose_delve::ChooseDelveInput {
-            valid_card_ids: card_ids(&cards),
-            zone_cards: prompt_cards(&cards, &card_index),
-            max_cards: max,
-        }),
         JavaRawPromptBody::ChooseConvoke {
             cards,
             description: _,
@@ -671,11 +662,6 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
         PromptOutput::Dig(DigOutput::DigDecision { chosen_card_ids }) => JavaAction::DigDecision {
             chosen_card_ids: chosen_card_ids.clone(),
         },
-        PromptOutput::ChooseDelve(ChooseDelveOutput::DelveDecision { chosen_card_ids }) => {
-            JavaAction::ChooseCards {
-                card_ids: chosen_card_ids.clone(),
-            }
-        }
         PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision { ordered_card_ids }) => {
             JavaAction::ReorderLibraryDecision {
                 ordered_card_ids: ordered_card_ids.clone(),

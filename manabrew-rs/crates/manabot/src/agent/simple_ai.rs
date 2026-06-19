@@ -239,13 +239,6 @@ impl BotAgent for SimpleAi {
                 }
             }
             PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput { .. }) => Some(PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto: true })),
-            PromptInput::ChooseDelve(manabrew_protocol::prompts::choose_delve::ChooseDelveInput {
-                valid_card_ids,
-                max_cards,
-                ..
-            }) => Some(PromptOutput::ChooseDelve(ChooseDelveOutput::DelveDecision {
-                chosen_card_ids: valid_card_ids.into_iter().take(max_cards).collect(),
-            })),
             PromptInput::SpecifyManaCombo(manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
                 available_colors,
                 amount,

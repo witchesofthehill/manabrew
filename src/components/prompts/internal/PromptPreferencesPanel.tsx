@@ -18,11 +18,6 @@ const OPTIONAL_COST_ROWS: OptionalCostRow[] = [
     description:
       "Skip yes/no cost prompts (kicker, buyback, Phyrexian) — never pay the extra cost.",
   },
-  {
-    promptType: "chooseDelve",
-    label: "Delve",
-    description: "Skip the delve prompt — never exile cards from the graveyard.",
-  },
 ];
 
 export function PromptPreferencesPanel() {

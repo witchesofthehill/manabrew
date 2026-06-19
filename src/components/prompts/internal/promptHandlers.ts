@@ -66,7 +66,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseCardName"]: { showByDefault: true, resolve: forced.singleLegalName },
   ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseCards"]: { showByDefault: true, resolve: forced.forcedCardChoice },
-  ["chooseDelve"]: { showByDefault: true, resolve: optionalCosts.skipDelve },
   ["reorderCards"]: { showByDefault: true, resolve: forced.singleCardOrder },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
   ["dig"]: { showByDefault: true, resolve: forced.emptyDig },

@@ -1117,16 +1117,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         )
     }
 
-    fn choose_delve(
-        &mut self,
-        player: PlayerId,
-        valid: &[CardId],
-        max: usize,
-        source: Option<CardId>,
-    ) -> Vec<CardId> {
-        costs::choose_delve(self, player, valid, max, source)
-    }
-
     fn choose_improvise(
         &mut self,
         player: PlayerId,

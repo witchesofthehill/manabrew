@@ -8,12 +8,3 @@ export const skipBoolean: PromptResolver<"chooseBoolean"> = (_prompt, ctx) => {
     reason: "boolean prompt toggled off; defaulting to decline",
   };
 };
-
-export const skipDelve: PromptResolver<"chooseDelve"> = (_prompt, ctx) => {
-  if (!isToggledOff("chooseDelve", ctx)) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "delveDecision", chosenCardIds: [] },
-    reason: "delve prompt toggled off; defaulting to no delve",
-  };
-};

@@ -264,49 +264,6 @@ pub(super) fn specify_mana_combo<T: Responder>(
     }
 }
 
-pub(super) fn choose_delve<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    valid: &[CardId],
-    max: usize,
-    source: Option<CardId>,
-) -> Vec<CardId> {
-    let valid_ids = PromptAgent::<T>::card_ids(valid);
-    // Build CardDtos for the graveyard cards
-    let zone_cards: Vec<_> = valid
-        .iter()
-        .filter_map(|&cid| {
-            agent.latest_view.as_ref().and_then(|v| {
-                v.players
-                    .iter()
-                    .flat_map(|p| p.graveyard.iter())
-                    .find(|c| c.id == card_id_str(cid))
-                    .cloned()
-            })
-        })
-        .collect();
-
-    agent.send_prompt(
-        PromptInput::ChooseDelve(manabrew_protocol::prompts::choose_delve::ChooseDelveInput {
-            valid_card_ids: valid_ids,
-            zone_cards,
-            max_cards: max,
-        }),
-        source,
-    );
-    match agent.recv_action() {
-        PromptOutput::ChooseDelve(ChooseDelveOutput::DelveDecision { chosen_card_ids }) => {
-            chosen_card_ids
-                .iter()
-                .filter_map(|id| parse_card_id(id))
-                .filter(|cid| valid.contains(cid))
-                .take(max)
-                .collect()
-        }
-        _ => vec![],
-    }
-}
-
 // Convoke and improvise are resolved interactively inside the mana-payment
 // session (tap a creature/artifact as a mana source), not as an upfront batch.
 // A human agent declines the batch reduction so the cost stays full until

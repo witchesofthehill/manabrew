@@ -3,7 +3,6 @@ import { ChooseColorModal } from "./ChooseColorModal";
 import { ChooseTypeModal } from "./ChooseTypeModal";
 import { ChooseNumberModal } from "./ChooseNumberModal";
 import { ChooseCardNameModal } from "./ChooseCardNameModal";
-import { CardListModal } from "./CardListModal";
 import { ChooseCardsModal } from "./ChooseCardsModal";
 import { ReorderCardsModal } from "./ReorderCardsModal";
 import { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
@@ -113,16 +112,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   payCombatCost: ({ prompt, respond }) => (
     <PayCombatCostModal input={prompt.input} respond={respond} />
-  ),
-
-  // $PROMPT_SHARED
-  chooseDelve: ({ prompt, respond }) => (
-    <CardListModal
-      cards={prompt.input.zoneCards as GameCard[]}
-      minChoices={0}
-      maxChoices={prompt.input.maxCards}
-      onConfirm={(chosenCardIds) => respond({ type: "delveDecision", chosenCardIds })}
-    />
   ),
 };
 

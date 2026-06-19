@@ -210,7 +210,13 @@ export function BoardCanvas({
           cancelHandHoverClear();
           setHandHover({ card, bounds });
         } else {
-          scheduleHandHoverClear();
+          // Pixi already held the lifted card for HAND_HOVER_HOLD_MS before
+          // reporting the unhover (and any move onto the flip button / action
+          // panel cancels that timer via holdHandHover). So a null here means the
+          // cursor truly left into empty space — drop the overlay in sync with the
+          // card returning instead of leaving the button on screen for the grace.
+          cancelHandHoverClear();
+          setHandHover(null);
         }
       },
     });
@@ -222,7 +228,7 @@ export function BoardCanvas({
     const parent = canvasRef.current.parentElement;
     if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
     setScene(newScene);
-  }, [cancelHandHoverClear, scheduleHandHoverClear]);
+  }, [cancelHandHoverClear]);
 
   useEffect(() => {
     let active = true;

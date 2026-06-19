@@ -126,10 +126,17 @@ public final class EngineHandler {
         for (final Pair<Card, Card> assignment : assignments) {
             final Card blocker = assignment.getLeft();
             final Card attacker = assignment.getRight();
-            if (blocker != null && attacker != null && CombatChoiceSpace.canBlock(attacker, blocker, combat)) {
-                combat.addBlocker(attacker, blocker);
-                applied.add(blocker);
+            if (blocker == null || attacker == null) {
+                continue;
             }
+            if (!CombatChoiceSpace.canBlock(attacker, blocker, combat)) {
+                for (final Card appliedBlocker : applied) {
+                    combat.undoBlockingAssignment(appliedBlocker);
+                }
+                return blocker + " can't block " + attacker + ".";
+            }
+            combat.addBlocker(attacker, blocker);
+            applied.add(blocker);
         }
         final String error = CombatUtil.validateBlocks(combat, defender);
         if (error != null) {

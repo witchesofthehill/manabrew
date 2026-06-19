@@ -3,6 +3,7 @@ package forge.harness.parity;
 import forge.harness.common.ActionSpace;
 import forge.harness.common.AutoPay;
 import forge.harness.common.ChoiceSpace;
+import forge.harness.common.CombatChoiceSpace;
 import forge.harness.common.CountingRandom;
 import forge.harness.common.EngineHandler;
 import forge.harness.common.DecisionLog;
@@ -575,13 +576,8 @@ public class DeterministicController extends PlayerController implements Harness
             return;
         }
 
-        final List<Card> legalBlockers = new ArrayList<>();
-        for (final Card blocker : defender.getCreaturesInPlay()) {
-            if (CombatUtil.canBlock(blocker, combat)) {
-                legalBlockers.add(blocker);
-            }
-        }
-        final List<Card> blockers = ChoiceSpace.sortNative(legalBlockers, ParityOrder.cardComparator());
+        final List<Card> blockers = ChoiceSpace.sortNative(CombatChoiceSpace.legalBlockers(defender, combat),
+                ParityOrder.cardComparator());
         final List<String> blockerLabels = ParityCardMap.disambiguateCards(blockers, Card::getName);
         for (int bIdx = 0; bIdx < blockers.size(); bIdx++) {
             final Card blocker = blockers.get(bIdx);

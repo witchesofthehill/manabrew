@@ -40,8 +40,11 @@ public final class CombatChoiceSpace {
     public static List<Card> legalBlockers(final Player defender, final Combat combat) {
         final List<Card> out = new ArrayList<>();
         for (final Card blocker : defender.getCreaturesInPlay()) {
-            if (CombatUtil.canBlock(blocker, combat)) {
-                out.add(blocker);
+            for (final Card attacker : combat.getAttackers()) {
+                if (CombatUtil.canBlock(attacker, blocker, combat)) {
+                    out.add(blocker);
+                    break;
+                }
             }
         }
         return out;

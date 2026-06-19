@@ -225,7 +225,7 @@ export function PromptActionController({
         ["chooseBoardTargets"]: "Choose a target",
         ["scry"]: "Scry",
         ["dig"]: "Choose cards",
-        ["chooseDiscard"]: "Discard",
+        ["chooseCards"]: "Choose cards",
       };
       return (
         <PromptLabel

@@ -743,9 +743,10 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description
     ) {
-        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, description, false);
+        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, sourceCardId, description, false);
     }
 
     CardCollection awaitCardChoice(
@@ -755,10 +756,12 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean optionalDecline
     ) {
-        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, description, optionalDecline, null);
+        return awaitCardChoice(
+                kind, playerId, validCards, min, max, sourceName, sourceCardId, description, optionalDecline, null);
     }
 
     CardCollection awaitCardChoice(
@@ -768,6 +771,7 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean optionalDecline,
             final String error
@@ -776,7 +780,8 @@ public final class ManaBrewInteractiveSession {
         final List<Card> cards = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(validCards));
         final int clampedMin = Math.min(min, cards.size());
         final int clampedMax = Math.min(max, cards.size());
-        publishCardChoicePrompt(kind, playerId, cards, clampedMin, clampedMax, sourceName, description, optionalDecline, error);
+        publishCardChoicePrompt(
+                kind, playerId, cards, clampedMin, clampedMax, sourceName, sourceCardId, description, optionalDecline, error);
         return awaitCardsFromPublishedPrompt(cards, clampedMin, clampedMax, optionalDecline);
     }
 
@@ -1141,11 +1146,12 @@ public final class ManaBrewInteractiveSession {
             final CardCollectionView cardsForPrompt,
             final ZoneType destination,
             final boolean topOfDeck,
-            final String sourceName
+            final String sourceName,
+            final String sourceCardId
     ) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(cardsForPrompt);
-        publishReorderZonePrompt(playerId, cards, destination, topOfDeck, sourceName);
+        publishReorderZonePrompt(playerId, cards, destination, topOfDeck, sourceName, sourceCardId);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1683,6 +1689,7 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean optionalDecline,
             final String error
@@ -1696,6 +1703,9 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("optional", optionalDecline);
         if (error != null) {
             prompt.addProperty("error", error);
+        }
+        if (sourceCardId != null) {
+            prompt.addProperty("sourceCardId", sourceCardId);
         }
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
@@ -1902,7 +1912,8 @@ public final class ManaBrewInteractiveSession {
             final List<Card> cards,
             final ZoneType destination,
             final boolean topOfDeck,
-            final String sourceName
+            final String sourceName,
+            final String sourceCardId
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "reorder_library");
@@ -1912,6 +1923,9 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("topOfDeck", topOfDeck);
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
+        }
+        if (sourceCardId != null) {
+            prompt.addProperty("sourceCardId", sourceCardId);
         }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray options = new com.google.gson.JsonArray();

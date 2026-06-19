@@ -1565,7 +1565,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         libraryPeekModal={libraryPeekModal}
         onLibraryPeekConfirm={(selectedIds) => {
           if (libraryPeekModal!.mode === "discard")
-            respond({ type: "discardDecision", discardedCardIds: selectedIds });
+            respond({ type: "chooseCardsDecision", chosenCardIds: selectedIds });
           else respond({ type: "digDecision", chosenCardIds: selectedIds });
           setLibraryPeekModal(null);
         }}

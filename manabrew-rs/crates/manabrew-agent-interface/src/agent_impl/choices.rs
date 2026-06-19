@@ -14,6 +14,30 @@ use crate::prompt::{PlayerAction, PromptInput};
 
 use super::{PromptAgent, Responder};
 
+fn card_choice_presentation(
+    title: &str,
+    description: Option<String>,
+    source: Option<CardId>,
+) -> PromptPresentation {
+    PromptPresentation {
+        title: title.to_string(),
+        description,
+        text: None,
+        source_card_id: source.map(card_id_str),
+        targets: Vec::new(),
+    }
+}
+
+fn zone_cards_for<T: Responder>(agent: &mut PromptAgent<T>, valid: &[CardId]) -> Vec<CardDto> {
+    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
+    let view = agent.view();
+    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
+    valid_card_ids
+        .iter()
+        .filter_map(|id| all_cards.iter().find(|c| c.id == *id).map(|c| (*c).clone()))
+        .collect()
+}
+
 fn send_selection<T: Responder>(
     agent: &mut PromptAgent<T>,
     title: &str,
@@ -889,18 +913,18 @@ pub(super) fn choose_discard<T: Responder>(
     hand: &[CardId],
     num: usize,
 ) -> Vec<CardId> {
-    let hand_card_ids = PromptAgent::<T>::card_ids(hand);
+    let cards = zone_cards_for(agent, hand);
     agent.send_prompt(
-        PromptInput::ChooseDiscard(
-            manabrew_protocol::prompts::choose_discard::ChooseDiscardInput {
-                hand_card_ids,
-                num_to_discard: num,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation("Discard", None, None),
+            cards,
+            min: num,
+            max: num,
+        }),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::DiscardDecision { discarded_card_ids } => discarded_card_ids
+        PlayerAction::ChooseCardsDecision { chosen_card_ids } => chosen_card_ids
             .iter()
             .filter_map(|id| parse_card_id(id))
             .collect(),
@@ -936,27 +960,14 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
     min: usize,
     max: usize,
 ) -> Vec<CardId> {
-    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
-    let view = agent.view();
-
-    // Build zone_cards from the snapshot view's zones (find matching DTOs)
-    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
-    let zone_cards: Vec<CardDto> = valid_card_ids
-        .iter()
-        .filter_map(|id| all_cards.iter().find(|c| c.id == *id).map(|c| (*c).clone()))
-        .collect();
-
+    let cards = zone_cards_for(agent, valid);
     agent.send_prompt(
-        PromptInput::ChooseCardsForEffect(
-            manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                zone_cards,
-                min_choices: min,
-                max_choices: max,
-                source_card_name: None,
-                optional: false,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation("Choose cards", None, None),
+            cards,
+            min,
+            max,
+        }),
         None,
     );
     match agent.recv_action() {
@@ -976,7 +987,6 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     select_prompt: &str,
     is_optional: bool,
 ) -> Option<CardId> {
-    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     let view = agent.view();
 
     let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
@@ -997,16 +1007,12 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
 
     let min_choices = if is_optional { 0 } else { 1 };
     agent.send_prompt(
-        PromptInput::ChooseCardsForEffect(
-            manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                zone_cards,
-                min_choices,
-                max_choices: 1,
-                source_card_name: Some(select_prompt.to_string()),
-                optional: is_optional,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation(select_prompt, None, None),
+            cards: zone_cards,
+            min: min_choices,
+            max: 1,
+        }),
         None,
     );
     match agent.recv_action() {
@@ -1032,7 +1038,6 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
     max: usize,
     select_prompt: &str,
 ) -> Vec<CardId> {
-    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     let view = agent.view();
 
     let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
@@ -1051,16 +1056,12 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
     zone_cards.retain(|c| seen.insert(c.id.clone()));
 
     agent.send_prompt(
-        PromptInput::ChooseCardsForEffect(
-            manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                zone_cards,
-                min_choices: min,
-                max_choices: max,
-                source_card_name: Some(select_prompt.to_string()),
-                optional: false,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation(select_prompt, None, None),
+            cards: zone_cards,
+            min,
+            max,
+        }),
         None,
     );
     match agent.recv_action() {

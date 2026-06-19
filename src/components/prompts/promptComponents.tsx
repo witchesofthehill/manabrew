@@ -4,8 +4,9 @@ import { ChooseTypeModal } from "./ChooseTypeModal";
 import { ChooseNumberModal } from "./ChooseNumberModal";
 import { ChooseCardNameModal } from "./ChooseCardNameModal";
 import { CardListModal } from "./CardListModal";
+import { ChooseCardsModal } from "./ChooseCardsModal";
+import { ReorderCardsModal } from "./ReorderCardsModal";
 import { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
-import { ReorderLibraryModal } from "./ReorderLibraryModal";
 import { RevealCardsModal } from "./RevealCardsModal";
 import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
 import { LibraryPeekModal } from "./LibraryPeekModal";
@@ -63,26 +64,14 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
     />
   ),
 
-  // $PROMPT_SHARED
-  chooseDiscard: ({ prompt, respond, ctx }) => (
-    <LibraryPeekModal
-      mode="discard"
-      cards={prompt.input.handCardIds
-        .map((id) =>
-          (ctx.gameView?.players.flatMap((p) => p.hand) ?? []).find((card) => card.id === id),
-        )
-        .filter((card): card is GameCard => card != null)}
-      numToTake={prompt.input.numToDiscard}
-      onConfirm={(discardedCardIds) => respond({ type: "discardDecision", discardedCardIds })}
-    />
-  ),
+  chooseCards: ({ prompt, respond }) => <ChooseCardsModal input={prompt.input} respond={respond} />,
 
   chooseCombatDamageAssignment: ({ prompt, respond }) => (
     <VAssignCombatDamageModal input={prompt.input} respond={respond} />
   ),
 
-  reorderLibrary: ({ prompt, respond }) => (
-    <ReorderLibraryModal input={prompt.input} respond={respond} />
+  reorderCards: ({ prompt, respond }) => (
+    <ReorderCardsModal input={prompt.input} respond={respond} />
   ),
 
   specifyManaCombo: ({ prompt, respond }) => (
@@ -133,18 +122,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
       minChoices={0}
       maxChoices={prompt.input.maxCards}
       onConfirm={(chosenCardIds) => respond({ type: "delveDecision", chosenCardIds })}
-    />
-  ),
-
-  // $PROMPT_SHARED
-  chooseCardsForEffect: ({ prompt, respond, ctx }) => (
-    <CardListModal
-      cards={prompt.input.zoneCards as GameCard[]}
-      minChoices={prompt.input.minChoices}
-      maxChoices={prompt.input.maxChoices}
-      sourceCardName={prompt.input.sourceCardName ?? ctx.sourceDeckCard?.name}
-      optional={prompt.input.optional ?? false}
-      onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
     />
   ),
 };

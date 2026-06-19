@@ -50,16 +50,22 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             actions,
             untappable_land_ids,
         } => build_choose_action(&actions, untappable_land_ids),
-        JavaRawPromptBody::ChooseDiscard { cards, min, max } => PromptInput::ChooseDiscard(manabrew_protocol::prompts::choose_discard::ChooseDiscardInput {
-            hand_card_ids: card_ids(&cards),
-            num_to_discard: if max > 0 {
-                max
-            } else if min > 0 {
-                min
-            } else {
-                1
-            },
-        }),
+        JavaRawPromptBody::ChooseDiscard {
+            cards,
+            min,
+            max,
+            source_card_id: source,
+            description,
+        } => {
+            source_card_id = source.clone();
+            let max_count = if max > 0 { max } else { min.max(1) };
+            PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+                presentation: card_choice_presentation("Discard", description, source),
+                cards: prompt_cards(&cards, &card_index),
+                min: min.min(max_count),
+                max: max_count,
+            })
+        }
         JavaRawPromptBody::Mulligan { cards, count } => PromptInput::Mulligan(manabrew_protocol::prompts::mulligan::MulliganInput {
             hand_card_ids: card_ids(&cards),
             mulligan_count: count,
@@ -186,16 +192,19 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             min,
             max,
             optional,
+            source_card_id: source,
             source_card_name,
-            description: _,
-        } => PromptInput::ChooseCardsForEffect(manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-            valid_card_ids: card_ids(&cards),
-            zone_cards: prompt_cards(&cards, &card_index),
-            min_choices: min,
-            max_choices: max,
-            source_card_name,
-            optional,
-        }),
+            description,
+        } => {
+            source_card_id = source.clone();
+            let title = source_card_name.unwrap_or_else(|| "Choose cards".to_string());
+            PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+                presentation: card_choice_presentation(&title, description, source),
+                cards: prompt_cards(&cards, &card_index),
+                min: if optional { 0 } else { min },
+                max,
+            })
+        }
         JavaRawPromptBody::ChooseMode {
             options,
             min,
@@ -312,11 +321,16 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => PromptInput::ChooseCardName(manabrew_protocol::prompts::choose_card_name::ChooseCardNameInput {
             valid_names: options,
         }),
-        JavaRawPromptBody::ChooseScry { cards } => {
+        JavaRawPromptBody::ChooseScry {
+            cards,
+            source_card_id: source,
+        } => {
+            source_card_id = source.clone();
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput {
                 presentation: scry_presentation(
                     "Scry",
                     "Put any number on the bottom; the rest on top in any order.",
+                    source,
                 ),
                 cards: prompt_cards(&cards, &card_index),
                 zones: vec![
@@ -325,11 +339,16 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 ],
             })
         }
-        JavaRawPromptBody::ChooseSurveil { cards } => {
+        JavaRawPromptBody::ChooseSurveil {
+            cards,
+            source_card_id: source,
+        } => {
+            source_card_id = source.clone();
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput {
                 presentation: scry_presentation(
                     "Surveil",
                     "Put any number into your graveyard; the rest on top in any order.",
+                    source,
                 ),
                 cards: prompt_cards(&cards, &card_index),
                 zones: vec![
@@ -400,13 +419,29 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             cards,
             destination,
             top_of_deck,
-            source_card_name: _,
-        } => PromptInput::ReorderLibrary(manabrew_protocol::prompts::reorder_library::ReorderLibraryInput {
-            card_ids: card_ids(&cards),
-            cards: prompt_cards(&cards, &card_index),
-            destination,
-            top_of_deck,
-        }),
+            source_card_id: source,
+            source_card_name,
+        } => {
+            source_card_id = source.clone();
+            let target_label = destination.unwrap_or_else(|| {
+                if top_of_deck {
+                    "Top of Library".to_string()
+                } else {
+                    "Bottom of Library".to_string()
+                }
+            });
+            let title = source_card_name.unwrap_or_else(|| "Reorder".to_string());
+            PromptInput::ReorderCards(manabrew_protocol::prompts::reorder_cards::ReorderCardsInput {
+                presentation: card_choice_presentation(
+                    &title,
+                    Some("Arrange these cards in order.".to_string()),
+                    source,
+                ),
+                cards: prompt_cards(&cards, &card_index),
+                target_label,
+                top_of_deck,
+            })
+        }
         JavaRawPromptBody::ChooseTargetPlayer {
             players,
             source_card_id: source,
@@ -590,9 +625,6 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                 })?;
             JavaAction::ChooseAction { index }
         }
-        PlayerAction::DiscardDecision { discarded_card_ids } => JavaAction::ChooseCards {
-            card_ids: discarded_card_ids.clone(),
-        },
         PlayerAction::MulliganDecision { keep } => JavaAction::MulliganDecision { keep: *keep },
         PlayerAction::MulliganPutBackDecision { card_ids } => JavaAction::ChooseCards {
             card_ids: card_ids.clone(),
@@ -627,11 +659,9 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
         PlayerAction::DelveDecision { chosen_card_ids } => JavaAction::ChooseCards {
             card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
-            JavaAction::ReorderLibraryDecision {
-                ordered_card_ids: ordered_card_ids.clone(),
-            }
-        }
+        PlayerAction::ReorderDecision { ordered_card_ids } => JavaAction::ReorderLibraryDecision {
+            ordered_card_ids: ordered_card_ids.clone(),
+        },
         PlayerAction::DamageAssignmentOrderDecision {
             ordered_blocker_ids,
         } => JavaAction::DamageAssignmentOrderDecision {
@@ -1212,12 +1242,21 @@ fn prompt_cards(cards: &[JavaRawCardOption], index: &HashMap<String, CardDto>) -
 fn scry_presentation(
     title: &str,
     description: &str,
+    source_card_id: Option<String>,
+) -> manabrew_protocol::prompts::common::PromptPresentation {
+    card_choice_presentation(title, Some(description.to_string()), source_card_id)
+}
+
+fn card_choice_presentation(
+    title: &str,
+    description: Option<String>,
+    source_card_id: Option<String>,
 ) -> manabrew_protocol::prompts::common::PromptPresentation {
     manabrew_protocol::prompts::common::PromptPresentation {
         title: title.to_string(),
-        description: Some(description.to_string()),
+        description,
         text: None,
-        source_card_id: None,
+        source_card_id,
         targets: Vec::new(),
     }
 }

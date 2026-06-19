@@ -118,21 +118,26 @@ pub(super) fn choose_reorder_library<T: Responder>(
     _player: PlayerId,
     cards: &[CardId],
 ) -> Vec<CardId> {
-    let card_ids = PromptAgent::<T>::card_ids(cards);
     let prompt_cards = library_dtos(game, cards);
     agent.send_prompt(
-        PromptInput::ReorderLibrary(
-            manabrew_protocol::prompts::reorder_library::ReorderLibraryInput {
-                card_ids,
+        PromptInput::ReorderCards(
+            manabrew_protocol::prompts::reorder_cards::ReorderCardsInput {
+                presentation: PromptPresentation {
+                    title: "Reorder".to_string(),
+                    description: Some("Arrange these cards on top of your library.".to_string()),
+                    text: None,
+                    source_card_id: None,
+                    targets: Vec::new(),
+                },
                 cards: prompt_cards,
-                destination: None,
+                target_label: "Top of Library".to_string(),
                 top_of_deck: true,
             },
         ),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ReorderLibraryDecision { ordered_card_ids } => {
+        PlayerAction::ReorderDecision { ordered_card_ids } => {
             let parsed: Vec<CardId> = ordered_card_ids
                 .iter()
                 .filter_map(|s| parse_card_id(s))

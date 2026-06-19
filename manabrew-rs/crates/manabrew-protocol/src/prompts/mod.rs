@@ -10,12 +10,10 @@ pub mod choose_board_targets;
 pub mod choose_boolean;
 pub mod choose_card_name;
 pub mod choose_cards;
-pub mod choose_cards_for_effect;
 pub mod choose_color;
 pub mod choose_combat_damage_assignment;
 pub mod choose_damage_assignment_order;
 pub mod choose_delve;
-pub mod choose_discard;
 pub mod choose_from_selection;
 pub mod choose_number;
 pub mod choose_type;
@@ -28,7 +26,6 @@ pub mod mulligan_put_back;
 pub mod pay_combat_cost;
 pub mod pay_mana_cost;
 pub mod reorder_cards;
-pub mod reorder_library;
 pub mod reveal_cards;
 pub mod scry;
 pub mod specify_mana_combo;
@@ -49,7 +46,6 @@ pub enum PromptInput {
     RevealCards(reveal_cards::RevealCardsInput),
     Scry(scry::ScryInput),
     Dig(dig::DigInput),
-    ChooseDiscard(choose_discard::ChooseDiscardInput),
     ChooseColor(choose_color::ChooseColorInput),
     ChooseType(choose_type::ChooseTypeInput),
     ChooseNumber(choose_number::ChooseNumberInput),
@@ -64,10 +60,8 @@ pub enum PromptInput {
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ChooseCards(choose_cards::ChooseCardsInput),
     ReorderCards(reorder_cards::ReorderCardsInput),
-    ReorderLibrary(reorder_library::ReorderLibraryInput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollInput),
     DiceRolled(dice_rolled::DiceRolledInput),
-    ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput),
 }
 
 /// Union of every per-prompt response shape. Untagged because each `*Output` is
@@ -89,7 +83,6 @@ pub enum PromptOutput {
     RevealCards(reveal_cards::RevealCardsOutput),
     Scry(scry::ScryOutput),
     Dig(dig::DigOutput),
-    ChooseDiscard(choose_discard::ChooseDiscardOutput),
     ChooseColor(choose_color::ChooseColorOutput),
     ChooseType(choose_type::ChooseTypeOutput),
     ChooseNumber(choose_number::ChooseNumberOutput),
@@ -104,8 +97,6 @@ pub enum PromptOutput {
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
     ReorderCards(reorder_cards::ReorderCardsOutput),
-    ReorderLibrary(reorder_library::ReorderLibraryOutput),
     FirstPlayerRoll(first_player_roll::FirstPlayerRollOutput),
     DiceRolled(dice_rolled::DiceRolledOutput),
-    ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectOutput),
 }

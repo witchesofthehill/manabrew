@@ -37,7 +37,7 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseFromSelection"]: "Choose from options",
   ["scry"]: "Scry: choose cards to put on the bottom",
   ["dig"]: "Dig: choose cards to take",
-  ["chooseDiscard"]: "Discard cards",
+  ["chooseCards"]: "Choose cards",
   ["payCombatCost"]: "Pay attack cost",
   ["payManaCost"]: "Pay mana cost",
   ["chooseColor"]: "Choose a color",
@@ -48,8 +48,7 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["specifyManaCombo"]: "Choose mana colors",
   ["chooseDamageAssignmentOrder"]: "Order blockers for damage assignment",
   ["chooseCombatDamageAssignment"]: "Assign combat damage",
-  ["chooseCardsForEffect"]: "Choose cards for effect",
-  ["reorderLibrary"]: "Reorder the top of your library",
+  ["reorderCards"]: "Reorder the cards",
   ["gameOver"]: "Game Over",
 };
 

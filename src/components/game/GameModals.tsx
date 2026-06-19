@@ -4,7 +4,7 @@ import { PromptModalHost } from "@/components/prompts/promptComponents";
 // import { ChooseNumberModalPreview } from "@/components/prompts/dev/ChooseNumberModalPreview";
 // import { ChooseCardsModalPreview } from "@/components/prompts/dev/ChooseCardsModalPreview";
 // import { ReorderCardsModalPreview } from "@/components/prompts/dev/ReorderCardsModalPreview";
-import { ScryModalPreview } from "@/components/prompts/dev/ScryModalPreview";
+// import { ScryModalPreview } from "@/components/prompts/dev/ScryModalPreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
@@ -65,7 +65,7 @@ export function GameModals({
       {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseCardsModalPreview />}*/}
       {/*{import.meta.env.DEV && <ReorderCardsModalPreview />}*/}
-      {import.meta.env.DEV && <ScryModalPreview />}
+      {/*{import.meta.env.DEV && <ScryModalPreview />}*/}
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}

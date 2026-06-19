@@ -88,11 +88,6 @@ pub enum PlayerAction {
         #[serde(rename = "chosenCardIds")]
         chosen_card_ids: Vec<String>,
     },
-    /// Response to ChooseDiscard prompt: IDs of the cards the player discards.
-    DiscardDecision {
-        #[serde(rename = "discardedCardIds")]
-        discarded_card_ids: Vec<String>,
-    },
     RevealCardsAcknowledged,
     /// Response to a generic ChooseBoolean prompt (kicker, buyback, phyrexian, …).
     /// The handler that issued the prompt interprets `value` in context.
@@ -131,17 +126,12 @@ pub enum PlayerAction {
     CombatDamageAssignmentDecision {
         assignments: Vec<CombatDamageAssignmentEntry>,
     },
-    /// Response to ReorderLibrary: ordered card IDs (last = top of library).
-    ReorderLibraryDecision {
-        #[serde(rename = "orderedCardIds")]
-        ordered_card_ids: Vec<String>,
-    },
     /// Response to ReorderCards: cards in the chosen order.
     ReorderDecision {
         #[serde(rename = "orderedCardIds")]
         ordered_card_ids: Vec<String>,
     },
-    /// Response to ChooseCardsForEffect prompt: IDs of chosen cards.
+    /// Response to ChooseCards prompt: IDs of chosen cards.
     ChooseCardsDecision {
         #[serde(rename = "chosenCardIds")]
         chosen_card_ids: Vec<String>,

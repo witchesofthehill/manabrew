@@ -1,9 +1,21 @@
+use std::collections::VecDeque;
+
 use manabrew_agent_interface::prompt::{
     AgentPrompt, AttackAssignment, AvailableAction, AvailableActionKind, BlockAssignment,
     CombatDamageAssignmentEntry, PlayerAction, PromptInput,
 };
 
 use super::BotAgent;
+
+/// How many recent prompts to remember when detecting a stuck loop.
+const LOOP_WINDOW: usize = 6;
+
+fn bot_warn(msg: &str) {
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::warn_1(&format!("[wasm-bot] {msg}").into());
+    #[cfg(not(target_arch = "wasm32"))]
+    tracing::warn!(target: "wasm-bot", "{msg}");
+}
 
 /// Baseline AI: casts spells when possible, otherwise passes priority, with a
 /// memoized anti-loop heuristic so a stuck `ChooseAction` doesn't repeat the
@@ -12,11 +24,28 @@ use super::BotAgent;
 pub struct SimpleAi {
     last_choose_action_signature: Option<String>,
     last_choose_action_choice: Option<String>,
+    recent_prompts: VecDeque<String>,
 }
 
 impl SimpleAi {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Detects infinite response loops from the bot
+    /// to avoid getting it stuck
+    fn looping_on(&mut self, signature: String) -> bool {
+        let seen = self.recent_prompts.contains(&signature);
+        if seen {
+            bot_warn(&format!(
+                "loop-breaker engaged on repeated prompt: {signature}"
+            ));
+        }
+        self.recent_prompts.push_back(signature);
+        while self.recent_prompts.len() > LOOP_WINDOW {
+            self.recent_prompts.pop_front();
+        }
+        seen
     }
 }
 
@@ -107,14 +136,20 @@ impl BotAgent for SimpleAi {
                 Some(PlayerAction::DeclareBlockers { assignments })
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
-                candidates, min_targets, chosen_targets, ..
-            }) => Some(PlayerAction::BoardTargets {
-                chosen: if chosen_targets < min_targets {
-                    candidates.into_iter().take(1).collect()
+                candidates, min_targets, max_targets, chosen_targets, ..
+            }) => {
+                let signature = format!("targets:{min_targets}|{max_targets}|{}", candidates.len());
+                let take = if self.looping_on(signature) {
+                    (max_targets - chosen_targets).max(0) as usize
+                } else if chosen_targets < min_targets {
+                    1
                 } else {
-                    Vec::new()
-                },
-            }),
+                    0
+                };
+                Some(PlayerAction::BoardTargets {
+                    chosen: candidates.into_iter().take(take).collect(),
+                })
+            }
             PromptInput::Scry(manabrew_protocol::prompts::scry::ScryInput { cards, zones, .. }) => {
                 // Keep everything on top (zone 0), nothing elsewhere.
                 let mut zone_card_ids = vec![Vec::new(); zones.len()];
@@ -130,20 +165,27 @@ impl BotAgent for SimpleAi {
             }) => Some(PlayerAction::DigDecision {
                 chosen_card_ids: card_ids.into_iter().take(num_to_take).collect(),
             }),
-            PromptInput::ChooseDiscard(manabrew_protocol::prompts::choose_discard::ChooseDiscardInput {
-                hand_card_ids,
-                num_to_discard,
-                ..
-            }) => Some(PlayerAction::DiscardDecision {
-                discarded_card_ids: hand_card_ids.into_iter().take(num_to_discard).collect(),
-            }),
             PromptInput::RevealCards(manabrew_protocol::prompts::reveal_cards::RevealCardsInput { .. }) => Some(PlayerAction::RevealCardsAcknowledged),
-            PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput { .. }) => {
-                Some(PlayerAction::Decision { value: false })
+            PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
+                presentation,
+                confirm_label,
+                deny_label,
+            }) => {
+                let signature = format!("bool:{}|{confirm_label}|{deny_label}", presentation.title);
+                let value = self.looping_on(signature);
+                Some(PlayerAction::Decision { value })
             }
-            PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput { options, min_choices, .. }) => {
+            PromptInput::ChooseFromSelection(manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput {
+                presentation,
+                options,
+                min_choices,
+                max_choices,
+            }) => {
+                let signature =
+                    format!("select:{}|{min_choices}|{max_choices}|{}", presentation.title, options.len());
+                let take = if self.looping_on(signature) { max_choices } else { min_choices };
                 Some(PlayerAction::SelectionDecision {
-                    chosen_indices: (0..min_choices.min(options.len())).collect(),
+                    chosen_indices: (0..take.min(options.len())).collect(),
                 })
             }
             PromptInput::ChooseColor(manabrew_protocol::prompts::choose_color::ChooseColorInput { valid_colors, .. }) => {
@@ -162,13 +204,6 @@ impl BotAgent for SimpleAi {
                     chosen_name: valid_names.first().cloned(),
                 })
             }
-            PromptInput::ChooseCardsForEffect(manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                max_choices,
-                ..
-            }) => Some(PlayerAction::ChooseCardsDecision {
-                chosen_card_ids: valid_card_ids.into_iter().take(max_choices).collect(),
-            }),
             PromptInput::ChooseDamageAssignmentOrder(manabrew_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput { blocker_ids, .. }) => {
                 Some(PlayerAction::DamageAssignmentOrderDecision {
                     ordered_blocker_ids: blocker_ids,
@@ -227,14 +262,16 @@ impl BotAgent for SimpleAi {
                     chosen_colors: vec![color; amount],
                 })
             }
-            PromptInput::ReorderLibrary(manabrew_protocol::prompts::reorder_library::ReorderLibraryInput { card_ids, .. }) => {
-                Some(PlayerAction::ReorderLibraryDecision {
-                    ordered_card_ids: card_ids,
-                })
-            }
-            PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput { cards, min, .. }) => {
+            PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+                presentation,
+                cards,
+                min,
+                max,
+            }) => {
+                let signature = format!("cards:{}|{min}|{max}|{}", presentation.title, cards.len());
+                let take = if self.looping_on(signature) { max } else { min };
                 Some(PlayerAction::ChooseCardsDecision {
-                    chosen_card_ids: cards.iter().take(min).map(|c| c.id.clone()).collect(),
+                    chosen_card_ids: cards.iter().take(take).map(|c| c.id.clone()).collect(),
                 })
             }
             PromptInput::ReorderCards(manabrew_protocol::prompts::reorder_cards::ReorderCardsInput { cards, .. }) => {

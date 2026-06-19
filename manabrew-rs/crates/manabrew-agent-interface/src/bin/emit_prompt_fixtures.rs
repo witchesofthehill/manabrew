@@ -118,10 +118,6 @@ fn main() {
             num_to_take: 0,
             optional: false,
         }),
-        ChooseDiscard(choose_discard::ChooseDiscardInput {
-            hand_card_ids: vec![],
-            num_to_discard: 0,
-        }),
         ChooseColor(choose_color::ChooseColorInput {
             valid_colors: vec![],
         }),
@@ -187,12 +183,6 @@ fn main() {
             available_colors: vec![],
             amount: 0,
         }),
-        ReorderLibrary(reorder_library::ReorderLibraryInput {
-            card_ids: vec![],
-            cards: vec![],
-            destination: None,
-            top_of_deck: true,
-        }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {
             presentation: common::PromptPresentation {
                 title: "Pay Buyback?".to_string(),
@@ -235,13 +225,29 @@ fn main() {
             ignored_rolls: vec![],
             source_card_name: None,
         }),
-        ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput {
-            valid_card_ids: vec![],
-            zone_cards: vec![],
-            min_choices: 0,
-            max_choices: 0,
-            source_card_name: None,
-            optional: false,
+        ChooseCards(choose_cards::ChooseCardsInput {
+            presentation: common::PromptPresentation {
+                title: "Choose cards".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
+            cards: vec![],
+            min: 0,
+            max: 0,
+        }),
+        ReorderCards(reorder_cards::ReorderCardsInput {
+            presentation: common::PromptPresentation {
+                title: "Reorder".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
+            cards: vec![],
+            target_label: "Top of Library".to_string(),
+            top_of_deck: true,
         }),
     ];
 

@@ -7,21 +7,11 @@ import type { GameCard } from "@/types/manabrew";
 import type { ChooseCardsInput } from "@/protocol";
 
 // ─── EDIT ME ──────────────────────────────────────────────────────────────
-// Set otherLabel to undefined to see the plain multiselect mode.
 const INPUT: Omit<ChooseCardsInput, "cards"> = {
-  presentation: { title: "Scry 4", description: "Send cards to the bottom of your library.", targets: [] },
-  min: 0,
-  max: 4,
-  targetLabel: "Bottom of Library",
-  otherLabel: "Stays on Top",
+  presentation: { title: "Choose up to 4", description: "Choose cards to discard.", targets: [] },
+  min: 1,
+  max: 1,
 };
-// const INPUT: Omit<ChooseCardsInput, "cards"> = {
-//   presentation: { title: "Discard", description: "Send cards to the bottom of your library.", targets: [] },
-//   min: 1,
-//   max: 1,
-//   targetLabel: "Send to graveyard",
-//   // otherLabel: "Stays on Top",
-// };
 const CARD_COUNT = 8;
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -47,7 +37,9 @@ export function ChooseCardsModalPreview() {
         {show ? "Hide" : "Show"} choose-cards preview
       </button>
       {show && (
-        <PromptModalChromeContext.Provider value={{ showMinimize: true, onMinimize: () => setShow(false) }}>
+        <PromptModalChromeContext.Provider
+          value={{ showMinimize: true, onMinimize: () => setShow(false) }}
+        >
           <ChooseCardsModal
             input={{ ...INPUT, cards: cards as unknown as ChooseCardsInput["cards"] }}
             respond={(o) => console.log("[ChooseCardsModalPreview] respond →", o)}

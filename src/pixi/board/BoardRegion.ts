@@ -317,7 +317,6 @@ export class BoardRegion {
   animate(): void {
     let exited: string[] | null = null;
     const now = performance.now();
-    const selectable = this.combatDim ? new Set(this.lastState?.selectableCardIds ?? []) : null;
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
@@ -354,7 +353,7 @@ export class BoardRegion {
         this.combatDim &&
         this.hoveredCardId !== s.card.id &&
         !this.isCombatant(s.card) &&
-        !selectable?.has(s.card.id);
+        !this.lastState?.selectableCardIds?.includes(s.card.id);
       const curBright = (s.tint & 0xff) / 255;
       const nextBright = lerp(
         curBright,
@@ -608,14 +607,9 @@ export class BoardRegion {
 
     for (const group of byIdentity.values()) {
       if (group.length < 2) continue;
-      // Anchor the stack on a stable member — prefer one that already holds a
-      // grid slot, else the lowest id — so the visible parent and its cell don't
-      // flip when the engine reports identical permanents in a different order.
-      const slotHolders = group.filter((c) => this.userSlots.has(c.id));
-      const pool = slotHolders.length > 0 ? slotHolders : group;
-      const parent = pool.reduce((best, c) => (c.id < best.id ? c : best));
-      for (const child of group) {
-        if (child.id === parent.id) continue;
+      const parent = group[0]!;
+      for (let i = 1; i < group.length; i++) {
+        const child = group[i]!;
         this.uiParent.set(child.id, parent.id);
         this.nameGroupChildren.add(child.id);
       }
@@ -703,10 +697,7 @@ export class BoardRegion {
         unplaced.push(c);
         continue;
       }
-      // A placed card keeps its slot even when a panel transiently overlaps the
-      // cell; only a real card collision relocates it (fresh placement below still
-      // avoids blocked cells). Stops cards thrashing as panels resize per prompt.
-      if (occupied.has(cellKey(cell.col, cell.row))) {
+      if (cell.blocked || occupied.has(cellKey(cell.col, cell.row))) {
         unplaced.push(c);
         continue;
       }
@@ -1276,7 +1267,6 @@ export class BoardRegion {
 
   destroy(): void {
     this.effects.destroy();
-    for (const id of [...this.entries.keys()]) this.destroyEntry(id);
-    this.container.destroy({ children: true });
+    this.entries.clear();
   }
 }

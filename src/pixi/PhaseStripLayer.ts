@@ -176,8 +176,6 @@ interface PhaseCell {
   _fy?: number;
   _fw?: number;
   _fc?: number;
-  _indSig?: string;
-  _flashDrawn?: boolean;
 }
 
 export interface OpponentInfo {
@@ -584,26 +582,20 @@ export class PhaseStripLayer {
   }
 
   tick(): void {
+    // Draw indicators every frame
     for (let ci = 0; ci < this.cells.length; ci++) {
       const cell = this.cells[ci]!;
       const d = cell._indData;
       if (!d) continue;
 
       if (d.hideIndicators) {
-        if (cell._indSig !== "hidden") {
-          cell.selfIndicator.clear();
-          cell.oppIndicators.clear();
-          cell._indSig = "hidden";
-        }
+        cell.selfIndicator.clear();
+        cell.oppIndicators.clear();
         continue;
       }
 
       const cellHovered = this.hoveredCellIndex === ci;
       const showEmpty = cellHovered || cell.selfHovered || cell.oppHovered.some(Boolean);
-
-      const sig = `${cellHovered ? 1 : 0}|${cell.selfHovered ? 1 : 0}|${cell.oppHovered.join("")}|${d.selfEnabled ? 1 : 0}|${d.selfColor}|${d.cx}|${d.selfCy}|${d.oppCount}|${d.oppEnabled.join("")}|${d.oppColors.join(",")}|${d.oppCy}`;
-      if (sig === cell._indSig) continue;
-      cell._indSig = sig;
 
       // Self indicator
       cell.selfIndicator.clear();
@@ -638,21 +630,13 @@ export class PhaseStripLayer {
     // Flash animation
     const now = performance.now();
     for (const cell of this.cells) {
-      if (cell.flashStart === 0) {
-        if (cell._flashDrawn) {
-          cell.flashGfx.clear();
-          cell._flashDrawn = false;
-        }
-        continue;
-      }
       cell.flashGfx.clear();
+      if (cell.flashStart === 0) continue;
       const elapsed = now - cell.flashStart;
       if (elapsed >= FLASH_DURATION_MS) {
         cell.flashStart = 0;
-        cell._flashDrawn = false;
         continue;
       }
-      cell._flashDrawn = true;
 
       const p = elapsed / FLASH_DURATION_MS;
       const e = easeOut(p);

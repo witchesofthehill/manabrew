@@ -5,12 +5,12 @@ use crate::values::CardDto;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "prompts/dig.ts")]
-pub struct DigInput {
-    pub card_ids: Vec<String>,
+#[ts(export, export_to = "prompts/reveal.ts")]
+pub struct RevealCardsInput {
     pub cards: Vec<CardDto>,
-    pub num_to_take: usize,
-    pub optional: bool,
+    pub zone: String,
+    pub owner_player_id: String,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -19,7 +19,7 @@ pub struct DigInput {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export, export_to = "prompts/dig.ts")]
-pub enum DigOutput {
-    DigDecision { chosen_card_ids: Vec<String> },
+#[ts(export, export_to = "prompts/reveal.ts")]
+pub enum RevealCardsOutput {
+    RevealCardsAcknowledged,
 }

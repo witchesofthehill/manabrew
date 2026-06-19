@@ -765,12 +765,8 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (cards == null) {
             return chooseEntitiesGeneric(optionList, min, max, sa);
         }
-        final CardCollection selected;
-        if (sa != null && sa.getApi() == ApiType.Dig) {
-            selected = session.awaitDigChoice(me(), cards, min, max, sourceName(sa));
-        } else {
-            selected = session.awaitCardChoice("choose_cards_for_effect", me(), cards, min, max, sourceName(sa), sourceCardId(sa), title);
-        }
+        final CardCollection selected = session.awaitCardChoice(
+                "choose_cards_for_effect", me(), cards, min, max, sourceName(sa), sourceCardId(sa), title);
         final List<T> out = new ArrayList<>();
         for (final Card card : selected) {
             for (final T option : optionList) {

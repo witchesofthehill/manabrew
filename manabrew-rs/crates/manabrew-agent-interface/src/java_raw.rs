@@ -182,16 +182,6 @@ pub enum JavaRawPromptBody {
         #[serde(rename = "sourceCardId")]
         source_card_id: Option<String>,
     },
-    ChooseDig {
-        #[serde(default)]
-        cards: Vec<JavaRawCardOption>,
-        #[serde(default = "one")]
-        max: usize,
-        #[serde(default)]
-        optional: bool,
-        #[serde(rename = "sourceCardName")]
-        source_card_name: Option<String>,
-    },
     ChooseConvoke {
         #[serde(default)]
         cards: Vec<JavaRawCardOption>,
@@ -362,7 +352,6 @@ impl JavaRawPromptBody {
             JavaRawPromptBody::ChooseCardName { .. } => "choose_card_name",
             JavaRawPromptBody::ChooseScry { .. } => "choose_scry",
             JavaRawPromptBody::ChooseSurveil { .. } => "choose_surveil",
-            JavaRawPromptBody::ChooseDig { .. } => "choose_dig",
             JavaRawPromptBody::ChooseConvoke { .. } => "choose_convoke",
             JavaRawPromptBody::ChooseImprovise { .. } => "choose_improvise",
             JavaRawPromptBody::ReorderLibrary { .. } => "reorder_library",
@@ -676,9 +665,6 @@ pub enum JavaAction {
     },
     ScryDecision {
         zone_card_ids: Vec<Vec<String>>,
-    },
-    DigDecision {
-        chosen_card_ids: Vec<String>,
     },
     ReorderLibraryDecision {
         ordered_card_ids: Vec<String>,

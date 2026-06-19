@@ -82,7 +82,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             zone,
             owner_player_id,
             message,
-        } => PromptInput::RevealCards(manabrew_protocol::prompts::reveal_cards::RevealCardsInput {
+        } => PromptInput::RevealCards(manabrew_protocol::prompts::reveal::RevealCardsInput {
             cards: prompt_cards(&cards, &card_index),
             zone: zone.unwrap_or_else(|| "unknown".to_string()),
             owner_player_id: owner_player_id.unwrap_or_else(|| format!("player-{player}")),
@@ -357,17 +357,6 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 ],
             })
         }
-        JavaRawPromptBody::ChooseDig {
-            cards,
-            max,
-            optional,
-            source_card_name: _,
-        } => PromptInput::Dig(manabrew_protocol::prompts::dig::DigInput {
-            card_ids: card_ids(&cards),
-            cards: prompt_cards(&cards, &card_index),
-            num_to_take: max,
-            optional,
-        }),
         JavaRawPromptBody::ChooseConvoke {
             cards,
             description: _,
@@ -659,9 +648,6 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
                 zone_card_ids: zone_card_ids.clone(),
             }
         }
-        PromptOutput::Dig(DigOutput::DigDecision { chosen_card_ids }) => JavaAction::DigDecision {
-            chosen_card_ids: chosen_card_ids.clone(),
-        },
         PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision { ordered_card_ids }) => {
             JavaAction::ReorderLibraryDecision {
                 ordered_card_ids: ordered_card_ids.clone(),

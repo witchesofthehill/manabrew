@@ -525,7 +525,7 @@ pub(super) fn reveal_cards<T: Responder>(
         .collect();
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(
-        PromptInput::RevealCards(manabrew_protocol::prompts::reveal_cards::RevealCardsInput {
+        PromptInput::RevealCards(manabrew_protocol::prompts::reveal::RevealCardsInput {
             cards,
             zone: zone.to_string(),
             owner_player_id: crate::ids_codec::player_id_str(owner),

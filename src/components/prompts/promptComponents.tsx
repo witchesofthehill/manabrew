@@ -6,9 +6,7 @@ import { ChooseCardNameModal } from "./ChooseCardNameModal";
 import { ChooseCardsModal } from "./ChooseCardsModal";
 import { ReorderCardsModal } from "./ReorderCardsModal";
 import { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
-import { RevealCardsModal } from "./RevealCardsModal";
 import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
-import { LibraryPeekModal } from "./LibraryPeekModal";
 import { ScryModal } from "./ScryModal";
 import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
@@ -17,7 +15,7 @@ import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
 import { DiceRollFeedback, FirstPlayerRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
-import type { DeckCard, GameCard, GameView } from "@/types/manabrew";
+import type { DeckCard, GameView } from "@/types/manabrew";
 
 export type PromptOf<T extends PromptType> = Extract<Prompt, { input: { type: T } }>;
 
@@ -35,7 +33,20 @@ export interface PromptComponentProps<T extends PromptType> {
 type PromptComponent<T extends PromptType> = (props: PromptComponentProps<T>) => ReactNode;
 
 const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
-  revealCards: ({ prompt, respond }) => <RevealCardsModal input={prompt.input} respond={respond} />,
+  revealCards: ({ prompt, respond }) => (
+    <ChooseCardsModal
+      cards={prompt.input.cards}
+      presentation={{
+        title: "Revealed cards",
+        description: prompt.input.message,
+        targets: [],
+      }}
+      min={0}
+      max={0}
+      reveal
+      onConfirm={() => respond({ type: "revealCardsAcknowledged" })}
+    />
+  ),
 
   chooseColor: ({ prompt, respond }) => <ChooseColorModal input={prompt.input} respond={respond} />,
 
@@ -52,18 +63,15 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   scry: ({ prompt, respond }) => <ScryModal input={prompt.input} respond={respond} />,
 
-  // $PROMPT_SHARED
-  dig: ({ prompt, respond }) => (
-    <LibraryPeekModal
-      mode="dig"
-      cards={prompt.input.cards as GameCard[]}
-      numToTake={prompt.input.numToTake}
-      optional={prompt.input.optional}
-      onConfirm={(chosenCardIds) => respond({ type: "digDecision", chosenCardIds })}
+  chooseCards: ({ prompt, respond }) => (
+    <ChooseCardsModal
+      cards={prompt.input.cards}
+      presentation={prompt.input.presentation}
+      min={prompt.input.min}
+      max={prompt.input.max}
+      onConfirm={(chosenCardIds) => respond({ type: "chooseCardsDecision", chosenCardIds })}
     />
   ),
-
-  chooseCards: ({ prompt, respond }) => <ChooseCardsModal input={prompt.input} respond={respond} />,
 
   chooseCombatDamageAssignment: ({ prompt, respond }) => (
     <VAssignCombatDamageModal input={prompt.input} respond={respond} />

@@ -6,7 +6,6 @@ import { PromptModalHost } from "@/components/prompts/promptComponents";
 // import { ReorderCardsModalPreview } from "@/components/prompts/dev/ReorderCardsModalPreview";
 // import { ScryModalPreview } from "@/components/prompts/dev/ScryModalPreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
-import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
@@ -22,13 +21,6 @@ interface GameModalsProps {
     targetHostile?: boolean;
   } | null;
   onCloseZone: () => void;
-  libraryPeekModal: {
-    mode: LibraryPeekMode;
-    cards: GameCard[];
-    numToTake?: number;
-    optional?: boolean;
-  } | null;
-  onLibraryPeekConfirm: (selectedIds: string[]) => void;
   spellStackModalOpen: boolean;
   stack: StackObject[];
   validSpellIds: string[];
@@ -45,8 +37,6 @@ export function GameModals({
   sourceDeckCard,
   viewingZone,
   onCloseZone,
-  libraryPeekModal,
-  onLibraryPeekConfirm,
   spellStackModalOpen,
   stack,
   validSpellIds,
@@ -69,8 +59,6 @@ export function GameModals({
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}
-        libraryPeekModal={libraryPeekModal}
-        onLibraryPeekConfirm={onLibraryPeekConfirm}
         spellStackModalOpen={spellStackModalOpen}
         stack={stack}
         validSpellIds={validSpellIds}

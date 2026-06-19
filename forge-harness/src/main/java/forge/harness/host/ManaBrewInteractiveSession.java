@@ -1187,47 +1187,6 @@ public final class ManaBrewInteractiveSession {
         return result;
     }
 
-    CardCollection awaitDigChoice(
-            final int playerId,
-            final CardCollectionView cardsForPrompt,
-            final int min,
-            final int max,
-            final String sourceName
-    ) {
-        requireAttached();
-        final List<Card> cards = new ArrayList<Card>(cardsForPrompt);
-        final int clampedMin = Math.min(min, cards.size());
-        final int clampedMax = Math.min(max, cards.size());
-        publishDigPrompt(playerId, cards, clampedMin, clampedMax, sourceName);
-        while (!closed && !game.isGameOver()) {
-            final JsonObject action = takeActionOrNull();
-            if (action == null) {
-                return new CardCollection();
-            }
-            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
-            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return new CardCollection(cards.subList(0, clampedMin));
-            }
-            if (!"dig_decision".equals(actionKind)) {
-                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
-            }
-            final CardCollection selected = new CardCollection();
-            if (action.has("chosen_card_ids") && action.get("chosen_card_ids").isJsonArray()) {
-                for (JsonElement element : action.getAsJsonArray("chosen_card_ids")) {
-                    final Card card = findCardByPublishedId(cards, element.getAsString());
-                    if (card != null && !selected.contains(card)) {
-                        selected.add(card);
-                    }
-                }
-            }
-            if (selected.size() < clampedMin || selected.size() > clampedMax) {
-                throw new IllegalArgumentException("selected card count out of range: " + selected.size());
-            }
-            return selected;
-        }
-        return new CardCollection();
-    }
-
     CardCollection awaitReorderZone(
             final int playerId,
             final CardCollectionView cardsForPrompt,
@@ -2066,35 +2025,6 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("kind", kind);
         prompt.addProperty("sessionId", sessionId);
         prompt.addProperty("player", playerId);
-        if (sourceName != null) {
-            prompt.addProperty("sourceCardName", sourceName);
-        }
-        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
-        com.google.gson.JsonArray options = new com.google.gson.JsonArray();
-        for (int i = 0; i < cards.size(); i++) {
-            JsonObject option = new JsonObject();
-            option.addProperty("index", i);
-            addCardOption(option, cards.get(i));
-            options.add(option);
-        }
-        prompt.add("cards", options);
-        latestPromptJson = prompt.toString();
-    }
-
-    private void publishDigPrompt(
-            final int playerId,
-            final List<Card> cards,
-            final int min,
-            final int max,
-            final String sourceName
-    ) {
-        JsonObject prompt = new JsonObject();
-        prompt.addProperty("kind", "choose_dig");
-        prompt.addProperty("sessionId", sessionId);
-        prompt.addProperty("player", playerId);
-        prompt.addProperty("min", min);
-        prompt.addProperty("max", max);
-        prompt.addProperty("optional", min == 0);
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
         }

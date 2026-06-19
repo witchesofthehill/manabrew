@@ -91,22 +91,30 @@ pub(super) fn choose_dig<T: Responder>(
     max: usize,
     optional: bool,
 ) -> Vec<CardId> {
-    let card_ids = PromptAgent::<T>::card_ids(valid);
     let cards = library_dtos(game, valid);
+    let min = if optional { 0 } else { max.min(1) };
     agent.send_prompt(
-        PromptInput::Dig(manabrew_protocol::prompts::dig::DigInput {
-            card_ids,
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: PromptPresentation {
+                title: "Dig".to_string(),
+                description: Some("Choose cards to put into your hand.".to_string()),
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards,
-            num_to_take: max,
-            optional,
+            min,
+            max,
         }),
         None,
     );
     match agent.recv_action() {
-        PromptOutput::Dig(DigOutput::DigDecision { chosen_card_ids }) => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => valid.iter().copied().take(max).collect(),
     }
 }

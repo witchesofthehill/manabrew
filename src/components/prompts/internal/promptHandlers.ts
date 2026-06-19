@@ -68,7 +68,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseCards"]: { showByDefault: true, resolve: forced.forcedCardChoice },
   ["reorderCards"]: { showByDefault: true, resolve: forced.singleCardOrder },
   ["scry"]: { showByDefault: true, resolve: forced.emptyScry },
-  ["dig"]: { showByDefault: true, resolve: forced.emptyDig },
   ["firstPlayerRoll"]: { showByDefault: true, resolve: informational.ackFirstPlayerRoll },
   ["diceRolled"]: { showByDefault: true, resolve: informational.ackDiceRolled },
 };

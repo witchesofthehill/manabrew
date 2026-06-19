@@ -155,14 +155,7 @@ impl BotAgent for SimpleAi {
                 }
                 Some(PromptOutput::Scry(ScryOutput::ScryDecision { zone_card_ids }))
             }
-            PromptInput::Dig(manabrew_protocol::prompts::dig::DigInput {
-                card_ids,
-                num_to_take,
-                ..
-            }) => Some(PromptOutput::Dig(DigOutput::DigDecision {
-                chosen_card_ids: card_ids.into_iter().take(num_to_take).collect(),
-            })),
-            PromptInput::RevealCards(manabrew_protocol::prompts::reveal_cards::RevealCardsInput { .. }) => Some(PromptOutput::RevealCards(RevealCardsOutput::RevealCardsAcknowledged)),
+            PromptInput::RevealCards(manabrew_protocol::prompts::reveal::RevealCardsInput { .. }) => Some(PromptOutput::RevealCards(RevealCardsOutput::RevealCardsAcknowledged)),
             PromptInput::ChooseBoolean(manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
                 presentation,
                 confirm_label,

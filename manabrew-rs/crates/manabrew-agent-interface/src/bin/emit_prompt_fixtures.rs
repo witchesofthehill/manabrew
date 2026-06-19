@@ -92,7 +92,7 @@ fn main() {
             label: "Damage".to_string(),
         }),
         GameOver(game_over::GameOverInput {}),
-        RevealCards(reveal_cards::RevealCardsInput {
+        RevealCards(reveal::RevealCardsInput {
             cards: vec![],
             zone: String::new(),
             owner_player_id: String::new(),
@@ -111,12 +111,6 @@ fn main() {
                 scry::ScryDestination::LibraryTop,
                 scry::ScryDestination::LibraryBottom,
             ],
-        }),
-        Dig(dig::DigInput {
-            card_ids: vec![],
-            cards: vec![],
-            num_to_take: 0,
-            optional: false,
         }),
         ChooseColor(choose_color::ChooseColorInput {
             valid_colors: vec![],

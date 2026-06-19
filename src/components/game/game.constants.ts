@@ -36,7 +36,6 @@ export const PROMPT_LABELS: Record<string, string> = {
   ["chooseBoolean"]: "Make a choice",
   ["chooseFromSelection"]: "Choose from options",
   ["scry"]: "Scry: choose cards to put on the bottom",
-  ["dig"]: "Dig: choose cards to take",
   ["chooseCards"]: "Choose cards",
   ["payCombatCost"]: "Pay attack cost",
   ["payManaCost"]: "Pay mana cost",

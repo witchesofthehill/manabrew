@@ -255,7 +255,7 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
   return (
     <Modal maxWidth="max-w-4xl" maxHeight="">
       {sourceCard && (
-        <div className="pointer-events-none absolute top-0 right-full mr-6 drop-shadow-2xl">
+        <div className="pointer-events-none absolute top-0 left-full ml-6 drop-shadow-2xl">
           <Card card={sourceCard} bare className="w-[240px]" />
         </div>
       )}

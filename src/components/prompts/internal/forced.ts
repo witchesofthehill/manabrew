@@ -146,16 +146,6 @@ export const emptyScry: PromptResolver<"scry"> = (prompt) => {
   };
 };
 
-export const emptyDig: PromptResolver<"dig"> = (prompt) => {
-  const cards = prompt.input.cardIds;
-  if (cards.length > 0) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "digDecision", chosenCardIds: [] },
-    reason: "dig with 0 revealed cards",
-  };
-};
-
 export const singleCardOrder: PromptResolver<"reorderCards"> = (prompt) => {
   const ids = prompt.input.cards.map((c) => c.id);
   if (ids.length > 1) return { kind: "force-show" };

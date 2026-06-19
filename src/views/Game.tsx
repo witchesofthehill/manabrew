@@ -805,8 +805,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     isPassingUntilEot,
     unifiedPass,
     activatePassUntilEot,
-    libraryPeekModal,
-    setLibraryPeekModal,
     spellStackModalOpen,
     setSpellStackModalOpen,
   } = usePromptEffects({
@@ -864,12 +862,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return false;
   };
 
-  const preview = useCardPreview([
-    viewingZone,
-    libraryPeekModal,
-    spellStackModalOpen,
-    abilityPickerState,
-  ]);
+  const preview = useCardPreview([viewingZone, spellStackModalOpen, abilityPickerState]);
 
   const battlefieldContainerRef = useRef<HTMLDivElement>(null);
   const { draggingHandCard, ghostPos, isOverBattlefield, startHandCardDrag } = useHandDrag({
@@ -1699,13 +1692,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         sourceDeckCard={promptSourceDeckCard}
         viewingZone={viewingZone}
         onCloseZone={closeZone}
-        libraryPeekModal={libraryPeekModal}
-        onLibraryPeekConfirm={(selectedIds) => {
-          if (libraryPeekModal!.mode === "discard")
-            respond({ type: "chooseCardsDecision", chosenCardIds: selectedIds });
-          else respond({ type: "digDecision", chosenCardIds: selectedIds });
-          setLibraryPeekModal(null);
-        }}
         spellStackModalOpen={spellStackModalOpen}
         stack={gameView.stack}
         validSpellIds={boardTargets?.spellIds ?? []}
@@ -1762,7 +1748,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         preview.hoveredCard.zoneId !== "hand" &&
         !draggingHandCard &&
         !viewingZone &&
-        !libraryPeekModal &&
         !spellStackModalOpen &&
         !abilityPickerState &&
         (!promptType || HOVER_ALLOWED_PROMPTS.has(promptType)) && (

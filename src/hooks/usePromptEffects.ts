@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
-import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
-import type { GameCard, GameView } from "@/types/manabrew";
+import type { GameView } from "@/types/manabrew";
 
 interface UsePromptEffectsOptions {
   currentPrompt: Prompt | null;
@@ -13,13 +12,6 @@ interface UsePromptEffectsOptions {
   myPlayerId: string;
   turn: number;
   stackLength: number;
-}
-
-interface LibraryPeekState {
-  mode: LibraryPeekMode;
-  cards: GameCard[];
-  numToTake?: number;
-  optional?: boolean;
 }
 
 const AUTO_PASS_DELAY_MIN_MS = 250;
@@ -232,8 +224,6 @@ export function usePromptEffects({
     unifiedPass();
   }
 
-  const [libraryPeekModal, setLibraryPeekModal] = useState<LibraryPeekState | null>(null);
-
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
   useEffect(() => {
@@ -255,8 +245,6 @@ export function usePromptEffects({
     isPassingUntilEot: passUntilTurn !== null,
     unifiedPass,
     activatePassUntilEot,
-    libraryPeekModal,
-    setLibraryPeekModal,
     spellStackModalOpen,
     setSpellStackModalOpen,
   };

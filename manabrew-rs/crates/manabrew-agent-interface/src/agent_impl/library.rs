@@ -1,11 +1,10 @@
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::{CardId, PlayerId};
-use manabrew_protocol::prompts::common::PromptPresentation;
-use manabrew_protocol::prompts::scry::{ScryDestination, ScryInput};
+use manabrew_protocol::prompts::scry::ScryDestination;
 
 use crate::game_view_dto::{card_to_dto, CardDto};
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::prompt::{PlayerAction, PromptInput};
+use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
@@ -40,7 +39,7 @@ fn send_scry<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::ScryDecision { zone_card_ids } => zone_card_ids
+        PromptOutput::Scry(ScryOutput::ScryDecision { zone_card_ids }) => zone_card_ids
             .into_iter()
             .map(|zone| zone.iter().filter_map(|id| parse_card_id(id)).collect())
             .collect(),
@@ -104,7 +103,7 @@ pub(super) fn choose_dig<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::DigDecision { chosen_card_ids } => chosen_card_ids
+        PromptOutput::Dig(DigOutput::DigDecision { chosen_card_ids }) => chosen_card_ids
             .iter()
             .filter_map(|id| parse_card_id(id))
             .collect(),
@@ -137,7 +136,7 @@ pub(super) fn choose_reorder_library<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ReorderDecision { ordered_card_ids } => {
+        PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision { ordered_card_ids }) => {
             let parsed: Vec<CardId> = ordered_card_ids
                 .iter()
                 .filter_map(|s| parse_card_id(s))

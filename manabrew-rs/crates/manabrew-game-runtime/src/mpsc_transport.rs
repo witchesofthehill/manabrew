@@ -4,7 +4,9 @@ use std::time::Duration;
 use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use manabrew_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
+use manabrew_agent_interface::prompt::{
+    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
+};
 
 enum PromptSink {
     Local(mpsc::Sender<AgentMessage>),
@@ -16,7 +18,7 @@ enum PromptSink {
 
 pub struct MpscTransport {
     prompt_sink: PromptSink,
-    response_rx: mpsc::Receiver<PlayerAction>,
+    response_rx: mpsc::Receiver<PromptOutput>,
     notify_tx: Option<mpsc::Sender<GameLogEntryDto>>,
     snapshot_tx: Option<mpsc::Sender<GameSnapshotEventDto>>,
     response_timeout: Option<Duration>,
@@ -25,7 +27,7 @@ pub struct MpscTransport {
 impl MpscTransport {
     pub fn new_local(
         prompt_tx: mpsc::Sender<AgentMessage>,
-        response_rx: mpsc::Receiver<PlayerAction>,
+        response_rx: mpsc::Receiver<PromptOutput>,
         notify_tx: mpsc::Sender<GameLogEntryDto>,
         snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
     ) -> Self {
@@ -41,7 +43,7 @@ impl MpscTransport {
     pub fn new_relay(
         player_index: usize,
         prompt_tx: mpsc::Sender<(usize, AgentMessage)>,
-        response_rx: mpsc::Receiver<PlayerAction>,
+        response_rx: mpsc::Receiver<PromptOutput>,
     ) -> Self {
         Self {
             prompt_sink: PromptSink::Relay {
@@ -68,7 +70,7 @@ impl MpscTransport {
         }
     }
 
-    fn recv(&self) -> PlayerAction {
+    fn recv(&self) -> PromptOutput {
         // When the response channel is disconnected — typically because
         // `GameManager::end_game()` (or the concede branch of `respond`)
         // dropped it to tear the session down — the previous fallback of
@@ -86,12 +88,16 @@ impl MpscTransport {
             match self.response_rx.recv_timeout(timeout) {
                 Ok(action) => action,
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    PlayerAction::Pass { until_phase: None }
+                    PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })
                 }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => PlayerAction::Concede,
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    PromptOutput::ChooseAction(ChooseActionOutput::Concede)
+                }
             }
         } else {
-            self.response_rx.recv().unwrap_or(PlayerAction::Concede)
+            self.response_rx
+                .recv()
+                .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Concede))
         }
     }
 }
@@ -101,7 +107,7 @@ impl Responder for MpscTransport {
         self.send_to_sink(message.clone());
     }
 
-    fn respond(&mut self, _prompt: AgentPrompt) -> PlayerAction {
+    fn respond(&mut self, _prompt: AgentPrompt) -> PromptOutput {
         self.recv()
     }
 

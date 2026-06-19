@@ -24,7 +24,7 @@ use manabrew_agent_interface::java_prompt_normalizer::{
 use manabrew_agent_interface::java_raw::{
     JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
 };
-use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 
 pub fn unsupported_error() -> String {
     "Engine backend 'java-forge' requires building Tauri with --features java-forge".to_string()
@@ -38,7 +38,7 @@ pub fn run_game(
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
     prompt_tx: mpsc::Sender<AgentMessage>,
-    response_rx: mpsc::Receiver<PlayerAction>,
+    response_rx: mpsc::Receiver<PromptOutput>,
 ) {
     if let Err(error) = run_game_inner(
         game_id,
@@ -61,7 +61,7 @@ pub fn run_game(
     _commander_name: Option<String>,
     _opponent_deck_list: Option<Vec<CardIdentity>>,
     _prompt_tx: mpsc::Sender<AgentMessage>,
-    _response_rx: mpsc::Receiver<PlayerAction>,
+    _response_rx: mpsc::Receiver<PromptOutput>,
 ) {
     eprintln!("[java_game_thread] {}", unsupported_error());
 }
@@ -74,7 +74,7 @@ fn run_game_inner(
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
     prompt_tx: mpsc::Sender<AgentMessage>,
-    response_rx: mpsc::Receiver<PlayerAction>,
+    response_rx: mpsc::Receiver<PromptOutput>,
 ) -> Result<(), String> {
     let config = JavaRuntimeConfig::from_env();
     let assets_dir = config.assets_dir.to_string_lossy().to_string();

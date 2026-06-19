@@ -13,10 +13,7 @@ use crate::java_raw::{
 use crate::mana_action_id::{
     parse_tap_action_id, payment_mana_ability_options, priority_mana_actions,
 };
-use crate::prompt::{
-    ActivatableAbilityInfo, AgentPrompt, AttackTargetDto, AttackTargetKind, AvailableAction,
-    AvailableActionKind, PlayerAction, PromptInput, StateUpdate, TargetRef,
-};
+use crate::prompt::*;
 
 pub fn make_java_game_over_prompt() -> AgentPrompt {
     AgentPrompt {
@@ -594,9 +591,9 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
     }
 }
 
-pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction, JavaActionError> {
+pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction, JavaActionError> {
     let java = match action {
-        PlayerAction::Act { action_id } => {
+        PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
             if let Some(index) = action_id
                 .strip_prefix("prompt-action-")
                 .and_then(|s| s.parse::<usize>().ok())
@@ -617,147 +614,167 @@ pub fn translate_java_player_action(action: &PlayerAction) -> Result<JavaAction,
                 return Err(JavaActionError { action_type: "act" });
             }
         }
-        PlayerAction::PlayCard { card_id, mode } => {
-            let index = mode
-                .as_deref()
-                .and_then(|mode| {
-                    mode.strip_prefix("prompt-action-")
-                        .or_else(|| mode.strip_prefix("java-forge-action:"))
-                })
-                .or_else(|| {
-                    (mode.as_deref() == Some("java-forge-action"))
-                        .then(|| card_id.strip_prefix("java-action-"))
-                        .flatten()
-                })
-                .and_then(|index| index.parse::<usize>().ok())
-                .ok_or(JavaActionError {
-                    action_type: "playCard",
-                })?;
-            JavaAction::ChooseAction { index }
+        PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => {
+            JavaAction::MulliganDecision { keep: *keep }
         }
-        PlayerAction::MulliganDecision { keep } => JavaAction::MulliganDecision { keep: *keep },
-        PlayerAction::MulliganPutBackDecision { card_ids } => JavaAction::ChooseCards {
+        PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision {
+            card_ids,
+        }) => JavaAction::ChooseCards {
             card_ids: card_ids.clone(),
         },
-        PlayerAction::RevealCardsAcknowledged => JavaAction::RevealCardsAcknowledged,
-        PlayerAction::FirstPlayerRollAcknowledged => JavaAction::FirstPlayerRollAcknowledged,
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => JavaAction::ChooseCards {
-            card_ids: chosen_card_ids.clone(),
-        },
-        PlayerAction::SelectionDecision { chosen_indices } => JavaAction::ModeDecision {
+        PromptOutput::RevealCards(RevealCardsOutput::RevealCardsAcknowledged) => {
+            JavaAction::RevealCardsAcknowledged
+        }
+        PromptOutput::FirstPlayerRoll(FirstPlayerRollOutput::FirstPlayerRollAcknowledged) => {
+            JavaAction::FirstPlayerRollAcknowledged
+        }
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            JavaAction::ChooseCards {
+                card_ids: chosen_card_ids.clone(),
+            }
+        }
+        PromptOutput::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
+            chosen_indices,
+        }) => JavaAction::ModeDecision {
             indices: chosen_indices.clone(),
         },
-        PlayerAction::Decision { value } => JavaAction::BooleanDecision { accept: *value },
-        PlayerAction::ColorDecision { color } => JavaAction::StringDecision {
-            value: color.clone().unwrap_or_default(),
-        },
-        PlayerAction::TypeDecision { chosen_type } => JavaAction::StringDecision {
-            value: chosen_type.clone().unwrap_or_default(),
-        },
-        PlayerAction::CardNameDecision { chosen_name } => JavaAction::StringDecision {
-            value: chosen_name.clone().unwrap_or_default(),
-        },
-        PlayerAction::NumberDecision { chosen_number } => JavaAction::NumberDecision {
-            number: chosen_number.unwrap_or_default(),
-        },
-        PlayerAction::ScryDecision { zone_card_ids } => JavaAction::ScryDecision {
-            zone_card_ids: zone_card_ids.clone(),
-        },
-        PlayerAction::DigDecision { chosen_card_ids } => JavaAction::DigDecision {
+        PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => {
+            JavaAction::BooleanDecision { accept: *value }
+        }
+        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { color }) => {
+            JavaAction::StringDecision {
+                value: color.clone().unwrap_or_default(),
+            }
+        }
+        PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision { chosen_type }) => {
+            JavaAction::StringDecision {
+                value: chosen_type.clone().unwrap_or_default(),
+            }
+        }
+        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { chosen_name }) => {
+            JavaAction::StringDecision {
+                value: chosen_name.clone().unwrap_or_default(),
+            }
+        }
+        PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision { chosen_number }) => {
+            JavaAction::NumberDecision {
+                number: chosen_number.unwrap_or_default(),
+            }
+        }
+        PromptOutput::Scry(ScryOutput::ScryDecision { zone_card_ids }) => {
+            JavaAction::ScryDecision {
+                zone_card_ids: zone_card_ids.clone(),
+            }
+        }
+        PromptOutput::Dig(DigOutput::DigDecision { chosen_card_ids }) => JavaAction::DigDecision {
             chosen_card_ids: chosen_card_ids.clone(),
         },
-        PlayerAction::DelveDecision { chosen_card_ids } => JavaAction::ChooseCards {
-            card_ids: chosen_card_ids.clone(),
-        },
-        PlayerAction::ReorderDecision { ordered_card_ids } => JavaAction::ReorderLibraryDecision {
-            ordered_card_ids: ordered_card_ids.clone(),
-        },
-        PlayerAction::DamageAssignmentOrderDecision {
-            ordered_blocker_ids,
-        } => JavaAction::DamageAssignmentOrderDecision {
+        PromptOutput::ChooseDelve(ChooseDelveOutput::DelveDecision { chosen_card_ids }) => {
+            JavaAction::ChooseCards {
+                card_ids: chosen_card_ids.clone(),
+            }
+        }
+        PromptOutput::ReorderCards(ReorderCardsOutput::ReorderDecision { ordered_card_ids }) => {
+            JavaAction::ReorderLibraryDecision {
+                ordered_card_ids: ordered_card_ids.clone(),
+            }
+        }
+        PromptOutput::ChooseDamageAssignmentOrder(
+            ChooseDamageAssignmentOrderOutput::DamageAssignmentOrderDecision {
+                ordered_blocker_ids,
+            },
+        ) => JavaAction::DamageAssignmentOrderDecision {
             ordered_card_ids: ordered_blocker_ids.clone(),
         },
-        PlayerAction::CombatDamageAssignmentDecision { assignments } => {
-            JavaAction::CombatDamageAssignmentDecision {
+        PromptOutput::ChooseCombatDamageAssignment(
+            ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments },
+        ) => JavaAction::CombatDamageAssignmentDecision {
+            assignments: assignments
+                .iter()
+                .map(|assignment| JavaCombatAssignment {
+                    assignee_id: assignment.assignee_id.clone(),
+                    damage: assignment.damage,
+                })
+                .collect(),
+        },
+        PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
+            match chosen.first() {
+                Some(TargetRef::Player { id }) => JavaAction::TargetChoice {
+                    target: JavaTarget {
+                        kind: JavaTargetKind::Player,
+                        id: id.clone(),
+                    },
+                },
+                Some(TargetRef::Card { id }) => JavaAction::TargetChoice {
+                    target: JavaTarget {
+                        kind: JavaTargetKind::Card,
+                        id: id.clone(),
+                    },
+                },
+                Some(TargetRef::Spell { id }) => JavaAction::TargetChoice {
+                    target: JavaTarget {
+                        kind: JavaTargetKind::Spell,
+                        id: id.clone(),
+                    },
+                },
+                None => JavaAction::TargetChoice {
+                    target: JavaTarget {
+                        kind: JavaTargetKind::Card,
+                        id: String::new(),
+                    },
+                },
+            }
+        }
+        PromptOutput::ChooseAttackers(ChooseAttackersOutput::DeclareAttackers { assignments }) => {
+            JavaAction::DeclareAttackers {
                 assignments: assignments
                     .iter()
-                    .map(|assignment| JavaCombatAssignment {
-                        assignee_id: assignment.assignee_id.clone(),
-                        damage: assignment.damage,
+                    .map(|assignment| JavaAttackAssignment {
+                        attacker_id: assignment.attacker_id.clone(),
+                        defender_id: assignment.target_id.clone(),
                     })
                     .collect(),
             }
         }
-        PlayerAction::BoardTargets { chosen } => match chosen.first() {
-            Some(TargetRef::Player { id }) => JavaAction::TargetChoice {
-                target: JavaTarget {
-                    kind: JavaTargetKind::Player,
-                    id: id.clone(),
-                },
-            },
-            Some(TargetRef::Card { id }) => JavaAction::TargetChoice {
-                target: JavaTarget {
-                    kind: JavaTargetKind::Card,
-                    id: id.clone(),
-                },
-            },
-            Some(TargetRef::Spell { id }) => JavaAction::TargetChoice {
-                target: JavaTarget {
-                    kind: JavaTargetKind::Spell,
-                    id: id.clone(),
-                },
-            },
-            None => JavaAction::TargetChoice {
-                target: JavaTarget {
-                    kind: JavaTargetKind::Card,
-                    id: String::new(),
-                },
-            },
-        },
-        PlayerAction::DeclareAttackers { assignments } => JavaAction::DeclareAttackers {
-            assignments: assignments
-                .iter()
-                .map(|assignment| JavaAttackAssignment {
-                    attacker_id: assignment.attacker_id.clone(),
-                    defender_id: assignment.target_id.clone(),
-                })
-                .collect(),
-        },
-        PlayerAction::DeclareBlockers { assignments } => JavaAction::DeclareBlockers {
-            assignments: assignments
-                .iter()
-                .map(|assignment| JavaBlockAssignment {
-                    blocker_id: assignment.blocker_id.clone(),
-                    attacker_id: assignment.attacker_id.clone(),
-                })
-                .collect(),
-        },
-        PlayerAction::ActivateAbility {
-            ability_index: index,
-            ..
-        } => JavaAction::ChooseAction { index: *index },
-        PlayerAction::TapForMana {
+        PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers { assignments }) => {
+            JavaAction::DeclareBlockers {
+                assignments: assignments
+                    .iter()
+                    .map(|assignment| JavaBlockAssignment {
+                        blocker_id: assignment.blocker_id.clone(),
+                        attacker_id: assignment.attacker_id.clone(),
+                    })
+                    .collect(),
+            }
+        }
+        PromptOutput::ManaSource(ManaSourceAction::TapForMana {
             card_id,
             ability_index,
             color,
-        } => JavaAction::TapLand {
+        }) => JavaAction::TapLand {
             card_id: card_id.clone(),
             mana_ability_index: *ability_index,
             color: color.clone(),
         },
-        PlayerAction::Untap { card_id } => JavaAction::UntapLand {
+        PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => JavaAction::UntapLand {
             card_id: card_id.clone(),
         },
-        PlayerAction::PayManaCost { auto } => JavaAction::PayMana { auto: *auto },
-        PlayerAction::ManaComboDecision { chosen_colors } => JavaAction::ManaComboDecision {
+        PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto }) => {
+            JavaAction::PayMana { auto: *auto }
+        }
+        PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision {
+            chosen_colors,
+        }) => JavaAction::ManaComboDecision {
             chosen_colors: chosen_colors.clone(),
         },
-        PlayerAction::PayLife => JavaAction::PayLife,
-        PlayerAction::CancelManaCost => JavaAction::CancelMana,
-        PlayerAction::Pass { until_phase } => JavaAction::Pass {
+        PromptOutput::PayManaCost(PayManaCostOutput::PayLife) => JavaAction::PayLife,
+        PromptOutput::PayManaCost(PayManaCostOutput::CancelManaCost) => JavaAction::CancelMana,
+        PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase }) => JavaAction::Pass {
             until_phase: until_phase.clone(),
         },
-        PlayerAction::Concede => JavaAction::Pass { until_phase: None },
+        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => {
+            JavaAction::Pass { until_phase: None }
+        }
         other => {
             return Err(JavaActionError {
                 action_type: player_action_label(other),
@@ -775,23 +792,17 @@ fn java_target_to_ref(target: crate::java_raw::JavaRawStackTarget) -> TargetRef 
     }
 }
 
-fn player_action_label(action: &PlayerAction) -> &'static str {
+fn player_action_label(action: &PromptOutput) -> &'static str {
     match action {
-        PlayerAction::EngineAction { .. } => "engineAction",
-        PlayerAction::TapForMana { .. } => "tapLand",
-        PlayerAction::Untap { .. } => "untapLand",
-        PlayerAction::BoardTargets { .. } => "boardTargets",
-        PlayerAction::Decision { .. } => "decision",
-        PlayerAction::PayCombatCost => "payCombatCost",
-        PlayerAction::DeclineCombatCost => "declineCombatCost",
-        PlayerAction::RestoreSnapshot { .. } => "restoreSnapshot",
-        PlayerAction::ManaComboDecision { .. } => "manaComboDecision",
-        PlayerAction::PayManaCost { .. } => "payManaCost",
-        PlayerAction::PayLife => "payLife",
-        PlayerAction::CancelManaCost => "cancelManaCost",
-        PlayerAction::DiceRolledAcknowledged => "diceRolledAcknowledged",
-        PlayerAction::FirstPlayerRollAcknowledged => "firstPlayerRollAcknowledged",
-        PlayerAction::SelectionDecision { .. } => "selectionDecision",
+        PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { .. }) => "restoreSnapshot",
+        PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision { .. }) => {
+            "manaComboDecision"
+        }
+        PromptOutput::PayCombatCost(PayCombatCostOutput::PayCombatCost) => "payCombatCost",
+        PromptOutput::PayCombatCost(PayCombatCostOutput::DeclineCombatCost) => "declineCombatCost",
+        PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged) => {
+            "diceRolledAcknowledged"
+        }
         _ => "unknown",
     }
 }

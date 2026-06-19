@@ -31,16 +31,4 @@ pub enum PayManaCostOutput {
     },
     PayLife,
     CancelManaCost,
-    TapForMana {
-        card_id: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        ability_index: Option<usize>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        color: Option<String>,
-    },
-    Untap {
-        card_id: String,
-    },
 }

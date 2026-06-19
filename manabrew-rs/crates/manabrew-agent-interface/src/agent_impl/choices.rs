@@ -5,12 +5,9 @@ use manabrew_engine::spellability::SpellAbility;
 
 use manabrew_engine::game::GameState;
 
-use manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput;
-use manabrew_protocol::prompts::common::PromptPresentation;
-
 use crate::game_view_dto::{card_to_dto, CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::prompt::{PlayerAction, PromptInput};
+use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
@@ -66,7 +63,9 @@ fn send_selection<T: Responder>(
 
 fn recv_selection<T: Responder>(agent: &mut PromptAgent<T>) -> Option<Vec<usize>> {
     match agent.recv_action() {
-        PlayerAction::SelectionDecision { chosen_indices } => Some(chosen_indices),
+        PromptOutput::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
+            chosen_indices,
+        }) => Some(chosen_indices),
         _ => None,
     }
 }
@@ -168,8 +167,8 @@ pub(super) fn mulligan_decision_recv<T: Responder>(
     // any other action is a contract violation. Concede short-circuits
     // so a torn-down session exits cleanly.
     match agent.recv_action() {
-        PlayerAction::MulliganDecision { keep } => keep,
-        PlayerAction::Concede => true,
+        PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => keep,
+        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => true,
         other => panic!("mulligan_decision_recv expected MulliganDecision, got {other:?}"),
     }
 }
@@ -218,9 +217,9 @@ pub(super) fn choose_cards_to_bottom_recv<T: Responder>(
     count: usize,
 ) -> Vec<CardId> {
     match agent.recv_action() {
-        PlayerAction::MulliganPutBackDecision { card_ids } => {
-            card_ids.iter().filter_map(|s| parse_card_id(s)).collect()
-        }
+        PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision {
+            card_ids,
+        }) => card_ids.iter().filter_map(|s| parse_card_id(s)).collect(),
         _ => hand.iter().copied().take(count).collect(),
     }
 }
@@ -447,7 +446,7 @@ fn send_boolean<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::Decision { value } => value,
+        PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => value,
         _ => default,
     }
 }
@@ -570,13 +569,12 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::Decision { value } => value,
+        PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => value,
         _ => false,
     }
 }
 
-fn game_entity_to_target_ref(entity: &GameEntity) -> manabrew_protocol::prompts::common::TargetRef {
-    use manabrew_protocol::prompts::common::TargetRef;
+fn game_entity_to_target_ref(entity: &GameEntity) -> TargetRef {
     match entity {
         GameEntity::Card(id) => TargetRef::Card {
             id: card_id_str(*id),
@@ -613,7 +611,7 @@ pub(super) fn choose_color<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ColorDecision { color } => color,
+        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { color }) => color,
         _ => valid_colors.first().cloned(),
     }
 }
@@ -665,7 +663,7 @@ pub(super) fn choose_type<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::TypeDecision { chosen_type } => chosen_type,
+        PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision { chosen_type }) => chosen_type,
         _ => valid_types.first().cloned(),
     }
 }
@@ -684,7 +682,9 @@ pub(super) fn choose_card_name<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::CardNameDecision { chosen_name } => chosen_name,
+        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { chosen_name }) => {
+            chosen_name
+        }
         _ => valid_names.first().cloned(),
     }
 }
@@ -902,7 +902,9 @@ pub(super) fn choose_number<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::NumberDecision { chosen_number } => chosen_number,
+        PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision { chosen_number }) => {
+            chosen_number
+        }
         _ => Some(min),
     }
 }
@@ -924,10 +926,12 @@ pub(super) fn choose_discard<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => hand.iter().copied().take(num).collect(),
     }
 }
@@ -971,10 +975,12 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => valid.iter().copied().take(max).collect(),
     }
 }
@@ -1016,7 +1022,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => {
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
             chosen_card_ids.first().and_then(|id| parse_card_id(id))
         }
         _ => {
@@ -1065,10 +1071,12 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => valid.iter().copied().take(max).collect(),
     }
 }

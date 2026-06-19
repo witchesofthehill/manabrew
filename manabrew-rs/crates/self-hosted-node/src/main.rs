@@ -15,7 +15,7 @@ use futures_util::{SinkExt, StreamExt};
 use manabot::{run_bot, AgentKind, BotConfig};
 use manabrew_agent_interface::deck_dto::Deck;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
-use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
     ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
     StateEnvelope,
@@ -46,10 +46,10 @@ struct RelayClient {
 
 enum EngineSession {
     Manabrew {
-        remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
+        remote_response_txs: HashMap<usize, std_mpsc::Sender<PromptOutput>>,
     },
     Forge {
-        remote_response_txs: HashMap<usize, std_mpsc::Sender<PlayerAction>>,
+        remote_response_txs: HashMap<usize, std_mpsc::Sender<PromptOutput>>,
         cancel: Arc<AtomicBool>,
     },
 }
@@ -782,7 +782,7 @@ fn maybe_start_hosted_engine(
                 if Some(i) == local_player_index {
                     continue;
                 }
-                let (response_tx, response_rx) = std_mpsc::channel::<PlayerAction>();
+                let (response_tx, response_rx) = std_mpsc::channel::<PromptOutput>();
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
@@ -827,7 +827,7 @@ fn maybe_start_hosted_engine(
                 if Some(i) == local_player_index {
                     continue;
                 }
-                let (response_tx, response_rx) = std_mpsc::channel::<PlayerAction>();
+                let (response_tx, response_rx) = std_mpsc::channel::<PromptOutput>();
                 remote_response_txs.insert(i, response_tx);
                 remote_response_rxs.push((i, response_rx));
             }
@@ -990,7 +990,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
         EngineSession::Manabrew {
             remote_response_txs,
         } => {
-            let action: PlayerAction = match serde_json::from_value(action_value) {
+            let action: PromptOutput = match serde_json::from_value(action_value) {
                 Ok(action) => action,
                 Err(error) => {
                     warn!(from_player, %error, "relay response has invalid rust action");
@@ -1009,7 +1009,7 @@ fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {
             remote_response_txs,
             ..
         } => {
-            let action: PlayerAction = match serde_json::from_value(action_value) {
+            let action: PromptOutput = match serde_json::from_value(action_value) {
                 Ok(action) => action,
                 Err(error) => {
                     warn!(from_player, %error, "relay response has invalid java action");

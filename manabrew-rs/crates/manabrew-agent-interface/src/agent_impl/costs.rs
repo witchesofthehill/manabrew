@@ -2,12 +2,9 @@ use manabrew_engine::agent::{ManaAbilityOption, ManaCostAction};
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 
-use manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput;
-use manabrew_protocol::prompts::common::PromptPresentation;
-
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::mana_action_id::payment_mana_ability_options;
-use crate::prompt::{PlayerAction, PromptInput};
+use crate::prompt::*;
 
 use super::{parse_express_mana_choice, PromptAgent, Responder};
 
@@ -27,7 +24,7 @@ fn choose_boolean<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::Decision { value } => value,
+        PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => value,
         _ => false,
     }
 }
@@ -194,22 +191,26 @@ pub(super) fn pay_mana_cost<T: Responder>(
         Some(card_id),
     );
     match agent.recv_action() {
-        PlayerAction::TapForMana {
+        PromptOutput::ManaSource(ManaSourceAction::TapForMana {
             card_id,
             ability_index,
             color,
-        } => parse_card_id(&card_id)
+        }) => parse_card_id(&card_id)
             .map(|card_id| ManaCostAction::TapForMana {
                 card_id,
                 mana_ability_index: ability_index,
                 express_choice: parse_express_mana_choice(color.as_deref()),
             })
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PlayerAction::Untap { card_id } => parse_card_id(&card_id)
+        PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => parse_card_id(&card_id)
             .map(ManaCostAction::Untap)
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PlayerAction::PayManaCost { auto } => ManaCostAction::Pay { auto },
-        PlayerAction::CancelManaCost => ManaCostAction::AttemptedAndFailed,
+        PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto }) => {
+            ManaCostAction::Pay { auto }
+        }
+        PromptOutput::PayManaCost(PayManaCostOutput::CancelManaCost) => {
+            ManaCostAction::AttemptedAndFailed
+        }
         _ => ManaCostAction::AttemptedAndFailed,
     }
 }
@@ -240,7 +241,9 @@ pub(super) fn specify_mana_combo<T: Responder>(
     );
     let action = agent.recv_action();
     match action {
-        PlayerAction::ManaComboDecision { chosen_colors } => {
+        PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision {
+            chosen_colors,
+        }) => {
             // Validate: only return valid colors, pad/truncate to amount
             let mut result: Vec<String> = chosen_colors
                 .into_iter()
@@ -291,12 +294,14 @@ pub(super) fn choose_delve<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::DelveDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .filter(|cid| valid.contains(cid))
-            .take(max)
-            .collect(),
+        PromptOutput::ChooseDelve(ChooseDelveOutput::DelveDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .filter(|cid| valid.contains(cid))
+                .take(max)
+                .collect()
+        }
         _ => vec![],
     }
 }

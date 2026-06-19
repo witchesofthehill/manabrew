@@ -6,7 +6,7 @@
 //! picks which agent to spawn via the `agent` field of the bot config.
 
 use manabrew_agent_interface::agent_impl::Responder;
-use manabrew_agent_interface::prompt::{AgentPrompt, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentPrompt, ChooseActionOutput, PromptOutput};
 use serde::{Deserialize, Serialize};
 
 pub mod simple_ai;
@@ -18,7 +18,7 @@ pub trait BotAgent: Send {
     /// `None` means no action for this prompt — only the display-only/terminal
     /// kinds (`StateUpdate`, `GameOver`); every decision prompt yields `Some`
     /// (an explicit `Pass` yields priority). Callers supply their own fallback.
-    fn decide(&mut self, prompt: AgentPrompt) -> Option<PlayerAction>;
+    fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput>;
 }
 
 /// Wire-level selector for which built-in agent the bot should use.
@@ -54,9 +54,11 @@ impl Default for BotResponder {
 }
 
 impl Responder for BotResponder {
-    fn respond(&mut self, prompt: AgentPrompt) -> PlayerAction {
+    fn respond(&mut self, prompt: AgentPrompt) -> PromptOutput {
         self.agent
             .decide(prompt)
-            .unwrap_or(PlayerAction::Pass { until_phase: None })
+            .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                until_phase: None,
+            }))
     }
 }

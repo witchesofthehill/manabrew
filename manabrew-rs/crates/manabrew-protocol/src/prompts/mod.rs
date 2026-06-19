@@ -30,6 +30,40 @@ pub mod reveal_cards;
 pub mod scry;
 pub mod specify_mana_combo;
 
+pub use choose_action::{
+    AvailableAction, AvailableActionKind, ChooseActionInput, ChooseActionOutput,
+};
+pub use choose_attackers::{ChooseAttackersInput, ChooseAttackersOutput};
+pub use choose_blockers::{ChooseBlockersInput, ChooseBlockersOutput};
+pub use choose_board_targets::{ChooseBoardTargetsInput, ChooseBoardTargetsOutput};
+pub use choose_boolean::{ChooseBooleanInput, ChooseBooleanOutput};
+pub use choose_card_name::{ChooseCardNameInput, ChooseCardNameOutput};
+pub use choose_cards::{ChooseCardsInput, ChooseCardsOutput};
+pub use choose_color::{ChooseColorInput, ChooseColorOutput};
+pub use choose_combat_damage_assignment::{
+    ChooseCombatDamageAssignmentInput, ChooseCombatDamageAssignmentOutput,
+};
+pub use choose_damage_assignment_order::{
+    ChooseDamageAssignmentOrderInput, ChooseDamageAssignmentOrderOutput,
+};
+pub use choose_delve::{ChooseDelveInput, ChooseDelveOutput};
+pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
+pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
+pub use choose_type::{ChooseTypeInput, ChooseTypeOutput};
+pub use common::ManaSourceAction;
+pub use dice_rolled::{DiceRolledInput, DiceRolledOutput};
+pub use dig::{DigInput, DigOutput};
+pub use first_player_roll::{FirstPlayerRollInput, FirstPlayerRollOutput};
+pub use game_over::GameOverInput;
+pub use mulligan::{MulliganInput, MulliganOutput};
+pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
+pub use pay_combat_cost::{PayCombatCostInput, PayCombatCostOutput};
+pub use pay_mana_cost::{PayManaCostInput, PayManaCostOutput};
+pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
+pub use reveal_cards::{RevealCardsInput, RevealCardsOutput};
+pub use scry::{ScryInput, ScryOutput};
+pub use specify_mana_combo::{SpecifyManaComboInput, SpecifyManaComboOutput};
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/promptInput.ts")]
@@ -64,10 +98,6 @@ pub enum PromptInput {
     DiceRolled(dice_rolled::DiceRolledInput),
 }
 
-/// Union of every per-prompt response shape. Untagged because each `*Output` is
-/// already a `type`-tagged union; this exists to generate the TS `PromptOutput`
-/// union and to act as the ts-rs export root for the output types. The engine
-/// wire response is `PlayerAction` (in `manabrew-agent-interface`), not this.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(untagged)]
 #[ts(export, export_to = "prompts/promptOutput.ts")]
@@ -94,6 +124,7 @@ pub enum PromptOutput {
     PayCombatCost(pay_combat_cost::PayCombatCostOutput),
     ChooseDelve(choose_delve::ChooseDelveOutput),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
+    ManaSource(common::ManaSourceAction),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),
     ReorderCards(reorder_cards::ReorderCardsOutput),

@@ -32,7 +32,11 @@ use manabrew_agent_interface::java_prompt_normalizer::{
 use manabrew_agent_interface::java_raw::{
     JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
 };
-use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+#[cfg(feature = "java-forge")]
+use manabrew_agent_interface::prompt::{
+    ChooseActionOutput, FirstPlayerRollOutput, MulliganOutput, MulliganPutBackOutput,
+};
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
 use serde_json::json;
@@ -704,7 +708,7 @@ pub fn run_hosted_engine_game(
     ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
+    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) {
@@ -735,7 +739,7 @@ pub fn run_hosted_engine_game(
     _ai_player_indices: Vec<usize>,
     _starting_life: i32,
     _remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
+    _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     _game_over_tx: std_mpsc::Sender<HostedGameOver>,
     _cancel: Arc<AtomicBool>,
 ) {
@@ -755,7 +759,7 @@ fn run_hosted_engine_game_inner(
     ai_player_indices: Vec<usize>,
     starting_life: i32,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
-    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PlayerAction>)>,
+    remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
@@ -799,7 +803,7 @@ fn run_hosted_engine_game_inner(
         armed: std::cell::Cell::new(true),
     };
 
-    let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<PlayerAction>> =
+    let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<PromptOutput>> =
         remote_response_rxs.into_iter().collect();
     let mut last_prompt_json: Option<String> = None;
     let mut pending_roll_acks: usize = 0;
@@ -815,7 +819,9 @@ fn run_hosted_engine_game_inner(
         for (player_index, rx) in &mut remote_response_rxs {
             loop {
                 match rx.try_recv() {
-                    Ok(PlayerAction::FirstPlayerRollAcknowledged) => {
+                    Ok(PromptOutput::FirstPlayerRoll(
+                        FirstPlayerRollOutput::FirstPlayerRollAcknowledged,
+                    )) => {
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
                             if pending_roll_acks == 0 {
@@ -1049,20 +1055,24 @@ impl JavaScenario {
         }
     }
 
-    fn next_action(&mut self, prompt: &Value) -> Result<Option<PlayerAction>, String> {
+    fn next_action(&mut self, prompt: &Value) -> Result<Option<PromptOutput>, String> {
         match self {
             Self::KeepAndPlayLand { played_land } => {
                 if *played_land && battlefield_contains(prompt, "Swamp") {
                     return Ok(None);
                 }
                 match prompt_type(prompt) {
-                    Some("mulligan") => Ok(Some(PlayerAction::MulliganDecision { keep: true })),
+                    Some("mulligan") => Ok(Some(PromptOutput::Mulligan(
+                        MulliganOutput::MulliganDecision { keep: true },
+                    ))),
                     Some("chooseAction") => {
                         if let Some(action) = play_first_card_action(prompt, "Swamp")? {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PlayerAction::Pass { until_phase: None }))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                                until_phase: None,
+                            })))
                         }
                     }
                     other => Err(format!(
@@ -1084,11 +1094,11 @@ impl JavaScenario {
                 match prompt_type(prompt) {
                     Some("mulligan") if !*mulliganed => {
                         *mulliganed = true;
-                        Ok(Some(PlayerAction::MulliganDecision { keep: false }))
+                        Ok(Some(PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: false })))
                     }
                     Some("mulligan") if !*kept_second_hand => {
                         *kept_second_hand = true;
-                        Ok(Some(PlayerAction::MulliganDecision { keep: true }))
+                        Ok(Some(PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep: true })))
                     }
                     Some("mulliganPutBack") if !*put_back_done => {
                         let count = prompt
@@ -1097,14 +1107,14 @@ impl JavaScenario {
                             .unwrap_or(1) as usize;
                         let card_ids = prompt_card_ids(prompt, "handCardIds", count)?;
                         *put_back_done = true;
-                        Ok(Some(PlayerAction::MulliganPutBackDecision { card_ids }))
+                        Ok(Some(PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision { card_ids })))
                     }
                     Some("chooseAction") => {
                         if let Some(action) = play_first_card_action(prompt, "Swamp")? {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PlayerAction::Pass { until_phase: None }))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })))
                         }
                     }
                     other => Err(format!(
@@ -1324,7 +1334,7 @@ fn dump_stuck<B: JavaBridge>(
 #[cfg(feature = "java-forge")]
 fn submit_player_action<B: JavaBridge>(
     session: &mut JavaForgeSession<B>,
-    action: &PlayerAction,
+    action: &PromptOutput,
 ) -> Result<(), String> {
     let java_action = translate_java_player_action(action)
         .map_err(|err| format!("scenario player action has no java translation: {err}"))?;
@@ -1340,7 +1350,7 @@ fn prompt_type(prompt: &Value) -> Option<&str> {
 }
 
 #[cfg(feature = "java-forge")]
-fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<PlayerAction>, String> {
+fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<PromptOutput>, String> {
     let Some(option) = prompt
         .get("playableOptions")
         .and_then(Value::as_array)
@@ -1355,18 +1365,13 @@ fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<Play
     else {
         return Ok(None);
     };
-    let card_id = option
-        .get("cardId")
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("playable option for '{card_name}' is missing cardId"))?;
     let mode = option
         .get("mode")
         .and_then(Value::as_str)
         .ok_or_else(|| format!("playable option for '{card_name}' is missing mode"))?;
-    Ok(Some(PlayerAction::PlayCard {
-        card_id: card_id.to_string(),
-        mode: Some(mode.to_string()),
-    }))
+    Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Act {
+        action_id: mode.to_string(),
+    })))
 }
 
 #[cfg(feature = "java-forge")]

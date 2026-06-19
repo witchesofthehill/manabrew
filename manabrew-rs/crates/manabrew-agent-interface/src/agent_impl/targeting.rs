@@ -4,7 +4,7 @@ use manabrew_engine::ids::{CardId, PlayerId};
 
 use crate::game_view_dto::TargetingIntent;
 use crate::ids_codec::{parse_card_id, parse_player_id, stack_id_str};
-use crate::prompt::{PlayerAction, PromptInput, TargetRef};
+use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
 
@@ -57,7 +57,9 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
             source,
         );
         match agent.recv_action() {
-            PlayerAction::BoardTargets { chosen: picked } if !picked.is_empty() => {
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets {
+                chosen: picked,
+            }) if !picked.is_empty() => {
                 let mut advanced = false;
                 for r in picked {
                     if let TargetRef::Card { id } = r {
@@ -161,14 +163,16 @@ pub(super) fn choose_target_any<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::BoardTargets { chosen } => chosen
-            .into_iter()
-            .find_map(|r| match r {
-                TargetRef::Player { id } => parse_player_id(&id).map(TargetChoice::Player),
-                TargetRef::Card { id } => parse_card_id(&id).map(TargetChoice::Card),
-                TargetRef::Spell { .. } => None,
-            })
-            .unwrap_or(TargetChoice::None),
+        PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
+            chosen
+                .into_iter()
+                .find_map(|r| match r {
+                    TargetRef::Player { id } => parse_player_id(&id).map(TargetChoice::Player),
+                    TargetRef::Card { id } => parse_card_id(&id).map(TargetChoice::Card),
+                    TargetRef::Spell { .. } => None,
+                })
+                .unwrap_or(TargetChoice::None)
+        }
         _ => {
             if let Some(&pid) = valid_players.first() {
                 TargetChoice::Player(pid)

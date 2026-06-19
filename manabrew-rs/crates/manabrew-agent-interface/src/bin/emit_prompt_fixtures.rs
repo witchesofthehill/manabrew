@@ -177,6 +177,7 @@ fn main() {
             mana_ability_options: vec![],
             tappable_source_ids: vec![],
             untappable_source_ids: vec![],
+            delve_source_ids: vec![],
             mana_pool_total: 0,
             can_confirm_from_pool: false,
         }),

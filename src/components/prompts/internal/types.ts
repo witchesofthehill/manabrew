@@ -62,6 +62,9 @@ export interface PayManaCostProps extends PromptActionLayoutProps {
     manaCost: string;
     manaPool: Record<string, number>;
     canConfirmFromPool: boolean;
+    delveCount?: number;
+    delveAvailable?: boolean;
+    onOpenDelve?: () => void;
   } | null;
   onPayManaCost?: () => void;
   onAutoManaCost?: () => void;

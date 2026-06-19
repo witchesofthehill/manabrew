@@ -306,6 +306,8 @@ pub enum JavaRawPromptBody {
         tappable_land_ids: Vec<String>,
         #[serde(rename = "untappableLandIds", default)]
         untappable_land_ids: Vec<String>,
+        #[serde(rename = "delveSourceIds", default)]
+        delve_source_ids: Vec<String>,
         #[serde(rename = "manaPoolTotal", default)]
         mana_pool_total: i32,
         #[serde(rename = "canConfirmFromPool", default)]
@@ -715,6 +717,14 @@ pub enum JavaAction {
         color: Option<String>,
     },
     UntapLand {
+        #[serde(rename = "cardId")]
+        card_id: String,
+    },
+    Delve {
+        #[serde(rename = "cardId")]
+        card_id: String,
+    },
+    Undelve {
         #[serde(rename = "cardId")]
         card_id: String,
     },

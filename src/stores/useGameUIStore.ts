@@ -36,6 +36,13 @@ interface ViewingZoneState {
   cards: GameCard[];
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];
+  selectedCardIds?: string[];
+  clickLabel?: string;
+  selectedLabel?: string;
+  /** Prompt type this viewer serves. While set, the viewer stays open across
+   *  same-type re-prompts (e.g. picking the 2nd of N targets) and only closes
+   *  once the active prompt changes type or ends. */
+  stickyPromptType?: string;
   targetHostile?: boolean;
 }
 

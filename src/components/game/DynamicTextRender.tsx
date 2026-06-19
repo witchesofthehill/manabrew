@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 interface DynamicTextRenderProps {
   text: string;
+  className?: string;
 }
 
 // Splits on mana groups (`{2}{R}`) and power/toughness modifiers (`+2/+2`,
@@ -18,11 +19,11 @@ const PT_MODIFIER = /^[+-]\d+\/[+-]\d+$/;
  * modifiers. `{W}`, `{2}{R}` become Scryfall SVG symbols; `+2/+2` / `-1/-1`
  * become colored P/T pills; plain text is rendered as-is.
  */
-export function DynamicTextRender({ text }: DynamicTextRenderProps) {
+export function DynamicTextRender({ text, className }: DynamicTextRenderProps) {
   const lifeColor = useTheme().gameTheme.life;
   const parts = text.split(TOKEN);
   return (
-    <span className="inline-flex items-center gap-0.5 flex-wrap">
+    <span className={cn("inline-flex items-center gap-0.5 flex-wrap", className)}>
       {parts.map((part, i) => {
         if (part === "{LIFE}") {
           return (

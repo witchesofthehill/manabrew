@@ -6,6 +6,7 @@ import { HAND_CARD } from "../game.styles";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useTheme } from "@/hooks/useTheme";
+import { withAlpha } from "@/themes/gameTheme";
 import { Modal } from "./Modal";
 import { ModalCardFilter } from "./ModalCardFilter";
 import { useCardNameFilter } from "./useCardNameFilter";
@@ -17,6 +18,9 @@ interface ZoneViewerProps {
   onClose: () => void;
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];
+  selectedCardIds?: string[];
+  clickLabel?: string;
+  selectedLabel?: string;
   /** When targeting, ring the legal targets in the intent colour (red hostile /
    *  blue friendly) instead of the neutral card-ring used for browsing. */
   targetHostile?: boolean;
@@ -28,6 +32,9 @@ export function ZoneViewer({
   onClose,
   onClickCard,
   clickableCardIds,
+  selectedCardIds,
+  clickLabel,
+  selectedLabel,
   targetHostile,
 }: ZoneViewerProps) {
   const preview = useCardPreview();
@@ -40,6 +47,7 @@ export function ZoneViewer({
         ? themeColors.arrow.hostileTarget
         : themeColors.arrow.friendlyTarget;
   const clickableIdSet = clickableCardIds ? new Set(clickableCardIds) : null;
+  const selectedIdSet = selectedCardIds ? new Set(selectedCardIds) : null;
   const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
 
   return (
@@ -58,24 +66,45 @@ export function ZoneViewer({
         ) : (
           <div className="flex flex-wrap gap-2 content-start">
             {filtered.map((card) => {
+              const selected = !!selectedIdSet?.has(card.id);
               const clickable =
-                !!onClickCard && (clickableIdSet == null || clickableIdSet.has(card.id));
+                !!onClickCard &&
+                (selected || clickableIdSet == null || clickableIdSet.has(card.id));
+              const cardRingColor = selected ? themeColors.activeAction.active : ringColor;
+              const actionLabel = selected ? selectedLabel : clickLabel;
               return (
                 <div
                   key={card.id}
                   className="shrink-0 relative flex flex-col gap-1"
-                  onMouseEnter={(e) => preview.handleMouseEnter(card, e)}
+                  onMouseEnter={(e) =>
+                    preview.handleMouseEnter(card, e, { useDelay: true, useAnchor: true })
+                  }
                   onMouseLeave={preview.handleMouseLeave}
                 >
                   <Card
                     card={card}
-                    className={cn(HAND_CARD, clickable && "ring-2")}
+                    className={cn(HAND_CARD, clickable && "ring-2", selected && "opacity-60")}
                     style={
-                      clickable ? ({ "--tw-ring-color": ringColor } as CSSProperties) : undefined
+                      clickable
+                        ? ({ "--tw-ring-color": cardRingColor } as CSSProperties)
+                        : undefined
                     }
                     onClick={clickable ? () => onClickCard!(card.id) : undefined}
                   />
-                  {(card.effectiveManaCost || card.manaCost) && (
+                  {clickable && actionLabel && (
+                    <div className="flex items-center justify-center">
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide"
+                        style={{
+                          color: cardRingColor,
+                          backgroundColor: withAlpha(cardRingColor, 0.15),
+                        }}
+                      >
+                        [{actionLabel}]
+                      </span>
+                    </div>
+                  )}
+                  {!actionLabel && (card.effectiveManaCost || card.manaCost) && (
                     <div className="min-h-5 flex items-center justify-center">
                       <div className="inline-flex items-center rounded bg-muted/70 px-1.5 py-0.5">
                         <ManaSymbols cost={card.effectiveManaCost ?? card.manaCost} size="sm" />

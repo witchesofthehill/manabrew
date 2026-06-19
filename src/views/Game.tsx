@@ -601,7 +601,18 @@ export default function Game({ exitTo }: GameProps = {}) {
     clickableCardIds?: string[],
     targetHostile?: boolean,
   ) {
-    openZoneViewer({ title, cards, onClickCard, clickableCardIds, targetHostile });
+    const stickyPromptType =
+      onClickCard && currentPrompt?.input.type === "chooseBoardTargets"
+        ? "chooseBoardTargets"
+        : undefined;
+    openZoneViewer({
+      title,
+      cards,
+      onClickCard,
+      clickableCardIds,
+      targetHostile,
+      stickyPromptType,
+    });
   }
   function openManualZone(title: string, cards: GameCard[]) {
     openZoneViewer({
@@ -623,6 +634,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   function closeZone() {
     closeZoneViewer();
   }
+
   function openZoneAndCast(
     title: string,
     cards: GameCard[],
@@ -952,6 +964,78 @@ export default function Game({ exitTo }: GameProps = {}) {
     () => gameView?.players?.filter((p) => p.id !== me?.id) ?? [],
     [gameView?.players, me?.id],
   );
+
+  const payManaCostPrompt =
+    currentPrompt?.input.type === "payManaCost" ? currentPrompt.input : null;
+  const delveSourceIds = useMemo(
+    () => payManaCostPrompt?.delveSourceIds ?? [],
+    [payManaCostPrompt],
+  );
+  const payManaCardId = payManaCostPrompt?.cardId ?? null;
+  const [delvedCardIds, setDelvedCardIds] = useState<string[]>([]);
+  const delvedCardIdsRef = useRef<string[]>([]);
+  delvedCardIdsRef.current = delvedCardIds;
+
+  useEffect(() => {
+    setDelvedCardIds([]);
+  }, [payManaCardId]);
+
+  const handleDelveCard = useCallback(
+    (cardId: string) => {
+      if (useGameStore.getState().isWaitingForResponse) return;
+      const current = delvedCardIdsRef.current;
+      const isDelved = current.includes(cardId);
+      respond(isDelved ? { type: "undelve", cardId } : { type: "delve", cardId });
+      const next = isDelved ? current.filter((id) => id !== cardId) : [...current, cardId];
+      delvedCardIdsRef.current = next;
+      setDelvedCardIds(next);
+    },
+    [respond],
+  );
+
+  const openDelveZone = useCallback(() => {
+    openZoneViewer({
+      title: "Delve — Your Graveyard",
+      cards: me?.graveyard ?? [],
+      onClickCard: handleDelveCard,
+      clickableCardIds: delveSourceIds,
+      selectedCardIds: delvedCardIdsRef.current,
+      clickLabel: "DELVE",
+      selectedLabel: "UN-DELVE",
+      stickyPromptType: "payManaCost",
+    });
+  }, [openZoneViewer, me?.graveyard, handleDelveCard, delveSourceIds]);
+
+  useEffect(() => {
+    const vz = useGameUIStore.getState().viewingZone;
+    if (vz?.selectedCardIds === undefined) return;
+    openZoneViewer({ ...vz, clickableCardIds: delveSourceIds, selectedCardIds: delvedCardIds });
+  }, [delveSourceIds, delvedCardIds, openZoneViewer]);
+
+  // Keep an open zone-target viewer in sync with the live valid set as each
+  // target is picked (the engine re-prompts with the remaining candidates).
+  // `boardTargets` is null while a response is in flight — leave the viewer be;
+  // if targeting is active but no longer has zone candidates, close it.
+  useEffect(() => {
+    const vz = useGameUIStore.getState().viewingZone;
+    if (vz?.stickyPromptType !== "chooseBoardTargets" || !boardTargets) return;
+    if (!boardTargets.zone) {
+      closeZoneViewer();
+      return;
+    }
+    openZoneViewer({ ...vz, clickableCardIds: boardTargets.zone.validCardIds });
+  }, [boardTargets, openZoneViewer, closeZoneViewer]);
+
+  // Generic sticky-viewer close: a viewer bound to a prompt type stays open
+  // across same-type re-prompts and only closes once the prompt changes type
+  // or ends. Keyed on currentPrompt (not activePrompt) so it survives the null
+  // window while a response is in flight.
+  useEffect(() => {
+    const sticky = viewingZone?.stickyPromptType;
+    if (sticky && currentPrompt?.input.type !== sticky) {
+      closeZoneViewer();
+    }
+  }, [currentPrompt, viewingZone, closeZoneViewer]);
   const opponent = opponents[0];
 
   const playerColorMap = useMemo(() => {
@@ -1421,8 +1505,9 @@ export default function Game({ exitTo }: GameProps = {}) {
               clickableCardIds,
             )
           }
+          delveAvailable={delveSourceIds.length > 0}
+          onOpenDelveZone={openDelveZone}
           onTargetFromZone={(cardId) => {
-            closeZoneViewer();
             casting.wrappedTargetCard(cardId);
           }}
           onCastSpell={handleCastSpell}
@@ -1535,6 +1620,9 @@ export default function Game({ exitTo }: GameProps = {}) {
                   manaCost: payManaCostInput.manaCost,
                   manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
                   canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+                  delveCount: delvedCardIds.length,
+                  delveAvailable: delveSourceIds.length > 0,
+                  onOpenDelve: openDelveZone,
                 }
               : null
           }

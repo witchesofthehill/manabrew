@@ -9,6 +9,9 @@ interface GameOverlaysProps {
     cards: GameCard[];
     onClickCard?: (cardId: string) => void;
     clickableCardIds?: string[];
+    selectedCardIds?: string[];
+    clickLabel?: string;
+    selectedLabel?: string;
     targetHostile?: boolean;
   } | null;
   onCloseZone: () => void;
@@ -54,6 +57,9 @@ export function GameOverlays({
           onClose={onCloseZone}
           onClickCard={viewingZone.onClickCard}
           clickableCardIds={viewingZone.clickableCardIds}
+          selectedCardIds={viewingZone.selectedCardIds}
+          clickLabel={viewingZone.clickLabel}
+          selectedLabel={viewingZone.selectedLabel}
           targetHostile={viewingZone.targetHostile}
         />
       )}

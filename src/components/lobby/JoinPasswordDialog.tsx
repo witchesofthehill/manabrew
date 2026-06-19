@@ -23,12 +23,18 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
   const [focused, setFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function syncSelection(el: HTMLInputElement) {
+    setSelection({ start: el.selectionStart ?? 0, end: el.selectionEnd ?? 0 });
+  }
 
   function close() {
     setPassword("");
     setError(null);
     setSubmitting(false);
+    setSelection({ start: 0, end: 0 });
     onClose();
   }
 
@@ -76,8 +82,10 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
+                syncSelection(e.currentTarget);
                 if (error) setError(null);
               }}
+              onSelect={(e) => syncSelection(e.currentTarget)}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               onKeyDown={(e) => {
@@ -89,13 +97,22 @@ export function JoinPasswordDialog({ room, onClose, onJoin }: JoinPasswordDialog
             {password.length === 0 && !focused && (
               <span className="text-sm text-muted-foreground">Enter password</span>
             )}
-            {password.split("").map((_, i) => (
-              <span key={i} className="shrink-0 translate-y-[0.5em] select-none leading-none">
-                <span className="animate-password-pip inline-block text-3xl font-black text-primary">
-                  *
+            {password.split("").map((_, i) => {
+              const isSelected = focused && i >= selection.start && i < selection.end;
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "shrink-0 translate-y-[0.5em] select-none rounded px-0.5 leading-none",
+                    isSelected && "bg-primary/30",
+                  )}
+                >
+                  <span className="animate-password-pip inline-block text-3xl font-black text-primary">
+                    *
+                  </span>
                 </span>
-              </span>
-            ))}
+              );
+            })}
             {focused && (
               <span className="animate-password-caret h-7 w-0.5 shrink-0 rounded-full bg-foreground" />
             )}

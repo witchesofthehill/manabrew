@@ -135,6 +135,12 @@ pub enum ManaSourceAction {
     Untap {
         card_id: String,
     },
+    Delve {
+        card_id: String,
+    },
+    Undelve {
+        card_id: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

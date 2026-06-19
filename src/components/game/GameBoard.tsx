@@ -108,6 +108,8 @@ interface GameBoardProps {
     clickableCardIds?: string[],
   ) => void;
   onTargetFromZone: (cardId: string) => void;
+  delveAvailable?: boolean;
+  onOpenDelveZone?: () => void;
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
@@ -180,6 +182,8 @@ export function GameBoard({
   onOpenZone,
   onOpenZoneAndCast,
   onTargetFromZone,
+  delveAvailable,
+  onOpenDelveZone,
   onCastSpell,
   onTapLand,
   onTapLands,
@@ -686,6 +690,10 @@ export function GameBoard({
           }
         }}
         onOpenGraveyard={() => {
+          if (delveAvailable && onOpenDelveZone) {
+            onOpenDelveZone();
+            return;
+          }
           if (isTargetingPrompt && graveyardTargetIds.length > 0) {
             onOpenZone(
               "Your Graveyard",
@@ -714,7 +722,7 @@ export function GameBoard({
           }
         }}
         hasPlayableInGraveyard={
-          promptType === "chooseAction" && graveyard.some((c) => c.isPlayable)
+          (promptType === "chooseAction" && graveyard.some((c) => c.isPlayable)) || !!delveAvailable
         }
         hasPlayableInExile={promptType === "chooseAction" && exile.some((c) => c.isPlayable)}
         hasTargetInGraveyard={isTargetingPrompt && graveyardTargetIds.length > 0}

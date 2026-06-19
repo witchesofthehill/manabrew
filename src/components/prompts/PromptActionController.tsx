@@ -80,6 +80,9 @@ interface PromptActionControllerProps {
     manaCost: string;
     manaPool: Record<string, number>;
     canConfirmFromPool: boolean;
+    delveCount?: number;
+    delveAvailable?: boolean;
+    onOpenDelve?: () => void;
   } | null;
   onPayManaCost?: () => void;
   onAutoManaCost?: () => void;

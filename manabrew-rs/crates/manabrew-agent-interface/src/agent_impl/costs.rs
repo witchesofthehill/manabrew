@@ -184,6 +184,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
                     .collect(),
                 tappable_source_ids: tappable_land_ids,
                 untappable_source_ids: untappable_land_ids,
+                delve_source_ids: Vec::new(),
                 mana_pool_total: mana_pool.total_mana(),
                 can_confirm_from_pool,
             },

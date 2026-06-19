@@ -549,6 +549,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
             mana_ability_options,
             tappable_land_ids,
             untappable_land_ids,
+            delve_source_ids,
             mana_pool_total,
             can_confirm_from_pool,
         } => PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
@@ -561,6 +562,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
                 .collect(),
             tappable_source_ids: tappable_land_ids,
             untappable_source_ids: untappable_land_ids,
+            delve_source_ids,
             mana_pool_total,
             can_confirm_from_pool,
         }),
@@ -757,6 +759,12 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
             color: color.clone(),
         },
         PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => JavaAction::UntapLand {
+            card_id: card_id.clone(),
+        },
+        PromptOutput::ManaSource(ManaSourceAction::Delve { card_id }) => JavaAction::Delve {
+            card_id: card_id.clone(),
+        },
+        PromptOutput::ManaSource(ManaSourceAction::Undelve { card_id }) => JavaAction::Undelve {
             card_id: card_id.clone(),
         },
         PromptOutput::PayManaCost(PayManaCostOutput::PayManaCost { auto }) => {

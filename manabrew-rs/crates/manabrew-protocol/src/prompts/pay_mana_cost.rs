@@ -13,6 +13,7 @@ pub struct PayManaCostInput {
     pub mana_ability_options: Vec<ActivatableAbilityInfo>,
     pub tappable_source_ids: Vec<String>,
     pub untappable_source_ids: Vec<String>,
+    pub delve_source_ids: Vec<String>,
     pub mana_pool_total: i32,
     pub can_confirm_from_pool: bool,
 }

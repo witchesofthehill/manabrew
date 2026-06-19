@@ -8,5 +8,6 @@ pub mod game_view_dto;
 pub mod ids_codec;
 pub mod java_prompt_normalizer;
 pub mod java_raw;
+pub(crate) mod mana_action_id;
 pub mod prompt;
 pub mod protocol;

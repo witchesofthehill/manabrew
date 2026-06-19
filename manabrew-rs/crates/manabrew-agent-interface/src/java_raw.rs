@@ -311,6 +311,12 @@ pub enum JavaRawPromptBody {
         #[serde(rename = "canConfirmFromPool", default)]
         can_confirm_from_pool: bool,
     },
+    SpecifyManaCombo {
+        #[serde(rename = "availableColors", default)]
+        available_colors: Vec<String>,
+        #[serde(default)]
+        amount: usize,
+    },
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -321,6 +327,10 @@ pub struct JavaRawManaOption {
     pub ability_index: Option<usize>,
     pub description: Option<String>,
     pub cost: Option<String>,
+    #[serde(rename = "producedMana")]
+    pub produced_mana: Option<String>,
+    #[serde(rename = "producedManaAmount")]
+    pub produced_mana_amount: Option<i32>,
 }
 
 fn one() -> usize {
@@ -368,6 +378,7 @@ impl JavaRawPromptBody {
             JavaRawPromptBody::ChooseTargetAny { .. } => "choose_target_any",
             JavaRawPromptBody::ChooseTargetSpell { .. } => "choose_target_spell",
             JavaRawPromptBody::PayManaCost { .. } => "pay_mana_cost",
+            JavaRawPromptBody::SpecifyManaCombo { .. } => "specify_mana_combo",
         }
     }
 }
@@ -381,6 +392,10 @@ pub struct JavaRawAction {
     pub card_id: Option<String>,
     pub kind: Option<String>,
     pub cost: Option<String>,
+    #[serde(rename = "producedMana")]
+    pub produced_mana: Option<String>,
+    #[serde(rename = "producedManaAmount")]
+    pub produced_mana_amount: Option<i32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -705,6 +720,10 @@ pub enum JavaAction {
     },
     PayMana {
         auto: bool,
+    },
+    ManaComboDecision {
+        #[serde(rename = "chosenColors")]
+        chosen_colors: Vec<String>,
     },
     PayLife,
     CancelMana,

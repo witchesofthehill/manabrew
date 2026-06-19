@@ -55,6 +55,7 @@ jobs:
 
       - name: Post Discord embed (as bot)
         if: always()
+        continue-on-error: true
         env:
           BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           CHANNEL_ID: ${{ secrets.DISCORD_DEPLOY_CHANNEL_ID }}
@@ -116,19 +117,32 @@ jobs:
               }]
             }')
 
+          # A failed notification (stale bot token, Discord outage, network
+          # blip) must never fail the deploy job: capture the HTTP status and
+          # downgrade any non-2xx to a ::warning:: annotation.
+          body=$(mktemp)
           if [ "$DEPLOY_OUTCOME" != "success" ] && [ -f deploy-raw.log ] && [ -s deploy-raw.log ]; then
-            curl -fsS -X POST \
+            http=$(curl -sS -X POST \
               -H "Authorization: Bot $BOT_TOKEN" \
               -F "payload_json=$PAYLOAD" \
               -F "files[0]=@deploy-raw.log;type=text/plain" \
-              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+              -o "$body" -w "%{http_code}" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
           else
-            curl -fsS -X POST \
+            http=$(curl -sS -X POST \
               -H "Authorization: Bot $BOT_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD" \
-              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages"
+              -o "$body" -w "%{http_code}" \
+              "https://discord.com/api/v10/channels/$CHANNEL_ID/messages" || echo "000")
           fi
+
+          if [ "$http" -ge 200 ] && [ "$http" -lt 300 ]; then
+            echo "Discord notification posted (HTTP $http)."
+          else
+            echo "::warning::Discord notification failed (HTTP $http): $(cat "$body" 2>/dev/null); deploy result is unaffected."
+          fi
+          rm -f "$body"
 
       - name: Fail job if deploy failed
         if: steps.deploy.outcome != 'success'

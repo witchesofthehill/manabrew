@@ -724,8 +724,47 @@ pub fn determine_mana_production_ir(
     express_choice: Option<u16>,
 ) -> Option<String> {
     let mut mana_string: Option<String> = None;
+    let amount = amount_param.map(|amount_str| {
+        if let Ok(n) = amount_str.parse::<i32>() {
+            n
+        } else if let Some(svar_expr) = game.card(card_id).svars.get(amount_str).cloned() {
+            crate::ability::effects::resolve_count_svar(&svar_expr, game, card_id, player)
+        } else {
+            1
+        }
+    });
+    let uses_combo_distribution = amount.is_some_and(|amount| amount > 1)
+        && matches!(produced_ir, ProducedMana::Combo(_))
+        && !produced_ir.is_combo_color_identity();
 
-    if produced_ir.is_combo_color_identity() {
+    // Forge routes multi-amount combo mana directly through specifyManaCombo.
+    if uses_combo_distribution {
+        let available: Vec<String> = if produced_ir.is_any_like() {
+            vec!["W", "U", "B", "R", "G"]
+                .into_iter()
+                .map(String::from)
+                .collect()
+        } else {
+            let chosen_colors = game.card(card_id).chosen_colors.clone();
+            let names = produced_ir.to_color_names(&chosen_colors);
+            names
+                .iter()
+                .filter_map(|name| {
+                    color_name_to_mana_atom(name).map(|a| ManaPool::atom_to_letter(a).to_string())
+                })
+                .collect()
+        };
+        if !available.is_empty() {
+            let chosen = agents[player.index()].specify_mana_combo(
+                player,
+                &available,
+                amount.unwrap_or(1) as usize,
+                Some(card_id),
+                express_choice,
+            );
+            mana_string = Some(chosen.join(" "));
+        }
+    } else if produced_ir.is_combo_color_identity() {
         let colors = game.player_commander_color_identity(player);
 
         if !colors.is_empty() {
@@ -775,48 +814,9 @@ pub fn determine_mana_production_ir(
 
     // Apply Amount$ multiplier (e.g. Rofellos produces mana equal to Forests)
     if let Some(ref mut ms) = mana_string {
-        if let Some(amount_str) = amount_param {
-            let amount = if let Ok(n) = amount_str.parse::<i32>() {
-                n
-            } else {
-                // Try to resolve as SVar on the source card
-                if let Some(svar_expr) = game.card(card_id).svars.get(amount_str).cloned() {
-                    crate::ability::effects::resolve_count_svar(&svar_expr, game, card_id, player)
-                } else {
-                    1
-                }
-            };
+        if let Some(amount) = amount {
             if amount > 1 {
-                // Check if this is combo/any mana (multiple color choices)
-                let is_combo = produced_ir.is_choice_like();
-                if is_combo {
-                    // Multi-amount combo: let agent choose color distribution
-                    let available: Vec<String> = if produced_ir.is_any_like() {
-                        vec!["W", "U", "B", "R", "G"]
-                            .into_iter()
-                            .map(String::from)
-                            .collect()
-                    } else {
-                        let chosen_colors = game.card(card_id).chosen_colors.clone();
-                        let names = produced_ir.to_color_names(&chosen_colors);
-                        names
-                            .iter()
-                            .filter_map(|name| {
-                                color_name_to_mana_atom(name)
-                                    .map(|a| ManaPool::atom_to_letter(a).to_string())
-                            })
-                            .collect()
-                    };
-                    let card_name = game.card(card_id).card_name.clone();
-                    let chosen = agents[player.index()].specify_mana_combo(
-                        player,
-                        &available,
-                        amount as usize,
-                        Some(card_id),
-                        express_choice,
-                    );
-                    *ms = chosen.join(" ");
-                } else {
+                if !uses_combo_distribution {
                     let base = ms.clone();
                     for _ in 1..amount {
                         ms.push(' ');
@@ -1803,6 +1803,40 @@ pub(crate) fn resolve_mana_ability_amount(
         }
     }
     1
+}
+
+pub(crate) fn mana_ability_prompt_metadata(
+    game: &GameState,
+    card_id: CardId,
+    player: PlayerId,
+    ab: &crate::ability::activated::ActivatedAbility,
+) -> (Option<String>, Option<i32>) {
+    let produced_mana = ab.produced_ir.as_ref().map(|produced_ir| {
+        let chosen_colors = &game.card(card_id).chosen_colors;
+        let atoms = produced_ir.to_atoms(chosen_colors);
+        if atoms.is_empty() {
+            produced_ir.as_script_text().into_owned()
+        } else if matches!(produced_ir, ProducedMana::Chosen) {
+            atoms
+                .into_iter()
+                .map(|atom| ManaPool::atom_to_letter(atom).to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else if matches!(produced_ir, ProducedMana::Combo(ProducedManaCombo::Chosen)) {
+            format!(
+                "Combo {}",
+                atoms
+                    .into_iter()
+                    .map(|atom| ManaPool::atom_to_letter(atom).to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        } else {
+            produced_ir.as_script_text().into_owned()
+        }
+    });
+    let produced_mana_amount = Some(resolve_mana_ability_amount(game, card_id, player, ab));
+    (produced_mana, produced_mana_amount)
 }
 
 #[cfg(test)]

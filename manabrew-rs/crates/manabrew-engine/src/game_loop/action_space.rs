@@ -152,6 +152,11 @@ impl GameLoop {
                         .activated_abilities
                         .iter()
                         .find(|a| a.ability_index == ability_index);
+                    let (produced_mana, produced_mana_amount) = ability
+                        .map(|a| {
+                            crate::mana::mana_ability_prompt_metadata(game, card_id, player, a)
+                        })
+                        .unwrap_or((None, None));
                     crate::agent::ActivatableAction {
                         card_id,
                         ability_index,
@@ -160,9 +165,8 @@ impl GameLoop {
                             .unwrap_or_default(),
                         cost: ability.and_then(|a| a.cost_string()),
                         is_mana_ability: ability.map(|a| a.is_mana_ability).unwrap_or(false),
-                        produced_colors: ability
-                            .map(|a| a.produced_color_symbols())
-                            .unwrap_or_default(),
+                        produced_mana,
+                        produced_mana_amount,
                     }
                 })
                 .collect()
@@ -194,13 +198,16 @@ impl GameLoop {
                 .iter()
                 .filter(|a| a.is_mana_ability)
             {
+                let (produced_mana, produced_mana_amount) =
+                    crate::mana::mana_ability_prompt_metadata(game, card_id, player, ability);
                 mana_abilities.push(crate::agent::ActivatableAction {
                     card_id,
                     ability_index: ability.ability_index,
                     description: ability.display_description(&card.card_name),
                     cost: ability.cost_string(),
                     is_mana_ability: true,
-                    produced_colors: ability.produced_color_symbols(),
+                    produced_mana,
+                    produced_mana_amount,
                 });
             }
         }

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompts::common::ActivatableAbilityInfo;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/payCombatCost.ts")]
@@ -9,6 +11,7 @@ pub struct PayCombatCostInput {
     pub attacker_name: String,
     pub cost: i32,
     pub description: String,
+    pub mana_ability_options: Vec<ActivatableAbilityInfo>,
     pub tappable_source_ids: Vec<String>,
     pub untappable_source_ids: Vec<String>,
     pub mana_pool_total: i32,

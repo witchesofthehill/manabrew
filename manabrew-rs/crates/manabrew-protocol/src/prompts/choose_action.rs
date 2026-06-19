@@ -24,7 +24,7 @@ pub enum AvailableActionKind {
         is_mana_ability: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        produced_colors: Option<Vec<String>>,
+        produced_mana: Option<String>,
     },
     UndoMana {
         card_id: String,

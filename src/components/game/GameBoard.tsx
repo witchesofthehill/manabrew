@@ -111,7 +111,12 @@ interface GameBoardProps {
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
-  onTapLandAbility?: (cardId: string, abilityIndex: number, color?: string) => void;
+  onTapLandAbility?: (
+    cardId: string,
+    abilityIndex: number,
+    color?: string,
+    actionId?: string,
+  ) => void;
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
 
@@ -241,7 +246,8 @@ export function GameBoard({
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const manaAbilityOptions = chooseActionActions
     ? manaAbilityInfos(chooseActionActions)
-    : payManaCostPrompt?.input.manaAbilityOptions;
+    : (payCombatCostPrompt?.input.manaAbilityOptions ??
+      payManaCostPrompt?.input.manaAbilityOptions);
   const chooseActionAbilityCardIds = chooseActionActions
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);

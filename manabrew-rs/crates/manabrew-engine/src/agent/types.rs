@@ -75,7 +75,7 @@ pub enum MainPhaseAction {
     Play(PlayOption),
     /// Tap an untapped land on the battlefield to add its mana to the pool.
     /// Optional ability index selects a specific mana ability (dual lands).
-    ActivateMana(CardId, Option<usize>),
+    ActivateMana(CardId, Option<usize>, Option<u16>),
     /// Untap a tapped land and remove its mana from the pool (undo tap).
     UntapMana(CardId),
     /// Activate an ability on a permanent. (source card, ability index)
@@ -89,7 +89,8 @@ pub struct ActivatableAction {
     pub description: String,
     pub cost: Option<String>,
     pub is_mana_ability: bool,
-    pub produced_colors: Vec<String>,
+    pub produced_mana: Option<String>,
+    pub produced_mana_amount: Option<i32>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -115,7 +116,11 @@ impl PriorityActionSpace {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CombatCostAction {
     /// Tap an untapped land to add mana to the pool.
-    TapLand(CardId),
+    TapLand {
+        card_id: CardId,
+        mana_ability_index: Option<usize>,
+        express_choice: Option<u16>,
+    },
     /// Untap a tapped land and remove its mana from the pool (undo).
     UntapLand(CardId),
     /// Pay the cost from the mana pool.
@@ -147,6 +152,9 @@ pub struct ManaAbilityOption {
     pub card_id: CardId,
     pub ability_index: usize,
     pub description: String,
+    pub cost: Option<String>,
+    pub produced_mana: Option<String>,
+    pub produced_mana_amount: Option<i32>,
 }
 
 /// Java-parity binary choice kinds (`PlayerController.BinaryChoiceType`).

@@ -53,6 +53,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/spellbook-api/, ""),
       },
+      "/scryfall-symbols": {
+        target: "https://svgs.scryfall.io",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/scryfall-symbols/, "/card-symbols"),
+      },
     },
   },
   worker: {

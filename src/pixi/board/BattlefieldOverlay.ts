@@ -9,7 +9,12 @@ import {
 import type { GameCard } from "@/types/manabrew";
 import type { BattlefieldState } from "../types";
 import { hexToNum } from "../colorUtils";
-import { extractManaLetters, getExpandedManaAbilities } from "@/components/game/manaUtils";
+import {
+  extractManaLetters,
+  getDisplayedManaAbilities,
+  type ExpandedManaAbilityInfo,
+  type ManaAbilityActionInfo,
+} from "@/components/game/manaUtils";
 import { manaColorFor } from "../manaColors";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
 import { OVERLAY_LABEL_STYLE } from "../textStyles";
@@ -68,9 +73,7 @@ export class BattlefieldOverlay {
     };
 
     if (kind.isTappable) {
-      const expandedMana = state.manaAbilityOptions
-        ? getExpandedManaAbilities(card.id, state.manaAbilityOptions)
-        : [];
+      const expandedMana = this.manaAbilitiesForCard(card.id, state.manaAbilityOptions);
       if (expandedMana.length > 1) {
         this.host.getCallbacks().onClickCard?.(card);
         return;
@@ -105,18 +108,25 @@ export class BattlefieldOverlay {
     const overlay = this.ensureContainer(entry);
     overlay.removeChildren().forEach((c) => c.destroy({ children: true }));
 
-    const expandedMana =
-      kind.isTappable && state.manaAbilityOptions
-        ? getExpandedManaAbilities(card.id, state.manaAbilityOptions)
-        : [];
+    const expandedMana = kind.isTappable
+      ? this.manaAbilitiesForCard(card.id, state.manaAbilityOptions)
+      : [];
 
-    if (kind.isTappable && expandedMana.length > 1) {
-      this.drawManaGrid(overlay, card, expandedMana);
+    if (kind.isTappable && expandedMana.length > 0) {
+      this.drawManaGrid(overlay, card, state, expandedMana);
     } else {
       this.drawSingleButton(overlay, card, state, kind);
     }
 
     overlay.visible = true;
+  }
+
+  private manaAbilitiesForCard(
+    cardId: string,
+    options: ManaAbilityActionInfo[] | undefined,
+  ): ExpandedManaAbilityInfo[] {
+    if (!options) return [];
+    return getDisplayedManaAbilities(cardId, options);
   }
 
   refreshAll(): void {
@@ -146,63 +156,101 @@ export class BattlefieldOverlay {
   private drawManaGrid(
     overlay: Container,
     card: GameCard,
-    abilities: ReturnType<typeof getExpandedManaAbilities>,
+    state: BattlefieldState,
+    abilities: ExpandedManaAbilityInfo[],
   ): void {
-    const cols = abilities.length > 2 ? 2 : abilities.length;
-    const rows = Math.ceil(abilities.length / cols);
-    const btnW = CARD_W / cols;
-    const btnH = CARD_H / rows;
-    const isOddLast = abilities.length % 2 !== 0;
+    const entries = abilities.map((ab) => {
+      const letters =
+        ab.displayManaLetters.length > 0
+          ? ab.displayManaLetters
+          : extractManaLetters(ab.description);
+      return { ab, letters };
+    });
+    const rows: (typeof entries)[] = [];
+    let pending: typeof entries = [];
+    for (const entry of entries) {
+      if (entry.letters.length > 2) {
+        if (pending.length > 0) {
+          rows.push(pending);
+          pending = [];
+        }
+        rows.push([entry]);
+        continue;
+      }
+      pending.push(entry);
+      if (pending.length === 2) {
+        rows.push(pending);
+        pending = [];
+      }
+    }
+    if (pending.length > 0) rows.push(pending);
 
-    abilities.forEach((ab, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const shouldSpan = cols === 2 && i === abilities.length - 1 && isOddLast;
-      const currentW = shouldSpan ? CARD_W : btnW;
+    const btnH = CARD_H / rows.length;
 
-      const letters = extractManaLetters(ab.description);
-      const letter = letters[0];
-      const color = manaColorFor(
-        letter,
-        this.host.getTheme(),
-        hexToNum(this.host.getTheme().gameTheme.canvas.shadow),
-      );
+    rows.forEach((rowEntries, rowIndex) => {
+      const btnW = CARD_W / rowEntries.length;
+      rowEntries.forEach(({ ab, letters }, colIndex) => {
+        const x = colIndex * btnW;
+        const y = rowIndex * btnH;
+        const currentW = rowEntries.length === 1 ? CARD_W : btnW;
+        const letter = letters[0];
+        const color = manaColorFor(
+          letter,
+          this.host.getTheme(),
+          hexToNum(this.host.getTheme().gameTheme.canvas.shadow),
+        );
 
-      const btn = new Graphics();
-      const paintBtn = (highlighted: boolean) => {
-        btn.clear();
-        btn.roundRect(col * btnW, row * btnH, currentW, btnH, CARD_RADIUS);
-        btn.fill({
-          color,
-          alpha: highlighted ? MANA_BUTTON_HOVER_ALPHA : MANA_BUTTON_ALPHA,
+        const btn = new Graphics();
+        const paintBtn = (highlighted: boolean) => {
+          btn.clear();
+          btn.roundRect(x, y, currentW, btnH, CARD_RADIUS);
+          btn.fill({
+            color,
+            alpha: highlighted ? MANA_BUTTON_HOVER_ALPHA : MANA_BUTTON_ALPHA,
+          });
+          btn.stroke({
+            color: hexToNum(this.host.getTheme().gameTheme.canvas.neutral),
+            width: 1,
+            alpha: highlighted ? MANA_BUTTON_STROKE_HOVER_ALPHA : MANA_BUTTON_STROKE_ALPHA,
+          });
+        };
+        paintBtn(false);
+        overlay.addChild(btn);
+
+        const iconLabels = letters.length > 0 ? letters : [OVERLAY_LABEL_TAP];
+        const iconSize = iconLabels.length > 2 ? 8 : rowEntries.length === 2 ? 10 : 12;
+        const iconBgSize = iconLabels.length > 2 ? 8 : rowEntries.length === 2 ? 10 : 14;
+        const icons = iconLabels.map((iconLabel, iconIndex) => {
+          const icon = this.createManaIcon(iconLabel, iconSize, iconBgSize);
+          const spacing = iconLabels.length > 2 ? 14 : 18;
+          icon.x = x + currentW / 2 + (iconIndex - (iconLabels.length - 1) / 2) * spacing;
+          icon.y = y + btnH / 2;
+          overlay.addChild(icon);
+          return icon;
         });
-        btn.stroke({
-          color: hexToNum(this.host.getTheme().gameTheme.canvas.neutral),
-          width: 1,
-          alpha: highlighted ? MANA_BUTTON_STROKE_HOVER_ALPHA : MANA_BUTTON_STROKE_ALPHA,
-        });
-      };
-      paintBtn(false);
-      overlay.addChild(btn);
 
-      const icon = this.createManaIcon(
-        letter ?? OVERLAY_LABEL_TAP,
-        cols === 2 ? 10 : 12,
-        cols === 2 ? 10 : 14,
-      );
-      icon.x = col * btnW + currentW / 2;
-      icon.y = row * btnH + btnH / 2;
-      overlay.addChild(icon);
-
-      this.wireButton(
-        btn,
-        card.id,
-        () => this.host.getCallbacks().onTapLandAbility?.(card.id, ab.abilityIndex, letter),
-        (highlighted) => {
-          paintBtn(highlighted);
-          icon.scale.set(highlighted ? ICON_HOVER_SCALE : 1);
-        },
-      );
+        this.wireButton(
+          btn,
+          card.id,
+          () => {
+            if (entries.length === 1) {
+              this.dispatchAction(card, state, {
+                isTappable: true,
+                isUntappable: false,
+                isSelectable: false,
+              });
+              return;
+            }
+            this.host
+              .getCallbacks()
+              .onTapLandAbility?.(card.id, ab.abilityIndex, ab.colorChoice, ab.actionId);
+          },
+          (highlighted) => {
+            paintBtn(highlighted);
+            icons.forEach((icon) => icon.scale.set(highlighted ? ICON_HOVER_SCALE : 1));
+          },
+        );
+      });
     });
   }
 

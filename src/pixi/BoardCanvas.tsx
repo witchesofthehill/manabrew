@@ -210,11 +210,9 @@ export function BoardCanvas({
           cancelHandHoverClear();
           setHandHover({ card, bounds });
         } else {
-          // Pixi already held the lifted card for HAND_HOVER_HOLD_MS before
-          // reporting the unhover (and any move onto the flip button / action
-          // panel cancels that timer via holdHandHover). So a null here means the
-          // cursor truly left into empty space — drop the overlay in sync with the
-          // card returning instead of leaving the button on screen for the grace.
+          // Pixi already held the card for HAND_HOVER_HOLD_MS (moving onto the flip
+          // button / panel cancels it), so a null here means the cursor truly left —
+          // clear in sync with the card instead of adding a second grace.
           cancelHandHoverClear();
           setHandHover(null);
         }

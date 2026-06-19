@@ -294,16 +294,13 @@ const createTextureFromImage = (img: HTMLImageElement): Texture => {
 const textureCache = new Map<string, Texture>();
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
 
-/** Release every cached card texture + its GPU source. Call on game end — the
- *  cache is module-scoped and otherwise grows for the lifetime of the tab. Safe
- *  only when no live sprite references these textures (i.e. the board is torn
- *  down). */
+/** Safe only when no live sprite references these textures (board torn down). */
 export function clearTextureCache(): void {
   for (const tex of textureCache.values()) {
     try {
       tex.destroy(true);
     } catch {
-      // already destroyed or a shared source — ignore
+      /* already destroyed or shared source */
     }
   }
   textureCache.clear();

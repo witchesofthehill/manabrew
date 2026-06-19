@@ -317,8 +317,6 @@ export class BoardRegion {
   animate(): void {
     let exited: string[] | null = null;
     const now = performance.now();
-    // Only built during combat (when `dimmed` can be true) so the per-card
-    // membership test is O(1) instead of an `Array.includes` scan per sprite.
     const selectable = this.combatDim ? new Set(this.lastState?.selectableCardIds ?? []) : null;
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
@@ -705,11 +703,9 @@ export class BoardRegion {
         unplaced.push(c);
         continue;
       }
-      // A card that already owns a slot keeps it even when a panel transiently
-      // overlaps the cell (`blocked`); only a real card-on-card collision evicts
-      // it. Fresh placement below still avoids blocked cells, so new cards never
-      // spawn under a panel — this just stops placed cards thrashing as the
-      // action cluster / zone panels resize between prompts.
+      // A placed card keeps its slot even when a panel transiently overlaps the
+      // cell; only a real card collision relocates it (fresh placement below still
+      // avoids blocked cells). Stops cards thrashing as panels resize per prompt.
       if (occupied.has(cellKey(cell.col, cell.row))) {
         unplaced.push(c);
         continue;

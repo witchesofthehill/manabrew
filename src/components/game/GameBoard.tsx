@@ -226,7 +226,6 @@ export function GameBoard({
   const chooseAttackersPrompt = promptOf(currentPrompt, "chooseAttackers");
   const chooseBlockersPrompt = promptOf(currentPrompt, "chooseBlockers");
   const boardTargetsPrompt = promptOf(currentPrompt, "chooseBoardTargets");
-  const payCombatCostPrompt = promptOf(currentPrompt, "payCombatCost");
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
@@ -250,8 +249,7 @@ export function GameBoard({
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const manaAbilityOptions = chooseActionActions
     ? manaAbilityInfos(chooseActionActions)
-    : (payCombatCostPrompt?.input.manaAbilityOptions ??
-      payManaCostPrompt?.input.manaAbilityOptions);
+    : payManaCostPrompt?.input.manaAbilityOptions;
   const chooseActionAbilityCardIds = chooseActionActions
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);
@@ -329,12 +327,10 @@ export function GameBoard({
         ? chooseActionActions
             .filter((a) => a.type === "activateAbility" && a.isManaAbility)
             .map((a) => a.cardId)
-        : (payCombatCostPrompt?.input.tappableSourceIds ??
-          payManaCostPrompt?.input.tappableSourceIds),
+        : payManaCostPrompt?.input.tappableSourceIds,
       untappableLandIds: chooseActionActions
         ? chooseActionActions.filter((a) => a.type === "undoMana").map((a) => a.cardId)
-        : (payCombatCostPrompt?.input.untappableSourceIds ??
-          payManaCostPrompt?.input.untappableSourceIds),
+        : payManaCostPrompt?.input.untappableSourceIds,
       manaAbilityOptions,
       hostileTargeting,
     }),
@@ -348,7 +344,6 @@ export function GameBoard({
       damageOrder,
       selectableBattlefieldCardIds,
       chooseActionActions,
-      payCombatCostPrompt,
       payManaCostPrompt,
       manaAbilityOptions,
       hostileTargeting,

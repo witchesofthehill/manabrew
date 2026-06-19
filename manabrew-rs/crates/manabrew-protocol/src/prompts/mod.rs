@@ -21,7 +21,6 @@ pub mod first_player_roll;
 pub mod game_over;
 pub mod mulligan;
 pub mod mulligan_put_back;
-pub mod pay_combat_cost;
 pub mod pay_mana_cost;
 pub mod reorder_cards;
 pub mod reveal;
@@ -54,7 +53,6 @@ pub use first_player_roll::{FirstPlayerRollInput, FirstPlayerRollOutput};
 pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
-pub use pay_combat_cost::{CombatPayment, PayCombatCostInput, PayCombatCostOutput};
 pub use pay_mana_cost::{DelveAction, ManaPayment, PayManaCostInput, PayManaCostOutput};
 pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
@@ -84,7 +82,6 @@ pub enum PromptInput {
     ChooseCombatDamageAssignment(
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput,
     ),
-    PayCombatCost(pay_combat_cost::PayCombatCostInput),
     PayManaCost(pay_mana_cost::PayManaCostInput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboInput),
     ChooseCards(choose_cards::ChooseCardsInput),
@@ -115,7 +112,6 @@ pub enum PromptOutput {
     ChooseCombatDamageAssignment(
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentOutput,
     ),
-    PayCombatCost(pay_combat_cost::PayCombatCostOutput),
     PayManaCost(pay_mana_cost::PayManaCostOutput),
     SpecifyManaCombo(specify_mana_combo::SpecifyManaComboOutput),
     ChooseCards(choose_cards::ChooseCardsOutput),

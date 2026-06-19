@@ -60,6 +60,7 @@ export interface PayManaCostProps extends PromptActionLayoutProps {
   payManaCostInfo?: {
     cardName: string;
     manaCost: string;
+    description?: string;
     manaPool: Record<string, number>;
     canConfirmFromPool: boolean;
     delveCount?: number;

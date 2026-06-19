@@ -38,10 +38,16 @@ export function PayManaCost({
     <div className={cn(PROMPT_BUTTON_COLUMN, "w-full")}>
       {payManaCostInfo && (
         <>
-          <p className="text-xs text-muted-foreground">
-            Cast <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
-            for <DynamicTextRender className="align-middle" text={payManaCostInfo.manaCost} />
-          </p>
+          {payManaCostInfo.description ? (
+            <p className="text-xs text-muted-foreground">
+              <DynamicTextRender className="align-middle" text={payManaCostInfo.description} />
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Cast <span className="font-semibold text-foreground">{payManaCostInfo.cardName}</span>{" "}
+              for <DynamicTextRender className="align-middle" text={payManaCostInfo.manaCost} />
+            </p>
+          )}
           {!!payManaCostInfo.delveCount && (
             <p className="text-xs text-muted-foreground">
               Delved for{" "}

@@ -78,6 +78,7 @@ interface PromptActionControllerProps {
   payManaCostInfo?: {
     cardName: string;
     manaCost: string;
+    description?: string;
     manaPool: Record<string, number>;
     canConfirmFromPool: boolean;
     delveCount?: number;

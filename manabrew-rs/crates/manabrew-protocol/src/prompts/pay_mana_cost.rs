@@ -16,6 +16,9 @@ pub struct PayManaCostInput {
     pub delve_source_ids: Vec<String>,
     pub mana_pool_total: i32,
     pub can_confirm_from_pool: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -183,8 +183,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     activePrompt?.input.type === "chooseBlockers" ? activePrompt.input : null;
   const damageOrderInput =
     activePrompt?.input.type === "chooseDamageAssignmentOrder" ? activePrompt.input : null;
-  const payCombatCostInput =
-    activePrompt?.input.type === "payCombatCost" ? activePrompt.input : null;
   const payManaCostInput = activePrompt?.input.type === "payManaCost" ? activePrompt.input : null;
   const mulliganInput = activePrompt?.input.type === "mulligan" ? activePrompt.input : null;
   const tappableLandIds = useMemo<string[]>(
@@ -193,15 +191,15 @@ export default function Game({ exitTo }: GameProps = {}) {
         ? chooseActionInput.actions.flatMap((a) =>
             a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
           )
-        : (payCombatCostInput?.tappableSourceIds ?? payManaCostInput?.tappableSourceIds ?? []),
-    [chooseActionInput, payCombatCostInput, payManaCostInput],
+        : (payManaCostInput?.tappableSourceIds ?? []),
+    [chooseActionInput, payManaCostInput],
   );
   const untappableLandIds = useMemo<string[]>(
     () =>
       chooseActionInput
         ? chooseActionInput.actions.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : []))
-        : (payCombatCostInput?.untappableSourceIds ?? payManaCostInput?.untappableSourceIds ?? []),
-    [chooseActionInput, payCombatCostInput, payManaCostInput],
+        : (payManaCostInput?.untappableSourceIds ?? []),
+    [chooseActionInput, payManaCostInput],
   );
 
   const mulliganPutBack = useMulliganSelection(activePrompt, (cardIds) =>
@@ -320,8 +318,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       }
       return map;
     }
-    const rawOptions =
-      payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions ?? [];
+    const rawOptions = payManaCostInput?.manaAbilityOptions ?? [];
     if (rawOptions.length === 0) return map;
     const byCard = new Map<string, ActivatableAbilityInfo[]>();
     for (const ab of rawOptions) {
@@ -336,11 +333,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       );
     }
     return map;
-  }, [
-    chooseActionInput,
-    payCombatCostInput?.manaAbilityOptions,
-    payManaCostInput?.manaAbilityOptions,
-  ]);
+  }, [chooseActionInput, payManaCostInput?.manaAbilityOptions]);
 
   const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
 
@@ -652,8 +645,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   }
 
   const handleTapLand = (card: GameCard) => {
-    const paymentManaOptions =
-      payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions;
+    const paymentManaOptions = payManaCostInput?.manaAbilityOptions;
     if (paymentManaOptions) {
       const manaAbilities = getDisplayedManaAbilities(card.id, paymentManaOptions).map((ab) =>
         toAbilityOption(ab),
@@ -1504,9 +1496,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           }}
           onCastSpell={handleCastSpell}
           onTapLand={
-            promptType === "chooseAction" ||
-            promptType === "payCombatCost" ||
-            promptType === "payManaCost"
+            promptType === "chooseAction" || promptType === "payManaCost"
               ? handleTapLand
               : undefined
           }
@@ -1528,9 +1518,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             }
           }}
           onUntapLand={
-            promptType === "chooseAction" ||
-            promptType === "payCombatCost" ||
-            promptType === "payManaCost"
+            promptType === "chooseAction" || promptType === "payManaCost"
               ? handleUntapLand
               : undefined
           }
@@ -1610,6 +1598,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               ? {
                   cardName: payManaCostInput.cardName,
                   manaCost: payManaCostInput.manaCost,
+                  description: payManaCostInput.description,
                   manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
                   canConfirmFromPool: payManaCostInput.canConfirmFromPool,
                   delveCount: delvedCardIds.length,

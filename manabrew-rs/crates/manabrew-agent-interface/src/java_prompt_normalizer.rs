@@ -535,6 +535,7 @@ pub fn normalize_java_prompt(prompt: JavaRawPrompt) -> AgentPrompt {
         } => PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
             card_id: card_id.unwrap_or_default(),
             card_name: card_name.unwrap_or_default(),
+            description: None,
             mana_cost: mana_cost.unwrap_or_default(),
             mana_ability_options: mana_ability_options
                 .iter()
@@ -724,8 +725,7 @@ pub fn translate_java_player_action(action: &PromptOutput) -> Result<JavaAction,
             }
         }
         PromptOutput::ChooseAction(ChooseActionOutput::ManaSourceAction(source))
-        | PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(source))
-        | PromptOutput::PayCombatCost(PayCombatCostOutput::ManaSourceAction(source)) => {
+        | PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(source)) => {
             mana_source_to_java(source)
         }
         PromptOutput::PayManaCost(PayManaCostOutput::DelveAction(DelveAction::Delve {
@@ -801,12 +801,6 @@ fn player_action_label(action: &PromptOutput) -> &'static str {
         )) => "restoreSnapshot",
         PromptOutput::SpecifyManaCombo(SpecifyManaComboOutput::ManaComboDecision { .. }) => {
             "manaComboDecision"
-        }
-        PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Pay)) => {
-            "payCombatCost"
-        }
-        PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Decline)) => {
-            "declineCombatCost"
         }
         PromptOutput::DiceRolled(DiceRolledOutput::DiceRolledAcknowledged) => {
             "diceRolledAcknowledged"

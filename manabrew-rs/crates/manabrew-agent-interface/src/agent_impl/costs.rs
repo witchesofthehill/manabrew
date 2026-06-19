@@ -168,6 +168,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
             manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
                 card_id: card_id_s,
                 card_name: card_name.to_string(),
+                description: None,
                 mana_cost: mana_cost_display.to_string(),
                 mana_ability_options: mana_ability_options
                     .iter()

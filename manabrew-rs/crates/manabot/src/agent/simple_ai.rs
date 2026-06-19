@@ -213,25 +213,23 @@ impl BotAgent for SimpleAi {
                 }
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
-            PromptInput::PayCombatCost(manabrew_protocol::prompts::pay_combat_cost::PayCombatCostInput {
+            PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
                 tappable_source_ids,
-                mana_pool_total,
-                cost,
+                can_confirm_from_pool,
                 ..
             }) => {
-                if mana_pool_total >= cost {
-                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Pay)))
+                if can_confirm_from_pool {
+                    Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto: true })))
                 } else if !tappable_source_ids.is_empty() {
-                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
+                    Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
                         card_id: tappable_source_ids[0].clone(),
                         ability_index: None,
                         color: None,
                     })))
                 } else {
-                    Some(PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Decline)))
+                    Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Cancel)))
                 }
             }
-            PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput { .. }) => Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto: true }))),
             PromptInput::SpecifyManaCombo(manabrew_protocol::prompts::specify_mana_combo::SpecifyManaComboInput {
                 available_colors,
                 amount,

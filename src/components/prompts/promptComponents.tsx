@@ -8,7 +8,6 @@ import { ReorderCardsModal } from "./ReorderCardsModal";
 import { VAssignCombatDamageModal } from "./VAssignCombatDamageModal";
 import { SpecifyManaComboModal } from "./SpecifyManaComboModal";
 import { ScryModal } from "./ScryModal";
-import { PayCombatCostModal } from "./PayCombatCostModal";
 import { PromptModalController } from "./PromptModalController";
 import { ChooseBooleanModal } from "./ChooseBooleanModal";
 import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
@@ -116,10 +115,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
 
   chooseFromSelection: ({ prompt, respond }) => (
     <ChooseFromSelectionModal input={prompt.input} respond={respond} />
-  ),
-
-  payCombatCost: ({ prompt, respond }) => (
-    <PayCombatCostModal input={prompt.input} respond={respond} />
   ),
 };
 

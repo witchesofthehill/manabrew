@@ -238,12 +238,12 @@ pub(super) fn pay_combat_cost<T: Responder>(
     let untappable_land_ids = PromptAgent::<T>::card_ids(untappable_lands);
 
     agent.send_prompt(
-        PromptInput::PayCombatCost(
-            manabrew_protocol::prompts::pay_combat_cost::PayCombatCostInput {
-                attacker_id,
-                attacker_name,
-                cost,
-                description: description.to_string(),
+        PromptInput::PayManaCost(
+            manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
+                card_id: attacker_id,
+                card_name: attacker_name,
+                description: Some(description.to_string()),
+                mana_cost: format!("{{{cost}}}"),
                 mana_ability_options: mana_ability_options
                     .iter()
                     .flat_map(|opt| {
@@ -259,13 +259,15 @@ pub(super) fn pay_combat_cost<T: Responder>(
                     .collect(),
                 tappable_source_ids: tappable_land_ids,
                 untappable_source_ids: untappable_land_ids,
+                delve_source_ids: Vec::new(),
                 mana_pool_total,
+                can_confirm_from_pool: mana_pool_total >= cost,
             },
         ),
         None,
     );
     match agent.recv_action() {
-        PromptOutput::PayCombatCost(PayCombatCostOutput::ManaSourceAction(
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
             ManaSourceAction::TapForMana {
                 card_id,
                 ability_index,
@@ -278,12 +280,12 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 express_choice: parse_express_mana_choice(color.as_deref()),
             })
             .unwrap_or(CombatCostAction::Decline),
-        PromptOutput::PayCombatCost(PayCombatCostOutput::ManaSourceAction(
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
             ManaSourceAction::Untap { card_id },
         )) => parse_card_id(&card_id)
             .map(CombatCostAction::UntapLand)
             .unwrap_or(CombatCostAction::Decline),
-        PromptOutput::PayCombatCost(PayCombatCostOutput::CombatPayment(CombatPayment::Pay)) => {
+        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { .. })) => {
             CombatCostAction::Pay
         }
         _ => CombatCostAction::Decline,

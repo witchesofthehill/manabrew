@@ -5,14 +5,35 @@ use manabrew_engine::spellability::SpellAbility;
 
 use manabrew_engine::game::GameState;
 
-use manabrew_protocol::prompts::choose_from_selection::ChooseFromSelectionInput;
-use manabrew_protocol::prompts::common::PromptPresentation;
-
 use crate::game_view_dto::{card_to_dto, CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::prompt::{PlayerAction, PromptInput};
+use crate::prompt::*;
 
 use super::{PromptAgent, Responder};
+
+fn card_choice_presentation(
+    title: &str,
+    description: Option<String>,
+    source: Option<CardId>,
+) -> PromptPresentation {
+    PromptPresentation {
+        title: title.to_string(),
+        description,
+        text: None,
+        source_card_id: source.map(card_id_str),
+        targets: Vec::new(),
+    }
+}
+
+fn zone_cards_for<T: Responder>(agent: &mut PromptAgent<T>, valid: &[CardId]) -> Vec<CardDto> {
+    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
+    let view = agent.view();
+    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
+    valid_card_ids
+        .iter()
+        .filter_map(|id| all_cards.iter().find(|c| c.id == *id).map(|c| (*c).clone()))
+        .collect()
+}
 
 fn send_selection<T: Responder>(
     agent: &mut PromptAgent<T>,
@@ -42,7 +63,9 @@ fn send_selection<T: Responder>(
 
 fn recv_selection<T: Responder>(agent: &mut PromptAgent<T>) -> Option<Vec<usize>> {
     match agent.recv_action() {
-        PlayerAction::SelectionDecision { chosen_indices } => Some(chosen_indices),
+        PromptOutput::ChooseFromSelection(ChooseFromSelectionOutput::SelectionDecision {
+            chosen_indices,
+        }) => Some(chosen_indices),
         _ => None,
     }
 }
@@ -144,8 +167,8 @@ pub(super) fn mulligan_decision_recv<T: Responder>(
     // any other action is a contract violation. Concede short-circuits
     // so a torn-down session exits cleanly.
     match agent.recv_action() {
-        PlayerAction::MulliganDecision { keep } => keep,
-        PlayerAction::Concede => true,
+        PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => keep,
+        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => true,
         other => panic!("mulligan_decision_recv expected MulliganDecision, got {other:?}"),
     }
 }
@@ -194,9 +217,9 @@ pub(super) fn choose_cards_to_bottom_recv<T: Responder>(
     count: usize,
 ) -> Vec<CardId> {
     match agent.recv_action() {
-        PlayerAction::MulliganPutBackDecision { card_ids } => {
-            card_ids.iter().filter_map(|s| parse_card_id(s)).collect()
-        }
+        PromptOutput::MulliganPutBack(MulliganPutBackOutput::MulliganPutBackDecision {
+            card_ids,
+        }) => card_ids.iter().filter_map(|s| parse_card_id(s)).collect(),
         _ => hand.iter().copied().take(count).collect(),
     }
 }
@@ -423,7 +446,7 @@ fn send_boolean<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::Decision { value } => value,
+        PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => value,
         _ => default,
     }
 }
@@ -546,13 +569,12 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
         source,
     );
     match agent.recv_action() {
-        PlayerAction::Decision { value } => value,
+        PromptOutput::ChooseBoolean(ChooseBooleanOutput::Decision { value }) => value,
         _ => false,
     }
 }
 
-fn game_entity_to_target_ref(entity: &GameEntity) -> manabrew_protocol::prompts::common::TargetRef {
-    use manabrew_protocol::prompts::common::TargetRef;
+fn game_entity_to_target_ref(entity: &GameEntity) -> TargetRef {
     match entity {
         GameEntity::Card(id) => TargetRef::Card {
             id: card_id_str(*id),
@@ -589,7 +611,7 @@ pub(super) fn choose_color<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ColorDecision { color } => color,
+        PromptOutput::ChooseColor(ChooseColorOutput::ColorDecision { color }) => color,
         _ => valid_colors.first().cloned(),
     }
 }
@@ -641,7 +663,7 @@ pub(super) fn choose_type<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::TypeDecision { chosen_type } => chosen_type,
+        PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision { chosen_type }) => chosen_type,
         _ => valid_types.first().cloned(),
     }
 }
@@ -660,7 +682,9 @@ pub(super) fn choose_card_name<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::CardNameDecision { chosen_name } => chosen_name,
+        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { chosen_name }) => {
+            chosen_name
+        }
         _ => valid_names.first().cloned(),
     }
 }
@@ -852,62 +876,35 @@ pub(super) fn flip_coin_call<T: Responder>(agent: &mut PromptAgent<T>, player: P
     )
 }
 
-pub(super) fn choose_x_value<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    max_x: u32,
-    source: Option<CardId>,
-) -> u32 {
-    agent.send_prompt(
-        PromptInput::ChooseNumber(
-            manabrew_protocol::prompts::choose_number::ChooseNumberInput {
-                min: 0,
-                max: max_x as i32,
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::NumberDecision { chosen_number } => {
-            chosen_number.unwrap_or(max_x as i32).max(0) as u32
-        }
-        _ => max_x,
-    }
-}
-
 pub(super) fn choose_number<T: Responder>(
     agent: &mut PromptAgent<T>,
     _player: PlayerId,
-    min: i32,
-    max: i32,
-) -> Option<i32> {
-    agent.send_prompt(
-        PromptInput::ChooseNumber(
-            manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, max },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::NumberDecision { chosen_number } => chosen_number,
-        _ => Some(min),
-    }
-}
-
-pub(super) fn announce_requirements<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    min: i32,
-    max: i32,
     source: Option<CardId>,
+    title: &str,
+    description: Option<&str>,
+    min: i32,
+    max: i32,
 ) -> Option<i32> {
     agent.send_prompt(
         PromptInput::ChooseNumber(
-            manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, max },
+            manabrew_protocol::prompts::choose_number::ChooseNumberInput {
+                presentation: PromptPresentation {
+                    title: title.to_string(),
+                    description: description.map(str::to_string),
+                    text: None,
+                    source_card_id: source.map(card_id_str),
+                    targets: Vec::new(),
+                },
+                min,
+                max,
+            },
         ),
         source,
     );
     match agent.recv_action() {
-        PlayerAction::NumberDecision { chosen_number } => chosen_number,
+        PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision { chosen_number }) => {
+            chosen_number
+        }
         _ => Some(min),
     }
 }
@@ -918,21 +915,23 @@ pub(super) fn choose_discard<T: Responder>(
     hand: &[CardId],
     num: usize,
 ) -> Vec<CardId> {
-    let hand_card_ids = PromptAgent::<T>::card_ids(hand);
+    let cards = zone_cards_for(agent, hand);
     agent.send_prompt(
-        PromptInput::ChooseDiscard(
-            manabrew_protocol::prompts::choose_discard::ChooseDiscardInput {
-                hand_card_ids,
-                num_to_discard: num,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation("Discard", None, None),
+            cards,
+            min: num,
+            max: num,
+        }),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::DiscardDecision { discarded_card_ids } => discarded_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => hand.iter().copied().take(num).collect(),
     }
 }
@@ -965,34 +964,23 @@ pub(super) fn choose_cards_for_effect<T: Responder>(
     min: usize,
     max: usize,
 ) -> Vec<CardId> {
-    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
-    let view = agent.view();
-
-    // Build zone_cards from the snapshot view's zones (find matching DTOs)
-    let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
-    let zone_cards: Vec<CardDto> = valid_card_ids
-        .iter()
-        .filter_map(|id| all_cards.iter().find(|c| c.id == *id).map(|c| (*c).clone()))
-        .collect();
-
+    let cards = zone_cards_for(agent, valid);
     agent.send_prompt(
-        PromptInput::ChooseCardsForEffect(
-            manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                zone_cards,
-                min_choices: min,
-                max_choices: max,
-                source_card_name: None,
-                optional: false,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation("Choose cards", None, None),
+            cards,
+            min,
+            max,
+        }),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => valid.iter().copied().take(max).collect(),
     }
 }
@@ -1005,7 +993,6 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
     select_prompt: &str,
     is_optional: bool,
 ) -> Option<CardId> {
-    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     let view = agent.view();
 
     let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
@@ -1026,20 +1013,16 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
 
     let min_choices = if is_optional { 0 } else { 1 };
     agent.send_prompt(
-        PromptInput::ChooseCardsForEffect(
-            manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                zone_cards,
-                min_choices,
-                max_choices: 1,
-                source_card_name: Some(select_prompt.to_string()),
-                optional: is_optional,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation(select_prompt, None, None),
+            cards: zone_cards,
+            min: min_choices,
+            max: 1,
+        }),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => {
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
             chosen_card_ids.first().and_then(|id| parse_card_id(id))
         }
         _ => {
@@ -1061,7 +1044,6 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
     max: usize,
     select_prompt: &str,
 ) -> Vec<CardId> {
-    let valid_card_ids = PromptAgent::<T>::card_ids(valid);
     let view = agent.view();
 
     let all_cards: Vec<&CardDto> = view.all_zone_cards().collect();
@@ -1080,70 +1062,43 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
     zone_cards.retain(|c| seen.insert(c.id.clone()));
 
     agent.send_prompt(
-        PromptInput::ChooseCardsForEffect(
-            manabrew_protocol::prompts::choose_cards_for_effect::ChooseCardsForEffectInput {
-                valid_card_ids,
-                zone_cards,
-                min_choices: min,
-                max_choices: max,
-                source_card_name: Some(select_prompt.to_string()),
-                optional: false,
-            },
-        ),
+        PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
+            presentation: card_choice_presentation(select_prompt, None, None),
+            cards: zone_cards,
+            min,
+            max,
+        }),
         None,
     );
     match agent.recv_action() {
-        PlayerAction::ChooseCardsDecision { chosen_card_ids } => chosen_card_ids
-            .iter()
-            .filter_map(|id| parse_card_id(id))
-            .collect(),
+        PromptOutput::ChooseCards(ChooseCardsOutput::ChooseCardsDecision { chosen_card_ids }) => {
+            chosen_card_ids
+                .iter()
+                .filter_map(|id| parse_card_id(id))
+                .collect()
+        }
         _ => valid.iter().copied().take(max).collect(),
-    }
-}
-
-pub(super) fn choose_explore_put_in_graveyard<T: Responder>(
-    agent: &mut PromptAgent<T>,
-    _player: PlayerId,
-    revealed_card_name: &str,
-    _revealed_cmc: i32,
-    _mana_producing_lands: usize,
-    _predicted_mana: usize,
-    _lands_in_hand: usize,
-) -> bool {
-    agent.send_prompt(
-        PromptInput::ExploreDecision(
-            manabrew_protocol::prompts::explore_decision::ExploreDecisionInput {
-                revealed_card_name: revealed_card_name.to_string(),
-                revealed_card: None,
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PlayerAction::ExploreResponse { put_in_graveyard } => put_in_graveyard,
-        _ => false,
     }
 }
 
 pub(super) fn help_pay_assist<T: Responder>(
     agent: &mut PromptAgent<T>,
-    _player: PlayerId,
+    player: PlayerId,
     card_name: &str,
     max_generic: u32,
 ) -> u32 {
-    agent.send_prompt(
-        PromptInput::HelpPayAssist(
-            manabrew_protocol::prompts::help_pay_assist::HelpPayAssistInput {
-                card_name: card_name.to_string(),
-                max_generic,
-            },
-        ),
+    let description = format!("Pay generic mana to help cast {card_name}.");
+    choose_number(
+        agent,
+        player,
         None,
-    );
-    match agent.recv_action() {
-        PlayerAction::AssistDecision { amount_to_pay } => amount_to_pay.min(max_generic),
-        _ => 0,
-    }
+        "Assist",
+        Some(&description),
+        0,
+        max_generic as i32,
+    )
+    .unwrap_or(0)
+    .clamp(0, max_generic as i32) as u32
 }
 
 pub(super) fn choose_random_discard<T: Responder>(

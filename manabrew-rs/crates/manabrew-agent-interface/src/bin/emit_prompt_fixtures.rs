@@ -99,30 +99,24 @@ fn main() {
             message: String::new(),
         }),
         Scry(scry::ScryInput {
-            card_ids: vec![],
+            presentation: common::PromptPresentation {
+                title: "Scry".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
             cards: vec![],
-        }),
-        Surveil(surveil::SurveilInput {
-            card_ids: vec![],
-            cards: vec![],
+            zones: vec![
+                scry::ScryDestination::LibraryTop,
+                scry::ScryDestination::LibraryBottom,
+            ],
         }),
         Dig(dig::DigInput {
             card_ids: vec![],
             cards: vec![],
             num_to_take: 0,
             optional: false,
-        }),
-        ChooseDiscard(choose_discard::ChooseDiscardInput {
-            hand_card_ids: vec![],
-            num_to_discard: 0,
-        }),
-        ChooseMultikicker(choose_multikicker::ChooseMultikickerInput {
-            cost: String::new(),
-            max_kicks: 0,
-        }),
-        ChooseReplicate(choose_replicate::ChooseReplicateInput {
-            cost: String::new(),
-            max_replicates: 0,
         }),
         ChooseColor(choose_color::ChooseColorInput {
             valid_colors: vec![],
@@ -131,7 +125,17 @@ fn main() {
             type_category: String::new(),
             valid_types: vec![],
         }),
-        ChooseNumber(choose_number::ChooseNumberInput { min: 0, max: 0 }),
+        ChooseNumber(choose_number::ChooseNumberInput {
+            presentation: common::PromptPresentation {
+                title: "Choose a number".to_string(),
+                description: Some("Pay {2} for each replicate.".to_string()),
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
+            min: 0,
+            max: 5,
+        }),
         ChooseCardName(choose_card_name::ChooseCardNameInput {
             valid_names: vec![],
         }),
@@ -180,12 +184,6 @@ fn main() {
             available_colors: vec![],
             amount: 0,
         }),
-        ReorderLibrary(reorder_library::ReorderLibraryInput {
-            card_ids: vec![],
-            cards: vec![],
-            destination: None,
-            top_of_deck: true,
-        }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {
             presentation: common::PromptPresentation {
                 title: "Pay Buyback?".to_string(),
@@ -215,14 +213,6 @@ fn main() {
             min_choices: 1,
             max_choices: 2,
         }),
-        ExploreDecision(explore_decision::ExploreDecisionInput {
-            revealed_card_name: String::new(),
-            revealed_card: None,
-        }),
-        HelpPayAssist(help_pay_assist::HelpPayAssistInput {
-            card_name: String::new(),
-            max_generic: 0,
-        }),
         FirstPlayerRoll(first_player_roll::FirstPlayerRollInput {
             sides: 0,
             rolls: vec![],
@@ -236,13 +226,29 @@ fn main() {
             ignored_rolls: vec![],
             source_card_name: None,
         }),
-        ChooseCardsForEffect(choose_cards_for_effect::ChooseCardsForEffectInput {
-            valid_card_ids: vec![],
-            zone_cards: vec![],
-            min_choices: 0,
-            max_choices: 0,
-            source_card_name: None,
-            optional: false,
+        ChooseCards(choose_cards::ChooseCardsInput {
+            presentation: common::PromptPresentation {
+                title: "Choose cards".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
+            cards: vec![],
+            min: 0,
+            max: 0,
+        }),
+        ReorderCards(reorder_cards::ReorderCardsInput {
+            presentation: common::PromptPresentation {
+                title: "Reorder".to_string(),
+                description: None,
+                text: None,
+                source_card_id: None,
+                targets: Vec::new(),
+            },
+            cards: vec![],
+            target_label: "Top of Library".to_string(),
+            top_of_deck: true,
         }),
     ];
 

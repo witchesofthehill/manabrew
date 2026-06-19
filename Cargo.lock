@@ -3643,6 +3643,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "tracing",
+ "web-sys",
 ]
 
 [[package]]

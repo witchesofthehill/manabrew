@@ -8,6 +8,24 @@ use tracing::{debug, warn};
 
 use crate::agent::{AgentKind, BotAgent};
 
+#[cfg(target_arch = "wasm32")]
+fn bot_logging_enabled() -> bool {
+    web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .and_then(|storage| storage.get_item("manabrew.debugPrompts").ok().flatten())
+        .as_deref()
+        == Some("1")
+}
+
+fn bot_log(msg: &str) {
+    #[cfg(target_arch = "wasm32")]
+    if bot_logging_enabled() {
+        web_sys::console::log_1(&format!("[wasm-bot] {msg}").into());
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    tracing::debug!(target: "wasm-bot", "{msg}");
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BotConfig {
@@ -143,7 +161,12 @@ impl BotState {
     ) -> Vec<ClientMessage> {
         let envelope: StateEnvelope = match serde_json::from_value(state.clone()) {
             Ok(envelope) => envelope,
-            Err(_) => return Vec::new(),
+            Err(error) => {
+                bot_log(&format!(
+                    "DROP: state envelope did not parse: {error}; raw={state}"
+                ));
+                return Vec::new();
+            }
         };
         let StateEnvelope::Prompt { for_player, prompt } = envelope else {
             return Vec::new();
@@ -151,14 +174,14 @@ impl BotState {
         let prompt_type = prompt
             .get("type")
             .and_then(serde_json::Value::as_str)
+            .or_else(|| prompt.get("kind").and_then(serde_json::Value::as_str))
             .unwrap_or("?")
             .to_string();
-        debug!(for_player, player_slot, prompt_type, "bot received prompt");
+        bot_log(&format!(
+            "recv prompt for={for_player} (self={player_slot}) type={prompt_type} payload={prompt}"
+        ));
         if for_player != player_slot {
-            debug!(
-                for_player,
-                player_slot, "bot ignoring prompt for other slot"
-            );
+            bot_log(&format!("ignore: prompt for other slot ({for_player})"));
             return Vec::new();
         }
 
@@ -166,25 +189,31 @@ impl BotState {
         // `AgentPrompt`; passing priority is always a safe default in that case.
         let action_value =
             if prompt.get("kind").and_then(serde_json::Value::as_str) == Some("priority") {
+                bot_log("decide: raw priority -> pass");
                 json!({ "kind": "pass" })
             } else {
                 let parsed: AgentPrompt = match serde_json::from_value(prompt) {
                     Ok(p) => p,
                     Err(error) => {
-                        warn!(%error, "bot prompt payload was invalid");
+                        bot_log(&format!(
+                            "DROP: prompt did not parse as AgentPrompt: {error}"
+                        ));
                         return Vec::new();
                     }
                 };
                 let Some(action) = self.agent.decide(parsed) else {
-                    debug!("bot agent returned no action for prompt");
+                    bot_log(&format!("DROP: agent returned no action for {prompt_type}"));
                     return Vec::new();
                 };
                 match serde_json::to_value(action) {
                     Ok(v) => {
-                        debug!(action = %v, "bot sending action");
+                        bot_log(&format!("decide: {prompt_type} -> {v}"));
                         v
                     }
-                    Err(_) => return Vec::new(),
+                    Err(error) => {
+                        bot_log(&format!("DROP: action did not serialize: {error}"));
+                        return Vec::new();
+                    }
                 }
             };
 
@@ -193,8 +222,16 @@ impl BotState {
             action: action_value,
         };
         match serde_json::to_value(response) {
-            Ok(state) => vec![ClientMessage::BroadcastState { state }],
-            Err(_) => Vec::new(),
+            Ok(state) => {
+                bot_log("send: broadcasting response");
+                vec![ClientMessage::BroadcastState { state }]
+            }
+            Err(error) => {
+                bot_log(&format!(
+                    "DROP: response envelope did not serialize: {error}"
+                ));
+                Vec::new()
+            }
         }
     }
 }

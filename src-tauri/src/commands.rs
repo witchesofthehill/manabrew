@@ -5,7 +5,7 @@ use crate::multiplayer_controller::relay_response;
 use crate::preset_decks::{wire_deck_to_identities, PresetDeckInfo};
 use crate::server_client::ServerClient;
 use manabrew_agent_interface::deck_dto::Deck;
-use manabrew_agent_interface::prompt::PlayerAction;
+use manabrew_agent_interface::prompt::PromptOutput;
 use serde_json::Value;
 
 #[tauri::command]
@@ -32,7 +32,7 @@ pub async fn start_game(
 pub async fn respond(
     gm: State<'_, GameManager>,
     client: State<'_, ServerClient>,
-    action: PlayerAction,
+    action: PromptOutput,
     player_slot: Option<String>,
 ) -> Result<(), String> {
     match gm.respond(action.clone()) {

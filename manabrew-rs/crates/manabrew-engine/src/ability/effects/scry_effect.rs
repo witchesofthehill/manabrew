@@ -69,30 +69,17 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
     // downward, so the deterministic agent must consume RNG in the same order.
     top_n.reverse();
 
-    // Ask the agent which to put on the bottom.
-    let bottom_ids = ctx.agents[target.index()].choose_scry(ctx.game, target, &top_n);
+    // Ask the agent to distribute the cards: piles[0] = top, piles[1] = bottom.
+    let piles = ctx.agents[target.index()].choose_scry(ctx.game, target, sa.source, &top_n);
+    let (top, bottom) = super::split_scry_piles(&top_n, &piles);
 
-    // Validate: only cards that were actually in top_n are accepted.
-    let bottom: Vec<_> = bottom_ids
-        .into_iter()
-        .filter(|id| top_n.contains(id))
-        .collect();
-    let top: Vec<_> = top_n
-        .iter()
-        .copied()
-        .filter(|id| !bottom.contains(id))
-        .collect();
-
-    // Insert bottom cards at the front (index 0 = bottom in our representation).
-    // Java moves `toBottom` cards one-by-one in the order returned by the
-    // controller; each subsequent move becomes the new bottom card.
+    // Bottom cards go under the library (preserve their order).
     for &id in &bottom {
         ctx.game
             .add_card_to_zone_bottom(ZoneType::Library, target, id);
     }
-    // Put remaining top cards back on top (append to end).
-    // `top` is in top-to-bottom order (from the reversed top_n), so iterate
-    // in reverse to restore original library order (last push = actual top).
+    // Top pile is ordered top-to-bottom (first = top of library); iterate in
+    // reverse so the last append leaves the intended card on top.
     for &id in top.iter().rev() {
         ctx.game.add_card_to_zone(ZoneType::Library, target, id);
     }
@@ -207,9 +194,10 @@ mod tests {
             &mut self,
             _game: &GameState,
             _player: PlayerId,
+            _source: Option<CardId>,
             cards: &[CardId],
-        ) -> Vec<CardId> {
-            cards.to_vec() // put all on bottom
+        ) -> Vec<Vec<CardId>> {
+            vec![vec![], cards.to_vec()] // put all on bottom
         }
         fn choose_targets_for(
             &mut self,

@@ -786,9 +786,10 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description
     ) {
-        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, description, false);
+        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, sourceCardId, description, false);
     }
 
     CardCollection awaitCardChoice(
@@ -798,10 +799,12 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean optionalDecline
     ) {
-        return awaitCardChoice(kind, playerId, validCards, min, max, sourceName, description, optionalDecline, null);
+        return awaitCardChoice(
+                kind, playerId, validCards, min, max, sourceName, sourceCardId, description, optionalDecline, null);
     }
 
     CardCollection awaitCardChoice(
@@ -811,6 +814,7 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean optionalDecline,
             final String error
@@ -819,7 +823,8 @@ public final class ManaBrewInteractiveSession {
         final List<Card> cards = ParityOrder.sortCardsByNameThenId(new ArrayList<Card>(validCards));
         final int clampedMin = Math.min(min, cards.size());
         final int clampedMax = Math.min(max, cards.size());
-        publishCardChoicePrompt(kind, playerId, cards, clampedMin, clampedMax, sourceName, description, optionalDecline, error);
+        publishCardChoicePrompt(
+                kind, playerId, cards, clampedMin, clampedMax, sourceName, sourceCardId, description, optionalDecline, error);
         return awaitCardsFromPublishedPrompt(cards, clampedMin, clampedMax, optionalDecline);
     }
 
@@ -1000,27 +1005,27 @@ public final class ManaBrewInteractiveSession {
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description
     ) {
-        return awaitNumberChoice(playerId, min, max, sourceName, description, false);
+        return awaitNumberChoice(playerId, min, max, sourceCardId, description, false);
     }
 
     Integer awaitCancellableNumberChoice(
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description
     ) {
-        return awaitNumberChoice(playerId, min, max, sourceName, description, true);
+        return awaitNumberChoice(playerId, min, max, sourceCardId, description, true);
     }
 
     private Integer awaitNumberChoice(
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean canCancel
     ) {
@@ -1031,7 +1036,7 @@ public final class ManaBrewInteractiveSession {
         if (min == max) {
             return min;
         }
-        publishNumberPrompt(playerId, min, max, sourceName, description, canCancel);
+        publishNumberPrompt(playerId, min, max, sourceCardId, description, canCancel);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1083,10 +1088,13 @@ public final class ManaBrewInteractiveSession {
         return options.isEmpty() ? "" : options.get(0);
     }
 
-    Pair<CardCollection, CardCollection> awaitCardIdListChoice(
+    /**
+     * Publishes a scry/surveil prompt and awaits the `scry_decision` response.
+     * Returns `(top, other)` where `other` is the bottom-of-library (scry) or
+     * graveyard (surveil) pile, both in the order the player stacked them.
+     */
+    Pair<CardCollection, CardCollection> awaitScryDecision(
             final String promptKind,
-            final String responseKind,
-            final String responseField,
             final int playerId,
             final CardCollectionView cardsForPrompt,
             final String sourceName
@@ -1097,45 +1105,42 @@ public final class ManaBrewInteractiveSession {
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
-                return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
+                return ImmutablePair.of(new CardCollection(cards), new CardCollection());
             }
             final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
+                return ImmutablePair.of(new CardCollection(cards), new CardCollection());
             }
-            if (!responseKind.equals(actionKind)) {
+            if (!"scry_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
-            final CardCollection selected = new CardCollection();
-            if (action.has(responseField) && action.get(responseField).isJsonArray()) {
-                for (JsonElement element : action.getAsJsonArray(responseField)) {
-                    final Card card = findCardByPublishedId(cards, element.getAsString());
-                    if (card != null && !selected.contains(card)) {
-                        selected.add(card);
-                    }
-                }
-            }
-            final CardCollection top = new CardCollection();
+            final CardCollection top = parseScryZone(action, cards, 0);
+            final CardCollection other = parseScryZone(action, cards, 1);
+            // Any card not assigned anywhere stays on top.
             for (final Card card : cards) {
-                if (!selected.contains(card)) {
+                if (!top.contains(card) && !other.contains(card)) {
                     top.add(card);
                 }
             }
-            if (action.has("top_card_ids") && action.get("top_card_ids").isJsonArray()) {
-                final CardCollection orderedTop = new CardCollection();
-                for (JsonElement element : action.getAsJsonArray("top_card_ids")) {
+            return ImmutablePair.of(top, other);
+        }
+        return ImmutablePair.of(new CardCollection(cards), new CardCollection());
+    }
+
+    private CardCollection parseScryZone(final JsonObject action, final List<Card> cards, final int idx) {
+        final CardCollection result = new CardCollection();
+        if (action.has("zone_card_ids") && action.get("zone_card_ids").isJsonArray()) {
+            final com.google.gson.JsonArray zones = action.getAsJsonArray("zone_card_ids");
+            if (idx < zones.size() && zones.get(idx).isJsonArray()) {
+                for (JsonElement element : zones.get(idx).getAsJsonArray()) {
                     final Card card = findCardByPublishedId(cards, element.getAsString());
-                    if (card != null && !orderedTop.contains(card)) {
-                        orderedTop.add(card);
+                    if (card != null && !result.contains(card)) {
+                        result.add(card);
                     }
                 }
-                if (orderedTop.size() == top.size() && orderedTop.containsAll(top)) {
-                    return ImmutablePair.of(selected, orderedTop);
-                }
             }
-            return ImmutablePair.of(selected, top);
         }
-        return ImmutablePair.of(new CardCollection(), new CardCollection(cards));
+        return result;
     }
 
     CardCollection awaitDigChoice(
@@ -1184,11 +1189,12 @@ public final class ManaBrewInteractiveSession {
             final CardCollectionView cardsForPrompt,
             final ZoneType destination,
             final boolean topOfDeck,
-            final String sourceName
+            final String sourceName,
+            final String sourceCardId
     ) {
         requireAttached();
         final List<Card> cards = new ArrayList<Card>(cardsForPrompt);
-        publishReorderZonePrompt(playerId, cards, destination, topOfDeck, sourceName);
+        publishReorderZonePrompt(playerId, cards, destination, topOfDeck, sourceName, sourceCardId);
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
             if (action == null) {
@@ -1756,6 +1762,7 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max,
             final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean optionalDecline,
             final String error
@@ -1769,6 +1776,9 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("optional", optionalDecline);
         if (error != null) {
             prompt.addProperty("error", error);
+        }
+        if (sourceCardId != null) {
+            prompt.addProperty("sourceCardId", sourceCardId);
         }
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
@@ -1949,7 +1959,7 @@ public final class ManaBrewInteractiveSession {
             final int playerId,
             final int min,
             final int max,
-            final String sourceName,
+            final String sourceCardId,
             final String description,
             final boolean canCancel
     ) {
@@ -1960,8 +1970,8 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("min", min);
         prompt.addProperty("max", max);
         prompt.addProperty("canCancel", canCancel);
-        if (sourceName != null) {
-            prompt.addProperty("sourceCardName", sourceName);
+        if (sourceCardId != null) {
+            prompt.addProperty("sourceCardId", sourceCardId);
         }
         if (description != null) {
             prompt.addProperty("description", description);
@@ -1975,7 +1985,8 @@ public final class ManaBrewInteractiveSession {
             final List<Card> cards,
             final ZoneType destination,
             final boolean topOfDeck,
-            final String sourceName
+            final String sourceName,
+            final String sourceCardId
     ) {
         JsonObject prompt = new JsonObject();
         prompt.addProperty("kind", "reorder_library");
@@ -1985,6 +1996,9 @@ public final class ManaBrewInteractiveSession {
         prompt.addProperty("topOfDeck", topOfDeck);
         if (sourceName != null) {
             prompt.addProperty("sourceCardName", sourceName);
+        }
+        if (sourceCardId != null) {
+            prompt.addProperty("sourceCardId", sourceCardId);
         }
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         com.google.gson.JsonArray options = new com.google.gson.JsonArray();

@@ -1,8 +1,17 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::display::DisplayEvent;
 use crate::prompts::PromptInput;
 use crate::values::GameViewDto;
+
+#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
+pub enum AgentMessage {
+    State(StateUpdate),
+    Display(DisplayEvent),
+    Prompt(AgentPrompt),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

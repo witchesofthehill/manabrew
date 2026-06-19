@@ -1,14 +1,27 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompts::common::PromptPresentation;
 use crate::values::CardDto;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/scry.ts")]
+pub enum ScryDestination {
+    LibraryTop,
+    LibraryBottom,
+    Graveyard,
+    Exile,
+    Hand,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/scry.ts")]
 pub struct ScryInput {
-    pub card_ids: Vec<String>,
+    pub presentation: PromptPresentation,
     pub cards: Vec<CardDto>,
+    pub zones: Vec<ScryDestination>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -19,5 +32,5 @@ pub struct ScryInput {
 )]
 #[ts(export, export_to = "prompts/scry.ts")]
 pub enum ScryOutput {
-    ScryDecision { bottom_card_ids: Vec<String> },
+    ScryDecision { zone_card_ids: Vec<Vec<String>> },
 }

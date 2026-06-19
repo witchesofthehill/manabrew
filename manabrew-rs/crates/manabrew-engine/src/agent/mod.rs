@@ -326,26 +326,29 @@ pub trait PlayerAgent {
         valid.first().copied()
     }
 
-    /// Choose which of the top `cards` (from Scry) to put on the bottom of the library.
-    /// The rest will stay on top. Default: keep all on top (no cards sent to bottom).
+    /// Distribute the looked-at Scry cards across the zones. Returns one ordered
+    /// pile per zone — `[top, bottom]` — where the last id in each pile is placed
+    /// on top of that pile. Default: keep everything on top, nothing to bottom.
     fn choose_scry(
         &mut self,
         _game: &GameState,
         _player: PlayerId,
-        _cards: &[CardId],
-    ) -> Vec<CardId> {
-        vec![]
+        _source: Option<CardId>,
+        cards: &[CardId],
+    ) -> Vec<Vec<CardId>> {
+        vec![cards.to_vec(), vec![]]
     }
 
-    /// Choose which of the top `cards` (from Surveil) to put into the graveyard.
-    /// The rest will go on top. Default: keep all on top (nothing milled).
+    /// Distribute the looked-at Surveil cards: `[top, graveyard]` ordered piles.
+    /// Default: keep everything on top, nothing milled.
     fn choose_surveil(
         &mut self,
         _game: &GameState,
         _player: PlayerId,
-        _cards: &[CardId],
-    ) -> Vec<CardId> {
-        vec![]
+        _source: Option<CardId>,
+        cards: &[CardId],
+    ) -> Vec<Vec<CardId>> {
+        vec![cards.to_vec(), vec![]]
     }
 
     /// Choose up to `max` cards from `valid` to move to the destination zone (Dig effect).
@@ -468,32 +471,6 @@ pub trait PlayerAgent {
         } else {
             Some(0)
         }
-    }
-
-    /// Choose whether to put a revealed nonland card into the graveyard during Explore.
-    /// Returns true to put in graveyard, false to keep on top of library.
-    fn choose_explore_put_in_graveyard(
-        &mut self,
-        _game: &GameState,
-        _player: PlayerId,
-        _revealed_card_name: &str,
-        revealed_cmc: i32,
-        mana_producing_lands: usize,
-        predicted_mana: usize,
-        lands_in_hand: usize,
-    ) -> bool {
-        // EXPLORE_MAX_CMC_DIFF_TO_PUT_IN_GRAVEYARD = 2
-        // EXPLORE_NUM_LANDS_TO_STILL_NEED_MORE = 2
-        const MAX_CMC_DIFF: i32 = 2;
-        const NUM_LANDS_TO_STILL_NEED_MORE: usize = 2;
-
-        if lands_in_hand == 0 && mana_producing_lands <= NUM_LANDS_TO_STILL_NEED_MORE {
-            return true;
-        }
-        if revealed_cmc - MAX_CMC_DIFF >= predicted_mana as i32 {
-            return true;
-        }
-        false
     }
 
     /// Choose which legendary permanent to keep when the legend rule applies.
@@ -773,9 +750,18 @@ pub trait PlayerAgent {
         valid_names.first().cloned()
     }
 
-    /// Choose a number (for ChooseNumber effect).
+    /// Choose a number within `[min, max]`. `title`/`description` present the
+    /// choice and `source` is the card driving it (shown in the prompt).
     /// Default: pick the minimum.
-    fn choose_number(&mut self, _player: PlayerId, min: i32, _max: i32) -> Option<i32> {
+    fn choose_number(
+        &mut self,
+        _player: PlayerId,
+        _source: Option<CardId>,
+        _title: &str,
+        _description: Option<&str>,
+        min: i32,
+        _max: i32,
+    ) -> Option<i32> {
         Some(min)
     }
 
@@ -859,29 +845,6 @@ pub trait PlayerAgent {
     /// Default: always call heads.
     fn flip_coin_call(&mut self, _player: PlayerId) -> bool {
         true
-    }
-
-    /// Choose the value of X for an X-cost spell.
-    /// `max_x` is the maximum affordable value.
-    /// Returns the chosen X value (0 to max_x).
-    /// Default: spend all available mana (max_x).
-    fn choose_x_value(&mut self, _player: PlayerId, max_x: u32, _source: Option<CardId>) -> u32 {
-        max_x
-    }
-
-    /// Announce the value of a variable (`announce`, e.g. "X") in a spell's
-    /// cost before payment, within `[min, max]`.
-    /// Mirrors Java's `PlayerController.announceRequirements`.
-    /// Returns None to cancel the cast.
-    fn announce_requirements(
-        &mut self,
-        _player: PlayerId,
-        _announce: &str,
-        min: i32,
-        _max: i32,
-        _source: Option<CardId>,
-    ) -> Option<i32> {
-        Some(min)
     }
 
     /// Choose whether to pay life instead of mana for a Phyrexian mana shard.

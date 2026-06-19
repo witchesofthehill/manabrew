@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 use manabrew_agent_interface::ids_codec::parse_player_slot;
-use manabrew_agent_interface::prompt::PlayerAction;
+use manabrew_agent_interface::prompt::PromptOutput;
 use manabrew_agent_interface::protocol::StateEnvelope;
 
 pub fn wrap_broadcast_state(state: Value) -> String {
@@ -12,7 +12,7 @@ pub fn wrap_broadcast_state(state: Value) -> String {
     .to_string()
 }
 
-pub fn decode_relay_response(state: &Value) -> Result<(usize, PlayerAction), String> {
+pub fn decode_relay_response(state: &Value) -> Result<(usize, PromptOutput), String> {
     let envelope: StateEnvelope = serde_json::from_value(state.clone())
         .map_err(|error| format!("Invalid state envelope: {}", error))?;
     let StateEnvelope::Response {
@@ -27,7 +27,7 @@ pub fn decode_relay_response(state: &Value) -> Result<(usize, PlayerAction), Str
     };
     let player_index = parse_player_slot(&from_player)
         .ok_or_else(|| format!("Invalid fromPlayer: {}", from_player))?;
-    let action: PlayerAction =
+    let action: PromptOutput =
         serde_json::from_value(action).map_err(|e| format!("Invalid action: {}", e))?;
     Ok((player_index, action))
 }

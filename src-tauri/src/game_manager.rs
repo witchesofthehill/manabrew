@@ -16,7 +16,9 @@ use crate::preset_decks::CardIdentity;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::ids_codec::player_slot;
-use manabrew_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
+use manabrew_agent_interface::prompt::{
+    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
+};
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
 
@@ -29,9 +31,9 @@ pub struct GameManager {
 pub struct GameSession {
     #[allow(dead_code)]
     pub game_id: String,
-    pub response_tx: Option<mpsc::Sender<PlayerAction>>,
+    pub response_tx: Option<mpsc::Sender<PromptOutput>>,
     /// Per-remote-player response channels (player_index -> sender).
-    pub remote_response_txs: HashMap<usize, mpsc::Sender<PlayerAction>>,
+    pub remote_response_txs: HashMap<usize, mpsc::Sender<PromptOutput>>,
     #[allow(dead_code)]
     pub thread_handle: Option<thread::JoinHandle<()>>,
     pub is_multiplayer: bool,
@@ -89,7 +91,7 @@ impl GameManager {
         }
 
         let (prompt_tx, prompt_rx) = mpsc::channel::<AgentMessage>();
-        let (response_tx, response_rx) = mpsc::channel::<PlayerAction>();
+        let (response_tx, response_rx) = mpsc::channel::<PromptOutput>();
         let (notify_tx, notify_rx) = mpsc::channel::<GameLogEntryDto>();
         let (snapshot_tx, snapshot_rx) = mpsc::channel::<GameSnapshotEventDto>();
 
@@ -169,7 +171,7 @@ impl GameManager {
         Ok(game_id)
     }
 
-    pub fn respond(&self, action: PlayerAction) -> Result<(), String> {
+    pub fn respond(&self, action: PromptOutput) -> Result<(), String> {
         let session_guard = self.session.lock().map_err(|e| e.to_string())?;
         if let Some(session) = session_guard.as_ref() {
             if let Some(tx) = session.response_tx.as_ref() {
@@ -244,18 +246,18 @@ impl GameManager {
         }
 
         let (engine_prompt_tx, engine_prompt_rx) = mpsc::channel::<AgentMessage>();
-        let (engine_response_tx, engine_response_rx) = mpsc::channel::<PlayerAction>();
+        let (engine_response_tx, engine_response_rx) = mpsc::channel::<PromptOutput>();
         let (engine_notify_tx, notify_rx) = mpsc::channel::<GameLogEntryDto>();
         let (engine_snapshot_tx, snapshot_rx) = mpsc::channel::<GameSnapshotEventDto>();
 
         let engine_response_tx_clone = engine_response_tx.clone();
         let (remote_prompt_tx, remote_prompt_rx) = mpsc::channel::<(usize, AgentMessage)>();
-        let mut remote_response_txs: HashMap<usize, mpsc::Sender<PlayerAction>> = HashMap::new();
-        let mut remote_response_rxs: Vec<(usize, mpsc::Receiver<PlayerAction>)> = Vec::new();
+        let mut remote_response_txs: HashMap<usize, mpsc::Sender<PromptOutput>> = HashMap::new();
+        let mut remote_response_rxs: Vec<(usize, mpsc::Receiver<PromptOutput>)> = Vec::new();
 
         for i in 0..num_players {
             if i != engine_player_index {
-                let (resp_tx, resp_rx) = mpsc::channel::<PlayerAction>();
+                let (resp_tx, resp_rx) = mpsc::channel::<PromptOutput>();
                 remote_response_txs.insert(i, resp_tx);
                 remote_response_rxs.push((i, resp_rx));
             }
@@ -384,7 +386,9 @@ impl GameManager {
                 .response_tx
                 .as_ref()
                 .ok_or_else(|| "Restore snapshots are not supported by java-forge yet".to_string())?
-                .send(PlayerAction::RestoreSnapshot { checkpoint_id })
+                .send(PromptOutput::ChooseAction(
+                    ChooseActionOutput::RestoreSnapshot { checkpoint_id },
+                ))
                 .map_err(|e| format!("Game thread not responding: {}", e))?;
             Ok(())
         } else {

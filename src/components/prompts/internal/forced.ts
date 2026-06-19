@@ -90,19 +90,24 @@ export const singleLegalName: PromptResolver<"chooseCardName"> = (prompt) => {
   };
 };
 
-export const allCardsForced: PromptResolver<"chooseCardsForEffect"> = (prompt) => {
-  const ids = prompt.input.validCardIds;
-  const min = prompt.input.minChoices;
-  const max = prompt.input.maxChoices;
-  if (ids.length === 0) return { kind: "force-show" };
-  if (min == null || max == null || min !== max || min !== ids.length) {
-    return { kind: "force-show" };
+export const forcedCardChoice: PromptResolver<"chooseCards"> = (prompt) => {
+  const ids = prompt.input.cards.map((c) => c.id);
+  const { min, max } = prompt.input;
+  if (max <= 0) {
+    return {
+      kind: "auto",
+      respond: { type: "chooseCardsDecision", chosenCardIds: [] },
+      reason: "no cards to choose",
+    };
   }
-  return {
-    kind: "auto",
-    respond: { type: "chooseCardsDecision", chosenCardIds: ids },
-    reason: `must pick all ${ids.length} cards`,
-  };
+  if (min >= ids.length) {
+    return {
+      kind: "auto",
+      respond: { type: "chooseCardsDecision", chosenCardIds: ids },
+      reason: `must pick all ${ids.length} cards`,
+    };
+  }
+  return { kind: "force-show" };
 };
 
 export const singleBlockerOrder: PromptResolver<"chooseDamageAssignmentOrder"> = (prompt) => {
@@ -132,43 +137,12 @@ export const singleAssigneeDamage: PromptResolver<"chooseCombatDamageAssignment"
   };
 };
 
-export const forcedDiscard: PromptResolver<"chooseDiscard"> = (prompt) => {
-  const hand = prompt.input.handCardIds;
-  const required = prompt.input.numToDiscard;
-  if (required <= 0) {
-    return {
-      kind: "auto",
-      respond: { type: "discardDecision", discardedCardIds: [] },
-      reason: "discard 0 cards",
-    };
-  }
-  if (required >= hand.length) {
-    return {
-      kind: "auto",
-      respond: { type: "discardDecision", discardedCardIds: hand },
-      reason: `discard entire hand (${hand.length} cards)`,
-    };
-  }
-  return { kind: "force-show" };
-};
-
 export const emptyScry: PromptResolver<"scry"> = (prompt) => {
-  const cards = prompt.input.cardIds;
-  if (cards.length > 0) return { kind: "force-show" };
+  if (prompt.input.cards.length > 0) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "scryDecision", bottomCardIds: [] },
+    respond: { type: "scryDecision", zoneCardIds: prompt.input.zones.map(() => []) },
     reason: "scry with 0 revealed cards",
-  };
-};
-
-export const emptySurveil: PromptResolver<"surveil"> = (prompt) => {
-  const cards = prompt.input.cardIds;
-  if (cards.length > 0) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "surveilDecision", graveyardCardIds: [] },
-    reason: "surveil with 0 revealed cards",
   };
 };
 
@@ -182,12 +156,12 @@ export const emptyDig: PromptResolver<"dig"> = (prompt) => {
   };
 };
 
-export const singleCardOrder: PromptResolver<"reorderLibrary"> = (prompt) => {
-  const ids = prompt.input.cardIds;
+export const singleCardOrder: PromptResolver<"reorderCards"> = (prompt) => {
+  const ids = prompt.input.cards.map((c) => c.id);
   if (ids.length > 1) return { kind: "force-show" };
   return {
     kind: "auto",
-    respond: { type: "reorderLibraryDecision", orderedCardIds: ids },
+    respond: { type: "reorderDecision", orderedCardIds: ids },
     reason: `≤1 card to order (${ids.length})`,
   };
 };

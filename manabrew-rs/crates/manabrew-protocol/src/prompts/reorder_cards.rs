@@ -2,14 +2,16 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::prompts::common::PromptPresentation;
+use crate::values::CardDto;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "prompts/chooseNumber.ts")]
-pub struct ChooseNumberInput {
+#[ts(export, export_to = "prompts/reorderCards.ts")]
+pub struct ReorderCardsInput {
     pub presentation: PromptPresentation,
-    pub min: i32,
-    pub max: i32,
+    pub cards: Vec<CardDto>,
+    pub target_label: String,
+    pub top_of_deck: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -18,7 +20,7 @@ pub struct ChooseNumberInput {
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-#[ts(export, export_to = "prompts/chooseNumber.ts")]
-pub enum ChooseNumberOutput {
-    NumberDecision { chosen_number: Option<i32> },
+#[ts(export, export_to = "prompts/reorderCards.ts")]
+pub enum ReorderCardsOutput {
+    ReorderDecision { ordered_card_ids: Vec<String> },
 }

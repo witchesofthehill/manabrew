@@ -17,10 +17,7 @@ use crate::game_snapshot_event::GameSnapshotEventDto;
 use crate::game_view_dto::{GameViewDto, GameViewDtoExt};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
 use crate::mana_action_id::{parse_tap_action_id, priority_mana_actions};
-use crate::prompt::{
-    AgentMessage, AgentPrompt, AvailableAction, AvailableActionKind, DisplayEvent, PlayOptionDto,
-    PlayerAction, PromptInput, StateUpdate, TargetRef,
-};
+use crate::prompt::*;
 
 mod choices;
 mod combat;
@@ -69,7 +66,7 @@ pub(crate) fn parse_express_mana_choice(color: Option<&str>) -> Option<u16> {
 /// Answers the prompts a `PromptAgent` builds.
 ///
 pub trait Responder {
-    fn respond(&mut self, prompt: AgentPrompt) -> PlayerAction;
+    fn respond(&mut self, prompt: AgentPrompt) -> PromptOutput;
     fn present(&mut self, _message: &AgentMessage) {}
     fn await_ack(&mut self) {}
     fn send_log(&mut self, _entry: GameLogEntryDto) {}
@@ -115,7 +112,7 @@ impl<R: Responder> PromptAgent<R> {
         self.pending_prompt = Some(prompt);
     }
 
-    pub(crate) fn recv_action(&mut self) -> PlayerAction {
+    pub(crate) fn recv_action(&mut self) -> PromptOutput {
         let prompt = self
             .pending_prompt
             .take()
@@ -266,30 +263,36 @@ impl<R: Responder> PromptAgent<R> {
 
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
-            PlayerAction::BoardTargets { chosen } => chosen.into_iter().find_map(|r| match r {
-                TargetRef::Card { id } => parse_card_id(&id),
-                _ => None,
-            }),
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
+                chosen.into_iter().find_map(|r| match r {
+                    TargetRef::Card { id } => parse_card_id(&id),
+                    _ => None,
+                })
+            }
             _ => valid.first().copied(),
         }
     }
 
     pub(crate) fn recv_player_choice_or_first(&mut self, valid: &[PlayerId]) -> Option<PlayerId> {
         match self.recv_action() {
-            PlayerAction::BoardTargets { chosen } => chosen.into_iter().find_map(|r| match r {
-                TargetRef::Player { id } => parse_player_id(&id),
-                _ => None,
-            }),
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
+                chosen.into_iter().find_map(|r| match r {
+                    TargetRef::Player { id } => parse_player_id(&id),
+                    _ => None,
+                })
+            }
             _ => valid.first().copied(),
         }
     }
 
     pub(crate) fn recv_spell_choice_or_first(&mut self, valid: &[u32]) -> Option<u32> {
         match self.recv_action() {
-            PlayerAction::BoardTargets { chosen } => chosen.into_iter().find_map(|r| match r {
-                TargetRef::Spell { id } => crate::ids_codec::parse_stack_id(&id),
-                _ => None,
-            }),
+            PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
+                chosen.into_iter().find_map(|r| match r {
+                    TargetRef::Spell { id } => crate::ids_codec::parse_stack_id(&id),
+                    _ => None,
+                })
+            }
             _ => valid.first().copied(),
         }
     }
@@ -448,8 +451,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             None,
         );
         match self.recv_action() {
-            PlayerAction::EngineAction { action } => action,
-            PlayerAction::Act { action_id } => {
+            PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
                 if let Some(rest) = action_id.strip_prefix("cast:") {
                     let (id_part, mode) = rest.split_once(':').unwrap_or((rest, "normal"));
                     let resolved = parse_card_id(id_part).and_then(|cid| {
@@ -496,8 +498,8 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
             // Only the priority-loop branch acts on Concede; other recv_action
             // sites discard it and concede re-enters at the next priority window.
-            PlayerAction::Concede => EnginePlayerAction::Concede,
-            PlayerAction::Pass { until_phase } => {
+            PromptOutput::ChooseAction(ChooseActionOutput::Concede) => EnginePlayerAction::Concede,
+            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase }) => {
                 // Only store a fast-forward declaration when there's a target phase.
                 // None = atomic single pass, no fast-forward.
                 if until_phase.is_some() {
@@ -505,31 +507,15 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 }
                 EnginePlayerAction::PassPriority
             }
-            PlayerAction::RestoreSnapshot { checkpoint_id } => {
+            PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { checkpoint_id }) => {
                 self.pending_restore_checkpoint = Some(checkpoint_id);
                 EnginePlayerAction::PassPriority
             }
-            PlayerAction::PlayCard { card_id, mode } => {
-                let resolved = parse_card_id(&card_id).and_then(|cid| {
-                    if let Some(mode_str) = &mode {
-                        if let Some(parsed_mode) = Self::parse_play_mode(mode_str) {
-                            return playable
-                                .iter()
-                                .copied()
-                                .find(|play| play.card_id == cid && play.mode == parsed_mode);
-                        }
-                    }
-                    playable.iter().copied().find(|play| play.card_id == cid)
-                });
-                resolved
-                    .map(EnginePlayerAction::CastSpell)
-                    .unwrap_or(EnginePlayerAction::PassPriority)
-            }
-            PlayerAction::TapForMana {
+            PromptOutput::ManaSource(ManaSourceAction::TapForMana {
                 card_id,
                 ability_index,
                 color,
-            } => {
+            }) => {
                 let parsed = parse_card_id(&card_id);
                 match parsed {
                     Some(cid) => {
@@ -574,20 +560,11 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                     None => EnginePlayerAction::PassPriority,
                 }
             }
-            PlayerAction::ActivateAbility {
-                card_id,
-                ability_index,
-            } => parse_card_id(&card_id)
-                .map(|cid| {
-                    EnginePlayerAction::ActivateAbility(AbilityRef {
-                        card_id: cid,
-                        ability_index,
-                    })
-                })
-                .unwrap_or(EnginePlayerAction::PassPriority),
-            PlayerAction::Untap { card_id } => parse_card_id(&card_id)
-                .map(EnginePlayerAction::UndoMana)
-                .unwrap_or(EnginePlayerAction::PassPriority),
+            PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => {
+                parse_card_id(&card_id)
+                    .map(EnginePlayerAction::UndoMana)
+                    .unwrap_or(EnginePlayerAction::PassPriority)
+            }
             _ => EnginePlayerAction::PassPriority,
         }
     }
@@ -728,17 +705,24 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         choices::reveal_cards(self, game, cards, zone, owner, message_prefix)
     }
 
-    fn choose_scry(&mut self, game: &GameState, player: PlayerId, cards: &[CardId]) -> Vec<CardId> {
-        library::choose_scry(self, game, player, cards)
+    fn choose_scry(
+        &mut self,
+        game: &GameState,
+        player: PlayerId,
+        source: Option<CardId>,
+        cards: &[CardId],
+    ) -> Vec<Vec<CardId>> {
+        library::choose_scry(self, game, player, source, cards)
     }
 
     fn choose_surveil(
         &mut self,
         game: &GameState,
         player: PlayerId,
+        source: Option<CardId>,
         cards: &[CardId],
-    ) -> Vec<CardId> {
-        library::choose_surveil(self, game, player, cards)
+    ) -> Vec<Vec<CardId>> {
+        library::choose_surveil(self, game, player, source, cards)
     }
 
     fn choose_dig(
@@ -1036,23 +1020,16 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         choices::choose_card_name(self, player, valid_names)
     }
 
-    fn choose_x_value(&mut self, player: PlayerId, max_x: u32, source: Option<CardId>) -> u32 {
-        choices::choose_x_value(self, player, max_x, source)
-    }
-
-    fn announce_requirements(
+    fn choose_number(
         &mut self,
         player: PlayerId,
-        _announce: &str,
+        source: Option<CardId>,
+        title: &str,
+        description: Option<&str>,
         min: i32,
         max: i32,
-        source: Option<CardId>,
     ) -> Option<i32> {
-        choices::announce_requirements(self, player, min, max, source)
-    }
-
-    fn choose_number(&mut self, player: PlayerId, min: i32, max: i32) -> Option<i32> {
-        choices::choose_number(self, player, min, max)
+        choices::choose_number(self, player, source, title, description, min, max)
     }
 
     fn choose_number_from_list(
@@ -1238,27 +1215,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         cards: &[CardId],
     ) -> Vec<CardId> {
         library::choose_reorder_library(self, game, player, cards)
-    }
-
-    fn choose_explore_put_in_graveyard(
-        &mut self,
-        _game: &GameState,
-        player: PlayerId,
-        revealed_card_name: &str,
-        revealed_cmc: i32,
-        mana_producing_lands: usize,
-        predicted_mana: usize,
-        lands_in_hand: usize,
-    ) -> bool {
-        choices::choose_explore_put_in_graveyard(
-            self,
-            player,
-            revealed_card_name,
-            revealed_cmc,
-            mana_producing_lands,
-            predicted_mana,
-            lands_in_hand,
-        )
     }
 
     fn help_pay_assist(&mut self, player: PlayerId, card_name: &str, max_generic: u32) -> u32 {

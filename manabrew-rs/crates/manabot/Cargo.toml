@@ -17,3 +17,6 @@ futures-util = { version = "0.3", optional = true }
 tokio = { version = "1", features = ["rt", "macros", "net"], optional = true }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"], optional = true }
 tracing = "0.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["console", "Window", "Storage"] }

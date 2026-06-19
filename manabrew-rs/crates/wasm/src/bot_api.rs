@@ -2,6 +2,15 @@ use manabot::{BotConfig, BotState};
 use manabrew_agent_interface::protocol::ServerMessage;
 use wasm_bindgen::prelude::*;
 
+/// Same gate as the UI's `isPromptLoggingEnabled()` (`src/lib/debugPrompts.ts`).
+fn bot_logging_enabled() -> bool {
+    web_sys::window()
+        .and_then(|window| window.local_storage().ok().flatten())
+        .and_then(|storage| storage.get_item("manabrew.debugPrompts").ok().flatten())
+        .as_deref()
+        == Some("1")
+}
+
 #[wasm_bindgen]
 pub struct WasmBot {
     state: BotState,
@@ -27,8 +36,20 @@ impl WasmBot {
     }
 
     pub fn on_server_message(&mut self, text: &str) -> Vec<String> {
-        let Ok(message) = serde_json::from_str::<ServerMessage>(text) else {
-            return Vec::new();
+        let message = match serde_json::from_str::<ServerMessage>(text) {
+            Ok(message) => message,
+            Err(error) => {
+                if bot_logging_enabled() {
+                    let preview: String = text.chars().take(400).collect();
+                    web_sys::console::warn_1(
+                        &format!(
+                            "[wasm-bot] DROP: server message did not parse: {error}; raw={preview}"
+                        )
+                        .into(),
+                    );
+                }
+                return Vec::new();
+            }
         };
         self.state
             .on_server_message(&message)

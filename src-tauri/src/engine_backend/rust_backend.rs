@@ -7,7 +7,7 @@ use manabot::BotResponder;
 use manabrew_agent_interface::agent_impl::PromptAgent;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
-use manabrew_agent_interface::prompt::{AgentMessage, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 use manabrew_engine::agent::PlayerAgent;
 use manabrew_engine::ids::PlayerId;
 use manabrew_game_runtime::deck::force_commander_by_name;
@@ -27,7 +27,7 @@ pub fn run_game(
     commander_name: Option<String>,
     opponent_deck_list: Option<Vec<CardIdentity>>,
     prompt_tx: mpsc::Sender<AgentMessage>,
-    response_rx: mpsc::Receiver<PlayerAction>,
+    response_rx: mpsc::Receiver<PromptOutput>,
     notify_tx: mpsc::Sender<GameLogEntryDto>,
     snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
     abort_signal: Arc<AtomicBool>,
@@ -118,11 +118,11 @@ pub fn run_multiplayer_game(
     engine_player_index: usize,
     starting_life: i32,
     engine_prompt_tx: mpsc::Sender<AgentMessage>,
-    engine_response_rx: mpsc::Receiver<PlayerAction>,
+    engine_response_rx: mpsc::Receiver<PromptOutput>,
     engine_notify_tx: mpsc::Sender<GameLogEntryDto>,
     engine_snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
     remote_prompt_tx: mpsc::Sender<(usize, AgentMessage)>,
-    remote_response_rxs: Vec<(usize, mpsc::Receiver<PlayerAction>)>,
+    remote_response_rxs: Vec<(usize, mpsc::Receiver<PromptOutput>)>,
     abort_signal: Arc<AtomicBool>,
 ) {
     let num_players = player_names.len();
@@ -152,7 +152,7 @@ pub fn run_multiplayer_game(
             engine_snapshot_tx,
         ),
     )));
-    let mut remote_rx_map: HashMap<usize, mpsc::Receiver<PlayerAction>> =
+    let mut remote_rx_map: HashMap<usize, mpsc::Receiver<PromptOutput>> =
         remote_response_rxs.into_iter().collect();
     let game_id_for_agents = game_id.clone();
     let remote_prompt_tx_for_agents = remote_prompt_tx.clone();

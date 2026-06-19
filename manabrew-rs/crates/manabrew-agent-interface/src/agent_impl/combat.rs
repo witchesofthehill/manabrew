@@ -5,7 +5,7 @@ use manabrew_engine::ids::{CardId, PlayerId};
 use crate::game_view_dto::{CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::mana_action_id::payment_mana_ability_options;
-use crate::prompt::{BlockAssignment, PlayerAction, PromptInput};
+use crate::prompt::*;
 
 use super::{parse_express_mana_choice, PromptAgent, Responder};
 
@@ -58,16 +58,18 @@ pub(super) fn choose_attackers<T: Responder>(
         .copied()
         .unwrap_or(DefenderId::Player(PlayerId(1)));
     match agent.recv_action() {
-        PlayerAction::DeclareAttackers { assignments } => assignments
-            .iter()
-            .filter_map(|a| {
-                let attacker = parse_card_id(&a.attacker_id)?;
-                let defender =
-                    PromptAgent::<T>::parse_defender_id(&a.target_id, possible_defenders)
-                        .unwrap_or(default_defender);
-                Some((attacker, defender))
-            })
-            .collect(),
+        PromptOutput::ChooseAttackers(ChooseAttackersOutput::DeclareAttackers { assignments }) => {
+            assignments
+                .iter()
+                .filter_map(|a| {
+                    let attacker = parse_card_id(&a.attacker_id)?;
+                    let defender =
+                        PromptAgent::<T>::parse_defender_id(&a.target_id, possible_defenders)
+                            .unwrap_or(default_defender);
+                    Some((attacker, defender))
+                })
+                .collect()
+        }
         _ => Vec::new(),
     }
 }
@@ -104,19 +106,21 @@ pub(super) fn choose_blockers<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::DeclareBlockers { assignments } => assignments
-            .iter()
-            .filter_map(
-                |BlockAssignment {
-                     blocker_id,
-                     attacker_id,
-                 }| {
-                    let b = parse_card_id(blocker_id)?;
-                    let a = parse_card_id(attacker_id)?;
-                    Some((b, a))
-                },
-            )
-            .collect(),
+        PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers { assignments }) => {
+            assignments
+                .iter()
+                .filter_map(
+                    |BlockAssignment {
+                         blocker_id,
+                         attacker_id,
+                     }| {
+                        let b = parse_card_id(blocker_id)?;
+                        let a = parse_card_id(attacker_id)?;
+                        Some((b, a))
+                    },
+                )
+                .collect()
+        }
         _ => Vec::new(),
     }
 }
@@ -139,9 +143,11 @@ pub(super) fn choose_damage_assignment_order<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::DamageAssignmentOrderDecision {
-            ordered_blocker_ids,
-        } => {
+        PromptOutput::ChooseDamageAssignmentOrder(
+            ChooseDamageAssignmentOrderOutput::DamageAssignmentOrderDecision {
+                ordered_blocker_ids,
+            },
+        ) => {
             let parsed: Vec<CardId> = ordered_blocker_ids
                 .iter()
                 .filter_map(|s| parse_card_id(s))
@@ -183,7 +189,9 @@ pub(super) fn choose_combat_damage_assignment<T: Responder>(
     );
 
     match agent.recv_action() {
-        PlayerAction::CombatDamageAssignmentDecision { assignments } => assignments
+        PromptOutput::ChooseCombatDamageAssignment(
+            ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments },
+        ) => assignments
             .into_iter()
             .map(|entry| {
                 if defender_id
@@ -257,21 +265,21 @@ pub(super) fn pay_combat_cost<T: Responder>(
         None,
     );
     match agent.recv_action() {
-        PlayerAction::TapForMana {
+        PromptOutput::ManaSource(ManaSourceAction::TapForMana {
             card_id,
             ability_index,
             color,
-        } => parse_card_id(&card_id)
+        }) => parse_card_id(&card_id)
             .map(|card_id| CombatCostAction::TapLand {
                 card_id,
                 mana_ability_index: ability_index,
                 express_choice: parse_express_mana_choice(color.as_deref()),
             })
             .unwrap_or(CombatCostAction::Decline),
-        PlayerAction::Untap { card_id } => parse_card_id(&card_id)
+        PromptOutput::ManaSource(ManaSourceAction::Untap { card_id }) => parse_card_id(&card_id)
             .map(CombatCostAction::UntapLand)
             .unwrap_or(CombatCostAction::Decline),
-        PlayerAction::PayCombatCost => CombatCostAction::Pay,
+        PromptOutput::PayCombatCost(PayCombatCostOutput::PayCombatCost) => CombatCostAction::Pay,
         _ => CombatCostAction::Decline,
     }
 }

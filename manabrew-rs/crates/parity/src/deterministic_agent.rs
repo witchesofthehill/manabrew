@@ -1657,7 +1657,15 @@ impl PlayerAgent for DeterministicAgent {
         Some(options[idx].clone())
     }
 
-    fn choose_number(&mut self, _player: PlayerId, min: i32, max: i32) -> Option<i32> {
+    fn choose_number(
+        &mut self,
+        _player: PlayerId,
+        _source: Option<CardId>,
+        _title: &str,
+        _description: Option<&str>,
+        min: i32,
+        max: i32,
+    ) -> Option<i32> {
         Some(gui_repro::choose_number(
             min,
             max,
@@ -1673,25 +1681,6 @@ impl PlayerAgent for DeterministicAgent {
         _source: Option<CardId>,
     ) -> i32 {
         gui_repro::choose_number(0, max, &mut self.rng.borrow_mut())
-    }
-
-    fn choose_x_value(&mut self, _player: PlayerId, max_x: u32, _source: Option<CardId>) -> u32 {
-        max_x
-    }
-
-    fn announce_requirements(
-        &mut self,
-        _player: PlayerId,
-        _announce: &str,
-        min: i32,
-        max: i32,
-        _source: Option<CardId>,
-    ) -> Option<i32> {
-        Some(gui_repro::pick_int_in_range(
-            min,
-            max,
-            &mut self.rng.borrow_mut(),
-        ))
     }
 
     /// Always pay life for phyrexian mana — matches Java's
@@ -1918,32 +1907,40 @@ impl PlayerAgent for DeterministicAgent {
         &mut self,
         _game: &GameState,
         _player: PlayerId,
+        _source: Option<CardId>,
         cards: &[CardId],
-    ) -> Vec<CardId> {
-        let mut out = Vec::new();
+    ) -> Vec<Vec<CardId>> {
+        let mut top = Vec::new();
+        let mut bottom = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
             if gui_repro::pick_bool(&mut rng) {
-                out.push(cid);
+                bottom.push(cid);
+            } else {
+                top.push(cid);
             }
         }
-        out
+        vec![top, bottom]
     }
 
     fn choose_surveil(
         &mut self,
         _game: &GameState,
         _player: PlayerId,
+        _source: Option<CardId>,
         cards: &[CardId],
-    ) -> Vec<CardId> {
-        let mut out = Vec::new();
+    ) -> Vec<Vec<CardId>> {
+        let mut top = Vec::new();
+        let mut graveyard = Vec::new();
         let mut rng = self.rng.borrow_mut();
         for &cid in cards {
             if gui_repro::pick_bool(&mut rng) {
-                out.push(cid);
+                graveyard.push(cid);
+            } else {
+                top.push(cid);
             }
         }
-        out
+        vec![top, graveyard]
     }
 
     fn choose_reorder_library(

@@ -224,9 +224,8 @@ export function PromptActionController({
       const labels: Record<string, string> = {
         ["chooseBoardTargets"]: "Choose a target",
         ["scry"]: "Scry",
-        ["surveil"]: "Surveil",
         ["dig"]: "Choose cards",
-        ["chooseDiscard"]: "Discard",
+        ["chooseCards"]: "Choose cards",
       };
       return (
         <PromptLabel

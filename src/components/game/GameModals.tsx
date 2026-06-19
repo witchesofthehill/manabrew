@@ -1,6 +1,10 @@
 import { PromptModalHost } from "@/components/prompts/promptComponents";
 // import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
 // import { ChooseBooleanModalPreview } from "@/components/prompts/dev/ChooseBooleanModalPreview";
+// import { ChooseNumberModalPreview } from "@/components/prompts/dev/ChooseNumberModalPreview";
+// import { ChooseCardsModalPreview } from "@/components/prompts/dev/ChooseCardsModalPreview";
+// import { ReorderCardsModalPreview } from "@/components/prompts/dev/ReorderCardsModalPreview";
+// import { ScryModalPreview } from "@/components/prompts/dev/ScryModalPreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { LibraryPeekMode } from "@/components/prompts/LibraryPeekModal";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
@@ -10,7 +14,6 @@ import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUISto
 interface GameModalsProps {
   currentPrompt: Prompt | null;
   sourceDeckCard?: DeckCard;
-  revealedDeckCard?: DeckCard;
   viewingZone: {
     title: string;
     cards: GameCard[];
@@ -40,7 +43,6 @@ interface GameModalsProps {
 export function GameModals({
   currentPrompt,
   sourceDeckCard,
-  revealedDeckCard,
   viewingZone,
   onCloseZone,
   libraryPeekModal,
@@ -57,9 +59,13 @@ export function GameModals({
 }: GameModalsProps) {
   return (
     <>
-      <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard, revealedDeckCard }} />
+      <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />
       {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ChooseCardsModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ReorderCardsModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ScryModalPreview />}*/}
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}

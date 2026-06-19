@@ -35,7 +35,7 @@ export const MULLIGAN_CARD_SIZE = "w-[160px] h-[222px]" as const;
 export const MODAL_CARD_THUMBNAIL =
   "w-[60px] h-[84px] rounded-md object-cover shrink-0 shadow-md" as const;
 
-/** Larger card image used in modal bodies (e.g., CostModal, ChooseOptionalTriggerModal) */
+/** Larger card image used in modal bodies (e.g., CostModal) */
 export const MODAL_CARD_IMAGE =
   "w-[120px] h-[168px] rounded-lg object-cover shrink-0 shadow-md" as const;
 

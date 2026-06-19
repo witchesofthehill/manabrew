@@ -30,6 +30,9 @@ pub enum JavaRawPromptBody {
         min: usize,
         #[serde(default)]
         max: usize,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
+        description: Option<String>,
     },
     Mulligan {
         #[serde(default)]
@@ -100,6 +103,8 @@ pub enum JavaRawPromptBody {
         max: usize,
         #[serde(default)]
         optional: bool,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
         description: Option<String>,
@@ -142,8 +147,8 @@ pub enum JavaRawPromptBody {
         min: i64,
         #[serde(default)]
         max: i64,
-        #[serde(rename = "sourceCardName")]
-        source_card_name: Option<String>,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
         description: Option<String>,
     },
     ChooseColor {
@@ -168,10 +173,14 @@ pub enum JavaRawPromptBody {
     ChooseScry {
         #[serde(default)]
         cards: Vec<JavaRawCardOption>,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
     },
     ChooseSurveil {
         #[serde(default)]
         cards: Vec<JavaRawCardOption>,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
     },
     ChooseDig {
         #[serde(default)]
@@ -212,6 +221,8 @@ pub enum JavaRawPromptBody {
         destination: Option<String>,
         #[serde(rename = "topOfDeck", default = "top")]
         top_of_deck: bool,
+        #[serde(rename = "sourceCardId")]
+        source_card_id: Option<String>,
         #[serde(rename = "sourceCardName")]
         source_card_name: Option<String>,
     },
@@ -671,10 +682,7 @@ pub enum JavaAction {
         value: String,
     },
     ScryDecision {
-        bottom_card_ids: Vec<String>,
-    },
-    SurveilDecision {
-        graveyard_card_ids: Vec<String>,
+        zone_card_ids: Vec<Vec<String>>,
     },
     DigDecision {
         chosen_card_ids: Vec<String>,

@@ -64,7 +64,15 @@ fn draw_for_player(
         }
     }
     if upto {
-        match ctx.agents[target.index()].choose_number(target, 0, actual_num) {
+        let prompt = format!("Draw up to {actual_num} card(s).");
+        match ctx.agents[target.index()].choose_number(
+            target,
+            sa.source,
+            "Draw cards",
+            Some(&prompt),
+            0,
+            actual_num,
+        ) {
             Some(picked) => {
                 actual_num = picked.clamp(0, actual_num);
                 if actual_num == 0 {

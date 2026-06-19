@@ -1,174 +1,111 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Modal } from "@/components/game/modals/Modal";
-import { Card } from "@/components/game/Card";
-import { cn } from "@/lib/utils";
-import { useState, useEffect, useCallback, useRef } from "react";
-import type { GameCard } from "@/types/manabrew";
-import { useModalKeyboard } from "@/hooks/useModalKeyboard";
-import { MODAL_FOOTER_BETWEEN } from "@/components/game/game.styles";
-import { ModalCardFilter } from "@/components/game/modals/ModalCardFilter";
-import { useCardNameFilter } from "@/components/game/modals/useCardNameFilter";
+import { useMemo, useState } from "react";
 
-interface ChooseCardsModalProps {
-  cards: GameCard[];
-  minChoices: number;
-  maxChoices: number;
-  sourceCardName?: string;
-  /** Optional description shown below the card name (e.g. remaining cost for Convoke/Improvise). */
-  description?: string;
-  /** The whole choice may be declined; a non-empty pick still honors minChoices. */
-  optional?: boolean;
-  onConfirm: (chosenCardIds: string[]) => void;
+import { Modal } from "@/components/game/modals/Modal";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/game/Card";
+import { stackObjectToCardStub } from "@/components/game/game.utils";
+import { useGameStore } from "@/stores/useGameStore";
+import { cn } from "@/lib/utils";
+import { PromptPresentation } from "./internal/PromptPresentation";
+import type { PromptProps } from "./internal/promptProps";
+import type { GameCard } from "@/types/manabrew";
+import type { ChooseCardsInput, ChooseCardsOutput } from "@/protocol";
+
+function SelectableCard({
+  card,
+  selected,
+  disabled,
+  onClick,
+}: {
+  card: GameCard;
+  selected?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <div
+      onClick={disabled ? undefined : onClick}
+      className={cn(
+        "w-[150px] shrink-0 rounded transition-all",
+        disabled ? "cursor-not-allowed opacity-30" : "cursor-pointer",
+        selected && "ring-2 ring-primary",
+      )}
+    >
+      <Card card={card} className="w-full" />
+    </div>
+  );
 }
 
 export function ChooseCardsModal({
-  cards,
-  minChoices,
-  maxChoices,
-  sourceCardName,
-  description,
-  optional = false,
-  onConfirm,
-}: ChooseCardsModalProps) {
+  input,
+  respond,
+}: PromptProps<ChooseCardsInput, ChooseCardsOutput>) {
+  const { presentation, min, max } = input;
+  const cards = input.cards as GameCard[];
+  const gameView = useGameStore((s) => s.gameView);
+  const sourceCard = useMemo<GameCard | undefined>(() => {
+    const id = presentation.sourceCardId;
+    if (!id || !gameView) return undefined;
+    const visible = [
+      ...gameView.battlefield,
+      ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
+    ];
+    const gc = visible.find((c) => c.id === id);
+    if (gc) return gc;
+    const stackObj = gameView.stack.find((s) => s.sourceId === id);
+    return stackObj ? (stackObjectToCardStub(stackObj) as GameCard) : undefined;
+  }, [presentation.sourceCardId, gameView]);
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const isAutoConfirm = maxChoices === 1 && minChoices === 1 && !optional;
-  const canConfirm =
-    (selected.size >= minChoices && selected.size <= maxChoices) ||
-    (optional && selected.size === 0);
-
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const { query, setQuery, filtered, showFilter } = useCardNameFilter(cards);
-
-  useEffect(() => {
-    dialogRef.current?.focus();
-  }, [cards]);
-
-  const handleConfirm = useCallback(() => {
-    onConfirm([...selected]);
-  }, [selected, onConfirm]);
-
-  function toggleCard(cardId: string) {
-    if (isAutoConfirm) {
-      onConfirm([cardId]);
-      return;
-    }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(cardId)) {
-        next.delete(cardId);
-      } else {
-        if (maxChoices === 1) {
-          return new Set([cardId]);
-        }
-        if (next.size >= maxChoices) return prev;
-        next.add(cardId);
-      }
-      return next;
-    });
-  }
-
-  const spaceConfirms =
-    canConfirm && !isAutoConfirm && !((minChoices === 0 || optional) && selected.size === 0);
-  useModalKeyboard(
-    {
-      onEnter: canConfirm && !isAutoConfirm ? handleConfirm : undefined,
-      onSpace: spaceConfirms ? handleConfirm : undefined,
-    },
-    [canConfirm, isAutoConfirm, spaceConfirms, handleConfirm],
-  );
-
-  const subtitle =
-    minChoices === maxChoices
-      ? `Choose ${minChoices} card${minChoices !== 1 ? "s" : ""}`
-      : `Choose ${minChoices}–${maxChoices} cards`;
+  const chosen = [...selected];
+  const canConfirm = chosen.length >= min && chosen.length <= max;
+  const atMax = selected.size >= max;
 
   return (
-    <Modal maxWidth="max-w-2xl" maxHeight="max-h-[80vh]" className="outline-none">
-      <div ref={dialogRef} tabIndex={-1} className="outline-none" role="dialog" aria-modal="true">
-        <Modal.Header>
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold text-base">Choose Cards</h2>
-              {sourceCardName && (
-                <p className="text-xs text-muted-foreground font-medium">{sourceCardName}</p>
-              )}
-              {description && <p className="text-xs text-muted-foreground">{description}</p>}
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            </div>
-            {!isAutoConfirm && (
-              <Badge variant={canConfirm ? "default" : "secondary"}>
-                {selected.size} / {maxChoices} selected
-              </Badge>
-            )}
-          </div>
-        </Modal.Header>
-
-        <Modal.Instructions>
-          {isAutoConfirm
-            ? "Click a card to choose it."
-            : "Select the cards you want, then confirm."}
-        </Modal.Instructions>
-
-        {showFilter && <ModalCardFilter value={query} onChange={setQuery} />}
-
-        <div className="p-4 overflow-y-auto max-h-[50vh]">
-          {cards.length === 0 ? (
-            <Modal.EmptyState message="No valid cards" />
-          ) : filtered.length === 0 ? (
-            <Modal.EmptyState message="No matching cards" />
-          ) : (
-            <div className="flex flex-wrap gap-2 justify-center">
-              {filtered.map((card) => {
-                const isSelected = selected.has(card.id);
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => toggleCard(card.id)}
-                    className={cn(
-                      "cursor-pointer transition-all rounded-lg",
-                      isSelected
-                        ? "ring-2 ring-primary scale-105"
-                        : "hover:ring-1 hover:ring-primary/50 hover:scale-[1.02]",
-                    )}
-                  >
-                    <Card card={card} />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+    <Modal maxWidth="max-w-3xl" maxHeight="">
+      {sourceCard && (
+        <div className="pointer-events-none absolute top-0 right-full mr-6 drop-shadow-2xl">
+          <Card card={sourceCard} bare className="w-[240px]" />
         </div>
-
-        {cards.length === 0 ? (
-          <div className={MODAL_FOOTER_BETWEEN}>
-            <span className="text-xs text-muted-foreground text-left leading-tight max-w-[200px]">
-              No cards available to choose.
-            </span>
-            <Button size="sm" onClick={() => onConfirm([])} className="min-w-[100px] shrink-0">
-              Done
-            </Button>
-          </div>
-        ) : !isAutoConfirm ? (
-          <div className={MODAL_FOOTER_BETWEEN}>
-            <span className="text-xs text-muted-foreground text-left leading-tight max-w-[200px]">
-              {minChoices === 0 || optional
-                ? "Choosing is optional."
-                : `You must select at least ${minChoices}.`}
-            </span>
-            <Button
-              size="sm"
-              disabled={!canConfirm}
-              onClick={handleConfirm}
-              className="min-w-[100px] shrink-0"
-            >
-              {(minChoices === 0 || optional) && selected.size === 0
-                ? "Skip"
-                : `Confirm ${selected.size > 0 ? `(${selected.size})` : ""}`}
-            </Button>
-          </div>
-        ) : null}
+      )}
+      <div className="p-5">
+        <PromptPresentation
+          presentation={{ ...presentation, sourceCardId: undefined }}
+          forceHorizontal
+        />
       </div>
+
+      <div className="always-scrollbar scrollbar-inset-x mb-4 flex flex-nowrap gap-3 overflow-x-auto px-5 pt-2 pb-4">
+        {cards.map((c) => (
+          <SelectableCard
+            key={c.id}
+            card={c}
+            selected={selected.has(c.id)}
+            disabled={atMax && !selected.has(c.id)}
+            onClick={() =>
+              setSelected((prev) => {
+                const next = new Set(prev);
+                if (next.has(c.id)) next.delete(c.id);
+                else next.add(c.id);
+                return next;
+              })
+            }
+          />
+        ))}
+      </div>
+
+      <Modal.Footer className="justify-end gap-3">
+        <span className="text-sm tabular-nums text-muted-foreground">
+          {chosen.length}/{max}
+        </span>
+        <Button
+          size="sm"
+          disabled={!canConfirm}
+          onClick={() => respond({ type: "chooseCardsDecision", chosenCardIds: chosen })}
+        >
+          {chosen.length === 0 && min === 0 ? "Skip" : "Confirm"}
+        </Button>
+      </Modal.Footer>
     </Modal>
   );
 }

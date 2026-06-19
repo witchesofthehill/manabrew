@@ -244,6 +244,39 @@ pub use crate::svar::{
 pub use helpers::*;
 pub use zone_triggers::*;
 
+/// Split a scry/surveil agent decision (one ordered pile per zone) into
+/// `(top, other)`, validated against the looked-at cards. Any looked-at card
+/// not assigned anywhere is kept on top, preserving the original order.
+pub(crate) fn split_scry_piles(
+    looked_at: &[crate::ids::CardId],
+    piles: &[Vec<crate::ids::CardId>],
+) -> (Vec<crate::ids::CardId>, Vec<crate::ids::CardId>) {
+    let other: Vec<crate::ids::CardId> = piles
+        .get(1)
+        .map(|v| {
+            v.iter()
+                .copied()
+                .filter(|id| looked_at.contains(id))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut top: Vec<crate::ids::CardId> = piles
+        .first()
+        .map(|v| {
+            v.iter()
+                .copied()
+                .filter(|id| looked_at.contains(id) && !other.contains(id))
+                .collect()
+        })
+        .unwrap_or_default();
+    for &id in looked_at {
+        if !other.contains(&id) && !top.contains(&id) {
+            top.push(id);
+        }
+    }
+    (top, other)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -148,6 +148,8 @@
   --animate-onboard-fade-up: onboard-fade-up 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-companion-tap-flash: companion-tap-flash 360ms ease-out forwards;
   --animate-companion-die-tumble: companion-die-tumble 480ms cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+  --animate-password-pip: password-pip 220ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --animate-password-caret: password-caret 1.05s steps(1) infinite;
 
   @keyframes accordion-down {
     from {
@@ -411,6 +413,32 @@
       transform: rotate(372deg) translateY(0);
     }
   }
+
+  @keyframes password-pip {
+    0% {
+      transform: scale(0.2);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.25);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes password-caret {
+    0%,
+    50% {
+      opacity: 1;
+    }
+    50.01%,
+    100% {
+      opacity: 0;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -425,7 +453,8 @@
   .animate-player-priority-pulse,
   .animate-life-float,
   .animate-life-damage-wash,
-  .animate-dice-roll {
+  .animate-dice-roll,
+  .animate-password-pip {
     animation: none !important;
   }
 }
@@ -435,6 +464,34 @@
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* Always-visible (classic) scrollbar, overriding macOS overlay auto-hide.
+   Do NOT set scrollbar-width/scrollbar-color: in Chrome/WebKit that switches
+   to the standardized auto-hiding scrollbar and ignores ::-webkit-scrollbar. */
+@utility always-scrollbar {
+  &::-webkit-scrollbar {
+    -webkit-appearance: none;
+    height: 16px;
+    width: 16px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-muted-foreground);
+    border-radius: 9999px;
+    /* transparent border + padding-box clip = even padding around the thumb */
+    border: 5px solid transparent;
+    background-clip: padding-box;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Inset a horizontal scrollbar's ends so it doesn't touch the side edges. */
+@utility scrollbar-inset-x {
+  &::-webkit-scrollbar-track {
+    margin-inline: 1.25rem;
   }
 }
 

@@ -10,14 +10,16 @@ import type { PromptPresentation as PromptPresentationInput } from "@/protocol";
 export function PromptPresentation({
   presentation,
   actions,
+  forceHorizontal = false,
 }: {
   presentation: PromptPresentationInput;
   actions?: ReactNode;
+  forceHorizontal?: boolean;
 }) {
   const { title, description, text, sourceCardId, targets } = presentation;
   const sourceCard = useResolveDeckCard(sourceCardId ?? undefined);
 
-  const isVertical = isVerticalPresentation(presentation);
+  const isVertical = !forceHorizontal && isVerticalPresentation(presentation);
 
   const body = (
     <>

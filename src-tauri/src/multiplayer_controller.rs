@@ -10,7 +10,7 @@ use crate::server_client::ServerClient;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::ids_codec::player_slot;
-use manabrew_agent_interface::prompt::{AgentMessage, AgentPrompt, PlayerAction};
+use manabrew_agent_interface::prompt::{AgentMessage, AgentPrompt, PromptOutput};
 use manabrew_agent_interface::protocol::StateEnvelope;
 
 pub fn spawn_engine_prompt_forwarder(
@@ -148,7 +148,7 @@ pub fn spawn_remote_prompt_forwarder(app: AppHandle, rx: mpsc::Receiver<(usize, 
 pub fn relay_response(
     client: &ServerClient,
     player_slot: &str,
-    action: PlayerAction,
+    action: PromptOutput,
 ) -> Result<(), String> {
     let action_value = serde_json::to_value(action).map_err(|e| e.to_string())?;
     relay_response_value(client, player_slot, action_value)
@@ -168,6 +168,6 @@ pub fn relay_response_value(
     client.send(&msg)
 }
 
-pub fn parse_remote_response(state: &serde_json::Value) -> Result<(usize, PlayerAction), String> {
+pub fn parse_remote_response(state: &serde_json::Value) -> Result<(usize, PromptOutput), String> {
     decode_relay_response(state)
 }

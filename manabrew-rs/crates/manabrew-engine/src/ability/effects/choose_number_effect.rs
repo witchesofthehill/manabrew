@@ -27,7 +27,14 @@ fn resolve(ctx: &mut EffectContext, sa: &crate::spellability::SpellAbility) {
         let range = max - min + 1;
         Some(ctx.rng.next_int(range) + min)
     } else {
-        ctx.agents[controller.index()].choose_number(controller, min, max)
+        ctx.agents[controller.index()].choose_number(
+            controller,
+            sa.source,
+            "Choose a number",
+            None,
+            min,
+            max,
+        )
     };
 
     if let Some(num) = chosen {

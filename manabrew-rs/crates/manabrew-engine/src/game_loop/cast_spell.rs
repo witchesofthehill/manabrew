@@ -110,7 +110,8 @@ impl GameLoop {
     ) -> Option<i32> {
         let (min, max) = Self::announce_bounds(game, player, sa, cost, announce)?;
         agents[player.index()].snapshot_state(game, &self.mana_pools);
-        agents[player.index()].announce_requirements(player, announce, min, max, sa.source)
+        let title = format!("Choose a value for {announce}");
+        agents[player.index()].choose_number(player, sa.source, &title, None, min, max)
     }
 
     fn announce_bounds(
@@ -1409,7 +1410,14 @@ impl GameLoop {
             if max_power > 0 {
                 agents[player.index()].snapshot_state(game, &self.mana_pools);
                 let chosen_power = agents[player.index()]
-                    .choose_number(player, 0, max_power)
+                    .choose_number(
+                        player,
+                        Some(card_id),
+                        "Harmonize",
+                        Some("Choose a creature's power to reduce the generic cost."),
+                        0,
+                        max_power,
+                    )
                     .unwrap_or(0)
                     .clamp(0, max_power);
                 let pay_keyword_cost = agents[player.index()].choose_number_for_keyword_cost(

@@ -116,6 +116,28 @@ pub enum TargetRef {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum ManaSourceAction {
+    TapForMana {
+        card_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        ability_index: Option<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        color: Option<String>,
+    },
+    Untap {
+        card_id: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
 pub struct FirstPlayerRollEntry {

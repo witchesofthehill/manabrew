@@ -18,6 +18,7 @@ import forge.LobbyPlayer;
 import forge.ai.AiCostDecision;
 import forge.ai.ComputerUtilCombat;
 import forge.ai.ComputerUtilCost;
+import forge.ai.ComputerUtilMana;
 import forge.card.ColorSet;
 import forge.card.ICardFace;
 import forge.card.MagicColor.Color;
@@ -640,12 +641,12 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             final int min, final CardCollectionView hand, final String[] unlessTypes, final SpellAbility sa) {
         final int max = Math.min(min, hand.size());
         if (max == 0) {
-            return session.awaitCardChoice("choose_discard", me(), hand, 0, 0, sourceName(sa), null);
+            return session.awaitCardChoice("choose_discard", me(), hand, 0, 0, sourceName(sa), sourceCardId(sa), null);
         }
         int guard = 0;
         while (guard++ < 512) {
             final CardCollection chosen =
-                    session.awaitCardChoice("choose_discard", me(), hand, 1, max, sourceName(sa), null);
+                    session.awaitCardChoice("choose_discard", me(), hand, 1, max, sourceName(sa), sourceCardId(sa), null);
             if (chosen.size() >= max || containsType(chosen, unlessTypes, sa)) {
                 return chosen;
             }
@@ -657,7 +658,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     public CardCollectionView chooseCardsForCost(final CardCollectionView optionList, final SpellAbility sa,
             final CostPartWithList cpl, final int amount, final boolean isOptional, final String prompt) {
         final CardCollection selected =
-                session.awaitCardChoice("choose_cards_for_cost", me(), optionList, amount, amount, sourceName(sa), prompt);
+                session.awaitCardChoice("choose_cards_for_cost", me(), optionList, amount, amount, sourceName(sa), sourceCardId(sa), prompt);
         if (isOptional && selected.size() != amount) {
             return null;
         }
@@ -687,7 +688,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return CardCollection.EMPTY;
         }
         return session.awaitCardChoice(
-                "choose_cards_for_effect", me(), sourceList, min, max, sourceName(sa), title, isOptional);
+                "choose_cards_for_effect", me(), sourceList, min, max, sourceName(sa), sourceCardId(sa), title, isOptional);
     }
 
     @Override
@@ -730,7 +731,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return chooseSingleEntityGeneric(optionList, sa, title, isOptional);
         }
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), cards, 1, 1, sourceName(sa), title, isOptional);
+                "choose_cards_for_effect", me(), cards, 1, 1, sourceName(sa), sourceCardId(sa), title, isOptional);
         if (selected.isEmpty()) {
             return null;
         }
@@ -768,7 +769,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (sa != null && sa.getApi() == ApiType.Dig) {
             selected = session.awaitDigChoice(me(), cards, min, max, sourceName(sa));
         } else {
-            selected = session.awaitCardChoice("choose_cards_for_effect", me(), cards, min, max, sourceName(sa), title);
+            selected = session.awaitCardChoice("choose_cards_for_effect", me(), cards, min, max, sourceName(sa), sourceCardId(sa), title);
         }
         final List<T> out = new ArrayList<>();
         for (final Card card : selected) {
@@ -804,7 +805,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (cappedMax <= 0) {
             return CardCollection.EMPTY;
         }
-        return session.awaitCardChoice("choose_cards_for_effect", me(), validTargets, min, cappedMax, sourceName(sa), message);
+        return session.awaitCardChoice("choose_cards_for_effect", me(), validTargets, min, cappedMax, sourceName(sa), sourceCardId(sa), message);
     }
 
     @Override
@@ -828,7 +829,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return fetchList.get(0);
         }
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), selectPrompt, isOptional);
+                "choose_cards_for_effect", me(), fetchList, 1, 1, sourceName(sa), sourceCardId(sa), selectPrompt, isOptional);
         return selected.isEmpty() ? null : selected.get(0);
     }
 
@@ -851,7 +852,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return new ArrayList<>();
         }
         return new ArrayList<Card>(session.awaitCardChoice(
-                "choose_cards_for_effect", me(), fetchList, min, max, sourceName(sa), selectPrompt));
+                "choose_cards_for_effect", me(), fetchList, min, max, sourceName(sa), sourceCardId(sa), selectPrompt));
     }
 
     @Override
@@ -929,7 +930,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return new ArrayList<>();
         }
         return new ArrayList<>(session.awaitCardChoice(
-                "choose_cards_for_effect", me(), new CardCollection(cards), 0, cards.size(), sourceName(sa), "Splice"));
+                "choose_cards_for_effect", me(), new CardCollection(cards), 0, cards.size(), sourceName(sa), sourceCardId(sa), "Splice"));
     }
 
     @Override
@@ -945,7 +946,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
             return new ArrayList<>();
         }
         return new ArrayList<>(session.awaitCardChoice(
-                "choose_cards_for_effect", me(), new CardCollection(contraptions), 0, contraptions.size(), null, "Crank contraptions"));
+                "choose_cards_for_effect", me(), new CardCollection(contraptions), 0, contraptions.size(), null, null, "Crank contraptions"));
     }
 
     // ── Modes / spell-ability choices ─────────────────────────────────
@@ -1254,16 +1255,18 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public ImmutablePair<CardCollection, CardCollection> arrangeForScry(final CardCollection topN) {
-        final Pair<CardCollection, CardCollection> decision = session.awaitCardIdListChoice(
-                "choose_scry", "scry_decision", "bottom_card_ids", me(), topN, sourceName(null));
-        return ImmutablePair.of(decision.getRight(), decision.getLeft());
+        // (top, bottom) — both ordered by the player.
+        final Pair<CardCollection, CardCollection> decision =
+                session.awaitScryDecision("choose_scry", me(), topN, sourceName(null));
+        return ImmutablePair.of(decision.getLeft(), decision.getRight());
     }
 
     @Override
     public ImmutablePair<CardCollection, CardCollection> arrangeForSurveil(final CardCollection topN) {
-        final Pair<CardCollection, CardCollection> decision = session.awaitCardIdListChoice(
-                "choose_surveil", "surveil_decision", "graveyard_card_ids", me(), topN, sourceName(null));
-        return ImmutablePair.of(decision.getRight(), decision.getLeft());
+        // (top, graveyard) — both ordered by the player.
+        final Pair<CardCollection, CardCollection> decision =
+                session.awaitScryDecision("choose_surveil", me(), topN, sourceName(null));
+        return ImmutablePair.of(decision.getLeft(), decision.getRight());
     }
 
     @Override
@@ -1295,14 +1298,15 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 && (source == null
                         || !source.hasParam("LibraryPosition")
                         || AbilityUtils.calculateAmount(source.getHostCard(), source.getParam("LibraryPosition"), source) >= 0);
-        return session.awaitReorderZone(me(), cards, destinationZone, topOfDeck, sourceName(source));
+        return session.awaitReorderZone(
+                me(), cards, destinationZone, topOfDeck, sourceName(source), sourceCardId(source));
     }
 
     // ── Numbers / colors / types / names ──────────────────────────────
 
     @Override
     public int chooseNumber(final SpellAbility sa, final String title, final int min, final int max) {
-        return session.awaitNumberChoice(me(), min, max, sourceName(sa), title);
+        return session.awaitNumberChoice(me(), min, max, sourceCardId(sa), title);
     }
 
     @Override
@@ -1327,7 +1331,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     @Override
     public int chooseNumberForKeywordCost(
             final SpellAbility sa, final Cost cost, final KeywordInterface keyword, final String prompt, final int max) {
-        return session.awaitNumberChoice(me(), 0, Math.max(0, max), sourceName(sa), prompt == null ? "Choose count" : prompt);
+        return session.awaitNumberChoice(me(), 0, Math.max(0, max), sourceCardId(sa), prompt == null ? "Choose count" : prompt);
     }
 
     @Override
@@ -1338,13 +1342,21 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         }
         bounds[0] = Math.max(bounds[0], min);
         bounds[1] = Math.min(bounds[1], max);
+        final Cost cost = ability.getPayCosts();
+        final boolean manaX = "X".equals(announce)
+                && cost != null
+                && cost.getCostMana() != null
+                && cost.getCostMana().getAmountOfX() > 0;
+        if (manaX) {
+            bounds[1] = Math.min(bounds[1], ComputerUtilMana.determineLeftoverMana(ability, player, false));
+        }
         if (bounds[0] >= bounds[1]) {
             return bounds[0];
         }
         if (ability.getPayCosts() != null && ability.getPayCosts().isMandatory()) {
-            return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
+            return session.awaitNumberChoice(me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
         }
-        return session.awaitCancellableNumberChoice(me(), bounds[0], bounds[1], sourceName(ability), "Announce " + announce);
+        return session.awaitCancellableNumberChoice(me(), bounds[0], bounds[1], sourceCardId(ability), "Choose a value for " + announce);
     }
 
     @Override
@@ -1544,7 +1556,19 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         return costs;
     }
 
-    @Override
+    private static String describePayCost(final Cost cost) {
+        final StringBuilder sb = new StringBuilder("Pay ");
+        boolean first = true;
+        for (final CostPart part : cost.getCostParts()) {
+            if (!first) {
+                sb.append(", ");
+            }
+            sb.append(part.toString().replaceFirst("^Pay ", ""));
+            first = false;
+        }
+        return sb.append("?").toString();
+    }
+
     public boolean payCostToPreventEffect(
             final Cost cost, final SpellAbility sa, final boolean alreadyPaid, final FCollectionView<Player> allPayers) {
         probingPayability = true;
@@ -1568,7 +1592,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
-                cost == null ? "Pay cost?" : cost.toString(),
+                cost == null ? "Pay cost?" : describePayCost(cost),
                 sourceCardId(sa),
                 "pay_cost_to_prevent_effect",
                 cost == null ? null : cost.getClass().getSimpleName(),
@@ -1597,7 +1621,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         final boolean accept = session.awaitBooleanChoice(
                 "pay_cost_to_prevent_effect",
                 me(),
-                cost == null ? "Pay cost?" : cost.toString(),
+                cost == null ? "Pay cost?" : describePayCost(cost),
                 sourceCardId(sa),
                 "pay_cost_during_roll",
                 cost == null ? null : cost.getClass().getSimpleName(),
@@ -2253,7 +2277,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     private List<Card> chooseCardSubset(final List<Card> cards, final String title) {
         final CardCollection selected = session.awaitCardChoice(
-                "choose_cards_for_effect", me(), new CardCollection(cards), 0, cards.size(), null, title);
+                "choose_cards_for_effect", me(), new CardCollection(cards), 0, cards.size(), null, null, title);
         return new ArrayList<>(selected);
     }
 

@@ -280,10 +280,6 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         self.choose_type(type_category, valid_types)
     }
 
-    pub fn choose_number(&mut self, min: i32, max: i32) -> Option<i32> {
-        self.agent.choose_number(self.player, min, max)
-    }
-
     pub fn choose_number_from_list(
         &mut self,
         choices: &[i32],
@@ -488,12 +484,14 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
         self.agent.choose_card_name(self.player, valid_names)
     }
 
-    pub fn choose_scry(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_scry(self.game, self.player, cards)
+    pub fn choose_scry(&mut self, source: Option<CardId>, cards: &[CardId]) -> Vec<Vec<CardId>> {
+        self.agent
+            .choose_scry(self.game, self.player, source, cards)
     }
 
-    pub fn choose_surveil(&mut self, cards: &[CardId]) -> Vec<CardId> {
-        self.agent.choose_surveil(self.game, self.player, cards)
+    pub fn choose_surveil(&mut self, source: Option<CardId>, cards: &[CardId]) -> Vec<Vec<CardId>> {
+        self.agent
+            .choose_surveil(self.game, self.player, source, cards)
     }
 
     pub fn choose_reorder_library(&mut self, cards: &[CardId]) -> Vec<CardId> {
@@ -592,11 +590,6 @@ impl<'a, A: PlayerAgent + ?Sized> PlayerController<'a, A> {
 
     pub fn choose_sector(&mut self, sectors: &[String]) -> Option<String> {
         self.choose_some_type("Sector", sectors)
-    }
-
-    pub fn choose_sprocket(&mut self, force_different: bool) -> Option<i32> {
-        let min = if force_different { 1 } else { 0 };
-        self.choose_number(min, 3)
     }
 
     pub fn add_keyword_cost(&mut self, prompt: &str) -> bool {

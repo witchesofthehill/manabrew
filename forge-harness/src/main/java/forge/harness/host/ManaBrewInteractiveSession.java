@@ -18,8 +18,10 @@ import forge.game.card.CardCollectionView;
 import forge.game.card.CardView;
 import forge.game.combat.Combat;
 import forge.game.combat.CombatUtil;
+import forge.game.cost.Cost;
 import forge.game.player.Player;
 import forge.game.player.PlayerView;
+import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.SpellAbility;
 import forge.game.staticability.StaticAbilityCantAttackBlock;
 import forge.game.zone.ZoneType;
@@ -477,9 +479,8 @@ public final class ManaBrewInteractiveSession {
             option.addProperty("cardId", cardId);
             option.addProperty("abilityIndex", host.getManaAbilities().indexOf(sa));
             option.addProperty("description", host.getName());
-            if (sa.getManaPart() != null) {
-                option.addProperty("cost", sa.getManaPart().mana(sa));
-            }
+            addActivationCost(option, sa);
+            addManaProductionMetadata(option, sa);
             options.add(option);
         }
         prompt.add("manaAbilityOptions", options);
@@ -502,6 +503,48 @@ public final class ManaBrewInteractiveSession {
 
         prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
         latestPromptJson = prompt.toString();
+    }
+
+    List<String> awaitManaCombo(
+            final int playerId,
+            final List<String> availableColors,
+            final int amount,
+            final String sourceName
+    ) {
+        JsonObject prompt = new JsonObject();
+        prompt.addProperty("kind", "specify_mana_combo");
+        prompt.addProperty("sessionId", sessionId);
+        prompt.addProperty("player", playerId);
+        prompt.addProperty("amount", amount);
+        if (sourceName != null) {
+            prompt.addProperty("sourceName", sourceName);
+        }
+        final com.google.gson.JsonArray colors = new com.google.gson.JsonArray();
+        for (final String color : availableColors) {
+            colors.add(color);
+        }
+        prompt.add("availableColors", colors);
+        prompt.add("snapshot", JsonParser.parseString(snapshotJson()));
+        latestPromptJson = prompt.toString();
+
+        while (!closed && !game.isGameOver()) {
+            final JsonObject action = takeActionOrNull();
+            if (action == null) {
+                return new ArrayList<>();
+            }
+            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
+            if ("mana_combo_decision".equals(actionKind)) {
+                final List<String> chosen = new ArrayList<>();
+                if (action.has("chosenColors") && action.get("chosenColors").isJsonArray()) {
+                    for (final JsonElement element : action.getAsJsonArray("chosenColors")) {
+                        chosen.add(element.getAsString());
+                    }
+                }
+                return chosen;
+            }
+            throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
+        }
+        return new ArrayList<>();
     }
 
     Player awaitFirstPlayerRoll(final int playerId, final List<Player> players) {
@@ -1594,6 +1637,35 @@ public final class ManaBrewInteractiveSession {
         }
     }
 
+    private static void addActivationCost(final JsonObject option, final SpellAbility sa) {
+        final Cost cost = sa.getPayCosts();
+        if (cost == null) {
+            return;
+        }
+        final String costText = cost.toSimpleString();
+        if (costText != null && !costText.isEmpty()) {
+            option.addProperty("cost", costText);
+        }
+    }
+
+    private static void addManaProductionMetadata(final JsonObject option, final SpellAbility sa) {
+        final AbilityManaPart manaPart = sa.getManaPart();
+        if (manaPart == null) {
+            return;
+        }
+        String produced = manaPart.getOrigProduced();
+        if (produced != null && produced.contains("Chosen")) {
+            final String resolved = manaPart.mana(sa);
+            if (resolved != null && !resolved.isEmpty() && !resolved.contains("Chosen")) {
+                produced = produced.replace("Chosen", resolved);
+            }
+        }
+        if (produced != null && !produced.isEmpty()) {
+            option.addProperty("producedMana", produced);
+        }
+        option.addProperty("producedManaAmount", sa.amountOfManaGenerated(false));
+    }
+
     private void publishPriorityPrompt(
             final int playerId,
             final List<SpellAbility> actionsForPrompt,
@@ -1625,7 +1697,8 @@ public final class ManaBrewInteractiveSession {
                 option.addProperty("cardId", SnapshotExtractor.javaCardId(host));
             }
             if (sa.isManaAbility() && sa.getManaPart() != null) {
-                option.addProperty("cost", sa.getManaPart().mana(sa));
+                addActivationCost(option, sa);
+                addManaProductionMetadata(option, sa);
             }
             options.add(option);
         }

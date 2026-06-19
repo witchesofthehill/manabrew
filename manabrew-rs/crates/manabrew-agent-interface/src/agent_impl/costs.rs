@@ -1,4 +1,3 @@
-use forge_foundation::ManaAtom;
 use manabrew_engine::agent::{ManaAbilityOption, ManaCostAction};
 use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
@@ -7,9 +6,10 @@ use manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput;
 use manabrew_protocol::prompts::common::PromptPresentation;
 
 use crate::ids_codec::{card_id_str, parse_card_id};
+use crate::mana_action_id::payment_mana_ability_options;
 use crate::prompt::{PlayerAction, PromptInput};
 
-use super::{PromptAgent, Responder};
+use super::{parse_express_mana_choice, PromptAgent, Responder};
 
 fn choose_boolean<T: Responder>(
     agent: &mut PromptAgent<T>,
@@ -176,12 +176,15 @@ pub(super) fn pay_mana_cost<T: Responder>(
                 mana_cost: mana_cost_display.to_string(),
                 mana_ability_options: mana_ability_options
                     .iter()
-                    .map(|opt| crate::prompt::ActivatableAbilityInfo {
-                        card_id: card_id_str(opt.card_id),
-                        ability_index: opt.ability_index,
-                        description: opt.description.clone(),
-                        is_mana_ability: true,
-                        cost: None,
+                    .flat_map(|opt| {
+                        payment_mana_ability_options(
+                            &card_id_str(opt.card_id),
+                            opt.ability_index,
+                            &opt.description,
+                            opt.cost.clone(),
+                            opt.produced_mana.clone(),
+                            opt.produced_mana_amount,
+                        )
                     })
                     .collect(),
                 tappable_source_ids: tappable_land_ids,
@@ -201,10 +204,7 @@ pub(super) fn pay_mana_cost<T: Responder>(
             .map(|card_id| ManaCostAction::TapForMana {
                 card_id,
                 mana_ability_index: ability_index,
-                express_choice: color
-                    .as_deref()
-                    .map(|color| ManaAtom::from_name(&color.to_ascii_lowercase()))
-                    .filter(|&atom| atom != 0),
+                express_choice: parse_express_mana_choice(color.as_deref()),
             })
             .unwrap_or(ManaCostAction::AttemptedAndFailed),
         PlayerAction::Untap { card_id } => parse_card_id(&card_id)

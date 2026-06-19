@@ -860,7 +860,7 @@ impl PlayerAgent for CapturingAgent {
         fn choose_roll_swap_value(&mut self, player: PlayerId, current_result: i32, power: i32, toughness: i32, source: Option<CardId>) -> Option<manabrew_engine::agent::RollSwapChoice> => "choose_roll_swap_value";
         fn flip_coin_call(&mut self, player: PlayerId) -> bool => "flip_coin_call";
         fn choose_phyrexian_pay_life(&mut self, player: PlayerId, color: &str, source: Option<CardId>) -> bool => "choose_phyrexian_pay_life";
-        fn pay_combat_cost(&mut self, player: PlayerId, attacker: CardId, cost: i32, description: &str, tappable_lands: &[CardId], untappable_lands: &[CardId], mana_pool_total: i32) -> manabrew_engine::agent::CombatCostAction => "pay_combat_cost";
+        fn pay_combat_cost(&mut self, player: PlayerId, attacker: CardId, cost: i32, description: &str, mana_ability_options: &[manabrew_engine::agent::ManaAbilityOption], tappable_lands: &[CardId], untappable_lands: &[CardId], mana_pool_total: i32) -> manabrew_engine::agent::CombatCostAction => "pay_combat_cost";
         fn choose_delve(&mut self, player: PlayerId, valid: &[CardId], max: usize, source: Option<CardId>) -> Vec<CardId> => "choose_delve";
         fn choose_improvise(&mut self, player: PlayerId, untapped_artifacts: &[CardId], remaining_cost: &forge_foundation::ManaCost, source: Option<CardId>) -> Vec<CardId> => "choose_improvise";
         fn choose_convoke(&mut self, player: PlayerId, untapped_creatures: &[CardId], remaining_cost: &forge_foundation::ManaCost, source: Option<CardId>) -> Vec<CardId> => "choose_convoke";

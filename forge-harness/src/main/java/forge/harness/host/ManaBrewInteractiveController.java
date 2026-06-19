@@ -2012,14 +2012,24 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         ColorSet mutable = colorSet == null
                 ? ColorSet.fromMask(0)
                 : ColorSet.fromMask(colorSet.getColor() & ~Color.COLORLESS.getColorMask());
-        int remaining = different ? Math.min(manaAmount, mutable.countColors()) : manaAmount;
-        while (remaining > 0 && !mutable.isColorless()) {
-            final byte chosen = chooseColor("", sa, mutable);
+        final int amount = different ? Math.min(manaAmount, mutable.countColors()) : manaAmount;
+        final List<String> colorNames = new ArrayList<>();
+        for (final Color color : mutable) {
+            colorNames.add(shortColorName(colorName(color)));
+        }
+        if (amount <= 0 || colorNames.isEmpty()) {
+            return result;
+        }
+        final List<String> chosenColors = session.awaitManaCombo(me(), colorNames, amount, sourceName(sa));
+        for (final String color : chosenColors) {
+            final byte chosen = colorMask(color);
+            if (chosen == 0 || (mutable.getColor() & chosen) == 0) {
+                continue;
+            }
             result.put(chosen, result.getOrDefault(chosen, 0) + 1);
             if (different) {
                 mutable = ColorSet.fromMask(mutable.getColor() & ~chosen);
             }
-            remaining--;
         }
         return result;
     }
@@ -2029,13 +2039,9 @@ public final class ManaBrewInteractiveController extends PlayerController implem
         if (manaChoices == null || manaChoices.isEmpty()) {
             return null;
         }
-        final List<String> labels = new ArrayList<>();
-        for (final Mana mana : manaChoices) {
-            labels.add(mana == null ? "Mana" : mana.toString());
-        }
-        final List<Integer> chosen = session.awaitModeChoice(me(), labels, 1, 1, null);
-        final int idx = chosen.isEmpty() ? 0 : chosen.get(0);
-        return idx >= 0 && idx < manaChoices.size() ? manaChoices.get(idx) : manaChoices.get(0);
+        // Probes and auto-pay must not prompt, and exact floating-mana selection is too noisy until it has an opt-in UI.
+        // Greedy selection of the first option is a reasonable approximation in the meantime.
+        return manaChoices.get(0);
     }
 
     @Override
@@ -2415,19 +2421,19 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     }
 
     private static byte colorMask(final String color) {
-        if ("White".equals(color)) {
+        if ("White".equals(color) || "W".equals(color)) {
             return Color.WHITE.getColorMask();
         }
-        if ("Blue".equals(color)) {
+        if ("Blue".equals(color) || "U".equals(color)) {
             return Color.BLUE.getColorMask();
         }
-        if ("Black".equals(color)) {
+        if ("Black".equals(color) || "B".equals(color)) {
             return Color.BLACK.getColorMask();
         }
-        if ("Red".equals(color)) {
+        if ("Red".equals(color) || "R".equals(color)) {
             return Color.RED.getColorMask();
         }
-        if ("Green".equals(color)) {
+        if ("Green".equals(color) || "G".equals(color)) {
             return Color.GREEN.getColorMask();
         }
         return Color.COLORLESS.getColorMask();

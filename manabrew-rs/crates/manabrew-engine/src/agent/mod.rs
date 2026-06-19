@@ -904,6 +904,7 @@ pub trait PlayerAgent {
         _attacker: CardId,
         _cost: i32,
         _description: &str,
+        _mana_ability_options: &[ManaAbilityOption],
         _tappable_lands: &[CardId],
         _untappable_lands: &[CardId],
         _mana_pool_total: i32,

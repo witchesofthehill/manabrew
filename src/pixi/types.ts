@@ -1,4 +1,5 @@
-import type { GameCard, ActivatableAbilityInfo } from "@/types/manabrew";
+import type { GameCard } from "@/types/manabrew";
+import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 
 export interface ScreenBounds {
   x: number;
@@ -77,7 +78,12 @@ export interface GameCanvasCallbacks {
   onTargetPlayer?: (playerId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
-  onTapLandAbility?: (cardId: string, abilityIndex: number, color?: string) => void;
+  onTapLandAbility?: (
+    cardId: string,
+    abilityIndex: number,
+    color?: string,
+    actionId?: string,
+  ) => void;
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
   onAttackerClick?: (card: GameCard) => void;
@@ -106,7 +112,7 @@ export interface BattlefieldState {
   selectableCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
-  manaAbilityOptions?: ActivatableAbilityInfo[];
+  manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
 }
 

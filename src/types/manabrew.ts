@@ -252,6 +252,8 @@ export interface ActivatableAbilityInfo {
   description: string;
   isManaAbility: boolean;
   cost?: string;
+  producedMana?: string;
+  color?: string;
 }
 
 export interface ClientCallback {

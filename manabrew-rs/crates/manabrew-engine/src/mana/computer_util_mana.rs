@@ -2297,10 +2297,15 @@ pub fn collect_mana_payment_sources(
             if !is_payable_mana_ability(game, player, card_id, ab, reserved_sacrifices, None) {
                 continue;
             }
+            let (produced_mana, produced_mana_amount) =
+                crate::mana::mana_ability_prompt_metadata(game, card_id, player, ab);
             mana_ability_options.push(ManaAbilityOption {
                 card_id,
                 ability_index: ab.ability_index,
                 description: ab.ability_text.clone(),
+                cost: ab.cost_string(),
+                produced_mana,
+                produced_mana_amount,
             });
         }
     }

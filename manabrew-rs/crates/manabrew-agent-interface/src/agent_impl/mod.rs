@@ -1,4 +1,4 @@
-use forge_foundation::ZoneType;
+use forge_foundation::{ManaAtom, ZoneType};
 use manabrew_engine::agent::notification::GameNotification;
 use manabrew_engine::agent::{
     BinaryChoiceKind, CombatCostAction, GameEntity, ManaCostAction, PlayOption, PlayerAgent,
@@ -16,6 +16,7 @@ use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
 use crate::game_view_dto::{GameViewDto, GameViewDtoExt};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
+use crate::mana_action_id::{parse_tap_action_id, priority_mana_actions};
 use crate::prompt::{
     AgentMessage, AgentPrompt, AvailableAction, AvailableActionKind, DisplayEvent, PlayOptionDto,
     PlayerAction, PromptInput, StateUpdate, TargetRef,
@@ -57,6 +58,12 @@ pub(crate) fn find_matching_color<'a>(
             })
         })
         .cloned()
+}
+
+pub(crate) fn parse_express_mana_choice(color: Option<&str>) -> Option<u16> {
+    color
+        .map(|color| ManaAtom::from_name(&color.to_ascii_lowercase()))
+        .filter(|&atom| atom != 0)
 }
 
 /// Answers the prompts a `PromptAgent` builds.
@@ -402,19 +409,28 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             .chain(action_space.mana_abilities.iter())
         {
             let card_id = card_id_str(a.card_id);
-            let prefix = if a.is_mana_ability { "tap" } else { "ability" };
-            actions.push(AvailableAction {
-                id: format!("{prefix}:{card_id}:{}", a.ability_index),
-                kind: AvailableActionKind::ActivateAbility {
-                    card_id,
-                    ability_index: a.ability_index,
-                    description: a.description.clone(),
-                    cost: a.cost.clone(),
-                    is_mana_ability: a.is_mana_ability,
-                    produced_colors: (!a.produced_colors.is_empty())
-                        .then(|| a.produced_colors.clone()),
-                },
-            });
+            if a.is_mana_ability {
+                actions.extend(priority_mana_actions(
+                    &card_id,
+                    a.ability_index,
+                    &a.description,
+                    a.cost.clone(),
+                    a.produced_mana.clone(),
+                    a.produced_mana_amount,
+                ));
+            } else {
+                actions.push(AvailableAction {
+                    id: format!("ability:{card_id}:{}", a.ability_index),
+                    kind: AvailableActionKind::ActivateAbility {
+                        card_id,
+                        ability_index: a.ability_index,
+                        description: a.description.clone(),
+                        cost: a.cost.clone(),
+                        is_mana_ability: false,
+                        produced_mana: None,
+                    },
+                });
+            }
         }
         for card_id in &untappable_land_ids {
             actions.push(AvailableAction {
@@ -450,9 +466,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                         .map(EnginePlayerAction::CastSpell)
                         .unwrap_or(EnginePlayerAction::PassPriority)
                 } else if let Some(rest) = action_id.strip_prefix("tap:") {
-                    let (id_part, idx) = rest.split_once(':').unwrap_or((rest, ""));
-                    match parse_card_id(id_part) {
-                        Some(cid) => EnginePlayerAction::ActivateMana(cid, idx.parse().ok()),
+                    let tap = parse_tap_action_id(rest);
+                    match parse_card_id(tap.card_id) {
+                        Some(cid) => EnginePlayerAction::ActivateMana(
+                            cid,
+                            tap.ability_index,
+                            parse_express_mana_choice(tap.color),
+                        ),
                         None => EnginePlayerAction::PassPriority,
                     }
                 } else if let Some(rest) = action_id.strip_prefix("ability:") {
@@ -508,7 +528,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             PlayerAction::TapForMana {
                 card_id,
                 ability_index,
-                color: _,
+                color,
             } => {
                 let parsed = parse_card_id(&card_id);
                 match parsed {
@@ -537,11 +557,18 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                                     ability_index: a.ability_index,
                                 })
                             } else {
-                                EnginePlayerAction::ActivateMana(cid, None)
+                                EnginePlayerAction::ActivateMana(
+                                    cid,
+                                    None,
+                                    parse_express_mana_choice(color.as_deref()),
+                                )
                             }
                         } else {
-                            // Mana ability with specific index
-                            EnginePlayerAction::ActivateMana(cid, ability_index)
+                            EnginePlayerAction::ActivateMana(
+                                cid,
+                                ability_index,
+                                parse_express_mana_choice(color.as_deref()),
+                            )
                         }
                     }
                     None => EnginePlayerAction::PassPriority,
@@ -1095,6 +1122,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         attacker: CardId,
         cost: i32,
         description: &str,
+        mana_ability_options: &[manabrew_engine::agent::ManaAbilityOption],
         tappable_lands: &[CardId],
         untappable_lands: &[CardId],
         mana_pool_total: i32,
@@ -1105,6 +1133,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             attacker,
             cost,
             description,
+            mana_ability_options,
             tappable_lands,
             untappable_lands,
             mana_pool_total,

@@ -1,6 +1,14 @@
 import type { ActivatableAbilityInfo } from "@/types/manabrew";
 
-/** Extract all mana letters from an ability description like "Add {G}." or "Add {W} or {U}." */
+export interface ManaAbilityActionInfo extends ActivatableAbilityInfo {
+  actionId?: string;
+}
+
+export interface ExpandedManaAbilityInfo extends ManaAbilityActionInfo {
+  displayManaLetters: string[];
+  colorChoice?: string;
+}
+
 export function extractManaLetters(desc: string | undefined): string[] {
   if (!desc) return [];
   const matches = desc.matchAll(/\{([WUBRGC])\}/g);
@@ -24,82 +32,61 @@ const MANA_TOKEN_TO_LETTER: Record<string, string> = {
   C: "C",
 };
 
-function extractProducedManaTokens(cost: string | undefined): string[] {
-  if (!cost) return [];
-  return cost
+function producedManaTokens(producedMana: string | undefined): string[] {
+  if (!producedMana) return [];
+  return producedMana
     .replace(/[{}]/g, " ")
     .split(/[\s,/]+/)
     .map((token) => token.trim().toUpperCase())
     .filter(Boolean);
 }
 
-function extractProducedManaLetters(cost: string | undefined): string[] {
-  return extractProducedManaTokens(cost)
+function uniqueLetters(letters: string[]): string[] {
+  return [...new Set(letters)];
+}
+
+function displayDescription(letters: string[]): string {
+  return letters.length === 0
+    ? "Add mana"
+    : `Add ${letters.map((letter) => `{${letter}}`).join("")}`;
+}
+
+function displayFromProducedMana(ab: ManaAbilityActionInfo): ExpandedManaAbilityInfo | null {
+  const tokens = producedManaTokens(ab.producedMana);
+  if (tokens.length === 0) return null;
+
+  const isCombo = tokens.includes("COMBO");
+  const manaTokens = tokens.filter((token) => token !== "COMBO");
+  const isAny = manaTokens.includes("ANY");
+  const tokenLetters = manaTokens
     .map((token) => MANA_TOKEN_TO_LETTER[token])
-    .filter((letter) => letter != null);
+    .filter((letter): letter is string => letter != null);
+  const letters = isAny ? ANY_COLOR_LETTERS : isCombo ? uniqueLetters(tokenLetters) : tokenLetters;
+
+  if (letters.length === 0) return null;
+
+  return {
+    ...ab,
+    description: displayDescription(letters),
+    displayManaLetters: letters,
+    colorChoice: ab.color,
+  };
 }
 
-function hasAnyColorText(text: string): boolean {
-  return (
-    text.includes("any color") ||
-    text.includes("any one color") ||
-    text.includes("mana of any color")
-  );
+function displayFromDescription(ab: ManaAbilityActionInfo): ExpandedManaAbilityInfo {
+  return {
+    ...ab,
+    displayManaLetters: extractManaLetters(ab.description),
+    colorChoice: ab.color,
+  };
 }
 
-export const getExpandedManaAbilities = (
+export const getDisplayedManaAbilities = (
   cardId: string,
-  options: ActivatableAbilityInfo[],
-): ActivatableAbilityInfo[] => {
+  options: ManaAbilityActionInfo[],
+): ExpandedManaAbilityInfo[] => {
   const cardAbs = options.filter((a) => a.cardId === cardId);
   if (cardAbs.length === 0) return [];
 
-  const expanded: ActivatableAbilityInfo[] = [];
-
-  for (const ab of cardAbs) {
-    const letters = extractManaLetters(ab.description);
-    const desc = ab.description.toLowerCase();
-    const producedTokens = extractProducedManaTokens(ab.cost);
-    const cost = producedTokens.join(" ").toLowerCase();
-    const producedLetters = extractProducedManaLetters(ab.cost);
-    const isAnyColor =
-      hasAnyColorText(desc) || hasAnyColorText(cost) || producedTokens.includes("ANY");
-
-    if (letters.length > 1) {
-      [...new Set(letters)].forEach((letter) => {
-        expanded.push({
-          ...ab,
-          description: `Add {${letter}}`,
-        });
-      });
-    } else if (letters.length === 1) {
-      expanded.push(ab);
-    } else if (isAnyColor) {
-      ANY_COLOR_LETTERS.forEach((letter) => {
-        expanded.push({
-          ...ab,
-          description: `Add {${letter}}`,
-        });
-      });
-    } else if (producedLetters.length > 0) {
-      const uniqueProducedLetters = [...new Set(producedLetters)];
-      if (uniqueProducedLetters.length === 1) {
-        expanded.push({
-          ...ab,
-          description: `Add {${uniqueProducedLetters[0]}}`,
-        });
-      } else {
-        uniqueProducedLetters.forEach((letter) => {
-          expanded.push({
-            ...ab,
-            description: `Add {${letter}}`,
-          });
-        });
-      }
-    } else {
-      expanded.push(ab);
-    }
-  }
-
-  return expanded;
+  return cardAbs.map((ab) => displayFromProducedMana(ab) ?? displayFromDescription(ab));
 };

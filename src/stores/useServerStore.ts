@@ -81,6 +81,27 @@ interface ServerState {
   setupListeners(): () => void;
 }
 
+export const JOIN_REJECTED_INCORRECT_PASSWORD = SERVER_ERROR_CODE.IncorrectPassword;
+
+const JOIN_CONFIRM_TIMEOUT_MS = 7000;
+
+interface PendingJoin {
+  roomId: string;
+  settle: (error: Error | null) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+let pendingJoin: PendingJoin | null = null;
+
+function settlePendingJoin(error: Error | null, roomId?: string) {
+  if (!pendingJoin) return;
+  if (roomId && pendingJoin.roomId !== roomId) return;
+  clearTimeout(pendingJoin.timer);
+  const { settle } = pendingJoin;
+  pendingJoin = null;
+  settle(error);
+}
+
 export const useServerStore = create<ServerState>()(
   devtools(
     (set, get) => ({
@@ -167,7 +188,19 @@ export const useServerStore = create<ServerState>()(
       async joinRoom(roomId, password) {
         const platform = getPlatform();
         if (!platform.server) return;
+        settlePendingJoin(new Error("join_superseded"));
         await platform.server.joinRoom({ roomId, password });
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            pendingJoin = null;
+            reject(new Error("join_timeout"));
+          }, JOIN_CONFIRM_TIMEOUT_MS);
+          pendingJoin = {
+            roomId,
+            timer,
+            settle: (error) => (error ? reject(error) : resolve()),
+          };
+        });
       },
 
       async leaveRoom() {
@@ -305,6 +338,7 @@ export const useServerStore = create<ServerState>()(
         unsubscribers.push(
           platform.events.on<RoomUpdatePayload>("server:room_update", (payload) => {
             set({ currentRoom: payload.room });
+            settlePendingJoin(null, payload.room.room_id);
           }),
         );
 
@@ -355,6 +389,10 @@ export const useServerStore = create<ServerState>()(
           platform.events.on<ServerErrorPayload>("server:error", (payload) => {
             console.error("[server] error:", payload.code, payload.message);
             if (payload.code === SERVER_ERROR_CODE.GameNotInProgress) return;
+            if (payload.code === SERVER_ERROR_CODE.IncorrectPassword) {
+              settlePendingJoin(new Error(SERVER_ERROR_CODE.IncorrectPassword));
+              return;
+            }
             if (payload.code === SERVER_ERROR_CODE.NotInRoom) {
               set({
                 currentRoom: null,

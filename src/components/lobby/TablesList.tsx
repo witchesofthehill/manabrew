@@ -86,6 +86,15 @@ function LobbyTag({
   );
 }
 
+function needsFormatChoice(room: RoomInfo) {
+  return (
+    room.format === "Any" &&
+    !room.draft_config &&
+    !room.sealed_config &&
+    room.players.every((p) => p.is_bot)
+  );
+}
+
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
@@ -134,7 +143,7 @@ export function TablesList({
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [passwordRoom, setPasswordRoom] = useState<RoomInfo | null>(null);
   const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
-  const [pendingFormat, setPendingFormat] = useState<GameFormat | undefined>(undefined);
+  const [formatAfterJoin, setFormatAfterJoin] = useState(false);
   const [search, setSearch] = useState("");
 
   const inRoom = currentRoom != null;
@@ -178,29 +187,22 @@ export function TablesList({
     }
   }
 
-  function needsFormatChoice(room: RoomInfo) {
-    return (
-      room.format === "Any" &&
-      !room.draft_config &&
-      !room.sealed_config &&
-      room.players.every((p) => p.is_bot)
-    );
-  }
-
   function requestJoin(room: RoomInfo) {
-    if (needsFormatChoice(room)) {
+    if (room.password_protected) {
+      setPasswordRoom(room);
+    } else if (needsFormatChoice(room)) {
+      setFormatAfterJoin(false);
       setFormatRoom(room);
     } else {
-      joinWithFormat(room, undefined);
+      void handleJoinRoom(room.room_id);
     }
   }
 
-  function joinWithFormat(room: RoomInfo, format?: GameFormat) {
-    if (room.password_protected) {
-      setPendingFormat(format);
-      setPasswordRoom(room);
-    } else {
-      void handleJoinRoom(room.room_id, undefined, format);
+  async function joinThenChooseFormat(room: RoomInfo, password: string) {
+    await onJoinRoom(room.room_id, password);
+    if (needsFormatChoice(room)) {
+      setFormatAfterJoin(true);
+      setFormatRoom(room);
     }
   }
 
@@ -651,16 +653,22 @@ export function TablesList({
         </div>
       </ScrollArea>
 
-      <ChooseFormatDialog
-        room={formatRoom}
-        onClose={() => setFormatRoom(null)}
-        onSelect={(room, format) => joinWithFormat(room, format)}
-      />
-
       <JoinPasswordDialog
         room={passwordRoom}
         onClose={() => setPasswordRoom(null)}
-        onSubmit={(roomId, password) => void handleJoinRoom(roomId, password, pendingFormat)}
+        onJoin={(room, password) => joinThenChooseFormat(room, password)}
+      />
+
+      <ChooseFormatDialog
+        room={formatRoom}
+        onClose={() => setFormatRoom(null)}
+        onSelect={(room, format) => {
+          if (formatAfterJoin) {
+            onSetFormat?.(format);
+          } else {
+            void handleJoinRoom(room.room_id, undefined, format);
+          }
+        }}
       />
     </div>
   );

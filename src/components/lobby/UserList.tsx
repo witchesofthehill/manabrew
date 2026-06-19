@@ -185,7 +185,7 @@ export function UserList({
       <JoinPasswordDialog
         room={passwordRoom}
         onClose={() => setPasswordRoom(null)}
-        onSubmit={(roomId, password) => void handleJoinRoom(roomId, password)}
+        onJoin={(room, password) => handleJoinRoom(room.room_id, password)}
       />
     </div>
   );

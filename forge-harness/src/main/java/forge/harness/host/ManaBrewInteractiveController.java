@@ -1048,12 +1048,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public boolean confirmTrigger(final WrappedAbility sa) {
-        if (sa != null) {
-            final SpellAbility wrapped = sa.getWrappedAbility();
-            if (wrapped.hasParam("Cost") && !wrapped.getParam("Cost").equals("0")) {
-                return true;
-            }
-        }
         return session.awaitBooleanChoice(
                 "choose_optional_trigger",
                 me(),

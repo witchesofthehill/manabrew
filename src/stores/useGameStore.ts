@@ -21,7 +21,6 @@ import type { Prompt } from "@/protocol";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
 import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
-import { clearTextureCache } from "@/stores/useScryfallStore";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
@@ -470,7 +469,6 @@ export const useGameStore = create<GameState>()(
             console.warn("Failed to leave multiplayer room after game end:", e);
           }
         }
-        clearTextureCache();
       },
 
       setMultiplayerState: (isMultiplayer, isHost, myPlayerSlot) => {

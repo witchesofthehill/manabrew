@@ -6,13 +6,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  ActivatableAbilityInfo,
-  CombatAssignment,
-  GameCard,
-  Player,
-  StackObject,
-} from "@/types/manabrew";
+import type { ActivatableAbilityInfo, GameCard, Player, StackObject } from "@/types/manabrew";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
@@ -149,15 +143,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     width: number;
     height: number;
   } | null>(null);
-  // Only poll the panel rect while the stack is on screen — otherwise this rAF
-  // would run a getBoundingClientRect + querySelector reflow every frame for the
-  // whole game.
-  const hasStack = (gameView?.stack?.length ?? 0) > 0;
   useEffect(() => {
-    if (!hasStack) {
-      setStackBlockerRect(null);
-      return;
-    }
     let raf = 0;
     let lastKey = "";
     const tick = () => {
@@ -186,7 +172,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [hasStack]);
+  }, []);
 
   const activePrompt = manualApi || isWaitingForResponse ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
@@ -453,66 +439,104 @@ export default function Game({ exitTo }: GameProps = {}) {
     ],
   );
 
-  const respondHandAction = useCallback(
-    (option: HandActionOption): boolean => {
-      if (option.actionId != null) {
-        respond({ type: "act", actionId: option.actionId });
-        return true;
-      }
-      if (option.kind === "ability" && option.isManaAbility) {
-        respond({
-          type: "tapForMana",
-          cardId: option.cardId,
-          abilityIndex: option.abilityIndex,
-          color: option.colorChoice,
-        });
-        return true;
-      }
-      if (option.kind === "ability" && option.abilityIndex != null) {
-        respond({
-          type: "tapForMana",
-          cardId: option.cardId,
-          abilityIndex: option.abilityIndex >= 0 ? option.abilityIndex : undefined,
-        });
-        return true;
-      }
-      return false;
-    },
-    [respond],
-  );
+  const respondHandAction = (option: HandActionOption): boolean => {
+    if (option.actionId != null) {
+      respond({ type: "act", actionId: option.actionId });
+      return true;
+    }
+    if (option.kind === "ability" && option.isManaAbility) {
+      respond({
+        type: "tapForMana",
+        cardId: option.cardId,
+        abilityIndex: option.abilityIndex,
+        color: option.colorChoice,
+      });
+      return true;
+    }
+    if (option.kind === "ability" && option.abilityIndex != null) {
+      respond({
+        type: "tapForMana",
+        cardId: option.cardId,
+        abilityIndex: option.abilityIndex >= 0 ? option.abilityIndex : undefined,
+      });
+      return true;
+    }
+    return false;
+  };
 
-  const handleCastSpell = useCallback(
-    (cardId: string) => {
-      const acts = chooseActionInput?.actions ?? [];
-      const castActions = acts.flatMap((a) =>
-        a.type === "cast" && a.cardId === cardId ? [a] : [],
-      );
-      if (castActions.length > 1) {
-        const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
-        const gc =
-          myPlayer?.hand.find((c) => c.id === cardId) ??
-          myPlayer?.graveyard.find((c) => c.id === cardId) ??
-          myPlayer?.exile.find((c) => c.id === cardId) ??
-          myPlayer?.commandZone.find((c) => c.id === cardId);
-        if (!gc) throw new Error(`No game card to cast: ${cardId}`);
-        const card = asDeckCard(gameDecks[gc.ownerId], gc);
-        openPlayModePicker({
-          cardId,
-          card,
-          options: castActions.map((a) => ({
-            actionId: a.id,
-            cardId: a.cardId,
-            mode: a.mode,
-            modeLabel: a.modeLabel,
-          })),
-        });
-        return;
+  const handleCastSpell = (cardId: string) => {
+    const acts = chooseActionInput?.actions ?? [];
+    const castActions = acts.flatMap((a) => (a.type === "cast" && a.cardId === cardId ? [a] : []));
+    if (castActions.length > 1) {
+      const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
+      const gc =
+        myPlayer?.hand.find((c) => c.id === cardId) ??
+        myPlayer?.graveyard.find((c) => c.id === cardId) ??
+        myPlayer?.exile.find((c) => c.id === cardId) ??
+        myPlayer?.commandZone.find((c) => c.id === cardId);
+      if (!gc) throw new Error(`No game card to cast: ${cardId}`);
+      const card = asDeckCard(gameDecks[gc.ownerId], gc);
+      openPlayModePicker({
+        cardId,
+        card,
+        options: castActions.map((a) => ({
+          actionId: a.id,
+          cardId: a.cardId,
+          mode: a.mode,
+          modeLabel: a.modeLabel,
+        })),
+      });
+      return;
+    }
+    const single = castActions[0];
+    if (single) respond({ type: "act", actionId: single.id });
+  };
+
+  const handleHandCardAction = (card: GameCard, e?: React.MouseEvent) => {
+    if (manualApi) {
+      preview.showSticky(card, e?.clientX, e?.clientY);
+      return;
+    }
+    const actions = getHandActionOptions(card);
+    if (actions.length === 0) {
+      if (card.isPlayable) {
+        handleCastSpell(card.id);
       }
-      const single = castActions[0];
-      if (single) respond({ type: "act", actionId: single.id });
-    },
-    [chooseActionInput, gameView, myPlayerSlot, gameDecks, openPlayModePicker, respond],
-  );
+      return;
+    }
+
+    if (actions.length === 1) {
+      respondHandAction(actions[0]);
+      return;
+    }
+
+    preview.showSticky(card, e?.clientX, e?.clientY);
+  };
+
+  const handleHandCardDragStart = (card: GameCard, e: React.MouseEvent) => {
+    if (manualApi) {
+      preview.showSticky(card, e.clientX, e.clientY);
+      return;
+    }
+    const actions = getHandActionOptions(card);
+    if (actions.length > 1 || actions.some((action) => action.kind === "ability")) {
+      handleHandCardAction(card, e);
+      return;
+    }
+    startHandCardDrag(card, e);
+  };
+
+  const handleBattlefieldCardAction = (card: GameCard, e?: React.MouseEvent) => {
+    const abilities = getBattlefieldAbilityOptions(card);
+    if (abilities.length === 0) return false;
+
+    if (abilities.length === 1) {
+      return respondHandAction(abilities[0]);
+    }
+
+    preview.showSticky(card, e?.clientX, e?.clientY);
+    return true;
+  };
 
   const {
     pendingAttackers,
@@ -570,74 +594,121 @@ export default function Game({ exitTo }: GameProps = {}) {
     };
   }, [activePrompt, declineTargets]);
 
-  const openZone = useCallback(
-    (
-      title: string,
-      cards: GameCard[],
-      onClickCard?: (cardId: string) => void,
-      clickableCardIds?: string[],
-      targetHostile?: boolean,
-    ) => {
-      openZoneViewer({ title, cards, onClickCard, clickableCardIds, targetHostile });
-    },
-    [openZoneViewer],
-  );
-  const openManualZone = useCallback(
-    (title: string, cards: GameCard[]) => {
-      openZoneViewer({
-        title,
-        cards: cards.map((card) => ({ ...card, isPlayable: true })),
-        onClickCard: (cardId) => {
-          const card = cards.find((candidate) => candidate.id === cardId);
-          closeZoneViewer();
-          if (!card) return;
-          void applyManualAction({
-            type: "moveCard",
-            cardId,
-            fromZoneId: card.zoneId,
-            toZoneId: "battlefield",
-          });
-        },
-      });
-    },
-    [openZoneViewer, closeZoneViewer, applyManualAction],
-  );
-  const closeZone = useCallback(() => {
+  function openZone(
+    title: string,
+    cards: GameCard[],
+    onClickCard?: (cardId: string) => void,
+    clickableCardIds?: string[],
+    targetHostile?: boolean,
+  ) {
+    openZoneViewer({ title, cards, onClickCard, clickableCardIds, targetHostile });
+  }
+  function openManualZone(title: string, cards: GameCard[]) {
+    openZoneViewer({
+      title,
+      cards: cards.map((card) => ({ ...card, isPlayable: true })),
+      onClickCard: (cardId) => {
+        const card = cards.find((candidate) => candidate.id === cardId);
+        closeZoneViewer();
+        if (!card) return;
+        void applyManualAction({
+          type: "moveCard",
+          cardId,
+          fromZoneId: card.zoneId,
+          toZoneId: "battlefield",
+        });
+      },
+    });
+  }
+  function closeZone() {
     closeZoneViewer();
-  }, [closeZoneViewer]);
-  const openZoneAndCast = useCallback(
-    (
-      title: string,
-      cards: GameCard[],
-      onClickCard: (cardId: string) => void,
-      clickableCardIds?: string[],
-    ) => {
-      openZoneViewer({
-        title,
-        cards,
-        clickableCardIds,
-        onClickCard: (cardId) => {
-          closeZoneViewer();
-          onClickCard(cardId);
-        },
-      });
-    },
-    [openZoneViewer, closeZoneViewer],
-  );
+  }
+  function openZoneAndCast(
+    title: string,
+    cards: GameCard[],
+    onClickCard: (cardId: string) => void,
+    clickableCardIds?: string[],
+  ) {
+    openZoneViewer({
+      title,
+      cards,
+      clickableCardIds,
+      onClickCard: (cardId) => {
+        closeZoneViewer();
+        onClickCard(cardId);
+      },
+    });
+  }
 
-  const handleUntapLand = useCallback(
-    (card: GameCard) => {
-      const undo = chooseActionInput?.actions.find(
-        (a) => a.type === "undoMana" && a.cardId === card.id,
+  const handleTapLand = (card: GameCard) => {
+    const paymentManaOptions =
+      payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions;
+    if (paymentManaOptions) {
+      const manaAbilities = getDisplayedManaAbilities(card.id, paymentManaOptions).map((ab) =>
+        toAbilityOption(ab),
       );
-      if (undo) {
-        respond({ type: "act", actionId: undo.id });
+
+      if (manaAbilities.length > 1) {
+        preview.showSticky(card);
         return;
       }
-      respond({ type: "untap", cardId: card.id });
-    },
-    [chooseActionInput, respond],
-  );
+      if (manaAbilities.length === 1) {
+        respond({
+          type: "tapForMana",
+          cardId: card.id,
+          abilityIndex: manaAbilities[0].abilityIndex,
+          color: manaAbilities[0].colorChoice,
+        });
+        return;
+      }
+      respond({ type: "tapForMana", cardId: card.id });
+      return;
+    }
+
+    if (promptType !== "chooseAction") {
+      respond({ type: "tapForMana", cardId: card.id });
+      return;
+    }
+
+    const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
+    if (manaAbilities.length > 1) {
+      preview.showSticky(card);
+      return;
+    }
+    if (manaAbilities.length === 1) {
+      const actionId =
+        manaAbilities[0].actionId ??
+        chooseActionInput?.actions.find(
+          (a) =>
+            a.type === "activateAbility" &&
+            a.isManaAbility &&
+            a.cardId === card.id &&
+            a.abilityIndex === manaAbilities[0].abilityIndex,
+        )?.id;
+      if (actionId) respond({ type: "act", actionId });
+      return;
+    }
+
+    const cardActions = (chooseActionInput?.actions ?? []).filter(
+      (a) => a.type === "activateAbility" && a.cardId === card.id,
+    );
+    if (cardActions.length > 1) {
+      preview.showSticky(card);
+    } else if (cardActions.length === 1) {
+      respond({ type: "act", actionId: cardActions[0].id });
+    }
+  };
+
+  const handleUntapLand = (card: GameCard) => {
+    const undo = chooseActionInput?.actions.find(
+      (a) => a.type === "undoMana" && a.cardId === card.id,
+    );
+    if (undo) {
+      respond({ type: "act", actionId: undo.id });
+      return;
+    }
+    respond({ type: "untap", cardId: card.id });
+  };
 
   const pendingTapQueueRef = useRef<string[]>([]);
   const pendingUntapQueueRef = useRef<string[]>([]);
@@ -653,47 +724,37 @@ export default function Game({ exitTo }: GameProps = {}) {
     action(first);
   };
 
-  const tapResponse = useCallback(
-    (id: string) => {
-      const option = manaAbilitiesByCardId.get(id)?.[0];
-      if (option?.actionId) {
-        respond({ type: "act", actionId: option.actionId });
-      } else if (option) {
-        respond({
-          type: "tapForMana",
-          cardId: id,
-          abilityIndex: option.abilityIndex,
-          color: option.colorChoice,
-        });
-      } else if (promptType === "chooseAction") {
-        const action = chooseActionInput?.actions.find(
-          (a) => a.type === "activateAbility" && a.isManaAbility && a.cardId === id,
-        );
-        if (action) respond({ type: "act", actionId: action.id });
-      } else {
-        respond({ type: "tapForMana", cardId: id });
-      }
-    },
-    [manaAbilitiesByCardId, promptType, chooseActionInput, respond],
-  );
-  const untapResponse = useCallback(
-    (id: string) => {
-      const a = chooseActionInput?.actions.find((x) => x.type === "undoMana" && x.cardId === id);
-      if (a) respond({ type: "act", actionId: a.id });
-      else respond({ type: "untap", cardId: id });
-    },
-    [chooseActionInput, respond],
-  );
+  const tapResponse = (id: string) => {
+    const option = manaAbilitiesByCardId.get(id)?.[0];
+    if (option?.actionId) {
+      respond({ type: "act", actionId: option.actionId });
+    } else if (option) {
+      respond({
+        type: "tapForMana",
+        cardId: id,
+        abilityIndex: option.abilityIndex,
+        color: option.colorChoice,
+      });
+    } else if (promptType === "chooseAction") {
+      const action = chooseActionInput?.actions.find(
+        (a) => a.type === "activateAbility" && a.isManaAbility && a.cardId === id,
+      );
+      if (action) respond({ type: "act", actionId: action.id });
+    } else {
+      respond({ type: "tapForMana", cardId: id });
+    }
+  };
+  const untapResponse = (id: string) => {
+    const a = chooseActionInput?.actions.find((x) => x.type === "undoMana" && x.cardId === id);
+    if (a) respond({ type: "act", actionId: a.id });
+    else respond({ type: "untap", cardId: id });
+  };
 
-  const handleTapLands = useCallback(
-    (cardIds: string[]) => startBatchLandAction(cardIds, pendingTapQueueRef, tapResponse),
-    [tapResponse],
-  );
+  const handleTapLands = (cardIds: string[]) =>
+    startBatchLandAction(cardIds, pendingTapQueueRef, tapResponse);
 
-  const handleUntapLands = useCallback(
-    (cardIds: string[]) => startBatchLandAction(cardIds, pendingUntapQueueRef, untapResponse),
-    [untapResponse],
-  );
+  const handleUntapLands = (cardIds: string[]) =>
+    startBatchLandAction(cardIds, pendingUntapQueueRef, untapResponse);
 
   const drainQueue = (
     queueRef: React.MutableRefObject<string[]>,
@@ -813,155 +874,35 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const hoveredCardActions = preview.hoveredCard ? getCardActions(preview.hoveredCard) : [];
 
-  const handleHandCardAction = useCallback(
-    (card: GameCard, e?: React.MouseEvent) => {
-      if (manualApi) {
-        preview.showSticky(card, e?.clientX, e?.clientY);
-        return;
-      }
-      const actions = getHandActionOptions(card);
-      if (actions.length === 0) {
-        if (card.isPlayable) {
-          handleCastSpell(card.id);
-        }
-        return;
-      }
-      if (actions.length === 1) {
-        respondHandAction(actions[0]);
-        return;
-      }
-      preview.showSticky(card, e?.clientX, e?.clientY);
-    },
-    [manualApi, preview, getHandActionOptions, handleCastSpell, respondHandAction],
-  );
-
-  const handleHandCardDragStart = useCallback(
-    (card: GameCard, e: React.MouseEvent) => {
-      if (manualApi) {
-        preview.showSticky(card, e.clientX, e.clientY);
-        return;
-      }
-      const actions = getHandActionOptions(card);
-      if (actions.length > 1 || actions.some((action) => action.kind === "ability")) {
-        handleHandCardAction(card, e);
-        return;
-      }
-      startHandCardDrag(card, e);
-    },
-    [manualApi, preview, getHandActionOptions, handleHandCardAction, startHandCardDrag],
-  );
-
-  const handleBattlefieldCardAction = useCallback(
-    (card: GameCard, e?: React.MouseEvent) => {
-      const abilities = getBattlefieldAbilityOptions(card);
-      if (abilities.length === 0) return false;
-      if (abilities.length === 1) {
-        return respondHandAction(abilities[0]);
-      }
-      preview.showSticky(card, e?.clientX, e?.clientY);
-      return true;
-    },
-    [getBattlefieldAbilityOptions, respondHandAction, preview],
-  );
-
-  const handleTapLand = useCallback(
-    (card: GameCard) => {
-      const paymentManaOptions =
-        payCombatCostInput?.manaAbilityOptions ?? payManaCostInput?.manaAbilityOptions;
-      if (paymentManaOptions) {
-        const manaAbilities = getDisplayedManaAbilities(card.id, paymentManaOptions).map((ab) =>
-          toAbilityOption(ab),
-        );
-        if (manaAbilities.length > 1) {
-          preview.showSticky(card);
-          return;
-        }
-        if (manaAbilities.length === 1) {
-          respond({
-            type: "tapForMana",
-            cardId: card.id,
-            abilityIndex: manaAbilities[0].abilityIndex,
-            color: manaAbilities[0].colorChoice,
-          });
-          return;
-        }
-        respond({ type: "tapForMana", cardId: card.id });
-        return;
-      }
-      if (promptType !== "chooseAction") {
-        respond({ type: "tapForMana", cardId: card.id });
-        return;
-      }
-      const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
-      if (manaAbilities.length > 1) {
-        preview.showSticky(card);
-        return;
-      }
-      if (manaAbilities.length === 1) {
-        const actionId =
-          manaAbilities[0].actionId ??
-          chooseActionInput?.actions.find(
-            (a) =>
-              a.type === "activateAbility" &&
-              a.isManaAbility &&
-              a.cardId === card.id &&
-              a.abilityIndex === manaAbilities[0].abilityIndex,
-          )?.id;
-        if (actionId) respond({ type: "act", actionId });
-        return;
-      }
-      const cardActions = (chooseActionInput?.actions ?? []).filter(
-        (a) => a.type === "activateAbility" && a.cardId === card.id,
-      );
-      if (cardActions.length > 1) {
-        preview.showSticky(card);
-      } else if (cardActions.length === 1) {
-        respond({ type: "act", actionId: cardActions[0].id });
-      }
-    },
-    [
-      payCombatCostInput,
-      payManaCostInput,
-      promptType,
-      manaAbilitiesByCardId,
-      chooseActionInput,
-      preview,
-      respond,
-    ],
-  );
-
-  const handlePreviewAction = useCallback(
-    (action: HandActionOption) => {
-      preview.dismiss();
-      if (action.kind === "manual-move" && action.toZoneId) {
-        const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
-        const sourceCard = [
-          ...(myPlayer?.hand ?? []),
-          ...(gameView?.battlefield ?? []),
-          ...(myPlayer?.graveyard ?? []),
-          ...(myPlayer?.exile ?? []),
-          ...(myPlayer?.commandZone ?? []),
-        ].find((card) => card.id === action.cardId);
-        void applyManualAction({
-          type: "moveCard",
-          cardId: action.cardId,
-          fromZoneId: sourceCard?.zoneId ?? "",
-          toZoneId: action.toZoneId,
-        });
-        return;
-      }
-      if (action.kind === "manual-tap") {
-        void applyManualAction({
-          type: "tapCard",
-          cardId: action.cardId,
-          tapped: action.tapped ?? true,
-        });
-        return;
-      }
-      respondHandAction(action);
-    },
-    [preview, gameView, myPlayerSlot, applyManualAction, respondHandAction],
-  );
+  const handlePreviewAction = (action: HandActionOption) => {
+    preview.dismiss();
+    if (action.kind === "manual-move" && action.toZoneId) {
+      const myPlayer = gameView?.players.find((p) => p.id === myPlayerSlot);
+      const sourceCard = [
+        ...(myPlayer?.hand ?? []),
+        ...(gameView?.battlefield ?? []),
+        ...(myPlayer?.graveyard ?? []),
+        ...(myPlayer?.exile ?? []),
+        ...(myPlayer?.commandZone ?? []),
+      ].find((card) => card.id === action.cardId);
+      void applyManualAction({
+        type: "moveCard",
+        cardId: action.cardId,
+        fromZoneId: sourceCard?.zoneId ?? "",
+        toZoneId: action.toZoneId,
+      });
+      return;
+    }
+    if (action.kind === "manual-tap") {
+      void applyManualAction({
+        type: "tapCard",
+        cardId: action.cardId,
+        tapped: action.tapped ?? true,
+      });
+      return;
+    }
+    respondHandAction(action);
+  };
 
   const activeFlash = useFlashQueue(flashDurationMs);
 
@@ -1173,206 +1114,50 @@ export default function Game({ exitTo }: GameProps = {}) {
     return asDeckCard(gameDecks[gc.ownerId], gc);
   }, [activePrompt?.sourceCardId, visibleCardsById, stackCardsBySourceId, gameDecks]);
 
-  const handleLogCardHover = useCallback(
-    (
-      cardId: string | null,
-      e?: React.MouseEvent,
-      options: {
-        useAnchor?: boolean;
-        placement?: "auto" | "top-center";
-        anchorOverride?: DOMRect;
-      } = {},
-    ) => {
-      if (draggingHandCard) {
-        preview.dismiss();
-        return;
-      }
-      if (!cardId) {
-        preview.dismiss();
-        return;
-      }
-      const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
-      if (!card) {
-        preview.dismiss();
-        return;
-      }
+  const handleLogCardHover = (
+    cardId: string | null,
+    e?: React.MouseEvent,
+    options: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+    } = {},
+  ) => {
+    if (draggingHandCard) {
+      preview.dismiss();
+      return;
+    }
+    if (!cardId) {
+      preview.dismiss();
+      return;
+    }
+    const card = visibleCardsById.get(cardId) ?? stackCardsBySourceId.get(cardId);
+    if (!card) {
+      preview.dismiss();
+      return;
+    }
+    preview.handleMouseEnter(card, e, { ...options, useDelay: true });
+  };
+
+  const handleHoverCardGuarded = (
+    card: GameCard | null,
+    e?: React.MouseEvent,
+    options: {
+      useAnchor?: boolean;
+      placement?: "auto" | "top-center";
+      anchorOverride?: DOMRect;
+    } = {},
+  ) => {
+    if (draggingHandCard) {
+      preview.dismiss();
+      return;
+    }
+    if (card === null) {
+      preview.handleMouseLeave();
+    } else {
       preview.handleMouseEnter(card, e, { ...options, useDelay: true });
-    },
-    [draggingHandCard, preview, visibleCardsById, stackCardsBySourceId],
-  );
-
-  const handleHoverCardGuarded = useCallback(
-    (
-      card: GameCard | null,
-      e?: React.MouseEvent,
-      options: {
-        useAnchor?: boolean;
-        placement?: "auto" | "top-center";
-        anchorOverride?: DOMRect;
-      } = {},
-    ) => {
-      if (draggingHandCard) {
-        preview.dismiss();
-        return;
-      }
-      if (card === null) {
-        preview.handleMouseLeave();
-      } else {
-        preview.handleMouseEnter(card, e, { ...options, useDelay: true });
-      }
-    },
-    [draggingHandCard, preview],
-  );
-
-  const handleBattlefieldClickProp = useCallback(
-    (card: GameCard) => {
-      if (manualApi) {
-        void applyManualAction({ type: "tapCard", cardId: card.id, tapped: !card.tapped });
-        return;
-      }
-      if (promptType === "chooseAction" && handleBattlefieldCardAction(card)) {
-        return;
-      }
-      handleBattlefieldClick(card);
-    },
-    [manualApi, applyManualAction, promptType, handleBattlefieldCardAction, handleBattlefieldClick],
-  );
-
-  const handleOpenZone = useCallback(
-    (
-      title: string,
-      cards: GameCard[],
-      onClickCard?: (cardId: string) => void,
-      clickableCardIds?: string[],
-      targetHostile?: boolean,
-    ) => {
-      if (manualApi) {
-        openManualZone(title, cards);
-        return;
-      }
-      openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
-    },
-    [manualApi, openManualZone, openZone],
-  );
-
-  const handleOpenZoneAndCast = useCallback(
-    (
-      title: string,
-      cards: GameCard[],
-      onClickCard: (cardId: string) => void,
-      clickableCardIds?: string[],
-    ) =>
-      openZoneAndCast(
-        title,
-        cards,
-        (cardId) => {
-          handleCastSpell(cardId);
-          onClickCard(cardId);
-        },
-        clickableCardIds,
-      ),
-    [handleCastSpell, openZoneAndCast],
-  );
-
-  const handleTargetFromZone = useCallback(
-    (cardId: string) => {
-      closeZoneViewer();
-      casting.wrappedTargetCard(cardId);
-    },
-    [closeZoneViewer, casting],
-  );
-
-  const handleTapLandAbility = useCallback(
-    (cardId: string, abilityIndex: number, color?: string, actionId?: string) => {
-      if (actionId) {
-        respond({ type: "act", actionId });
-        return;
-      }
-      respond({
-        type: "tapForMana",
-        cardId,
-        abilityIndex: abilityIndex ?? undefined,
-        color: color ?? undefined,
-      });
-    },
-    [respond],
-  );
-
-  const pixiExternalBlockers = useMemo(
-    () => (stackBlockerRect ? [stackBlockerRect] : []),
-    [stackBlockerRect],
-  );
-  const damageOrderBlockerIds = useMemo(
-    () => damageOrderInput?.blockerIds ?? [],
-    [damageOrderInput?.blockerIds],
-  );
-  const openSpellStack = useCallback(() => setSpellStackModalOpen(true), [setSpellStackModalOpen]);
-  const handleTargetSpell = useCallback(
-    (spellId: string) => {
-      casting.wrappedTargetSpell(spellId);
-      setSpellStackModalOpen(false);
-    },
-    [casting, setSpellStackModalOpen],
-  );
-  const validSpellIds = useMemo(() => boardTargets?.spellIds ?? [], [boardTargets?.spellIds]);
-  const availableAttackerIds = useMemo(
-    () => chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? [],
-    [chooseAttackersInput],
-  );
-  const blockerAttackerIds = useMemo(
-    () => chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? [],
-    [chooseBlockersInput],
-  );
-  const payManaCostInfo = useMemo(
-    () =>
-      payManaCostInput
-        ? {
-            cardName: payManaCostInput.cardName,
-            manaCost: payManaCostInput.manaCost,
-            manaPool: gameView?.players.find((p) => p.isHuman)?.manaPool ?? {},
-            canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-          }
-        : null,
-    [payManaCostInput, gameView],
-  );
-  const handleDeclareAttackers = useCallback(
-    (attackerIds: string[], defenderId?: string) =>
-      respond(declareAttackersOutput(activePrompt, attackerIds, defenderId)),
-    [respond, activePrompt],
-  );
-  const handleDeclareBlockers = useCallback(
-    (assignments: CombatAssignment[]) => respond({ type: "declareBlockers", assignments }),
-    [respond],
-  );
-  const handleConfirmDamageOrder = useCallback(
-    () => respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder }),
-    [respond, damageOrder],
-  );
-  const handleDefaultDamageOrder = useCallback(
-    () =>
-      respond({
-        type: "damageAssignmentOrderDecision",
-        orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
-      }),
-    [respond, damageOrderInput],
-  );
-  const handlePayManaCost = useCallback(
-    () => respond({ type: "payManaCost", auto: false }),
-    [respond],
-  );
-  const handleAutoManaCost = useCallback(
-    () => respond({ type: "payManaCost", auto: true }),
-    [respond],
-  );
-  const handleCancelManaCost = useCallback(() => respond({ type: "cancelManaCost" }), [respond]);
-  const handleMulliganKeep = useCallback(
-    () => respond({ type: "mulliganDecision", keep: true }),
-    [respond],
-  );
-  const handleMulliganDraw = useCallback(
-    () => respond({ type: "mulliganDecision", keep: false }),
-    [respond],
-  );
+    }
+  };
 
   useEffect(() => {
     const el = containerRef.current;
@@ -1448,23 +1233,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.players],
   );
 
-  const resolveStackCard = useCallback(
-    (stackItem: StackObject): GameCard =>
-      visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!,
-    [visibleCardsById, stackCardsBySourceId],
-  );
-  const resolveCardName = useCallback(
-    (cardId: string) => cardNameById.get(cardId) ?? cardId,
-    [cardNameById],
-  );
-  const resolvePlayerName = useCallback(
-    (playerId: string) => playerNameById.get(playerId) ?? playerId,
-    [playerNameById],
-  );
-  const resolveCard = useCallback(
-    (cardId: string) => visibleCardsById.get(cardId),
-    [visibleCardsById],
-  );
+  const resolveStackCard = (stackItem: StackObject): GameCard =>
+    visibleCardsById.get(stackItem.sourceId) ?? stackCardsBySourceId.get(stackItem.sourceId)!;
 
   const activeFlashCard: GameCard | null = useMemo(() => {
     if (!activeFlash || activeFlash.kind !== "card") return null;
@@ -1496,54 +1266,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       });
   }, [gameView?.gameOver, gameView?.winnerId, myPlayerSlot, navigate]);
 
-  const promptPlayableIds = useMemo(
-    () =>
-      new Set(
-        promptType === "chooseAction"
-          ? (chooseActionInput?.actions ?? []).flatMap((a) =>
-              a.type === "cast" || a.type === "activateAbility" ? [a.cardId] : [],
-            )
-          : [],
-      ),
-    [promptType, chooseActionInput],
-  );
-  const markIfPlayable = useCallback(
-    (c: GameCard): GameCard => (promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c),
-    [promptPlayableIds],
-  );
-  const myHandMarked = useMemo(
-    () => (me?.hand ?? []).map(markIfPlayable),
-    [me?.hand, markIfPlayable],
-  );
-  const graveyardMarked = useMemo(
-    () => (me?.graveyard ?? []).map(markIfPlayable),
-    [me?.graveyard, markIfPlayable],
-  );
-  const exileMarked = useMemo(
-    () => (me?.exile ?? []).map(markIfPlayable),
-    [me?.exile, markIfPlayable],
-  );
-  const commandZoneMarked = useMemo(
-    () => (me?.commandZone ?? []).map(markIfPlayable),
-    [me?.commandZone, markIfPlayable],
-  );
-  const castingArrow = useMemo(
-    () =>
-      casting.showArrow &&
-      casting.castingCardId &&
-      !casting.targetId &&
-      intentPrefersArrow(casting.arrowIntent)
-        ? { sourceCardId: casting.castingCardId, hostile: casting.arrowHostile }
-        : null,
-    [
-      casting.showArrow,
-      casting.castingCardId,
-      casting.targetId,
-      casting.arrowIntent,
-      casting.arrowHostile,
-    ],
-  );
-
   if (!isGameActive) return <Navigate to={exitTo ?? "/lobby"} replace />;
 
   if (!gameView || isPrefetchingCards) {
@@ -1552,6 +1274,16 @@ export default function Game({ exitTo }: GameProps = {}) {
   if (!me) {
     return <GameLoadingScreen debugInfo={debugInfo || "Waiting for player state..."} />;
   }
+
+  const promptPlayableIds = new Set(
+    promptType === "chooseAction"
+      ? (chooseActionInput?.actions ?? []).flatMap((a) =>
+          a.type === "cast" || a.type === "activateAbility" ? [a.cardId] : [],
+        )
+      : [],
+  );
+  const markIfPlayable = (c: GameCard): GameCard =>
+    promptPlayableIds.has(c.id) ? { ...c, isPlayable: true } : c;
 
   if (gameView.gameOver || promptType === "gameOver") {
     return (
@@ -1573,6 +1305,14 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const targetingCursorActive =
     casting.showArrow && !casting.targetId && !intentPrefersArrow(casting.arrowIntent);
+
+  const castingArrow =
+    casting.showArrow &&
+    casting.castingCardId &&
+    !casting.targetId &&
+    intentPrefersArrow(casting.arrowIntent)
+      ? { sourceCardId: casting.castingCardId, hostile: casting.arrowHostile }
+      : null;
 
   return (
     <div
@@ -1600,7 +1340,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
           boardSceneRef={boardSceneRef}
-          pixiExternalBlockers={pixiExternalBlockers}
+          pixiExternalBlockers={stackBlockerRect ? [stackBlockerRect] : []}
           handSelectionMode={mulliganPutBack.active}
           handSelectedIds={mulliganPutBack.selected}
           onHandCardToggle={mulliganPutBack.toggle}
@@ -1608,10 +1348,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           opponents={displayOpponents}
           myPermanents={myPermanents}
           opponentPermanentsByPlayer={opponentPermanentsByPlayer}
-          myHand={myHandMarked}
-          graveyard={graveyardMarked}
-          exile={exileMarked}
-          myCommandZone={commandZoneMarked}
+          myHand={(me?.hand ?? []).map(markIfPlayable)}
+          graveyard={(me?.graveyard ?? []).map(markIfPlayable)}
+          exile={(me?.exile ?? []).map(markIfPlayable)}
+          myCommandZone={(me?.commandZone ?? []).map(markIfPlayable)}
           activePlayerId={gameView.activePlayerId}
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
@@ -1624,7 +1364,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           damageOrder={damageOrder}
-          damageOrderBlockerIds={damageOrderBlockerIds}
+          damageOrderBlockerIds={damageOrderInput?.blockerIds ?? []}
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
@@ -1645,14 +1385,46 @@ export default function Game({ exitTo }: GameProps = {}) {
           getHandActions={getHandActionOptions}
           onSelectHandAction={handlePreviewAction}
           onFlipCard={preview.flipCard}
-          onBattlefieldClick={handleBattlefieldClickProp}
+          onBattlefieldClick={(card) => {
+            if (manualApi) {
+              void applyManualAction({
+                type: "tapCard",
+                cardId: card.id,
+                tapped: !card.tapped,
+              });
+              return;
+            }
+            if (promptType === "chooseAction" && handleBattlefieldCardAction(card)) {
+              return;
+            }
+            handleBattlefieldClick(card);
+          }}
           onAttackerClick={handleAttackerClick}
           onAssignBlock={assignBlockPair}
           onUnassignBlock={unassignBlock}
           onTargetPlayer={handleTargetPlayer}
-          onOpenZone={handleOpenZone}
-          onOpenZoneAndCast={handleOpenZoneAndCast}
-          onTargetFromZone={handleTargetFromZone}
+          onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
+            if (manualApi) {
+              openManualZone(title, cards);
+              return;
+            }
+            openZone(title, cards, onClickCard, clickableCardIds, targetHostile);
+          }}
+          onOpenZoneAndCast={(title, cards, onClickCard, clickableCardIds) =>
+            openZoneAndCast(
+              title,
+              cards,
+              (cardId) => {
+                handleCastSpell(cardId);
+                onClickCard(cardId);
+              },
+              clickableCardIds,
+            )
+          }
+          onTargetFromZone={(cardId) => {
+            closeZoneViewer();
+            casting.wrappedTargetCard(cardId);
+          }}
           onCastSpell={handleCastSpell}
           onTapLand={
             promptType === "chooseAction" ||
@@ -1666,7 +1438,18 @@ export default function Game({ exitTo }: GameProps = {}) {
               ? handleTapLands
               : undefined
           }
-          onTapLandAbility={handleTapLandAbility}
+          onTapLandAbility={(cardId, abilityIndex, color, actionId) => {
+            if (actionId) {
+              respond({ type: "act", actionId });
+            } else {
+              respond({
+                type: "tapForMana",
+                cardId,
+                abilityIndex: abilityIndex ?? undefined,
+                color: color ?? undefined,
+              });
+            }
+          }}
           onUntapLand={
             promptType === "chooseAction" ||
             promptType === "payCombatCost" ||
@@ -1689,8 +1472,8 @@ export default function Game({ exitTo }: GameProps = {}) {
         onToggleCollapse={toggleActionPanel}
         gameLog={gameLog}
         onHoverLogCard={handleLogCardHover}
-        resolveCardName={resolveCardName}
-        resolvePlayerName={resolvePlayerName}
+        resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
+        resolvePlayerName={(playerId) => playerNameById.get(playerId) ?? playerId}
         snapshots={snapshots}
         canRestoreSnapshots={(!isMultiplayer || isHost) && promptType === "chooseAction"}
         onRestoreSnapshot={restoreSnapshot}
@@ -1702,33 +1485,42 @@ export default function Game({ exitTo }: GameProps = {}) {
           isWaitingForResponse={isWaitingForResponse}
           isAutoPassing={isAutoPassing}
           isPassingUntilEot={isPassingUntilEot}
-          availableAttackerIds={availableAttackerIds}
+          availableAttackerIds={chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []}
           pendingAttackers={pendingAttackers}
           onPassPriority={unifiedPass}
           onPassUntilEot={activatePassUntilEot}
           selectedAttackDefenderId={attackDefenderId}
           selectedAttackDefenderLabel={selectedAttackDefender?.label}
           multipleAttackDefenders={multipleAttackDefenders}
-          onDeclareAttackers={handleDeclareAttackers}
+          onDeclareAttackers={(attackerIds, defenderId) =>
+            respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
+          }
           onBeginAttackTargetPick={selectAllAttackersForPick}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           blockError={blockError}
           blockRequirementError={blockRequirementError}
-          attackerIds={blockerAttackerIds}
+          attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
           blockAssignments={blockAssignments}
-          onDeclareBlockers={handleDeclareBlockers}
+          onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
           damageOrderCount={damageOrder.length}
           damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
-          onConfirmDamageOrder={handleConfirmDamageOrder}
+          onConfirmDamageOrder={() =>
+            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+          }
           onUndoDamageOrder={undoDamageOrder}
-          onDefaultDamageOrder={handleDefaultDamageOrder}
-          onOpenStack={openSpellStack}
+          onDefaultDamageOrder={() =>
+            respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+            })
+          }
+          onOpenStack={() => setSpellStackModalOpen(true)}
           targetCompletionLabel={targetCompletion?.label}
           onCompleteTargets={targetCompletion?.onComplete}
           onConcede={concede}
-          resolveCardName={resolveCardName}
-          resolveCard={resolveCard}
+          resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
+          resolveCard={(cardId) => visibleCardsById.get(cardId)}
           isMyPriority={gameView.priorityPlayerId === me.id}
           turn={gameView.turn}
           activePlayerName={
@@ -1736,13 +1528,22 @@ export default function Game({ exitTo }: GameProps = {}) {
           }
           isMyTurn={gameView.activePlayerId === me.id}
           step={gameView.step}
-          payManaCostInfo={payManaCostInfo}
-          onPayManaCost={handlePayManaCost}
-          onAutoManaCost={handleAutoManaCost}
-          onCancelManaCost={handleCancelManaCost}
+          payManaCostInfo={
+            payManaCostInput
+              ? {
+                  cardName: payManaCostInput.cardName,
+                  manaCost: payManaCostInput.manaCost,
+                  manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
+                  canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+                }
+              : null
+          }
+          onPayManaCost={() => respond({ type: "payManaCost", auto: false })}
+          onAutoManaCost={() => respond({ type: "payManaCost", auto: true })}
+          onCancelManaCost={() => respond({ type: "cancelManaCost" })}
           mulliganCount={mulliganInput?.mulliganCount ?? 0}
-          onMulliganKeep={handleMulliganKeep}
-          onMulliganDraw={handleMulliganDraw}
+          onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
+          onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
           mulliganPutBackCount={mulliganPutBack.count}
           mulliganSelectedCount={mulliganPutBack.selected.size}
           onMulliganPutBackConfirm={mulliganPutBack.confirm}
@@ -1786,7 +1587,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       <StackDisplay
         stack={gameView.stack}
         resolveStackCard={resolveStackCard}
-        onOpenStack={openSpellStack}
+        onOpenStack={() => setSpellStackModalOpen(true)}
         flashCard={shouldRenderStackFlashCard ? activeFlashCard : null}
         flashToken={
           shouldRenderStackFlashCard
@@ -1799,8 +1600,11 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardArrangement === "perimeter" ? `${PERIMETER_SIDE_FRACTION * 100}%` : undefined
         }
         playerColorMap={playerColorMap}
-        validSpellIds={validSpellIds}
-        onTargetSpell={handleTargetSpell}
+        validSpellIds={boardTargets?.spellIds ?? []}
+        onTargetSpell={(spellId) => {
+          casting.wrappedTargetSpell(spellId);
+          setSpellStackModalOpen(false);
+        }}
       />
 
       <GameModals

@@ -49,10 +49,6 @@ export const STACK_SEED_TTL_MS = 1000;
 export const HAND_ACTIONS_GAP_PX = 15;
 export const FPS_SAMPLE_INTERVAL_MS = 500;
 export const PIXI_MAX_FPS = 60;
-// A full-screen canvas at 3x backing store is ~9x the pixels of 1x — fill-rate
-// bound. Cap at the device ratio but no higher than 2 (text sharpness comes
-// from TEXT_RASTER_RESOLUTION, not canvas resolution).
-export const MAX_CANVAS_RESOLUTION = 2;
 
 export const BATTLEFIELD_LERP = 0.15;
 export const HAND_LERP = 0.18;

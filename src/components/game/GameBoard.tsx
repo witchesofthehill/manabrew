@@ -1,4 +1,4 @@
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GameCard, Player } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
 import type { BoardTargetBuckets } from "@/lib/boardTargets";
@@ -131,7 +131,7 @@ interface GameBoardProps {
   onHandCardToggle?: (cardId: string) => void;
 }
 
-function GameBoardImpl({
+export function GameBoard({
   me,
   opponents,
   myPermanents,
@@ -610,7 +610,7 @@ function GameBoardImpl({
     sceneRef,
     me.id,
     unifiedLayout,
-    opponents.length,
+    opponents,
     myCommandZone?.length,
     graveyard.length,
     exile.length,
@@ -858,5 +858,3 @@ function GameBoardImpl({
     </div>
   );
 }
-
-export const GameBoard = memo(GameBoardImpl);

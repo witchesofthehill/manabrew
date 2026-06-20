@@ -81,6 +81,7 @@ export function prewarmManaSymbols(): void {
 }
 
 export function clearManaSymbolCache(): void {
+  for (const tex of textures.values()) tex.destroy(true);
   textures.clear();
   loading.clear();
 }

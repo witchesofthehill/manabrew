@@ -11,20 +11,15 @@ use std::time::Duration;
 #[cfg(feature = "java-forge")]
 use j4rs::{Instance, InvocationArg, JavaOpt, Jvm, JvmBuilder};
 use serde::Serialize;
-#[cfg(feature = "java-forge")]
-use serde_json::Value;
 
 use crate::preset_decks::CardIdentity;
 #[cfg(feature = "java-forge")]
-use manabrew_agent_interface::java_prompt_normalizer::{
-    make_java_game_over_prompt, make_java_state_update, normalize_java_prompt,
-    translate_java_player_action,
-};
-#[cfg(feature = "java-forge")]
-use manabrew_agent_interface::java_raw::{
-    JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
-};
+use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+#[cfg(feature = "java-forge")]
+use manabrew_agent_interface::prompt::{
+    AgentPrompt, ChooseActionDecision, ChooseActionOutput, GameOverInput, PromptInput, StateUpdate,
+};
 
 pub fn unsupported_error() -> String {
     "Engine backend 'java-forge' requires building Tauri with --features java-forge".to_string()
@@ -107,12 +102,7 @@ fn run_game_inner(
     loop {
         loop {
             match response_rx.try_recv() {
-                Ok(action) => match translate_java_player_action(&action) {
-                    Ok(java_action) => submit_java_action(&mut session, &java_action)?,
-                    Err(error) => {
-                        eprintln!("[java_game_thread] dropping untranslatable action: {error}");
-                    }
-                },
+                Ok(action) => submit_player_output(&mut session, &action)?,
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
                     session.end_game()?;
@@ -123,49 +113,33 @@ fn run_game_inner(
 
         if let Some(prompt_json) = session.get_prompt(0)? {
             if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
-                let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
+                let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
-                let player_index = raw.player;
-                let is_first_player_roll =
-                    matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. });
-                let state = AgentMessage::State(make_java_state_update(
-                    &raw.snapshot,
-                    raw.session_id.as_deref(),
-                    raw.player,
-                ));
-                let _ = prompt_tx.send(state);
-                if player_index == 0 || is_first_player_roll {
-                    if prompt_tx
-                        .send(AgentMessage::Prompt(normalize_java_prompt(raw)))
-                        .is_err()
-                    {
+                let _ = prompt_tx.send(AgentMessage::State(current_state(&mut session)?));
+                let to_local = prompt.deciding_player_id == LOCAL_PLAYER_ID
+                    || matches!(prompt.input, PromptInput::DiceRolled(_));
+                if to_local {
+                    if prompt_tx.send(AgentMessage::Prompt(prompt)).is_err() {
                         session.end_game()?;
                         return Ok(());
                     }
                 } else {
-                    let auto = auto_java_action(&raw);
-                    let _ = prompt_tx.send(AgentMessage::Prompt(normalize_java_prompt(raw)));
-                    submit_java_action(&mut session, &auto)?;
+                    let auto = auto_action(&prompt);
+                    let _ = prompt_tx.send(AgentMessage::Prompt(prompt));
+                    if let Some(output) = auto {
+                        submit_player_output(&mut session, &output)?;
+                    }
                 }
                 last_prompt_json = Some(prompt_json);
             }
         }
 
-        let snapshot_json = session.get_snapshot()?;
-        let snapshot: Value = serde_json::from_str(&snapshot_json)
+        let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot()?)
             .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
-        if snapshot
-            .get("game_over")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-        {
+        if game_view.game_over {
             eprintln!("[java_game_thread] Java Forge session reached game over");
-            let raw_snapshot: JavaRawSnapshot = serde_json::from_str(&snapshot_json)
-                .map_err(|err| format!("failed to parse java snapshot for game-over: {err}"))?;
-            let state =
-                AgentMessage::State(make_java_state_update(&raw_snapshot, Some(&session_id), 0));
-            let _ = prompt_tx.send(state);
-            let _ = prompt_tx.send(AgentMessage::Prompt(make_java_game_over_prompt()));
+            let _ = prompt_tx.send(AgentMessage::State(StateUpdate { game_view }));
+            let _ = prompt_tx.send(AgentMessage::Prompt(game_over_prompt()));
             session.end_game()?;
             return Ok(());
         }
@@ -175,38 +149,43 @@ fn run_game_inner(
 }
 
 #[cfg(feature = "java-forge")]
-fn auto_java_action(prompt: &JavaRawPrompt) -> JavaAction {
-    if let JavaRawPromptBody::Priority { actions, .. } = &prompt.body {
-        if let Some(index) = actions
-            .iter()
-            .filter(|action| action.kind.as_deref() != Some("mana"))
-            .find_map(|action| action.index)
-        {
-            return JavaAction::ChooseAction { index };
-        }
-        return JavaAction::Pass {
-            until_phase: bot_pass_until(prompt),
-        };
-    }
-    JavaAction::Pass { until_phase: None }
-}
+const LOCAL_PLAYER_ID: &str = "player-0";
 
 #[cfg(feature = "java-forge")]
-fn bot_pass_until(prompt: &JavaRawPrompt) -> Option<String> {
-    if prompt.snapshot.active_player == Some(prompt.player) {
-        None
-    } else {
-        Some("cleanup".to_string())
+fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
+    match prompt.input {
+        PromptInput::ChooseAction(_) => Some(PromptOutput::ChooseAction(
+            ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass {
+                until_phase: None,
+            }),
+        )),
+        _ => None,
     }
 }
 
 #[cfg(feature = "java-forge")]
-fn submit_java_action<B: JavaBridge>(
+fn game_over_prompt() -> AgentPrompt {
+    AgentPrompt {
+        deciding_player_id: LOCAL_PLAYER_ID.to_string(),
+        source_card_id: None,
+        input: PromptInput::GameOver(GameOverInput {}),
+    }
+}
+
+#[cfg(feature = "java-forge")]
+fn current_state<B: JavaBridge>(session: &mut JavaForgeSession<B>) -> Result<StateUpdate, String> {
+    let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot()?)
+        .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
+    Ok(StateUpdate { game_view })
+}
+
+#[cfg(feature = "java-forge")]
+fn submit_player_output<B: JavaBridge>(
     session: &mut JavaForgeSession<B>,
-    action: &JavaAction,
+    output: &PromptOutput,
 ) -> Result<(), String> {
-    let action_json = serde_json::to_string(action)
-        .map_err(|err| format!("failed to serialize java action: {err}"))?;
+    let action_json = serde_json::to_string(output)
+        .map_err(|err| format!("failed to serialize prompt output: {err}"))?;
     session.submit_action(&action_json)?;
     Ok(())
 }

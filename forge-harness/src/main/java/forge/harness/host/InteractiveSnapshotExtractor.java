@@ -28,69 +28,91 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 
-/**
- * Adds UI-only ordered card data to the parity snapshot used by interactive sessions.
- */
 public final class InteractiveSnapshotExtractor {
     private InteractiveSnapshotExtractor() {}
 
     private static final Gson GSON = new GsonBuilder().create();
 
-    public static String snapshotJson(final Game game) {
-        return snapshotJson(game, null);
+    public static String snapshotJson(
+            final Game game,
+            final SpellAbility castingAbility,
+            final String gameId,
+            final int viewer
+    ) {
+        return GSON.toJson(buildGameView(game, castingAbility, gameId, viewer));
     }
 
-    public static String snapshotJson(final Game game, final SpellAbility castingAbility) {
-        return GSON.toJson(extractSnapshot(game, castingAbility));
-    }
+    private static Map<String, Object> buildGameView(
+            final Game game,
+            final SpellAbility castingAbility,
+            final String gameId,
+            final int viewer
+    ) {
+        final Map<String, Object> base = SnapshotExtractor.extractSnapshot(game);
 
-    public static Map<String, Object> extractSnapshot(final Game game) {
-        return extractSnapshot(game, null);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static Map<String, Object> extractSnapshot(final Game game, final SpellAbility castingAbility) {
-        final Map<String, Object> snapshot = SnapshotExtractor.extractSnapshot(game);
         final List<Map<String, Object>> players = new ArrayList<>();
-        final Object basePlayers = snapshot.get("players");
-        int index = 0;
+        final List<Map<String, Object>> battlefield = new ArrayList<>();
+        final List<String> concededPlayerIds = new ArrayList<>();
         for (final Player player : game.getRegisteredPlayers()) {
-            final Map<String, Object> basePlayer = basePlayers instanceof List && index < ((List<?>) basePlayers).size()
-                    ? new LinkedHashMap<>((Map<String, Object>) ((List<?>) basePlayers).get(index))
-                    : new LinkedHashMap<>();
-            players.add(snapshotInteractivePlayer(game, player, basePlayer));
-            index++;
+            final int index = SnapshotExtractor.playerIndex(game, player);
+            players.add(toPlayer(game, player, index, viewer));
+            for (final Card card : player.getCardsIn(ZoneType.Battlefield)) {
+                battlefield.add(toCard(game, card, index, "battlefield", false));
+            }
+            if (player.conceded()) {
+                concededPlayerIds.add("player-" + index);
+            }
         }
-        snapshot.put("players", players);
-        snapshot.put("stack", snapshotStack(game, castingAbility));
-        snapshot.put("combat", snapshotCombat(game));
+
+        final String activePlayerId = "player-" + asIndex(base.get("active_player"));
+
+        final Map<String, Object> view = new LinkedHashMap<>();
+        view.put("gameId", gameId);
+        view.put("turn", base.get("turn"));
+        view.put("step", normalizeStep((String) base.get("phase")));
+        view.put("combatAssignments", snapshotCombat(game));
+        view.put("activePlayerId", activePlayerId);
+        view.put("priorityPlayerId", "player-" + asIndex(base.get("priority_player")));
+        view.put("players", players);
+        view.put("battlefield", battlefield);
+        view.put("stack", snapshotStack(game, castingAbility, activePlayerId));
+        view.put("gameOver", base.get("game_over"));
+        final Object winner = base.get("winner");
+        if (winner != null) {
+            view.put("winnerId", "player-" + winner);
+        }
+        view.put("concededPlayerIds", concededPlayerIds);
         final Player monarch = game.getMonarch();
-        snapshot.put("monarch", monarch == null ? null : SnapshotExtractor.playerIndex(game, monarch));
+        if (monarch != null) {
+            view.put("monarchId", "player-" + SnapshotExtractor.playerIndex(game, monarch));
+        }
         final Player initiative = game.getHasInitiative();
-        snapshot.put("initiative", initiative == null ? null : SnapshotExtractor.playerIndex(game, initiative));
-        return snapshot;
+        if (initiative != null) {
+            view.put("initiativeHolderId", "player-" + SnapshotExtractor.playerIndex(game, initiative));
+        }
+        return view;
     }
 
-    private static Map<String, Object> snapshotInteractivePlayer(
+    private static int asIndex(final Object value) {
+        return value instanceof Number ? ((Number) value).intValue() : 0;
+    }
+
+    private static Map<String, Object> toPlayer(
             final Game game,
             final Player player,
-            final Map<String, Object> basePlayer
+            final int index,
+            final int viewer
     ) {
-        final Map<String, Object> out = new LinkedHashMap<>(basePlayer);
-        out.put("ring_level", player.getNumRingTemptedYou());
-        out.put("has_conceded", player.conceded());
-        out.put("energy", player.getCounters(CounterEnumType.ENERGY));
-        out.put("radiation", player.getCounters(CounterEnumType.RAD));
-        out.put("speed", player.getSpeed());
-        out.put("city_blessing", player.hasBlessing());
-        out.put("mana_pool", manaPool(player));
-        out.put("commander_damage", commanderDamage(game, player));
-        out.put("battlefield_cards", richCards(game, player.getCardsIn(ZoneType.Battlefield), false));
-        out.put("hand_cards", richCards(game, player.getCardsIn(ZoneType.Hand), true));
-        out.put("graveyard_cards", richCards(game, player.getCardsIn(ZoneType.Graveyard), false));
-        out.put("exile_cards", richCards(game, player.getCardsIn(ZoneType.Exile), false));
+        final Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", "player-" + index);
+        out.put("name", player.getName());
+        out.put("isHuman", index == viewer);
+        out.put("life", player.getLife());
+        out.put("poison", player.getPoisonCounters());
+        out.put("hand", richCards(game, player.getCardsIn(ZoneType.Hand), index, "hand", true));
+        out.put("graveyard", richCards(game, player.getCardsIn(ZoneType.Graveyard), index, "graveyard", false));
+        out.put("exile", richCards(game, player.getCardsIn(ZoneType.Exile), index, "exile", false));
         // Drop engine-internal effect objects (e.g. the "Commander Effect"
         // DetachedCardEffect that hosts command-zone statics) — they are
         // immutable EFFECT pieces, not real cards, and the client can't
@@ -101,10 +123,15 @@ public final class InteractiveSnapshotExtractor {
                 commandZone.add(card);
             }
         }
-        out.put("command_zone", commandZone.stream()
-                .map(card -> normalizeCardName(card.getName()))
-                .collect(Collectors.toList()));
-        out.put("command_zone_cards", richCards(game, commandZone, true));
+        out.put("commandZone", richCards(game, commandZone, index, "command", true));
+        out.put("libraryCount", player.getCardsIn(ZoneType.Library).size());
+        out.put("manaPool", manaPool(player));
+        out.put("commanderDamage", commanderDamage(game, player));
+        out.put("energyCounters", player.getCounters(CounterEnumType.ENERGY));
+        out.put("radiationCounters", player.getCounters(CounterEnumType.RAD));
+        out.put("hasCityBlessing", player.hasBlessing());
+        out.put("ringLevel", player.getNumRingTemptedYou());
+        out.put("speed", player.getSpeed());
         return out;
     }
 
@@ -132,30 +159,75 @@ public final class InteractiveSnapshotExtractor {
     private static List<Map<String, Object>> richCards(
             final Game game,
             final Iterable<Card> cards,
+            final int ownerIndex,
+            final String zoneId,
             final boolean castable
     ) {
         final List<Map<String, Object>> out = new ArrayList<>();
         for (final Card card : cards) {
-            out.add(richCard(game, card, castable));
+            out.add(toCard(game, card, ownerIndex, zoneId, castable));
         }
         return out;
     }
 
-    private static Map<String, Object> richCard(final Game game, final Card card, final boolean castable) {
+    static com.google.gson.JsonElement cardDtoJson(final Game game, final Card card, final boolean castable) {
+        final int ownerIndex = card.getOwner() != null ? SnapshotExtractor.playerIndex(game, card.getOwner()) : 0;
+        return GSON.toJsonTree(toCard(game, card, ownerIndex, promptZoneId(card), castable));
+    }
+
+    private static String promptZoneId(final Card card) {
+        if (card.getZone() == null) {
+            return "";
+        }
+        switch (card.getZone().getZoneType()) {
+            case Battlefield: return "battlefield";
+            case Hand: return "hand";
+            case Graveyard: return "graveyard";
+            case Exile: return "exile";
+            case Command: return "command";
+            case Library: return "library";
+            case Stack: return "stack";
+            default: return "";
+        }
+    }
+
+    private static Map<String, Object> toCard(
+            final Game game,
+            final Card card,
+            final int ownerIndex,
+            final String zoneId,
+            final boolean castable
+    ) {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", SnapshotExtractor.javaCardId(card));
         out.put("name", normalizeCardName(card.getName()));
         final IPaperCard paper = card.getPaperCard();
         out.put("setCode", paper != null ? paper.getEdition() : card.getSetCode());
         out.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
+        out.put("color", colorString(card.getColor()));
         out.put("manaCost", card.getManaCost() == null ? "" : card.getManaCost().toString());
         out.put("cmc", card.getCMC());
-        out.put("color", colorString(card.getColor()));
-        out.put("text", card.getOracleText());
         out.put("types", coreTypes(card));
         out.put("subtypes", subtypes(card));
         out.put("supertypes", supertypes(card));
+        if (card.isCreature()) {
+            final int power = card.getNetPower();
+            final int toughness = card.getNetToughness();
+            out.put("power", String.valueOf(power));
+            out.put("toughness", String.valueOf(toughness));
+            out.put("basePower", power);
+            out.put("baseToughness", toughness);
+        }
+        out.put("text", card.getOracleText());
+        out.put("isPlayable", false);
+        out.put("controllerId", "player-" + SnapshotExtractor.playerIndex(game, card.getController()));
+        out.put("ownerId", "player-" + ownerIndex);
+        out.put("zoneId", zoneId);
+        out.put("tapped", card.isTapped());
         out.put("keywords", keywords(card));
+        out.put("counters", counterMap(card));
+        out.put("damage", card.getDamage());
+        out.put("summoningSick", card.hasSickness());
         out.put("isToken", card.isToken());
         out.put("isCopy", card.isCloned());
         out.put("isDoubleFaced", card.isDoubleFaced());
@@ -163,20 +235,13 @@ public final class InteractiveSnapshotExtractor {
         out.put("isFaceDown", card.isFaceDown());
         out.put("isBestowed", card.isBestowed());
         out.put("phasedOut", card.isPhasedOut());
-        out.put("isRingBearer", card.isRingBearer());
         out.put("exerted", card.getExertedThisTurn() > 0);
+        out.put("isRingBearer", card.isRingBearer());
         out.put("isCrewed", card.getTimesCrewedThisTurn() > 0);
         out.put("isMadnessExiled", card.isMadness());
         out.put("isPlotted", card.isPlotted());
         out.put("isWarpExiled", card.isWarped());
         out.put("foil", card.hasPaperFoil());
-        out.put("tapped", card.isTapped());
-        out.put("power", card.isCreature() ? card.getNetPower() : null);
-        out.put("toughness", card.isCreature() ? card.getNetToughness() : null);
-        out.put("damage", card.getDamage());
-        out.put("summoning_sick", card.hasSickness());
-        out.put("counters", counterMap(card));
-        out.put("controller", SnapshotExtractor.playerIndex(game, card.getController()));
 
         final Card attachedTo = card.getAttachedTo();
         if (attachedTo != null) {
@@ -187,6 +252,19 @@ public final class InteractiveSnapshotExtractor {
             attachmentIds.add(SnapshotExtractor.javaCardId(attachment));
         }
         out.put("attachmentIds", attachmentIds);
+
+        final String flashback = keywordCost(card, "Flashback");
+        if (flashback != null) {
+            out.put("flashbackCost", flashback);
+        }
+        final String kicker = keywordCost(card, "Kicker");
+        if (kicker != null) {
+            out.put("kickerCost", kicker);
+        }
+        final String madness = keywordCost(card, "Madness");
+        if (madness != null) {
+            out.put("madnessCost", madness);
+        }
 
         final Combat combat = game.getCombat();
         if (combat != null) {
@@ -220,6 +298,26 @@ public final class InteractiveSnapshotExtractor {
             }
         }
         return out;
+    }
+
+    private static String keywordCost(final Card card, final String name) {
+        for (final KeywordInterface keyword : card.getKeywords()) {
+            final String original = keyword.getOriginal();
+            if (original == null || !original.startsWith(name)) {
+                continue;
+            }
+            final String rest = original.substring(name.length());
+            if (!rest.startsWith(":")) {
+                continue;
+            }
+            final String body = rest.substring(1);
+            final int next = body.indexOf(':');
+            final String cost = (next >= 0 ? body.substring(0, next) : body).trim();
+            if (!cost.isEmpty()) {
+                return cost;
+            }
+        }
+        return null;
     }
 
     // CostAdjustment is a cast-time op: it needs an activating player (else NPE)
@@ -332,44 +430,60 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static List<Map<String, Object>> snapshotStack(final Game game, final SpellAbility castingAbility) {
+    private static List<Map<String, Object>> snapshotStack(
+            final Game game,
+            final SpellAbility castingAbility,
+            final String activePlayerId
+    ) {
         final List<Map<String, Object>> out = new ArrayList<>();
         final List<SpellAbilityStackInstance> entries = new ArrayList<>();
         for (final SpellAbilityStackInstance item : game.getStack()) {
             entries.add(item);
         }
         Collections.reverse(entries);
+        int index = 0;
         for (final SpellAbilityStackInstance item : entries) {
             final Map<String, Object> stackItem = new LinkedHashMap<>();
             stackItem.put("id", stackItemId(item));
             final Card source = item.getSourceCard();
+            stackItem.put("sourceId", source == null
+                    ? "engine-stack-source-" + index
+                    : SnapshotExtractor.javaCardId(source));
+            final SpellAbility sa = item.getSpellAbility();
+            stackItem.put("controllerId", sa != null && sa.getActivatingPlayer() != null
+                    ? "player-" + SnapshotExtractor.playerIndex(game, sa.getActivatingPlayer())
+                    : activePlayerId);
             stackItem.put("name", source == null
                     ? item.getStackDescription()
                     : normalizeCardName(source.getName()));
-            stackItem.put("description", item.getStackDescription());
-            final SpellAbility sa = item.getSpellAbility();
-            if (sa != null && sa.getActivatingPlayer() != null) {
-                stackItem.put("controller", SnapshotExtractor.playerIndex(game, sa.getActivatingPlayer()));
-            }
+            stackItem.put("text", item.getStackDescription());
             if (source != null) {
-                stackItem.put("sourceId", SnapshotExtractor.javaCardId(source));
                 final IPaperCard paper = source.getPaperCard();
                 stackItem.put("setCode", paper != null ? paper.getEdition() : source.getSetCode());
                 stackItem.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
                 stackItem.put("isPermanentSpell", item.isSpell() && source.isPermanent());
+            } else {
+                stackItem.put("setCode", "");
+                stackItem.put("cardNumber", "");
+                stackItem.put("isPermanentSpell", false);
             }
             stackItem.put("isCasting", false);
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
+            index++;
         }
-        final Map<String, Object> casting = castingStackEntry(game, castingAbility);
+        final Map<String, Object> casting = castingStackEntry(game, castingAbility, activePlayerId);
         if (casting != null) {
             out.add(casting);
         }
         return out;
     }
 
-    private static Map<String, Object> castingStackEntry(final Game game, final SpellAbility castingAbility) {
+    private static Map<String, Object> castingStackEntry(
+            final Game game,
+            final SpellAbility castingAbility,
+            final String activePlayerId
+    ) {
         if (castingAbility == null) {
             return null;
         }
@@ -387,12 +501,12 @@ public final class InteractiveSnapshotExtractor {
         }
         final Map<String, Object> stackItem = new LinkedHashMap<>();
         stackItem.put("id", "casting-" + castingAbility.getId());
-        stackItem.put("name", normalizeCardName(source.getName()));
-        stackItem.put("description", castingAbility.getStackDescription());
-        if (castingAbility.getActivatingPlayer() != null) {
-            stackItem.put("controller", SnapshotExtractor.playerIndex(game, castingAbility.getActivatingPlayer()));
-        }
         stackItem.put("sourceId", SnapshotExtractor.javaCardId(source));
+        stackItem.put("controllerId", castingAbility.getActivatingPlayer() != null
+                ? "player-" + SnapshotExtractor.playerIndex(game, castingAbility.getActivatingPlayer())
+                : activePlayerId);
+        stackItem.put("name", normalizeCardName(source.getName()));
+        stackItem.put("text", castingAbility.getStackDescription());
         final IPaperCard paper = source.getPaperCard();
         stackItem.put("setCode", paper != null ? paper.getEdition() : source.getSetCode());
         stackItem.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
@@ -411,19 +525,27 @@ public final class InteractiveSnapshotExtractor {
         if (targets == null) {
             return out;
         }
+        int targetIndex = 0;
         for (final Card card : targets.getTargetCards()) {
-            final Map<String, Object> target = new LinkedHashMap<>();
-            target.put("kind", "card");
-            target.put("id", SnapshotExtractor.javaCardId(card));
-            out.add(target);
+            out.add(stackTarget("card", SnapshotExtractor.javaCardId(card), targetIndex));
+            targetIndex++;
         }
         for (final Player player : targets.getTargetPlayers()) {
-            final Map<String, Object> target = new LinkedHashMap<>();
-            target.put("kind", "player");
-            target.put("id", "player-" + SnapshotExtractor.playerIndex(game, player));
-            out.add(target);
+            out.add(stackTarget("player", "player-" + SnapshotExtractor.playerIndex(game, player), targetIndex));
+            targetIndex++;
         }
         return out;
+    }
+
+    private static Map<String, Object> stackTarget(final String kind, final String id, final int targetIndex) {
+        final Map<String, Object> target = new LinkedHashMap<>();
+        target.put("kind", kind);
+        target.put("id", id);
+        target.put("nodeIndex", 0);
+        target.put("targetIndex", targetIndex);
+        target.put("hostile", true);
+        target.put("intent", "hostile");
+        return target;
     }
 
     static String stackItemId(final SpellAbilityStackInstance item) {
@@ -435,6 +557,28 @@ public final class InteractiveSnapshotExtractor {
             return "Troll of Khazad-dûm";
         }
         return name;
+    }
+
+    private static String normalizeStep(final String phase) {
+        if (phase == null) {
+            return "untap";
+        }
+        switch (phase) {
+            case "Untap": return "untap";
+            case "Upkeep": return "upkeep";
+            case "Draw": return "draw";
+            case "Main1": return "main1";
+            case "CombatBegin": return "begin_combat";
+            case "CombatDeclareAttackers": return "declare_attackers";
+            case "CombatDeclareBlockers": return "declare_blockers";
+            case "CombatFirstStrikeDamage": return "first_strike_damage";
+            case "CombatDamage": return "combat_damage";
+            case "CombatEnd": return "end_combat";
+            case "Main2": return "main2";
+            case "EndOfTurn": return "end";
+            case "Cleanup": return "cleanup";
+            default: return "untap";
+        }
     }
 
     private static String uiCounterName(final CounterType counterType) {

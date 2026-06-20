@@ -24,19 +24,12 @@ use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
 use manabot::{BotAgent, SimpleAi};
 #[cfg(feature = "java-forge")]
-use manabrew_agent_interface::java_prompt_normalizer::{
-    make_java_game_over_prompt, make_java_state_update, normalize_java_prompt,
-    translate_java_player_action,
-};
-#[cfg(feature = "java-forge")]
-use manabrew_agent_interface::java_raw::{
-    JavaAction, JavaRawPrompt, JavaRawPromptBody, JavaRawSnapshot,
-};
+use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{
-    ChooseActionDecision, ChooseActionOutput, DiceRolledOutput, MulliganOutput,
-    MulliganPutBackOutput,
+    AgentPrompt, ChooseActionDecision, ChooseActionOutput, DiceRolledOutput, GameOverInput,
+    MulliganOutput, MulliganPutBackOutput, PromptInput, StateUpdate,
 };
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
@@ -82,22 +75,14 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             session.end_game()?;
             return Err("timed out waiting for java-forge smoke prompt".to_string());
         };
-        let prompt: Value = serde_json::from_str(&prompt_json)
+        let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
-        let player = prompt
-            .get("player")
-            .and_then(Value::as_u64)
-            .unwrap_or_default();
-        let action_count = prompt
-            .get("actions")
-            .and_then(Value::as_array)
-            .map(Vec::len)
-            .unwrap_or_default();
-        info!(
-            prompts_seen,
-            player, action_count, "java-forge smoke prompt"
-        );
-        session.submit_action(&json!({ "kind": "pass" }).to_string())?;
+        let player = player_index(&prompt.deciding_player_id);
+        info!(prompts_seen, player, "java-forge smoke prompt");
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
+            ChooseActionDecision::Pass { until_phase: None },
+        ));
+        session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
 
@@ -614,15 +599,11 @@ fn drive_game_via_handle(
                 std::thread::sleep(Duration::from_millis(20));
                 continue;
             }
-            let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
+            let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|error| format!("failed to parse concurrent prompt: {error}"))?;
-            let player = raw.player;
-            let agent_prompt = normalize_java_prompt(raw);
-            if let Some(action) = bots.entry(player).or_default().decide(agent_prompt) {
-                let java_action =
-                    translate_java_player_action(&action).map_err(|err| err.to_string())?;
-                let action_json =
-                    serde_json::to_string(&java_action).map_err(|err| err.to_string())?;
+            let player = player_index(&prompt.deciding_player_id);
+            if let Some(action) = bots.entry(player).or_default().decide(prompt) {
+                let action_json = serde_json::to_string(&action).map_err(|err| err.to_string())?;
                 handle.submit_action(session_id, &action_json)?;
                 acted += 1;
                 if acted >= max_prompts {
@@ -824,29 +805,23 @@ fn run_hosted_engine_game_inner(
                         if pending_roll_acks > 0 {
                             pending_roll_acks -= 1;
                             if pending_roll_acks == 0 {
-                                let ack =
-                                    serde_json::to_string(&JavaAction::FirstPlayerRollAcknowledged)
-                                        .map_err(|err| {
-                                            format!("failed to serialize java roll ack: {err}")
-                                        })?;
+                                let ack = serde_json::to_string(&PromptOutput::DiceRolled(
+                                    DiceRolledOutput::DiceRolledAcknowledged,
+                                ))
+                                .map_err(|err| format!("failed to serialize roll ack: {err}"))?;
                                 engine.submit_action(&session_id, &ack)?;
                             }
                         }
                     }
-                    Ok(action) => match translate_java_player_action(&action) {
-                        Ok(java_action) => {
-                            let action_json = serde_json::to_string(&java_action).map_err(|err| {
-                                format!(
-                                    "failed to serialize java action for player {player_index}: {err}"
-                                )
-                            })?;
-                            debug!(player_index, %action_json, "submitting remote response to java");
-                            engine.submit_action(&session_id, &action_json)?;
-                        }
-                        Err(error) => {
-                            warn!(player_index, %error, "dropping untranslatable remote action");
-                        }
-                    },
+                    Ok(action) => {
+                        let action_json = serde_json::to_string(&action).map_err(|err| {
+                            format!(
+                                "failed to serialize prompt output for player {player_index}: {err}"
+                            )
+                        })?;
+                        debug!(player_index, %action_json, "submitting remote response to java");
+                        engine.submit_action(&session_id, &action_json)?;
+                    }
                     Err(TryRecvError::Empty) => break,
                     Err(TryRecvError::Disconnected) => {
                         debug!(player_index, "java-forge response channel disconnected");
@@ -858,47 +833,36 @@ fn run_hosted_engine_game_inner(
 
         if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
             if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
-                let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
+                let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                     .map_err(|err| format!("failed to parse java prompt: {err}"))?;
-                let player_index = raw.player;
-                debug!(
-                    player_index,
-                    prompt_kind = raw.body.kind_label(),
-                    "forwarding java prompt to remote"
-                );
-                if matches!(raw.body, JavaRawPromptBody::FirstPlayerRoll { .. }) {
-                    let state = AgentMessage::State(make_java_state_update(
-                        &raw.snapshot,
-                        raw.session_id.as_deref(),
-                        raw.player,
-                    ));
-                    let normalized = AgentMessage::Prompt(normalize_java_prompt(raw));
+                let player = player_index(&prompt.deciding_player_id);
+                debug!(player, "forwarding java prompt to remote");
+                if matches!(prompt.input, PromptInput::DiceRolled(_)) {
+                    let state = AgentMessage::State(state_via_handle(&engine, &session_id)?);
+                    let prompt_msg = AgentMessage::Prompt(prompt);
                     for &agent_index in remote_response_rxs.keys() {
                         let _ = remote_prompt_tx.send((agent_index, state.clone()));
-                        let _ = remote_prompt_tx.send((agent_index, normalized.clone()));
+                        let _ = remote_prompt_tx.send((agent_index, prompt_msg.clone()));
                     }
                     pending_roll_acks = remote_response_rxs.len();
                     if pending_roll_acks == 0 {
-                        let ack = serde_json::to_string(&JavaAction::FirstPlayerRollAcknowledged)
-                            .map_err(|err| {
-                            format!("failed to serialize java roll ack: {err}")
-                        })?;
+                        let ack = serde_json::to_string(&PromptOutput::DiceRolled(
+                            DiceRolledOutput::DiceRolledAcknowledged,
+                        ))
+                        .map_err(|err| format!("failed to serialize roll ack: {err}"))?;
                         engine.submit_action(&session_id, &ack)?;
                     }
-                } else if Some(player_index) == local_player_index {
-                    let auto = auto_java_action(&raw);
-                    let action_json = serde_json::to_string(&auto)
-                        .map_err(|err| format!("failed to serialize java auto action: {err}"))?;
-                    engine.submit_action(&session_id, &action_json)?;
+                } else if Some(player) == local_player_index {
+                    if let Some(output) = auto_action(&prompt) {
+                        let action_json = serde_json::to_string(&output)
+                            .map_err(|err| format!("failed to serialize auto action: {err}"))?;
+                        engine.submit_action(&session_id, &action_json)?;
+                    }
                 } else {
-                    let state = AgentMessage::State(make_java_state_update(
-                        &raw.snapshot,
-                        raw.session_id.as_deref(),
-                        raw.player,
-                    ));
-                    let prompt = AgentMessage::Prompt(normalize_java_prompt(raw));
-                    if remote_prompt_tx.send((player_index, state)).is_err()
-                        || remote_prompt_tx.send((player_index, prompt)).is_err()
+                    let state = AgentMessage::State(state_via_handle(&engine, &session_id)?);
+                    let prompt_msg = AgentMessage::Prompt(prompt);
+                    if remote_prompt_tx.send((player, state)).is_err()
+                        || remote_prompt_tx.send((player, prompt_msg)).is_err()
                     {
                         return Ok(());
                     }
@@ -910,15 +874,9 @@ fn run_hosted_engine_game_inner(
         if engine.is_game_over(&session_id)? {
             info!("hosted java-forge session reached game over");
             let mut final_messages = Vec::new();
-            match engine.get_snapshot(&session_id).and_then(|json| {
-                serde_json::from_str::<JavaRawSnapshot>(&json).map_err(|e| e.to_string())
-            }) {
-                Ok(raw_snapshot) => {
-                    let state = AgentMessage::State(make_java_state_update(
-                        &raw_snapshot,
-                        Some(&session_id),
-                        0,
-                    ));
+            match state_via_handle(&engine, &session_id) {
+                Ok(state_update) => {
+                    let state = AgentMessage::State(state_update);
                     for &agent_index in remote_response_rxs.keys() {
                         final_messages.push((agent_index, state.clone()));
                     }
@@ -927,7 +885,7 @@ fn run_hosted_engine_game_inner(
                     warn!(%error, "game over: final snapshot unavailable; sending game-over prompt only");
                 }
             }
-            let game_over = AgentMessage::Prompt(make_java_game_over_prompt());
+            let game_over = AgentMessage::Prompt(game_over_prompt());
             for &agent_index in remote_response_rxs.keys() {
                 final_messages.push((agent_index, game_over.clone()));
             }
@@ -959,29 +917,39 @@ fn wait_for_prompt<B: JavaBridge>(
 }
 
 #[cfg(feature = "java-forge")]
-fn auto_java_action(prompt: &JavaRawPrompt) -> JavaAction {
-    if let JavaRawPromptBody::Priority { actions, .. } = &prompt.body {
-        if let Some(index) = actions
-            .iter()
-            .filter(|action| action.kind.as_deref() != Some("mana"))
-            .find_map(|action| action.index)
-        {
-            return JavaAction::ChooseAction { index };
-        }
-        return JavaAction::Pass {
-            until_phase: bot_pass_until(prompt),
-        };
-    }
-    JavaAction::Pass { until_phase: None }
+fn player_index(deciding_player_id: &str) -> usize {
+    deciding_player_id
+        .strip_prefix("player-")
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(0)
 }
 
 #[cfg(feature = "java-forge")]
-fn bot_pass_until(prompt: &JavaRawPrompt) -> Option<String> {
-    if prompt.snapshot.active_player == Some(prompt.player) {
-        None
-    } else {
-        Some("cleanup".to_string())
+fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
+    match prompt.input {
+        PromptInput::ChooseAction(_) => Some(PromptOutput::ChooseAction(
+            ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass {
+                until_phase: None,
+            }),
+        )),
+        _ => None,
     }
+}
+
+#[cfg(feature = "java-forge")]
+fn game_over_prompt() -> AgentPrompt {
+    AgentPrompt {
+        deciding_player_id: "player-0".to_string(),
+        source_card_id: None,
+        input: PromptInput::GameOver(GameOverInput {}),
+    }
+}
+
+#[cfg(feature = "java-forge")]
+fn state_via_handle(engine: &JavaEngineHandle, session_id: &str) -> Result<StateUpdate, String> {
+    let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id)?)
+        .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
+    Ok(StateUpdate { game_view })
 }
 
 #[cfg(feature = "java-forge")]
@@ -1054,10 +1022,14 @@ impl JavaScenario {
         }
     }
 
-    fn next_action(&mut self, prompt: &Value) -> Result<Option<PromptOutput>, String> {
+    fn next_action(
+        &mut self,
+        prompt: &Value,
+        game_view: &GameViewDto,
+    ) -> Result<Option<PromptOutput>, String> {
         match self {
             Self::KeepAndPlayLand { played_land } => {
-                if *played_land && battlefield_contains(prompt, "Swamp") {
+                if *played_land && battlefield_contains(game_view, "Swamp") {
                     return Ok(None);
                 }
                 match prompt_type(prompt) {
@@ -1089,7 +1061,7 @@ impl JavaScenario {
                 put_back_done,
                 played_land,
             } => {
-                if *played_land && battlefield_contains(prompt, "Swamp") {
+                if *played_land && battlefield_contains(game_view, "Swamp") {
                     return Ok(None);
                 }
                 match prompt_type(prompt) {
@@ -1103,7 +1075,8 @@ impl JavaScenario {
                     }
                     Some("mulliganPutBack") if !*put_back_done => {
                         let count = prompt
-                            .get("count")
+                            .get("input")
+                            .and_then(|input| input.get("count"))
                             .and_then(Value::as_u64)
                             .unwrap_or(1) as usize;
                         let card_ids = prompt_card_ids(prompt, "handCardIds", count)?;
@@ -1151,24 +1124,28 @@ fn run_scenario_loop<B: JavaBridge>(
         last_prompt_json = Some(prompt_json.clone());
         prompts_seen += 1;
 
-        let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
+        let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
             .map_err(|err| format!("failed to parse java scenario prompt: {err}"))?;
-        let player = raw.player;
+        let player = player_index(&prompt.deciding_player_id);
         if player != 0 {
-            let auto = auto_java_action(&raw);
-            session.submit_action(&serde_json::to_string(&auto).map_err(|err| err.to_string())?)?;
+            if let Some(output) = auto_action(&prompt) {
+                session.submit_action(
+                    &serde_json::to_string(&output).map_err(|err| err.to_string())?,
+                )?;
+            }
             continue;
         }
 
-        let normalized_prompt =
-            serde_json::to_value(normalize_java_prompt(raw)).map_err(|err| err.to_string())?;
+        let game_view: GameViewDto = serde_json::from_str(&session.get_snapshot()?)
+            .map_err(|err| format!("failed to parse java scenario snapshot: {err}"))?;
+        let normalized_prompt = serde_json::to_value(&prompt).map_err(|err| err.to_string())?;
         info!(
             scenario = scenario.name(),
             prompts_seen,
             prompt_type = prompt_type(&normalized_prompt).unwrap_or("<missing>"),
             "java-forge scenario prompt"
         );
-        let Some(action) = scenario.next_action(&normalized_prompt)? else {
+        let Some(action) = scenario.next_action(&normalized_prompt, &game_view)? else {
             info!(
                 scenario = scenario.name(),
                 prompts_seen, "java-forge scenario assertions satisfied"
@@ -1209,11 +1186,10 @@ fn run_self_play_loop<B: JavaBridge>(
                 if repeat_count > STALL_REPEATS {
                     let raw_value: Value =
                         serde_json::from_str(&prompt_json).unwrap_or(Value::Null);
-                    let normalized = normalized_value(&prompt_json);
                     dump_stuck(
                         "java re-emitted the same prompt after the bot acted (stall)",
                         &raw_value,
-                        Some(&normalized),
+                        None,
                         session,
                     );
                     return Err(
@@ -1226,14 +1202,13 @@ fn run_self_play_loop<B: JavaBridge>(
             }
             repeat_count = 0;
 
-            let raw: JavaRawPrompt = serde_json::from_str(&prompt_json)
+            let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
                 .map_err(|err| format!("failed to parse java self-play prompt: {err}"))?;
-            let player = raw.player;
+            let player = player_index(&prompt.deciding_player_id);
             let raw_value: Value = serde_json::from_str(&prompt_json).unwrap_or(Value::Null);
-            let agent_prompt = normalize_java_prompt(raw);
-            let normalized = serde_json::to_value(&agent_prompt).unwrap_or(Value::Null);
+            let normalized = raw_value.clone();
 
-            match bots.entry(player).or_default().decide(agent_prompt) {
+            match bots.entry(player).or_default().decide(prompt) {
                 Some(action) => {
                     if let Err(err) = submit_player_action(session, &action) {
                         dump_stuck(
@@ -1293,15 +1268,6 @@ fn parse_snapshot<B: JavaBridge>(session: &mut JavaForgeSession<B>) -> Result<Va
 }
 
 #[cfg(feature = "java-forge")]
-fn normalized_value(prompt_json: &str) -> Value {
-    serde_json::from_str::<JavaRawPrompt>(prompt_json)
-        .ok()
-        .map(normalize_java_prompt)
-        .and_then(|agent| serde_json::to_value(agent).ok())
-        .unwrap_or(Value::Null)
-}
-
-#[cfg(feature = "java-forge")]
 fn dump_stuck<B: JavaBridge>(
     reason: &str,
     prompt: &Value,
@@ -1337,27 +1303,29 @@ fn submit_player_action<B: JavaBridge>(
     session: &mut JavaForgeSession<B>,
     action: &PromptOutput,
 ) -> Result<(), String> {
-    let java_action = translate_java_player_action(action)
-        .map_err(|err| format!("scenario player action has no java translation: {err}"))?;
-    let action_json = serde_json::to_string(&java_action)
-        .map_err(|err| format!("failed to serialize scenario java action: {err}"))?;
+    let action_json = serde_json::to_string(action)
+        .map_err(|err| format!("failed to serialize scenario action: {err}"))?;
     session.submit_action(&action_json)?;
     Ok(())
 }
 
 #[cfg(feature = "java-forge")]
 fn prompt_type(prompt: &Value) -> Option<&str> {
-    prompt.get("type").and_then(Value::as_str)
+    prompt
+        .get("input")
+        .and_then(|input| input.get("type"))
+        .and_then(Value::as_str)
 }
 
 #[cfg(feature = "java-forge")]
 fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<PromptOutput>, String> {
-    let Some(option) = prompt
-        .get("playableOptions")
+    let Some(action) = prompt
+        .get("input")
+        .and_then(|input| input.get("actions"))
         .and_then(Value::as_array)
-        .and_then(|options| {
-            options.iter().find(|option| {
-                option
+        .and_then(|actions| {
+            actions.iter().find(|action| {
+                action
                     .get("modeLabel")
                     .and_then(Value::as_str)
                     .is_some_and(|label| label.contains(card_name))
@@ -1366,13 +1334,13 @@ fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<Prom
     else {
         return Ok(None);
     };
-    let mode = option
-        .get("mode")
+    let action_id = action
+        .get("id")
         .and_then(Value::as_str)
-        .ok_or_else(|| format!("playable option for '{card_name}' is missing mode"))?;
+        .ok_or_else(|| format!("playable action for '{card_name}' is missing id"))?;
     Ok(Some(PromptOutput::ChooseAction(
         ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act {
-            action_id: mode.to_string(),
+            action_id: action_id.to_string(),
         }),
     )))
 }
@@ -1380,7 +1348,8 @@ fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<Prom
 #[cfg(feature = "java-forge")]
 fn prompt_card_ids(prompt: &Value, field: &str, count: usize) -> Result<Vec<String>, String> {
     let card_ids = prompt
-        .get(field)
+        .get("input")
+        .and_then(|input| input.get(field))
         .and_then(Value::as_array)
         .ok_or_else(|| format!("prompt is missing {field}"))?;
     if card_ids.len() < count {
@@ -1398,17 +1367,11 @@ fn prompt_card_ids(prompt: &Value, field: &str, count: usize) -> Result<Vec<Stri
 }
 
 #[cfg(feature = "java-forge")]
-fn battlefield_contains(prompt: &Value, card_name: &str) -> bool {
-    prompt
-        .get("gameView")
-        .and_then(|game_view| game_view.get("battlefield"))
-        .and_then(Value::as_array)
-        .is_some_and(|cards| {
-            cards.iter().any(|card| {
-                card.get("name").and_then(Value::as_str) == Some(card_name)
-                    && card.get("controllerId").and_then(Value::as_str) == Some("player-0")
-            })
-        })
+fn battlefield_contains(game_view: &GameViewDto, card_name: &str) -> bool {
+    game_view
+        .battlefield
+        .iter()
+        .any(|card| card.name == card_name && card.controller_id == "player-0")
 }
 
 pub trait JavaBridge {

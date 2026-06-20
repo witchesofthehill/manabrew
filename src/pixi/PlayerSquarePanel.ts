@@ -176,6 +176,7 @@ export class PlayerSquarePanel implements PlayerPanel {
       if (tex) sprite.texture = tex;
       else
         loadManaSymbolTexture(key).then((t) => {
+          if (sprite.destroyed) return;
           sprite.texture = t;
         });
       const count = new Text({ text: "", style: manaCountStyle });

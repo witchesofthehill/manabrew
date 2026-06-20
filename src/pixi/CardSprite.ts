@@ -324,6 +324,7 @@ export class CardSprite extends Container {
   private _imageLoaded = false;
   private readonly isBattlefield: boolean;
   private previewFace: 0 | 1 | null = null;
+  private loadGeneration = 0;
 
   constructor(card: GameCard, kind: "battlefield" | "hand" = "battlefield") {
     super();
@@ -539,6 +540,7 @@ export class CardSprite extends Container {
   }
 
   private async loadImage(): Promise<void> {
+    const generation = ++this.loadGeneration;
     const deck = useGameStore.getState().gameDecks[this.card.ownerId];
     const deckCard = asDeckCard(deck, this.card);
     const custom = this.isBattlefield && activeStyle !== "realistic";
@@ -546,7 +548,9 @@ export class CardSprite extends Container {
     const tex = await useScryfallStore
       .getState()
       .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
-    if (this.destroyed) return;
+    // A later loadImage (e.g. a fast face toggle) supersedes this one; bail so
+    // a slow earlier request can't overwrite the current face.
+    if (this.destroyed || generation !== this.loadGeneration) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
       if (custom) this.fitArtCover();

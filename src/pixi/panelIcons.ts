@@ -89,6 +89,7 @@ export function rasterIcon(key: string, hex: string, size: number): void {
     const tex = Texture.from(c);
     iconCache.set(cacheKey, tex);
     pendingSprites.get(cacheKey)?.forEach((entry) => {
+      if (entry.sprite.destroyed) return;
       entry.sprite.texture = tex;
       if (entry.displayWidth != null) entry.sprite.width = entry.displayWidth;
       if (entry.displayHeight != null) entry.sprite.height = entry.displayHeight;

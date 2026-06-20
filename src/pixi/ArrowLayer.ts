@@ -257,7 +257,11 @@ export class ArrowLayer {
   }
 
   destroy(): void {
-    for (const entry of this.pool) entry.root.destroy({ children: true });
+    for (const entry of this.pool) {
+      entry.underGrad?.destroy();
+      entry.coreGrad?.destroy();
+      entry.root.destroy({ children: true });
+    }
     this.pool = [];
     this.root.destroy({ children: true });
     this.arrows = [];
@@ -356,6 +360,10 @@ export class ArrowLayer {
 
     const gradKey = `${ax1.toFixed(1)},${ay1.toFixed(1)},${ax2.toFixed(1)},${ay2.toFixed(1)},${hue}`;
     if (entry.gradKey !== gradKey || !entry.underGrad || !entry.coreGrad) {
+      // A moving arrow changes gradKey every frame; free the superseded
+      // gradients (each owns a GPU texture) before allocating replacements.
+      entry.underGrad?.destroy();
+      entry.coreGrad?.destroy();
       entry.underGrad = new FillGradient(ax1, ay1, ax2, ay2);
       entry.coreGrad = new FillGradient(ax1, ay1, ax2, ay2);
       for (const [stop, alpha] of PAINTERLY_GRADIENT_STOPS) {

@@ -19,8 +19,6 @@ fn bot_warn(msg: &str) {
 /// same non-pass choice indefinitely.
 #[derive(Default)]
 pub struct SimpleAi {
-    last_choose_action_signature: Option<String>,
-    last_choose_action_choice: Option<String>,
     recent_prompts: VecDeque<String>,
 }
 
@@ -60,16 +58,6 @@ impl BotAgent for SimpleAi {
                 card_ids: hand_card_ids.into_iter().take(count).collect(),
             })),
             PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
-                let signature = format!("{actions:?}");
-                let repeated =
-                    self.last_choose_action_signature.as_deref() == Some(signature.as_str());
-                let avoid = if repeated {
-                    self.last_choose_action_choice.clone()
-                } else {
-                    None
-                };
-
-                // Important: skip mana actions
                 let useful = |a: &&AvailableAction| {
                     !matches!(
                         a.kind,
@@ -80,15 +68,16 @@ impl BotAgent for SimpleAi {
                             }
                     )
                 };
-                let allowed = |a: &&AvailableAction| Some(&a.id) != avoid.as_ref() && useful(a);
-                let pick = actions
-                    .iter()
-                    .filter(allowed)
-                    .find(|a| matches!(a.kind, AvailableActionKind::Cast { .. }))
-                    .or_else(|| actions.iter().find(allowed))
-                    .map(|a| a.id.clone());
-                self.last_choose_action_signature = Some(signature);
-                self.last_choose_action_choice = pick.clone();
+                let pick = if self.looping_on(format!("{actions:?}")) {
+                    None
+                } else {
+                    actions
+                        .iter()
+                        .filter(useful)
+                        .find(|a| matches!(a.kind, AvailableActionKind::Cast { .. }))
+                        .or_else(|| actions.iter().find(useful))
+                        .map(|a| a.id.clone())
+                };
                 Some(PromptOutput::ChooseAction(
                     pick.map(|action_id| ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act { action_id }))
                         .unwrap_or(ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass { until_phase: None })),
@@ -223,22 +212,26 @@ impl BotAgent for SimpleAi {
                 }
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
-            PromptInput::PayManaCost(manabrew_protocol::prompts::pay_mana_cost::PayManaCostInput {
-                tappable_source_ids,
-                can_confirm_from_pool,
-                ..
-            }) => {
-                if can_confirm_from_pool {
-                    Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto: true })))
-                } else if !tappable_source_ids.is_empty() {
-                    Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
-                        card_id: tappable_source_ids[0].clone(),
-                        ability_index: None,
-                        color: None,
-                    })))
+            PromptInput::PayManaCost(input) => {
+                let can_pay = input.can_confirm_from_pool
+                    || !input.tappable_source_ids.is_empty()
+                    || !input.mana_ability_options.is_empty()
+                    || !input.delve_source_ids.is_empty();
+                // auto-pay is one-shot: a failed attempt bounces the identical
+                // prompt back, so a repeat means auto-pay can't complete — bail.
+                let signature = format!(
+                    "pay:{}|{}|{}|{}",
+                    input.card_id,
+                    input.mana_cost,
+                    input.mana_pool_total,
+                    input.tappable_source_ids.len()
+                );
+                let payment = if !can_pay || self.looping_on(signature) {
+                    ManaPayment::Cancel
                 } else {
-                    Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Cancel)))
-                }
+                    ManaPayment::Pay { auto: true }
+                };
+                Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(payment)))
             }
             PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
                 presentation,

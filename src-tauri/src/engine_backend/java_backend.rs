@@ -98,7 +98,7 @@ fn run_game_inner(
     let session_id = session.start_game(&request)?;
     eprintln!("[java_game_thread] Java Forge session started: {session_id}");
 
-    let mut last_prompt_json: Option<String> = None;
+    let mut last_prompt_id: Option<u32> = None;
     loop {
         loop {
             match response_rx.try_recv() {
@@ -112,9 +112,10 @@ fn run_game_inner(
         }
 
         if let Some(prompt_json) = session.get_prompt(0)? {
-            if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
-                let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
-                    .map_err(|err| format!("failed to parse java prompt: {err}"))?;
+            let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
+                .map_err(|err| format!("failed to parse java prompt: {err}"))?;
+            if last_prompt_id != Some(prompt.prompt_id) {
+                last_prompt_id = Some(prompt.prompt_id);
                 let _ = prompt_tx.send(AgentMessage::State(current_state(&mut session)?));
                 let to_local = prompt.deciding_player_id == LOCAL_PLAYER_ID
                     || matches!(prompt.input, PromptInput::DiceRolled(_));
@@ -130,7 +131,6 @@ fn run_game_inner(
                         submit_player_output(&mut session, &output)?;
                     }
                 }
-                last_prompt_json = Some(prompt_json);
             }
         }
 
@@ -166,6 +166,7 @@ fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
 #[cfg(feature = "java-forge")]
 fn game_over_prompt() -> AgentPrompt {
     AgentPrompt {
+        prompt_id: u32::MAX,
         deciding_player_id: LOCAL_PLAYER_ID.to_string(),
         source_card_id: None,
         input: PromptInput::GameOver(GameOverInput {}),

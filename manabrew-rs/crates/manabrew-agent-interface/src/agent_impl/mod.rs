@@ -81,6 +81,7 @@ pub struct PromptAgent<R: Responder> {
     pub(crate) latest_view: Option<GameViewDto>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
     pub pass_until_phase: Option<Option<String>>,
+    next_prompt_id: u32,
 }
 
 impl<R: Responder> PromptAgent<R> {
@@ -93,11 +94,14 @@ impl<R: Responder> PromptAgent<R> {
             latest_view: None,
             pending_restore_checkpoint: None,
             pass_until_phase: None,
+            next_prompt_id: 0,
         }
     }
 
     fn build_prompt(&mut self, inner: PromptInput, source: Option<CardId>) -> AgentPrompt {
+        self.next_prompt_id += 1;
         AgentPrompt {
+            prompt_id: self.next_prompt_id,
             deciding_player_id: player_id_str(self.player_id),
             source_card_id: source.map(card_id_str),
             input: inner,

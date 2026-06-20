@@ -45,6 +45,7 @@ public final class ManaBrewInteractiveSession {
     private Game game;
     private final BlockingQueue<JsonObject> actions = new LinkedBlockingQueue<>();
     private volatile String latestPromptJson;
+    private long promptSeq;
     private volatile boolean closed;
     private volatile Thread gameThread;
     private volatile SpellAbility castingAbility;
@@ -136,337 +137,22 @@ public final class ManaBrewInteractiveSession {
             throw new IllegalStateException("session is closed");
         }
         final JsonObject canonical = JsonParser.parseString(actionJson).getAsJsonObject();
-        actions.offer(translateCanonicalAction(canonical));
+        final JsonObject decoded = ManabrewProtocolAdapter.decodeAction(canonical);
+        trace("[harness-action] recv=" + actionJson + " decoded=" + decoded);
+        actions.offer(decoded);
         // No snapshot here — it would race the game thread this unblocks.
         return "";
     }
 
-    private static JsonObject translateCanonicalAction(final JsonObject canonical) {
-        if (!canonical.has("type")) {
-            // Already a flat action (close()/internal auto-pass); pass through.
-            return canonical;
-        }
-        final String type = canonical.get("type").getAsString();
-        final JsonObject output = canonical.has("output") && canonical.get("output").isJsonObject()
-                ? canonical.getAsJsonObject("output")
-                : new JsonObject();
-        final JsonObject flat = new JsonObject();
-        switch (type) {
-            case "mulligan":
-                flat.addProperty("kind", "mulligan_decision");
-                flat.addProperty("keep", output.has("keep") && output.get("keep").getAsBoolean());
-                return flat;
-            case "mulliganPutBack":
-                flat.addProperty("kind", "choose_cards");
-                flat.add("card_ids", copyStringArray(output, "cardIds"));
-                return flat;
-            case "chooseCards":
-                flat.addProperty("kind", "choose_cards");
-                flat.add("card_ids", copyStringArray(output, "chosenCardIds"));
-                return flat;
-            case "chooseAction":
-                return translateChooseAction(output);
-            case "payManaCost":
-                return translateManaSource(output);
-            case "chooseAttackers": {
-                flat.addProperty("kind", "declare_attackers");
-                final com.google.gson.JsonArray assignments = new com.google.gson.JsonArray();
-                for (final JsonElement element : arrayOrEmpty(output, "assignments")) {
-                    final JsonObject in = element.getAsJsonObject();
-                    final JsonObject out = new JsonObject();
-                    out.addProperty("attackerId", asString(in, "attackerId"));
-                    out.addProperty("defenderId", asString(in, "targetId"));
-                    assignments.add(out);
-                }
-                flat.add("assignments", assignments);
-                return flat;
-            }
-            case "chooseBlockers": {
-                flat.addProperty("kind", "declare_blockers");
-                final com.google.gson.JsonArray assignments = new com.google.gson.JsonArray();
-                for (final JsonElement element : arrayOrEmpty(output, "assignments")) {
-                    final JsonObject in = element.getAsJsonObject();
-                    final JsonObject out = new JsonObject();
-                    out.addProperty("blockerId", asString(in, "blockerId"));
-                    out.addProperty("attackerId", asString(in, "attackerId"));
-                    assignments.add(out);
-                }
-                flat.add("assignments", assignments);
-                return flat;
-            }
-            case "chooseBoardTargets": {
-                flat.addProperty("kind", "target_choice");
-                final JsonObject target = new JsonObject();
-                final com.google.gson.JsonArray chosen = arrayOrEmpty(output, "chosen");
-                if (chosen.size() > 0 && chosen.get(0).isJsonObject()) {
-                    final JsonObject first = chosen.get(0).getAsJsonObject();
-                    target.addProperty("kind", asString(first, "kind"));
-                    target.addProperty("id", asString(first, "id"));
-                } else {
-                    target.addProperty("kind", "card");
-                    target.addProperty("id", "");
-                }
-                flat.add("target", target);
-                return flat;
-            }
-            case "chooseBoolean":
-                flat.addProperty("kind", "boolean_decision");
-                flat.addProperty("accept", output.has("value") && output.get("value").getAsBoolean());
-                return flat;
-            case "chooseFromSelection": {
-                flat.addProperty("kind", "mode_decision");
-                final com.google.gson.JsonArray indices = new com.google.gson.JsonArray();
-                for (final JsonElement element : arrayOrEmpty(output, "chosenIndices")) {
-                    indices.add(element.getAsInt());
-                }
-                flat.add("indices", indices);
-                return flat;
-            }
-            case "revealCards":
-                flat.addProperty("kind", "reveal_cards_acknowledged");
-                return flat;
-            case "diceRolled":
-                flat.addProperty("kind", "first_player_roll_acknowledged");
-                return flat;
-            case "scry": {
-                flat.addProperty("kind", "scry_decision");
-                final com.google.gson.JsonArray zones = new com.google.gson.JsonArray();
-                for (final JsonElement element : arrayOrEmpty(output, "zoneCardIds")) {
-                    final com.google.gson.JsonArray pile = new com.google.gson.JsonArray();
-                    if (element.isJsonArray()) {
-                        for (final JsonElement id : element.getAsJsonArray()) {
-                            pile.add(id.getAsString());
-                        }
-                    }
-                    zones.add(pile);
-                }
-                flat.add("zone_card_ids", zones);
-                return flat;
-            }
-            case "chooseColor":
-                return translateColorDecision(output);
-            case "chooseType":
-                flat.addProperty("kind", "string_decision");
-                flat.addProperty("value", asString(output, "chosenType"));
-                return flat;
-            case "chooseCardName":
-                flat.addProperty("kind", "string_decision");
-                flat.addProperty("value", asString(output, "chosenName"));
-                return flat;
-            case "chooseNumber":
-                flat.addProperty("kind", "number_decision");
-                flat.addProperty("number", output.has("chosenNumber") && !output.get("chosenNumber").isJsonNull()
-                        ? output.get("chosenNumber").getAsInt() : 0);
-                return flat;
-            case "chooseDamageAssignmentOrder":
-                flat.addProperty("kind", "damage_assignment_order_decision");
-                flat.add("ordered_card_ids", copyStringArray(output, "orderedBlockerIds"));
-                return flat;
-            case "reorderCards":
-                flat.addProperty("kind", "reorder_library_decision");
-                flat.add("ordered_card_ids", copyStringArray(output, "orderedCardIds"));
-                return flat;
-            case "chooseCombatDamageAssignment": {
-                flat.addProperty("kind", "combat_damage_assignment_decision");
-                final com.google.gson.JsonArray assignments = new com.google.gson.JsonArray();
-                for (final JsonElement element : arrayOrEmpty(output, "assignments")) {
-                    final JsonObject in = element.getAsJsonObject();
-                    final JsonObject out = new JsonObject();
-                    out.addProperty("assigneeId", asString(in, "assigneeId"));
-                    out.addProperty("damage", in.has("damage") ? in.get("damage").getAsInt() : 0);
-                    assignments.add(out);
-                }
-                flat.add("assignments", assignments);
-                return flat;
-            }
-            case "divideAmount":
-                flat.addProperty("kind", "divide_amount");
-                flat.add("allocation", output.has("allocation") && output.get("allocation").isJsonObject()
-                        ? output.getAsJsonObject("allocation") : new JsonObject());
-                return flat;
-            default:
-                throw new UnsupportedOperationException("unsupported canonical action type: " + type);
-        }
-    }
+    private static final String TRACE_PATH =
+            System.getenv().getOrDefault("MANABREW_HARNESS_TRACE", "/tmp/harness-trace.log");
 
-    private static JsonObject translateChooseAction(final JsonObject output) {
-        final String kind = output.has("type") ? output.get("type").getAsString() : "";
-        final JsonObject flat = new JsonObject();
-        switch (kind) {
-            case "act":
-                return parseActionId(asString(output, "actionId"));
-            case "pass":
-                flat.addProperty("kind", "pass");
-                if (output.has("untilPhase") && !output.get("untilPhase").isJsonNull()) {
-                    flat.addProperty("until", output.get("untilPhase").getAsString());
-                }
-                return flat;
-            case "concede":
-                flat.addProperty("kind", "pass");
-                return flat;
-            case "tapForMana":
-                flat.addProperty("kind", "tap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                if (output.has("abilityIndex") && !output.get("abilityIndex").isJsonNull()) {
-                    flat.addProperty("manaAbilityIndex", output.get("abilityIndex").getAsInt());
-                }
-                if (output.has("color") && !output.get("color").isJsonNull()) {
-                    flat.addProperty("color", output.get("color").getAsString());
-                }
-                return flat;
-            case "untap":
-                flat.addProperty("kind", "untap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
-            case "restoreSnapshot":
-                throw new UnsupportedOperationException("unsupported canonical action type: restoreSnapshot");
-            default:
-                throw new UnsupportedOperationException("unsupported chooseAction output: " + kind);
+    private static synchronized void trace(final String line) {
+        try (java.io.FileWriter writer = new java.io.FileWriter(TRACE_PATH, true)) {
+            writer.write(line);
+            writer.write(System.lineSeparator());
+        } catch (final java.io.IOException ignored) {
         }
-    }
-
-    private static JsonObject translateManaSource(final JsonObject output) {
-        final String kind = output.has("type") ? output.get("type").getAsString() : "";
-        final JsonObject flat = new JsonObject();
-        switch (kind) {
-            case "tapForMana":
-                flat.addProperty("kind", "tap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                if (output.has("abilityIndex") && !output.get("abilityIndex").isJsonNull()) {
-                    flat.addProperty("manaAbilityIndex", output.get("abilityIndex").getAsInt());
-                }
-                if (output.has("color") && !output.get("color").isJsonNull()) {
-                    flat.addProperty("color", output.get("color").getAsString());
-                }
-                return flat;
-            case "untap":
-                flat.addProperty("kind", "untap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
-            case "delve":
-                flat.addProperty("kind", "delve");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
-            case "undelve":
-                flat.addProperty("kind", "undelve");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
-            case "pay":
-                flat.addProperty("kind", "pay_mana");
-                flat.addProperty("auto", output.has("auto") && output.get("auto").getAsBoolean());
-                return flat;
-            case "payLife":
-                flat.addProperty("kind", "pay_life");
-                return flat;
-            case "cancel":
-                flat.addProperty("kind", "cancel_mana");
-                return flat;
-            default:
-                throw new UnsupportedOperationException("unsupported payManaCost output: " + kind);
-        }
-    }
-
-    private static JsonObject translateColorDecision(final JsonObject output) {
-        final JsonObject map = output.has("chosenColors") && output.get("chosenColors").isJsonObject()
-                ? output.getAsJsonObject("chosenColors") : new JsonObject();
-        int total = 0;
-        for (final Map.Entry<String, JsonElement> entry : map.entrySet()) {
-            total += entry.getValue().getAsInt();
-        }
-        final JsonObject flat = new JsonObject();
-        if (total <= 1) {
-            flat.addProperty("kind", "string_decision");
-            final String value = map.entrySet().isEmpty() ? "" : map.entrySet().iterator().next().getKey();
-            flat.addProperty("value", value);
-            return flat;
-        }
-        flat.addProperty("kind", "mana_combo_decision");
-        final com.google.gson.JsonArray chosen = new com.google.gson.JsonArray();
-        for (final Map.Entry<String, JsonElement> entry : map.entrySet()) {
-            for (int i = 0; i < entry.getValue().getAsInt(); i++) {
-                chosen.add(entry.getKey());
-            }
-        }
-        flat.add("chosenColors", chosen);
-        return flat;
-    }
-
-    private static JsonObject parseActionId(final String actionId) {
-        final JsonObject flat = new JsonObject();
-        if (actionId.startsWith("prompt-action-")) {
-            flat.addProperty("kind", "choose_action");
-            flat.addProperty("index", Integer.parseInt(actionId.substring("prompt-action-".length())));
-            return flat;
-        }
-        if (actionId.startsWith("untap:")) {
-            flat.addProperty("kind", "untap_land");
-            flat.addProperty("cardId", actionId.substring("untap:".length()));
-            return flat;
-        }
-        if (actionId.startsWith("tap:")) {
-            return parseTapActionId(actionId.substring("tap:".length()));
-        }
-        throw new UnsupportedOperationException("unsupported action id: " + actionId);
-    }
-
-    private static JsonObject parseTapActionId(final String rest) {
-        final JsonObject flat = new JsonObject();
-        flat.addProperty("kind", "tap_land");
-        final int lastColon = rest.lastIndexOf(':');
-        if (lastColon >= 0) {
-            final String maybeColor = rest.substring(lastColon + 1);
-            if (isManaLetter(maybeColor)) {
-                final String before = rest.substring(0, lastColon);
-                final int idxColon = before.lastIndexOf(':');
-                if (idxColon >= 0) {
-                    final Integer index = parseIntOrNull(before.substring(idxColon + 1));
-                    if (index != null) {
-                        flat.addProperty("cardId", before.substring(0, idxColon));
-                        flat.addProperty("manaAbilityIndex", index);
-                        flat.addProperty("color", maybeColor);
-                        return flat;
-                    }
-                }
-            }
-            final Integer index = parseIntOrNull(maybeColor);
-            if (index != null) {
-                flat.addProperty("cardId", rest.substring(0, lastColon));
-                flat.addProperty("manaAbilityIndex", index);
-                return flat;
-            }
-        }
-        flat.addProperty("cardId", rest);
-        return flat;
-    }
-
-    private static Integer parseIntOrNull(final String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException error) {
-            return null;
-        }
-    }
-
-    private static boolean isManaLetter(final String token) {
-        return "W".equals(token) || "U".equals(token) || "B".equals(token)
-                || "R".equals(token) || "G".equals(token) || "C".equals(token);
-    }
-
-    private static String asString(final JsonObject object, final String key) {
-        return object.has(key) && !object.get(key).isJsonNull() ? object.get(key).getAsString() : "";
-    }
-
-    private static com.google.gson.JsonArray arrayOrEmpty(final JsonObject object, final String key) {
-        return object.has(key) && object.get(key).isJsonArray()
-                ? object.getAsJsonArray(key) : new com.google.gson.JsonArray();
-    }
-
-    private static com.google.gson.JsonArray copyStringArray(final JsonObject object, final String key) {
-        final com.google.gson.JsonArray out = new com.google.gson.JsonArray();
-        for (final JsonElement element : arrayOrEmpty(object, key)) {
-            out.add(element.getAsString());
-        }
-        return out;
     }
 
     enum PriorityActionKind { ACTION, PASS, UNDO }
@@ -2058,7 +1744,7 @@ public final class ManaBrewInteractiveSession {
     ) {
         final JsonObject input = new JsonObject();
         input.addProperty("type", "chooseCards");
-        input.add("presentation", cardChoicePresentation(title, description, sourceCardId));
+        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, description, sourceCardId));
         input.add("cards", richCardArray(cards, castable));
         input.addProperty("min", min);
         input.addProperty("max", max);
@@ -2124,7 +1810,7 @@ public final class ManaBrewInteractiveSession {
             case "choose_mode":
                 input.addProperty("type", "chooseFromSelection");
                 input.add("presentation",
-                        cardChoicePresentation(sourceName != null ? sourceName : "Choose", null, null));
+                        ManabrewProtocolAdapter.cardChoicePresentation(sourceName != null ? sourceName : "Choose", null, null));
                 input.add("options", optionValues);
                 input.addProperty("minChoices", min);
                 input.addProperty("maxChoices", max);
@@ -2285,7 +1971,7 @@ public final class ManaBrewInteractiveSession {
                 ? description : "Choose a number";
         final JsonObject input = new JsonObject();
         input.addProperty("type", "chooseNumber");
-        input.add("presentation", cardChoicePresentation(title, null, sourceCardId));
+        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, null, sourceCardId));
         input.addProperty("min", min);
         input.addProperty("max", max);
         publishAgentPrompt("player-" + playerId, null, input);
@@ -2305,7 +1991,7 @@ public final class ManaBrewInteractiveSession {
                 : (topOfDeck ? "Top of Library" : "Bottom of Library");
         final JsonObject input = new JsonObject();
         input.addProperty("type", "reorderCards");
-        input.add("presentation", cardChoicePresentation(title, "Arrange these cards in order.", sourceCardId));
+        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, "Arrange these cards in order.", sourceCardId));
         input.add("cards", richCardArray(cards, false));
         input.addProperty("targetLabel", targetLabel);
         input.addProperty("topOfDeck", topOfDeck);
@@ -2328,7 +2014,7 @@ public final class ManaBrewInteractiveSession {
         zones.add(surveil ? "graveyard" : "libraryBottom");
         final JsonObject input = new JsonObject();
         input.addProperty("type", "scry");
-        input.add("presentation", cardChoicePresentation(title, description, null));
+        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, description, null));
         input.add("cards", richCardArray(cards, false));
         input.add("zones", zones);
         publishAgentPrompt("player-" + playerId, null, input);
@@ -2713,15 +2399,7 @@ public final class ManaBrewInteractiveSession {
     }
 
     private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final JsonObject input) {
-        final JsonObject prompt = new JsonObject();
-        if (decidingPlayerId != null && !decidingPlayerId.isEmpty()) {
-            prompt.addProperty("decidingPlayerId", decidingPlayerId);
-        }
-        if (sourceCardId != null) {
-            prompt.addProperty("sourceCardId", sourceCardId);
-        }
-        prompt.add("input", input);
-        latestPromptJson = prompt.toString();
+        latestPromptJson = ManabrewProtocolAdapter.agentPrompt(++promptSeq, decidingPlayerId, sourceCardId, input);
     }
 
     private com.google.gson.JsonArray richCardArray(final List<Card> cards, final boolean castable) {
@@ -2730,23 +2408,6 @@ public final class ManaBrewInteractiveSession {
             out.add(InteractiveSnapshotExtractor.cardDtoJson(game, card, castable));
         }
         return out;
-    }
-
-    private static JsonObject cardChoicePresentation(
-            final String title,
-            final String description,
-            final String sourceCardId
-    ) {
-        final JsonObject presentation = new JsonObject();
-        presentation.addProperty("title", title);
-        if (description != null) {
-            presentation.addProperty("description", description);
-        }
-        if (sourceCardId != null) {
-            presentation.addProperty("sourceCardId", sourceCardId);
-        }
-        presentation.add("targets", new com.google.gson.JsonArray());
-        return presentation;
     }
 
     private static String formatActionLabel(final String label) {

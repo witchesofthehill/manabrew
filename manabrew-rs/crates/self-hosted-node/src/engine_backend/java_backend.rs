@@ -787,7 +787,7 @@ fn run_hosted_engine_game_inner(
 
     let mut remote_response_rxs: HashMap<usize, std_mpsc::Receiver<PromptOutput>> =
         remote_response_rxs.into_iter().collect();
-    let mut last_prompt_json: Option<String> = None;
+    let mut last_prompt_id: Option<u32> = None;
     let mut pending_roll_acks: usize = 0;
 
     loop {
@@ -832,9 +832,10 @@ fn run_hosted_engine_game_inner(
         }
 
         if let Some(prompt_json) = engine.get_prompt(&session_id, 0)? {
-            if last_prompt_json.as_deref() != Some(prompt_json.as_str()) {
-                let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
-                    .map_err(|err| format!("failed to parse java prompt: {err}"))?;
+            let prompt: AgentPrompt = serde_json::from_str(&prompt_json)
+                .map_err(|err| format!("failed to parse java prompt: {err}"))?;
+            if last_prompt_id != Some(prompt.prompt_id) {
+                last_prompt_id = Some(prompt.prompt_id);
                 let player = player_index(&prompt.deciding_player_id);
                 debug!(player, "forwarding java prompt to remote");
                 if matches!(prompt.input, PromptInput::DiceRolled(_)) {
@@ -867,7 +868,6 @@ fn run_hosted_engine_game_inner(
                         return Ok(());
                     }
                 }
-                last_prompt_json = Some(prompt_json);
             }
         }
 
@@ -939,6 +939,7 @@ fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
 #[cfg(feature = "java-forge")]
 fn game_over_prompt() -> AgentPrompt {
     AgentPrompt {
+        prompt_id: u32::MAX,
         deciding_player_id: "player-0".to_string(),
         source_card_id: None,
         input: PromptInput::GameOver(GameOverInput {}),

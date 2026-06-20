@@ -8,6 +8,7 @@ use manabrew_protocol::prompts::*;
 
 fn wrap(inner: PromptInput) -> AgentPrompt {
     AgentPrompt {
+        prompt_id: 0,
         deciding_player_id: "player-0".to_string(),
         source_card_id: None,
         input: inner,

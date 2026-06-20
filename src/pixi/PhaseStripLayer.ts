@@ -125,13 +125,6 @@ const activeStyle = new TextStyle({
   fill: _initTheme.textOnTinted,
   align: "center",
 });
-const combatActiveStyle = new TextStyle({
-  fontFamily: FONT,
-  fontSize: 11,
-  fontWeight: "bold",
-  fill: _initTheme.textOnTinted,
-  align: "center",
-});
 const enabledStyle = new TextStyle({
   fontFamily: FONT,
   fontSize: 11,
@@ -346,7 +339,6 @@ export class PhaseStripLayer {
     this.theme = theme;
     normalStyle.fill = theme.gameTheme.textMuted;
     activeStyle.fill = theme.gameTheme.textOnTinted;
-    combatActiveStyle.fill = theme.gameTheme.textOnTinted;
     enabledStyle.fill = theme.gameTheme.textGhost;
   }
 
@@ -505,13 +497,7 @@ export class PhaseStripLayer {
       cell.hoverBg.clear();
 
       // Text position (non-combat cells; combat text is positioned with the icon above)
-      cell.text.style = isActive
-        ? isCombatCell
-          ? combatActiveStyle
-          : activeStyle
-        : isEnabled
-          ? enabledStyle
-          : normalStyle;
+      cell.text.style = isActive ? activeStyle : isEnabled ? enabledStyle : normalStyle;
       if (!isCombatCell) {
         cell.text.x = cx + cellW / 2;
         cell.text.y = y + CELL_H / 2;

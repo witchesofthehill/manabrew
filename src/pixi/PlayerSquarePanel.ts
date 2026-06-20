@@ -42,7 +42,7 @@ function makeStatCell(iconKey: string): StatCell {
   const icon = new Sprite();
   icon.width = ICON_SIZE;
   icon.height = ICON_SIZE;
-  const value = new Text({ text: "0", style: statStyle });
+  const value = new Text({ text: "0", style: statStyle.clone() });
   value.anchor.set(0, 0.5);
   return { icon, value, iconKey };
 }
@@ -192,7 +192,6 @@ export class PlayerSquarePanel implements PlayerPanel {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    statStyle.fill = theme.gameTheme.textOnTinted;
     manaCountStyle.fill = theme.gameTheme.textOnTinted;
     if (this.lastState) this.update(this.lastState);
   }
@@ -426,6 +425,9 @@ export class PlayerSquarePanel implements PlayerPanel {
 
   destroy(): void {
     try {
+      // Each stat cell owns a cloned TextStyle; container.destroy doesn't free
+      // styles (mana counts share a module-level one, so style:true is unsafe).
+      for (const cell of this.allStats) cell.value.style.destroy();
       this.container.destroy({ children: true });
     } catch {
       /* pixi teardown */

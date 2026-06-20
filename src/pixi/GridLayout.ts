@@ -159,7 +159,6 @@ export const cellAt = (info: GridLayoutInfo, col: number, row: number): GridCell
 };
 
 export const cellFromPoint = (info: GridLayoutInfo, px: number, py: number): GridCell | null => {
-  if (info.cols === 0 || info.rows === 0) return null;
   const rawCol = Math.round((px - info.originX - info.cardW / 2) / info.cellW);
   const rawRow = Math.round((py - info.originY - info.cardH / 2) / info.cellH);
   const col = Math.max(0, Math.min(info.cols - 1, rawCol));

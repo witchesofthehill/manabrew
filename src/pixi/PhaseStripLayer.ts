@@ -389,7 +389,7 @@ export class PhaseStripLayer {
     // Divider line — only the edges outside all cells
     const lineY = this.canvasHeight / 2;
     const stripLeft = cellPositions[0]! - CELL_GAP;
-    const stripRight = rx - CELL_GAP + CELL_GAP;
+    const stripRight = rx;
     this.lineGfx.clear();
     // Left segment
     this.lineGfx.moveTo(0, lineY);

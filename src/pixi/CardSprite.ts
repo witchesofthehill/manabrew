@@ -822,7 +822,17 @@ export class CardSprite extends Container {
     // If the card is removed mid-stomp the GSAP tween would keep mutating a
     // destroyed sprite's fxScale forever; kill it before teardown.
     gsap.killTweensOf(this.fxScale);
+    if (this.sickFilter) {
+      this.sickFilter.destroy();
+      this.sickFilter = null;
+    }
+    // Only frame name/type use per-instance cloned styles; super.destroy is
+    // called without `style` so it won't touch the shared module styles.
+    const frameNameStyle = this.frameNameText.style;
+    const frameTypeStyle = this.frameTypeText.style;
     super.destroy(options);
+    frameNameStyle.destroy();
+    frameTypeStyle.destroy();
   }
 
   /** Phased-out cards are desaturated here, but their alpha fade is owned by the

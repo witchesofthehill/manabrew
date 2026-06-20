@@ -426,7 +426,7 @@ export class PlayerSquarePanel implements PlayerPanel {
 
   destroy(): void {
     try {
-      this.container.destroy();
+      this.container.destroy({ children: true });
     } catch {
       /* pixi teardown */
     }

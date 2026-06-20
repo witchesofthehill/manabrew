@@ -296,6 +296,7 @@ export class PointerLayer {
     }
     this.pool = [];
     this.root.destroy({ children: true });
+    for (const tex of Object.values(this.textures)) tex?.destroy(true);
     this.textures = {};
   }
 

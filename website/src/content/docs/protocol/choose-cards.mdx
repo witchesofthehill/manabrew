@@ -1,0 +1,84 @@
+---
+title: "chooseCards"
+description: Ask the deciding player to select a number of cards from a set.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when the player must pick cards from a presented set — discard to hand
+size, choose cards to sacrifice, pick targets from a revealed pile, and similar.
+The engine sends the candidate cards inline so the client can render them
+without consulting game state.
+
+## Arguments
+
+`input.type` is `"chooseCards"`. The remaining fields:
+
+<ProtocolType slug="choose-cards" />
+
+## Rendering
+
+The layout adapts to how many cards are sent; both forms return the same
+`chooseCardsDecision`. The footer counter shows selected / `max`, with a confirm
+once between `min` and `max` are picked.
+
+<figure class="prompt-figure">
+  <img src="/protocol/choose-cards.webp" alt="A few cards laid out in a single row" />
+  <div class="prompt-figure__caption">
+    A small set lays the cards out in a single row — quick to scan and tap.
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img src="/protocol/choose-cards-large.webp" alt="Many cards wrapped into a scrollable grid" />
+  <div class="prompt-figure__caption">
+    A larger set wraps into a scrollable grid, and gains a name filter once the list is long enough
+    to need it.
+  </div>
+</figure>
+
+## Response
+
+```ts
+type ChooseCardsOutput = { type: "chooseCardsDecision"; chosenCardIds: string[] };
+```
+
+Return the `id`s of the chosen cards — between `min` and `max` of them.
+
+## Example
+
+```json
+{
+  "promptId": 12,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseCards",
+    "presentation": { "title": "Discard two cards", "targets": [] },
+    "cards": [
+      { "id": "hand-0", "name": "Lightning Bolt", "manaCost": "{R}", "types": ["Instant"] },
+      {
+        "id": "hand-1",
+        "name": "Llanowar Elves",
+        "manaCost": "{G}",
+        "types": ["Creature"],
+        "power": "1",
+        "toughness": "1"
+      }
+    ],
+    "min": 2,
+    "max": 2
+  }
+}
+```
+
+```json
+{
+  "promptId": 12,
+  "output": { "type": "chooseCardsDecision", "chosenCardIds": ["hand-0", "hand-1"] }
+}
+```
+
+:::note
+The `cards` above are abbreviated — the real `CardDto` has every field listed in
+`protocol/values`. Only `id` and `name` are required to round-trip a choice.
+:::

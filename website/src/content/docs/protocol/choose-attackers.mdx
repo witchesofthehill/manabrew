@@ -1,0 +1,65 @@
+---
+title: "chooseAttackers"
+description: Ask the active player to declare which creatures attack and what each attacks.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent during the declare-attackers step of combat. The engine tells the client
+which creatures are able to attack and which players, planeswalkers, or battles
+each one may attack — for example, choosing to swing with a Grizzly Bears at the
+opponent's face while leaving an untapped blocker back.
+
+:::note[Answered on the board]
+The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
+:::
+
+## Arguments
+
+`input.type` is `"chooseAttackers"`. The remaining fields:
+
+<ProtocolType slug="choose-attackers" />
+
+## Response
+
+```ts
+type ChooseAttackersOutput = { type: "declareAttackers"; assignments: AttackAssignment[] };
+type AttackAssignment = { attackerId: string; targetId: string };
+```
+
+Return one `AttackAssignment` per attacking creature: each assignment sends one
+creature at one target. Creatures the player chooses not to attack with are
+simply omitted.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseAttackers",
+    "attackers": [
+      { "attackerId": "bf-3", "validTargetIds": ["player-1", "pw-1"] },
+      { "attackerId": "bf-4", "validTargetIds": ["player-1", "pw-1"] }
+    ],
+    "attackTargets": [
+      { "id": "player-1", "label": "Opponent", "kind": "player" },
+      { "id": "pw-1", "label": "Jace, the Mind Sculptor", "kind": "planeswalker" }
+    ]
+  }
+}
+```
+
+```json
+{
+  "promptId": 7,
+  "output": {
+    "type": "declareAttackers",
+    "assignments": [
+      { "attackerId": "bf-3", "targetId": "player-1" },
+      { "attackerId": "bf-4", "targetId": "pw-1" }
+    ]
+  }
+}
+```

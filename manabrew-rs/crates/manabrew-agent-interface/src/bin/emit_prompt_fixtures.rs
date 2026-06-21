@@ -133,9 +133,6 @@ fn main() {
             min: 0,
             max: 5,
         }),
-        ChooseCardName(choose_card_name::ChooseCardNameInput {
-            valid_names: vec![],
-        }),
         ChooseDamageAssignmentOrder(
             choose_damage_assignment_order::ChooseDamageAssignmentOrderInput {
                 attacker_id: String::new(),

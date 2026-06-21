@@ -1,0 +1,43 @@
+---
+title: "chooseType"
+description: Ask the deciding player to name a type.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when an effect asks the player to name a type — for example, the creature
+type chosen by Cavern of Souls, or a card type chosen by a discard effect.
+
+![The chooseType prompt in the Manabrew client](/protocol/choose-type.svg)
+
+## Arguments
+
+`input.type` is `"chooseType"`. The remaining fields:
+
+<ProtocolType slug="choose-type" />
+
+## Response
+
+```ts
+type ChooseTypeOutput = { type: "typeDecision"; chosenType: string | null };
+```
+
+Return the chosen type, or `null` if the choice is declined where that is legal.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseType",
+    "typeCategory": "Creature Type",
+    "validTypes": ["Goblin", "Elf", "Merfolk", "Zombie"]
+  }
+}
+```
+
+```json
+{ "promptId": 7, "output": { "type": "typeDecision", "chosenType": "Goblin" } }
+```

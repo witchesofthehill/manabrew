@@ -1,0 +1,74 @@
+---
+title: "payManaCost"
+description: Drive interactive payment of a spell or ability's mana cost.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent while the player pays a spell or ability's mana cost interactively —
+tapping lands, activating mana abilities, spending from the floating pool, or
+paying alternative costs such as delve. The client sends **incremental** actions
+(e.g. tap a land) and the engine re-sends an updated `payManaCost` prompt until
+the cost is met, then the client sends a final `pay`.
+
+![The payManaCost prompt in the Manabrew client](/protocol/pay-mana-cost.svg)
+
+## Arguments
+
+`input.type` is `"payManaCost"`. The remaining fields:
+
+<ProtocolType slug="pay-mana-cost" />
+
+## Response
+
+```ts
+type ManaSourceAction =
+  | { type: "tapForMana"; cardId: string; abilityIndex?: number; color?: string }
+  | { type: "untap"; cardId: string };
+type DelveAction = { type: "delve"; cardId: string } | { type: "undelve"; cardId: string };
+type ManaPayment = { type: "pay"; auto: boolean } | { type: "payLife" } | { type: "cancel" };
+type PayManaCostOutput = ManaSourceAction | DelveAction | ManaPayment;
+```
+
+Send `tapForMana`, `untap`, `delve`, or `undelve` as incremental steps — the
+engine answers each with an updated `payManaCost` prompt. Send
+`{ type: "pay", auto }` to finalize (`auto: true` lets the engine auto-tap the
+remaining sources), `payLife` to pay a Phyrexian cost with life, or `cancel` to
+back out of the payment entirely.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "payManaCost",
+    "cardId": "stack-3",
+    "cardName": "Cryptic Command",
+    "manaCost": "{1}{U}{U}{U}",
+    "manaAbilityOptions": [
+      {
+        "cardId": "perm-9",
+        "abilityIndex": 0,
+        "description": "{T}: Add {U}.",
+        "isManaAbility": true,
+        "producedMana": "{U}",
+        "color": "U"
+      }
+    ],
+    "tappableSourceIds": ["perm-9", "perm-10", "perm-11", "perm-12"],
+    "untappableSourceIds": [],
+    "delveSourceIds": [],
+    "manaPoolTotal": 0,
+    "canConfirmFromPool": false
+  }
+}
+```
+
+```json
+{
+  "promptId": 7,
+  "output": { "type": "tapForMana", "cardId": "perm-9", "abilityIndex": 0, "color": "U" }
+}
+```

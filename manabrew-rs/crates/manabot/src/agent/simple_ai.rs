@@ -188,11 +188,6 @@ impl BotAgent for SimpleAi {
             PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
                 chosen_number: Some(min),
             })),
-            PromptInput::ChooseCardName(manabrew_protocol::prompts::choose_card_name::ChooseCardNameInput { valid_names, .. }) => {
-                Some(PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision {
-                    chosen_name: valid_names.first().cloned(),
-                }))
-            }
             PromptInput::ChooseDamageAssignmentOrder(manabrew_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput { blocker_ids, .. }) => {
                 Some(PromptOutput::ChooseDamageAssignmentOrder(ChooseDamageAssignmentOrderOutput::DamageAssignmentOrderDecision {
                     ordered_blocker_ids: blocker_ids,

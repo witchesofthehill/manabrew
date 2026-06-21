@@ -20,3 +20,34 @@
 h1#_top {
   font-family: "Cormorant Garamond", georgia, serif;
 }
+
+/* Protocol pages: a prompt screenshot sitting beside its explanation,
+   rather than a full-width banner under the title. */
+.sl-markdown-content .prompt-figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+.sl-markdown-content .prompt-figure img {
+  width: 360px;
+  max-width: 100%;
+  margin: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+}
+.sl-markdown-content .prompt-figure .prompt-figure__caption {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+.sl-markdown-content .prompt-figure .prompt-figure__caption p {
+  margin: 0;
+}
+
+/* "References:" line under a generated <ProtocolType> block. */
+.sl-markdown-content .protocol-refs {
+  margin-top: 0.5rem;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}

@@ -19,16 +19,16 @@
 <table align="center">
   <tr>
     <td align="center" width="25%">
-      <a href="./images/screenshots/my-decks.png"><img src="./images/screenshots/my-decks.png" alt="Deck library" width="100%"/></a>
+      <a href="./images/screenshots/my-decks.webp"><img src="./images/screenshots/my-decks.webp" alt="Deck library" width="100%"/></a>
     </td>
     <td align="center" width="25%">
-      <a href="./images/screenshots/deck-editor-grid.png"><img src="./images/screenshots/deck-editor-grid.png" alt="Deck editor" width="100%"/></a>
+      <a href="./images/screenshots/deck-editor-grid.webp"><img src="./images/screenshots/deck-editor-grid.webp" alt="Deck editor" width="100%"/></a>
     </td>
     <td align="center" width="25%">
-      <a href="./images/screenshots/format-select.png"><img src="./images/screenshots/format-select.png" alt="Format selection" width="100%"/></a>
+      <a href="./images/screenshots/format-select.webp"><img src="./images/screenshots/format-select.webp" alt="Format selection" width="100%"/></a>
     </td>
     <td align="center" width="25%">
-      <a href="./images/screenshots/lobby.png"><img src="./images/screenshots/lobby.png" alt="Multiplayer lobby" width="100%"/></a>
+      <a href="./images/screenshots/lobby.webp"><img src="./images/screenshots/lobby.webp" alt="Multiplayer lobby" width="100%"/></a>
     </td>
   </tr>
 </table>
@@ -375,8 +375,9 @@ See [AI Usage](./docs/AI_USAGE.md).
 
 The project is licensed under **AGPL-3.0-or-later**, to close GPL's network
 loophole for the hosted instance. AGPL is GPL-compatible, so this is additive;
-the vendored `forge/` tree stays GPL-3.0-or-later under its upstream terms.
-`docs/PROTOCOL.md` remains CC-BY-4.0.
+the vendored `forge/` tree stays GPL-3.0-or-later under its upstream terms. The
+[protocol specification](https://docs.manabrew.app/protocol/) (the docs under
+`website/src/content/docs/protocol/`) remains CC-BY-4.0.
 
 See [LICENSE.md](./LICENSE.md),
 [LICENSE-AGPL-3.0-or-later](./LICENSE-AGPL-3.0-or-later),

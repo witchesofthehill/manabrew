@@ -13,6 +13,7 @@
     "ensure:wasm": "node scripts/ensure-wasm.mjs",
     "ensure:harness": "node scripts/harness.mjs ensure",
     "gen:protocol": "cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && prettier --write src/protocol",
+    "gen:protocol-docs": "yarn gen:protocol && node scripts/gen-protocol-doc-types.mjs",
     "vite:dev": "yarn gen:protocol && vite",
     "vite:build": "yarn gen:protocol && tsc -b && vite build",
     "tauri:before-build": "yarn build:harness && yarn vite:build",

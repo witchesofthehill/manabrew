@@ -63,7 +63,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["chooseColor"]: { showByDefault: true, resolve: forced.singleLegalColor },
   ["chooseType"]: { showByDefault: true, resolve: forced.singleLegalType },
   ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },
-  ["chooseCardName"]: { showByDefault: true, resolve: forced.singleLegalName },
   ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseCards"]: { showByDefault: true, resolve: forced.forcedCardChoice },
   ["reorderCards"]: { showByDefault: true, resolve: forced.singleCardOrder },

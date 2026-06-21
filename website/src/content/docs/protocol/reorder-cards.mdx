@@ -1,0 +1,57 @@
+---
+title: "reorderCards"
+description: Arrange cards onto the top or bottom of the library in a chosen order.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when a player puts a group of cards onto the top or bottom of their library
+in an order they choose — putting back the two cards from Brainstorm, or ordering
+cards a scry-style effect leaves on top.
+
+![The reorderCards prompt in the Manabrew client](/protocol/reorder-cards.svg)
+
+## Arguments
+
+`input.type` is `"reorderCards"`. The remaining fields:
+
+<ProtocolType slug="reorder-cards" />
+
+## Response
+
+```ts
+type ReorderCardsOutput = { type: "reorderDecision"; orderedCardIds: string[] };
+```
+
+Return the card `id`s in their final order — the first id ends up closest to the
+top (or bottom) per `topOfDeck`.
+
+## Example
+
+Putting two cards back on top of the library after Brainstorm:
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "reorderCards",
+    "presentation": { "title": "Put back on top", "targets": [] },
+    "cards": [
+      { "id": "hand-2", "name": "Ponder" },
+      { "id": "hand-5", "name": "Brainstorm" }
+    ],
+    "targetLabel": "Top of Library",
+    "topOfDeck": true
+  }
+}
+```
+
+The response lists the same card `id`s in the desired draw order:
+
+```json
+{
+  "promptId": 7,
+  "output": { "type": "reorderDecision", "orderedCardIds": ["hand-5", "hand-2"] }
+}
+```

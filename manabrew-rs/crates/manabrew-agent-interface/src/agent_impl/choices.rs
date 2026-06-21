@@ -679,19 +679,15 @@ pub(super) fn choose_card_name<T: Responder>(
     _player: PlayerId,
     valid_names: &[String],
 ) -> Option<String> {
-    agent.send_prompt(
-        PromptInput::ChooseCardName(
-            manabrew_protocol::prompts::choose_card_name::ChooseCardNameInput {
-                valid_names: valid_names.to_vec(),
-            },
-        ),
-        None,
-    );
-    match agent.recv_action() {
-        PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision { chosen_name }) => {
-            chosen_name
-        }
-        _ => valid_names.first().cloned(),
+    if valid_names.is_empty() {
+        return None;
+    }
+    send_selection(agent, "Name a card", None, valid_names.to_vec(), 1, 1, None);
+    match recv_selection(agent) {
+        Some(chosen_indices) => chosen_indices
+            .first()
+            .and_then(|index| valid_names.get(*index).cloned()),
+        None => valid_names.first().cloned(),
     }
 }
 

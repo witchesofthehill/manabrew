@@ -1,0 +1,66 @@
+---
+title: "chooseCombatDamageAssignment"
+description: Ask the attacking player how to split a creature's combat damage among its blockers.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when an attacker's combat damage must be divided among its blockers — and
+possibly the defending player or planeswalker if the attacker has trample. For
+example, a 4/4 trampler blocked by a 2/2 may assign 2 to the blocker and let the
+remaining 2 trample through.
+
+:::note[Answered on the board]
+The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
+:::
+
+## Arguments
+
+`input.type` is `"chooseCombatDamageAssignment"`. The remaining fields:
+
+<ProtocolType slug="choose-combat-damage-assignment" />
+
+## Response
+
+```ts
+type ChooseCombatDamageAssignmentOutput = {
+  type: "combatDamageAssignmentDecision";
+  assignments: CombatDamageAssignmentEntry[];
+};
+type CombatDamageAssignmentEntry = { assigneeId: string; damage: number };
+```
+
+Return one entry per assignee (each blocker, and `defenderId` if damage tramples
+through). The `damage` values must sum to `totalDamage`. With
+`attackerHasDeathtouch`, a single point of damage counts as lethal, so as little
+as 1 may be assigned to a blocker before moving on.
+
+## Example
+
+```json
+{
+  "promptId": 13,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseCombatDamageAssignment",
+    "attackerId": "bf-3",
+    "blockerIds": ["bf-7"],
+    "defenderId": "player-1",
+    "totalDamage": 4,
+    "attackerHasDeathtouch": false
+  }
+}
+```
+
+```json
+{
+  "promptId": 13,
+  "output": {
+    "type": "combatDamageAssignmentDecision",
+    "assignments": [
+      { "assigneeId": "bf-7", "damage": 2 },
+      { "assigneeId": "player-1", "damage": 2 }
+    ]
+  }
+}
+```

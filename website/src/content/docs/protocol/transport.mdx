@@ -1,0 +1,41 @@
+---
+title: Transport
+description: How protocol messages are carried, and how multiplayer relays pass them between clients.
+---
+
+The protocol is **transport-agnostic** — it defines the JSON messages, not how
+the bytes move. A conforming pair can exchange them over any of:
+
+- A **platform-native invocation channel** (e.g. Tauri `invoke()` with matching
+  `#[tauri::command]` handlers). The reference desktop client uses this for
+  solo play.
+- A **WebSocket** connection (`ws://` / `wss://`), one JSON document per text
+  frame. Used for the web client and multiplayer relay.
+- **Web Worker `postMessage`**, used by the reference web client when the engine
+  runs in a `wasm` worker.
+- An **in-process channel** (e.g. Rust `mpsc`) carrying serialized JSON. Used by
+  the test harness and embedded engine deployments.
+
+A single session MUST use one transport for its whole duration; cross-transport
+sessions are out of scope.
+
+## Multiplayer relay
+
+When more than one client takes part in a session, a relay server sits between
+the engine host and the remote clients (the reference relay is
+`manabrew-rs/crates/manabrew-server`). The game messages — prompts, responses,
+logs, snapshots — are carried as an opaque `state` value inside the relay's own
+envelope, discriminated by a `kind` field:
+
+| `kind`      | Direction                      | Payload                                                                      |
+| ----------- | ------------------------------ | ---------------------------------------------------------------------------- |
+| `prompt`    | engine host → remote client    | `{ "kind": "prompt", "forPlayer": "player-N", "prompt": <AgentPrompt> }`     |
+| `response`  | remote client → engine host    | `{ "kind": "response", "fromPlayer": "player-N", "action": <PlayerAction> }` |
+| `log`       | engine host → all              | `{ "kind": "log", "fromPlayer": "player-N", "entry": <GameLogEntry> }`       |
+| `snapshot`  | engine host → joining observer | `{ "kind": "snapshot", "fromPlayer": "player-N", "entry": <GameSnapshot> }`  |
+| `roomRelay` | any → any                      | room-control messages (e.g. bot lifecycle) — implementation defined          |
+
+The lobby/room-control layer that wraps this (authentication, room creation,
+ready state, …) is specific to the reference relay and beyond the scope of the
+wire protocol itself. Implementations MAY define additional `kind` values;
+consumers MUST ignore unknown `kind` values rather than treating them as errors.

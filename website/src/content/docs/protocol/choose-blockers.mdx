@@ -1,0 +1,69 @@
+---
+title: "chooseBlockers"
+description: Ask the defending player to declare which creatures block which attackers.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent during the declare-blockers step of combat. The engine tells the client
+which attackers may be blocked, which of the defender's creatures can block, and
+any constraints — for example, an attacker with menace that must be blocked by
+two or more creatures, or a creature that must be blocked if able.
+
+:::note[Answered on the board]
+The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
+:::
+
+## Arguments
+
+`input.type` is `"chooseBlockers"`. The remaining fields:
+
+<ProtocolType slug="choose-blockers" />
+
+## Response
+
+```ts
+type ChooseBlockersOutput = { type: "declareBlockers"; assignments: BlockAssignment[] };
+type BlockAssignment = { blockerId: string; attackerId: string };
+```
+
+Return one `BlockAssignment` for each blocking creature, naming the attacker it
+blocks. A single blocker may block one attacker; to gang-block, return multiple
+assignments that share the same `attackerId`. Creatures left back are omitted.
+
+## Example
+
+```json
+{
+  "promptId": 9,
+  "decidingPlayerId": "player-1",
+  "input": {
+    "type": "chooseBlockers",
+    "attackers": [
+      {
+        "attackerId": "bf-3",
+        "validBlockerIds": ["bf-7", "bf-8"],
+        "minBlockers": 1,
+        "mustBeBlocked": false
+      },
+      {
+        "attackerId": "bf-4",
+        "validBlockerIds": ["bf-7", "bf-8"],
+        "minBlockers": 2,
+        "mustBeBlocked": false
+      }
+    ],
+    "availableBlockerIds": ["bf-7", "bf-8"]
+  }
+}
+```
+
+```json
+{
+  "promptId": 9,
+  "output": {
+    "type": "declareBlockers",
+    "assignments": [{ "blockerId": "bf-7", "attackerId": "bf-3" }]
+  }
+}
+```

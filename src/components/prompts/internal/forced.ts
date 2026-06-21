@@ -81,16 +81,6 @@ export const singleLegalNumber: PromptResolver<"chooseNumber"> = (prompt) => {
   };
 };
 
-export const singleLegalName: PromptResolver<"chooseCardName"> = (prompt) => {
-  const names = prompt.input.validNames;
-  if (names.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "cardNameDecision", chosenName: names[0] },
-    reason: `only legal name: ${names[0]}`,
-  };
-};
-
 export const forcedCardChoice: PromptResolver<"chooseCards"> = (prompt) => {
   const ids = prompt.input.cards.map((c) => c.id);
   const { min, max } = prompt.input;

@@ -1,0 +1,52 @@
+---
+title: "revealCards"
+description: Show a player a set of revealed cards to acknowledge.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when cards are revealed to a player and no decision is required — resolving
+a Demonic Tutor reveal, or revealing your hand to Thoughtseize. The player simply
+acknowledges that they have seen the cards.
+
+![The revealCards prompt in the Manabrew client](/protocol/reveal-cards.svg)
+
+## Arguments
+
+`input.type` is `"revealCards"`. The remaining fields:
+
+<ProtocolType slug="reveal-cards" />
+
+## Response
+
+```ts
+type RevealCardsOutput = { type: "revealCardsAcknowledged" };
+```
+
+This prompt is read-only — acknowledge to continue.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "revealCards",
+    "cards": [
+      { "id": "lib-3", "name": "Demonic Tutor" },
+      { "id": "lib-7", "name": "Sol Ring" }
+    ],
+    "zone": "Library",
+    "ownerPlayerId": "player-1",
+    "message": "Revealed by Diabolic Revelation"
+  }
+}
+```
+
+Each card's `id` is what a response would reference, but this prompt has nothing
+to choose:
+
+```json
+{ "promptId": 7, "output": { "type": "revealCardsAcknowledged" } }
+```

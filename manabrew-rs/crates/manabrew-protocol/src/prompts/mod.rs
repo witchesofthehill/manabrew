@@ -8,7 +8,6 @@ pub mod choose_attackers;
 pub mod choose_blockers;
 pub mod choose_board_targets;
 pub mod choose_boolean;
-pub mod choose_card_name;
 pub mod choose_cards;
 pub mod choose_color;
 pub mod choose_combat_damage_assignment;
@@ -33,7 +32,6 @@ pub use choose_attackers::{ChooseAttackersInput, ChooseAttackersOutput};
 pub use choose_blockers::{ChooseBlockersInput, ChooseBlockersOutput};
 pub use choose_board_targets::{ChooseBoardTargetsInput, ChooseBoardTargetsOutput};
 pub use choose_boolean::{ChooseBooleanInput, ChooseBooleanOutput};
-pub use choose_card_name::{ChooseCardNameInput, ChooseCardNameOutput};
 pub use choose_cards::{ChooseCardsInput, ChooseCardsOutput};
 pub use choose_color::{ChooseColorInput, ChooseColorOutput};
 pub use choose_combat_damage_assignment::{
@@ -73,7 +71,6 @@ pub enum PromptInput {
     ChooseColor(choose_color::ChooseColorInput),
     ChooseType(choose_type::ChooseTypeInput),
     ChooseNumber(choose_number::ChooseNumberInput),
-    ChooseCardName(choose_card_name::ChooseCardNameInput),
     ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderInput),
     ChooseCombatDamageAssignment(
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentInput,
@@ -101,7 +98,6 @@ pub enum PromptOutput {
     ChooseColor(choose_color::ChooseColorOutput),
     ChooseType(choose_type::ChooseTypeOutput),
     ChooseNumber(choose_number::ChooseNumberOutput),
-    ChooseCardName(choose_card_name::ChooseCardNameOutput),
     ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderOutput),
     ChooseCombatDamageAssignment(
         choose_combat_damage_assignment::ChooseCombatDamageAssignmentOutput,

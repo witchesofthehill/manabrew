@@ -41,11 +41,11 @@ back to Forge or a documented convention — see
 
 ## Building your own client or engine
 
-The wire protocol between frontends and engine backends is specified in
-[PROTOCOL.md](https://github.com/witchesofthehill/manabrew/blob/main/docs/PROTOCOL.md)
-— message shapes, game-state snapshots, prompts, and actions. Unlike the
-GPL-licensed implementation, the spec itself is CC-BY-4.0, so independent
-clients and engines can implement it without license entanglement.
+The wire protocol between frontends and engine backends is specified in the
+[Protocol documentation](/protocol/) — message families, the prompt catalogue
+(with TypeScript and Rust shapes), shared types, transport, and conformance.
+Unlike the AGPL-licensed implementation, the spec itself is CC-BY-4.0, so
+independent clients and engines can implement it without license entanglement.
 
 ## Where to start
 

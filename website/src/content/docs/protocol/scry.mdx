@@ -1,0 +1,88 @@
+---
+title: "scry"
+description: Sort revealed cards into one of several destination zones.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent for effects that sort cards into zones — Scry, Surveil, and Fateseal all use
+this prompt. The player assigns each presented card to one of the allowed
+destinations.
+
+## Arguments
+
+`input.type` is `"scry"`. The remaining fields:
+
+<ProtocolType slug="scry" />
+
+```ts
+type ScryDestination = "libraryTop" | "libraryBottom" | "graveyard" | "exile" | "hand";
+```
+
+## Rendering
+
+The client renders **one destination bin per entry in `zones`** — so the same
+prompt covers Scry, Surveil, and wider sorts. You decide which destinations to
+offer (and in what order) by setting `zones`; the examples below are just three
+configurations.
+
+<figure class="prompt-figure">
+  <img src="/protocol/scry.webp" alt="Top of library and bottom of library bins" />
+  <div class="prompt-figure__caption">
+    Classic Scry — `["libraryTop", "libraryBottom"]` gives top- and bottom-of-library bins.
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img src="/protocol/scry-grave.webp" alt="Top of library and graveyard bins" />
+  <div class="prompt-figure__caption">
+    `["libraryTop", "graveyard"]` swaps the bottom bin for the graveyard (Surveil-style).
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img src="/protocol/scry-multiple.webp" alt="Top of library, graveyard, and exile bins" />
+  <div class="prompt-figure__caption">
+    Add more zones — `["libraryTop", "graveyard", "exile"]` renders three bins.
+  </div>
+</figure>
+
+## Response
+
+```ts
+type ScryOutput = { type: "scryDecision"; zoneCardIds: string[][] };
+```
+
+`zoneCardIds` is parallel to `zones`: return one array of card `id`s per entry in
+`zones`, in the same order, each listing the cards placed in that zone in their
+final order. Every card in `cards` must appear in exactly one of the arrays.
+
+## Example
+
+A two-card Scry, keeping one on top and binning the other:
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "scry",
+    "presentation": { "title": "Scry 2", "targets": [] },
+    "cards": [
+      { "id": "lib-0", "name": "Island" },
+      { "id": "lib-1", "name": "Counterspell" }
+    ],
+    "zones": ["libraryTop", "libraryBottom"]
+  }
+}
+```
+
+`zoneCardIds[0]` corresponds to `"libraryTop"` and `zoneCardIds[1]` to
+`"libraryBottom"`; each entry references a card `id` from `cards`:
+
+```json
+{
+  "promptId": 7,
+  "output": { "type": "scryDecision", "zoneCardIds": [["lib-1"], ["lib-0"]] }
+}
+```

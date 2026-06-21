@@ -1,0 +1,52 @@
+---
+title: "mulliganPutBack"
+description: Ask the deciding player to put a number of cards on the bottom of their library.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent during the London-mulligan put-back step: after a player keeps, anyone who
+mulliganed `n` times must put `n` cards from their hand on the bottom of their
+library. The reference client renders this in the bottom action slot as a
+**confirm** control while the player picks cards in their hand.
+
+![The mulliganPutBack prompt in the Manabrew client](/protocol/mulligan-put-back.svg)
+
+## Arguments
+
+`input.type` is `"mulliganPutBack"`. The remaining fields:
+
+<ProtocolType slug="mulligan-put-back" />
+
+## Response
+
+```ts
+type MulliganPutBackOutput = { type: "mulliganPutBackDecision"; cardIds: string[] };
+```
+
+Return exactly `count` card ids — the cards to put on the bottom of the library.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "mulliganPutBack",
+    "handCardIds": ["hand-0", "hand-1", "hand-2", "hand-3", "hand-4", "hand-5", "hand-6"],
+    "cards": [
+      { "id": "hand-0", "name": "Island" },
+      { "id": "hand-1", "name": "Counterspell" }
+    ],
+    "count": 1
+  }
+}
+```
+
+```json
+{
+  "promptId": 7,
+  "output": { "type": "mulliganPutBackDecision", "cardIds": ["hand-0"] }
+}
+```

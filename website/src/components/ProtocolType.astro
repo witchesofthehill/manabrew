@@ -1,0 +1,45 @@
+---
+import { Tabs, TabItem, Code } from "@astrojs/starlight/components";
+import data from "../generated/protocol-types.json";
+
+interface Props {
+  slug?: string;
+  type?: string;
+}
+
+type Entry = { ts: string; rust: string | null; refs: string[] };
+const prompts = data.prompts as Record<string, string>;
+const types = data.types as Record<string, Entry>;
+const shared = new Set(data.shared as string[]);
+
+const { slug, type } = Astro.props;
+const name = type ?? (slug ? prompts[slug] : undefined);
+const entry = name ? types[name] : undefined;
+if (!entry) {
+  throw new Error(
+    `<ProtocolType>: no type for ${JSON.stringify({ slug, type })} — run yarn gen:protocol-docs`,
+  );
+}
+
+const refs = entry.refs.filter((r) => shared.has(r) && r !== name);
+---
+
+<Tabs syncKey="protocol-lang">
+  <TabItem label="TypeScript"><Code code={entry.ts} lang="ts" /></TabItem>
+  {entry.rust && <TabItem label="Rust"><Code code={entry.rust} lang="rust" /></TabItem>}
+</Tabs>
+{
+  refs.length > 0 && (
+    <p class="protocol-refs">
+      References:{" "}
+      {refs.map((r, i) => (
+        <Fragment>
+          {i > 0 ? ", " : ""}
+          <a href={`/protocol/shared-types/#${r.toLowerCase()}`}>
+            <code>{r}</code>
+          </a>
+        </Fragment>
+      ))}
+    </p>
+  )
+}

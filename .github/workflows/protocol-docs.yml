@@ -1,0 +1,46 @@
+name: Protocol docs
+
+# Fails if the committed protocol-types.json (consumed by the docs site, which
+# has no cargo to regenerate it) has drifted from the protocol source.
+on:
+  pull_request:
+    paths:
+      - "manabrew-rs/crates/manabrew-protocol/**"
+      - "scripts/gen-protocol-doc-types.mjs"
+      - "website/src/generated/protocol-types.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staleness:
+    name: Generated protocol types are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - run: npm install --global yarn
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Regenerate
+        run: yarn gen:protocol-docs
+
+      - name: Fail if stale or uncommitted
+        run: |
+          git add website/src/generated/protocol-types.json
+          git diff --cached --exit-code website/src/generated/protocol-types.json \
+            || { echo "::error::website/src/generated/protocol-types.json is stale or uncommitted — run 'yarn gen:protocol-docs' and commit the result."; exit 1; }

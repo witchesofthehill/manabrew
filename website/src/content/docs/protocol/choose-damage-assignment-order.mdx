@@ -1,0 +1,61 @@
+---
+title: "chooseDamageAssignmentOrder"
+description: Ask the attacking player to order multiple blockers for damage assignment.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when an attacker is blocked by two or more creatures and the attacking
+player must choose the order in which those blockers receive combat damage — for
+example, ordering two blockers so that a 3/3 attacker can put lethal on the
+smaller one first.
+
+:::note[Answered on the board]
+The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
+:::
+
+## Arguments
+
+`input.type` is `"chooseDamageAssignmentOrder"`. The remaining fields:
+
+<ProtocolType slug="choose-damage-assignment-order" />
+
+## Response
+
+```ts
+type ChooseDamageAssignmentOrderOutput = {
+  type: "damageAssignmentOrderDecision";
+  orderedBlockerIds: string[];
+};
+```
+
+Return all of `blockerIds`, reordered front-to-back: damage will be assigned to
+the blockers in this order.
+
+## Example
+
+```json
+{
+  "promptId": 11,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseDamageAssignmentOrder",
+    "attackerId": "bf-3",
+    "blockerIds": ["bf-7", "bf-8"],
+    "blockerCards": [
+      { "id": "bf-7", "name": "Grizzly Bears" },
+      { "id": "bf-8", "name": "Wall of Omens" }
+    ]
+  }
+}
+```
+
+```json
+{
+  "promptId": 11,
+  "output": {
+    "type": "damageAssignmentOrderDecision",
+    "orderedBlockerIds": ["bf-8", "bf-7"]
+  }
+}
+```

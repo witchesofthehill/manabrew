@@ -43,8 +43,10 @@ are never conflated:
     re-renders the board from it.
   </Card>
   <Card title="display" icon="sparkles">
-    A `DisplayEvent` — a transient animation/feedback hint (a card flashed, dice rolled). Carries no
-    authoritative state.
+    [**⚠️ Work in Progress**]
+    A `DisplayEvent` — a transient, potentially very frequent UI display information. Carries no
+    authoritative state. This could be used to sync up the fields, as well as the cursors positions of the players
+    for multiplayer "livelyness".
   </Card>
   <Card title="prompt" icon="comment">
     An `AgentPrompt` — a **call to action**. The engine has paused and needs a decision from a
@@ -52,9 +54,8 @@ are never conflated:
   </Card>
 </CardGrid>
 
-A prompt deliberately carries no `gameView`: the client already has the latest
-state from the most recent `state` message. The prompt only describes the
-decision to make.
+Prompts deliberately carry no `gameView`: the client already has the latest
+state from the most recent `StateUpdate` message.
 
 ## The prompt envelope
 
@@ -87,20 +88,13 @@ lists the exact response shape the engine expects.
 { "promptId": 7, "output": { "type": "numberDecision", "chosenNumber": 3 } }
 ```
 
-## Reading the type blocks
 
-Each prompt shows its shape as **TypeScript** and **Rust** tabs. There's only one
-protocol — the wire — described from two sides:
+:::note[Careful about the type blocks]
+For language convenience, we show the type blocks in multiple languages.
+Be mindful that the correct protocol on the wire is **camelCase**.
+Follow the **TypeScript** type definitions for the exact protocol.
+:::
 
-- **TypeScript is the wire format**: the exact JSON on the channel — camelCase
-  fields, `"type"`-tagged unions, `string | null`. This is what your
-  implementation must produce and consume, in any language.
-- **Rust is Manabrew's engine type** — `snake_case` with Rust idioms. The
-  `#[serde(...)]` attributes shown on it are precisely what serialize it into the
-  wire shape above: `card_id` with `#[serde(rename_all = "camelCase")]` becomes
-  `cardId`; an enum with `#[serde(tag = "kind", …)]` becomes a `"kind"`-tagged
-  union. Read it as "the engine type **and** its mapping to the wire," not a
-  second protocol.
 
 ## The prompt catalogue
 

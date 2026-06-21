@@ -111,14 +111,28 @@ impl BotAgent for SimpleAi {
                 available_blocker_ids,
                 ..
             }) => {
-                let assignments = if !attackers.is_empty() && !available_blocker_ids.is_empty() {
-                    vec![BlockAssignment {
-                        blocker_id: available_blocker_ids[0].clone(),
-                        attacker_id: attackers[0].attacker_id.clone(),
-                    }]
-                } else {
-                    Vec::new()
-                };
+                let mut remaining = available_blocker_ids.clone();
+                let mut assignments = Vec::new();
+                for attacker in &attackers {
+                    let need = attacker.min_blockers.max(1) as usize;
+                    let usable: Vec<String> = remaining
+                        .iter()
+                        .filter(|b| attacker.valid_blocker_ids.contains(b))
+                        .take(need)
+                        .cloned()
+                        .collect();
+                    if usable.len() < need {
+                        continue;
+                    }
+                    for blocker_id in usable {
+                        remaining.retain(|b| b != &blocker_id);
+                        assignments.push(BlockAssignment {
+                            blocker_id,
+                            attacker_id: attacker.attacker_id.clone(),
+                        });
+                    }
+                    break;
+                }
                 Some(PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers { assignments }))
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {

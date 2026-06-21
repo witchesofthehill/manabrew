@@ -168,9 +168,6 @@ const sortKeys = (o) =>
   Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
 
 mkdirSync(dirname(OUT), { recursive: true });
-writeFileSync(
-  OUT,
-  JSON.stringify({ prompts: sortKeys(prompts), shared: SHARED, types: sortKeys(types) }, null, 2) +
-    "\n",
-);
+const json = JSON.stringify({ prompts: sortKeys(prompts), shared: SHARED, types: sortKeys(types) });
+writeFileSync(OUT, await prettier.format(json, { parser: "json", filepath: OUT }));
 console.log(`wrote ${Object.keys(types).length} types (${Object.keys(prompts).length} prompts) -> ${OUT}`);

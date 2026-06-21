@@ -50,7 +50,6 @@ export const MODAL_LIST_BUTTON = [
   "border-border bg-background",
 ].join(" ") as string;
 
-/** Pill-style button for grids (e.g., ChooseTypeModal, ChooseNumberModal) */
 export const MODAL_PILL_BUTTON = [
   "px-3 py-1.5 rounded-md border text-sm font-medium transition-all",
   "hover:border-primary/50 hover:bg-muted/50",

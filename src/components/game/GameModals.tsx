@@ -1,4 +1,4 @@
-// import { PromptModalHost } from "@/components/prompts/promptComponents";
+import { PromptModalHost } from "@/components/prompts/promptComponents";
 // Dev-only prompt previews — uncomment one to summon that prompt in a live game
 // and screenshot it. Each has an `EDIT ME` fixture block at the top.
 // import { ChooseNumberModalPreview } from "@/components/prompts/dev/ChooseNumberModalPreview";
@@ -8,7 +8,6 @@
 // import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
 // import { ChooseBooleanModalPreview } from "@/components/prompts/dev/ChooseBooleanModalPreview";
 // import { ChooseColorModalPreview } from "@/components/prompts/dev/ChooseColorModalPreview";
-// import { ChooseTypeModalPreview } from "@/components/prompts/dev/ChooseTypeModalPreview";
 // import { RevealCardsModalPreview } from "@/components/prompts/dev/RevealCardsModalPreview";
 // import { DiceRolledPreview } from "@/components/prompts/dev/DiceRolledPreview";
 // import { VAssignCombatDamagePreview } from "@/components/prompts/dev/VAssignCombatDamagePreview";
@@ -40,6 +39,8 @@ interface GameModalsProps {
 }
 
 export function GameModals({
+  currentPrompt,
+  sourceDeckCard,
   viewingZone,
   onCloseZone,
   spellStackModalOpen,
@@ -54,7 +55,7 @@ export function GameModals({
 }: GameModalsProps) {
   return (
     <>
-      {/*<PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />*/}
+      <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />
       {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseCardsModalPreview />}*/}
       {/*{import.meta.env.DEV && <ReorderCardsModalPreview />}*/}
@@ -62,7 +63,6 @@ export function GameModals({
       {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseColorModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ChooseTypeModalPreview />}*/}
       {/*{import.meta.env.DEV && <RevealCardsModalPreview />}*/}
       {/*{import.meta.env.DEV && <DiceRolledPreview />}*/}
       {/*{import.meta.env.DEV && <VAssignCombatDamagePreview />}*/}

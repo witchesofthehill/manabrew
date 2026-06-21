@@ -19,11 +19,7 @@ const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const root = join(scriptsDir, "..");
 const forgeRoot = join(root, "forge");
 const harnessRoot = join(root, "forge-harness");
-const jarPath = join(
-  harnessRoot,
-  "target",
-  "forge-harness-jar-with-dependencies.jar",
-);
+const jarPath = join(harnessRoot, "target", "forge-harness-jar-with-dependencies.jar");
 const checksumPath = join(harnessRoot, "target", ".harness-sources-checksum");
 const runtimeDir = join(root, "src-tauri", "resources", "forge-runtime");
 const runtimeForgeGuiDir = join(runtimeDir, "forge-gui");
@@ -77,8 +73,16 @@ function computeChecksum() {
     .flatMap((dir) => walkFiles(dir, (filePath) => filePath.endsWith(".java")))
     .sort();
 
+  const protocolFiles = walkFiles(
+    join(root, "manabrew-rs", "crates", "manabrew-protocol", "src"),
+    (filePath) => filePath.endsWith(".rs"),
+  ).sort();
+
   const hashedEntries = [
     ...javaFiles.map(
+      (filePath) => `${relative(root, filePath)}:${sha256Buffer(readFileSync(filePath))}`,
+    ),
+    ...protocolFiles.map(
       (filePath) => `${relative(root, filePath)}:${sha256Buffer(readFileSync(filePath))}`,
     ),
     ...pomFiles
@@ -179,7 +183,31 @@ function assertPrereqs() {
   process.exit(1);
 }
 
+function generateProtocolSources() {
+  console.log("harness: generating typed prompt classes from the protocol...");
+  const steps = [
+    [
+      "cargo",
+      ["run", "-q", "-p", "manabrew-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
+    ],
+    [
+      process.execPath,
+      ["scripts/gen-harness-prompts.mjs", "forge-harness/src/main/java"],
+    ],
+  ];
+  for (const [cmd, args] of steps) {
+    const result = spawnSync(cmd, args, { cwd: root, stdio: "inherit" });
+    if (result.status !== 0) {
+      console.error(
+        `harness: protocol codegen FAILED (${cmd} exited ${result.status ?? result.error})`,
+      );
+      process.exit(result.status ?? 1);
+    }
+  }
+}
+
 function rebuild() {
+  generateProtocolSources();
   assertPrereqs();
   const maven = resolveMaven();
 

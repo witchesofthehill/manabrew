@@ -9,6 +9,7 @@ import forge.harness.common.SnapshotExtractor;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import forge.harness.protocol.*;
 import forge.game.Game;
 import forge.game.GameEntity;
 import forge.game.Match;
@@ -466,30 +467,18 @@ public final class ManaBrewInteractiveSession {
             final Player winner,
             final int sides
     ) {
-        final com.google.gson.JsonArray rollEntries = new com.google.gson.JsonArray();
+        final List<DiceRollEntry> rollEntries = new java.util.ArrayList<>();
         for (final Player p : players) {
             if (!rolls.containsKey(p)) {
                 continue;
             }
-            final JsonObject entry = new JsonObject();
-            entry.addProperty("label", p.getName());
-            entry.addProperty("playerId", "player-" + SnapshotExtractor.playerIndex(game, p));
-            final com.google.gson.JsonArray results = new com.google.gson.JsonArray();
-            results.add(rolls.get(p));
-            final com.google.gson.JsonArray natural = new com.google.gson.JsonArray();
-            natural.add(rolls.get(p));
-            entry.add("naturalResults", natural);
-            entry.add("finalResults", results);
-            entry.add("ignoredRolls", new com.google.gson.JsonArray());
-            entry.addProperty("highlighted", p == winner);
-            rollEntries.add(entry);
+            final int roll = rolls.get(p);
+            rollEntries.add(new DiceRollEntry(
+                    p.getName(), "player-" + SnapshotExtractor.playerIndex(game, p),
+                    java.util.List.of(roll), java.util.List.of(roll), java.util.List.of(), p == winner));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "diceRolled");
-        input.addProperty("sides", sides);
-        input.add("rolls", rollEntries);
-        input.addProperty("title", "Roll for first player");
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null,
+                new DiceRolledInput(sides, rollEntries, "Roll for first player", null));
     }
 
     private void publishManaPaymentPrompt(
@@ -506,14 +495,7 @@ public final class ManaBrewInteractiveSession {
             final boolean canPayLife,
             final int lifeToPay
     ) {
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "payManaCost");
-        input.addProperty("cardId", payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "");
-        input.addProperty("cardName", payingFor != null
-                ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "");
-        input.addProperty("manaCost", remainingCost != null ? remainingCost : "");
-
-        final com.google.gson.JsonArray options = new com.google.gson.JsonArray();
+        final List<ActivatableAbilityInfo> options = new java.util.ArrayList<>();
         final java.util.LinkedHashSet<String> tappableIds = new java.util.LinkedHashSet<>();
         for (final SpellAbility sa : tappableSources) {
             final Card host = sa.getHostCard();
@@ -528,50 +510,28 @@ public final class ManaBrewInteractiveSession {
             final String produced = resolveProducedMana(sa);
             final Integer amount = sa.getManaPart() == null ? null : sa.amountOfManaGenerated(false);
             for (final ManaChoice choice : splitManaChoices(produced, amount)) {
-                final JsonObject option = new JsonObject();
-                option.addProperty("cardId", cardId);
-                option.addProperty("abilityIndex", abilityIndex);
-                option.addProperty("description", description);
-                option.addProperty("isManaAbility", true);
-                if (cost != null) {
-                    option.addProperty("cost", cost);
-                }
-                if (choice.producedMana != null) {
-                    option.addProperty("producedMana", choice.producedMana);
-                }
-                if (choice.color != null) {
-                    option.addProperty("color", choice.color);
-                }
-                options.add(option);
+                options.add(new ActivatableAbilityInfo(
+                        cardId, abilityIndex, description, true, cost, choice.producedMana, choice.color));
             }
         }
-        input.add("manaAbilityOptions", options);
 
         for (final Card card : convokeSources) {
             tappableIds.add(SnapshotExtractor.javaCardId(card));
         }
-
-        final com.google.gson.JsonArray tappable = new com.google.gson.JsonArray();
-        for (final String id : tappableIds) {
-            tappable.add(id);
-        }
-        input.add("tappableSourceIds", tappable);
-
-        final com.google.gson.JsonArray untappable = new com.google.gson.JsonArray();
+        final List<String> tappable = new java.util.ArrayList<>(tappableIds);
+        final List<String> untappable = new java.util.ArrayList<>();
         for (final Card card : untappableCards) {
             untappable.add(SnapshotExtractor.javaCardId(card));
         }
-        input.add("untappableSourceIds", untappable);
-
-        final com.google.gson.JsonArray delve = new com.google.gson.JsonArray();
+        final List<String> delve = new java.util.ArrayList<>();
         for (final Card card : delveSources) {
             delve.add(SnapshotExtractor.javaCardId(card));
         }
-        input.add("delveSourceIds", delve);
-
-        input.addProperty("manaPoolTotal", poolTotal);
-        input.addProperty("canConfirmFromPool", canConfirm);
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null, new PayManaCostInput(
+                payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "",
+                payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "",
+                remainingCost != null ? remainingCost : "",
+                options, tappable, untappable, delve, poolTotal, canConfirm, null));
     }
 
     List<String> awaitManaCombo(
@@ -580,16 +540,8 @@ public final class ManaBrewInteractiveSession {
             final int amount,
             final String sourceName
     ) {
-        final com.google.gson.JsonArray colors = new com.google.gson.JsonArray();
-        for (final String color : availableColors) {
-            colors.add(color);
-        }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseColor");
-        input.add("validColors", colors);
-        input.addProperty("amount", amount);
-        input.addProperty("repeatAllowed", true);
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null,
+                new ChooseColorInput(new java.util.ArrayList<>(availableColors), amount, true));
 
         while (!closed && !game.isGameOver()) {
             final JsonObject action = takeActionOrNull();
@@ -1140,6 +1092,17 @@ public final class ManaBrewInteractiveSession {
             if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
                 return options.isEmpty() ? "" : options.get(0);
             }
+            if ("mode_decision".equals(actionKind)) {
+                final com.google.gson.JsonArray indices =
+                        action.has("indices") ? action.getAsJsonArray("indices") : null;
+                if (indices == null || indices.size() == 0) {
+                    return options.isEmpty() ? "" : options.get(0);
+                }
+                final int index = indices.get(0).getAsInt();
+                return index >= 0 && index < options.size()
+                        ? options.get(index)
+                        : (options.isEmpty() ? "" : options.get(0));
+            }
             if (!"string_decision".equals(actionKind)) {
                 throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
             }
@@ -1462,26 +1425,16 @@ public final class ManaBrewInteractiveSession {
             final int chosen
     ) {
         final Card source = sa == null ? null : sa.getHostCard();
-        final com.google.gson.JsonArray candidateRefs = new com.google.gson.JsonArray();
+        final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
         for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
-            final JsonObject ref = new JsonObject();
-            ref.addProperty("kind", "card");
-            ref.addProperty("id", targetId(candidate));
-            candidateRefs.add(ref);
+            candidateRefs.add(new TargetRef_card(targetId(candidate)));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseBoardTargets");
-        input.add("candidates", candidateRefs);
-        input.addProperty("hostile", true);
-        input.addProperty("intent", "sacrifice");
-        input.addProperty("minTargets", min);
-        input.addProperty("maxTargets", max);
-        input.addProperty("chosenTargets", chosen);
-        input.addProperty("label", "Sacrifice");
         publishAgentPrompt(
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
-                input);
+                new ChooseBoardTargetsInput(
+                        candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
+                        min, max, chosen, "Sacrifice"));
     }
 
     Map<GameEntity, Integer> awaitDividedAllocation(
@@ -1495,91 +1448,25 @@ public final class ManaBrewInteractiveSession {
             throw new IllegalArgumentException(
                     "unsatisfiable divided allocation: " + amount + " among " + targets.size() + " targets");
         }
-        publishDividedAllocationPrompt(playerId, ability, targets, amount);
-        while (!closed && !game.isGameOver()) {
-            final JsonObject action = takeActionOrNull();
-            if (action == null) {
-                return defaultDivision(targets, amount);
-            }
-            final String actionKind = action.has("kind") ? action.get("kind").getAsString() : "";
-            if ("pass".equals(actionKind) || "pass_priority".equals(actionKind)) {
-                return defaultDivision(targets, amount);
-            }
-            if (!"divide_amount".equals(actionKind)) {
-                throw new UnsupportedOperationException("unsupported action kind: " + actionKind);
-            }
-            final JsonObject map = action.has("allocation") && action.get("allocation").isJsonObject()
-                    ? action.getAsJsonObject("allocation")
-                    : null;
-            final Map<GameEntity, Integer> result = new LinkedHashMap<>();
-            int total = 0;
-            for (final GameEntity target : targets) {
-                final String key = dividedTargetId(target);
-                final int value = map != null && map.has(key) ? map.get(key).getAsInt() : 0;
-                if (value < 1) {
-                    throw new IllegalArgumentException(
-                            "divided allocation must assign at least 1 to each target, got " + value + " for " + key);
-                }
-                result.put(target, value);
-                total += value;
-            }
-            if (total != amount) {
-                throw new IllegalArgumentException("divided allocation must total " + amount + ", got " + total);
-            }
-            return result;
-        }
-        return defaultDivision(targets, amount);
-    }
-
-    private Map<GameEntity, Integer> defaultDivision(final List<GameEntity> targets, final int amount) {
+        // Dividing an amount among targets is a sequence of plain number choices
+        // (chooseNumber), one per target, each leaving at least 1 for the rest.
+        final Card source = ability == null ? null : ability.getHostCard();
+        final String sourceCardId = source == null ? null : SnapshotExtractor.javaCardId(source);
         final Map<GameEntity, Integer> result = new LinkedHashMap<>();
         int remaining = amount;
-        for (final GameEntity target : targets) {
-            final int give = remaining > 0 ? 1 : 0;
+        for (int i = 0; i < targets.size(); i++) {
+            final GameEntity target = targets.get(i);
+            final int targetsLeft = targets.size() - i - 1;
+            if (targetsLeft == 0) {
+                result.put(target, remaining);
+                break;
+            }
+            final int give = awaitNumberChoice(
+                    playerId, 1, remaining - targetsLeft, sourceCardId, "Assign to " + target.getName());
             result.put(target, give);
             remaining -= give;
         }
-        if (!targets.isEmpty()) {
-            result.merge(targets.get(0), remaining, Integer::sum);
-        }
         return result;
-    }
-
-    private void publishDividedAllocationPrompt(
-            final int playerId,
-            final SpellAbility ability,
-            final List<GameEntity> targets,
-            final int amount
-    ) {
-        final Card source = ability == null ? null : ability.getHostCard();
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "divideAmount");
-        input.addProperty("amount", amount);
-        if (source != null) {
-            input.addProperty("sourceCardName", source.getName());
-        }
-        final com.google.gson.JsonArray options = new com.google.gson.JsonArray();
-        for (final GameEntity target : targets) {
-            final JsonObject option = new JsonObject();
-            option.addProperty("id", dividedTargetId(target));
-            option.addProperty("label", target.getName());
-            options.add(option);
-        }
-        input.add("targets", options);
-        publishAgentPrompt(
-                "player-" + playerId,
-                source == null ? null : SnapshotExtractor.javaCardId(source),
-                input);
-    }
-
-    private String dividedTargetId(final GameEntity target) {
-        if (target instanceof Player) {
-            return "player-" + SnapshotExtractor.playerIndex(game, (Player) target);
-        }
-        if (target instanceof Card) {
-            return SnapshotExtractor.javaCardId((Card) target);
-        }
-        return target.getName();
     }
 
     private CardCollection awaitCardsFromPublishedPrompt(
@@ -1666,7 +1553,7 @@ public final class ManaBrewInteractiveSession {
             final List<Card> untappableCards
     ) {
         final List<String> labels = ActionSpace.buildMainActionLabels(actionsForPrompt);
-        final com.google.gson.JsonArray actionsArray = new com.google.gson.JsonArray();
+        final List<AvailableAction> actionsArray = new java.util.ArrayList<>();
         for (int i = 0; i < actionsForPrompt.size(); i++) {
             final SpellAbility sa = actionsForPrompt.get(i);
             final Card host = sa.getHostCard();
@@ -1680,60 +1567,29 @@ public final class ManaBrewInteractiveSession {
             final String cardId = SnapshotExtractor.javaCardId(host);
             final String id = "prompt-action-" + i;
             if (sa.isLandAbility() || sa.isSpell()) {
-                final JsonObject action = new JsonObject();
-                action.addProperty("id", id);
-                action.addProperty("type", "cast");
-                action.addProperty("cardId", cardId);
-                action.addProperty("mode", id);
-                action.addProperty("modeLabel", label);
-                actionsArray.add(action);
+                actionsArray.add(new AvailableAction_cast(id, cardId, id, label));
             } else if (sa.isManaAbility()) {
                 final String produced = resolveProducedMana(sa);
                 final String cost = simpleCostText(sa);
                 for (final ManaChoice choice : splitManaChoices(produced, sa.amountOfManaGenerated(false))) {
-                    final JsonObject action = new JsonObject();
-                    action.addProperty("id", choice.color != null
+                    final String actionId = choice.color != null
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
-                            : "tap:" + cardId + ":" + i);
-                    action.addProperty("type", "activateAbility");
-                    action.addProperty("cardId", cardId);
-                    action.addProperty("abilityIndex", i);
-                    action.addProperty("description", label);
-                    action.addProperty("isManaAbility", true);
-                    if (choice.producedMana != null) {
-                        action.addProperty("producedMana", choice.producedMana);
-                    }
-                    if (cost != null) {
-                        action.addProperty("cost", cost);
-                    }
-                    actionsArray.add(action);
+                            : "tap:" + cardId + ":" + i;
+                    actionsArray.add(new AvailableAction_activateAbility(
+                            actionId, cardId, i, label, true, choice.producedMana, cost));
                 }
             } else {
-                final JsonObject action = new JsonObject();
-                action.addProperty("id", id);
-                action.addProperty("type", "activateAbility");
-                action.addProperty("cardId", cardId);
-                action.addProperty("abilityIndex", i);
-                action.addProperty("description", label);
-                action.addProperty("isManaAbility", false);
-                actionsArray.add(action);
+                actionsArray.add(new AvailableAction_activateAbility(id, cardId, i, label, false, null, null));
             }
         }
         for (final Card card : untappableCards) {
             final String cardId = SnapshotExtractor.javaCardId(card);
-            final JsonObject action = new JsonObject();
-            action.addProperty("id", "untap:" + cardId);
-            action.addProperty("type", "undoMana");
-            action.addProperty("cardId", cardId);
-            actionsArray.add(action);
+            actionsArray.add(new AvailableAction_undoMana("untap:" + cardId, cardId));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseAction");
-        input.add("actions", actionsArray);
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null, new ChooseActionInput(actionsArray));
     }
 
-    private JsonObject chooseCardsInput(
+    private ChooseCardsInput chooseCardsInput(
             final String title,
             final String description,
             final String sourceCardId,
@@ -1742,13 +1598,8 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max
     ) {
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseCards");
-        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, description, sourceCardId));
-        input.add("cards", richCardArray(cards, castable));
-        input.addProperty("min", min);
-        input.addProperty("max", max);
-        return input;
+        return new ChooseCardsInput(
+                presentation(title, description, sourceCardId), richCards(cards, castable), min, max);
     }
 
     private void publishCardChoicePrompt(
@@ -1758,7 +1609,7 @@ public final class ManaBrewInteractiveSession {
             final int min,
             final int max
     ) {
-        final JsonObject input;
+        final ChooseCardsInput input;
         if ("choose_discard".equals(kind)) {
             final int maxOut = max > 0 ? max : Math.max(min, 1);
             input = chooseCardsInput("Discard", null, null, cards, true, Math.min(min, maxOut), maxOut);
@@ -1780,7 +1631,7 @@ public final class ManaBrewInteractiveSession {
             final boolean optionalDecline,
             final String error
     ) {
-        final JsonObject input;
+        final ChooseCardsInput input;
         if ("choose_discard".equals(kind)) {
             final int maxOut = max > 0 ? max : Math.max(min, 1);
             input = chooseCardsInput("Discard", description, sourceCardId, cards, true, Math.min(min, maxOut), maxOut);
@@ -1801,39 +1652,29 @@ public final class ManaBrewInteractiveSession {
             final String sourceName,
             final String description
     ) {
-        final com.google.gson.JsonArray optionValues = new com.google.gson.JsonArray();
-        for (final String option : options) {
-            optionValues.add(option);
+        if ("choose_color".equals(kind)) {
+            publishAgentPrompt("player-" + playerId, null,
+                    new ChooseColorInput(new java.util.ArrayList<>(options), 1, false));
+            return;
         }
-        final JsonObject input = new JsonObject();
+        final String title;
         switch (kind) {
             case "choose_mode":
-                input.addProperty("type", "chooseFromSelection");
-                input.add("presentation",
-                        ManabrewProtocolAdapter.cardChoicePresentation(sourceName != null ? sourceName : "Choose", null, null));
-                input.add("options", optionValues);
-                input.addProperty("minChoices", min);
-                input.addProperty("maxChoices", max);
-                break;
-            case "choose_color":
-                input.addProperty("type", "chooseColor");
-                input.add("validColors", optionValues);
-                input.addProperty("amount", 1);
-                input.addProperty("repeatAllowed", false);
+                title = sourceName != null ? sourceName : "Choose";
                 break;
             case "choose_type":
-                input.addProperty("type", "chooseType");
-                input.addProperty("typeCategory", description != null ? description : "Card");
-                input.add("validTypes", optionValues);
+                title = "Choose a " + (description != null ? description : "type");
                 break;
             case "choose_card_name":
-                input.addProperty("type", "chooseCardName");
-                input.add("validNames", optionValues);
+                title = "Name a card";
                 break;
             default:
                 throw new UnsupportedOperationException("unsupported option prompt kind: " + kind);
         }
-        publishAgentPrompt("player-" + playerId, null, input);
+        final PromptPresentation presentation =
+                new PromptPresentation(title, null, null, null, java.util.List.of());
+        publishAgentPrompt(
+                "player-" + playerId, null, new ChooseFromSelectionInput(presentation, options, min, max));
     }
 
     private void publishBooleanPrompt(
@@ -1849,57 +1690,44 @@ public final class ManaBrewInteractiveSession {
             final List<Player> targetPlayers,
             final String effectText
     ) {
-        final JsonObject presentation = new JsonObject();
-        final com.google.gson.JsonArray targets = new com.google.gson.JsonArray();
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseBoolean");
+        final List<TargetRef> targets = new java.util.ArrayList<>();
+        final String title;
+        String text = null;
+        final String confirmLabel;
+        final String denyLabel;
         String envelopeSourceCardId = null;
         if ("pay_cost_to_prevent_effect".equals(kind)) {
             String base = description == null || description.isEmpty() ? "Pay cost" : description;
             base = base.replace(" Life", " {LIFE}").replace(" life", " {LIFE}");
-            presentation.addProperty("title", base.endsWith("?") ? base : base + "?");
+            title = base.endsWith("?") ? base : base + "?";
             if (effectText != null) {
                 final String trimmed = effectText.trim();
                 if (!trimmed.isEmpty()) {
-                    presentation.addProperty("text", "otherwise: \"" + trimmed + "\"");
+                    text = "otherwise: \"" + trimmed + "\"";
                 }
-            }
-            if (sourceName != null) {
-                presentation.addProperty("sourceCardId", sourceName);
             }
             if (targetCards != null) {
                 for (final Card card : targetCards) {
-                    final JsonObject ref = new JsonObject();
-                    ref.addProperty("kind", "card");
-                    ref.addProperty("id", SnapshotExtractor.javaCardId(card));
-                    targets.add(ref);
+                    targets.add(new TargetRef_card(SnapshotExtractor.javaCardId(card)));
                 }
             }
             if (targetPlayers != null) {
                 for (final Player target : targetPlayers) {
-                    final JsonObject ref = new JsonObject();
-                    ref.addProperty("kind", "player");
-                    ref.addProperty("id", "player-" + SnapshotExtractor.playerIndex(game, target));
-                    targets.add(ref);
+                    targets.add(new TargetRef_player("player-" + SnapshotExtractor.playerIndex(game, target)));
                 }
             }
-            presentation.add("targets", targets);
-            input.add("presentation", presentation);
-            input.addProperty("confirmLabel", "Pay");
-            input.addProperty("denyLabel", "Decline");
+            confirmLabel = "Pay";
+            denyLabel = "Decline";
             envelopeSourceCardId = sourceName;
         } else {
-            presentation.addProperty("title", description != null ? description : "Confirm?");
-            if (sourceName != null) {
-                presentation.addProperty("sourceCardId", sourceName);
-            }
-            presentation.add("targets", targets);
-            input.add("presentation", presentation);
+            title = description != null ? description : "Confirm?";
             final boolean labeled = optionLabels != null && optionLabels.size() == 2;
-            input.addProperty("confirmLabel", labeled ? optionLabels.get(0) : "Accept");
-            input.addProperty("denyLabel", labeled ? optionLabels.get(1) : "Decline");
+            confirmLabel = labeled ? optionLabels.get(0) : "Accept";
+            denyLabel = labeled ? optionLabels.get(1) : "Decline";
         }
-        publishAgentPrompt("player-" + playerId, envelopeSourceCardId, input);
+        final PromptPresentation presentation = new PromptPresentation(title, null, text, sourceName, targets);
+        publishAgentPrompt("player-" + playerId, envelopeSourceCardId,
+                new ChooseBooleanInput(presentation, confirmLabel, denyLabel));
     }
 
     private void publishRevealCardsPrompt(
@@ -1912,9 +1740,8 @@ public final class ManaBrewInteractiveSession {
         final String ownerPlayerId = owner != null
                 ? "player-" + SnapshotExtractor.playerIndex(game, owner)
                 : "player-" + playerId;
-        final JsonObject input = revealInput(
-                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, richCardArray(cards, false));
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null, revealInput(
+                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, richCards(cards, false)));
     }
 
     private void publishRevealCardViewsPrompt(
@@ -1927,36 +1754,31 @@ public final class ManaBrewInteractiveSession {
         final String ownerPlayerId = owner != null
                 ? "player-view-" + owner.getId()
                 : "player-" + playerId;
-        final com.google.gson.JsonArray cardArray = new com.google.gson.JsonArray();
+        final List<CardDto> cardArray = new java.util.ArrayList<>();
         for (final CardView card : cards) {
             final Card real = game.findById(card.getId());
             if (real != null) {
-                cardArray.add(InteractiveSnapshotExtractor.cardDtoJson(game, real, false));
+                cardArray.add(InteractiveSnapshotExtractor.cardDto(game, real, false));
             } else {
-                final JsonObject minimal = new JsonObject();
-                minimal.addProperty("id", "java-card-view-" + card.getId());
-                minimal.addProperty("name", card.getName());
+                final CardDto minimal = new CardDto();
+                minimal.id = "java-card-view-" + card.getId();
+                minimal.name = card.getName();
                 cardArray.add(minimal);
             }
         }
-        final JsonObject input = revealInput(
-                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, cardArray);
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null, revealInput(
+                zone == null ? null : zone.toString(), messagePrefix, ownerPlayerId, cardArray));
     }
 
-    private JsonObject revealInput(
+    private RevealCardsInput revealInput(
             final String zone,
             final String message,
             final String ownerPlayerId,
-            final com.google.gson.JsonArray cards
+            final List<CardDto> cards
     ) {
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "revealCards");
-        input.add("cards", cards);
-        input.addProperty("zone", zone == null ? "unknown" : zone);
-        input.addProperty("ownerPlayerId", ownerPlayerId);
-        input.addProperty("message", message == null ? "Look at these cards" : message);
-        return input;
+        return new RevealCardsInput(
+                cards, zone == null ? "unknown" : zone, ownerPlayerId,
+                message == null ? "Look at these cards" : message);
     }
 
     private void publishNumberPrompt(
@@ -1969,12 +1791,8 @@ public final class ManaBrewInteractiveSession {
     ) {
         final String title = description != null && !description.trim().isEmpty()
                 ? description : "Choose a number";
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseNumber");
-        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, null, sourceCardId));
-        input.addProperty("min", min);
-        input.addProperty("max", max);
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null,
+                new ChooseNumberInput(presentation(title, null, sourceCardId), min, max));
     }
 
     private void publishReorderZonePrompt(
@@ -1989,13 +1807,9 @@ public final class ManaBrewInteractiveSession {
         final String targetLabel = destination != null
                 ? destination.name()
                 : (topOfDeck ? "Top of Library" : "Bottom of Library");
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "reorderCards");
-        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, "Arrange these cards in order.", sourceCardId));
-        input.add("cards", richCardArray(cards, false));
-        input.addProperty("targetLabel", targetLabel);
-        input.addProperty("topOfDeck", topOfDeck);
-        publishAgentPrompt("player-" + playerId, sourceCardId, input);
+        publishAgentPrompt("player-" + playerId, sourceCardId, new ReorderCardsInput(
+                presentation(title, "Arrange these cards in order.", sourceCardId),
+                richCards(cards, false), targetLabel, topOfDeck));
     }
 
     private void publishLibraryPrompt(
@@ -2009,15 +1823,10 @@ public final class ManaBrewInteractiveSession {
         final String description = surveil
                 ? "Put any number into your graveyard; the rest on top in any order."
                 : "Put any number on the bottom; the rest on top in any order.";
-        final com.google.gson.JsonArray zones = new com.google.gson.JsonArray();
-        zones.add("libraryTop");
-        zones.add(surveil ? "graveyard" : "libraryBottom");
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "scry");
-        input.add("presentation", ManabrewProtocolAdapter.cardChoicePresentation(title, description, null));
-        input.add("cards", richCardArray(cards, false));
-        input.add("zones", zones);
-        publishAgentPrompt("player-" + playerId, null, input);
+        final List<ScryDestination> zones = java.util.List.of(
+                ScryDestination.LIBRARY_TOP, surveil ? ScryDestination.GRAVEYARD : ScryDestination.LIBRARY_BOTTOM);
+        publishAgentPrompt("player-" + playerId, null, new ScryInput(
+                presentation(title, description, null), richCards(cards, false), zones));
     }
 
     private void publishCardChoicePrompt(
@@ -2028,22 +1837,16 @@ public final class ManaBrewInteractiveSession {
             final int max,
             final int count
     ) {
-        final com.google.gson.JsonArray handCardIds = new com.google.gson.JsonArray();
+        final List<String> handCardIds = new java.util.ArrayList<>();
         for (final Card card : cards) {
             handCardIds.add(SnapshotExtractor.javaCardId(card));
         }
-        final JsonObject input = new JsonObject();
         if ("mulligan".equals(kind)) {
-            input.addProperty("type", "mulligan");
-            input.add("handCardIds", handCardIds);
-            input.addProperty("mulliganCount", count);
+            publishAgentPrompt("player-" + playerId, null, new MulliganInput(handCardIds, count));
         } else {
-            input.addProperty("type", "mulliganPutBack");
-            input.add("handCardIds", handCardIds);
-            input.add("cards", richCardArray(cards, false));
-            input.addProperty("count", count);
+            publishAgentPrompt("player-" + playerId, null,
+                    new MulliganPutBackInput(handCardIds, richCards(cards, false), count));
         }
-        publishAgentPrompt("player-" + playerId, null, input);
     }
 
     private void publishAttackersPrompt(
@@ -2051,30 +1854,21 @@ public final class ManaBrewInteractiveSession {
             final Combat combat,
             final List<Card> availableAttackers
     ) {
-        final com.google.gson.JsonArray attackers = new com.google.gson.JsonArray();
+        final List<AttackerOptionDto> attackers = new java.util.ArrayList<>();
         for (final Card a : availableAttackers) {
-            final JsonObject option = new JsonObject();
-            option.addProperty("attackerId", SnapshotExtractor.javaCardId(a));
-            final com.google.gson.JsonArray validTargetIds = new com.google.gson.JsonArray();
+            final List<String> validTargetIds = new java.util.ArrayList<>();
             for (final GameEntity d : CombatChoiceSpace.legalDefendersForAttacker(a, combat)) {
                 validTargetIds.add(defenderId(d));
             }
-            option.add("validTargetIds", validTargetIds);
-            attackers.add(option);
+            attackers.add(new AttackerOptionDto(SnapshotExtractor.javaCardId(a), validTargetIds));
         }
-        final com.google.gson.JsonArray attackTargets = new com.google.gson.JsonArray();
+        final List<AttackTargetDto> attackTargets = new java.util.ArrayList<>();
         for (final GameEntity defender : combat.getDefenders()) {
-            final JsonObject option = new JsonObject();
-            option.addProperty("id", defenderId(defender));
-            option.addProperty("label", defender.getName());
-            option.addProperty("kind", defenderKind(defender));
-            attackTargets.add(option);
+            attackTargets.add(new AttackTargetDto(
+                    defenderId(defender), defender.getName(),
+                    enumFromWire(defenderKind(defender), AttackTargetKind.class)));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseAttackers");
-        input.add("attackers", attackers);
-        input.add("attackTargets", attackTargets);
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null, new ChooseAttackersInput(attackers, attackTargets));
     }
 
     private void publishBlockersPrompt(
@@ -2085,36 +1879,24 @@ public final class ManaBrewInteractiveSession {
             final String error
     ) {
         final Player defendingPlayer = game.getPlayers().get(playerId);
-        final com.google.gson.JsonArray attackerOptions = new com.google.gson.JsonArray();
+        final List<BlockableAttackerDto> attackerOptions = new java.util.ArrayList<>();
         for (final Card attacker : attackers) {
-            final JsonObject option = new JsonObject();
-            option.addProperty("attackerId", SnapshotExtractor.javaCardId(attacker));
-            final com.google.gson.JsonArray validBlockerIds = new com.google.gson.JsonArray();
+            final List<String> validBlockerIds = new java.util.ArrayList<>();
             for (final Card blocker : validBlockersByAttacker.getOrDefault(attacker, java.util.Collections.emptyList())) {
                 validBlockerIds.add(SnapshotExtractor.javaCardId(blocker));
             }
-            option.add("validBlockerIds", validBlockerIds);
-            option.addProperty("minBlockers", CombatUtil.getMinNumBlockersForAttacker(attacker, defendingPlayer));
-            final int maxBlockers =
-                    StaticAbilityCantAttackBlock.getMinMaxBlocker(attacker, defendingPlayer).getRight();
-            if (maxBlockers < Integer.MAX_VALUE) {
-                option.addProperty("maxBlockers", maxBlockers);
-            }
-            option.addProperty("mustBeBlocked", false);
-            attackerOptions.add(option);
+            final int rawMax = StaticAbilityCantAttackBlock.getMinMaxBlocker(attacker, defendingPlayer).getRight();
+            attackerOptions.add(new BlockableAttackerDto(
+                    SnapshotExtractor.javaCardId(attacker), validBlockerIds,
+                    CombatUtil.getMinNumBlockersForAttacker(attacker, defendingPlayer),
+                    rawMax < Integer.MAX_VALUE ? rawMax : null, false));
         }
-        final com.google.gson.JsonArray availableBlockerIds = new com.google.gson.JsonArray();
+        final List<String> availableBlockerIds = new java.util.ArrayList<>();
         for (final Card blocker : availableBlockers) {
             availableBlockerIds.add(SnapshotExtractor.javaCardId(blocker));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseBlockers");
-        input.add("attackers", attackerOptions);
-        input.add("availableBlockerIds", availableBlockerIds);
-        if (error != null) {
-            input.addProperty("error", error);
-        }
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null,
+                new ChooseBlockersInput(attackerOptions, availableBlockerIds, error));
     }
 
     private void publishDamageAssignmentOrderPrompt(
@@ -2122,19 +1904,16 @@ public final class ManaBrewInteractiveSession {
             final Card attacker,
             final List<Card> blockers
     ) {
-        final com.google.gson.JsonArray blockerIds = new com.google.gson.JsonArray();
+        final List<String> blockerIds = new java.util.ArrayList<>();
         for (final Card blocker : blockers) {
             blockerIds.add(SnapshotExtractor.javaCardId(blocker));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseDamageAssignmentOrder");
-        input.addProperty("attackerId", attacker != null ? SnapshotExtractor.javaCardId(attacker) : "");
-        input.add("blockerIds", blockerIds);
-        input.add("blockerCards", richCardArray(blockers, false));
         publishAgentPrompt(
                 "player-" + playerId,
                 attacker != null ? SnapshotExtractor.javaCardId(attacker) : null,
-                input);
+                new ChooseDamageAssignmentOrderInput(
+                        attacker != null ? SnapshotExtractor.javaCardId(attacker) : "",
+                        blockerIds, richCards(blockers, false)));
     }
 
     private void publishCombatDamageAssignmentPrompt(
@@ -2146,20 +1925,16 @@ public final class ManaBrewInteractiveSession {
             final boolean defenderAssignable,
             final boolean maySkip
     ) {
-        final com.google.gson.JsonArray blockerIds = new com.google.gson.JsonArray();
+        final List<String> blockerIds = new java.util.ArrayList<>();
         for (final Card blocker : blockers) {
             blockerIds.add(SnapshotExtractor.javaCardId(blocker));
         }
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseCombatDamageAssignment");
-        input.addProperty("attackerId", attacker != null ? SnapshotExtractor.javaCardId(attacker) : "");
-        input.add("blockerIds", blockerIds);
-        if (defender != null && defenderAssignable) {
-            input.addProperty("defenderId", defenderId(defender));
-        }
-        input.addProperty("totalDamage", damageDealt);
-        input.addProperty("attackerHasDeathtouch", attacker != null && attacker.hasKeyword("Deathtouch"));
-        publishAgentPrompt("player-" + playerId, null, input);
+        publishAgentPrompt("player-" + playerId, null, new ChooseCombatDamageAssignmentInput(
+                attacker != null ? SnapshotExtractor.javaCardId(attacker) : "",
+                blockerIds,
+                defender != null && defenderAssignable ? defenderId(defender) : null,
+                damageDealt,
+                attacker != null && attacker.hasKeyword("Deathtouch")));
     }
 
     private void publishTargetPrompt(
@@ -2178,7 +1953,7 @@ public final class ManaBrewInteractiveSession {
         final String origin = "choose_target_card".equals(promptKind) ? targetPromptZone(candidates) : null;
         final String intent = intentFromApi(api, destination, counterType, origin);
 
-        final com.google.gson.JsonArray candidateRefs = new com.google.gson.JsonArray();
+        final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
         if ("choose_target_any".equals(promptKind)) {
             for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
                 if ("player".equals(targetKind(candidate))) {
@@ -2196,26 +1971,25 @@ public final class ManaBrewInteractiveSession {
             }
         }
 
-        final JsonObject input = new JsonObject();
-        input.addProperty("type", "chooseBoardTargets");
-        input.add("candidates", candidateRefs);
-        input.addProperty("hostile", isHostileIntent(intent));
-        input.addProperty("intent", intent);
-        input.addProperty("minTargets", ability != null ? ability.getMinTargets() : 0);
-        input.addProperty("maxTargets", ability != null ? ability.getMaxTargets() : 0);
-        input.addProperty("chosenTargets", ability != null ? ability.getTargets().size() : 0);
-        input.addProperty("label", intentLabel(intent));
         publishAgentPrompt(
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
-                input);
+                new ChooseBoardTargetsInput(
+                        candidateRefs, isHostileIntent(intent),
+                        enumFromWire(intent, TargetingIntent.class),
+                        ability != null ? ability.getMinTargets() : 0,
+                        ability != null ? ability.getMaxTargets() : 0,
+                        ability != null ? ability.getTargets().size() : 0,
+                        intentLabel(intent)));
     }
 
-    private static JsonObject targetRef(final String kind, final String id) {
-        final JsonObject ref = new JsonObject();
-        ref.addProperty("kind", kind);
-        ref.addProperty("id", id);
-        return ref;
+    private static TargetRef targetRef(final String kind, final String id) {
+        switch (kind) {
+            case "player": return new TargetRef_player(id);
+            case "card": return new TargetRef_card(id);
+            case "spell": return new TargetRef_spell(id);
+            default: throw new IllegalArgumentException("unknown target kind: " + kind);
+        }
     }
 
     private String targetPromptKind(final List<Pair<GameEntity, forge.game.GameObject>> candidates) {
@@ -2402,12 +2176,27 @@ public final class ManaBrewInteractiveSession {
         latestPromptJson = ManabrewProtocolAdapter.agentPrompt(++promptSeq, decidingPlayerId, sourceCardId, input);
     }
 
-    private com.google.gson.JsonArray richCardArray(final List<Card> cards, final boolean castable) {
-        final com.google.gson.JsonArray out = new com.google.gson.JsonArray();
+    private static final com.google.gson.Gson GSON = new com.google.gson.Gson();
+
+    private void publishAgentPrompt(final String decidingPlayerId, final String sourceCardId, final Object typedInput) {
+        publishAgentPrompt(decidingPlayerId, sourceCardId, GSON.toJsonTree(typedInput).getAsJsonObject());
+    }
+
+    private static <T> T enumFromWire(final String wire, final Class<T> type) {
+        return wire == null ? null : GSON.fromJson("\"" + wire + "\"", type);
+    }
+
+    private List<CardDto> richCards(final List<Card> cards, final boolean castable) {
+        final List<CardDto> out = new java.util.ArrayList<>();
         for (final Card card : cards) {
-            out.add(InteractiveSnapshotExtractor.cardDtoJson(game, card, castable));
+            out.add(InteractiveSnapshotExtractor.cardDto(game, card, castable));
         }
         return out;
+    }
+
+    private static PromptPresentation presentation(
+            final String title, final String description, final String sourceCardId) {
+        return new PromptPresentation(title, description, null, sourceCardId, java.util.List.of());
     }
 
     private static String formatActionLabel(final String label) {

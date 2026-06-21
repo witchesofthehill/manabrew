@@ -22,10 +22,6 @@ The Manabrew protocol is still evolving and we're working hard towards a **v1.0.
   spec can talk to any conforming engine.
 - **Complete enough to drive interactive play**: priority, targeting, combat,
   cost payment, library manipulation, dice, and the opening-hand procedure.
-- **Implementable without any engine's internals.** The vocabulary maps onto
-  Magic: The Gathering for interoperability with the reference engine, but the
-  envelope, identifier scheme, and prompt/response structure aren't tied to a
-  particular game.
 
 ## Non-goals
 
@@ -116,7 +112,6 @@ and a wire example.
 - [chooseNumber](/protocol/choose-number/) — pick a number in a range.
 - [chooseCards](/protocol/choose-cards/) — select cards from a set.
 - [chooseColor](/protocol/choose-color/) — choose one or more colors.
-- [chooseType](/protocol/choose-type/) — name a card/creature type.
 - [chooseBoolean](/protocol/choose-boolean/) — a yes/no decision.
 - [chooseFromSelection](/protocol/choose-from-selection/) — pick spell modes.
 - [revealCards](/protocol/reveal-cards/) — acknowledge revealed cards.

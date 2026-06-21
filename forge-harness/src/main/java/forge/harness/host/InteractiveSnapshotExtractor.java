@@ -1,6 +1,7 @@
 package forge.harness.host;
 
 import forge.harness.common.SnapshotExtractor;
+import forge.harness.protocol.CardDto;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -52,7 +53,7 @@ public final class InteractiveSnapshotExtractor {
         final Map<String, Object> base = SnapshotExtractor.extractSnapshot(game);
 
         final List<Map<String, Object>> players = new ArrayList<>();
-        final List<Map<String, Object>> battlefield = new ArrayList<>();
+        final List<CardDto> battlefield = new ArrayList<>();
         final List<String> concededPlayerIds = new ArrayList<>();
         for (final Player player : game.getRegisteredPlayers()) {
             final int index = SnapshotExtractor.playerIndex(game, player);
@@ -156,23 +157,23 @@ public final class InteractiveSnapshotExtractor {
         return out;
     }
 
-    private static List<Map<String, Object>> richCards(
+    private static List<CardDto> richCards(
             final Game game,
             final Iterable<Card> cards,
             final int ownerIndex,
             final String zoneId,
             final boolean castable
     ) {
-        final List<Map<String, Object>> out = new ArrayList<>();
+        final List<CardDto> out = new ArrayList<>();
         for (final Card card : cards) {
             out.add(toCard(game, card, ownerIndex, zoneId, castable));
         }
         return out;
     }
 
-    static com.google.gson.JsonElement cardDtoJson(final Game game, final Card card, final boolean castable) {
+    static CardDto cardDto(final Game game, final Card card, final boolean castable) {
         final int ownerIndex = card.getOwner() != null ? SnapshotExtractor.playerIndex(game, card.getOwner()) : 0;
-        return GSON.toJsonTree(toCard(game, card, ownerIndex, promptZoneId(card), castable));
+        return toCard(game, card, ownerIndex, promptZoneId(card), castable);
     }
 
     private static String promptZoneId(final Card card) {
@@ -191,113 +192,97 @@ public final class InteractiveSnapshotExtractor {
         }
     }
 
-    private static Map<String, Object> toCard(
+    private static CardDto toCard(
             final Game game,
             final Card card,
             final int ownerIndex,
             final String zoneId,
             final boolean castable
     ) {
-        final Map<String, Object> out = new LinkedHashMap<>();
-        out.put("id", SnapshotExtractor.javaCardId(card));
-        out.put("name", normalizeCardName(card.getName()));
+        final CardDto dto = new CardDto();
+        dto.id = SnapshotExtractor.javaCardId(card);
+        dto.name = normalizeCardName(card.getName());
         final IPaperCard paper = card.getPaperCard();
-        out.put("setCode", paper != null ? paper.getEdition() : card.getSetCode());
-        out.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
-        out.put("color", colorString(card.getColor()));
-        out.put("manaCost", card.getManaCost() == null ? "" : card.getManaCost().toString());
-        out.put("cmc", card.getCMC());
-        out.put("types", coreTypes(card));
-        out.put("subtypes", subtypes(card));
-        out.put("supertypes", supertypes(card));
+        dto.setCode = paper != null ? paper.getEdition() : card.getSetCode();
+        dto.cardNumber = paper != null ? paper.getCollectorNumber() : "";
+        dto.color = colorString(card.getColor());
+        dto.manaCost = card.getManaCost() == null ? "" : card.getManaCost().toString();
+        dto.cmc = card.getCMC();
+        dto.types = coreTypes(card);
+        dto.subtypes = subtypes(card);
+        dto.supertypes = supertypes(card);
         if (card.isCreature()) {
             final int power = card.getNetPower();
             final int toughness = card.getNetToughness();
-            out.put("power", String.valueOf(power));
-            out.put("toughness", String.valueOf(toughness));
-            out.put("basePower", power);
-            out.put("baseToughness", toughness);
+            dto.power = String.valueOf(power);
+            dto.toughness = String.valueOf(toughness);
+            dto.basePower = power;
+            dto.baseToughness = toughness;
         }
-        out.put("text", card.getOracleText());
-        out.put("isPlayable", false);
-        out.put("controllerId", "player-" + SnapshotExtractor.playerIndex(game, card.getController()));
-        out.put("ownerId", "player-" + ownerIndex);
-        out.put("zoneId", zoneId);
-        out.put("tapped", card.isTapped());
-        out.put("keywords", keywords(card));
-        out.put("counters", counterMap(card));
-        out.put("damage", card.getDamage());
-        out.put("summoningSick", card.hasSickness());
-        out.put("isToken", card.isToken());
-        out.put("isCopy", card.isCloned());
-        out.put("isDoubleFaced", card.isDoubleFaced());
-        out.put("isTransformed", card.isTransformed());
-        out.put("isFaceDown", card.isFaceDown());
-        out.put("isBestowed", card.isBestowed());
-        out.put("phasedOut", card.isPhasedOut());
-        out.put("exerted", card.getExertedThisTurn() > 0);
-        out.put("isRingBearer", card.isRingBearer());
-        out.put("isCrewed", card.getTimesCrewedThisTurn() > 0);
-        out.put("isMadnessExiled", card.isMadness());
-        out.put("isPlotted", card.isPlotted());
-        out.put("isWarpExiled", card.isWarped());
-        out.put("foil", card.hasPaperFoil());
+        dto.text = card.getOracleText();
+        dto.isPlayable = false;
+        dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
+        dto.ownerId = "player-" + ownerIndex;
+        dto.zoneId = zoneId;
+        dto.tapped = card.isTapped();
+        dto.keywords = keywords(card);
+        dto.counters = counterMap(card);
+        dto.damage = card.getDamage();
+        dto.summoningSick = card.hasSickness();
+        dto.isToken = card.isToken();
+        dto.isCopy = card.isCloned();
+        dto.isDoubleFaced = card.isDoubleFaced();
+        dto.isTransformed = card.isTransformed();
+        dto.isFaceDown = card.isFaceDown();
+        dto.isBestowed = card.isBestowed();
+        dto.phasedOut = card.isPhasedOut();
+        dto.exerted = card.getExertedThisTurn() > 0;
+        dto.isRingBearer = card.isRingBearer();
+        dto.isCrewed = card.getTimesCrewedThisTurn() > 0;
+        dto.isMadnessExiled = card.isMadness();
+        dto.isPlotted = card.isPlotted();
+        dto.isWarpExiled = card.isWarped();
+        dto.foil = card.hasPaperFoil();
 
         final Card attachedTo = card.getAttachedTo();
         if (attachedTo != null) {
-            out.put("attachedTo", SnapshotExtractor.javaCardId(attachedTo));
+            dto.attachedTo = SnapshotExtractor.javaCardId(attachedTo);
         }
         final List<String> attachmentIds = new ArrayList<>();
         for (final Card attachment : card.getAttachedCards()) {
             attachmentIds.add(SnapshotExtractor.javaCardId(attachment));
         }
-        out.put("attachmentIds", attachmentIds);
+        dto.attachmentIds = attachmentIds;
 
-        final String flashback = keywordCost(card, "Flashback");
-        if (flashback != null) {
-            out.put("flashbackCost", flashback);
-        }
-        final String kicker = keywordCost(card, "Kicker");
-        if (kicker != null) {
-            out.put("kickerCost", kicker);
-        }
-        final String madness = keywordCost(card, "Madness");
-        if (madness != null) {
-            out.put("madnessCost", madness);
-        }
+        dto.flashbackCost = keywordCost(card, "Flashback");
+        dto.kickerCost = keywordCost(card, "Kicker");
+        dto.madnessCost = keywordCost(card, "Madness");
 
         final Combat combat = game.getCombat();
         if (combat != null) {
             final boolean attacking = combat.isAttacking(card);
             if (attacking) {
-                out.put("isAttacking", true);
+                dto.isAttacking = true;
                 final Player defender = combat.getDefenderPlayerByAttacker(card);
                 if (defender != null) {
-                    out.put("attackingPlayerId",
-                            "player-" + SnapshotExtractor.playerIndex(game, defender));
+                    dto.attackingPlayerId = "player-" + SnapshotExtractor.playerIndex(game, defender);
                 }
             }
             // AI combat eval invoked from snapshot extraction, a context Forge
             // never calls it from; an escaped exception kills the game thread.
             if (attacking || combat.isBlocking(card)) {
-                boolean wouldDie = false;
                 try {
-                    wouldDie = ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat);
+                    dto.wouldDieInCombat =
+                            ComputerUtilCombat.combatantWouldBeDestroyed(card.getController(), card, combat);
                 } catch (final RuntimeException ignored) {
-                    wouldDie = false;
-                }
-                if (wouldDie) {
-                    out.put("wouldDieInCombat", true);
+                    dto.wouldDieInCombat = false;
                 }
             }
         }
         if (castable) {
-            final String effective = effectiveManaCost(card);
-            if (effective != null) {
-                out.put("effectiveManaCost", effective);
-            }
+            dto.effectiveManaCost = effectiveManaCost(card);
         }
-        return out;
+        return dto;
     }
 
     private static String keywordCost(final Card card, final String name) {

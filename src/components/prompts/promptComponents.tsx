@@ -1,6 +1,5 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { ChooseColorModal } from "./ChooseColorModal";
-import { ChooseTypeModal } from "./ChooseTypeModal";
 import { ChooseNumberModal } from "./ChooseNumberModal";
 import { ChooseCardsModal } from "./ChooseCardsModal";
 import { ReorderCardsModal } from "./ReorderCardsModal";
@@ -46,8 +45,6 @@ const PROMPT_MODALS: { [T in PromptType]?: PromptComponent<T> } = {
   ),
 
   chooseColor: ({ prompt, respond }) => <ChooseColorModal input={prompt.input} respond={respond} />,
-
-  chooseType: ({ prompt, respond }) => <ChooseTypeModal input={prompt.input} respond={respond} />,
 
   // $PROMPT_SHARED
   chooseNumber: ({ prompt, respond }) => (

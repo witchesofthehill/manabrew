@@ -182,9 +182,6 @@ impl BotAgent for SimpleAi {
                     chosen_colors: chosen,
                 }))
             }
-            PromptInput::ChooseType(manabrew_protocol::prompts::choose_type::ChooseTypeInput { valid_types, .. }) => Some(PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision {
-                chosen_type: valid_types.first().cloned(),
-            })),
             PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
                 chosen_number: Some(min),
             })),

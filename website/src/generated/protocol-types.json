@@ -11,7 +11,6 @@
     "choose-damage-assignment-order": "ChooseDamageAssignmentOrderInput",
     "choose-from-selection": "ChooseFromSelectionInput",
     "choose-number": "ChooseNumberInput",
-    "choose-type": "ChooseTypeInput",
     "dice-rolled": "DiceRolledInput",
     "game-over": "GameOverInput",
     "mulligan": "MulliganInput",
@@ -125,11 +124,6 @@
       "ts": "interface ChooseNumberInput {\n  presentation: PromptPresentation;\n  min: number;\n  max: number;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseNumberInput {\n    pub presentation: PromptPresentation,\n    pub min: i32,\n    pub max: i32,\n}",
       "refs": ["PromptPresentation"]
-    },
-    "ChooseTypeInput": {
-      "ts": "interface ChooseTypeInput {\n  typeCategory: string;\n  validTypes: Array<string>;\n}",
-      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseTypeInput {\n    pub type_category: String,\n    pub valid_types: Vec<String>,\n}",
-      "refs": []
     },
     "DiceRollEntry": {
       "ts": "interface DiceRollEntry {\n  label?: string;\n  playerId?: string;\n  naturalResults: Array<number>;\n  finalResults: Array<number>;\n  ignoredRolls: Array<number>;\n  highlighted: boolean;\n}",

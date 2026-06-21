@@ -55,7 +55,6 @@ export default defineConfig({
                     "protocol/choose-number",
                     "protocol/choose-cards",
                     "protocol/choose-color",
-                    "protocol/choose-type",
                     "protocol/choose-boolean",
                     "protocol/choose-from-selection",
                     "protocol/reveal-cards",

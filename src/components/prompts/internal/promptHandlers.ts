@@ -61,7 +61,6 @@ const PROMPT_HANDLER_OVERRIDES: Partial<{
   ["revealCards"]: { showByDefault: true, resolve: informational.ackReveal },
   ["chooseFromSelection"]: { showByDefault: true, resolve: forced.forcedAllSelections },
   ["chooseColor"]: { showByDefault: true, resolve: forced.singleLegalColor },
-  ["chooseType"]: { showByDefault: true, resolve: forced.singleLegalType },
   ["chooseNumber"]: { showByDefault: true, resolve: forced.singleLegalNumber },
   ["chooseBoolean"]: { showByDefault: true, resolve: optionalCosts.skipBoolean },
   ["chooseCards"]: { showByDefault: true, resolve: forced.forcedCardChoice },

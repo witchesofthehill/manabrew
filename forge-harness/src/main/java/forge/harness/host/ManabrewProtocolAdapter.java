@@ -27,23 +27,6 @@ final class ManabrewProtocolAdapter {
         return prompt.toString();
     }
 
-    static JsonObject cardChoicePresentation(
-            final String title,
-            final String description,
-            final String sourceCardId
-    ) {
-        final JsonObject presentation = new JsonObject();
-        presentation.addProperty("title", title);
-        if (description != null) {
-            presentation.addProperty("description", description);
-        }
-        if (sourceCardId != null) {
-            presentation.addProperty("sourceCardId", sourceCardId);
-        }
-        presentation.add("targets", new com.google.gson.JsonArray());
-        return presentation;
-    }
-
     static JsonObject decodeAction(final JsonObject canonical) {
         if (!canonical.has("type")) {
             // Already a flat action (close()/internal auto-pass); pass through.

@@ -14,7 +14,6 @@ pub mod choose_combat_damage_assignment;
 pub mod choose_damage_assignment_order;
 pub mod choose_from_selection;
 pub mod choose_number;
-pub mod choose_type;
 pub mod dice_rolled;
 pub mod game_over;
 pub mod mulligan;
@@ -42,7 +41,6 @@ pub use choose_damage_assignment_order::{
 };
 pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
-pub use choose_type::{ChooseTypeInput, ChooseTypeOutput};
 pub use common::ManaSourceAction;
 pub use dice_rolled::{DiceRollEntry, DiceRolledInput, DiceRolledOutput};
 pub use game_over::GameOverInput;
@@ -69,7 +67,6 @@ pub enum PromptInput {
     RevealCards(reveal::RevealCardsInput),
     Scry(scry::ScryInput),
     ChooseColor(choose_color::ChooseColorInput),
-    ChooseType(choose_type::ChooseTypeInput),
     ChooseNumber(choose_number::ChooseNumberInput),
     ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderInput),
     ChooseCombatDamageAssignment(
@@ -96,7 +93,6 @@ pub enum PromptOutput {
     RevealCards(reveal::RevealCardsOutput),
     Scry(scry::ScryOutput),
     ChooseColor(choose_color::ChooseColorOutput),
-    ChooseType(choose_type::ChooseTypeOutput),
     ChooseNumber(choose_number::ChooseNumberOutput),
     ChooseDamageAssignmentOrder(choose_damage_assignment_order::ChooseDamageAssignmentOrderOutput),
     ChooseCombatDamageAssignment(

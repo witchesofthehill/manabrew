@@ -118,10 +118,6 @@ fn main() {
             amount: 1,
             repeat_allowed: false,
         }),
-        ChooseType(choose_type::ChooseTypeInput {
-            type_category: String::new(),
-            valid_types: vec![],
-        }),
         ChooseNumber(choose_number::ChooseNumberInput {
             presentation: common::PromptPresentation {
                 title: "Choose a number".to_string(),

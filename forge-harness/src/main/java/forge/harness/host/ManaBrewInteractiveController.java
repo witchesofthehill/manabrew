@@ -1881,7 +1881,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     if (!canConfirm) {
                         break;
                     }
-                    pool.payManaCostFromPool(unpaid, sa, false, new ArrayList<>());
+                    pool.payManaCostFromPool(unpaid, sa, false, sa.getPayingMana());
                     if (unpaid.isPaid()) {
                         return true;
                     }

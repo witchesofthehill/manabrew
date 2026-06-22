@@ -299,31 +299,8 @@ const applyCardTextureFilter = (source: ImageSource, mode: CardTextureFilter): v
   source.mipmapFilter = mode === "sharp" ? "nearest" : "linear";
 };
 
-// Hand cards display at ~150px (rest) and ~270px (hover, = rest × HOVER_SCALE).
-// A 300px source covers both with at most a ~2× GPU downscale, so with mipmaps
-// OFF (see createTextureFromImage) nothing blends in a too-small mip level —
-// the softness that no source size could fix while mipmaps were on. The
-// pre-shrink itself uses the browser's high-quality 2D downscaler, the same
-// path that keeps the DOM hover preview crisp.
-const HAND_TEXTURE_WIDTH = 300;
-
-const downscaleImage = (img: HTMLImageElement, targetW: number): HTMLCanvasElement => {
-  const scale = targetW / img.naturalWidth;
-  const canvas = document.createElement("canvas");
-  canvas.width = targetW;
-  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-  const ctx = canvas.getContext("2d")!;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return canvas;
-};
-
-const createTextureFromImage = (
-  resource: HTMLImageElement | HTMLCanvasElement,
-  mipmaps = true,
-): Texture => {
-  const source = new ImageSource({ resource, autoGenerateMipmaps: mipmaps });
+const createTextureFromImage = (img: HTMLImageElement, mipmaps = true): Texture => {
+  const source = new ImageSource({ resource: img, autoGenerateMipmaps: mipmaps });
   applyCardTextureFilter(source, usePreferencesStore.getState().cardTextureFilter);
   return new Texture({ source });
 };
@@ -385,7 +362,7 @@ export const useScryfallStore = create<ScryfallState>()(
       },
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
-          variant === "art" ? u?.art_crop : variant === "hires" ? u?.small : u?.border_crop;
+          variant === "art" ? u?.art_crop : variant === "hires" ? u?.png : u?.border_crop;
         let url = faceIndex === 0 ? pick(deckCard.uris) : undefined;
         if (!url) {
           const entry = await get().getCard({
@@ -403,14 +380,12 @@ export const useScryfallStore = create<ScryfallState>()(
         if (pending) return pending;
 
         const resolvedUrl = url;
-        const shrink = variant === "hires";
+        // Hand cards (`hires`) supersample the full png and would only soften
+        // under trilinear mipmapping, so skip mipmaps for them.
+        const mipmaps = variant !== "hires";
         const promise = (async () => {
           const htmlImage = await fetchImageElement(resolvedUrl);
-          const resource =
-            shrink && htmlImage.naturalWidth > HAND_TEXTURE_WIDTH
-              ? downscaleImage(htmlImage, HAND_TEXTURE_WIDTH)
-              : htmlImage;
-          const texture = createTextureFromImage(resource, !shrink);
+          const texture = createTextureFromImage(htmlImage, mipmaps);
           textureCache.set(resolvedUrl, texture);
           return texture;
         })().finally(() => {

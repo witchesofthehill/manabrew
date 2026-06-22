@@ -15,36 +15,6 @@ export function extractManaLetters(desc: string | undefined): string[] {
   return Array.from(matches, (m) => m[1]);
 }
 
-export const ANY_COLOR_LETTERS = ["W", "U", "B", "R", "G"];
-
-const MANA_TOKEN_TO_LETTER: Record<string, string> = {
-  WHITE: "W",
-  W: "W",
-  BLUE: "U",
-  U: "U",
-  BLACK: "B",
-  B: "B",
-  RED: "R",
-  R: "R",
-  GREEN: "G",
-  G: "G",
-  COLORLESS: "C",
-  C: "C",
-};
-
-function producedManaTokens(producedMana: string | undefined): string[] {
-  if (!producedMana) return [];
-  return producedMana
-    .replace(/[{}]/g, " ")
-    .split(/[\s,/]+/)
-    .map((token) => token.trim().toUpperCase())
-    .filter(Boolean);
-}
-
-function uniqueLetters(letters: string[]): string[] {
-  return [...new Set(letters)];
-}
-
 function displayDescription(letters: string[]): string {
   return letters.length === 0
     ? "Add mana"
@@ -52,24 +22,17 @@ function displayDescription(letters: string[]): string {
 }
 
 function displayFromProducedMana(ab: ManaAbilityActionInfo): ExpandedManaAbilityInfo | null {
-  const tokens = producedManaTokens(ab.producedMana);
-  if (tokens.length === 0) return null;
+  const mana = ab.producedMana;
+  if (!mana || mana.length === 0) return null;
 
-  const isCombo = tokens.includes("COMBO");
-  const manaTokens = tokens.filter((token) => token !== "COMBO");
-  const isAny = manaTokens.includes("ANY");
-  const tokenLetters = manaTokens
-    .map((token) => MANA_TOKEN_TO_LETTER[token])
-    .filter((letter): letter is string => letter != null);
-  const letters = isAny ? ANY_COLOR_LETTERS : isCombo ? uniqueLetters(tokenLetters) : tokenLetters;
-
+  const letters = mana.flatMap((m) => Array<string>(Math.max(m.amount, 1)).fill(m.color));
   if (letters.length === 0) return null;
 
   return {
     ...ab,
     description: displayDescription(letters),
     displayManaLetters: letters,
-    colorChoice: ab.color,
+    colorChoice: mana.length === 1 ? mana[0].color : undefined,
   };
 }
 
@@ -77,7 +40,7 @@ function displayFromDescription(ab: ManaAbilityActionInfo): ExpandedManaAbilityI
   return {
     ...ab,
     displayManaLetters: extractManaLetters(ab.description),
-    colorChoice: ab.color,
+    colorChoice: undefined,
   };
 }
 

@@ -23,6 +23,8 @@ The **runtime** client-half prompt check is a vitest test (`src/stores/gameStore
 
 The **Java harness-half** is checked at **compile time**, not runtime: `gen-harness-prompts.mjs` generates typed Java prompt classes from the protocol, and the harness builds every prompt from them — so a protocol change the harness no longer matches fails `yarn build:harness` (the compiler is the check). This replaced an earlier static-string guard.
 
+Docker images that build the harness directly must perform the same generation step before Maven runs. The generated `forge.harness.protocol.*` sources are gitignored, so any Dockerfile that copies `forge-harness/` and invokes `mvn -pl forge-harness ...` without first running `gen-protocol` + `gen-harness-prompts.mjs` will fail with missing classes such as `ChooseCardsInput` or `CardDto`.
+
 ## Lint and format (yarn)
 
 These are `package.json` scripts (not files in this folder). **Run before every commit** — see the root `/AGENTS.md` "Before every commit" section.

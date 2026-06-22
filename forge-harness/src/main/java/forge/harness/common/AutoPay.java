@@ -52,10 +52,10 @@ public final class AutoPay {
     public PayManaCostResult payManaCostWithTrace(final ManaCost toPay, final SpellAbility saBeingPaid, final boolean effect) {
         final ManaCostBeingPaid unpaid = new ManaCostBeingPaid(toPay);
         final ManaPool pool = payer.getManaPool();
-        final List<Mana> spentFromPool = new ArrayList<>();
+        final List<Mana> manaSpentToPay = saBeingPaid.getPayingMana();
         final List<String> steps = new ArrayList<>();
 
-        if (pool.payManaCostFromPool(unpaid, saBeingPaid, false, spentFromPool)) {
+        if (pool.payManaCostFromPool(unpaid, saBeingPaid, false, manaSpentToPay)) {
             CostPayment.handleOfferings(saBeingPaid, false, true);
             steps.add("Pay");
             return new PayManaCostResult(true, steps);
@@ -83,7 +83,7 @@ public final class AutoPay {
             payer.getGame().getStack().addAndUnfreeze(chosen.spellAbility);
 
             pool.payManaFromAbility(saBeingPaid, unpaid, chosen.spellAbility);
-            pool.payManaCostFromPool(unpaid, saBeingPaid, false, spentFromPool);
+            pool.payManaCostFromPool(unpaid, saBeingPaid, false, manaSpentToPay);
         }
 
         if (!unpaid.isPaid()) {
@@ -122,7 +122,7 @@ public final class AutoPay {
         final boolean paid = unpaid.isPaid();
         CostPayment.handleOfferings(saBeingPaid, false, paid);
         if (!paid) {
-            pool.refundMana(spentFromPool);
+            pool.refundMana(manaSpentToPay);
             saBeingPaid.setSkip(true);
             steps.add("Cancel");
         } else {

@@ -4,7 +4,7 @@
 ///
 use std::collections::HashMap;
 
-use crate::game_view_dto::{CardDto, GameViewDto};
+use crate::game_view_dto::GameViewDto;
 use crate::prompt::*;
 
 fn parse_mana_tokens(mana_cost: &str) -> Vec<String> {
@@ -18,41 +18,28 @@ fn parse_mana_tokens(mana_cost: &str) -> Vec<String> {
         .collect()
 }
 
-fn card_mana_colors(card: &CardDto) -> Vec<String> {
-    let mut colors = Vec::new();
-    for subtype in &card.subtypes {
-        let color = match subtype.as_str() {
-            "Plains" => Some("W"),
-            "Island" => Some("U"),
-            "Swamp" => Some("B"),
-            "Mountain" => Some("R"),
-            "Forest" => Some("G"),
-            _ => None,
-        };
-        if let Some(color) = color {
-            if !colors.iter().any(|c| c == color) {
-                colors.push(color.to_string());
-            }
-        }
-    }
-    colors
+fn mana_matches_color(mana: &Mana, letter: &str) -> bool {
+    let color = match letter {
+        "W" => ManaColor::White,
+        "U" => ManaColor::Blue,
+        "B" => ManaColor::Black,
+        "R" => ManaColor::Red,
+        "G" => ManaColor::Green,
+        "C" => ManaColor::Colorless,
+        _ => return false,
+    };
+    mana.color == color
 }
 
-fn ability_mana_colors(description: &str) -> Vec<String> {
-    let mut colors = Vec::new();
-    let upper = description.to_ascii_uppercase();
-    if upper.contains("ANY COLOR") {
-        return vec!["W", "U", "B", "R", "G"]
-            .into_iter()
-            .map(str::to_string)
-            .collect();
+fn action_produces_color(action: &AvailableAction, letter: &str) -> bool {
+    match &action.kind {
+        AvailableActionKind::ActivateAbility(info) => info
+            .produced_mana
+            .as_ref()
+            .map(|mana| mana.iter().any(|m| mana_matches_color(m, letter)))
+            .unwrap_or(false),
+        _ => false,
     }
-    for color in ["W", "U", "B", "R", "G", "C"] {
-        if upper.contains(&format!("{{{color}}}")) || upper.contains(&format!(" {color} ")) {
-            colors.push(color.to_string());
-        }
-    }
-    colors
 }
 
 fn can_pay_mana_cost(pool: &HashMap<String, i32>, mana_cost: &str, player_life: i32) -> bool {
@@ -118,8 +105,7 @@ fn can_pay_mana_cost(pool: &HashMap<String, i32>, mana_cost: &str, player_life: 
 pub fn choose_pay_mana_cost_action(
     game_view: &GameViewDto,
     mana_cost: &str,
-    tappable_land_ids: &[String],
-    mana_ability_options: &[ActivatableAbilityInfo],
+    actions: &[AvailableAction],
 ) -> Option<PromptOutput> {
     let player_pool = game_view
         .players
@@ -148,69 +134,29 @@ pub fn choose_pay_mana_cost_action(
         }
     }
 
-    let battlefield_by_id: HashMap<_, _> = game_view
-        .battlefield
-        .iter()
-        .map(|card| (card.id.clone(), card))
-        .collect();
-
     for needed in &needed_colors {
-        if let Some(ability) = mana_ability_options.iter().find(|ability| {
-            tappable_land_ids.contains(&ability.card_id)
-                && ability_mana_colors(&ability.description)
-                    .iter()
-                    .any(|color| color == needed)
-        }) {
-            return Some(PromptOutput::PayManaCost(
-                PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
-                    card_id: ability.card_id.clone(),
-                    ability_index: Some(ability.ability_index),
-                    color: Some(needed.clone()),
-                }),
-            ));
-        }
-        if let Some(card_id) = tappable_land_ids.iter().find(|card_id| {
-            battlefield_by_id
-                .get(*card_id)
-                .map(|card| card_mana_colors(card).iter().any(|color| color == needed))
-                .unwrap_or(false)
-        }) {
-            return Some(PromptOutput::PayManaCost(
-                PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
-                    card_id: card_id.clone(),
-                    ability_index: None,
-                    color: Some(needed.clone()),
-                }),
-            ));
+        if let Some(action) = actions
+            .iter()
+            .find(|action| action_produces_color(action, needed))
+        {
+            return Some(PromptOutput::PayManaCost(PayManaCostOutput::Act {
+                action_id: action.id.clone(),
+            }));
         }
     }
 
     if can_pay_mana_cost(&player_pool, mana_cost, player_life) {
-        return Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(
-            ManaPayment::Pay { auto: true },
-        )));
+        return Some(PromptOutput::PayManaCost(PayManaCostOutput::Pay {
+            auto: true,
+        }));
     }
 
-    if let Some(ability) = mana_ability_options
+    actions
         .iter()
-        .find(|ability| tappable_land_ids.contains(&ability.card_id))
-    {
-        return Some(PromptOutput::PayManaCost(
-            PayManaCostOutput::ManaSourceAction(ManaSourceAction::TapForMana {
-                card_id: ability.card_id.clone(),
-                ability_index: Some(ability.ability_index),
-                color: None,
-            }),
-        ));
-    }
-
-    tappable_land_ids.first().map(|card_id| {
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
-            ManaSourceAction::TapForMana {
-                card_id: card_id.clone(),
-                ability_index: None,
-                color: None,
-            },
-        ))
-    })
+        .find(|action| matches!(action.kind, AvailableActionKind::ActivateAbility(_)))
+        .map(|action| {
+            PromptOutput::PayManaCost(PayManaCostOutput::Act {
+                action_id: action.id.clone(),
+            })
+        })
 }

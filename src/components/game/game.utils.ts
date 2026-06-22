@@ -1,5 +1,5 @@
 import type { CardRulesSummary, GameCard, StackObject } from "@/types/manabrew";
-import type { AvailableAction } from "@/protocol/prompts/chooseAction";
+import type { AvailableAction } from "@/protocol/prompts/common";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 import { PROMPT_LABELS } from "./game.constants";
 
@@ -70,8 +70,6 @@ export function stackObjectToCardStub(obj: StackObject): GameCard {
     subtypes: [],
     supertypes: [],
     text: obj.text,
-    isPlayable: false,
-    isSelected: false,
     controllerId: obj.controllerId,
     ownerId: obj.controllerId,
     zoneId: "stack",

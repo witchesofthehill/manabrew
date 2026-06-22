@@ -18,7 +18,7 @@ use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{
-    AgentPrompt, ChooseActionDecision, ChooseActionOutput, GameOverInput, PromptInput, StateUpdate,
+    AgentPrompt, ChooseActionOutput, GameOverInput, PromptInput, StateUpdate,
 };
 
 pub fn unsupported_error() -> String {
@@ -154,11 +154,11 @@ const LOCAL_PLAYER_ID: &str = "player-0";
 #[cfg(feature = "java-forge")]
 fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
-        PromptInput::ChooseAction(_) => Some(PromptOutput::ChooseAction(
-            ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass {
+        PromptInput::ChooseAction(_) => {
+            Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until_phase: None,
-            }),
-        )),
+            }))
+        }
         _ => None,
     }
 }

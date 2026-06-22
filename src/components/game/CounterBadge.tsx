@@ -147,6 +147,11 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
   const cfg = getCounterConfig(type);
   const sz = SIZE_TOKENS[size];
 
+  // +1/+1 and -1/-1 counters read as their aggregate stat delta (e.g. three
+  // +1/+1 counters → "+3/+3") rather than a "+1/+1 ×3" label-plus-count.
+  const ptSign = type === "P1P1" ? "+" : type === "M1M1" ? "−" : null;
+  const aggregateLabel = ptSign ? `${ptSign}${count}/${ptSign}${count}` : null;
+
   const tooltipText = `${count} ${cfg.title} counter${count !== 1 ? "s" : ""}`;
 
   return (
@@ -165,9 +170,11 @@ export function CounterBadge({ type, count, size = "sm", className }: CounterBad
           {cfg.iconName ? (
             <GameIcon name={cfg.iconName} className={cn(sz.symbol, "fill-current")} />
           ) : (
-            <span className={sz.text}>{cfg.label}</span>
+            <span className={sz.text}>{aggregateLabel ?? cfg.label}</span>
           )}
-          {count > 1 && <span className={cn(sz.count, "opacity-90")}>{count}</span>}
+          {!aggregateLabel && count > 1 && (
+            <span className={cn(sz.count, "opacity-90")}>{count}</span>
+          )}
         </span>
       </TooltipTrigger>
       <TooltipContent>{tooltipText}</TooltipContent>

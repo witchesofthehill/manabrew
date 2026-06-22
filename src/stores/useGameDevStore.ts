@@ -312,7 +312,6 @@ export function applyCardOverrides(card: GameCard, o: DevCardOverrides): GameCar
     phasedOut: o.forcePhasedOut || card.phasedOut,
     isAttacking: o.forceAttacking || card.isAttacking,
     isPlayable: o.forcePlayable || card.isPlayable,
-    isSelected: o.forceSelected || card.isSelected,
     isDoubleFaced: o.forceDoubleFaced || card.isDoubleFaced,
     damage: o.damage != null ? o.damage : card.damage,
     counters,

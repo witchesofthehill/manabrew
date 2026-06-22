@@ -4,9 +4,10 @@ use manabrew_engine::ids::{CardId, PlayerId};
 
 use crate::game_view_dto::{CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::mana_action_id::payment_mana_ability_options;
+use crate::mana_action_id::parse_tap_action_id;
 use crate::prompt::*;
 
+use super::costs::mana_payment_actions;
 use super::{parse_express_mana_choice, PromptAgent, Responder};
 
 fn fallback_combat_assignment(
@@ -223,7 +224,7 @@ pub(super) fn pay_combat_cost<T: Responder>(
     cost: i32,
     description: &str,
     mana_ability_options: &[ManaAbilityOption],
-    tappable_lands: &[CardId],
+    _tappable_lands: &[CardId],
     untappable_lands: &[CardId],
     mana_pool_total: i32,
 ) -> CombatCostAction {
@@ -234,8 +235,14 @@ pub(super) fn pay_combat_cost<T: Responder>(
         .and_then(|v| v.battlefield.iter().find(|c| c.id == attacker_id))
         .map(|c| c.name.clone())
         .unwrap_or_default();
-    let tappable_land_ids = PromptAgent::<T>::card_ids(tappable_lands);
-    let untappable_land_ids = PromptAgent::<T>::card_ids(untappable_lands);
+    let mut actions = mana_payment_actions(mana_ability_options);
+    for &land in untappable_lands {
+        let id = card_id_str(land);
+        actions.push(AvailableAction {
+            id: format!("untap:{id}"),
+            kind: AvailableActionKind::UndoMana { card_id: id },
+        });
+    }
 
     agent.send_prompt(
         PromptInput::PayManaCost(
@@ -244,52 +251,39 @@ pub(super) fn pay_combat_cost<T: Responder>(
                 card_name: attacker_name,
                 description: Some(description.to_string()),
                 mana_cost: format!("{{{cost}}}"),
-                mana_ability_options: mana_ability_options
-                    .iter()
-                    .flat_map(|opt| {
-                        payment_mana_ability_options(
-                            &card_id_str(opt.card_id),
-                            opt.ability_index,
-                            &opt.description,
-                            opt.cost.clone(),
-                            opt.produced_mana.clone(),
-                            opt.produced_mana_amount,
-                        )
-                    })
-                    .collect(),
-                tappable_source_ids: tappable_land_ids,
-                untappable_source_ids: untappable_land_ids,
-                delve_source_ids: Vec::new(),
-                mana_pool_total,
                 can_confirm_from_pool: mana_pool_total >= cost,
+                actions,
             },
         ),
         None,
     );
     match agent.recv_action() {
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
-            ManaSourceAction::TapForMana {
-                card_id,
-                ability_index,
-                color,
-            },
-        )) => parse_card_id(&card_id)
-            .map(|card_id| CombatCostAction::TapLand {
-                card_id,
-                mana_ability_index: ability_index,
-                express_choice: parse_express_mana_choice(color.as_deref()),
-            })
-            .unwrap_or(CombatCostAction::Decline),
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
-            ManaSourceAction::Untap { card_id },
-        )) => parse_card_id(&card_id)
-            .map(CombatCostAction::UntapLand)
-            .unwrap_or(CombatCostAction::Decline),
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { .. })) => {
-            CombatCostAction::Pay
+        PromptOutput::PayManaCost(PayManaCostOutput::Act { action_id }) => {
+            parse_combat_cost_action(&action_id)
         }
+        PromptOutput::PayManaCost(PayManaCostOutput::Pay { .. }) => CombatCostAction::Pay,
         _ => CombatCostAction::Decline,
     }
+}
+
+fn parse_combat_cost_action(action_id: &str) -> CombatCostAction {
+    if let Some(rest) = action_id.strip_prefix("tap:") {
+        let tap = parse_tap_action_id(rest);
+        return match parse_card_id(tap.card_id) {
+            Some(card_id) => CombatCostAction::TapLand {
+                card_id,
+                mana_ability_index: tap.ability_index,
+                express_choice: parse_express_mana_choice(tap.color),
+            },
+            None => CombatCostAction::Decline,
+        };
+    }
+    if let Some(id) = action_id.strip_prefix("untap:") {
+        return parse_card_id(id)
+            .map(CombatCostAction::UntapLand)
+            .unwrap_or(CombatCostAction::Decline);
+    }
+    CombatCostAction::Decline
 }
 
 pub(super) fn exert_attackers<T: Responder>(

@@ -4,7 +4,7 @@ use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::prompt::{
-    AgentMessage, AgentPrompt, ChooseActionDecision, ChooseActionOutput, PromptOutput,
+    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
 };
 
 use js_sys::{Int32Array, SharedArrayBuffer, Uint8Array};
@@ -185,11 +185,9 @@ impl WasmTransport {
                         // wait_until_prompt_slot_available, which overwrites it.
                         js_sys::Atomics::store(&self.signal, 0, SIGNAL_IDLE).unwrap_or(0);
                         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
-                        return PromptOutput::ChooseAction(
-                            ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass {
-                                until_phase: None,
-                            }),
-                        );
+                        return PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                            until_phase: None,
+                        });
                     }
                 }
                 None => {
@@ -204,9 +202,7 @@ impl WasmTransport {
         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
 
         serde_json::from_slice(&json_bytes).unwrap_or(PromptOutput::ChooseAction(
-            ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass {
-                until_phase: None,
-            }),
+            ChooseActionOutput::Pass { until_phase: None },
         ))
     }
 }

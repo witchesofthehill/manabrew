@@ -23,10 +23,7 @@ pub mod reorder_cards;
 pub mod reveal;
 pub mod scry;
 
-pub use choose_action::{
-    AvailableAction, AvailableActionKind, ChooseActionDecision, ChooseActionInput,
-    ChooseActionOutput,
-};
+pub use choose_action::{ChooseActionInput, ChooseActionOutput};
 pub use choose_attackers::{ChooseAttackersInput, ChooseAttackersOutput};
 pub use choose_blockers::{ChooseBlockersInput, ChooseBlockersOutput};
 pub use choose_board_targets::{ChooseBoardTargetsInput, ChooseBoardTargetsOutput};
@@ -41,12 +38,12 @@ pub use choose_damage_assignment_order::{
 };
 pub use choose_from_selection::{ChooseFromSelectionInput, ChooseFromSelectionOutput};
 pub use choose_number::{ChooseNumberInput, ChooseNumberOutput};
-pub use common::ManaSourceAction;
+pub use common::{ActivatableAbilityInfo, AvailableAction, AvailableActionKind, Mana, ManaColor};
 pub use dice_rolled::{DiceRollEntry, DiceRolledInput, DiceRolledOutput};
 pub use game_over::GameOverInput;
 pub use mulligan::{MulliganInput, MulliganOutput};
 pub use mulligan_put_back::{MulliganPutBackInput, MulliganPutBackOutput};
-pub use pay_mana_cost::{DelveAction, ManaPayment, PayManaCostInput, PayManaCostOutput};
+pub use pay_mana_cost::{PayManaCostInput, PayManaCostOutput};
 pub use reorder_cards::{ReorderCardsInput, ReorderCardsOutput};
 pub use reveal::{RevealCardsInput, RevealCardsOutput};
 pub use scry::{ScryInput, ScryOutput};

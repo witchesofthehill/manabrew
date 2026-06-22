@@ -47,14 +47,17 @@ fn main() {
                 },
                 AvailableAction {
                     id: "2".into(),
-                    kind: AvailableActionKind::ActivateAbility {
+                    kind: AvailableActionKind::ActivateAbility(common::ActivatableAbilityInfo {
                         card_id: "card-3".into(),
                         ability_index: 0,
                         description: "{T}: Add {G}.".into(),
                         cost: Some("{T}".into()),
                         is_mana_ability: true,
-                        produced_mana: Some("G".into()),
-                    },
+                        produced_mana: Some(vec![common::Mana {
+                            color: common::ManaColor::Green,
+                            amount: 1,
+                        }]),
+                    }),
                 },
                 AvailableAction {
                     id: "3".into(),
@@ -150,12 +153,8 @@ fn main() {
             card_name: String::new(),
             description: None,
             mana_cost: String::new(),
-            mana_ability_options: vec![],
-            tappable_source_ids: vec![],
-            untappable_source_ids: vec![],
-            delve_source_ids: vec![],
-            mana_pool_total: 0,
             can_confirm_from_pool: false,
+            actions: vec![],
         }),
         ChooseBoolean(choose_boolean::ChooseBooleanInput {
             presentation: common::PromptPresentation {

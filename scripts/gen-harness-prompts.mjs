@@ -179,10 +179,13 @@ for (const name of reachable) {
   const u = parseUnion(aliases.get(name));
   if (!u) continue;
   const variants = u.parts.map((p, i) => {
-    const { discriminator, fields } = parseFields(p);
+    const inter = p.match(/^(\{.*\}) & (\w+)$/);
+    const objPart = inter ? inter[1] : p;
+    const refFields = inter ? parseFields(aliases.get(inter[2])).fields : [];
+    const { discriminator, fields } = parseFields(objPart);
     const vName = `${name}_${discriminator ? discriminator.value : i}`;
     parentOf.set(vName, name);
-    return { vName, discriminator, fields: [...u.commonFields, ...fields] };
+    return { vName, discriminator, fields: [...u.commonFields, ...fields, ...refFields] };
   });
   unions.set(name, variants);
 }

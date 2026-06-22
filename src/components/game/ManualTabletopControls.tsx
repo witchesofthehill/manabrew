@@ -60,8 +60,6 @@ function createManualCard(
     basePower: parseStat(base?.power),
     baseToughness: parseStat(base?.toughness),
     text: base?.text ?? "",
-    isPlayable: false,
-    isSelected: false,
     controllerId,
     ownerId: controllerId,
     zoneId: "battlefield",

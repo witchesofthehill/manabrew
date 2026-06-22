@@ -47,8 +47,9 @@ export interface CardRulesSummary {
 export interface GameCard extends CardIdentity, CardRulesSummary {
   basePower?: number;
   baseToughness?: number;
-  isPlayable: boolean;
-  isSelected: boolean;
+  /** Client-derived from the active prompt's AvailableActions (never on the
+   *  wire). Stamped by `markIfPlayable` in the game view; absent = not playable. */
+  isPlayable?: boolean;
   controllerId: string; // UUID
   ownerId: string; // UUID
   zoneId: string; // UUID
@@ -252,8 +253,7 @@ export interface ActivatableAbilityInfo {
   description: string;
   isManaAbility: boolean;
   cost?: string;
-  producedMana?: string;
-  color?: string;
+  producedMana?: import("@/protocol/prompts/common").Mana[];
 }
 
 export interface ClientCallback {

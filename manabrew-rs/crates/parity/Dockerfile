@@ -1,4 +1,26 @@
 # syntax=docker/dockerfile:1
+# ── Stage 0: Generate Java prompt protocol classes ──────────────────
+FROM rust:1.88-bookworm AS protocol-builder
+
+WORKDIR /build
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY Cargo.toml Cargo.lock ./
+COPY manabrew-rs/ manabrew-rs/
+COPY src-tauri/Cargo.toml src-tauri/Cargo.toml
+RUN mkdir -p src-tauri/src && echo "fn main() {}" > src-tauri/src/main.rs && touch src-tauri/src/lib.rs
+COPY tree-sitter-forge-card-script/ tree-sitter-forge-card-script/
+COPY scripts/gen-harness-prompts.mjs scripts/gen-harness-prompts.mjs
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/build/target \
+    cargo run -q -p manabrew-protocol --bin gen-protocol -- src/protocol && \
+    node scripts/gen-harness-prompts.mjs /generated
+
 # ── Stage 1: Build Java harness JAR ─────────────────────────────────
 FROM maven:3.9-eclipse-temurin-17 AS java-builder
 
@@ -46,6 +68,8 @@ COPY forge/forge-game/    forge/forge-game/
 COPY forge/forge-ai/      forge/forge-ai/
 COPY forge/forge-gui/     forge/forge-gui/
 COPY forge-harness/       forge-harness/
+COPY --from=protocol-builder /generated/forge/harness/protocol/ \
+    forge-harness/src/main/java/forge/harness/protocol/
 
 # Build the harness fat JAR in one reactor with its engine deps
 RUN --mount=type=cache,target=/root/.m2/repository \

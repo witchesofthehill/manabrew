@@ -18,7 +18,7 @@ export function PtBadge({
     >
       {baseValue && (
         <span
-          className="font-semibold rounded-[0.3em] bg-black/60 text-white/80 line-through leading-none"
+          className="font-semibold rounded-[0.3em] bg-black/60 text-white/80 leading-none"
           style={{ fontSize: "0.62em", padding: "0.12em 0.4em" }}
         >
           {baseValue}

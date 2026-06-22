@@ -17,7 +17,7 @@ use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::{
-    AgentMessage, AgentPrompt, ChooseActionDecision, ChooseActionOutput, PromptOutput,
+    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
 };
 
 const GAME_THREAD_STACK_SIZE: usize = 64 * 1024 * 1024;
@@ -387,9 +387,7 @@ impl GameManager {
                 .as_ref()
                 .ok_or_else(|| "Restore snapshots are not supported by java-forge yet".to_string())?
                 .send(PromptOutput::ChooseAction(
-                    ChooseActionOutput::ChooseActionDecision(
-                        ChooseActionDecision::RestoreSnapshot { checkpoint_id },
-                    ),
+                    ChooseActionOutput::RestoreSnapshot { checkpoint_id },
                 ))
                 .map_err(|e| format!("Game thread not responding: {}", e))?;
             Ok(())

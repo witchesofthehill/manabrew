@@ -299,12 +299,13 @@ const applyCardTextureFilter = (source: ImageSource, mode: CardTextureFilter): v
   source.mipmapFilter = mode === "sharp" ? "nearest" : "linear";
 };
 
-// Hand cards render at ~170–300px (base × hover scale at the max hand scale).
-// Feeding a 745px source straight to the GPU forces trilinear mipmapping to
-// blend in a too-small mip → soft. Pre-shrinking with the browser's
-// high-quality 2D downscaler (what the DOM preview uses) so the GPU barely
-// resamples keeps hand cards crisp at rest and hovered.
-const HAND_TEXTURE_WIDTH = 384;
+// Hand cards display at ~150px (rest) and ~270px (hover, = rest × HOVER_SCALE).
+// A 300px source covers both with at most a ~2× GPU downscale, so with mipmaps
+// OFF (see createTextureFromImage) nothing blends in a too-small mip level —
+// the softness that no source size could fix while mipmaps were on. The
+// pre-shrink itself uses the browser's high-quality 2D downscaler, the same
+// path that keeps the DOM hover preview crisp.
+const HAND_TEXTURE_WIDTH = 300;
 
 const downscaleImage = (img: HTMLImageElement, targetW: number): HTMLCanvasElement => {
   const scale = targetW / img.naturalWidth;
@@ -320,8 +321,9 @@ const downscaleImage = (img: HTMLImageElement, targetW: number): HTMLCanvasEleme
 
 const createTextureFromImage = (
   resource: HTMLImageElement | HTMLCanvasElement,
+  mipmaps = true,
 ): Texture => {
-  const source = new ImageSource({ resource, autoGenerateMipmaps: true });
+  const source = new ImageSource({ resource, autoGenerateMipmaps: mipmaps });
   applyCardTextureFilter(source, usePreferencesStore.getState().cardTextureFilter);
   return new Texture({ source });
 };
@@ -408,7 +410,7 @@ export const useScryfallStore = create<ScryfallState>()(
             shrink && htmlImage.naturalWidth > HAND_TEXTURE_WIDTH
               ? downscaleImage(htmlImage, HAND_TEXTURE_WIDTH)
               : htmlImage;
-          const texture = createTextureFromImage(resource);
+          const texture = createTextureFromImage(resource, !shrink);
           textureCache.set(resolvedUrl, texture);
           return texture;
         })().finally(() => {

@@ -212,12 +212,10 @@ public final class InteractiveSnapshotExtractor {
         dto.subtypes = subtypes(card);
         dto.supertypes = supertypes(card);
         if (card.isCreature()) {
-            final int power = card.getNetPower();
-            final int toughness = card.getNetToughness();
-            dto.power = String.valueOf(power);
-            dto.toughness = String.valueOf(toughness);
-            dto.basePower = power;
-            dto.baseToughness = toughness;
+            dto.power = String.valueOf(card.getNetPower());
+            dto.toughness = String.valueOf(card.getNetToughness());
+            dto.basePower = card.getBasePower();
+            dto.baseToughness = card.getBaseToughness();
         }
         dto.text = card.getOracleText();
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());

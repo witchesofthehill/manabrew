@@ -554,6 +554,16 @@ export class CardSprite extends Container {
       this.placeholderGfx.visible = false;
       this.nameText.visible = false;
       this._imageLoaded = true;
+      if (!this.isBattlefield) {
+        const b = this.getBounds();
+        console.info("[pixi] hand card", this.card.name, {
+          textureSize: `${tex.source.width}x${tex.source.height}`,
+          textureResolution: tex.source.resolution,
+          scaleMode: tex.source.scaleMode,
+          worldScale: this.worldTransform.a.toFixed(3),
+          onScreenPx: `${Math.round(b.width)}x${Math.round(b.height)}`,
+        });
+      }
     }
     this.renderFrame();
   }

@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct GameViewDto {
     pub game_id: String,
     pub turn: u32,
@@ -52,7 +52,7 @@ impl GameViewDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct CombatAssignmentDto {
     pub blocker_id: String,
     pub attacker_id: String,
@@ -60,7 +60,7 @@ pub struct CombatAssignmentDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct PlayerDto {
     pub id: String,
     pub name: String,
@@ -83,7 +83,7 @@ pub struct PlayerDto {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct CardDto {
     pub id: String,
     pub name: String,
@@ -161,7 +161,7 @@ pub struct CardDto {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,
@@ -177,7 +177,7 @@ pub struct StackObjectDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct StackTargetDto {
     pub kind: StackTargetKindDto,
     pub id: String,
@@ -189,7 +189,7 @@ pub struct StackTargetDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub enum StackTargetKindDto {
     Card,
     Player,
@@ -200,7 +200,7 @@ pub enum StackTargetKindDto {
     Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,
 )]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub enum TargetingIntent {
     #[default]
     Damage,

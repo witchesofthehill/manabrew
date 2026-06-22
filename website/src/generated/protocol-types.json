@@ -27,15 +27,24 @@
     "AttackerOptionDto",
     "AvailableAction",
     "BlockableAttackerDto",
-    "CardDto",
     "DiceRollEntry",
     "Mana",
     "ManaColor",
     "PromptPresentation",
     "ScryDestination",
-    "TargetRef",
+    "TargetRef"
+  ],
+  "state": [
+    "CardDto",
+    "CombatAssignmentDto",
+    "GameViewDto",
+    "PlayerDto",
+    "StackObjectDto",
+    "StackTargetDto",
+    "StackTargetKindDto",
     "TargetingIntent"
   ],
+  "deck": ["Deck", "DeckCard", "DeckLabel"],
   "types": {
     "ActivatableAbilityInfo": {
       "ts": "interface ActivatableAbilityInfo {\n  cardId: string;\n  abilityIndex: number;\n  description: string;\n  isManaAbility: boolean;\n  cost?: string;\n  producedMana?: Array<Mana>;\n}",
@@ -127,6 +136,26 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ChooseNumberInput {\n    pub presentation: PromptPresentation,\n    pub min: i32,\n    pub max: i32,\n}",
       "refs": ["PromptPresentation"]
     },
+    "CombatAssignmentDto": {
+      "ts": "interface CombatAssignmentDto {\n  blockerId: string;\n  attackerId: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct CombatAssignmentDto {\n    pub blocker_id: String,\n    pub attacker_id: String,\n}",
+      "refs": []
+    },
+    "Deck": {
+      "ts": "interface Deck {\n  id?: string;\n  name: string;\n  description?: string;\n  color?: string;\n  format?: string;\n  cards: Array<DeckCard>;\n  sideboard: Array<DeckCard>;\n  attractions?: Array<DeckCard>;\n  contraptions?: Array<DeckCard>;\n  schemes?: Array<DeckCard>;\n  planes?: Array<DeckCard>;\n  commanders?: Array<DeckCard>;\n  companion?: DeckCard;\n  maybeboard?: Array<DeckCard>;\n  draft?: boolean;\n  labels?: Array<DeckLabel>;\n  customTags?: Array<string>;\n  cardTags?: { [key in string]?: Array<string> };\n  coverCardName?: string;\n  coverCardFace?: number;\n  stackPositions?: unknown;\n  tokens?: Array<DeckCard>;\n}",
+      "rust": "/// Mirror of `manabrew.ts:Deck`. The engine cares about `cards`,\n/// `sideboard`, `commanders`, and the supplementary decks\n/// (`attractions`/`contraptions`/`schemes`/`planes`); the rest is UI\n/// state preserved here only so the wire shape stays identical.\n#[serde(rename_all = \"camelCase\")]\npub struct Deck {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub id: Option<String>,\n    pub name: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub color: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub format: Option<String>,\n    #[serde(default)]\n    pub cards: Vec<DeckCard>,\n    #[serde(default)]\n    pub sideboard: Vec<DeckCard>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub attractions: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub contraptions: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub schemes: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub planes: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub commanders: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub companion: Option<DeckCard>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub maybeboard: Option<Vec<DeckCard>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub draft: Option<bool>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub labels: Option<Vec<DeckLabel>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub custom_tags: Option<Vec<String>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub card_tags: Option<std::collections::HashMap<String, Vec<String>>>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cover_card_name: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub cover_card_face: Option<u8>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub stack_positions: Option<serde_json::Value>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub tokens: Option<Vec<DeckCard>>,\n}",
+      "refs": ["DeckCard", "DeckLabel"]
+    },
+    "DeckCard": {
+      "ts": "interface DeckCard {\n  uris: unknown;\n  id: string;\n  name: string;\n  setCode: string;\n  cardNumber: string;\n  foil?: boolean;\n  color: string;\n  colorIdentity: Array<string>;\n  manaCost: string;\n  cmc: number;\n  types: Array<string>;\n  subtypes: Array<string>;\n  supertypes: Array<string>;\n  keywords?: Array<string>;\n  power?: string;\n  toughness?: string;\n  text: string;\n  layout?: string;\n  isDoubleFaced?: boolean;\n}",
+      "rust": "/// Mirror of `manabrew.ts:DeckCard`. `uris` is deliberately a\n/// catch-all `serde_json::Value` — image URLs are UI-only and the\n/// engine doesn't model the Scryfall image-uris shape.\n#[serde(rename_all = \"camelCase\")]\npub struct DeckCard {\n    #[serde(flatten)]\n    pub identity: CardIdentity,\n    #[serde(flatten)]\n    pub rules: CardRulesSummary,\n    #[serde(default)]\n    pub uris: serde_json::Value,\n}",
+      "refs": []
+    },
+    "DeckLabel": {
+      "ts": "interface DeckLabel {\n  name: string;\n  color?: string;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DeckLabel {\n    pub name: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub color: Option<String>,\n}",
+      "refs": []
+    },
     "DiceRollEntry": {
       "ts": "interface DiceRollEntry {\n  label?: string;\n  playerId?: string;\n  naturalResults: Array<number>;\n  finalResults: Array<number>;\n  ignoredRolls: Array<number>;\n  highlighted: boolean;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct DiceRollEntry {\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub label: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub player_id: Option<String>,\n    pub natural_results: Vec<i32>,\n    pub final_results: Vec<i32>,\n    pub ignored_rolls: Vec<i32>,\n    #[serde(default)]\n    pub highlighted: bool,\n}",
@@ -141,6 +170,11 @@
       "ts": "type GameOverInput = Record<string, never>;",
       "rust": "pub struct GameOverInput {}",
       "refs": []
+    },
+    "GameViewDto": {
+      "ts": "interface GameViewDto {\n  gameId: string;\n  turn: number;\n  step: string;\n  combatAssignments: Array<CombatAssignmentDto>;\n  activePlayerId: string;\n  priorityPlayerId: string;\n  players: Array<PlayerDto>;\n  battlefield: Array<CardDto>;\n  stack: Array<StackObjectDto>;\n  gameOver: boolean;\n  winnerId: string | null;\n  concededPlayerIds: Array<string>;\n  monarchId: string | null;\n  initiativeHolderId: string | null;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct GameViewDto {\n    pub game_id: String,\n    pub turn: u32,\n    pub step: String,\n    pub combat_assignments: Vec<CombatAssignmentDto>,\n    pub active_player_id: String,\n    pub priority_player_id: String,\n    pub players: Vec<PlayerDto>,\n    pub battlefield: Vec<CardDto>,\n    pub stack: Vec<StackObjectDto>,\n    pub game_over: bool,\n    pub winner_id: Option<String>,\n    #[serde(default)]\n    pub conceded_player_ids: Vec<String>,\n    pub monarch_id: Option<String>,\n    pub initiative_holder_id: Option<String>,\n}",
+      "refs": ["CardDto", "CombatAssignmentDto", "PlayerDto", "StackObjectDto"]
     },
     "Mana": {
       "ts": "interface Mana {\n  color: ManaColor;\n  amount: number;\n}",
@@ -167,6 +201,11 @@
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PayManaCostInput {\n    pub card_id: String,\n    pub card_name: String,\n    pub mana_cost: String,\n    pub can_confirm_from_pool: bool,\n    pub actions: Vec<AvailableAction>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n}",
       "refs": ["AvailableAction"]
     },
+    "PlayerDto": {
+      "ts": "interface PlayerDto {\n  id: string;\n  name: string;\n  isHuman: boolean;\n  life: number;\n  poison: number;\n  hand: Array<CardDto>;\n  graveyard: Array<CardDto>;\n  exile: Array<CardDto>;\n  commandZone: Array<CardDto>;\n  libraryCount: number;\n  manaPool: { [key in string]?: number };\n  commanderDamage: { [key in string]?: number };\n  energyCounters: number;\n  radiationCounters: number;\n  hasCityBlessing: boolean;\n  ringLevel: number;\n  speed: number;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PlayerDto {\n    pub id: String,\n    pub name: String,\n    pub is_human: bool,\n    pub life: i32,\n    pub poison: i32,\n    pub hand: Vec<CardDto>,\n    pub graveyard: Vec<CardDto>,\n    pub exile: Vec<CardDto>,\n    pub command_zone: Vec<CardDto>,\n    pub library_count: usize,\n    pub mana_pool: HashMap<String, i32>,\n    pub commander_damage: HashMap<String, i32>,\n    pub energy_counters: i32,\n    pub radiation_counters: i32,\n    pub has_city_blessing: bool,\n    pub ring_level: i32,\n    pub speed: i32,\n}",
+      "refs": ["CardDto"]
+    },
     "PromptPresentation": {
       "ts": "interface PromptPresentation {\n  title: string;\n  description?: string;\n  text?: string;\n  sourceCardId?: string;\n  targets: Array<TargetRef>;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct PromptPresentation {\n    pub title: String,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub description: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub text: Option<String>,\n    #[serde(default, skip_serializing_if = \"Option::is_none\")]\n    pub source_card_id: Option<String>,\n    #[serde(default)]\n    pub targets: Vec<TargetRef>,\n}",
@@ -191,6 +230,21 @@
       "ts": "interface ScryInput {\n  presentation: PromptPresentation;\n  cards: Array<CardDto>;\n  zones: Array<ScryDestination>;\n}",
       "rust": "#[serde(rename_all = \"camelCase\")]\npub struct ScryInput {\n    pub presentation: PromptPresentation,\n    pub cards: Vec<CardDto>,\n    pub zones: Vec<ScryDestination>,\n}",
       "refs": ["CardDto", "PromptPresentation", "ScryDestination"]
+    },
+    "StackObjectDto": {
+      "ts": "interface StackObjectDto {\n  id: string;\n  sourceId: string;\n  controllerId: string;\n  name: string;\n  text: string;\n  setCode: string;\n  cardNumber: string;\n  isPermanentSpell: boolean;\n  isCasting: boolean;\n  targets: Array<StackTargetDto>;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\", default)]\npub struct StackObjectDto {\n    pub id: String,\n    pub source_id: String,\n    pub controller_id: String,\n    pub name: String,\n    pub text: String,\n    pub set_code: String,\n    pub card_number: String,\n    pub is_permanent_spell: bool,\n    pub is_casting: bool,\n    pub targets: Vec<StackTargetDto>,\n}",
+      "refs": ["StackTargetDto"]
+    },
+    "StackTargetDto": {
+      "ts": "interface StackTargetDto {\n  kind: StackTargetKindDto;\n  id: string;\n  nodeIndex: number;\n  targetIndex: number;\n  hostile: boolean;\n  intent: TargetingIntent;\n}",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub struct StackTargetDto {\n    pub kind: StackTargetKindDto,\n    pub id: String,\n    pub node_index: u32,\n    pub target_index: u32,\n    pub hostile: bool,\n    pub intent: TargetingIntent,\n}",
+      "refs": ["StackTargetKindDto", "TargetingIntent"]
+    },
+    "StackTargetKindDto": {
+      "ts": "type StackTargetKindDto = \"card\" | \"player\" | \"stack\";",
+      "rust": "#[serde(rename_all = \"camelCase\")]\npub enum StackTargetKindDto {\n    Card,\n    Player,\n    Stack,\n}",
+      "refs": []
     },
     "TargetRef": {
       "ts": "type TargetRef =\n  | { kind: \"player\"; id: string }\n  | { kind: \"card\"; id: string }\n  | { kind: \"spell\"; id: string };",

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::game::TargetingIntent;
 use crate::prompts::common::TargetRef;
-use crate::values::TargetingIntent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

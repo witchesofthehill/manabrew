@@ -1,0 +1,71 @@
+---
+title: The game view
+description: The game-state snapshot the engine sends in every StateUpdate.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+A [`StateUpdate`](/protocol/transport/) carries one field, `gameView` — a complete
+`GameViewDto` snapshot of the game. It is the **only** carrier of authoritative
+game state: the client throws away its previous view and re-renders the board
+from each one.
+
+:::note[Work in progress]
+The `GameViewDto` is still a work in progress. We're working hard to get it right and lean.
+:::
+
+## GameViewDto
+
+The whole-game snapshot: turn structure, both players, the battlefield, the stack,
+and game-end state.
+
+<ProtocolType type="GameViewDto" />
+
+## PlayerDto
+
+One player's public and private state — life, counters, and the cards in each of
+their zones.
+
+<ProtocolType type="PlayerDto" />
+
+## CardDto
+
+The engine's snapshot of a single card — every zone holds these. Only `id` and
+`name` are needed to round-trip a choice; the rest drives richer rendering. The
+prompt pages that show cards reference this same type.
+
+<ProtocolType type="CardDto" />
+
+## CombatAssignmentDto
+
+A declared block: which blocker is assigned to which attacker.
+
+<ProtocolType type="CombatAssignmentDto" />
+
+## StackObjectDto
+
+A spell or ability currently on the stack, with its targets.
+
+<ProtocolType type="StackObjectDto" />
+
+## StackTargetDto
+
+One target chosen by a `StackObjectDto`, tagged with the [`TargetingIntent`](#targetingintent)
+the engine inferred for it.
+
+<ProtocolType type="StackTargetDto" />
+
+## StackTargetKindDto
+
+Which id space a [`StackTargetDto`](#stacktargetdto) points into — a card, a
+player, or another object on the stack.
+
+<ProtocolType type="StackTargetKindDto" />
+
+## TargetingIntent
+
+A semantic hint describing what an effect intends to do to its target — the
+client uses it to pre-highlight sensible targets. Carried by [`StackTargetDto`](#stacktargetdto)
+and by the targeting prompts.
+
+<ProtocolType type="TargetingIntent" />

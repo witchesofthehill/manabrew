@@ -2,3 +2,8 @@
 # tauri-cli produces; prettier would otherwise expand multi-megabyte
 # single-line JSON files into 2000-line diffs every build.
 src-tauri/gen/
+
+# The Forge submodule is read-only (parity source of truth, upstream-owned).
+# Never reformat it — a stray `prettier --write` here dirties hundreds of its
+# docs/json/yml files. Restore with `git -C forge restore .` if it happens.
+forge/

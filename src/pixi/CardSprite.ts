@@ -842,7 +842,10 @@ export class CardSprite extends Container {
       this.contentContainer.filters = [];
       return;
     }
-    if (!this.sickFilter) this.sickFilter = new ColorMatrixFilter();
+    if (!this.sickFilter) {
+      this.sickFilter = new ColorMatrixFilter();
+      this.sickFilter.resolution = "inherit";
+    }
     const f = this.sickFilter;
     if (sick) {
       f.saturate(SUMMONING_FILTER.sickSaturate, false);

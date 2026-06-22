@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 
 export interface GameSnapshotEntry {
   checkpointId: number;
   label: string;
   timestampMs: number;
-  gameView: GameView;
+  gameView: GameViewDto;
 }
 
 export function normalizeSnapshotPayload(payload: unknown): GameSnapshotEntry {
@@ -24,11 +24,11 @@ export function normalizeSnapshotPayload(payload: unknown): GameSnapshotEntry {
       : typeof p.timestamp_ms === "number"
         ? (p.timestamp_ms as number)
         : Date.now();
-  const gameView = (p.gameView ?? p.game_view ?? null) as GameView | null;
+  const gameView = (p.gameView ?? p.game_view ?? null) as GameViewDto | null;
   return {
     checkpointId,
     label,
     timestampMs,
-    gameView: gameView as GameView,
+    gameView: gameView as GameViewDto,
   };
 }

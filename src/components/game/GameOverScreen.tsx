@@ -1,12 +1,12 @@
-import type { Player } from "@/types/manabrew";
+import type { PlayerDto } from "@/protocol/game";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface GameOverScreenProps {
   winnerId: string | null | undefined;
   concededPlayerIds?: string[];
-  me: Player;
-  opponents: Player[];
+  me: PlayerDto;
+  opponents: PlayerDto[];
   turn: number;
   onEndGame: () => void;
 }

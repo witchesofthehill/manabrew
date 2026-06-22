@@ -1,5 +1,5 @@
 import type { IGameApi } from "@/platform";
-import type { GameCard, GameView } from "@/types/manabrew";
+import type { CardDto, GameViewDto } from "@/protocol/game";
 
 export type GameRuntimeKind = "manabrew" | "forge" | "manual-tabletop";
 
@@ -28,8 +28,8 @@ export interface GameRuntime {
 }
 
 export interface ManualTabletopApi extends IGameApi {
-  applyManualAction(action: ManualTabletopAction): Promise<GameView>;
-  getGameView(): GameView | null;
+  applyManualAction(action: ManualTabletopAction): Promise<GameViewDto>;
+  getGameView(): GameViewDto | null;
 }
 
 export interface BaseSeatController {
@@ -89,12 +89,12 @@ export type ManualTabletopAction =
   | { type: "adjustLife"; playerId: string; delta: number }
   | { type: "setLife"; playerId: string; life: number }
   | { type: "setPoison"; playerId: string; poison: number }
-  | { type: "createCard"; controllerId: string; card: GameCard; zoneId?: string }
-  | { type: "createToken"; controllerId: string; card: GameCard }
+  | { type: "createCard"; controllerId: string; card: CardDto; zoneId?: string }
+  | { type: "createToken"; controllerId: string; card: CardDto }
   | { type: "removeToken"; cardId: string }
   | { type: "drawLibraryCard"; playerId: string; count?: number }
   | { type: "putLibraryCardOntoBattlefield"; playerId: string }
   | { type: "shuffleLibrary"; playerId: string }
   | { type: "revealCards"; playerId: string; cardIds: string[] }
   | { type: "hideCards"; playerId: string; cardIds: string[] }
-  | { type: "replaceState"; gameView: GameView; libraries?: Record<string, GameCard[]> };
+  | { type: "replaceState"; gameView: GameViewDto; libraries?: Record<string, CardDto[]> };

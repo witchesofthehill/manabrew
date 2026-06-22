@@ -1,21 +1,23 @@
 import type { CSSProperties } from "react";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
 
 interface CommandZoneTileProps {
-  commanders: GameCard[];
+  commanders: CardDto[];
+  commandPlayableIds?: string[];
   onCastCommander?: (cardId: string) => void;
-  onStartDrag?: (card: GameCard, e: React.MouseEvent) => void;
+  onStartDrag?: (card: CardDto, e: React.MouseEvent) => void;
   onOpenZone?: () => void;
-  onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
+  onHoverCard?: (card: CardDto | null, e?: React.MouseEvent) => void;
 }
 
 const COMMANDER_CARD_SIZE = "w-[72px] h-[100px] shrink-0" as const;
 
 export function CommandZoneTile({
   commanders,
+  commandPlayableIds,
   onCastCommander,
   onStartDrag,
   onOpenZone,
@@ -26,7 +28,7 @@ export function CommandZoneTile({
   const count = commanders.length;
   if (!first) return null;
 
-  const canCast = first.isPlayable && !!onCastCommander;
+  const canCast = (commandPlayableIds?.includes(first.id) ?? false) && !!onCastCommander;
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;

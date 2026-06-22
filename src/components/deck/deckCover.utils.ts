@@ -1,4 +1,4 @@
-import type { Deck, DeckCard } from "@/types/manabrew";
+import type { Deck, DeckCard } from "@/protocol/deck";
 
 export function resolveCoverCard(deck: Deck): DeckCard | undefined {
   const allCards = [...deck.cards, ...(deck.commanders ?? [])];

@@ -190,10 +190,7 @@ function generateProtocolSources() {
       "cargo",
       ["run", "-q", "-p", "manabrew-protocol", "--bin", "gen-protocol", "--", "src/protocol"],
     ],
-    [
-      process.execPath,
-      ["scripts/gen-harness-prompts.mjs", "forge-harness/src/main/java"],
-    ],
+    [process.execPath, ["scripts/gen-harness-prompts.mjs", "forge-harness/src/main/java"]],
   ];
   for (const [cmd, args] of steps) {
     const result = spawnSync(cmd, args, { cwd: root, stdio: "inherit" });

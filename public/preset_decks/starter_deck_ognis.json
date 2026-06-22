@@ -13,27 +13,12 @@
       "set": "snc",
       "cardNumber": "210",
       "manaCost": "{1}{B/R}{R}{R/G}",
-      "colors": [
-        "B",
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "G",
-        "R"
-      ],
+      "colors": ["B", "G", "R"],
+      "colorIdentity": ["B", "G", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Lizard",
-        "Warrior"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Lizard", "Warrior"],
+      "supertypes": ["Legendary"],
       "text": "Haste\nWhenever a creature you control with haste attacks, create a tapped Treasure token.",
       "layout": "normal",
       "power": "3",
@@ -63,27 +48,12 @@
       "set": "eld",
       "cardNumber": "329",
       "manaCost": "{2}{B}{R}{G}",
-      "colors": [
-        "B",
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "G",
-        "R"
-      ],
+      "colors": ["B", "G", "R"],
+      "colorIdentity": ["B", "G", "R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon",
-        "Noble"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon", "Noble"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever Korvold enters or attacks, sacrifice another permanent.\nWhenever you sacrifice a permanent, put a +1/+1 counter on Korvold and draw a card.",
       "layout": "normal",
       "power": "4",
@@ -135,9 +105,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "You have no maximum hand size.\n{T}: Add {C}.",
@@ -166,13 +134,9 @@
       "cardNumber": "232",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
@@ -196,9 +160,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Draw a card. Activate only if you created a token this turn.\n{8}, {T}, Sacrifice this artifact: Create a 10/10 colorless Eldrazi creature token.",
@@ -229,18 +191,10 @@
       "cardNumber": "259p",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain",
-        "Forest"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain", "Forest"],
       "supertypes": [],
       "text": "({T}: Add {R} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -260,16 +214,10 @@
       "set": "m15",
       "cardNumber": "114",
       "manaCost": "{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target player draws two cards and loses 2 life.",
@@ -291,14 +239,9 @@
       "cardNumber": "225",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {R} or {G}.",
@@ -319,21 +262,11 @@
       "set": "war",
       "cardNumber": "204",
       "manaCost": "{1}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Devil"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Devil"],
       "supertypes": [],
       "text": "Whenever a player sacrifices a permanent, this creature deals 1 damage to any target.",
       "layout": "normal",
@@ -355,16 +288,10 @@
       "set": "pm21",
       "cardNumber": "188p",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Permanents you control gain hexproof and indestructible until end of turn.",
@@ -385,20 +312,11 @@
       "set": "akh",
       "cardNumber": "125",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Warrior"],
       "supertypes": [],
       "text": "If this creature hasn't been exerted this turn, you may exert it as it attacks. When you do, untap all other creatures you control and after this phase, there is an additional combat phase. (An exerted creature won't untap during your next untap step.)",
       "layout": "normal",
@@ -420,16 +338,10 @@
       "set": "rtr",
       "cardNumber": "111",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target artifact you don't control.\nOverload {4}{R} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
@@ -451,14 +363,9 @@
       "cardNumber": "225",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}.",
@@ -479,19 +386,11 @@
       "set": "mbs",
       "cardNumber": "79",
       "manaCost": "{5}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Beast"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Beast"],
       "supertypes": [],
       "text": "Whenever an artifact is put into a graveyard from the battlefield, you may gain 5 life.",
       "layout": "normal",
@@ -516,9 +415,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
@@ -539,16 +436,10 @@
       "set": "ons",
       "cardNumber": "185",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "{3}{R}{R}: Untap all creatures you control. After this main phase, there is an additional combat phase followed by an additional main phase. Activate only as a sorcery.",
@@ -570,15 +461,9 @@
       "cardNumber": "321",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["B", "G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {B}, {R}, or {G}.",
@@ -599,20 +484,11 @@
       "set": "kld",
       "cardNumber": "126",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Artificer"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Artificer"],
       "supertypes": [],
       "text": "Whenever an artifact you control enters, this creature deals 1 damage to each opponent.",
       "layout": "normal",
@@ -637,12 +513,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
       "layout": "normal",
@@ -662,23 +534,12 @@
       "set": "xln",
       "cardNumber": "136",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Pirate"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Pirate"],
+      "supertypes": ["Legendary"],
       "text": "Haste\nWhenever Captain Lannery Storm attacks, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nWhenever you sacrifice a Treasure, Captain Lannery Storm gets +1/+0 until end of turn.",
       "layout": "normal",
       "power": "2",
@@ -709,14 +570,9 @@
       "cardNumber": "256",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain or a Forest.\n{T}: Add {R} or {G}.",
@@ -740,9 +596,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Scry 1. Put a landmark counter on this artifact. Then if there are three or more landmark counters on it, remove those counters, transform this artifact, and create three Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
@@ -776,25 +630,12 @@
       "set": "dom",
       "cardNumber": "195",
       "manaCost": "{2}{R}{G}",
-      "colors": [
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colors": ["G", "R"],
+      "colorIdentity": ["G", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Warrior"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warrior"],
+      "supertypes": ["Legendary"],
       "text": "Haste\nWhenever one or more creatures you control attack, add that much mana in any combination of {R} and/or {G}. Until end of turn, you don't lose this mana as steps and phases end.",
       "layout": "normal",
       "power": "3",
@@ -816,14 +657,9 @@
       "cardNumber": "248",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "G"
-      ],
+      "colorIdentity": ["B", "G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
@@ -847,12 +683,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
       "layout": "normal",
@@ -872,16 +704,10 @@
       "set": "m13",
       "cardNumber": "170",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
@@ -902,16 +728,10 @@
       "set": "isd",
       "cardNumber": "199",
       "manaCost": "{3}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.",
@@ -932,18 +752,10 @@
       "set": "arc",
       "cardNumber": "86",
       "manaCost": "{1}{R}{G}",
-      "colors": [
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colors": ["G", "R"],
+      "colorIdentity": ["G", "R"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Creatures you control have haste.\nSacrifice this enchantment: Target creature gets +2/+2 until end of turn.",
@@ -964,19 +776,11 @@
       "set": "zen",
       "cardNumber": "131",
       "manaCost": "{4}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying, haste\nWhenever this creature attacks, you may pay {5}{R}{R}. If you do, untap all attacking creatures and after this phase, there is an additional combat phase.",
       "layout": "normal",
@@ -998,20 +802,11 @@
       "set": "mrd",
       "cardNumber": "62",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Cleric"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Cleric"],
       "supertypes": [],
       "text": "Whenever an artifact is put into a graveyard from the battlefield, you may have target opponent lose 1 life.",
       "layout": "normal",
@@ -1033,16 +828,10 @@
       "set": "mrd",
       "cardNumber": "99",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "All creatures have haste.",
@@ -1066,9 +855,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -1098,19 +885,11 @@
       "set": "znr",
       "cardNumber": "173",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Wall"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Wall"],
       "supertypes": [],
       "text": "Defender, reach\nCreatures you control have haste.",
       "layout": "normal",
@@ -1132,23 +911,12 @@
       "set": "pznr",
       "cardNumber": "150p",
       "manaCost": "{4}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
+      "supertypes": ["Legendary"],
       "text": "Each creature you control gets +1/+0 for each time it has attacked this turn.\nLandfall — Whenever a land you control enters, if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control.",
       "layout": "normal",
       "power": "6",
@@ -1169,16 +937,10 @@
       "set": "cmr",
       "cardNumber": "156",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for a card, then shuffle and put that card on top. You lose 2 life.",
@@ -1199,16 +961,10 @@
       "set": "cmr",
       "cardNumber": "187",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Add {R} for each card in target opponent's hand.\n• Exile the top three cards of your library. You may play them this turn.",
@@ -1229,20 +985,11 @@
       "set": "cmr",
       "cardNumber": "136",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warrior"],
       "supertypes": [],
       "text": "Whenever a token you control leaves the battlefield, each opponent loses 1 life and you gain 1 life.",
       "layout": "normal",
@@ -1264,25 +1011,12 @@
       "set": "cmr",
       "cardNumber": "282",
       "manaCost": "{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Shaman"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Shaman"],
+      "supertypes": ["Legendary"],
       "text": "Whenever you sacrifice a permanent, put a +1/+1 counter on Juri.\nWhen Juri dies, it deals damage equal to its power to any target.",
       "layout": "normal",
       "power": "1",
@@ -1306,9 +1040,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
@@ -1330,14 +1062,9 @@
       "cardNumber": "252",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {B}.",
@@ -1359,14 +1086,9 @@
       "cardNumber": "254",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "G"
-      ],
+      "colorIdentity": ["B", "G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {B}.",
@@ -1387,19 +1109,11 @@
       "set": "khm",
       "cardNumber": "139",
       "manaCost": "{3}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying, haste\nWhenever this creature attacks or becomes the target of a spell, create a Treasure token.\nTreasures you control have \"{T}, Sacrifice this artifact: Add two mana of any one color.\"",
       "layout": "normal",
@@ -1433,9 +1147,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -1456,19 +1168,11 @@
       "set": "c21",
       "cardNumber": "172",
       "manaCost": "{4}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dragon"],
       "supertypes": [],
       "text": "Flying, trample\nWhenever this creature deals combat damage to a player, gain control of all artifacts that player controls.\nAt the beginning of your upkeep, if you control twenty or more artifacts, you win the game.",
       "layout": "normal",
@@ -1493,9 +1197,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -1516,16 +1218,10 @@
       "set": "c21",
       "cardNumber": "160",
       "manaCost": "{6}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "For each land you control, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
@@ -1555,16 +1251,10 @@
       "set": "c21",
       "cardNumber": "204",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
@@ -1585,24 +1275,12 @@
       "set": "mh2",
       "cardNumber": "151",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "B",
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["B", "G"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Squirrel",
-        "Warrior"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Squirrel", "Warrior"],
+      "supertypes": ["Legendary"],
       "text": "Forestwalk (This creature can't be blocked as long as defending player controls a Forest.)\nIf one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead.\n{B}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.",
       "layout": "normal",
       "power": "3",
@@ -1635,13 +1313,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Assembly-Worker"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Assembly-Worker"],
       "supertypes": [],
       "text": "If you would create a Clue, Food, or Treasure token, instead create one of each.",
       "layout": "normal",
@@ -1680,23 +1353,12 @@
       "set": "sld",
       "cardNumber": "212",
       "manaCost": "{3}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Phyrexian",
-        "Praetor"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Phyrexian", "Praetor"],
+      "supertypes": ["Legendary"],
       "text": "Creatures you control have haste.\nCreatures your opponents control enter tapped.",
       "layout": "normal",
       "power": "4",
@@ -1717,19 +1379,11 @@
       "set": "afr",
       "cardNumber": "146",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Ogre"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Ogre"],
       "supertypes": [],
       "text": "Whenever this creature attacks, roll a d20.\n1—9 | Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\n10—19 | Create two Treasure tokens.\n20 | Create three Treasure tokens.",
       "layout": "normal",
@@ -1760,19 +1414,11 @@
       "set": "afr",
       "cardNumber": "322",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental"],
       "supertypes": [],
       "text": "If you would create one or more Treasure tokens, instead create those tokens plus an additional Treasure token.",
       "layout": "normal",
@@ -1803,20 +1449,11 @@
       "set": "afc",
       "cardNumber": "25",
       "manaCost": "{3}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Tiefling",
-        "Rogue"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Tiefling", "Rogue"],
       "supertypes": [],
       "text": "Whenever one or more creatures you control deal combat damage to a player, create two Treasure tokens.\n{B}, Sacrifice X Treasures: Target creature gets -X/-X until end of turn. Activate only as a sorcery.",
       "layout": "normal",
@@ -1847,25 +1484,12 @@
       "set": "afc",
       "cardNumber": "56",
       "manaCost": "{3}{R}{G}",
-      "colors": [
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colors": ["G", "R"],
+      "colorIdentity": ["G", "R"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Barbarian"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Barbarian"],
+      "supertypes": ["Legendary"],
       "text": "Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)\nIf a creature you control attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
       "layout": "normal",
       "power": "4",
@@ -1886,19 +1510,11 @@
       "set": "afc",
       "cardNumber": "113",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Incarnation"],
       "supertypes": [],
       "text": "Haste\nAs long as this card is in your graveyard and you control a Mountain, creatures you control have haste.",
       "layout": "normal",
@@ -1920,20 +1536,11 @@
       "set": "afc",
       "cardNumber": "102",
       "manaCost": "{4}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Artificer"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Artificer"],
       "supertypes": [],
       "text": "Fabricate 3 (When this creature enters, put three +1/+1 counters on it or create three 1/1 colorless Servo artifact creature tokens.)\nWhenever an artifact you control is put into a graveyard from the battlefield, target opponent loses life equal to this creature's power.",
       "layout": "normal",
@@ -1964,18 +1571,10 @@
       "set": "afc",
       "cardNumber": "193",
       "manaCost": "{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature. It can't be regenerated.",
@@ -1996,16 +1595,10 @@
       "set": "plst",
       "cardNumber": "UMA-93",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for a card, put that card into your hand, then shuffle.",
@@ -2026,16 +1619,10 @@
       "set": "cc2",
       "cardNumber": "4",
       "manaCost": "{1}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of your upkeep, you draw a card and you lose 1 life.",
@@ -2056,23 +1643,12 @@
       "set": "mid",
       "cardNumber": "304",
       "manaCost": "{2}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Warlock"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Warlock"],
+      "supertypes": ["Legendary"],
       "text": "Other tapped creatures you control have deathtouch.\nOther untapped creatures you control have hexproof.\n{1}, {T}: Untap another target creature or land you control.",
       "layout": "normal",
       "power": "3",
@@ -2093,19 +1669,11 @@
       "set": "vow",
       "cardNumber": "225",
       "manaCost": "{2}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Beast"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Beast"],
       "supertypes": [],
       "text": "Trample, haste\n{5}{G}{G}: Transform this creature.",
       "layout": "transform",
@@ -2127,18 +1695,10 @@
       "set": "voc",
       "cardNumber": "156",
       "manaCost": "{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one —\n• Exile target player's graveyard.\n• Destroy target artifact.\n• Each creature deals 1 damage to its controller.",
@@ -2160,18 +1720,10 @@
       "cardNumber": "DIS-171",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp",
-        "Mountain"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp", "Mountain"],
       "supertypes": [],
       "text": "({T}: Add {B} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -2191,20 +1743,11 @@
       "set": "snc",
       "cardNumber": "116",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Warrior"],
       "supertypes": [],
       "text": "Menace\nWhenever one or more creatures you control deal combat damage to a player, create a Treasure token.\nSacrifice a Treasure: Exile the top card of your library. You may play that card this turn.",
       "layout": "normal",
@@ -2235,16 +1778,10 @@
       "set": "snc",
       "cardNumber": "134",
       "manaCost": "{5}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 6,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "Lands you control have \"{T}: Create a Treasure token.\"",
@@ -2274,24 +1811,11 @@
       "set": "snc",
       "cardNumber": "180",
       "manaCost": "{B}{R}{G}",
-      "colors": [
-        "B",
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "G",
-        "R"
-      ],
+      "colors": ["B", "G", "R"],
+      "colorIdentity": ["B", "G", "R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Warrior"],
       "supertypes": [],
       "text": "Haste\nThis creature has indestructible as long as it entered this turn.",
       "layout": "normal",
@@ -2313,25 +1837,12 @@
       "set": "ncc",
       "cardNumber": "73",
       "manaCost": "{2}{R}{G}",
-      "colors": [
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colors": ["G", "R"],
+      "colorIdentity": ["G", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Warrior"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Warrior"],
+      "supertypes": ["Legendary"],
       "text": "Whenever a player attacks one or more of your opponents, that attacking player creates a Treasure token.\nIf you would create one or more Treasure tokens, instead create those tokens plus an additional Treasure token.\nSacrifice five Treasures: Put five +1/+1 counters on Jolene.",
       "layout": "normal",
       "power": "2",
@@ -2361,22 +1872,12 @@
       "set": "clb",
       "cardNumber": "107",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Background"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Background"],
+      "supertypes": ["Legendary"],
       "text": "Commander creatures you own have \"Whenever an artifact or creature you control is put into a graveyard from the battlefield, each opponent loses 1 life.\"",
       "layout": "normal",
       "uris": {
@@ -2395,16 +1896,10 @@
       "set": "clb",
       "cardNumber": "169",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of your upkeep, put two descent counters on this enchantment. Then each player creates X Treasure tokens and this enchantment deals X damage to each player, where X is the number of descent counters on this enchantment.",
@@ -2434,16 +1929,10 @@
       "set": "clb",
       "cardNumber": "116",
       "manaCost": "{5}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy all creatures. For each nontoken creature destroyed this way, you create a tapped Treasure token.",
@@ -2473,20 +1962,11 @@
       "set": "clb",
       "cardNumber": "368",
       "manaCost": "{4}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elder",
-        "Dragon"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elder", "Dragon"],
       "supertypes": [],
       "text": "Flying\nWhenever this creature deals combat damage to a player, roll a d20. You create a number of Treasure tokens equal to the result.",
       "layout": "normal",
@@ -2517,16 +1997,10 @@
       "set": "one",
       "cardNumber": "387",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of combat on your turn, put an oil counter on this artifact, then create an X/1 red Phyrexian Horror creature token with trample and haste, where X is the number of oil counters on this artifact. Sacrifice that token at the beginning of the next end step.",
@@ -2556,19 +2030,11 @@
       "set": "ltr",
       "cardNumber": "95",
       "manaCost": "{3}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Bat"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Bat"],
       "supertypes": [],
       "text": "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life.",
       "layout": "normal",
@@ -2590,20 +2056,11 @@
       "set": "mkm",
       "cardNumber": "121",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Goblin",
-        "Bard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Goblin", "Bard"],
       "supertypes": [],
       "text": "Whenever you sacrifice an artifact, put a +1/+1 counter on this creature and add {R}.",
       "layout": "normal",
@@ -2625,16 +2082,10 @@
       "set": "otj",
       "cardNumber": "166",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Create a Treasure token. Until end of turn, up to one target creature gets +2/+2 for each Treasure you control.",
@@ -2664,20 +2115,11 @@
       "set": "mh3",
       "cardNumber": "100",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Artificer"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Artificer"],
       "supertypes": [],
       "text": "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)\nWhenever another creature or artifact you control is put into a graveyard from the battlefield, each opponent loses 1 life.",
       "layout": "normal",
@@ -2708,16 +2150,10 @@
       "set": "acr",
       "cardNumber": "87",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of your first main phase, choose one or more —\n• Sell Contraband — Create a Treasure token. You lose 1 life.\n• Buy Information — Draw a card. You lose 2 life.\n• Hire a Mercenary — Create a 3/2 colorless Shapeshifter creature token with changeling. You lose 3 life. (It is every creature type.)",
@@ -2751,19 +2187,11 @@
       "set": "blc",
       "cardNumber": "22",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Class"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Class"],
       "supertypes": [],
       "text": "(Gain the next level as a sorcery to add its ability.)\nWhen this Class enters, create two tapped Treasure tokens.\n{1}{R}: Level 2\nTreasures you control have \"{T}, Sacrifice this artifact: Add two mana of any one color.\"\n{4}{R}: Level 3\nWhenever you cast a spell, if mana from a Treasure was spent to cast it, this Class deals damage equal to that spell's mana value to each opponent.",
       "layout": "class",
@@ -2792,20 +2220,11 @@
       "set": "drc",
       "cardNumber": "104",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Artificer"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Artificer"],
       "supertypes": [],
       "text": "Haste\nLieutenant — At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn.",
       "layout": "normal",
@@ -2836,23 +2255,12 @@
       "set": "plst",
       "cardNumber": "KHM-142",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dwarf",
-        "Berserker"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dwarf", "Berserker"],
+      "supertypes": ["Legendary"],
       "text": "Other Dwarves you control get +1/+0.\nWhenever a Dwarf you control becomes tapped, create a Treasure token.\nSacrifice five Treasures: Search your library for an artifact or Dragon card, put that card onto the battlefield, then shuffle.",
       "layout": "normal",
       "power": "2",
@@ -2897,14 +2305,9 @@
       "cardNumber": "263s",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {B} or {R}.",
@@ -2926,19 +2329,11 @@
       "cardNumber": "372",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -2958,19 +2353,11 @@
       "cardNumber": "280",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {G}.)",
       "layout": "normal",
       "uris": {
@@ -2999,19 +2386,11 @@
       "cardNumber": "400",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {

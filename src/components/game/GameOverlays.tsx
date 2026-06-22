@@ -1,11 +1,11 @@
 import { ZoneViewer, SpellStackModal, AbilityPickerModal } from "@/components/game/modals";
-import type { GameCard, StackObject } from "@/types/manabrew";
+import type { CardDto, StackObjectDto } from "@/protocol/game";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
 
 interface GameOverlaysProps {
   viewingZone: {
     title: string;
-    cards: GameCard[];
+    cards: CardDto[];
     onClickCard?: (cardId: string) => void;
     clickableCardIds?: string[];
     selectedCardIds?: string[];
@@ -15,7 +15,7 @@ interface GameOverlaysProps {
   } | null;
   onCloseZone: () => void;
   spellStackModalOpen: boolean;
-  stack: StackObject[];
+  stack: StackObjectDto[];
   validSpellIds: string[];
   onTargetSpell: (spellId: string) => void;
   onCloseStack: () => void;

@@ -8,7 +8,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ChooseCardsInput } from "@/protocol";
 
 function SelectableCard({
@@ -17,7 +17,7 @@ function SelectableCard({
   disabled,
   onClick,
 }: {
-  card: GameCard;
+  card: CardDto;
   selected?: boolean;
   disabled?: boolean;
   onClick?: () => void;
@@ -54,9 +54,9 @@ export function ChooseCardsModal({
   reveal = false,
   onConfirm,
 }: ChooseCardsModalProps) {
-  const cards = rawCards as GameCard[];
+  const cards = rawCards as CardDto[];
   const gameView = useGameStore((s) => s.gameView);
-  const sourceCard = useMemo<GameCard | undefined>(() => {
+  const sourceCard = useMemo<CardDto | undefined>(() => {
     const id = presentation.sourceCardId;
     if (!id || !gameView) return undefined;
     const visible = [
@@ -66,7 +66,7 @@ export function ChooseCardsModal({
     const gc = visible.find((c) => c.id === id);
     if (gc) return gc;
     const stackObj = gameView.stack.find((s) => s.sourceId === id);
-    return stackObj ? (stackObjectToCardStub(stackObj) as GameCard) : undefined;
+    return stackObj ? (stackObjectToCardStub(stackObj) as CardDto) : undefined;
   }, [presentation.sourceCardId, gameView]);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());

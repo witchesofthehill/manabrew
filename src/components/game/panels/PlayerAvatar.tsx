@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import type { Player } from "@/types/manabrew";
+import type { PlayerDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Heart } from "lucide-react";
@@ -9,7 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { BadgeOrbit, type OrbitBadge } from "./BadgeOrbit";
 
 export interface PlayerAvatarProps {
-  player: Player;
+  player: PlayerDto;
   badges: OrbitBadge[];
   seatColor: string;
   isActiveTurn?: boolean;

@@ -75,6 +75,7 @@ Triggers are **event matchers**. They observe the event stream and, when
 a matching event occurs, produce an ability that is placed on the stack.
 
 A trigger does not execute effects directly. It:
+
 1. Tests whether an event matches its `Mode$` and filter params.
 2. If matched, instantiates the ability referenced by its `Execute$` param.
 3. Wraps that ability with trigger-specific context (the triggering
@@ -92,6 +93,7 @@ unconditionally and are recalculated whenever the engine checks static
 abilities.
 
 A static ability defines:
+
 - A filter (`Affected$`) selecting which objects are modified.
 - A set of modifications (keyword grants, P/T adjustments, type changes,
   restrictions, etc.).
@@ -120,6 +122,7 @@ Replacement effects **intercept and transform events** before they are
 observed by triggers. They do not use the stack.
 
 A replacement effect defines:
+
 - An event type (`Event$`) to intercept.
 - A filter (`ValidCard$` or other predicates) selecting which instances
   of that event type are intercepted.
@@ -181,13 +184,13 @@ Replacement effects are applied through **iterative, layered
 application**. The engine processes replacement effects in five layers,
 evaluated sequentially:
 
-| Order | Layer | CR Reference | Behavior |
-|-------|-------|-------------|----------|
-| 1 | CantHappen | — | "Can't" effects that prevent the event entirely |
-| 2 | Control | CR 616.1b | Control-changing replacement effects |
-| 3 | Copy | CR 616.1c | Copy-as-ETB replacement effects |
-| 4 | Transform | — | "As this permanent transforms" replacement effects (e.g., choosing an opponent, becoming a copy, attaching to a player) |
-| 5 | Other | — | All remaining replacement effects |
+| Order | Layer      | CR Reference | Behavior                                                                                                                |
+| ----- | ---------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| 1     | CantHappen | —            | "Can't" effects that prevent the event entirely                                                                         |
+| 2     | Control    | CR 616.1b    | Control-changing replacement effects                                                                                    |
+| 3     | Copy       | CR 616.1c    | Copy-as-ETB replacement effects                                                                                         |
+| 4     | Transform  | —            | "As this permanent transforms" replacement effects (e.g., choosing an opponent, becoming a copy, attaching to a player) |
+| 5     | Other      | —            | All remaining replacement effects                                                                                       |
 
 **CR deviation**: CR 616.1 specifies a different ordering that
 distinguishes self-replacement effects (CR 614.15) as a separate first
@@ -201,20 +204,20 @@ cards; these have no dedicated CR subsection.
 For each layer, the engine iterates as follows:
 
 a. Collect all applicable replacement effects in this layer for the
-   current event.
+current event.
 b. If the layer is `CantHappen` and any effect applies, the event is
-   prevented and the pipeline halts (step 3 of §3 is skipped). No
-   player ordering choice is required.
+prevented and the pipeline halts (step 3 of §3 is skipped). No
+player ordering choice is required.
 c. For all other layers, if multiple effects apply, the affected
-   player, or the controller of the affected object or objects (as
-   defined by the event type), chooses which to apply first. This
-   choice is a **deterministic input** — it is part of the player
-   decision sequence that determines the game trace (§9.3).
+player, or the controller of the affected object or objects (as
+defined by the event type), chooses which to apply first. This
+choice is a **deterministic input** — it is part of the player
+decision sequence that determines the game trace (§9.3).
 d. The chosen replacement produces a **new event** with modified
-   parameters. The original event is discarded.
+parameters. The original event is discarded.
 e. The engine re-evaluates whether remaining replacement effects in
-   this layer still apply to the new event and continues applying them
-   until none remain in this layer, then proceeds to the next layer.
+this layer still apply to the new event and continues applying them
+until none remain in this layer, then proceeds to the next layer.
 
 A replacement effect whose result is `Updated` causes the engine to
 **restart replacement evaluation** from layer 1 with the new event
@@ -287,6 +290,7 @@ targets, costs already paid, and context attached.
 ### 4.2 Entering the Stack
 
 An ability enters the stack when:
+
 - A player activates an activated ability (`AB$`) and pays its costs.
 - A player casts a spell (the `SP$` ability enters the stack).
 - A trigger fires and its `Execute$` ability is instantiated.
@@ -295,6 +299,7 @@ An ability enters the stack when:
 using the stack.
 
 Before an ability enters the stack, the following steps occur in order:
+
 1. All targets must be chosen and validated (§4.6).
 2. All costs must be paid (§8).
 3. The ability is copied (activated abilities use a fresh copy to
@@ -303,6 +308,7 @@ Before an ability enters the stack, the following steps occur in order:
 ### 4.3 Resolution
 
 The engine resolves the stack by repeatedly:
+
 1. Popping the top ability.
 2. Checking whether it has **fizzled**: an ability fizzles if and only if
    **all** of its targets have become illegal (see §4.6.3 for the
@@ -449,18 +455,18 @@ time and at resolution re-validation. Param names retain the historical
 `CMC` suffix; semantically these refer to mana value per current
 Comprehensive Rules.
 
-| Param | Constraint |
-|-------|-----------|
-| `TargetUnique$` | No duplicate targets |
-| `TargetsWithSameController$` | All targets share a controller |
-| `TargetsWithDifferentControllers$` | All targets have different controllers |
-| `TargetsWithSameCreatureType$` | All targets share a creature type |
-| `TargetsWithoutSameCreatureType$` | All targets have different creature types |
-| `TargetsWithSameCardType$` | All targets share a card type |
-| `TargetsWithEqualToughness$` | All targets have equal toughness |
-| `TargetsWithDifferentCMC$` | All targets have different mana values |
-| `MaxTotalTargetCMC$` | Sum of targets' mana values does not exceed limit |
-| `MaxTotalTargetPower$` | Sum of targets' power does not exceed limit |
+| Param                              | Constraint                                        |
+| ---------------------------------- | ------------------------------------------------- |
+| `TargetUnique$`                    | No duplicate targets                              |
+| `TargetsWithSameController$`       | All targets share a controller                    |
+| `TargetsWithDifferentControllers$` | All targets have different controllers            |
+| `TargetsWithSameCreatureType$`     | All targets share a creature type                 |
+| `TargetsWithoutSameCreatureType$`  | All targets have different creature types         |
+| `TargetsWithSameCardType$`         | All targets share a card type                     |
+| `TargetsWithEqualToughness$`       | All targets have equal toughness                  |
+| `TargetsWithDifferentCMC$`         | All targets have different mana values            |
+| `MaxTotalTargetCMC$`               | Sum of targets' mana values does not exceed limit |
+| `MaxTotalTargetPower$`             | Sum of targets' power does not exceed limit       |
 
 This set is open and extensible.
 
@@ -503,6 +509,7 @@ SVar resolution is **late-bound**: an SVar reference (e.g.,
 value, not at parse time or card construction time.
 
 Resolution proceeds as follows:
+
 1. The engine encounters an SVar-reference param (e.g., `Execute$ Foo`).
 2. It looks up `Foo` in the SVar table of the ability's host card
    (specifically, the card's current state — transforms, copies, and
@@ -559,6 +566,7 @@ between them, forms a **directed graph**. Nodes are SVars; edges are
 references (via `Execute$`, `SubAbility$`, etc.).
 
 This graph may contain:
+
 - **Chains**: linear sequences (`A → B → C`).
 - **Fan-out**: one SVar referencing multiple others (e.g., `Choices$`
   in modal abilities).
@@ -594,18 +602,18 @@ entered the game.
 
 The layers, in application order:
 
-| Layer | Sublayer | Effect Type |
-|-------|---------|-------------|
-| 1 | — | Copy effects, copiable values, mutate modifications, face-down status |
-| 2 | — | Control-changing effects |
-| 3 | — | Text-changing effects |
-| 4 | — | Type-changing effects |
-| 5 | — | Color-changing effects |
-| 6 | — | Ability-adding/removing effects (including keyword counters) |
-| 7 | 7a | Characteristic-defining abilities that define power and/or toughness |
-| 7 | 7b | Effects that set power and/or toughness to specific values |
-| 7 | 7c | Effects that modify power and/or toughness (+N/+M, -N/-M, counters) |
-| 8 | — | Game rule-changing effects (can't attack, can't block, etc.) |
+| Layer | Sublayer | Effect Type                                                           |
+| ----- | -------- | --------------------------------------------------------------------- |
+| 1     | —        | Copy effects, copiable values, mutate modifications, face-down status |
+| 2     | —        | Control-changing effects                                              |
+| 3     | —        | Text-changing effects                                                 |
+| 4     | —        | Type-changing effects                                                 |
+| 5     | —        | Color-changing effects                                                |
+| 6     | —        | Ability-adding/removing effects (including keyword counters)          |
+| 7     | 7a       | Characteristic-defining abilities that define power and/or toughness  |
+| 7     | 7b       | Effects that set power and/or toughness to specific values            |
+| 7     | 7c       | Effects that modify power and/or toughness (+N/+M, -N/-M, counters)   |
+| 8     | —        | Game rule-changing effects (can't attack, can't block, etc.)          |
 
 **CR deviation**: The CR defines 7 layers with sublayers 7a–7e under
 layer 7. Forge's implementation adds an 8th layer for rule-changing
@@ -632,6 +640,7 @@ GameState. They define sets of game objects.
 ### 7.1 Evaluation
 
 A selector is evaluated by:
+
 1. Starting with the universe of all objects in the relevant zones.
 2. For each part in a selector chain (`.` or `+` separated), filtering
    the set by that predicate.
@@ -657,6 +666,7 @@ produces the same result.
 ### 7.3 Context Sensitivity
 
 Some selector parts depend on runtime context:
+
 - `YouCtrl`, `OppCtrl` depend on the current evaluating player.
 - `Self` depends on the source card.
 - `TriggeredCard` depends on the triggering event's bound objects.
@@ -676,13 +686,13 @@ be satisfied before an ability enters the stack.
 Costs are paid in a **fixed priority order** designed to maximize
 reversibility:
 
-| Priority | Cost Type | Reversibility |
-|----------|-----------|---------------|
-| 0–4 | Tap self, pay mana | Fully undoable |
-| 5 | Most other costs (discard, exile from hand) | Undoable with effort |
-| 6–10 | Pay life, gain control | Difficult to undo |
-| 11–15 | Zone changes (sacrifice, exile from battlefield) | Irreversible |
-| 16+ | Untap | Last |
+| Priority | Cost Type                                        | Reversibility        |
+| -------- | ------------------------------------------------ | -------------------- |
+| 0–4      | Tap self, pay mana                               | Fully undoable       |
+| 5        | Most other costs (discard, exile from hand)      | Undoable with effort |
+| 6–10     | Pay life, gain control                           | Difficult to undo    |
+| 11–15    | Zone changes (sacrifice, exile from battlefield) | Irreversible         |
+| 16+      | Untap                                            | Last                 |
 
 The engine processes cost components left-to-right within each priority
 tier. All components must be satisfied for the ability to enter the
@@ -761,6 +771,7 @@ resolves first.
 
 The DSL execution model is **deterministic** given a fixed sequence of
 player decisions. Non-determinism arises only from:
+
 - Player choices (targets, ordering, optional effects).
 - Replacement effect ordering choices (§3.1).
 - Library order (shuffling).
@@ -850,25 +861,25 @@ not violate the invariants of §10.
 Section references without a prefix are to this document; "Grammar §X"
 references the companion grammar spec.
 
-| Behavior | Section | Requirement / Freedom |
-|----------|---------|----------------------|
-| Static ability fixpoint non-convergence | §2.3 | Engine must bound iteration count; on non-convergence may abort or fall back to a stable approximation |
-| Unresolved SVar reference | §5.2 | Resolution failure must not crash the engine; recovery strategy (skip, log, no-op) is free |
-| SVar recursion (direct or indirect) | §5.2 | Engine must detect and prevent unbounded expansion; detection strategy is free |
-| Sub-ability chain failure handling | §5.3 | Chain terminates; whether failure is logged, silently skipped, or surfaced as error is free |
-| Selector iteration order | §7.1 | Must be stable within a single evaluation; specific order is free |
-| Cost rollback for non-reversible side effects | §8.1 | Events already processed during cost payment may not be undoable; extent of rollback is free |
-| Replacement ordering when affected player is ambiguous | §3.1 | Tie-breaking rule (APNAP, timestamp, or other) is free |
-| Termination guards | §10.1 | Engine must implement guards against non-termination; thresholds and strategy are free |
-| Amount `RawValue` fallback uninterpretable at runtime | Grammar §4.8 | Authoring error; engine may error, default to 0, or skip |
+| Behavior                                               | Section      | Requirement / Freedom                                                                                  |
+| ------------------------------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------ |
+| Static ability fixpoint non-convergence                | §2.3         | Engine must bound iteration count; on non-convergence may abort or fall back to a stable approximation |
+| Unresolved SVar reference                              | §5.2         | Resolution failure must not crash the engine; recovery strategy (skip, log, no-op) is free             |
+| SVar recursion (direct or indirect)                    | §5.2         | Engine must detect and prevent unbounded expansion; detection strategy is free                         |
+| Sub-ability chain failure handling                     | §5.3         | Chain terminates; whether failure is logged, silently skipped, or surfaced as error is free            |
+| Selector iteration order                               | §7.1         | Must be stable within a single evaluation; specific order is free                                      |
+| Cost rollback for non-reversible side effects          | §8.1         | Events already processed during cost payment may not be undoable; extent of rollback is free           |
+| Replacement ordering when affected player is ambiguous | §3.1         | Tie-breaking rule (APNAP, timestamp, or other) is free                                                 |
+| Termination guards                                     | §10.1        | Engine must implement guards against non-termination; thresholds and strategy are free                 |
+| Amount `RawValue` fallback uninterpretable at runtime  | Grammar §4.8 | Authoring error; engine may error, default to 0, or skip                                               |
 
 ### 11.1 Known CR Deviations
 
 The following behaviors intentionally differ from the MTG Comprehensive
 Rules for implementation tractability:
 
-| Section | Forge Behavior | CR Behavior |
-|---------|---------------|-------------|
-| §3.1 | 5-layer replacement model (CantHappen / Control / Copy / Transform / Other); CantHappen and Transform have no direct CR subsection | CR 616.1: self-replacement effects first, then control / copy / other by player choice; no CantHappen or Transform categories |
-| §6 | 8 layers (1–6, 7a–7c, 8); sublayer 7d folded into 7c; 7e (P/T switch) unimplemented; layer 8 (rules) added | CR 613.1: 7 layers with sublayers 7a–7e; no layer 8 |
-| §4.6.3 | Fizzle check validates only targets, not the source; source-zone legality is not checked | CR 608.2b: if the source has left its zone, its LKI is used for legality determination |
+| Section | Forge Behavior                                                                                                                     | CR Behavior                                                                                                                   |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| §3.1    | 5-layer replacement model (CantHappen / Control / Copy / Transform / Other); CantHappen and Transform have no direct CR subsection | CR 616.1: self-replacement effects first, then control / copy / other by player choice; no CantHappen or Transform categories |
+| §6      | 8 layers (1–6, 7a–7c, 8); sublayer 7d folded into 7c; 7e (P/T switch) unimplemented; layer 8 (rules) added                         | CR 613.1: 7 layers with sublayers 7a–7e; no layer 8                                                                           |
+| §4.6.3  | Fizzle check validates only targets, not the source; source-zone legality is not checked                                           | CR 608.2b: if the source has left its zone, its LKI is used for legality determination                                        |

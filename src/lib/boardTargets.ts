@@ -1,5 +1,5 @@
 import type { ChooseBoardTargetsInput } from "@/protocol";
-import type { GameCard, GameView } from "@/types/manabrew";
+import type { CardDto, GameViewDto } from "@/protocol/game";
 
 /** Candidates from a `chooseBoardTargets` prompt, partitioned into the surfaces
  *  the UI renders them on. Card candidates on the battlefield highlight in place;
@@ -10,12 +10,12 @@ export interface BoardTargetBuckets {
   playerIds: string[];
   battlefieldCardIds: string[];
   spellIds: string[];
-  zone: { zone: string; cards: GameCard[]; validCardIds: string[] } | null;
+  zone: { zone: string; cards: CardDto[]; validCardIds: string[] } | null;
 }
 
-function findInZones(gv: GameView, id: string): { zone: string; card: GameCard } | null {
+function findInZones(gv: GameViewDto, id: string): { zone: string; card: CardDto } | null {
   for (const p of gv.players) {
-    const zones: [string, GameCard[] | undefined][] = [
+    const zones: [string, CardDto[] | undefined][] = [
       ["Graveyard", p.graveyard],
       ["Exile", p.exile],
       ["Hand", p.hand],
@@ -31,12 +31,12 @@ function findInZones(gv: GameView, id: string): { zone: string; card: GameCard }
 
 export function partitionBoardTargets(
   input: ChooseBoardTargetsInput,
-  gameView: GameView | null,
+  gameView: GameViewDto | null,
 ): BoardTargetBuckets {
   const playerIds: string[] = [];
   const battlefieldCardIds: string[] = [];
   const spellIds: string[] = [];
-  const zoneCards: GameCard[] = [];
+  const zoneCards: CardDto[] = [];
   const zoneValidIds: string[] = [];
   let zoneName = "";
   for (const c of input.candidates) {

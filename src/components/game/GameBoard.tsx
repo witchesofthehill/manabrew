@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { GameCard, Player } from "@/types/manabrew";
+import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import type { BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
@@ -38,14 +38,16 @@ const ACTION_CLUSTER_RESERVE_PX = 360;
 const HAND_MIN_WIDTH_PX = 820;
 
 interface GameBoardProps {
-  me: Player;
-  opponents: Player[];
-  myPermanents: GameCard[];
-  opponentPermanentsByPlayer: Map<string, GameCard[]>;
-  myHand: GameCard[];
-  graveyard: GameCard[];
-  exile: GameCard[];
-  myCommandZone?: GameCard[];
+  me: PlayerDto;
+  opponents: PlayerDto[];
+  myPermanents: CardDto[];
+  opponentPermanentsByPlayer: Map<string, CardDto[]>;
+  myHand: CardDto[];
+  graveyard: CardDto[];
+  exile: CardDto[];
+  myCommandZone?: CardDto[];
+  /** Ids of cards the active `chooseAction` prompt offers to cast/activate. */
+  playableIds: Set<string>;
   activePlayerId: string;
   priorityPlayerId: string;
   step: string;
@@ -78,32 +80,32 @@ interface GameBoardProps {
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
 
-  onHandCardDragStart: (card: GameCard, e: React.MouseEvent) => void;
-  onHandCardClick: (card: GameCard, e?: React.MouseEvent) => void;
+  onHandCardDragStart: (card: CardDto, e: React.MouseEvent) => void;
+  onHandCardClick: (card: CardDto, e?: React.MouseEvent) => void;
   onHoverCard: (
-    card: GameCard | null,
+    card: CardDto | null,
     e?: React.MouseEvent,
     options?: { useAnchor?: boolean; placement?: "auto" | "top-center"; anchorOverride?: DOMRect },
   ) => void;
   onDismissHoverPreview?: () => void;
-  getHandActions?: (card: GameCard) => HandActionOption[];
+  getHandActions?: (card: CardDto) => HandActionOption[];
   onSelectHandAction?: (action: HandActionOption) => void;
   onFlipCard: () => void;
-  onBattlefieldClick: (card: GameCard) => void;
-  onAttackerClick: (card: GameCard) => void;
+  onBattlefieldClick: (card: CardDto) => void;
+  onAttackerClick: (card: CardDto) => void;
   onAssignBlock: (blockerId: string, attackerId: string) => void;
   onUnassignBlock: (blockerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
   onOpenZone: (
     title: string,
-    cards: GameCard[],
+    cards: CardDto[],
     onClickCard?: (cardId: string) => void,
     clickableCardIds?: string[],
     targetHostile?: boolean,
   ) => void;
   onOpenZoneAndCast: (
     title: string,
-    cards: GameCard[],
+    cards: CardDto[],
     onClickCard: (cardId: string) => void,
     clickableCardIds?: string[],
   ) => void;
@@ -111,10 +113,10 @@ interface GameBoardProps {
   delveAvailable?: boolean;
   onOpenDelveZone?: () => void;
   onCastSpell: (cardId: string) => void;
-  onTapLand?: (card: GameCard) => void;
+  onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
   onTapLandAbility?: (actionId: string) => void;
-  onUntapLand?: (card: GameCard) => void;
+  onUntapLand?: (card: CardDto) => void;
   onUntapLands?: (cardIds: string[]) => void;
 
   pixiExternalBlockers?: ScreenBounds[];
@@ -137,6 +139,7 @@ export function GameBoard({
   graveyard,
   exile,
   myCommandZone,
+  playableIds,
   activePlayerId,
   priorityPlayerId,
   step,
@@ -254,10 +257,12 @@ export function GameBoard({
   const graveyardTargetIds = targetZoneCardIds("Graveyard");
   const exileTargetIds = targetZoneCardIds("Exile");
   const commandPlayableIds = myCommandZone
-    ?.filter((card) => card.isPlayable)
+    ?.filter((card) => playableIds.has(card.id))
     .map((card) => card.id);
-  const graveyardPlayableIds = graveyard.filter((card) => card.isPlayable).map((card) => card.id);
-  const exilePlayableIds = exile.filter((card) => card.isPlayable).map((card) => card.id);
+  const graveyardPlayableIds = graveyard
+    .filter((card) => playableIds.has(card.id))
+    .map((card) => card.id);
+  const exilePlayableIds = exile.filter((card) => playableIds.has(card.id)).map((card) => card.id);
   const selectableBattlefieldCardIds = useMemo(
     () =>
       promptType === "chooseAttackers"
@@ -342,6 +347,7 @@ export function GameBoard({
   const pixiHand = useMemo(
     (): import("@/pixi/types").HandState => ({
       cards: myHand,
+      playableIds,
       draggingCardId,
       draggingIsPermanent,
       castingCardId,
@@ -350,6 +356,7 @@ export function GameBoard({
     }),
     [
       myHand,
+      playableIds,
       draggingCardId,
       draggingIsPermanent,
       castingCardId,
@@ -511,7 +518,7 @@ export function GameBoard({
   );
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
-    const oppState = (cards: GameCard[]): BattlefieldState => ({
+    const oppState = (cards: CardDto[]): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
       orderedCardIds: damageOrder,
@@ -644,6 +651,7 @@ export function GameBoard({
         isMonarch={monarchId === me.id}
         hasInitiative={initiativeHolderId === me.id}
         commanders={myCommandZone}
+        commandPlayableIds={commandPlayableIds}
         graveyard={graveyard}
         exile={exile}
         onCastCommander={onCastSpell}
@@ -706,9 +714,12 @@ export function GameBoard({
           }
         }}
         hasPlayableInGraveyard={
-          (promptType === "chooseAction" && graveyard.some((c) => c.isPlayable)) || !!delveAvailable
+          (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
+          !!delveAvailable
         }
-        hasPlayableInExile={promptType === "chooseAction" && exile.some((c) => c.isPlayable)}
+        hasPlayableInExile={
+          promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id))
+        }
         hasTargetInGraveyard={isTargetingPrompt && graveyardTargetIds.length > 0}
         hasTargetInExile={isTargetingPrompt && exileTargetIds.length > 0}
         targetHostile={hostileTargeting}

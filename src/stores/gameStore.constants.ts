@@ -1,11 +1,11 @@
 import type { GameState, DeferredSnapshot } from "./gameStore.types";
 import type { Prompt } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 import { isPromptLoggingEnabled } from "@/lib/debugPrompts";
 
-function normalizeGameView(nextView: GameView, currentView: GameView | null): GameView {
-  const incoming = (nextView ?? {}) as Partial<GameView>;
+function normalizeGameView(nextView: GameViewDto, currentView: GameViewDto | null): GameViewDto {
+  const incoming = (nextView ?? {}) as Partial<GameViewDto>;
   const current = currentView ?? null;
 
   return {
@@ -22,8 +22,11 @@ function normalizeGameView(nextView: GameView, currentView: GameView | null): Ga
       ? incoming.battlefield
       : (current?.battlefield ?? []),
     stack: Array.isArray(incoming.stack) ? incoming.stack : (current?.stack ?? []),
-    gameOver: incoming.gameOver ?? current?.gameOver,
+    gameOver: incoming.gameOver ?? current?.gameOver ?? false,
     winnerId: incoming.winnerId ?? current?.winnerId ?? null,
+    concededPlayerIds: Array.isArray(incoming.concededPlayerIds)
+      ? incoming.concededPlayerIds
+      : (current?.concededPlayerIds ?? []),
     monarchId: incoming.monarchId ?? current?.monarchId ?? null,
     initiativeHolderId: incoming.initiativeHolderId ?? current?.initiativeHolderId ?? null,
   };
@@ -56,7 +59,7 @@ function route(
 // The sole way game state reaches the store. Applied for every player on every
 // change, regardless of whose priority it is.
 export function applyState(
-  gameView: GameView,
+  gameView: GameViewDto,
   source: string,
   set: (partial: Partial<GameState>) => void,
   get: () => GameState,

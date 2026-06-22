@@ -13,7 +13,7 @@ import type {
   RoomRelayEnvelope,
   SealedConfig,
 } from "@/types/server";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import type { Prompt, PromptOutput } from "@/protocol";
 
 // ============================================================================

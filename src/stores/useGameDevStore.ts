@@ -274,9 +274,9 @@ export function hasActiveCardOverride(o: DevCardOverrides): boolean {
   );
 }
 
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 
-export function applyCardOverrides(card: GameCard, o: DevCardOverrides): GameCard {
+export function applyCardOverrides(card: CardDto, o: DevCardOverrides): CardDto {
   if (!hasActiveCardOverride(o)) return card;
   const counters = { ...(card.counters ?? {}) };
   if (o.p1p1 != null) counters.P1P1 = o.p1p1;
@@ -311,7 +311,6 @@ export function applyCardOverrides(card: GameCard, o: DevCardOverrides): GameCar
     foil: o.forceFoil || card.foil,
     phasedOut: o.forcePhasedOut || card.phasedOut,
     isAttacking: o.forceAttacking || card.isAttacking,
-    isPlayable: o.forcePlayable || card.isPlayable,
     isDoubleFaced: o.forceDoubleFaced || card.isDoubleFaced,
     damage: o.damage != null ? o.damage : card.damage,
     counters,

@@ -1,4 +1,4 @@
-import type { ActivatableAbilityInfo } from "@/types/manabrew";
+import type { ActivatableAbilityInfo } from "@/protocol/prompts/common";
 
 export interface ManaAbilityActionInfo extends ActivatableAbilityInfo {
   actionId?: string;

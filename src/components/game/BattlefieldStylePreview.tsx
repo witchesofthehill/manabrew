@@ -41,6 +41,7 @@ export function BattlefieldStylePreview({ style, width = 88 }: BattlefieldStyleP
     <div className="shrink-0">
       <BattlefieldCardFace
         card={scryfallToSampleGameCard(entry!.info)}
+        colorIdentity={entry!.info.color_identity}
         artCrop={uris.art_crop}
         variant={style}
         width={width}

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/game/modals/Modal";
 import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
 import { MODAL_CARD_THUMBNAIL } from "./game.styles";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 
 interface PlayModeOption {
   cardId: string;

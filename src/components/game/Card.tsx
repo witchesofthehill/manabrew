@@ -1,4 +1,4 @@
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { memo, useState, useMemo, type CSSProperties } from "react";
 import { CounterDisplay } from "@/components/game/CounterBadge";
@@ -37,7 +37,7 @@ function CardBadge({ label, style }: { label: string; style: string }) {
 }
 
 interface CardProps {
-  card: GameCard;
+  card: CardDto;
   className?: string;
   style?: CSSProperties;
   isTapped?: boolean;
@@ -95,7 +95,7 @@ function CardComponent({
   }, [lethal, card.basePower, card.power, card.toughness, card.baseToughness, themeColors]);
 
   const horizontal = isHorizontalCard({
-    layout: card.layout,
+    layout: deckCard.layout,
     types: card.types,
   });
 
@@ -320,7 +320,6 @@ export const Card = memo(CardComponent, (prev, next) => {
     pc.isCopy !== nc.isCopy ||
     pc.foil !== nc.foil ||
     pc.isDoubleFaced !== nc.isDoubleFaced ||
-    pc.isPlayable !== nc.isPlayable ||
     pc.color !== nc.color ||
     pc.setCode !== nc.setCode ||
     pc.cardNumber !== nc.cardNumber ||

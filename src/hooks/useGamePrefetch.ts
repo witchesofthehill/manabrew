@@ -2,14 +2,18 @@ import { useEffect, useRef } from "react";
 import { useGameStore } from "@/stores/useGameStore";
 import { prefetchCards } from "@/stores/useScryfallStore";
 import { asDeckCard, getDeckCardPool } from "@/lib/decks";
-import type { Deck, DeckCard, GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
+import type { Deck, DeckCard } from "@/protocol/deck";
 
 /** Cards whose textures must be decoded before the game UI flips on:
  *  hand, both command zones, and a small head-start of each deck list for
  *  early draws. The full deck pool gets fired-and-forgotten in the same
  *  pass — `getCardTexture` is idempotent so the critical entries aren't
  *  re-fetched. */
-function cardsToPrefetchImmediately(view: GameView, gameDecks: Record<string, Deck>): DeckCard[] {
+function cardsToPrefetchImmediately(
+  view: GameViewDto,
+  gameDecks: Record<string, Deck>,
+): DeckCard[] {
   const cards: DeckCard[] = [];
   const visible = view.players.flatMap((p) => [...p.hand, ...p.commandZone]);
   for (const gc of visible) {

@@ -3,7 +3,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
 import { isLand, countColorPips, countGenericMana } from "@/lib/mana";
 import type { ManaColor } from "@/lib/mana";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { MANA_LETTERS, MANA_BG_CLASS } from "@/themes/gameTheme";
 import { CMC_BUCKET_LABELS, cmcBucketIndex } from "./deckBuilder.utils";

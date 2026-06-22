@@ -4,7 +4,7 @@ import { useDeckStore } from "@/stores/useDeckStore";
 import { getDefaultGameRuntime } from "@/game";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { prefetchPresetDecks } from "@/stores/usePresetDecksStore";
-import type { Deck, DeckCard } from "@/types/manabrew";
+import type { Deck, DeckCard } from "@/protocol/deck";
 
 let initPromise: Promise<void> | null = null;
 

@@ -17,7 +17,8 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { DROP_ZONE, DEFAULT_DECK_NAME } from "@/lib/constants";
 import { useEffect, useRef, useState } from "react";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
+import type { Deck as DeckType } from "@/protocol/deck";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
 import { useBlocker, useLocation, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,6 @@ import type { SortBy } from "@/views/myDecks.utils";
 import { usePresetDecks } from "@/stores/usePresetDecksStore";
 import { useNavigate } from "react-router";
 import type { SavedDeck } from "@/stores/useDeckStore";
-import type { Deck as DeckType } from "@/types/manabrew";
 
 export default function DeckEditor() {
   const {

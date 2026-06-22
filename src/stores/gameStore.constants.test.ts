@@ -6,7 +6,7 @@ import { applyDisplay, applyPrompt, applyState } from "./gameStore.constants";
 import type { GameState } from "./gameStore.types";
 import type { Prompt } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 
 // Corpus = one example of every AgentPromptInner variant, generated on demand by
 // the rust emitter (no committed fixture, can't drift), replayed through applyPrompt.
@@ -70,7 +70,7 @@ describe("UI message handling (engine -> store)", () => {
 
   it("applyState is the sole carrier of game state", () => {
     const store = makeStoreStub("player-0");
-    applyState({ gameId: "g" } as GameView, "test", store.set, store.get);
+    applyState({ gameId: "g" } as GameViewDto, "test", store.set, store.get);
     expect((store.get() as { gameView: unknown }).gameView).not.toBeNull();
     expect((store.get() as { currentPrompt: unknown }).currentPrompt).toBeNull();
   });

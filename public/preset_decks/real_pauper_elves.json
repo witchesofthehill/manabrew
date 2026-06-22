@@ -14,19 +14,11 @@
       "cardNumber": "272",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {G}.)",
       "layout": "normal",
       "uris": {
@@ -54,20 +46,11 @@
       "set": "fdn",
       "cardNumber": "227",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "{T}: Add {G}.",
       "layout": "normal",
@@ -98,20 +81,11 @@
       "set": "soc",
       "cardNumber": "266",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "{T}: Add {G}.",
       "layout": "normal",
@@ -133,20 +107,11 @@
       "set": "cmr",
       "cardNumber": "228",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "{T}: Add {G}.",
       "layout": "normal",
@@ -168,21 +133,11 @@
       "set": "ons",
       "cardNumber": "248",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid",
-        "Ranger"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid", "Ranger"],
       "supertypes": [],
       "text": "Tap two untapped Elves you control: Add one mana of any color.\nMorph {G} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
       "layout": "normal",
@@ -213,20 +168,11 @@
       "set": "mh2",
       "cardNumber": "285",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Ranger"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Ranger"],
       "supertypes": [],
       "text": "Return a Forest you control to its owner's hand: Untap target creature. Activate only once each turn.",
       "layout": "normal",
@@ -248,20 +194,11 @@
       "set": "khm",
       "cardNumber": "178",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Rogue"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Rogue"],
       "supertypes": [],
       "text": "Reach\n{T}, Tap an untapped creature you control: Add one mana of any color.",
       "layout": "normal",
@@ -283,20 +220,11 @@
       "set": "ddu",
       "cardNumber": "8",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warrior"],
       "supertypes": [],
       "text": "Whenever another Elf enters, put a +1/+1 counter on this creature.",
       "layout": "normal",
@@ -318,20 +246,11 @@
       "set": "mh3",
       "cardNumber": "286",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "{T}: Add {G} for each Elf on the battlefield.",
       "layout": "normal",
@@ -353,19 +272,11 @@
       "set": "khc",
       "cardNumber": "76",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf"],
       "supertypes": [],
       "text": "{T}: Target creature gets +X/+X until end of turn, where X is the number of Elves on the battlefield.",
       "layout": "normal",
@@ -387,20 +298,11 @@
       "set": "hou",
       "cardNumber": "124",
       "manaCost": "{3}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Snake",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Snake", "Druid"],
       "supertypes": [],
       "text": "{T}: Add one mana of any color.\n{T}, Exert this creature: Add two mana of any one color. (An exerted creature won't untap during your next untap step.)",
       "layout": "normal",
@@ -422,20 +324,11 @@
       "set": "khc",
       "cardNumber": "67",
       "manaCost": "{2}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warrior"],
       "supertypes": [],
       "text": "Whenever you cast an Elf spell, you may create a 1/1 green Elf Warrior creature token.",
       "layout": "normal",
@@ -466,19 +359,11 @@
       "set": "khm",
       "cardNumber": "184",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\nWhen this creature enters, you may exile a creature card from your graveyard. If you do, exile target artifact or enchantment an opponent controls.",
       "layout": "normal",
@@ -500,19 +385,11 @@
       "set": "tdm",
       "cardNumber": "23",
       "manaCost": "{5}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Beast"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Beast"],
       "supertypes": [],
       "text": "Affinity for creatures (This spell costs {1} less to cast for each creature you control.)\nWhen this creature enters, draw a card.",
       "layout": "normal",
@@ -534,20 +411,11 @@
       "set": "mh3",
       "cardNumber": "164",
       "manaCost": "{X}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "Hydra"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Hydra"],
       "supertypes": [],
       "text": "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nReach, trample\nThis permanent enters with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on this Aura and has reach and trample.",
       "layout": "normal",
@@ -569,16 +437,10 @@
       "set": "iko",
       "cardNumber": "163",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Look at the top five cards of your library. You may reveal any number of creature cards from among them and put the revealed cards into your hand. Put the rest on the bottom of your library in any order.",
@@ -599,16 +461,10 @@
       "set": "otc",
       "cardNumber": "213",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose creature or land. Reveal the top four cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest into your graveyard.",
@@ -629,16 +485,10 @@
       "set": "ecc",
       "cardNumber": "45",
       "manaCost": "{3}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose a creature type. Draw a card for each permanent you control of that type.",

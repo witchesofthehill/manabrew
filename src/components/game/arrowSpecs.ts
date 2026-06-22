@@ -1,5 +1,5 @@
 import type { ArrowSpec } from "@/pixi/types";
-import type { StackObject, StackTarget } from "@/types/manabrew";
+import type { StackObjectDto, StackTargetDto } from "@/protocol/game";
 import { TargetingIntent } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 
@@ -13,15 +13,15 @@ export interface BuildArrowSpecsOptions {
   // (Game.tsx), never an arrow — multiple opponents / planeswalkers / sieges
   // make any "default" destination misleading.
   activeAttackers: { attackerId: string; defenderId: string }[];
-  stack?: StackObject[];
+  stack?: StackObjectDto[];
   activeStackObjectId?: string | null;
   stageBlockers?: boolean;
 }
 
 function getActiveStackObject(
-  stack: StackObject[] | undefined,
+  stack: StackObjectDto[] | undefined,
   activeStackObjectId?: string | null,
-): StackObject | null {
+): StackObjectDto | null {
   if (!stack || stack.length === 0) return null;
   if (activeStackObjectId) {
     const hit = stack.find((obj) => obj.id === activeStackObjectId);
@@ -100,7 +100,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
 
   if (activeObj) {
     const objAny = activeObj as unknown as Record<string, unknown>;
-    const targets = Array.isArray(objAny.targets) ? (objAny.targets as StackTarget[]) : [];
+    const targets = Array.isArray(objAny.targets) ? (objAny.targets as StackTargetDto[]) : [];
     for (const t of targets) {
       if (t.intent !== TargetingIntent.Attach) continue;
       const to: ArrowSpec["to"] | null =

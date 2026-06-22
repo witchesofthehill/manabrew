@@ -9,7 +9,7 @@ import { DeckSelectionCard } from "./DeckSelectionCard";
 import { cn } from "@/lib/utils";
 import { getDeckFingerprint } from "@/lib/decks";
 import { useDeckStore } from "@/stores/useDeckStore";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import { ArrowLeft, Hand, Search, Shuffle, Swords, User, Bot, X } from "lucide-react";
 import { resolveCoverCard } from "../deck/deckCover.utils";
 

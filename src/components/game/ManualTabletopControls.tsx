@@ -4,10 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
 import { applyManualTabletopAction, type ManualTabletopApi } from "@/game";
 import { useGameStore } from "@/stores/useGameStore";
-import type { GameCard, GameView } from "@/types/manabrew";
+import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
 import {
   Archive,
@@ -24,7 +25,7 @@ import {
 } from "lucide-react";
 
 interface ManualTabletopControlsProps {
-  gameView: GameView;
+  gameView: GameViewDto;
   api: ManualTabletopApi;
 }
 
@@ -39,24 +40,24 @@ function createManualCard(
   controllerId: string,
   isToken: boolean,
   scryfallCard?: ScryfallCard,
-): GameCard {
+): CardDto {
   const base = scryfallCard ? scryfallToDeckCard(scryfallCard) : null;
 
   return {
+    ...GAME_CARD_DEFAULTS,
     ...(base ?? {}),
     id: `manual-card-${crypto.randomUUID()}`,
     name: base?.name ?? name,
     setCode: base?.setCode ?? "",
     cardNumber: base?.cardNumber ?? "",
     color: base?.color ?? "",
-    colorIdentity: base?.colorIdentity ?? [],
     manaCost: base?.manaCost ?? "",
     cmc: base?.cmc ?? 0,
     types: base?.types ?? (isToken ? ["Creature"] : []),
     subtypes: base?.subtypes ?? [],
     supertypes: base?.supertypes ?? [],
-    power: base?.power,
-    toughness: base?.toughness,
+    power: base?.power ?? null,
+    toughness: base?.toughness ?? null,
     basePower: parseStat(base?.power),
     baseToughness: parseStat(base?.toughness),
     text: base?.text ?? "",
@@ -65,7 +66,7 @@ function createManualCard(
     zoneId: "battlefield",
     tapped: false,
     isToken,
-    isDoubleFaced: base?.isDoubleFaced,
+    isDoubleFaced: base?.isDoubleFaced ?? false,
   };
 }
 
@@ -156,7 +157,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
     setSearchResults([]);
   };
 
-  const moveCard = (card: GameCard, zoneId: string) =>
+  const moveCard = (card: CardDto, zoneId: string) =>
     applyAction({
       type: "moveCard",
       cardId: card.id,
@@ -377,7 +378,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
             onClick={() => void addPermanent(false)}
           >
             <Plus className="h-3.5 w-3.5" />
-            GameCard
+            CardDto
           </Button>
           <Button
             type="button"

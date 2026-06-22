@@ -12,7 +12,8 @@ import { PromptModalHost } from "@/components/prompts/promptComponents";
 // import { DiceRolledPreview } from "@/components/prompts/dev/DiceRolledPreview";
 // import { VAssignCombatDamagePreview } from "@/components/prompts/dev/VAssignCombatDamagePreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
-import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
+import type { CardDto, StackObjectDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import type { Prompt } from "@/protocol";
 import type { AbilityPickerState, HandActionOption } from "@/stores/useGameUIStore";
 
@@ -21,14 +22,14 @@ interface GameModalsProps {
   sourceDeckCard?: DeckCard;
   viewingZone: {
     title: string;
-    cards: GameCard[];
+    cards: CardDto[];
     onClickCard?: (cardId: string) => void;
     clickableCardIds?: string[];
     targetHostile?: boolean;
   } | null;
   onCloseZone: () => void;
   spellStackModalOpen: boolean;
-  stack: StackObject[];
+  stack: StackObjectDto[];
   validSpellIds: string[];
   onTargetSpell: (spellId: string) => void;
   onCloseStack: () => void;

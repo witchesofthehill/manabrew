@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 
 interface DeckCoverImageProps {
   cover: DeckCard | null | undefined;

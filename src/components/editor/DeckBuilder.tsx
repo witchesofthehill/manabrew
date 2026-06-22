@@ -43,7 +43,8 @@ import { ScryfallImg } from "@/components/ScryfallImg";
 import { DeckStats } from "./DeckStats";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
-import type { DeckCard, GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import { fetchCardCollection, searchCards } from "@/api/scryfall";
 import type { ScryfallCard } from "@/types/scryfall";
 import { scryfallToDeckCard } from "@/lib/scryfall.utils";
@@ -1139,7 +1140,7 @@ export function DeckBuilder({
                   onPickPrint={(name) => setPrintPickerCard(name)}
                   onToggleFoil={toggleFoil}
                   onHover={(card, e) =>
-                    preview.handleMouseEnter(card as unknown as GameCard, e, { useDelay: true })
+                    preview.handleMouseEnter(card as unknown as CardDto, e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
                   onAddToSide={(card) => addToSide(card)}
@@ -1194,7 +1195,7 @@ export function DeckBuilder({
                       onPickPrint={setTokenPrintPickerName}
                       onRemoveToken={removeToken}
                       onHover={(token, e) =>
-                        preview.handleMouseEnter(token as unknown as GameCard, e, {
+                        preview.handleMouseEnter(token as unknown as CardDto, e, {
                           useDelay: true,
                         })
                       }

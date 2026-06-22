@@ -1,4 +1,4 @@
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { PromptActionType, CombatAssignment } from "./game.types";
 
 interface CombatSummarySectionProps {
@@ -7,16 +7,16 @@ interface CombatSummarySectionProps {
   pendingAttackers: string[];
   blockAssignments: CombatAssignment[];
   resolveCardName: (cardId: string) => string;
-  resolveCard: (cardId: string) => GameCard | undefined;
+  resolveCard: (cardId: string) => CardDto | undefined;
 }
 
-function powerOf(card: GameCard | undefined): number {
+function powerOf(card: CardDto | undefined): number {
   if (!card?.power) return 0;
   const n = parseInt(card.power, 10);
   return Number.isFinite(n) ? n : 0;
 }
 
-function toughnessOf(card: GameCard | undefined): number {
+function toughnessOf(card: CardDto | undefined): number {
   if (!card?.toughness) return 0;
   const n = parseInt(card.toughness, 10);
   return Number.isFinite(n) ? n : 0;

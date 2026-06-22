@@ -1,4 +1,4 @@
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import type { SpellbookCombo } from "@/api/commanderSpellbook";
 import { normalizeCardName } from "@/lib/gameChangers";
 

@@ -20,7 +20,20 @@ const SCRYFALL_API = "https://api.scryfall.com";
 const COLLECTION_BATCH_SIZE = 75;
 const FORCE = process.argv.includes("--force");
 
-const META_FIELDS = ["manaCost", "colors", "colorIdentity", "types", "subtypes", "supertypes", "text", "cmc", "layout", "power", "toughness", "imageUrl"];
+const META_FIELDS = [
+  "manaCost",
+  "colors",
+  "colorIdentity",
+  "types",
+  "subtypes",
+  "supertypes",
+  "text",
+  "cmc",
+  "layout",
+  "power",
+  "toughness",
+  "imageUrl",
+];
 
 function hasMetadata(entry) {
   return META_FIELDS.some((f) => f in entry);
@@ -35,7 +48,17 @@ function parseTypeLine(typeLine) {
   const [main, ...subParts] = typeLine.split("—").map((s) => s.trim());
   const subtypes = subParts.length > 0 ? subParts.join(" ").split(/\s+/).filter(Boolean) : [];
   const tokens = main.split(/\s+/).filter(Boolean);
-  const SUPER = new Set(["Basic", "Legendary", "Snow", "World", "Ongoing", "Tribal", "Elite", "Host", "Token"]);
+  const SUPER = new Set([
+    "Basic",
+    "Legendary",
+    "Snow",
+    "World",
+    "Ongoing",
+    "Tribal",
+    "Elite",
+    "Host",
+    "Token",
+  ]);
   const supertypes = [];
   const types = [];
   for (const t of tokens) {
@@ -129,7 +152,9 @@ async function main() {
   for (let i = 0; i < items.length; i += COLLECTION_BATCH_SIZE) {
     const slice = items.slice(i, i + COLLECTION_BATCH_SIZE);
     const ids = slice.map(([, v]) => v.id);
-    process.stdout.write(`[enrich] batch ${i / COLLECTION_BATCH_SIZE + 1}/${Math.ceil(items.length / COLLECTION_BATCH_SIZE)}…\r`);
+    process.stdout.write(
+      `[enrich] batch ${i / COLLECTION_BATCH_SIZE + 1}/${Math.ceil(items.length / COLLECTION_BATCH_SIZE)}…\r`,
+    );
     let data;
     try {
       data = await fetchBatch(ids);

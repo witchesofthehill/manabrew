@@ -29,7 +29,7 @@ import type {
 import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import type { Prompt, PromptOutput } from "@/protocol";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
@@ -985,6 +985,9 @@ class WebServerApi implements IServerApi {
           return;
         case "snapshot":
           this.eventBus.emit("game:snapshot", envelope.entry);
+          return;
+        case "fatal":
+          this.eventBus.emit("game:fatal", { message: envelope.message });
           return;
       }
     }

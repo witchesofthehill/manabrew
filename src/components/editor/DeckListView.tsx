@@ -34,7 +34,7 @@ import {
 import { GameIcon } from "@/components/game/GameIcon";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { cn } from "@/lib/utils";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import type { CardGroup, ViewMode, SectionDefinition } from "./deckBuilder.utils";
 import { CARD_WIDTH_MAP, getTaggedGroups } from "./deckBuilder.utils";
 import { CARD_RING } from "@/components/game/game.styles";
@@ -924,7 +924,7 @@ interface CardSectionProps {
   onUntagCard?: (cardName: string) => void;
   onRemoveTag?: () => void;
   coverCardName?: string;
-  coverCardFace?: 0 | 1;
+  coverCardFace?: number;
   onSetCover?: (card: DeckCard) => void;
   onSetCoverBack?: (card: DeckCard) => void;
   customTags?: string[];
@@ -1257,7 +1257,7 @@ export interface DeckListViewProps {
   onSelectAll?: (cardNames: string[]) => void;
   onShowInfo?: (cardName: string) => void;
   coverCardName?: string;
-  coverCardFace?: 0 | 1;
+  coverCardFace?: number;
   onSetCover?: (card: DeckCard) => void;
   onSetCoverBack?: (card: DeckCard) => void;
   stackPositions?: Record<string, { x: number; y: number }>;

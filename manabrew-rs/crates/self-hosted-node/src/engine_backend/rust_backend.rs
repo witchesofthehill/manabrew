@@ -35,7 +35,7 @@ pub fn run_hosted_engine_game(
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
-) {
+) -> Result<(), String> {
     let prepared_players = prepare_players(
         &player_names,
         &decks,
@@ -91,6 +91,7 @@ pub fn run_hosted_engine_game(
         // If that changes, bundle them here so the game-over forwarder preserves ordering.
         messages: Vec::new(),
     });
+    Ok(())
 }
 
 pub fn run_self_play(

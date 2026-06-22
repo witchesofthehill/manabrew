@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import { asDeckCard } from "@/lib/decks";
 import { stackObjectToCardStub } from "@/components/game/game.utils";
 import { useGameStore } from "@/stores/useGameStore";
-import type { DeckCard, GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 
 export function useResolveDeckCard(cardId: string | undefined): DeckCard | undefined {
   const gameView = useGameStore((s) => s.gameView);
@@ -11,7 +12,7 @@ export function useResolveDeckCard(cardId: string | undefined): DeckCard | undef
 
   return useMemo(() => {
     if (!cardId || !gameView) return undefined;
-    const visible: GameCard[] = [
+    const visible: CardDto[] = [
       ...gameView.battlefield,
       ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
     ];

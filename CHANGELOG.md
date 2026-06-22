@@ -2,64 +2,59 @@
 
 ## [0.4.0](https://github.com/witchesofthehill/manabrew/compare/v0.3.0...v0.4.0) (2026-06-20)
 
-
 ### ⚠ BREAKING CHANGES
 
-* **website:** the app origin changes to play.manabrew.app, so per-origin localStorage (decks, preferences) does not carry over.
+- **website:** the app origin changes to play.manabrew.app, so per-origin localStorage (decks, preferences) does not carry over.
 
 ### Features
 
-* cauldron ([#211](https://github.com/witchesofthehill/manabrew/issues/211)) ([cf3efd0](https://github.com/witchesofthehill/manabrew/commit/cf3efd06796cd1d6e56730e3eff975f1e76a29d9))
-* **combat:** engine-driven combat prompts, doomed flag, block legality ([#210](https://github.com/witchesofthehill/manabrew/issues/210)) ([69ea5b4](https://github.com/witchesofthehill/manabrew/commit/69ea5b4195eeff714091dc18cc7abf10436157bf))
-* **ui:** add battlefield card style options ([#215](https://github.com/witchesofthehill/manabrew/issues/215)) ([6703546](https://github.com/witchesofthehill/manabrew/commit/67035467eb7a145fad41c8290aefdae4cf2fd66e))
-* **ui:** add card-name filter to card-list modals ([#196](https://github.com/witchesofthehill/manabrew/issues/196)) ([39a782e](https://github.com/witchesofthehill/manabrew/commit/39a782e9dbddbaf58db3aa8e80e935dd6e91e3de))
-* **ui:** board animation toolkit + creature ETB stomp ([#218](https://github.com/witchesofthehill/manabrew/issues/218)) ([8f6ec6c](https://github.com/witchesofthehill/manabrew/commit/8f6ec6c5668c4427a3f359647109cebc7ff6242a))
-* **ui:** card preview improvements (p/t badge, loading, loyalty, hints) ([#200](https://github.com/witchesofthehill/manabrew/issues/200)) ([829a39e](https://github.com/witchesofthehill/manabrew/commit/829a39e457cdf250c57754a0c907c06a71fc0812))
-* **ui:** deck-editor fixes, keyboard shortcuts, branding & layout polish ([#181](https://github.com/witchesofthehill/manabrew/issues/181)) ([38882b2](https://github.com/witchesofthehill/manabrew/commit/38882b27b9d723538f4272efa3cd0e9155e934c8))
-* **ui:** first-launch onboarding modal and about dialog ([#162](https://github.com/witchesofthehill/manabrew/issues/162)) ([18126f9](https://github.com/witchesofthehill/manabrew/commit/18126f927d8676196c64956d53c3e282b67a0b67))
-* **ui:** playable draft formats, draft ux overhaul, and pick-race fixes ([#148](https://github.com/witchesofthehill/manabrew/issues/148)) ([ecf42bb](https://github.com/witchesofthehill/manabrew/commit/ecf42bb380d723f2d7282b701000ad40835b34e7))
-* **ui:** rework deck editor into single-scroll moxfield-style page ([#161](https://github.com/witchesofthehill/manabrew/issues/161)) ([6bdb221](https://github.com/witchesofthehill/manabrew/commit/6bdb221e6f2028ecb046d906962b8d33e65cc21f))
-* **ui:** sidebar website link + clearer engine choice in room creation ([#169](https://github.com/witchesofthehill/manabrew/issues/169)) ([fa08f36](https://github.com/witchesofthehill/manabrew/commit/fa08f36f75ab4ead04ca0047ebce71836c8ceada))
-* **ui:** unified single-canvas board with 4-player table seating ([#195](https://github.com/witchesofthehill/manabrew/issues/195)) ([597a910](https://github.com/witchesofthehill/manabrew/commit/597a910e27c31a0d21942735c4cfd19a670271f6))
-* **website:** add landing page and docs site ([#167](https://github.com/witchesofthehill/manabrew/issues/167)) ([168d9de](https://github.com/witchesofthehill/manabrew/commit/168d9de4e6078eb8ed28afa6b28cf4b6af41490b))
-
+- cauldron ([#211](https://github.com/witchesofthehill/manabrew/issues/211)) ([cf3efd0](https://github.com/witchesofthehill/manabrew/commit/cf3efd06796cd1d6e56730e3eff975f1e76a29d9))
+- **combat:** engine-driven combat prompts, doomed flag, block legality ([#210](https://github.com/witchesofthehill/manabrew/issues/210)) ([69ea5b4](https://github.com/witchesofthehill/manabrew/commit/69ea5b4195eeff714091dc18cc7abf10436157bf))
+- **ui:** add battlefield card style options ([#215](https://github.com/witchesofthehill/manabrew/issues/215)) ([6703546](https://github.com/witchesofthehill/manabrew/commit/67035467eb7a145fad41c8290aefdae4cf2fd66e))
+- **ui:** add card-name filter to card-list modals ([#196](https://github.com/witchesofthehill/manabrew/issues/196)) ([39a782e](https://github.com/witchesofthehill/manabrew/commit/39a782e9dbddbaf58db3aa8e80e935dd6e91e3de))
+- **ui:** board animation toolkit + creature ETB stomp ([#218](https://github.com/witchesofthehill/manabrew/issues/218)) ([8f6ec6c](https://github.com/witchesofthehill/manabrew/commit/8f6ec6c5668c4427a3f359647109cebc7ff6242a))
+- **ui:** card preview improvements (p/t badge, loading, loyalty, hints) ([#200](https://github.com/witchesofthehill/manabrew/issues/200)) ([829a39e](https://github.com/witchesofthehill/manabrew/commit/829a39e457cdf250c57754a0c907c06a71fc0812))
+- **ui:** deck-editor fixes, keyboard shortcuts, branding & layout polish ([#181](https://github.com/witchesofthehill/manabrew/issues/181)) ([38882b2](https://github.com/witchesofthehill/manabrew/commit/38882b27b9d723538f4272efa3cd0e9155e934c8))
+- **ui:** first-launch onboarding modal and about dialog ([#162](https://github.com/witchesofthehill/manabrew/issues/162)) ([18126f9](https://github.com/witchesofthehill/manabrew/commit/18126f927d8676196c64956d53c3e282b67a0b67))
+- **ui:** playable draft formats, draft ux overhaul, and pick-race fixes ([#148](https://github.com/witchesofthehill/manabrew/issues/148)) ([ecf42bb](https://github.com/witchesofthehill/manabrew/commit/ecf42bb380d723f2d7282b701000ad40835b34e7))
+- **ui:** rework deck editor into single-scroll moxfield-style page ([#161](https://github.com/witchesofthehill/manabrew/issues/161)) ([6bdb221](https://github.com/witchesofthehill/manabrew/commit/6bdb221e6f2028ecb046d906962b8d33e65cc21f))
+- **ui:** sidebar website link + clearer engine choice in room creation ([#169](https://github.com/witchesofthehill/manabrew/issues/169)) ([fa08f36](https://github.com/witchesofthehill/manabrew/commit/fa08f36f75ab4ead04ca0047ebce71836c8ceada))
+- **ui:** unified single-canvas board with 4-player table seating ([#195](https://github.com/witchesofthehill/manabrew/issues/195)) ([597a910](https://github.com/witchesofthehill/manabrew/commit/597a910e27c31a0d21942735c4cfd19a670271f6))
+- **website:** add landing page and docs site ([#167](https://github.com/witchesofthehill/manabrew/issues/167)) ([168d9de](https://github.com/witchesofthehill/manabrew/commit/168d9de4e6078eb8ed28afa6b28cf4b6af41490b))
 
 ### Fixes
 
-* bad build from renames ([#203](https://github.com/witchesofthehill/manabrew/issues/203)) ([7eea6e9](https://github.com/witchesofthehill/manabrew/commit/7eea6e95cc9a636384663e3a620f2d568ab801a2))
-* better typography ([#199](https://github.com/witchesofthehill/manabrew/issues/199)) ([58d0383](https://github.com/witchesofthehill/manabrew/commit/58d03831e7329c05cfc95398ccb715ab4caf8431))
-* **ci:** match nested artifact paths when attaching release assets ([#159](https://github.com/witchesofthehill/manabrew/issues/159)) ([4a0493a](https://github.com/witchesofthehill/manabrew/commit/4a0493a86d0a81b913a3df58e34f5f7ec8e6a862))
-* **engine:** mirror java hasparam and svar semantics in dsl lowering ([#153](https://github.com/witchesofthehill/manabrew/issues/153)) ([95cd8c6](https://github.com/witchesofthehill/manabrew/commit/95cd8c68c4b6bf7d4c1f08d93645d782fa104b54))
-* font issues on battlegrond ([#205](https://github.com/witchesofthehill/manabrew/issues/205)) ([34572b9](https://github.com/witchesofthehill/manabrew/commit/34572b99766b76c0f5407c3dbf37742431c2dbf7))
-* **harness:** adapt PlayerController impls to bumped Forge API ([#213](https://github.com/witchesofthehill/manabrew/issues/213)) ([b8f3136](https://github.com/witchesofthehill/manabrew/commit/b8f31363e3d8bcb213568b497e8c57eec3943e2d))
-* **hosted:** honor optional any-target bounds ([#180](https://github.com/witchesofthehill/manabrew/issues/180)) ([26e31cb](https://github.com/witchesofthehill/manabrew/commit/26e31cbe31455585d44f54aa24b865affa634e5c))
-* **hosted:** label cast options by alternative cost ([#190](https://github.com/witchesofthehill/manabrew/issues/190)) ([ab74785](https://github.com/witchesofthehill/manabrew/commit/ab74785750279744af9c09c5f6855461004c62d7))
-* **hosted:** preserve java game over outcomes ([#178](https://github.com/witchesofthehill/manabrew/issues/178)) ([28fe352](https://github.com/witchesofthehill/manabrew/commit/28fe3523391790f2fe9e4a78b58fef5c5c49fa9b))
-* **hosted:** preserve nonland mana source choices ([#179](https://github.com/witchesofthehill/manabrew/issues/179)) ([13e69c7](https://github.com/witchesofthehill/manabrew/commit/13e69c734b35dfaa5f4eaf04a329fed6bd265348))
-* **hosted:** render card names in payment prompts ([#177](https://github.com/witchesofthehill/manabrew/issues/177)) ([6bb6dfb](https://github.com/witchesofthehill/manabrew/commit/6bb6dfb1d930c4a5ff2923b817d164c684b4c0a1))
-* improved casting from hand ([#188](https://github.com/witchesofthehill/manabrew/issues/188)) ([f019f14](https://github.com/witchesofthehill/manabrew/commit/f019f147bb15ef6cc6aa61cdb2f825cc10e96bea))
-* landing centering ([#176](https://github.com/witchesofthehill/manabrew/issues/176)) ([a0b7a2b](https://github.com/witchesofthehill/manabrew/commit/a0b7a2b09777c7b2ab8ff741bb9e2c4acf1158e3))
-* misc harness fixes to conform more to rules ([#158](https://github.com/witchesofthehill/manabrew/issues/158)) ([0120077](https://github.com/witchesofthehill/manabrew/commit/01200778d910930e12c5f790b86b983217fd45f5))
-* **misc:** improve smoothness of hand animation, fix bad room reset  ([#184](https://github.com/witchesofthehill/manabrew/issues/184)) ([e508e32](https://github.com/witchesofthehill/manabrew/commit/e508e324caee7097625e3c126039174a4f315293))
-* **protocol:** improved action space and protocol structure ([#197](https://github.com/witchesofthehill/manabrew/issues/197)) ([384a409](https://github.com/witchesofthehill/manabrew/commit/384a409154660cdcb0c04bbf5c18e926bd046b9e))
-* **ui:** fix card scale of battlegrounds ([#187](https://github.com/witchesofthehill/manabrew/issues/187)) ([1be6b86](https://github.com/witchesofthehill/manabrew/commit/1be6b861315c54dc9762df3ea020be42dddb1cbf))
-* **ui:** smooth hand hover interactions ([#165](https://github.com/witchesofthehill/manabrew/issues/165)) ([ca1f16f](https://github.com/witchesofthehill/manabrew/commit/ca1f16f69323a7b184b88290b54a605334b2a613))
-
+- bad build from renames ([#203](https://github.com/witchesofthehill/manabrew/issues/203)) ([7eea6e9](https://github.com/witchesofthehill/manabrew/commit/7eea6e95cc9a636384663e3a620f2d568ab801a2))
+- better typography ([#199](https://github.com/witchesofthehill/manabrew/issues/199)) ([58d0383](https://github.com/witchesofthehill/manabrew/commit/58d03831e7329c05cfc95398ccb715ab4caf8431))
+- **ci:** match nested artifact paths when attaching release assets ([#159](https://github.com/witchesofthehill/manabrew/issues/159)) ([4a0493a](https://github.com/witchesofthehill/manabrew/commit/4a0493a86d0a81b913a3df58e34f5f7ec8e6a862))
+- **engine:** mirror java hasparam and svar semantics in dsl lowering ([#153](https://github.com/witchesofthehill/manabrew/issues/153)) ([95cd8c6](https://github.com/witchesofthehill/manabrew/commit/95cd8c68c4b6bf7d4c1f08d93645d782fa104b54))
+- font issues on battlegrond ([#205](https://github.com/witchesofthehill/manabrew/issues/205)) ([34572b9](https://github.com/witchesofthehill/manabrew/commit/34572b99766b76c0f5407c3dbf37742431c2dbf7))
+- **harness:** adapt PlayerController impls to bumped Forge API ([#213](https://github.com/witchesofthehill/manabrew/issues/213)) ([b8f3136](https://github.com/witchesofthehill/manabrew/commit/b8f31363e3d8bcb213568b497e8c57eec3943e2d))
+- **hosted:** honor optional any-target bounds ([#180](https://github.com/witchesofthehill/manabrew/issues/180)) ([26e31cb](https://github.com/witchesofthehill/manabrew/commit/26e31cbe31455585d44f54aa24b865affa634e5c))
+- **hosted:** label cast options by alternative cost ([#190](https://github.com/witchesofthehill/manabrew/issues/190)) ([ab74785](https://github.com/witchesofthehill/manabrew/commit/ab74785750279744af9c09c5f6855461004c62d7))
+- **hosted:** preserve java game over outcomes ([#178](https://github.com/witchesofthehill/manabrew/issues/178)) ([28fe352](https://github.com/witchesofthehill/manabrew/commit/28fe3523391790f2fe9e4a78b58fef5c5c49fa9b))
+- **hosted:** preserve nonland mana source choices ([#179](https://github.com/witchesofthehill/manabrew/issues/179)) ([13e69c7](https://github.com/witchesofthehill/manabrew/commit/13e69c734b35dfaa5f4eaf04a329fed6bd265348))
+- **hosted:** render card names in payment prompts ([#177](https://github.com/witchesofthehill/manabrew/issues/177)) ([6bb6dfb](https://github.com/witchesofthehill/manabrew/commit/6bb6dfb1d930c4a5ff2923b817d164c684b4c0a1))
+- improved casting from hand ([#188](https://github.com/witchesofthehill/manabrew/issues/188)) ([f019f14](https://github.com/witchesofthehill/manabrew/commit/f019f147bb15ef6cc6aa61cdb2f825cc10e96bea))
+- landing centering ([#176](https://github.com/witchesofthehill/manabrew/issues/176)) ([a0b7a2b](https://github.com/witchesofthehill/manabrew/commit/a0b7a2b09777c7b2ab8ff741bb9e2c4acf1158e3))
+- misc harness fixes to conform more to rules ([#158](https://github.com/witchesofthehill/manabrew/issues/158)) ([0120077](https://github.com/witchesofthehill/manabrew/commit/01200778d910930e12c5f790b86b983217fd45f5))
+- **misc:** improve smoothness of hand animation, fix bad room reset ([#184](https://github.com/witchesofthehill/manabrew/issues/184)) ([e508e32](https://github.com/witchesofthehill/manabrew/commit/e508e324caee7097625e3c126039174a4f315293))
+- **protocol:** improved action space and protocol structure ([#197](https://github.com/witchesofthehill/manabrew/issues/197)) ([384a409](https://github.com/witchesofthehill/manabrew/commit/384a409154660cdcb0c04bbf5c18e926bd046b9e))
+- **ui:** fix card scale of battlegrounds ([#187](https://github.com/witchesofthehill/manabrew/issues/187)) ([1be6b86](https://github.com/witchesofthehill/manabrew/commit/1be6b861315c54dc9762df3ea020be42dddb1cbf))
+- **ui:** smooth hand hover interactions ([#165](https://github.com/witchesofthehill/manabrew/issues/165)) ([ca1f16f](https://github.com/witchesofthehill/manabrew/commit/ca1f16f69323a7b184b88290b54a605334b2a613))
 
 ### Performance
 
-* **ui:** battlefield render + canvas performance pass ([#238](https://github.com/witchesofthehill/manabrew/issues/238)) ([bbbbfac](https://github.com/witchesofthehill/manabrew/commit/bbbbfac6d9210233306ccf84d0027c2dcdcd9506))
-
+- **ui:** battlefield render + canvas performance pass ([#238](https://github.com/witchesofthehill/manabrew/issues/238)) ([bbbbfac](https://github.com/witchesofthehill/manabrew/commit/bbbbfac6d9210233306ccf84d0027c2dcdcd9506))
 
 ### Refactors
 
-* **harness:** move protocol boundary to remove duplication ([#245](https://github.com/witchesofthehill/manabrew/issues/245)) ([96fc958](https://github.com/witchesofthehill/manabrew/commit/96fc958ccb19f5c96dce48718e709bfc2e7ac975))
-* **ui:** prompt file structure and interface ([#209](https://github.com/witchesofthehill/manabrew/issues/209)) ([6824fa0](https://github.com/witchesofthehill/manabrew/commit/6824fa049317cb6a079c73ec7f4ea3fe8057134b))
-
+- **harness:** move protocol boundary to remove duplication ([#245](https://github.com/witchesofthehill/manabrew/issues/245)) ([96fc958](https://github.com/witchesofthehill/manabrew/commit/96fc958ccb19f5c96dce48718e709bfc2e7ac975))
+- **ui:** prompt file structure and interface ([#209](https://github.com/witchesofthehill/manabrew/issues/209)) ([6824fa0](https://github.com/witchesofthehill/manabrew/commit/6824fa049317cb6a079c73ec7f4ea3fe8057134b))
 
 ### Reverts
 
-* **ui:** roll back perf pass ([#238](https://github.com/witchesofthehill/manabrew/issues/238)), keep hand-preview + ring fixes ([#241](https://github.com/witchesofthehill/manabrew/issues/241)) ([1492368](https://github.com/witchesofthehill/manabrew/commit/1492368abcbbeddf66156dadeb78133b40acfa4d))
+- **ui:** roll back perf pass ([#238](https://github.com/witchesofthehill/manabrew/issues/238)), keep hand-preview + ring fixes ([#241](https://github.com/witchesofthehill/manabrew/issues/241)) ([1492368](https://github.com/witchesofthehill/manabrew/commit/1492368abcbbeddf66156dadeb78133b40acfa4d))
 
 ## [0.3.0](https://github.com/witchesofthehill/manabrew/compare/v0.2.0...v0.3.0) (2026-06-11)
 

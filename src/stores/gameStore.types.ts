@@ -1,6 +1,7 @@
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameView, Deck } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
+import type { Deck } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { EngineKind } from "@/types/server";
@@ -17,17 +18,21 @@ export interface GameConfig {
  *  incoming message (display / state / prompt) becomes one of these. */
 export interface DeferredSnapshot {
   displayEvents: DisplayEvent[];
-  gameView: GameView | null;
+  gameView: GameViewDto | null;
   prompt: Prompt | null;
 }
 
 export interface GameState {
-  gameView: GameView | null;
+  gameView: GameViewDto | null;
   currentPrompt: Prompt | null;
   gameLog: GameLogEntry[];
   snapshots: GameSnapshotEntry[];
   isGameActive: boolean;
   debugInfo: string;
+  /** Set when the host engine fails fatally (crash / invalid deck / can't
+   *  start). The game view shows this instead of hanging on the loading
+   *  screen. Cleared when a new game starts. */
+  fatalError: string | null;
   /** Card-image prefetch progress shown on the loading screen. Reset to
    *  null between games. Populated while the start-game flow is fetching
    *  Scryfall textures, before the engine is allowed to emit prompts. */
@@ -49,7 +54,7 @@ export interface GameState {
    *  Used by `asDeckCard(deck, gameCard)` callers to resolve the deck side of
    *  a game card without scanning unrelated decks. */
   gameDecks: Record<string, Deck>;
-  updateGameView: (view: GameView) => void;
+  updateGameView: (view: GameViewDto) => void;
   setGameConfig: (config: GameConfig) => void;
   // Actions
   startGame: (
@@ -61,7 +66,7 @@ export interface GameState {
   ) => Promise<void>;
   startManualTabletopGame: (deck: Deck, formatId?: string, commanderName?: string) => Promise<void>;
   startManualRoomHost: (localPlayerSlot: string) => Promise<void>;
-  startManualRoomClient: (localPlayerSlot: string, initialGameView?: GameView) => Promise<void>;
+  startManualRoomClient: (localPlayerSlot: string, initialGameView?: GameViewDto) => Promise<void>;
   stopManualRoomSync: () => void;
   startMultiplayerGame: (
     playerNames: string[],

@@ -48,6 +48,9 @@ pub enum StateEnvelope {
         from_player: String,
         entry: GameSnapshotEventDto,
     },
+    Fatal {
+        message: String,
+    },
     /// Out-of-band message tunneled through the relay (manual tabletop launch,
     /// self-hosted-node control plane, heartbeats, …). The relay never
     /// interprets the `payload`.

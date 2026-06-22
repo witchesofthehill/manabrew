@@ -1,5 +1,5 @@
 import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { getTheme } from "@/hooks/useTheme";
 import type { HandState, ScreenBounds, ScreenPos } from "../types";
@@ -183,7 +183,11 @@ export class HandController {
 
       const isHidden = !selectionMode && (card.id === state.castingCardId || isCastingSpell);
       sprite.alpha = isHidden ? 0 : 1;
-      sprite.cursor = selectionMode ? "pointer" : card.isPlayable ? "grab" : "default";
+      sprite.cursor = selectionMode
+        ? "pointer"
+        : state.playableIds?.has(card.id)
+          ? "grab"
+          : "default";
 
       this.targets.set(card.id, {
         x: centerX + l.x,
@@ -395,10 +399,10 @@ export class HandController {
     }
   }
 
-  private createSprite(card: GameCard): CardSprite {
+  private createSprite(card: CardDto): CardSprite {
     const sprite = new CardSprite(card, "hand");
     sprite.eventMode = "static";
-    sprite.cursor = card.isPlayable ? "grab" : "default";
+    sprite.cursor = this.lastState?.playableIds?.has(card.id) ? "grab" : "default";
 
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();
@@ -406,7 +410,7 @@ export class HandController {
         this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
         return;
       }
-      if (sprite.card.isPlayable) {
+      if (this.lastState?.playableIds?.has(sprite.card.id)) {
         this.host.getCallbacks().onStartDrag?.(sprite.card, {
           x: e.globalX,
           y: e.globalY,
@@ -506,7 +510,7 @@ export class HandController {
 
   private applyHighlight(
     sprite: CardSprite,
-    card: GameCard,
+    card: CardDto,
     isHovered: boolean,
     selectionMode = false,
     isSelected = false,
@@ -518,7 +522,7 @@ export class HandController {
       sprite.setRing(color, isSelected ? 1 : PLAYABLE_RING_ALPHA);
       return;
     }
-    if (!card.isPlayable) {
+    if (!this.lastState?.playableIds?.has(card.id)) {
       sprite.setRing(null);
       return;
     }

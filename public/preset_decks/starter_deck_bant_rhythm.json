@@ -13,20 +13,11 @@
       "set": "ema",
       "cardNumber": "175",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "{T}: Add {G}.",
       "layout": "normal",
@@ -58,18 +49,10 @@
       "cardNumber": "258",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "W"
-      ],
+      "colorIdentity": ["G", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest",
-        "Plains"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest", "Plains"],
       "supertypes": [],
       "text": "({T}: Add {G} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -90,18 +73,10 @@
       "cardNumber": "132",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest", "Island"],
       "supertypes": [],
       "text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -122,14 +97,9 @@
       "cardNumber": "261",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "W"
-      ],
+      "colorIdentity": ["G", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {G}.\n{T}: Add {W}. Activate only if you control a Forest or a Plains.",
@@ -150,16 +120,10 @@
       "set": "tdm",
       "cardNumber": "150",
       "manaCost": "{X}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for a creature card with mana value X or less, put it onto the battlefield, then shuffle.\nHarmonize {X}{G}{G}{G}{G} (You may cast this card from your graveyard for its harmonize cost. You may tap a creature you control to reduce that cost by an amount of generic mana equal to its power. Then exile this spell.)",
@@ -183,12 +147,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Town"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Town"],
       "supertypes": [],
       "text": "This land enters tapped unless it's your first, second, or third turn of the game.\n{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color.",
       "layout": "normal",
@@ -208,19 +168,11 @@
       "set": "eoe",
       "cardNumber": "72",
       "manaCost": "{3}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Sphinx"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Sphinx"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, draw a card.\nAs long as you have one or fewer cards in hand, if you would draw one or more cards, you draw that many cards plus one instead.\nWarp {1}{U}",
       "layout": "normal",
@@ -242,21 +194,11 @@
       "set": "eoe",
       "cardNumber": "186",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Robot",
-        "Insect"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Robot", "Insect"],
       "supertypes": [],
       "text": "{T}, Tap an untapped permanent you control: Add one mana of any color.",
       "layout": "normal",
@@ -278,16 +220,10 @@
       "set": "eoe",
       "cardNumber": "34",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this enchantment enters, exile target nonland permanent an opponent controls with mana value 2 or less until this enchantment leaves the battlefield.",
@@ -308,22 +244,11 @@
       "set": "spm",
       "cardNumber": "148",
       "manaCost": "{1}{R/G}",
-      "colors": [
-        "G",
-        "R"
-      ],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colors": ["G", "R"],
+      "colorIdentity": ["G", "R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Spider",
-        "Avatar"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Spider", "Avatar"],
       "supertypes": [],
       "text": "Reach\n{T}: Add {R} or {G}.\nWhenever you cast a spell with mana value 4 or greater, untap this creature.",
       "layout": "normal",
@@ -345,20 +270,11 @@
       "set": "tla",
       "cardNumber": "167",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Badger",
-        "Mole"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Badger", "Mole"],
       "supertypes": [],
       "text": "When this creature enters, earthbend 1. (Target land you control becomes a 0/0 creature with haste that's still a land. Put a +1/+1 counter on it. When it dies or is exiled, return it to the battlefield tapped.)\nWhenever you tap a creature for mana, add an additional {G}.",
       "layout": "normal",
@@ -381,14 +297,9 @@
       "cardNumber": "267",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {G} or {U}.",
@@ -409,20 +320,11 @@
       "set": "blb",
       "cardNumber": "61",
       "manaCost": "{X}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Bird",
-        "Bard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Bird", "Bard"],
       "supertypes": [],
       "text": "Flying\nYou may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of mana spent to cast this creature, except it's a Bird in addition to its other types and it has flying.",
       "layout": "normal",
@@ -444,22 +346,11 @@
       "set": "dft",
       "cardNumber": "191",
       "manaCost": "{G}{G}{W}{W}",
-      "colors": [
-        "G",
-        "W"
-      ],
-      "colorIdentity": [
-        "G",
-        "W"
-      ],
+      "colors": ["G", "W"],
+      "colorIdentity": ["G", "W"],
       "cmc": 4,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Construct"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Construct"],
       "supertypes": [],
       "text": "First strike, trample\nWhen this creature enters, you may search your library for up to two artifact, creature, and/or enchantment cards with mana value 1 or less, reveal them, put them into your hand, then shuffle.",
       "layout": "normal",
@@ -481,20 +372,11 @@
       "set": "eoe",
       "cardNumber": "201",
       "manaCost": "{2}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Plant",
-        "Wurm"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Plant", "Wurm"],
       "supertypes": [],
       "text": "At the beginning of combat on your turn, put X +1/+1 counters on each creature you control, where X is this creature's power.",
       "layout": "normal",
@@ -517,18 +399,10 @@
       "cardNumber": "265",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains", "Island"],
       "supertypes": [],
       "text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -548,20 +422,11 @@
       "set": "blb",
       "cardNumber": "181",
       "manaCost": "{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Raccoon",
-        "Scout"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Raccoon", "Scout"],
       "supertypes": [],
       "text": "As long as there are four or more card types among cards exiled with this creature, it gets +4/+4 and has trample.\n{1}: Exile target card from a graveyard.",
       "layout": "normal",
@@ -584,14 +449,9 @@
       "cardNumber": "259",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {W}.\n{T}: Add {U}. Activate only if you control a Plains or an Island.",
@@ -612,19 +472,11 @@
       "set": "dsk",
       "cardNumber": "78",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Enchant creature\nEnchanted creature loses all abilities and is a Toy artifact creature with base power and toughness 0/2 in addition to its other types.\nAs long as enchanted creature is face down, it can't be turned face up.",
       "layout": "normal",
@@ -645,19 +497,11 @@
       "cardNumber": "95",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {G}.)",
       "layout": "normal",
       "uris": {
@@ -685,19 +529,11 @@
       "set": "ptdm",
       "cardNumber": "138p",
       "manaCost": "{5}{G}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Beast"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Beast"],
       "supertypes": [],
       "text": "Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.",
       "layout": "normal",
@@ -719,19 +555,11 @@
       "set": "eoe",
       "cardNumber": "199",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Enchant creature you control\nWhen this Aura enters, enchanted creature fights up to one target creature an opponent controls. (Each deals damage equal to its power to the other.)\nEnchanted creature gets +0/+2 and can't be blocked by more than one creature.",
       "layout": "normal",

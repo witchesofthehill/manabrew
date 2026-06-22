@@ -27,16 +27,10 @@
       "set": "plst",
       "cardNumber": "A25-50",
       "manaCost": "{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Counter target spell.",
@@ -57,16 +51,10 @@
       "set": "ima",
       "cardNumber": "76",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target player mills two cards.\nDraw a card.",
@@ -88,18 +76,10 @@
       "cardNumber": "245",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colorIdentity": ["B", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {U} or {B}.)\nThis land enters tapped.",
       "layout": "normal",
@@ -119,16 +99,10 @@
       "set": "ltr",
       "cardNumber": "60",
       "manaCost": "{3}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 5,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Draw three cards.\nIslandcycling {1} ({1}, Discard this card: Search your library for an Island card, reveal it, put it into your hand, then shuffle.)",
@@ -149,16 +123,10 @@
       "set": "who",
       "cardNumber": "222",
       "manaCost": "{3}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.\nDestroy target nonblack creature. It can't be regenerated.",
@@ -179,22 +147,11 @@
       "set": "mh3",
       "cardNumber": "205",
       "manaCost": "{U}{B}",
-      "colors": [
-        "B",
-        "U"
-      ],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colors": ["B", "U"],
+      "colorIdentity": ["B", "U"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Faerie",
-        "Rogue"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Faerie", "Rogue"],
       "supertypes": [],
       "text": "Flying\nWhen you draw your third card in a turn, return this card from your graveyard to the battlefield tapped.",
       "layout": "normal",
@@ -230,19 +187,11 @@
       "set": "fdn",
       "cardNumber": "167",
       "manaCost": "{6}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Serpent"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Serpent"],
       "supertypes": [],
       "text": "This spell costs {1} less to cast for each instant and sorcery card in your graveyard.\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)",
       "layout": "normal",
@@ -264,20 +213,11 @@
       "set": "uma",
       "cardNumber": "102",
       "manaCost": "{6}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie",
-        "Fish"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Zombie", "Fish"],
       "supertypes": [],
       "text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)",
       "layout": "normal",
@@ -299,16 +239,10 @@
       "set": "soa",
       "cardNumber": "23",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Counter target noncreature spell unless its controller pays {2}.",
@@ -329,16 +263,10 @@
       "set": "bfz",
       "cardNumber": "76",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Counter target instant spell.",
@@ -359,20 +287,11 @@
       "set": "c20",
       "cardNumber": "118",
       "manaCost": "{3}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Wizard"],
       "supertypes": [],
       "text": "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird Illusion creature token with flying.",
       "layout": "normal",
@@ -403,16 +322,10 @@
       "set": "thb",
       "cardNumber": "66",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Tap target creature. It doesn't untap during its controller's next untap step.\nEscape—{2}{U}, Exile three other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
@@ -433,16 +346,10 @@
       "set": "iko",
       "cardNumber": "102",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Put a +1/+1 counter and a lifelink counter on target creature.",
@@ -463,16 +370,10 @@
       "set": "jud",
       "cardNumber": "39",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Counter target sorcery spell.",
@@ -494,19 +395,11 @@
       "cardNumber": "86",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {U}.)",
       "layout": "normal",
       "uris": {
@@ -525,21 +418,11 @@
       "set": "tla",
       "cardNumber": "205",
       "manaCost": "{1}{U/R}",
-      "colors": [
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colors": ["R", "U"],
+      "colorIdentity": ["R", "U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "You may discard a card. If you do, draw two cards.",
       "layout": "normal",

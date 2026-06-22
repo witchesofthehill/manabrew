@@ -1,5 +1,5 @@
 import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
 import {
@@ -72,15 +72,15 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 
-/** Keyed by the card object. The engine mints fresh `GameCard` objects per state
+/** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
  *  same objects (resize, blockers, combat staging) hit the cache. */
-const stackKeyCache = new WeakMap<GameCard, string>();
+const stackKeyCache = new WeakMap<CardDto, string>();
 
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
  *  every property the engine reports splits the stack automatically. Only `id`
  *  (always unique) is excluded. */
-function stackIdentityKey(c: GameCard): string {
+function stackIdentityKey(c: CardDto): string {
   const cached = stackKeyCache.get(c);
   if (cached !== undefined) return cached;
   const key = JSON.stringify(c, (k, value) => (k === "id" ? undefined : value));
@@ -262,7 +262,7 @@ export class BoardRegion {
     this.combatDim = active;
   }
 
-  private isCombatant(card: GameCard): boolean {
+  private isCombatant(card: CardDto): boolean {
     if (card.isAttacking) return true;
     const s = this.combatStaging;
     return !!s && (s.attackerIds.has(card.id) || s.blockerIds.has(card.id));
@@ -396,11 +396,11 @@ export class BoardRegion {
 
   updateBattlefield(state: BattlefieldState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
-    const prevCards = new Map<string, GameCard>();
+    const prevCards = new Map<string, CardDto>();
     for (const c of this.lastState?.cards ?? []) prevCards.set(c.id, c);
     const isFirstState = this.lastState === null;
     this.lastState = state;
-    const cardMap = new Map<string, GameCard>(state.cards.map((c) => [c.id, c]));
+    const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
 
     for (const childId of this.nameGroupChildren) {
@@ -468,7 +468,7 @@ export class BoardRegion {
       const childIds = effectiveChildren.get(card.id) ?? [];
       const attachments = childIds
         .map((id) => cardMap.get(id))
-        .filter((c): c is GameCard => c !== undefined);
+        .filter((c): c is CardDto => c !== undefined);
       const visibleSteps = Math.min(attachments.length, STACK_MAX_SLIDE_CARDS - 1);
       const totalOffset = visibleSteps * ATTACH_OFFSET_Y;
       const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
@@ -579,11 +579,11 @@ export class BoardRegion {
     return dividerY + gap - COMBAT_STAGE_SELF_EXTRA_PX;
   }
 
-  private applyNameGrouping(topLevel: GameCard[]): void {
+  private applyNameGrouping(topLevel: CardDto[]): void {
     this.stackCounts.clear();
     if (topLevel.length < 2) return;
 
-    const isStackable = (c: GameCard): boolean =>
+    const isStackable = (c: CardDto): boolean =>
       !c.isAttacking &&
       !this.combatStaging?.blockerIds.has(c.id) &&
       !c.attachedTo &&
@@ -593,7 +593,7 @@ export class BoardRegion {
       (!c.attachmentIds || c.attachmentIds.length === 0) &&
       !this.userPlacedCards.has(c.id);
 
-    const byIdentity = new Map<string, GameCard[]>();
+    const byIdentity = new Map<string, CardDto[]>();
     for (const c of topLevel) {
       if (!isStackable(c)) continue;
       const key = stackIdentityKey(c);
@@ -614,7 +614,7 @@ export class BoardRegion {
     }
   }
 
-  private applyOverflowStacking(topLevelCandidates: GameCard[]): void {
+  private applyOverflowStacking(topLevelCandidates: CardDto[]): void {
     if (topLevelCandidates.length === 0) return;
     const zone = this.usableZone();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
@@ -673,14 +673,14 @@ export class BoardRegion {
     }
   }
 
-  private computeBattlefieldGrid(cards: GameCard[]): Map<string, Point> {
+  private computeBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
     const positions = new Map<string, Point>();
     const zone = this.usableZone();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     this.gridInfo = grid;
 
     const occupied = new Set<string>();
-    const unplaced: GameCard[] = [];
+    const unplaced: CardDto[] = [];
 
     for (const c of cards) {
       const slot = this.autoSort ? undefined : this.userSlots.get(c.id);
@@ -752,7 +752,7 @@ export class BoardRegion {
     }
 
     type CardCategory = "creature" | "land" | "other";
-    const classify = (c: GameCard): CardCategory => {
+    const classify = (c: CardDto): CardCategory => {
       if (c.types.includes("Creature")) return "creature";
       if (c.types.includes("Land")) return "land";
       return "other";
@@ -867,7 +867,7 @@ export class BoardRegion {
   }
 
   private placeBattlefieldCard(
-    card: GameCard,
+    card: CardDto,
     centerX: number,
     centerY: number,
     zIndex: number,
@@ -895,7 +895,7 @@ export class BoardRegion {
     this.host.rebuildOverlay(entry, state);
   }
 
-  private ensureBattlefieldEntry(card: GameCard): void {
+  private ensureBattlefieldEntry(card: CardDto): void {
     if (this.entries.has(card.id)) return;
     const sprite = new CardSprite(card);
     this.host.wireSprite(sprite);
@@ -1009,7 +1009,7 @@ export class BoardRegion {
     }
   }
 
-  private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
+  private playEntranceFx(entry: SpriteEntry, card: CardDto): void {
     if (!animationsEnabled()) return;
     if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
     const footX = entry.targetX;

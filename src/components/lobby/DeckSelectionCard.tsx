@@ -11,7 +11,7 @@ import {
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { DeckCard, DeckLabel } from "@/types/manabrew";
+import type { DeckCard, DeckLabel } from "@/protocol/deck";
 
 interface DeckSelectionCardProps {
   id: string;

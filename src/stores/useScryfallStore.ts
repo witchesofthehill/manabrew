@@ -16,7 +16,7 @@ import type {
   ScryfallRulingsResponse,
   ScryfallSet,
 } from "@/types/scryfall";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";

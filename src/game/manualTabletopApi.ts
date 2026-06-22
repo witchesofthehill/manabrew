@@ -5,7 +5,8 @@ import type {
   StartGameParams,
   StartMultiplayerGameParams,
 } from "@/platform";
-import type { GameCard, Deck, GameView, Player } from "@/types/manabrew";
+import type { CardDto, GameViewDto, PlayerDto } from "@/protocol/game";
+import type { Deck } from "@/protocol/deck";
 import type { Prompt } from "@/protocol";
 import type { ManualTabletopApi, ManualTabletopAction } from "./runtime.types";
 
@@ -17,7 +18,7 @@ function createPlayer(
   isHuman: boolean,
   life: number,
   libraryCount: number,
-): Player {
+): PlayerDto {
   return {
     id,
     name,
@@ -30,6 +31,12 @@ function createPlayer(
     commandZone: [],
     libraryCount,
     manaPool: {},
+    commanderDamage: {},
+    energyCounters: 0,
+    radiationCounters: 0,
+    hasCityBlessing: false,
+    ringLevel: 0,
+    speed: 0,
   };
 }
 
@@ -63,7 +70,7 @@ function resolveManualZone(
 }
 
 // Apply `fn` to the battlefield and every player's hand/graveyard/exile/command.
-function mapAllZones(gameView: GameView, fn: (cards: GameCard[]) => GameCard[]): GameView {
+function mapAllZones(gameView: GameViewDto, fn: (cards: CardDto[]) => CardDto[]): GameViewDto {
   return {
     ...gameView,
     battlefield: fn(gameView.battlefield),
@@ -77,17 +84,17 @@ function mapAllZones(gameView: GameView, fn: (cards: GameCard[]) => GameCard[]):
   };
 }
 
-function createInitialGameView(params: StartGameParams): GameView {
+function createInitialGameView(params: StartGameParams): GameViewDto {
   const human = createPlayer(
     "player-0",
-    "Player 1",
+    "PlayerDto 1",
     true,
     params.startingLife,
     params.deck.cards.length,
   );
   const opponent = createPlayer(
     "player-1",
-    "Player 2",
+    "PlayerDto 2",
     false,
     params.startingLife,
     params.opponentDeck?.cards.length ?? params.deck.cards.length,
@@ -102,27 +109,31 @@ function createInitialGameView(params: StartGameParams): GameView {
     players: [human, opponent],
     battlefield: [],
     stack: [],
+    combatAssignments: [],
     gameOver: false,
     winnerId: null,
+    concededPlayerIds: [],
+    monarchId: null,
+    initiativeHolderId: null,
   };
 }
 
 function updateVisibleCard(
-  gameView: GameView,
+  gameView: GameViewDto,
   cardId: string,
-  update: (card: GameCard) => GameCard,
-): GameView {
+  update: (card: CardDto) => CardDto,
+): GameViewDto {
   return mapAllZones(gameView, (cards) =>
     cards.map((card) => (card.id === cardId ? update(card) : card)),
   );
 }
 
 function removeVisibleCard(
-  gameView: GameView,
+  gameView: GameViewDto,
   cardId: string,
-): { gameView: GameView; card: GameCard | null } {
-  let removed: GameCard | null = null;
-  const removeFrom = (cards: GameCard[]): GameCard[] =>
+): { gameView: GameViewDto; card: CardDto | null } {
+  let removed: CardDto | null = null;
+  const removeFrom = (cards: CardDto[]): CardDto[] =>
     cards.filter((card) => {
       if (card.id !== cardId) return true;
       removed = card;
@@ -136,12 +147,12 @@ function removeVisibleCard(
 }
 
 function addCardToZone(
-  gameView: GameView,
+  gameView: GameViewDto,
   zoneId: string,
-  card: GameCard,
+  card: CardDto,
   position?: number,
-): GameView {
-  const withInsertedCard = (cards: GameCard[]): GameCard[] => {
+): GameViewDto {
+  const withInsertedCard = (cards: CardDto[]): CardDto[] => {
     const nextCard = { ...card, zoneId };
     if (position == null || position < 0 || position >= cards.length) {
       return [...cards, nextCard];
@@ -165,10 +176,10 @@ function addCardToZone(
 }
 
 function updatePlayer(
-  gameView: GameView,
+  gameView: GameViewDto,
   playerId: string,
-  update: (player: Player) => Player,
-): GameView {
+  update: (player: PlayerDto) => PlayerDto,
+): GameViewDto {
   return {
     ...gameView,
     players: gameView.players.map((player) => (player.id === playerId ? update(player) : player)),
@@ -176,9 +187,9 @@ function updatePlayer(
 }
 
 function syncVisibleZoneCountsWithLibraries(
-  gameView: GameView,
-  libraries: Record<string, GameCard[]>,
-): GameView {
+  gameView: GameViewDto,
+  libraries: Record<string, CardDto[]>,
+): GameViewDto {
   return {
     ...gameView,
     players: gameView.players.map((player) => ({
@@ -189,9 +200,9 @@ function syncVisibleZoneCountsWithLibraries(
 }
 
 export class ManualTabletopGameApi implements ManualTabletopApi {
-  private gameView: GameView | null = null;
+  private gameView: GameViewDto | null = null;
   private latestPrompt: Prompt | null = null;
-  private libraries: Record<string, GameCard[]> = {};
+  private libraries: Record<string, CardDto[]> = {};
 
   async startGame(params: StartGameParams): Promise<string> {
     this.gameView = createInitialGameView(params);
@@ -226,11 +237,11 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     return this.latestPrompt;
   }
 
-  getGameView(): GameView | null {
+  getGameView(): GameViewDto | null {
     return this.gameView;
   }
 
-  async applyManualAction(action: ManualTabletopAction): Promise<GameView> {
+  async applyManualAction(action: ManualTabletopAction): Promise<GameViewDto> {
     if (!this.gameView && action.type !== "replaceState") {
       throw new Error("No active manual tabletop game.");
     }
@@ -243,7 +254,7 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
     return this.gameView;
   }
 
-  private applyAction(gameView: GameView | null, action: ManualTabletopAction): GameView {
+  private applyAction(gameView: GameViewDto | null, action: ManualTabletopAction): GameViewDto {
     if (action.type === "replaceState") {
       this.libraries = action.libraries ?? {};
       return action.gameView;

@@ -15,7 +15,7 @@ import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { cn } from "@/lib/utils";
-import type { DeckFormatId } from "@/types/manabrew";
+import type { DeckFormat } from "@/protocol/deck";
 
 export function DeckHero({ onBack }: { onBack?: () => void }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);
@@ -92,7 +92,7 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
                 {GAME_FORMATS.map((f) => (
                   <DropdownMenuItem
                     key={f.id}
-                    onSelect={() => setDeckFormat(f.id as DeckFormatId)}
+                    onSelect={() => setDeckFormat(f.id as DeckFormat)}
                     className="gap-2"
                   >
                     <FormatBadge formatId={f.id} />

@@ -1,6 +1,6 @@
 import type { Container, FederatedPointerEvent } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { CardSprite } from "../CardSprite";
 import type { BattlefieldState, GameCanvasCallbacks, PlayZoneRect } from "../types";
 
@@ -49,7 +49,7 @@ export interface HandTarget {
 /** Hit rectangle + card for one hand-fan slot (cursor → card resolution). */
 export interface HandHitZone {
   index: number;
-  card: GameCard;
+  card: CardDto;
   x: number;
   y: number;
   width: number;

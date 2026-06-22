@@ -11,13 +11,14 @@ import { ChooseFromSelectionModal } from "./ChooseFromSelectionModal";
 import { DiceRollFeedback } from "@/components/game/dice";
 import { useGameStore } from "@/stores/useGameStore";
 import type { Prompt, PromptOutput, PromptType } from "@/protocol";
-import type { DeckCard, GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 
 export type PromptOf<T extends PromptType> = Extract<Prompt, { input: { type: T } }>;
 
 export interface PromptModalContext {
   sourceDeckCard?: DeckCard;
-  gameView?: GameView | null;
+  gameView?: GameViewDto | null;
 }
 
 export interface PromptComponentProps<T extends PromptType> {

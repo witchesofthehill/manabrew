@@ -1,4 +1,4 @@
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
 import type { PromptType } from "@/protocol";
@@ -74,7 +74,7 @@ export interface MainActionOverlayProps {
   onCompleteTargets?: (() => void) | null;
   onConcede: () => void;
   resolveCardName: (cardId: string) => string;
-  resolveCard: (cardId: string) => GameCard | undefined;
+  resolveCard: (cardId: string) => CardDto | undefined;
   isMyPriority: boolean;
   turn: number;
   activePlayerName: string;

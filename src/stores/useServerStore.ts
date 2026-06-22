@@ -29,7 +29,7 @@ import type {
   ReconnectingPayload,
   DisconnectedPayload,
 } from "@/types/server";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 
 export const DEFAULT_STARTING_LIFE = 20;
 

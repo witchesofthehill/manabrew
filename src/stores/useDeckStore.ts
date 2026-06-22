@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import type { Deck, DeckCard, DeckFormatId } from "@/types/manabrew";
+import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME } from "@/lib/constants";
 import { getFormat, canBePartners, canHaveAnyNumberOf, copyLimitFromText } from "@/lib/formats";
@@ -8,9 +9,9 @@ import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { collectAllPartsNames } from "@/lib/decks";
 
 /** Migrate legacy "constructed" format id to "standard". */
-function migrateFormatId(id: string): DeckFormatId {
+function migrateFormatId(id: string): DeckFormat {
   if (id === "constructed") return "standard";
-  return id as DeckFormatId;
+  return id as DeckFormat;
 }
 
 function getCardUpdateKey(name: string, setCode?: string): string {
@@ -29,7 +30,7 @@ function patchCardsByName(cards: DeckCard[], updates: Map<string, Partial<DeckCa
 /** Drop entries from `deck.tokens` whose name isn't produced by any remaining
  *  card's `allParts`. Called after every card removal so that a customized
  *  token print auto-cleans when its source leaves the deck. */
-function pruneOrphanedTokens(deck: Deck): Deck {
+function pruneOrphanedTokens(deck: EditorDeck): EditorDeck {
   if (!deck.tokens || deck.tokens.length === 0) return deck;
   const produced = collectAllPartsNames(deck);
   const tokens = deck.tokens.filter((t) => produced.has(t.name.toLowerCase()));
@@ -53,7 +54,7 @@ function isPlaneCard(card: DeckCard): boolean {
   return card.types?.some((type) => type.toLowerCase() === "plane") ?? false;
 }
 
-function normalizeDeck(deck: Deck): Deck {
+function normalizeDeck(deck: EditorDeck): EditorDeck {
   const main = [...(deck.cards ?? [])];
   const sideboard = [...(deck.sideboard ?? [])];
   const attractions = [...(deck.attractions ?? [])];
@@ -87,7 +88,7 @@ function normalizeDeck(deck: Deck): Deck {
     }
   }
 
-  const normalized: Deck = {
+  const normalized: EditorDeck = {
     ...deck,
     format: migrateFormatId(deck.format ?? (commanders.length > 0 ? "commander" : "standard")),
     cards: main,
@@ -103,7 +104,7 @@ function normalizeDeck(deck: Deck): Deck {
   return normalized;
 }
 
-function patchDeckCards(deck: Deck, updates: Map<string, Partial<DeckCard>>): Deck {
+function patchDeckCards(deck: EditorDeck, updates: Map<string, Partial<DeckCard>>): EditorDeck {
   const normalized = normalizeDeck(deck);
   return {
     ...normalized,
@@ -135,12 +136,12 @@ function patchDeckCards(deck: Deck, updates: Map<string, Partial<DeckCard>>): De
 
 export interface SavedDeck {
   id: string;
-  deck: Deck;
+  deck: EditorDeck;
   savedAt: number;
 }
 
 interface DeckState {
-  currentDeck: Deck;
+  currentDeck: EditorDeck;
   currentDeckId: string | null;
   /** True when browsing a preset — gates editing controls in DeckBuilder. */
   isReadOnly: boolean;
@@ -154,12 +155,12 @@ interface DeckState {
   removeFromMain: (cardId: string) => void;
   removeFromSide: (cardId: string) => void;
   setDeckName: (name: string) => void;
-  setDeckFormat: (format: DeckFormatId) => void;
+  setDeckFormat: (format: DeckFormat) => void;
   clearDeck: () => void;
-  loadDeck: (deck: Deck) => void;
-  loadPresetDeck: (deck: Deck) => void;
+  loadDeck: (deck: EditorDeck) => void;
+  loadPresetDeck: (deck: EditorDeck) => void;
   importPresetToMyDecks: () => string | null;
-  addSavedDeck: (deck: Deck) => string;
+  addSavedDeck: (deck: EditorDeck) => string;
   saveCurrentDeck: () => void;
   saveDraft: () => void;
   loadSavedDeck: (id: string) => void;
@@ -186,7 +187,7 @@ interface DeckState {
   setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
 }
 
-const initialDeck: Deck = {
+const initialDeck: EditorDeck = {
   name: DEFAULT_DECK_NAME,
   format: "standard",
   cards: [],
@@ -362,7 +363,7 @@ export const useDeckStore = create<DeckState>()(
           const id = crypto.randomUUID();
           const baseName = state.currentDeck.name || DEFAULT_DECK_NAME;
           const importedName = baseName.endsWith(" (Copy)") ? baseName : `${baseName} (Copy)`;
-          const imported: Deck = {
+          const imported: EditorDeck = {
             ...normalizeDeck(state.currentDeck),
             name: importedName,
             id: undefined,
@@ -716,7 +717,7 @@ export const useDeckStore = create<DeckState>()(
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;
           const state = persistedState as {
-            currentDeck?: Deck;
+            currentDeck?: EditorDeck;
             currentDeckId?: string | null;
             savedDecks?: SavedDeck[];
           };

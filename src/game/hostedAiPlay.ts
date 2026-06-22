@@ -5,7 +5,8 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
-import type { Deck } from "@/types/manabrew";
+import type {} from "@/protocol/game";
+import type { Deck } from "@/protocol/deck";
 
 const HOSTED_AI_TIMEOUT_MS = 20_000;
 
@@ -41,7 +42,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
   await waitForRoom((next) => next.room_id === room.room_id && hasPlayer(next, username));
 
   await platform.server.setDeckSelection({
-    deckName: request.playerDeck.name || "Player Deck",
+    deckName: request.playerDeck.name || "PlayerDto Deck",
     deck: request.playerDeck,
     commanderName: request.commanderName,
   });

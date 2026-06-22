@@ -14,18 +14,10 @@
       "cardNumber": "257",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Mountain"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Mountain"],
       "supertypes": [],
       "text": "({T}: Add {U} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -46,14 +38,9 @@
       "cardNumber": "270",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {U} or {R}.",
@@ -74,19 +61,11 @@
       "set": "blb",
       "cardNumber": "124",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Class"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Class"],
       "supertypes": [],
       "text": "(Gain the next level as a sorcery to add its ability.)\nWhenever you cast a noncreature spell, you may discard a card. If you do, draw a card.\n{2}{R}: Level 2\nNoncreature spells you cast cost {1} less to cast.\n{2}{R}: Level 3\nIf a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 2 instead.",
       "layout": "class",
@@ -107,14 +86,9 @@
       "cardNumber": "260",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {R}.\n{T}: Add {U}. Activate only if you control an Island or a Mountain.",
@@ -138,9 +112,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever you discard a card, choose one that hasn't been chosen this turn —\n• Draw a card.\n• Create a Treasure token.\n• Each opponent loses 3 life.",
@@ -170,24 +142,12 @@
       "set": "tla",
       "cardNumber": "54",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Peasant",
-        "Ally"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Peasant", "Ally"],
+      "supertypes": ["Legendary"],
       "text": "Whenever Gran-Gran becomes tapped, draw a card, then discard a card.\nNoncreature spells you cast cost {1} less to cast as long as there are three or more Lesson cards in your graveyard.",
       "layout": "normal",
       "power": "1",
@@ -208,19 +168,11 @@
       "set": "tla",
       "cardNumber": "128",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Combustion Technique deals damage equal to 2 plus the number of Lesson cards in your graveyard to target creature. If that creature would die this turn, exile it instead.",
       "layout": "normal",
@@ -240,19 +192,11 @@
       "set": "tla",
       "cardNumber": "44",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Look at the top three cards of your library. Put one of those cards into your hand and the rest on the bottom of your library in any order. Put each of those cards into your hand instead if there are three or more Lesson cards in your graveyard.",
       "layout": "normal",
@@ -272,19 +216,11 @@
       "set": "tla",
       "cardNumber": "138",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Kicker {4} (You may pay an additional {4} as you cast this spell.)\nFirebending Lesson deals 2 damage to target creature. If this spell was kicked, it deals 5 damage to that creature instead.",
       "layout": "normal",
@@ -304,16 +240,10 @@
       "set": "potj",
       "cardNumber": "75p",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Spree (Choose one or more additional costs.)\n+ {1}{U} — Counter target spell.\n+ {3} — Create a token that's a copy of target artifact or creature you control.\n+ {2} — Draw two cards, then discard a card.",
@@ -344,19 +274,11 @@
       "cardNumber": "90",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -375,21 +297,11 @@
       "set": "tla",
       "cardNumber": "205",
       "manaCost": "{1}{U/R}",
-      "colors": [
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colors": ["R", "U"],
+      "colorIdentity": ["R", "U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "You may discard a card. If you do, draw two cards.",
       "layout": "normal",
@@ -409,19 +321,11 @@
       "set": "tla",
       "cardNumber": "58",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Counter target spell unless its controller pays {2}.",
       "layout": "normal",
@@ -441,19 +345,11 @@
       "set": "tla",
       "cardNumber": "141",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Sorcery"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Choose one —\n• Iroh's Demonstration deals 1 damage to each creature your opponents control.\n• Iroh's Demonstration deals 4 damage to target creature.",
       "layout": "normal",
@@ -473,19 +369,11 @@
       "set": "tla",
       "cardNumber": "46",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Sorcery"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Return target nonland permanent to its owner's hand. If you controlled that permanent, draw a card.",
       "layout": "normal",
@@ -506,13 +394,9 @@
       "cardNumber": "264",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a basic land.\n{T}: Add {U}.\n{2}{U}, {T}: Draw a card, then discard a card.",
@@ -534,19 +418,11 @@
       "cardNumber": "86",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {U}.)",
       "layout": "normal",
       "uris": {
@@ -565,16 +441,10 @@
       "set": "eoe",
       "cardNumber": "51",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Kicker {1}{U} (You may pay an additional {1}{U} as you cast this spell.)\nLook at the top X cards of your library, where X is the number of lands you control. Put one of those cards into your hand. If this spell was kicked, put two of those cards into your hand instead. Put the rest on the bottom of your library in a random order.",
@@ -595,16 +465,10 @@
       "set": "soa",
       "cardNumber": "23",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Counter target noncreature spell unless its controller pays {2}.",

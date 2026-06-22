@@ -4,7 +4,7 @@ import { CardImageThumbnail } from "@/components/game/CardImageThumbnail";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { MODAL_CARD_THUMBNAIL } from "../game.styles";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 
 interface AbilityPickerModalProps {
   sourceCard: DeckCard;

@@ -1,7 +1,7 @@
 import { Card } from "@/components/game/Card";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "./Modal";
-import type { StackObject } from "@/types/manabrew";
+import type { StackObjectDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { stackObjectToCardStub } from "../game.utils";
 import { useCardPreview } from "@/hooks/useCardPreview";
@@ -13,7 +13,7 @@ import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 
 interface SpellStackModalProps {
-  stack: StackObject[];
+  stack: StackObjectDto[];
   /** Stack entry IDs the player may target (counter). Empty means view-only. */
   validSpellIds: string[];
   onTarget: (spellId: string) => void;

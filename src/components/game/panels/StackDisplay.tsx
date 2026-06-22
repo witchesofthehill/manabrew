@@ -3,14 +3,14 @@ import { Card } from "@/components/game/Card";
 import { cn } from "@/lib/utils";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
-import type { GameCard, StackObject } from "@/types/manabrew";
+import type { CardDto, StackObjectDto } from "@/protocol/game";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 
 interface StackDisplayProps {
-  stack: StackObject[];
-  resolveStackCard: (stackItem: StackObject) => GameCard;
+  stack: StackObjectDto[];
+  resolveStackCard: (stackItem: StackObjectDto) => CardDto;
   onOpenStack: () => void;
-  flashCard?: GameCard | null;
+  flashCard?: CardDto | null;
   flashToken?: string | null;
   showPreStackFlash?: boolean;
   rightPanelCollapsed?: boolean;

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getDefaultGameRuntime } from "@/game/runtimeRegistry";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 
 interface PresetDecksState {
   decks: Deck[];

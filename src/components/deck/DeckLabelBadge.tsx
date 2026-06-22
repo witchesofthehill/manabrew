@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
-import type { DeckLabel } from "@/types/manabrew";
+import type { DeckLabel } from "@/protocol/deck";
 
 /** Return the theme's shadow (dark) or neutral (light) colour depending on
  *  which produces better contrast against the supplied hex background. */

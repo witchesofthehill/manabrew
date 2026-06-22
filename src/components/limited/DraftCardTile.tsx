@@ -6,7 +6,7 @@ import type { useCardPreview } from "@/hooks/useCardPreview";
 import { useDeckCard } from "@/lib/limited.utils";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 
 interface DraftCardTileProps {
   card: DraftCard;
@@ -39,7 +39,7 @@ function DraftCardTileImpl({
       onClick={onClick}
       disabled={disabled}
       onMouseEnter={(e) =>
-        preview?.handleMouseEnter(deckCard as unknown as GameCard, e, { useDelay: true })
+        preview?.handleMouseEnter(deckCard as unknown as CardDto, e, { useDelay: true })
       }
       onMouseLeave={() => preview?.handleMouseLeave()}
       className={cn(

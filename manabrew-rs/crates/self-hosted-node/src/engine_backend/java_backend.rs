@@ -36,6 +36,7 @@ use serde::Serialize;
 use serde_json::json;
 #[cfg(feature = "java-forge")]
 use serde_json::Value;
+#[cfg(feature = "java-forge")]
 use tracing::warn;
 #[cfg(feature = "java-forge")]
 use tracing::{debug, info};
@@ -691,8 +692,8 @@ pub fn run_hosted_engine_game(
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
-) {
-    if let Err(error) = run_hosted_engine_game_inner(
+) -> Result<(), String> {
+    run_hosted_engine_game_inner(
         game_id,
         player_names,
         decks,
@@ -704,9 +705,7 @@ pub fn run_hosted_engine_game(
         remote_response_rxs,
         game_over_tx,
         cancel,
-    ) {
-        warn!(%error, "hosted java-forge engine exited with error");
-    }
+    )
 }
 
 #[cfg(not(feature = "java-forge"))]
@@ -722,11 +721,8 @@ pub fn run_hosted_engine_game(
     _remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     _game_over_tx: std_mpsc::Sender<HostedGameOver>,
     _cancel: Arc<AtomicBool>,
-) {
-    warn!(
-        message = unsupported_message(),
-        "hosted java-forge engine unavailable"
-    );
+) -> Result<(), String> {
+    Err(unsupported_message().to_string())
 }
 
 #[cfg(feature = "java-forge")]

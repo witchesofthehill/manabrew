@@ -72,7 +72,9 @@ pub struct PlayerDto {
     pub exile: Vec<CardDto>,
     pub command_zone: Vec<CardDto>,
     pub library_count: usize,
+    #[ts(type = "Record<string, number>")]
     pub mana_pool: HashMap<String, i32>,
+    #[ts(type = "Record<string, number>")]
     pub commander_damage: HashMap<String, i32>,
     pub energy_counters: i32,
     pub radiation_counters: i32,
@@ -116,6 +118,7 @@ pub struct CardDto {
     #[ts(optional)]
     pub attacking_player_id: Option<String>,
     pub keywords: Vec<String>,
+    #[ts(type = "Record<string, number>")]
     pub counters: HashMap<String, i32>,
     pub damage: i32,
     pub summoning_sick: bool,

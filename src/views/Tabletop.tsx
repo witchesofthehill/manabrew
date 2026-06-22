@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGameStore } from "@/stores/useGameStore";
 import { DeckVsSelector } from "@/components/lobby/DeckVsSelector";
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 import Game from "./Game";
 
 interface TabletopLocationState {
@@ -11,7 +11,7 @@ interface TabletopLocationState {
   isHost: boolean;
   startingLife: number;
   myPlayerSlot: string;
-  initialGameView?: GameView;
+  initialGameView?: GameViewDto;
 }
 
 export default function Tabletop() {

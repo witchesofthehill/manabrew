@@ -3,9 +3,17 @@ import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useIsComboCard, useIsGameChangerCard } from "@/stores/useDeckAnalysisStore";
-import type { CardRulesSummary } from "@/types/manabrew";
 
-export type PreviewCard = CardRulesSummary & { name: string };
+export type PreviewCard = {
+  name: string;
+  manaCost: string;
+  text: string;
+  types: string[];
+  subtypes: string[];
+  supertypes: string[];
+  power?: string | null;
+  toughness?: string | null;
+};
 
 export function PreviewCardInfo({ card }: { card: PreviewCard }) {
   const currentDeck = useDeckStore((s) => s.currentDeck);

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 
 interface UsePromptEffectsOptions {
   currentPrompt: Prompt | null;
-  gameView: GameView | null;
+  gameView: GameViewDto | null;
   isWaitingForResponse: boolean;
   respond: (output: PromptOutput["output"]) => void;
   myPlayerId: string;
@@ -33,7 +33,7 @@ const ACTIVE_COMBAT_PRIORITY_STEPS = new Set([
 
 const MANDATORY_COMBAT_STOPS = new Set(["declare_blockers"]);
 
-function hasActiveCombatAfterAttackers(gameView: GameView): boolean {
+function hasActiveCombatAfterAttackers(gameView: GameViewDto): boolean {
   return (
     ACTIVE_COMBAT_PRIORITY_STEPS.has(gameView.step) &&
     gameView.battlefield.some((card) => card.isAttacking === true)
@@ -54,7 +54,7 @@ type AutoPassPlan =
 
 interface AutoPassInputs {
   currentPrompt: Prompt;
-  gameView: GameView;
+  gameView: GameViewDto;
   passUntilTurn: number | null;
   passUntilPhase: string | null;
   turn: number;
@@ -130,7 +130,7 @@ function planForIdlePhaseSkip(inputs: AutoPassInputs): AutoPassPlan {
 
 function computeAutoPassPlan(
   currentPrompt: Prompt | null,
-  gameView: GameView | null,
+  gameView: GameViewDto | null,
   isWaitingForResponse: boolean,
   passUntilTurn: number | null,
   passUntilPhase: string | null,

@@ -33,7 +33,7 @@ import { RotateCw } from "lucide-react";
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type {
   ArrowSpec,
   BattlefieldState,
@@ -87,14 +87,14 @@ interface BoardCanvasProps {
   /** Auto-arrange the battlefield into rows, ignoring manual drag placement. */
   autoSort?: boolean;
   sceneRef?: React.MutableRefObject<BoardScene | null>;
-  getHandActions?: (card: GameCard) => HandActionOption[];
-  onSelectHandAction?: (card: GameCard, action: HandActionOption) => void;
+  getHandActions?: (card: CardDto) => HandActionOption[];
+  onSelectHandAction?: (card: CardDto, action: HandActionOption) => void;
   onLayout?: (layout: BoardCanvasLayout) => void;
   className?: string;
 }
 
 interface HandHoverState {
-  card: GameCard;
+  card: CardDto;
   bounds: ScreenBounds;
 }
 

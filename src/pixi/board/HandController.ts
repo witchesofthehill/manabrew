@@ -44,6 +44,7 @@ export class HandController {
   private dropActive = false;
   private hoverDebugGfx: Graphics;
   private hoverDebug = false;
+  private instant = false;
 
   constructor(host: HandHost, parent: Container) {
     this.host = host;
@@ -62,6 +63,10 @@ export class HandController {
   setHoverDebug(on: boolean): void {
     this.hoverDebug = on;
     this.drawHoverDebug();
+  }
+
+  setInstant(value: boolean): void {
+    this.instant = value;
   }
 
   private drawHoverDebug(): void {
@@ -223,6 +228,14 @@ export class HandController {
     for (const [id, target] of this.targets) {
       const sprite = this.sprites.get(id);
       if (!sprite) continue;
+      if (this.instant) {
+        sprite.x = target.x;
+        sprite.y = target.y;
+        sprite.rotation = target.rot;
+        sprite.scale.set(target.scaleX, target.scaleY);
+        sprite.zIndex = target.zIndex;
+        continue;
+      }
       sprite.x = lerp(sprite.x, target.x, HAND_LERP, SNAP_PX);
       sprite.y = lerp(sprite.y, target.y, HAND_LERP, SNAP_PX);
       sprite.rotation = lerp(sprite.rotation, target.rot, HAND_LERP, SNAP_ROT);

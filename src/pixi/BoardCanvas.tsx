@@ -16,6 +16,7 @@ import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
+import { pixiResolution, logPixiResolution } from "./resolution";
 import {
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
@@ -171,8 +172,9 @@ export function BoardCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(3, window.devicePixelRatio || 1),
+        resolution: pixiResolution(),
       });
+      logPixiResolution("BoardCanvas", app);
     } catch (err) {
       console.error("[pixi] BoardCanvas init failed:", err);
       appRef.current = null;
@@ -422,6 +424,11 @@ export function BoardCanvas({
   useEffect(() => {
     setAnimationsEnabled(inGameAnimations);
   }, [inGameAnimations]);
+
+  const instantHandHover = usePreferencesStore((s) => s.instantHandHover);
+  useEffect(() => {
+    scene?.setHandInstant(instantHandHover);
+  }, [scene, instantHandHover]);
 
   const etbPreviewVersion = useGameDevStore((s) => s.etbGlowVersion);
   useEffect(() => {

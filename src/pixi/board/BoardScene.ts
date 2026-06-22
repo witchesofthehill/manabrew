@@ -93,6 +93,7 @@ export class BoardScene {
   private phaseStripAlphaTarget = 1;
 
   private hand: HandController | null = null;
+  private handInstant = false;
   private selection: SelectionController | null = null;
   private overlay: BattlefieldOverlay | null = null;
   private dragHandler: DragHandler;
@@ -232,6 +233,7 @@ export class BoardScene {
 
   private setupLocalControllers(region: BoardRegion): void {
     this.hand = new HandController(this.makeHandHost(), this.root);
+    this.hand.setInstant(this.handInstant);
     this.selection = new SelectionController(this.makeSelectionHost(region), this.root);
     this.overlay = new BattlefieldOverlay(this.makeOverlayHost(region));
     region.enableFeltMarquee((e) => this.onFeltDown(e));
@@ -323,6 +325,11 @@ export class BoardScene {
 
   setHandPreviewFace(face: 0 | 1): void {
     this.hand?.setHoveredPreviewFace(face);
+  }
+
+  setHandInstant(value: boolean): void {
+    this.handInstant = value;
+    this.hand?.setInstant(value);
   }
 
   setHandScale(scale: number): void {

@@ -735,6 +735,30 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Instant Hand Hover</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={prefs.instantHandHover ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setInstantHandHover(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.instantHandHover ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setInstantHandHover(false)}
+                >
+                  Off
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Skip the lift/scale animation when hovering a hand card — it snaps straight to its
+                enlarged position instead of sliding into it.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>
               <div className="flex items-center gap-2">
                 <Button

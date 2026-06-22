@@ -47,6 +47,9 @@ interface PreferencesState {
   inGameAnimations: boolean;
   setInGameAnimations: (value: boolean) => void;
 
+  instantHandHover: boolean;
+  setInstantHandHover: (value: boolean) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
@@ -75,6 +78,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardScale",
   "battlefieldCardStyle",
   "inGameAnimations",
+  "instantHandHover",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -138,6 +142,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           inGameAnimations: true,
           setInGameAnimations: (inGameAnimations) => set({ inGameAnimations }),
+
+          instantHandHover: false,
+          setInstantHandHover: (instantHandHover) => set({ instantHandHover }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

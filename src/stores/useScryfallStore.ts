@@ -59,7 +59,11 @@ interface ScryfallState {
   sets: ScryfallSet[];
   hydratedSets: Record<string, true>;
   getCard: (lookup: ScryfallCardLookup) => Promise<CardEntry>;
-  getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
+  getCardTexture: (
+    card: DeckCard,
+    variant?: "full" | "art" | "hires",
+    faceIndex?: 0 | 1,
+  ) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
@@ -343,7 +347,7 @@ export const useScryfallStore = create<ScryfallState>()(
       },
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
-          variant === "art" ? u?.art_crop : u?.border_crop;
+          variant === "art" ? u?.art_crop : variant === "hires" ? u?.png : u?.border_crop;
         let url = faceIndex === 0 ? pick(deckCard.uris) : undefined;
         if (!url) {
           const entry = await get().getCard({

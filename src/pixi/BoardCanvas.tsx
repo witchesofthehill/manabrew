@@ -133,6 +133,7 @@ export function BoardCanvas({
 
   const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
+  const pixiAntialias = usePreferencesStore((s) => s.pixiAntialias);
 
   const [handHover, setHandHover] = useState<HandHoverState | null>(null);
   const clearTimerRef = useRef<number | null>(null);
@@ -170,7 +171,7 @@ export function BoardCanvas({
         canvas: canvasRef.current,
         preference: "webgl",
         backgroundAlpha: 0,
-        antialias: true,
+        antialias: pixiAntialias,
         autoDensity: true,
         resolution: pixiResolution(),
       });
@@ -227,7 +228,7 @@ export function BoardCanvas({
     const parent = canvasRef.current.parentElement;
     if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
     setScene(newScene);
-  }, [cancelHandHoverClear]);
+  }, [cancelHandHoverClear, pixiAntialias]);
 
   useEffect(() => {
     let active = true;

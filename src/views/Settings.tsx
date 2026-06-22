@@ -759,6 +759,30 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Canvas Anti-aliasing</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={prefs.pixiAntialias ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setPixiAntialias(true)}
+                >
+                  On
+                </Button>
+                <Button
+                  variant={!prefs.pixiAntialias ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setPixiAntialias(false)}
+                >
+                  Off
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Smooths the edges of the board canvas (cards, phase bar, arrows). Toggling rebuilds
+                the canvas, so the board will briefly flash.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>
               <div className="flex items-center gap-2">
                 <Button

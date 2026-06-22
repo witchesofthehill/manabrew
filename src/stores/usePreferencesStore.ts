@@ -50,6 +50,9 @@ interface PreferencesState {
   instantHandHover: boolean;
   setInstantHandHover: (value: boolean) => void;
 
+  pixiAntialias: boolean;
+  setPixiAntialias: (value: boolean) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
@@ -79,6 +82,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "battlefieldCardStyle",
   "inGameAnimations",
   "instantHandHover",
+  "pixiAntialias",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -145,6 +149,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           instantHandHover: false,
           setInstantHandHover: (instantHandHover) => set({ instantHandHover }),
+
+          pixiAntialias: true,
+          setPixiAntialias: (pixiAntialias) => set({ pixiAntialias }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

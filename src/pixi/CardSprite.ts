@@ -545,7 +545,7 @@ export class CardSprite extends Container {
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
     const tex = await useScryfallStore
       .getState()
-      .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
+      .getCardTexture(deckCard, custom ? "art" : this.isBattlefield ? "full" : "hires", faceIndex);
     if (this.destroyed) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;

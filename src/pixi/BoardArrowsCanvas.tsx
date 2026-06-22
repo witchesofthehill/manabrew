@@ -29,6 +29,7 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
   const layerRef = useRef<ArrowLayer | null>(null);
   const unregisterRef = useRef<(() => void) | null>(null);
   const sceneRefRef = useRef(sceneRef);
+  const pixiAntialias = usePreferencesStore((s) => s.pixiAntialias);
 
   useEffect(() => {
     sceneRefRef.current = sceneRef;
@@ -42,7 +43,7 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
       .init({
         canvas: canvasRef.current!,
         backgroundAlpha: 0,
-        antialias: true,
+        antialias: pixiAntialias,
         autoDensity: true,
         resolution: pixiResolution(),
       })
@@ -74,7 +75,7 @@ export function BoardArrowsCanvas({ sceneRef, className }: BoardArrowsCanvasProp
       destroyPixiApp(appRef.current);
       appRef.current = null;
     };
-  }, []);
+  }, [pixiAntialias]);
 
   useEffect(() => {
     const parent = canvasRef.current?.parentElement;

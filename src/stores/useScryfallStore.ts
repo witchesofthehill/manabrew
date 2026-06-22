@@ -299,8 +299,29 @@ const applyCardTextureFilter = (source: ImageSource, mode: CardTextureFilter): v
   source.mipmapFilter = mode === "sharp" ? "nearest" : "linear";
 };
 
-const createTextureFromImage = (img: HTMLImageElement): Texture => {
-  const source = new ImageSource({ resource: img, autoGenerateMipmaps: true });
+// Hand cards render at ~170–300px (base × hover scale at the max hand scale).
+// Feeding a 745px source straight to the GPU forces trilinear mipmapping to
+// blend in a too-small mip → soft. Pre-shrinking with the browser's
+// high-quality 2D downscaler (what the DOM preview uses) so the GPU barely
+// resamples keeps hand cards crisp at rest and hovered.
+const HAND_TEXTURE_WIDTH = 384;
+
+const downscaleImage = (img: HTMLImageElement, targetW: number): HTMLCanvasElement => {
+  const scale = targetW / img.naturalWidth;
+  const canvas = document.createElement("canvas");
+  canvas.width = targetW;
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas;
+};
+
+const createTextureFromImage = (
+  resource: HTMLImageElement | HTMLCanvasElement,
+): Texture => {
+  const source = new ImageSource({ resource, autoGenerateMipmaps: true });
   applyCardTextureFilter(source, usePreferencesStore.getState().cardTextureFilter);
   return new Texture({ source });
 };
@@ -380,9 +401,14 @@ export const useScryfallStore = create<ScryfallState>()(
         if (pending) return pending;
 
         const resolvedUrl = url;
+        const shrink = variant === "hires";
         const promise = (async () => {
           const htmlImage = await fetchImageElement(resolvedUrl);
-          const texture = createTextureFromImage(htmlImage);
+          const resource =
+            shrink && htmlImage.naturalWidth > HAND_TEXTURE_WIDTH
+              ? downscaleImage(htmlImage, HAND_TEXTURE_WIDTH)
+              : htmlImage;
+          const texture = createTextureFromImage(resource);
           textureCache.set(resolvedUrl, texture);
           return texture;
         })().finally(() => {

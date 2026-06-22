@@ -41,7 +41,15 @@ export default defineConfig({
     host: host || false,
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: {
-      ignored: ["**/src-tauri/**", "**/forge/**", "**/node_modules/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/forge/**",
+        "**/manabrew-rs/**",
+        "**/node_modules/**",
+        "**/.playwright-cli/**",
+        "**/target/**",
+        "**/tmp/**",
+      ],
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",

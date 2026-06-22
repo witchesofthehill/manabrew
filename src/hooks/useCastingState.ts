@@ -27,6 +27,13 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
   const [targetId, setTargetId] = useState<string | null>(null);
   const [targetHostile, setTargetHostile] = useState(false);
   const [targetIntent, setTargetIntent] = useState<TargetingIntent>(TargetingIntent.Hostile);
+  const activeTargetPrompt =
+    currentPrompt?.input.type === "chooseBoardTargets" ? currentPrompt : null;
+  const clearLockedTarget = useCallback(() => {
+    setTargetId(null);
+    setTargetHostile(false);
+    setTargetIntent(TargetingIntent.Hostile);
+  }, []);
 
   // Whether the engine says the current effect is hostile
   const targetingInput =
@@ -36,11 +43,14 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     targetingInput?.intent ?? (promptHostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
 
   const [prevCastingCardId, setPrevCastingCardId] = useState(castingCardId);
+  const [prevTargetPrompt, setPrevTargetPrompt] = useState(activeTargetPrompt);
   if (prevCastingCardId !== castingCardId) {
     setPrevCastingCardId(castingCardId);
-    setTargetId(null);
-    setTargetHostile(false);
-    setTargetIntent(TargetingIntent.Hostile);
+    clearLockedTarget();
+  }
+  if (prevTargetPrompt !== activeTargetPrompt) {
+    setPrevTargetPrompt(activeTargetPrompt);
+    if (activeTargetPrompt) clearLockedTarget();
   }
   useEffect(() => {
     return () => {

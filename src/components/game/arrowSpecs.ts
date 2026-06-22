@@ -1,6 +1,6 @@
 import type { ArrowSpec } from "@/pixi/types";
 import type { StackObject, StackTarget } from "@/types/manabrew";
-import { TargetingIntent } from "@/types/promptType";
+import { TargetingIntent, intentIsHostile } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 
 export interface BuildArrowSpecsOptions {
@@ -28,6 +28,11 @@ function getActiveStackObject(
     if (hit) return hit;
   }
   return stack[stack.length - 1] ?? null;
+}
+
+function getTargets(obj: StackObject): StackTarget[] {
+  const objAny = obj as unknown as Record<string, unknown>;
+  return Array.isArray(objAny.targets) ? (objAny.targets as StackTarget[]) : [];
 }
 
 export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
@@ -82,6 +87,20 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     }
   }
 
+  for (const stackObj of stack ?? []) {
+    for (const t of getTargets(stackObj)) {
+      if (t.kind !== "stack" || t.id === stackObj.id) continue;
+      const intent = t.intent ?? (t.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+      specs.push({
+        from: { kind: "stack", id: stackObj.id, anchor: "top" },
+        to: { kind: "stack", id: t.id, anchor: "top" },
+        type: "casting",
+        hostile: intentIsHostile(intent),
+        curve: "up",
+      });
+    }
+  }
+
   const activeObj = getActiveStackObject(stack, activeStackObjectId);
   if (activeObj && activeObj.isPermanentSpell === true) {
     const hasTargets =
@@ -99,19 +118,17 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
   }
 
   if (activeObj) {
-    const objAny = activeObj as unknown as Record<string, unknown>;
-    const targets = Array.isArray(objAny.targets) ? (objAny.targets as StackTarget[]) : [];
-    for (const t of targets) {
-      if (t.intent !== TargetingIntent.Attach) continue;
+    for (const t of getTargets(activeObj)) {
+      if (t.kind === "stack") continue;
       const to: ArrowSpec["to"] | null =
         t.kind === "card"
           ? { kind: "card", id: t.id }
           : t.kind === "player"
             ? { kind: "player", id: t.id }
-            : t.kind === "stack"
-              ? { kind: "stack", id: t.id }
-              : null;
+            : null;
       if (!to) continue;
+      const intent = t.intent ?? (t.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+      if (intent !== TargetingIntent.Attach) continue;
       specs.push({
         from: { kind: "stack", id: activeObj.id },
         to,

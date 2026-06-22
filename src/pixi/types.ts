@@ -19,6 +19,7 @@ export interface ScreenPos {
 }
 
 export type HoverPlacement = "auto" | "top-center";
+export type StackArrowAnchor = "center" | "top";
 
 /**
  * Arrow endpoint referenced by game-entity identity so the Pixi scene can
@@ -28,7 +29,7 @@ export type HoverPlacement = "auto" | "top-center";
 export type ArrowEndpoint =
   | { kind: "card"; id: string }
   | { kind: "player"; id: string }
-  | { kind: "stack"; id: string }
+  | { kind: "stack"; id: string; anchor?: StackArrowAnchor }
   /** "Drop here" anchor for the placement preview. `playerId` selects
    *  which player's battlefield the ghost points at — when set, the
    *  resolver looks up that player's board region; when omitted it
@@ -41,11 +42,20 @@ export type ArrowEndpoint =
  *  marching-ants) when casting a permanent spell, and the live targeting
  *  arrow (`casting`, painterly with an explicit intent color). */
 export type ArrowType = "attack" | "block" | "attach" | "placement" | "casting";
+export type ArrowCurve = "default" | "up";
 
 export interface ArrowSpec {
   from: ArrowEndpoint;
   to: ArrowEndpoint;
   type: ArrowType;
+  hostile?: boolean;
+  curve?: ArrowCurve;
+}
+
+export interface PointerSpec {
+  from: ArrowEndpoint;
+  to: ArrowEndpoint;
+  intent: import("@/types/promptType").TargetingIntent;
 }
 
 /**

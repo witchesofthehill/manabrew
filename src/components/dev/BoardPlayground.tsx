@@ -172,6 +172,7 @@ export function BoardPlayground() {
           regions={regions}
           hand={{ cards: [] }}
           arrowSpecs={[]}
+          pointerSpecs={[]}
           phaseStrip={PHASE_STRIP_STUB}
           arrangement="row"
           callbacks={{

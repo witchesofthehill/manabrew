@@ -39,9 +39,11 @@ import type {
   BattlefieldState,
   GameCanvasCallbacks,
   HandState,
+  PointerSpec,
   PlayZoneRect,
   ScreenPos,
 } from "../types";
+import type { ResolvedPointer } from "../PointerLayer";
 import { BoardRegion } from "./BoardRegion";
 import { isAttackerTap } from "./combatRouting";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
@@ -102,6 +104,7 @@ export class BoardScene {
   private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
+  private pointerSpecs: PointerSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
   private externalBlockers: BlockingRect[] = [];
@@ -409,6 +412,10 @@ export class BoardScene {
 
   setArrowSpecs(specs: ArrowSpec[]): void {
     this.arrowSpecs = specs;
+  }
+
+  setPointerSpecs(specs: PointerSpec[]): void {
+    this.pointerSpecs = specs;
   }
 
   setCastingArrow(arrow: { sourceCardId: string; hostile: boolean } | null): void {
@@ -944,7 +951,17 @@ export class BoardScene {
       const from = this.resolveArrowEndpoint(spec.from, canvasRect);
       const to = this.resolveArrowEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
-      resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
+      const t = this.theme.gameTheme.pointer;
+      resolved.push({
+        fromX: from.x,
+        fromY: from.y,
+        toX: to.x,
+        toY: to.y,
+        type: spec.type,
+        color:
+          spec.hostile === undefined ? undefined : hexToNum(spec.hostile ? t.hostile : t.friendly),
+        curve: spec.curve,
+      });
     }
     if (this.castingArrow) {
       // Resolve via the stack's `data-casting-card` marker first — robust for
@@ -952,6 +969,10 @@ export class BoardScene {
       // back to the card resolver for battlefield ability sources.
       const id = this.castingArrow.sourceCardId;
       const from =
+        this.domCenterCanvasLocal(
+          `[data-casting-card="${CSS.escape(id)}"][data-stack-surface="modal"]`,
+          canvasRect,
+        ) ??
         this.domCenterCanvasLocal(`[data-casting-card="${CSS.escape(id)}"]`, canvasRect) ??
         this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
@@ -1002,6 +1023,26 @@ export class BoardScene {
     return resolved;
   }
 
+  getPointerDefs(): ResolvedPointer[] {
+    if (this.destroyed || this.pointerSpecs.length === 0) return [];
+    const canvasRect = this.app.canvas.getBoundingClientRect();
+    const resolved: ResolvedPointer[] = [];
+    for (const spec of this.pointerSpecs) {
+      const from = this.resolveArrowEndpoint(spec.from, canvasRect);
+      const to = this.resolveArrowEndpoint(spec.to, canvasRect);
+      if (!from || !to) continue;
+      resolved.push({
+        fromX: from.x,
+        fromY: from.y,
+        toX: to.x,
+        toY: to.y,
+        intent: spec.intent,
+        locked: true,
+      });
+    }
+    return resolved;
+  }
+
   private resolveArrowEndpoint(ep: ArrowEndpoint, canvasRect: DOMRect): ScreenPos | null {
     switch (ep.kind) {
       case "card": {
@@ -1016,10 +1057,7 @@ export class BoardScene {
       case "player":
         return this.domCenterCanvasLocal(`[data-player-id="${CSS.escape(ep.id)}"]`, canvasRect);
       case "stack":
-        return this.domCenterCanvasLocal(
-          `[data-stack-object-id="${CSS.escape(ep.id)}"]`,
-          canvasRect,
-        );
+        return this.stackCenterCanvasLocal(ep.id, canvasRect, ep.anchor ?? "center");
       case "placement-ghost": {
         const region = ep.playerId ? this.regions.get(ep.playerId)?.region : this.localRegion();
         return region?.getPlacementGhostCenter() ?? null;
@@ -1038,6 +1076,29 @@ export class BoardScene {
       };
     }
     return null;
+  }
+
+  private stackCenterCanvasLocal(
+    stackObjectId: string,
+    canvasRect: DOMRect,
+    anchor: "center" | "top" = "center",
+  ): ScreenPos | null {
+    const els = document.querySelectorAll<HTMLElement>(
+      `[data-stack-object-id="${CSS.escape(stackObjectId)}"]`,
+    );
+    let panel: ScreenPos | null = null;
+    let modal: ScreenPos | null = null;
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      const pos = {
+        x: r.left + r.width / 2 - canvasRect.left,
+        y: (anchor === "top" ? r.top : r.top + r.height / 2) - canvasRect.top,
+      };
+      if (el.dataset["stackSurface"] === "modal") modal = pos;
+      else panel = pos;
+    }
+    return modal ?? panel;
   }
 
   destroy(): void {

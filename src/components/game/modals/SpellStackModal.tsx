@@ -1,3 +1,4 @@
+import { useEffect, type CSSProperties } from "react";
 import { Card } from "@/components/game/Card";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "./Modal";
@@ -9,8 +10,8 @@ import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { MODAL_CARD_SIZE } from "../game.styles";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
-import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
+import { useStackUIStore } from "@/stores/useStackUIStore";
 
 interface SpellStackModalProps {
   stack: StackObject[];
@@ -30,6 +31,7 @@ export function SpellStackModal({
   playerColorMap,
 }: SpellStackModalProps) {
   const preview = useCardPreview();
+  const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
 
   const themeColors = useTheme().gameTheme;
   const ringColor = themeColors.cardRing;
@@ -38,6 +40,10 @@ export function SpellStackModal({
 
   // Display newest (top of stack) first — stack[last] = top, stack[0] = bottom
   const displayStack = [...stack].reverse();
+
+  useEffect(() => {
+    return () => setHoveredStackObjectId(null);
+  }, [setHoveredStackObjectId]);
 
   return (
     <Modal onClose={onCancel} maxWidth="max-w-3xl" maxHeight="max-h-[85vh]">
@@ -87,19 +93,31 @@ export function SpellStackModal({
                     isValid ? "cursor-pointer" : "cursor-default",
                     !isValid && isTargeting && "opacity-50",
                   )}
-                  onMouseEnter={(e) => preview.handleMouseEnter(cardStub, e)}
-                  onMouseLeave={preview.handleMouseLeave}
+                  onMouseEnter={(e) => {
+                    preview.handleMouseEnter(cardStub, e);
+                    setHoveredStackObjectId(obj.id);
+                  }}
+                  onMouseLeave={() => {
+                    preview.handleMouseLeave();
+                    setHoveredStackObjectId(null);
+                  }}
                   onClick={isValid ? () => onTarget(obj.id) : undefined}
                 >
-                  <Card
-                    card={cardStub}
-                    className={cn(
-                      MODAL_CARD_SIZE,
-                      "transition-transform",
-                      isValid && "ring-2 group-hover:scale-105 group-hover:-translate-y-2",
-                    )}
-                    style={Object.keys(glowStyle).length > 0 ? glowStyle : undefined}
-                  />
+                  <div
+                    data-stack-object-id={obj.id}
+                    data-stack-surface="modal"
+                    data-casting-card={obj.isCasting ? obj.sourceId : undefined}
+                    className={MODAL_CARD_SIZE}
+                  >
+                    <Card
+                      card={cardStub}
+                      className={cn(
+                        "h-full w-full transition-transform",
+                        isValid && "ring-2 group-hover:scale-105 group-hover:-translate-y-2",
+                      )}
+                      style={Object.keys(glowStyle).length > 0 ? glowStyle : undefined}
+                    />
+                  </div>
                   <div className="flex items-center gap-1">
                     <Badge variant={isTop ? "default" : "outline"} className="text-[10px] h-4 px-1">
                       {isTop ? "TOP" : `+${idx}`}

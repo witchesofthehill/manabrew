@@ -8,6 +8,7 @@ import com.google.gson.GsonBuilder;
 import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.game.Game;
+import forge.game.GameObject;
 import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
 import forge.game.card.CounterEnumType;
@@ -503,36 +504,197 @@ public final class InteractiveSnapshotExtractor {
 
     private static List<Map<String, Object>> stackTargets(final Game game, final SpellAbility ability) {
         final List<Map<String, Object>> out = new ArrayList<>();
-        if (ability == null) {
-            return out;
-        }
-        final TargetChoices targets = ability.getTargets();
-        if (targets == null) {
-            return out;
-        }
-        int targetIndex = 0;
-        for (final Card card : targets.getTargetCards()) {
-            out.add(stackTarget("card", SnapshotExtractor.javaCardId(card), targetIndex));
-            targetIndex++;
-        }
-        for (final Player player : targets.getTargetPlayers()) {
-            out.add(stackTarget("player", "player-" + SnapshotExtractor.playerIndex(game, player), targetIndex));
-            targetIndex++;
+        SpellAbility current = ability;
+        int nodeIndex = 0;
+        while (current != null) {
+            final TargetChoices targets = current.getTargets();
+            int targetIndex = 0;
+            if (targets != null) {
+                for (final GameObject object : targets) {
+                    final String intent = targetIntent(current, object);
+                    final Map<String, Object> target =
+                            stackTarget(game, object, nodeIndex, targetIndex, intent);
+                    if (target != null) {
+                        out.add(target);
+                        targetIndex++;
+                    }
+                }
+            }
+            current = current.getSubAbility();
+            nodeIndex++;
         }
         return out;
     }
 
-    private static Map<String, Object> stackTarget(final String kind, final String id, final int targetIndex) {
+    private static Map<String, Object> stackTarget(
+            final Game game,
+            final GameObject object,
+            final int nodeIndex,
+            final int targetIndex,
+            final String intent
+    ) {
         final Map<String, Object> target = new LinkedHashMap<>();
-        target.put("kind", kind);
-        target.put("id", id);
-        target.put("nodeIndex", 0);
+        if (object instanceof Card card) {
+            target.put("kind", "card");
+            target.put("id", SnapshotExtractor.javaCardId(card));
+        } else if (object instanceof Player player) {
+            target.put("kind", "player");
+            target.put("id", "player-" + SnapshotExtractor.playerIndex(game, player));
+        } else if (object instanceof SpellAbility spell) {
+            final String stackId = stackItemId(game, spell);
+            if (stackId == null) {
+                return null;
+            }
+            target.put("kind", "stack");
+            target.put("id", stackId);
+        } else {
+            return null;
+        }
+        target.put("nodeIndex", nodeIndex);
         target.put("targetIndex", targetIndex);
-        target.put("hostile", true);
-        target.put("intent", "hostile");
+        target.put("hostile", targetHostile(intent));
+        target.put("intent", intent);
         return target;
     }
 
+    private static String stackItemId(final Game game, final SpellAbility ability) {
+        for (final SpellAbilityStackInstance item : game.getStack()) {
+            final SpellAbility stackAbility = item.getSpellAbility();
+            if (stackAbility == ability || stackAbility != null && stackAbility.getId() == ability.getId()) {
+                return stackItemId(item);
+            }
+        }
+        return null;
+    }
+
+    private static String targetIntent(final SpellAbility ability, final GameObject object) {
+        if (ability == null || ability.getApi() == null) {
+            return "hostile";
+        }
+        switch (ability.getApi().name()) {
+            case "DealDamage":
+            case "DamageAll":
+            case "EachDamage":
+                return "damage";
+            case "Destroy":
+            case "DestroyAll":
+                return "destroy";
+            case "Sacrifice":
+            case "SacrificeAll":
+                return "sacrifice";
+            case "ChangeZone":
+            case "ChangeZoneAll":
+                return targetChangeZoneIntent(ability, object);
+            case "Mill":
+                return "mill";
+            case "Discard":
+                return "discard";
+            case "Counter":
+                return "counter";
+            case "ControlSpell":
+                return "gainControl";
+            case "Tap":
+            case "TapAll":
+            case "TapOrUntap":
+            case "TapOrUntapAll":
+                return "tap";
+            case "Untap":
+            case "UntapAll":
+                return "untap";
+            case "CopyPermanent":
+            case "CopySpellAbility":
+            case "Clone":
+                return "copy";
+            case "Pump":
+            case "PumpAll":
+            case "Animate":
+            case "AnimateAll":
+            case "Protection":
+            case "ProtectionAll":
+                return "buff";
+            case "PutCounter":
+            case "PutCounterAll":
+                return targetPutCounterIntent(ability);
+            case "RemoveCounter":
+            case "RemoveCounterAll":
+            case "Debuff":
+                return "debuff";
+            case "GainLife":
+                return "heal";
+            case "LoseLife":
+                return "loseLife";
+            case "Draw":
+                return "draw";
+            case "Reveal":
+            case "RevealHand":
+            case "LookAt":
+            case "PeekAndReveal":
+                return "reveal";
+            case "GainControl":
+            case "GainControlVariant":
+            case "ExchangeControl":
+            case "ExchangeControlVariant":
+                return "gainControl";
+            case "Fight":
+                return "fight";
+            case "Attach":
+            case "Unattach":
+                return "attach";
+            default:
+                return "hostile";
+        }
+    }
+
+    private static String targetChangeZoneIntent(final SpellAbility ability, final GameObject object) {
+        if (!ability.hasParam("Destination")) {
+            return "hostile";
+        }
+        final boolean fromDead = object instanceof Card card
+                && (card.isInZone(ZoneType.Graveyard) || card.isInZone(ZoneType.Exile));
+        switch (ability.getParam("Destination")) {
+            case "Exile":
+                return "exile";
+            case "Hand":
+            case "Library":
+                return fromDead ? "friendly" : "bounce";
+            case "Graveyard":
+                return "destroy";
+            case "Battlefield":
+                return "friendly";
+            default:
+                return "hostile";
+        }
+    }
+
+    private static String targetPutCounterIntent(final SpellAbility ability) {
+        if (!ability.hasParam("CounterType")) {
+            return "buff";
+        }
+        final String counterType = ability.getParam("CounterType");
+        return counterType.startsWith("M1M1") || counterType.contains("-1/-1") ? "debuff" : "buff";
+    }
+
+    private static boolean targetHostile(final String intent) {
+        switch (intent) {
+            case "damage":
+            case "destroy":
+            case "sacrifice":
+            case "exile":
+            case "bounce":
+            case "mill":
+            case "discard":
+            case "counter":
+            case "tap":
+            case "debuff":
+            case "loseLife":
+            case "gainControl":
+            case "fight":
+            case "hostile":
+                return true;
+            default:
+                return false;
+        }
+    }
     static String stackItemId(final SpellAbilityStackInstance item) {
         return "engine-stack-" + item.getId();
     }

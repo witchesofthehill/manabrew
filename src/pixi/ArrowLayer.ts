@@ -2,7 +2,7 @@ import { Container, FillGradient, Graphics } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
-import type { ArrowType } from "./types";
+import type { ArrowCurve, ArrowType } from "./types";
 
 // Re-export so existing callers still import ArrowType from this module.
 export type { ArrowType } from "./types";
@@ -16,6 +16,7 @@ export interface ArrowDef {
   /** Explicit hue (e.g. the casting arrow's intent color); falls back to the
    *  type's theme color when omitted. */
   color?: number;
+  curve?: ArrowCurve;
 }
 
 // ── Layer ordering ─────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ const ARROW_Z_INDEX = 8000;
 const BOW_PAINTERLY = 0.3;
 const BOW_RUNE = 0.3;
 const BOW_PLACEMENT = 0.22;
+const UPWARD_BOW_FACTOR = 1;
 const TAIL_SHORTEN = 6;
 const TIP_SHORTEN = 12;
 
@@ -79,6 +81,8 @@ const CAST_DASH = 15;
 const CAST_GAP = 10;
 const CAST_HEAD_LEN = 22;
 const CAST_HEAD_WIDTH = 18;
+const CAST_UPWARD_HEAD_LEN = 18;
+const CAST_UPWARD_HEAD_WIDTH = 14;
 
 interface DashedArrowStyle {
   color: number;
@@ -132,6 +136,36 @@ function cubicCurve(x1: number, y1: number, x2: number, y2: number, bow: number)
     c2: { x: x1 + dx * 0.75 + nx * offset, y: y1 + dy * 0.75 + ny * offset },
     p1: { x: x2, y: y2 },
   };
+}
+
+function upwardCubicCurve(x1: number, y1: number, x2: number, y2: number, bow: number): CubicCurve {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const { len } = unit(dx, dy);
+  if (len === 0) {
+    const p = { x: x1, y: y1 };
+    return { p0: p, c1: p, c2: p, p1: p };
+  }
+  const offset = -Math.abs(len * bow * UPWARD_BOW_FACTOR);
+  return {
+    p0: { x: x1, y: y1 },
+    c1: { x: x1 + dx * 0.25, y: y1 + dy * 0.25 + offset },
+    c2: { x: x1 + dx * 0.75, y: y1 + dy * 0.75 + offset },
+    p1: { x: x2, y: y2 },
+  };
+}
+
+function arrowCurve(
+  arrow: ArrowDef,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  bow: number,
+): CubicCurve {
+  return arrow.curve === "up"
+    ? upwardCubicCurve(x1, y1, x2, y2, bow)
+    : cubicCurve(x1, y1, x2, y2, bow);
 }
 
 function shortenEndpoints(
@@ -319,8 +353,8 @@ export class ArrowLayer {
           alpha: CAST_ALPHA,
           dash: CAST_DASH,
           gap: CAST_GAP,
-          headLen: CAST_HEAD_LEN,
-          headWidth: CAST_HEAD_WIDTH,
+          headLen: arrow.curve === "up" ? CAST_UPWARD_HEAD_LEN : CAST_HEAD_LEN,
+          headWidth: arrow.curve === "up" ? CAST_UPWARD_HEAD_WIDTH : CAST_HEAD_WIDTH,
           dashOffset: 0,
         });
         return;
@@ -345,7 +379,7 @@ export class ArrowLayer {
   // ── Painterly (combat) ───────────────────────────────────────────────────
   private drawPainterly(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
-    const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PAINTERLY);
+    const curve = arrowCurve(arrow, ax1, ay1, ax2, ay2, BOW_PAINTERLY);
     const hue =
       arrow.color ??
       hexToNum(
@@ -434,7 +468,7 @@ export class ArrowLayer {
   // ── Rune (attach) ────────────────────────────────────────────────────────
   private drawRune(entry: ArrowEntry, arrow: ArrowDef): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
-    const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_RUNE);
+    const curve = arrowCurve(arrow, ax1, ay1, ax2, ay2, BOW_RUNE);
     // Attach-line color uses the app primary so it picks up the active
     // theme's accent (kanagawa blue, gruvbox green, etc.) instead of the
     // game-layer pointer palette.
@@ -522,7 +556,7 @@ export class ArrowLayer {
   // ── Placement (drop-here marching-ants — unchanged from original) ────────
   private drawPlacement(entry: ArrowEntry, arrow: ArrowDef, style: DashedArrowStyle): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
-    const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PLACEMENT);
+    const curve = arrowCurve(arrow, ax1, ay1, ax2, ay2, BOW_PLACEMENT);
     const color = style.color;
     const points = sampleCubic(curve, PLACEMENT_BEZIER_STEPS);
 

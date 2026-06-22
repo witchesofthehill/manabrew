@@ -5,12 +5,19 @@ import type { BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
+import { cn } from "@/lib/utils";
 import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
-import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
+import type {
+  ArrowSpec,
+  BattlefieldState,
+  GameCanvasCallbacks,
+  PointerSpec,
+  ScreenBounds,
+} from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { PlayerPanel } from "@/components/game/panels";
@@ -63,6 +70,7 @@ interface GameBoardProps {
   blockAssignments: { blockerId: string; attackerId: string }[];
   combatAssignments?: { blockerId: string; attackerId: string }[];
   arrowSpecs?: ArrowSpec[];
+  pointerSpecs?: PointerSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   playerIsTargetable: (playerId: string) => boolean;
 
@@ -125,6 +133,7 @@ interface GameBoardProps {
   pixiExternalBlockers?: ScreenBounds[];
 
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
+  elevateArrows?: boolean;
 
   battlefieldContainerRef?: React.RefObject<HTMLDivElement | null>;
 
@@ -157,6 +166,7 @@ export function GameBoard({
   blockAssignments,
   combatAssignments,
   arrowSpecs,
+  pointerSpecs,
   castingArrow,
   playerIsTargetable,
   monarchId,
@@ -192,6 +202,7 @@ export function GameBoard({
   onUntapLands,
   pixiExternalBlockers,
   boardSceneRef,
+  elevateArrows,
   battlefieldContainerRef,
   handSelectionMode,
   handSelectedIds,
@@ -739,6 +750,7 @@ export function GameBoard({
           regions={unifiedRegions}
           hand={pixiHand}
           arrowSpecs={arrowSpecs ?? []}
+          pointerSpecs={pointerSpecs ?? []}
           castingArrow={castingArrow}
           declareBlockers={promptType === "chooseBlockers"}
           combatBlocks={combatAssignmentsAll}
@@ -824,8 +836,17 @@ export function GameBoard({
           </div>
         );
       })}
-      <div className="absolute inset-0 z-40 pointer-events-none">
-        <BoardArrowsCanvas sceneRef={sceneRef} />
+      <div
+        className={cn(
+          "absolute inset-0 pointer-events-none",
+          elevateArrows ? "z-[9050]" : "z-[60]",
+        )}
+      >
+        <BoardArrowsCanvas
+          sceneRef={sceneRef}
+          suppressPointers={elevateArrows}
+          suppressNonCastingArrows={elevateArrows}
+        />
       </div>
       {boardArrangement === "row" &&
         unifiedLayout &&

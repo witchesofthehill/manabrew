@@ -166,6 +166,7 @@ export function StackDisplay({
             <div
               key={obj.id}
               data-stack-object-id={obj.id}
+              data-stack-surface="panel"
               data-card-id={obj.sourceId}
               data-casting-card={obj.isCasting ? obj.sourceId : undefined}
               className={cn(

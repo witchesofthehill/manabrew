@@ -39,6 +39,7 @@ import type {
   BattlefieldState,
   GameCanvasCallbacks,
   HandState,
+  PointerSpec,
   PlayZoneRect,
   ScreenBounds,
 } from "./types";
@@ -64,6 +65,7 @@ interface BoardCanvasProps {
   regions: BoardCanvasRegion[];
   hand: HandState;
   arrowSpecs: ArrowSpec[];
+  pointerSpecs: PointerSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   /** Local player is declaring blockers — enables drag-to-block. */
   declareBlockers?: boolean;
@@ -102,6 +104,7 @@ export function BoardCanvas({
   regions,
   hand,
   arrowSpecs,
+  pointerSpecs,
   castingArrow,
   declareBlockers,
   combatBlocks,
@@ -348,6 +351,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setArrowSpecs(arrowSpecs);
   }, [scene, arrowSpecs]);
+
+  useEffect(() => {
+    scene?.setPointerSpecs(pointerSpecs);
+  }, [scene, pointerSpecs]);
 
   useEffect(() => {
     scene?.setCastingArrow(castingArrow ?? null);

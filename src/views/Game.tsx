@@ -20,6 +20,7 @@ import type { BoardScene } from "@/pixi/board/BoardScene";
 import { PERIMETER_SIDE_FRACTION } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
+import { buildPointerSpecs } from "@/components/game/pointerSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
@@ -1120,6 +1121,15 @@ export default function Game({ exitTo }: GameProps = {}) {
     ];
   }, [liveArrowSpecs, debugArrowType, me?.id, opponent?.id]);
 
+  const pointerSpecs = useMemo(
+    () =>
+      buildPointerSpecs({
+        stack: gameView?.stack ?? [],
+        activeStackObjectId: hoveredStackObjectIdForSpecs,
+      }),
+    [gameView?.stack, hoveredStackObjectIdForSpecs],
+  );
+
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
   const debugCardEnabled = useGameDevStore((s) => s.debugCardEnabled);
   const debugCardName = useGameDevStore((s) => s.debugCardName);
@@ -1408,6 +1418,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
           boardSceneRef={boardSceneRef}
+          elevateArrows={spellStackModalOpen}
           pixiExternalBlockers={stackBlockerRect ? [stackBlockerRect] : []}
           handSelectionMode={mulliganPutBack.active}
           handSelectedIds={mulliganPutBack.selected}
@@ -1437,6 +1448,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
           arrowSpecs={arrowSpecs}
+          pointerSpecs={pointerSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}
           turnFlashPlayerId={turnFlashPlayerId}

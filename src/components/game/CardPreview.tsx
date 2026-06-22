@@ -38,7 +38,7 @@ interface CardPreviewProps {
   onMouseLeave?: () => void;
   isSticky?: boolean;
   slot?: HTMLElement | null;
-  imageSize?: "normal" | "large";
+  imageSize?: "normal" | "large" | "png";
 }
 
 const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
@@ -384,7 +384,7 @@ export function CardPreview({
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
   const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
   const currentLowResUrl =
-    imageSize !== "large"
+    imageSize === "normal"
       ? null
       : hasDoubleFace
         ? showBackFace
@@ -414,7 +414,7 @@ export function CardPreview({
                   : "pointer-events-none",
               ),
         )}
-        style={slot ? undefined : { left: cardLeft, top }}
+        style={slot ? undefined : { left: Math.round(cardLeft), top: Math.round(top) }}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >

@@ -1642,6 +1642,7 @@ export default function Game({ exitTo }: GameProps = {}) {
             preview={preview}
             actions={hoveredCardActions}
             onSelectAction={handlePreviewAction}
+            imageSize="png"
           />
         )}
 

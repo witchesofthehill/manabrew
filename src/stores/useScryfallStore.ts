@@ -286,7 +286,11 @@ export const chooseImageUrisForCard = (
 };
 
 const createTextureFromImage = (img: HTMLImageElement): Texture => {
-  const source = new ImageSource({ resource: img });
+  const source = new ImageSource({
+    resource: img,
+    scaleMode: "linear",
+    autoGenerateMipmaps: true,
+  });
   const tex = new Texture({ source });
   return tex;
 };

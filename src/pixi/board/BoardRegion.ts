@@ -79,14 +79,11 @@ const stackKeyCache = new WeakMap<GameCard, string>();
 
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
  *  every property the engine reports splits the stack automatically. Only `id`
- *  (always unique) and `isSelected` (selecting must not pop a card out of its
- *  group) are excluded. */
+ *  (always unique) is excluded. */
 function stackIdentityKey(c: GameCard): string {
   const cached = stackKeyCache.get(c);
   if (cached !== undefined) return cached;
-  const key = JSON.stringify(c, (k, value) =>
-    k === "id" || k === "isSelected" ? undefined : value,
-  );
+  const key = JSON.stringify(c, (k, value) => (k === "id" ? undefined : value));
   stackKeyCache.set(c, key);
   return key;
 }

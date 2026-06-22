@@ -168,9 +168,7 @@ pub(super) fn mulligan_decision_recv<T: Responder>(
     // so a torn-down session exits cleanly.
     match agent.recv_action() {
         PromptOutput::Mulligan(MulliganOutput::MulliganDecision { keep }) => keep,
-        PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-            ChooseActionDecision::Concede,
-        )) => true,
+        PromptOutput::ChooseAction(ChooseActionOutput::Concede) => true,
         other => panic!("mulligan_decision_recv expected MulliganDecision, got {other:?}"),
     }
 }
@@ -523,7 +521,7 @@ pub(super) fn reveal_cards<T: Responder>(
     }
     let cards = cards
         .iter()
-        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &[], &zone.to_string()))
+        .map(|&id| crate::game_view_dto::card_to_dto(game, id, &zone.to_string()))
         .collect();
     let message = message_prefix.unwrap_or("Look at these cards").to_string();
     agent.send_prompt(
@@ -1010,7 +1008,7 @@ pub(super) fn choose_single_card_for_zone_change<T: Responder>(
                 .iter()
                 .find(|c| c.id == id)
                 .map(|c| (*c).clone())
-                .unwrap_or_else(|| card_to_dto(game, cid, &[], "library"))
+                .unwrap_or_else(|| card_to_dto(game, cid, "library"))
         })
         .collect();
     // Deduplicate
@@ -1061,7 +1059,7 @@ pub(super) fn choose_cards_for_zone_change<T: Responder>(
                 .iter()
                 .find(|c| c.id == id)
                 .map(|c| (*c).clone())
-                .unwrap_or_else(|| card_to_dto(game, cid, &[], "library"))
+                .unwrap_or_else(|| card_to_dto(game, cid, "library"))
         })
         .collect();
     let mut seen = std::collections::HashSet::new();

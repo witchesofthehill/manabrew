@@ -28,8 +28,8 @@ use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 #[cfg(feature = "java-forge")]
 use manabrew_agent_interface::prompt::{
-    AgentPrompt, ChooseActionDecision, ChooseActionOutput, DiceRolledOutput, GameOverInput,
-    MulliganOutput, MulliganPutBackOutput, PromptInput, StateUpdate,
+    AgentPrompt, ChooseActionOutput, DiceRolledOutput, GameOverInput, MulliganOutput,
+    MulliganPutBackOutput, PromptInput, StateUpdate,
 };
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
@@ -79,9 +79,7 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
-        let pass = PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-            ChooseActionDecision::Pass { until_phase: None },
-        ));
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
@@ -927,11 +925,11 @@ fn player_index(deciding_player_id: &str) -> usize {
 #[cfg(feature = "java-forge")]
 fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
-        PromptInput::ChooseAction(_) => Some(PromptOutput::ChooseAction(
-            ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass {
+        PromptInput::ChooseAction(_) => {
+            Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
                 until_phase: None,
-            }),
-        )),
+            }))
+        }
         _ => None,
     }
 }
@@ -1042,11 +1040,9 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(
-                                ChooseActionOutput::ChooseActionDecision(
-                                    ChooseActionDecision::Pass { until_phase: None },
-                                ),
-                            )))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
+                                until_phase: None,
+                            })))
                         }
                     }
                     other => Err(format!(
@@ -1089,7 +1085,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass { until_phase: None }))))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })))
                         }
                     }
                     other => Err(format!(
@@ -1339,11 +1335,9 @@ fn play_first_card_action(prompt: &Value, card_name: &str) -> Result<Option<Prom
         .get("id")
         .and_then(Value::as_str)
         .ok_or_else(|| format!("playable action for '{card_name}' is missing id"))?;
-    Ok(Some(PromptOutput::ChooseAction(
-        ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act {
-            action_id: action_id.to_string(),
-        }),
-    )))
+    Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Act {
+        action_id: action_id.to_string(),
+    })))
 }
 
 #[cfg(feature = "java-forge")]

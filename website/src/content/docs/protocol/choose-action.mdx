@@ -44,19 +44,18 @@ highlighted in place.
 ## Response
 
 ```ts
-type ChooseActionDecision =
+type ChooseActionOutput =
   | { type: "pass"; untilPhase?: string }
   | { type: "concede" }
   | { type: "restoreSnapshot"; checkpointId: number }
   | { type: "act"; actionId: string };
-type ChooseActionOutput = ChooseActionDecision | ManaSourceAction;
 ```
 
-Send `{ type: "act", actionId }` to perform an action by its `id`. Send `pass`
-to pass priority, optionally `untilPhase` to keep passing until a named phase.
-`concede` and `restoreSnapshot` are control actions. `ManaSourceAction` (see
-[payManaCost](/protocol/pay-mana-cost/)) taps a source for mana while holding
-priority.
+Send `{ type: "act", actionId }` to perform an action by its `id` — including
+tapping a mana source or untapping one (`undoMana`), which appear in `actions`
+like any other entry. Send `pass` to pass priority, optionally `untilPhase` to
+keep passing until a named phase. `concede` and `restoreSnapshot` are control
+actions.
 
 ## Example
 
@@ -75,13 +74,13 @@ priority.
         "modeLabel": "Cast Lightning Bolt"
       },
       {
-        "id": "act-1",
+        "id": "tap:perm-5:0",
         "type": "activateAbility",
         "cardId": "perm-5",
         "abilityIndex": 0,
         "description": "{T}: Add {G}.",
         "isManaAbility": true,
-        "producedMana": "{G}"
+        "producedMana": [{ "color": "G", "amount": 1 }]
       }
     ]
   }

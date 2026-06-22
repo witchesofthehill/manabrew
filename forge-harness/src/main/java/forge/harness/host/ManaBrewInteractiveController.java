@@ -1805,7 +1805,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                     && player.canPayLife(2, effect, sa);
             final ManaBrewInteractiveSession.ManaPaymentChoice choice = session.awaitManaPaymentChoice(
                     me(), sa.getHostCard(), unpaid.toString(), sources, untappable, convokeSources,
-                    delveSources, pool.totalMana(), canConfirm, !mandatory, canPayLife, 2);
+                    delveSources, cardsToDelve, canConfirm, !mandatory, canPayLife, 2);
             switch (choice.kind()) {
                 case TAP: {
                     if (choice.convokeCard() != null) {

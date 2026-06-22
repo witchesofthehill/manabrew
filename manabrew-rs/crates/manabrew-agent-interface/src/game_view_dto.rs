@@ -215,12 +215,7 @@ fn should_show_command_zone_card(game: &GameState, cid: CardId) -> bool {
             .any(|subtype| subtype.eq_ignore_ascii_case("Effect")))
 }
 
-pub fn card_to_dto(
-    game: &GameState,
-    cid: CardId,
-    playable_ids: &[CardId],
-    zone_label: &str,
-) -> CardDto {
+pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
     let card = game.card(cid);
     let types: Vec<String> = card
         .type_line
@@ -329,8 +324,6 @@ pub fn card_to_dto(
         base_power,
         base_toughness,
         text,
-        is_playable: playable_ids.contains(&cid),
-        is_selected: false,
         controller_id: player_id_str(card.controller),
         owner_id: player_id_str(card.owner),
         zone_id: zone_label.to_string(),
@@ -376,7 +369,7 @@ pub fn card_to_dto(
         effective_mana_cost: {
             let is_command_zone_commander =
                 card.zone == ZoneType::Command && game.player_is_commander(card.controller, cid);
-            if (playable_ids.contains(&cid) || is_command_zone_commander) && !card.is_land() {
+            if is_command_zone_commander && !card.is_land() {
                 let cost_adj = manabrew_engine::staticability::static_ability_cost_change::compute_cost_adjustment(
                     game, card, card.controller, card.zone,
                 );
@@ -426,7 +419,6 @@ pub trait GameViewDtoExt {
         mana_pools: &[ManaPool],
         human_player: PlayerId,
         game_id: &str,
-        playable_ids: &[CardId],
     ) -> Self;
 }
 
@@ -436,7 +428,6 @@ impl GameViewDtoExt for GameViewDto {
         mana_pools: &[ManaPool],
         human_player: PlayerId,
         game_id: &str,
-        playable_ids: &[CardId],
     ) -> Self {
         let mut players = Vec::new();
         for &pid in &game.player_order {
@@ -450,7 +441,7 @@ impl GameViewDtoExt for GameViewDto {
             let zone_cards = |zone: ZoneType, zone_name: &str| -> Vec<CardDto> {
                 game.cards_in_zone(zone, pid)
                     .iter()
-                    .map(|&cid| card_to_dto(game, cid, playable_ids, zone_name))
+                    .map(|&cid| card_to_dto(game, cid, zone_name))
                     .collect()
             };
             let command_zone: Vec<CardDto> = game
@@ -458,7 +449,7 @@ impl GameViewDtoExt for GameViewDto {
                 .iter()
                 .copied()
                 .filter(|&cid| should_show_command_zone_card(game, cid))
-                .map(|cid| card_to_dto(game, cid, playable_ids, "command"))
+                .map(|cid| card_to_dto(game, cid, "command"))
                 .collect();
             players.push(PlayerDto {
                 id: player_id_str(pid),
@@ -485,7 +476,7 @@ impl GameViewDtoExt for GameViewDto {
         let mut battlefield = Vec::new();
         for &pid in &game.player_order {
             for &cid in game.cards_in_zone(ZoneType::Battlefield, pid) {
-                battlefield.push(card_to_dto(game, cid, playable_ids, "battlefield"));
+                battlefield.push(card_to_dto(game, cid, "battlefield"));
             }
         }
 

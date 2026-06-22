@@ -11,7 +11,7 @@ use super::{PromptAgent, Responder};
 fn library_dtos(game: &GameState, cards: &[CardId]) -> Vec<CardDto> {
     cards
         .iter()
-        .map(|&id| card_to_dto(game, id, &[], "library"))
+        .map(|&id| card_to_dto(game, id, "library"))
         .collect()
 }
 

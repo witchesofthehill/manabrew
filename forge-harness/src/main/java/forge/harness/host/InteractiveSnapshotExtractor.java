@@ -220,7 +220,6 @@ public final class InteractiveSnapshotExtractor {
             dto.baseToughness = toughness;
         }
         dto.text = card.getOracleText();
-        dto.isPlayable = false;
         dto.controllerId = "player-" + SnapshotExtractor.playerIndex(game, card.getController());
         dto.ownerId = "player-" + ownerIndex;
         dto.zoneId = zoneId;

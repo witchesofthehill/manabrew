@@ -104,8 +104,6 @@ pub struct CardDto {
     #[ts(optional)]
     pub base_toughness: Option<i32>,
     pub text: String,
-    pub is_playable: bool,
-    pub is_selected: bool,
     pub controller_id: String,
     pub owner_id: String,
     pub zone_id: String,

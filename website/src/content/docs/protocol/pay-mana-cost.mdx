@@ -7,9 +7,10 @@ import ProtocolType from "../../../components/ProtocolType.astro";
 
 Sent while the player pays a spell or ability's mana cost interactively —
 tapping lands, activating mana abilities, spending from the floating pool, or
-paying alternative costs such as delve. The client sends **incremental** actions
-(e.g. tap a land) and the engine re-sends an updated `payManaCost` prompt until
-the cost is met, then the client sends a final `pay`.
+paying alternative costs such as delve. Every available step is one entry in
+`actions`; the client sends **incremental** actions by echoing an entry's `id`
+and the engine re-sends an updated `payManaCost` prompt until the cost is met,
+then the client sends a final `pay`.
 
 ![The payManaCost prompt in the Manabrew client](/protocol/pay-mana-cost.svg)
 
@@ -22,19 +23,20 @@ the cost is met, then the client sends a final `pay`.
 ## Response
 
 ```ts
-type ManaSourceAction =
-  | { type: "tapForMana"; cardId: string; abilityIndex?: number; color?: string }
-  | { type: "untap"; cardId: string };
-type DelveAction = { type: "delve"; cardId: string } | { type: "undelve"; cardId: string };
-type ManaPayment = { type: "pay"; auto: boolean } | { type: "payLife" } | { type: "cancel" };
-type PayManaCostOutput = ManaSourceAction | DelveAction | ManaPayment;
+type PayManaCostOutput =
+  | { type: "act"; actionId: string }
+  | { type: "pay"; auto: boolean }
+  | { type: "payLife" }
+  | { type: "cancel" };
 ```
 
-Send `tapForMana`, `untap`, `delve`, or `undelve` as incremental steps — the
-engine answers each with an updated `payManaCost` prompt. Send
-`{ type: "pay", auto }` to finalize (`auto: true` lets the engine auto-tap the
-remaining sources), `payLife` to pay a Phyrexian cost with life, or `cancel` to
-back out of the payment entirely.
+Send `{ type: "act", actionId }` with the `id` of an entry in `actions` to take
+an incremental step — tapping a mana source, untapping one (`undoMana`), or
+delving/un-delving a graveyard card — and the engine answers with an updated
+`payManaCost` prompt. The client never builds an `actionId`; it only echoes one
+the prompt offered. Send `{ type: "pay", auto }` to finalize (`auto: true` lets
+the engine auto-tap the remaining sources), `payLife` to pay a Phyrexian cost
+with life, or `cancel` to back out of the payment entirely.
 
 ## Example
 
@@ -47,21 +49,18 @@ back out of the payment entirely.
     "cardId": "stack-3",
     "cardName": "Cryptic Command",
     "manaCost": "{1}{U}{U}{U}",
-    "manaAbilityOptions": [
+    "canConfirmFromPool": false,
+    "actions": [
       {
+        "id": "tap:perm-9:0",
+        "type": "activateAbility",
         "cardId": "perm-9",
         "abilityIndex": 0,
         "description": "{T}: Add {U}.",
         "isManaAbility": true,
-        "producedMana": "{U}",
-        "color": "U"
+        "producedMana": [{ "color": "U", "amount": 1 }]
       }
-    ],
-    "tappableSourceIds": ["perm-9", "perm-10", "perm-11", "perm-12"],
-    "untappableSourceIds": [],
-    "delveSourceIds": [],
-    "manaPoolTotal": 0,
-    "canConfirmFromPool": false
+    ]
   }
 }
 ```
@@ -69,6 +68,6 @@ back out of the payment entirely.
 ```json
 {
   "promptId": 7,
-  "output": { "type": "tapForMana", "cardId": "perm-9", "abilityIndex": 0, "color": "U" }
+  "output": { "type": "act", "actionId": "tap:perm-9:0" }
 }
 ```

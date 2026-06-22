@@ -59,14 +59,11 @@ impl BotAgent for SimpleAi {
             })),
             PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
                 let useful = |a: &&AvailableAction| {
-                    !matches!(
-                        a.kind,
-                        AvailableActionKind::UndoMana { .. }
-                            | AvailableActionKind::ActivateAbility {
-                                is_mana_ability: true,
-                                ..
-                            }
-                    )
+                    !matches!(&a.kind, AvailableActionKind::UndoMana { .. })
+                        && !matches!(
+                            &a.kind,
+                            AvailableActionKind::ActivateAbility(info) if info.is_mana_ability
+                        )
                 };
                 let pick = if self.looping_on(format!("{actions:?}")) {
                     None
@@ -79,8 +76,8 @@ impl BotAgent for SimpleAi {
                         .map(|a| a.id.clone())
                 };
                 Some(PromptOutput::ChooseAction(
-                    pick.map(|action_id| ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act { action_id }))
-                        .unwrap_or(ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass { until_phase: None })),
+                    pick.map(|action_id| ChooseActionOutput::Act { action_id })
+                        .unwrap_or(ChooseActionOutput::Pass { until_phase: None }),
                 ))
             }
             PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
@@ -219,25 +216,21 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
-                let can_pay = input.can_confirm_from_pool
-                    || !input.tappable_source_ids.is_empty()
-                    || !input.mana_ability_options.is_empty()
-                    || !input.delve_source_ids.is_empty();
+                let can_pay = input.can_confirm_from_pool || !input.actions.is_empty();
                 // auto-pay is one-shot: a failed attempt bounces the identical
                 // prompt back, so a repeat means auto-pay can't complete — bail.
                 let signature = format!(
-                    "pay:{}|{}|{}|{}",
+                    "pay:{}|{}|{}",
                     input.card_id,
                     input.mana_cost,
-                    input.mana_pool_total,
-                    input.tappable_source_ids.len()
+                    input.actions.len()
                 );
                 let payment = if !can_pay || self.looping_on(signature) {
-                    ManaPayment::Cancel
+                    PayManaCostOutput::Cancel
                 } else {
-                    ManaPayment::Pay { auto: true }
+                    PayManaCostOutput::Pay { auto: true }
                 };
-                Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(payment)))
+                Some(PromptOutput::PayManaCost(payment))
             }
             PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
                 presentation,

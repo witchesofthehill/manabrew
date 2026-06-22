@@ -40,7 +40,6 @@ export function scryfallToSampleGameCard(
     basePower: sc.power != null ? parseInt(sc.power, 10) : undefined,
     baseToughness: sc.toughness != null ? parseInt(sc.toughness, 10) : undefined,
     isPlayable: true,
-    isSelected: false,
     controllerId: "p1",
     ownerId: "p1",
     zoneId: "battlefield",

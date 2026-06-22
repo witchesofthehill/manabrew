@@ -320,7 +320,7 @@ public final class ManaBrewInteractiveSession {
             final List<Card> untappableCards,
             final List<Card> convokeSources,
             final List<Card> delveSources,
-            final int poolTotal,
+            final java.util.Collection<Card> delvedCards,
             final boolean canConfirm,
             final boolean canCancel,
             final boolean canPayLife,
@@ -329,7 +329,7 @@ public final class ManaBrewInteractiveSession {
         requireAttached();
         publishManaPaymentPrompt(
                 playerId, payingFor, remainingCost, tappableSources, untappableCards, convokeSources,
-                delveSources, poolTotal, canConfirm, canCancel, canPayLife, lifeToPay);
+                delveSources, delvedCards, canConfirm, canCancel, canPayLife, lifeToPay);
         while (!closed && !game.isGameOver()) {
             final JsonObject action;
             try {
@@ -489,49 +489,55 @@ public final class ManaBrewInteractiveSession {
             final List<Card> untappableCards,
             final List<Card> convokeSources,
             final List<Card> delveSources,
-            final int poolTotal,
+            final java.util.Collection<Card> delvedCards,
             final boolean canConfirm,
             final boolean canCancel,
             final boolean canPayLife,
             final int lifeToPay
     ) {
-        final List<ActivatableAbilityInfo> options = new java.util.ArrayList<>();
-        final java.util.LinkedHashSet<String> tappableIds = new java.util.LinkedHashSet<>();
+        final List<AvailableAction> actionList = new java.util.ArrayList<>();
         for (final SpellAbility sa : tappableSources) {
             final Card host = sa.getHostCard();
             if (host == null) {
                 continue;
             }
             final String cardId = SnapshotExtractor.javaCardId(host);
-            tappableIds.add(cardId);
             final int abilityIndex = host.getManaAbilities().indexOf(sa);
             final String description = host.getName();
             final String cost = simpleCostText(sa);
             final String produced = resolveProducedMana(sa);
             final Integer amount = sa.getManaPart() == null ? null : sa.amountOfManaGenerated(false);
             for (final ManaChoice choice : splitManaChoices(produced, amount)) {
-                options.add(new ActivatableAbilityInfo(
-                        cardId, abilityIndex, description, true, cost, choice.producedMana, choice.color));
+                final String actionId = choice.color != null
+                        ? "tap:" + cardId + ":" + abilityIndex + ":" + choice.color
+                        : "tap:" + cardId + ":" + abilityIndex;
+                actionList.add(new AvailableAction_activateAbility(
+                        actionId, cardId, abilityIndex, description, true, cost, choice.producedMana));
             }
         }
 
         for (final Card card : convokeSources) {
-            tappableIds.add(SnapshotExtractor.javaCardId(card));
+            final String cardId = SnapshotExtractor.javaCardId(card);
+            actionList.add(new AvailableAction_activateAbility(
+                    "tap:" + cardId, cardId, 0, card.getName(), true, null, null));
         }
-        final List<String> tappable = new java.util.ArrayList<>(tappableIds);
-        final List<String> untappable = new java.util.ArrayList<>();
         for (final Card card : untappableCards) {
-            untappable.add(SnapshotExtractor.javaCardId(card));
+            final String cardId = SnapshotExtractor.javaCardId(card);
+            actionList.add(new AvailableAction_undoMana("untap:" + cardId, cardId));
         }
-        final List<String> delve = new java.util.ArrayList<>();
         for (final Card card : delveSources) {
-            delve.add(SnapshotExtractor.javaCardId(card));
+            final String cardId = SnapshotExtractor.javaCardId(card);
+            if (delvedCards != null && delvedCards.contains(card)) {
+                actionList.add(new AvailableAction_undelve("undelve:" + cardId, cardId));
+            } else {
+                actionList.add(new AvailableAction_delve("delve:" + cardId, cardId));
+            }
         }
         publishAgentPrompt("player-" + playerId, null, new PayManaCostInput(
                 payingFor != null ? SnapshotExtractor.javaCardId(payingFor) : "",
                 payingFor != null ? InteractiveSnapshotExtractor.normalizeCardName(payingFor.getName()) : "",
                 remainingCost != null ? remainingCost : "",
-                options, tappable, untappable, delve, poolTotal, canConfirm, null));
+                canConfirm, actionList, null));
     }
 
     List<String> awaitManaCombo(
@@ -1576,7 +1582,7 @@ public final class ManaBrewInteractiveSession {
                             ? "tap:" + cardId + ":" + i + ":" + choice.color
                             : "tap:" + cardId + ":" + i;
                     actionsArray.add(new AvailableAction_activateAbility(
-                            actionId, cardId, i, label, true, choice.producedMana, cost));
+                            actionId, cardId, i, label, true, cost, choice.producedMana));
                 }
             } else {
                 actionsArray.add(new AvailableAction_activateAbility(id, cardId, i, label, false, null, null));
@@ -2232,9 +2238,9 @@ public final class ManaBrewInteractiveSession {
 
     private static final class ManaChoice {
         private final String color;
-        private final String producedMana;
+        private final java.util.List<Mana> producedMana;
 
-        private ManaChoice(final String color, final String producedMana) {
+        private ManaChoice(final String color, final java.util.List<Mana> producedMana) {
             this.color = color;
             this.producedMana = producedMana;
         }
@@ -2250,7 +2256,7 @@ public final class ManaBrewInteractiveSession {
         }
         final List<String> tokens = producedManaTokens(rawProducedMana);
         if (tokens.isEmpty()) {
-            out.add(new ManaChoice(null, rawProducedMana));
+            out.add(new ManaChoice(null, null));
             return out;
         }
         final boolean isCombo = tokens.contains("COMBO");
@@ -2267,7 +2273,7 @@ public final class ManaBrewInteractiveSession {
         }
         if (isCombo) {
             if (amount > 1) {
-                out.add(new ManaChoice(null, rawProducedMana));
+                out.add(new ManaChoice(null, null));
                 return out;
             }
             if (isAny) {
@@ -2280,19 +2286,55 @@ public final class ManaBrewInteractiveSession {
         }
         final List<String> letters = manaTokensToLetters(manaTokens);
         if (letters != null) {
-            out.add(new ManaChoice(null, manaString(letters, amount)));
+            out.add(new ManaChoice(null, lettersToMana(letters, amount)));
             return out;
         }
-        out.add(new ManaChoice(null, rawProducedMana));
+        out.add(new ManaChoice(null, null));
         return out;
     }
 
     private static List<ManaChoice> choicesForLetters(final List<String> letters, final int amount) {
         final List<ManaChoice> out = new ArrayList<>();
         for (final String letter : letters) {
-            out.add(new ManaChoice(letter, manaString(java.util.Collections.singletonList(letter), amount)));
+            out.add(new ManaChoice(letter, lettersToMana(java.util.Collections.singletonList(letter), amount)));
         }
         return out;
+    }
+
+    private static java.util.List<Mana> lettersToMana(final List<String> letters, final int amount) {
+        final int amt = Math.max(amount, 1);
+        final java.util.List<Mana> out = new ArrayList<>();
+        for (final String letter : letters) {
+            final ManaColor color = letterToColor(letter);
+            if (color == null) {
+                continue;
+            }
+            Mana existing = null;
+            for (final Mana mana : out) {
+                if (mana.color == color) {
+                    existing = mana;
+                    break;
+                }
+            }
+            if (existing != null) {
+                existing.amount += amt;
+            } else {
+                out.add(new Mana(color, amt));
+            }
+        }
+        return out;
+    }
+
+    private static ManaColor letterToColor(final String letter) {
+        switch (letter) {
+            case "W": return ManaColor.W;
+            case "U": return ManaColor.U;
+            case "B": return ManaColor.B;
+            case "R": return ManaColor.R;
+            case "G": return ManaColor.G;
+            case "C": return ManaColor.C;
+            default: return null;
+        }
     }
 
     private static List<String> producedManaTokens(final String produced) {
@@ -2327,20 +2369,6 @@ public final class ManaBrewInteractiveSession {
             letters.add(letter);
         }
         return letters;
-    }
-
-    private static String manaString(final List<String> letters, final int amount) {
-        final int repeat = Math.max(amount, 1);
-        final StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < repeat; i++) {
-            for (final String letter : letters) {
-                if (sb.length() > 0) {
-                    sb.append(' ');
-                }
-                sb.append(letter);
-            }
-        }
-        return sb.toString();
     }
 
     private static String manaTokenToLetter(final String token) {

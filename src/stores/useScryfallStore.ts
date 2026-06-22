@@ -19,6 +19,7 @@ import type {
 import type { DeckCard } from "@/types/manabrew";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
+import { usePreferencesStore, type CardTextureFilter } from "./usePreferencesStore";
 import { frontFaceName } from "@/lib/scryfall.utils";
 import { cardFaceImageUris } from "@/lib/cardImage";
 
@@ -289,17 +290,31 @@ export const chooseImageUrisForCard = (
   return null;
 };
 
+const applyCardTextureFilter = (source: ImageSource, mode: CardTextureFilter): void => {
+  if (mode === "point") {
+    source.scaleMode = "nearest";
+    return;
+  }
+  source.scaleMode = "linear";
+  source.mipmapFilter = mode === "sharp" ? "nearest" : "linear";
+};
+
 const createTextureFromImage = (img: HTMLImageElement): Texture => {
-  const source = new ImageSource({
-    resource: img,
-    scaleMode: "linear",
-    autoGenerateMipmaps: true,
-  });
-  const tex = new Texture({ source });
-  return tex;
+  const source = new ImageSource({ resource: img, autoGenerateMipmaps: true });
+  applyCardTextureFilter(source, usePreferencesStore.getState().cardTextureFilter);
+  return new Texture({ source });
 };
 
 const textureCache = new Map<string, Texture>();
+
+let lastCardTextureFilter = usePreferencesStore.getState().cardTextureFilter;
+usePreferencesStore.subscribe((state) => {
+  if (state.cardTextureFilter === lastCardTextureFilter) return;
+  lastCardTextureFilter = state.cardTextureFilter;
+  for (const tex of textureCache.values()) {
+    applyCardTextureFilter(tex.source as ImageSource, lastCardTextureFilter);
+  }
+});
 const pendingTexturePromises = new Map<string, Promise<Texture>>();
 
 export const useScryfallStore = create<ScryfallState>()(

@@ -783,6 +783,38 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Card Texture Filter</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={prefs.cardTextureFilter === "smooth" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setCardTextureFilter("smooth")}
+                >
+                  Smooth
+                </Button>
+                <Button
+                  variant={prefs.cardTextureFilter === "sharp" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setCardTextureFilter("sharp")}
+                >
+                  Sharp
+                </Button>
+                <Button
+                  variant={prefs.cardTextureFilter === "point" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setCardTextureFilter("point")}
+                >
+                  Point
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                How card images are sampled in the Pixi board. "Smooth" is trilinear (softest),
+                "Sharp" keeps the nearest mip level, "Point" disables filtering entirely (crispest,
+                can look pixelated). Applies live to hand and battlefield cards.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Card Preview Trigger</Label>
               <div className="flex items-center gap-2">
                 <Button

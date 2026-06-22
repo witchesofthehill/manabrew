@@ -7,6 +7,7 @@ import type { BoardArrangement } from "@/pixi/board/boardLayout";
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
 export type BattlefieldCardStyle = "realistic" | "art" | "frame";
+export type CardTextureFilter = "smooth" | "sharp" | "point";
 
 interface PreferencesState {
   appThemePreset: string;
@@ -53,6 +54,9 @@ interface PreferencesState {
   pixiAntialias: boolean;
   setPixiAntialias: (value: boolean) => void;
 
+  cardTextureFilter: CardTextureFilter;
+  setCardTextureFilter: (value: CardTextureFilter) => void;
+
   cardPreviewMode: CardPreviewMode;
   setCardPreviewMode: (mode: CardPreviewMode) => void;
 
@@ -83,6 +87,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "inGameAnimations",
   "instantHandHover",
   "pixiAntialias",
+  "cardTextureFilter",
   "cardPreviewMode",
   "cardHoverDelayMs",
   "appThemeColorOverrides",
@@ -152,6 +157,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           pixiAntialias: true,
           setPixiAntialias: (pixiAntialias) => set({ pixiAntialias }),
+
+          cardTextureFilter: "sharp",
+          setCardTextureFilter: (cardTextureFilter) => set({ cardTextureFilter }),
 
           cardPreviewMode: "hover",
           setCardPreviewMode: (cardPreviewMode) => set({ cardPreviewMode }),

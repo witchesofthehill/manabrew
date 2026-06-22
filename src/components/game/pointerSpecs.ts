@@ -5,6 +5,7 @@ import { intentPrefersArrow, TargetingIntent } from "@/types/promptType";
 export interface BuildPointerSpecsOptions {
   stack?: StackObject[];
   activeStackObjectId?: string | null;
+  includeStackTargets?: boolean;
 }
 
 function getActiveStackObject(
@@ -53,6 +54,23 @@ export function buildPointerSpecs(opts: BuildPointerSpecsOptions): PointerSpec[]
       to,
       intent,
     });
+  }
+  if (opts.includeStackTargets) {
+    for (const stackObj of opts.stack ?? []) {
+      for (const target of getTargets(stackObj)) {
+        if (target.kind !== "stack" || target.id === stackObj.id) continue;
+        const to = targetEndpoint(target);
+        if (!to) continue;
+        const intent =
+          target.intent ?? (target.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+        if (intentPrefersArrow(intent)) continue;
+        specs.push({
+          from: { kind: "stack", id: stackObj.id },
+          to,
+          intent,
+        });
+      }
+    }
   }
   return specs;
 }

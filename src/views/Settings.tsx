@@ -14,6 +14,7 @@ import { useBattlefieldCardScale } from "@/hooks/useBattlefieldCardScale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useTheme as useColorMode } from "next-themes";
 import { Navigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
@@ -731,6 +732,21 @@ export default function Settings() {
                 Decorative board effects — creature entrance stomp + dust, stat and damage pops,
                 glow pulses. Turn these off to save performance on weaker hardware; the board still
                 works (cards move, state indicators and damage numbers stay).
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="show-targeting-arrows"
+                  checked={prefs.showTargetingArrows}
+                  onCheckedChange={(checked) => prefs.setShowTargetingArrows(checked === true)}
+                />
+                <Label htmlFor="show-targeting-arrows">Show targeting arrows</Label>
+              </div>
+              <p className="ml-7 text-xs text-muted-foreground">
+                Draw connector arrows between stack objects and their targets when possible. Turning
+                this off keeps target glyphs visible without those links.
               </p>
             </div>
 

@@ -130,6 +130,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const boardArrangementPref = usePreferencesStore((s) => s.boardArrangement);
   const boardArrangement = isFeatureEnabled("wraparoundBoardLayout") ? boardArrangementPref : "row";
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
+  const showTargetingArrows = usePreferencesStore((s) => s.showTargetingArrows);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
   const location = useLocation();
@@ -1094,6 +1095,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         battlefieldAttachments,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
+        showTargetingArrows,
         stageBlockers: true,
       }),
     [
@@ -1105,6 +1107,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       battlefieldAttachments,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
+      showTargetingArrows,
     ],
   );
 
@@ -1126,8 +1129,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       buildPointerSpecs({
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
+        includeStackTargets: !showTargetingArrows,
       }),
-    [gameView?.stack, hoveredStackObjectIdForSpecs],
+    [gameView?.stack, hoveredStackObjectIdForSpecs, showTargetingArrows],
   );
 
   const debugBattlefieldKeywords = useGameDevStore((s) => s.debugBattlefieldKeywords);
@@ -1450,6 +1454,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           arrowSpecs={arrowSpecs}
           pointerSpecs={pointerSpecs}
           castingArrow={castingArrow}
+          showTargetingArrows={showTargetingArrows}
           playerIsTargetable={playerIsTargetable}
           turnFlashPlayerId={turnFlashPlayerId}
           zonePanelOrder={zonePanelOrder}

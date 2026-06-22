@@ -15,6 +15,7 @@ import type { BoardScene } from "./board/BoardScene";
 interface BoardArrowsCanvasProps {
   sceneRef: React.MutableRefObject<BoardScene | null>;
   className?: string;
+  showTargetingArrows?: boolean;
   suppressPointers?: boolean;
   suppressNonCastingArrows?: boolean;
 }
@@ -28,6 +29,7 @@ interface BoardArrowsCanvasProps {
 export function BoardArrowsCanvas({
   sceneRef,
   className,
+  showTargetingArrows = true,
   suppressPointers = false,
   suppressNonCastingArrows = false,
 }: BoardArrowsCanvasProps) {
@@ -37,12 +39,16 @@ export function BoardArrowsCanvas({
   const pointerLayerRef = useRef<PointerLayer | null>(null);
   const unregisterRef = useRef<(() => void) | null>(null);
   const sceneRefRef = useRef(sceneRef);
+  const showTargetingArrowsRef = useRef(showTargetingArrows);
   const suppressPointersRef = useRef(suppressPointers);
   const suppressNonCastingArrowsRef = useRef(suppressNonCastingArrows);
 
   useEffect(() => {
     sceneRefRef.current = sceneRef;
   }, [sceneRef]);
+  useEffect(() => {
+    showTargetingArrowsRef.current = showTargetingArrows;
+  }, [showTargetingArrows]);
   useEffect(() => {
     suppressPointersRef.current = suppressPointers;
   }, [suppressPointers]);
@@ -91,7 +97,10 @@ export function BoardArrowsCanvas({
             : allArrows;
           const pointers = suppressPointersRef.current ? [] : (scene?.getPointerDefs() ?? []);
           arrowLayer.update(arrows, app.ticker.deltaMS);
-          pointerLayer.update(pointers, app.ticker.deltaMS);
+          pointerLayer.update(pointers, app.ticker.deltaMS, {
+            showLinks: showTargetingArrowsRef.current,
+            showSourceGlyphs: !showTargetingArrowsRef.current,
+          });
         });
       });
     return () => {

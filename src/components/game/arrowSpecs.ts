@@ -15,6 +15,7 @@ export interface BuildArrowSpecsOptions {
   activeAttackers: { attackerId: string; defenderId: string }[];
   stack?: StackObject[];
   activeStackObjectId?: string | null;
+  showTargetingArrows?: boolean;
   stageBlockers?: boolean;
 }
 
@@ -44,6 +45,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     battlefieldAttachments,
     stack,
     activeStackObjectId,
+    showTargetingArrows = true,
     stageBlockers,
   } = opts;
 
@@ -87,17 +89,19 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     }
   }
 
-  for (const stackObj of stack ?? []) {
-    for (const t of getTargets(stackObj)) {
-      if (t.kind !== "stack" || t.id === stackObj.id) continue;
-      const intent = t.intent ?? (t.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
-      specs.push({
-        from: { kind: "stack", id: stackObj.id, anchor: "top" },
-        to: { kind: "stack", id: t.id, anchor: "top" },
-        type: "casting",
-        hostile: intentIsHostile(intent),
-        curve: "up",
-      });
+  if (showTargetingArrows) {
+    for (const stackObj of stack ?? []) {
+      for (const t of getTargets(stackObj)) {
+        if (t.kind !== "stack" || t.id === stackObj.id) continue;
+        const intent = t.intent ?? (t.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+        specs.push({
+          from: { kind: "stack", id: stackObj.id, anchor: "top" },
+          to: { kind: "stack", id: t.id, anchor: "top" },
+          type: "casting",
+          hostile: intentIsHostile(intent),
+          curve: "up",
+        });
+      }
     }
   }
 

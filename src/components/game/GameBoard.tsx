@@ -72,6 +72,7 @@ interface GameBoardProps {
   arrowSpecs?: ArrowSpec[];
   pointerSpecs?: PointerSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
+  showTargetingArrows?: boolean;
   playerIsTargetable: (playerId: string) => boolean;
 
   monarchId?: string | null;
@@ -168,6 +169,7 @@ export function GameBoard({
   arrowSpecs,
   pointerSpecs,
   castingArrow,
+  showTargetingArrows = true,
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
@@ -844,7 +846,8 @@ export function GameBoard({
       >
         <BoardArrowsCanvas
           sceneRef={sceneRef}
-          suppressPointers={elevateArrows}
+          showTargetingArrows={showTargetingArrows}
+          suppressPointers={elevateArrows && showTargetingArrows}
           suppressNonCastingArrows={elevateArrows}
         />
       </div>

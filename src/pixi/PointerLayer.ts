@@ -131,6 +131,13 @@ const TARGET_CLUSTER_KEY_PX = 4;
 interface LaidOutPointer extends ResolvedPointer {
   targetX: number;
   targetY: number;
+  sourceGlyphX: number;
+  sourceGlyphY: number;
+}
+
+interface PointerLayerRenderOptions {
+  showLinks: boolean;
+  showSourceGlyphs: boolean;
 }
 
 function shortenEndpoints(
@@ -161,11 +168,16 @@ function targetClusterOffset(index: number, count: number): Point {
   };
 }
 
-function layoutPointerTargets(pointers: ResolvedPointer[]): LaidOutPointer[] {
+function layoutPointerTargets(
+  pointers: ResolvedPointer[],
+  showSourceGlyphs: boolean,
+): LaidOutPointer[] {
   const laidOut = pointers.map((pointer) => ({
     ...pointer,
     targetX: pointer.toX,
     targetY: pointer.toY,
+    sourceGlyphX: pointer.fromX,
+    sourceGlyphY: pointer.fromY,
   }));
   const groups = new Map<string, number[]>();
   for (let i = 0; i < pointers.length; i += 1) {
@@ -185,6 +197,27 @@ function layoutPointerTargets(pointers: ResolvedPointer[]): LaidOutPointer[] {
       pointer.targetY = pointer.toY + offset.y;
     });
   }
+
+  if (showSourceGlyphs) {
+    const sourceGroups = new Map<string, number[]>();
+    for (let i = 0; i < pointers.length; i += 1) {
+      const pointer = pointers[i]!;
+      const key = pointClusterKey(pointer.fromX, pointer.fromY);
+      const group = sourceGroups.get(key);
+      if (group) group.push(i);
+      else sourceGroups.set(key, [i]);
+    }
+    for (const indexes of sourceGroups.values()) {
+      if (indexes.length <= 1) continue;
+      indexes.forEach((pointerIndex, groupIndex) => {
+        const pointer = laidOut[pointerIndex]!;
+        const offset = targetClusterOffset(groupIndex, indexes.length);
+        pointer.sourceGlyphX = pointer.fromX + offset.x;
+        pointer.sourceGlyphY = pointer.fromY + offset.y;
+      });
+    }
+  }
+
   return laidOut;
 }
 
@@ -217,6 +250,7 @@ const SOURCE_PULSE_PHASE_OFFSET = Math.PI;
 // ── Internal state ─────────────────────────────────────────────────────────
 interface IconEntry {
   link: Graphics;
+  sourceSprite: Sprite;
   sprite: Sprite;
   glow: Graphics;
   sourceGlow: Graphics;
@@ -276,22 +310,28 @@ export class PointerLayer {
   }
 
   /** Replace the live pointer set and tick the animation. */
-  update(pointers: ResolvedPointer[], deltaMs: number): void {
+  update(
+    pointers: ResolvedPointer[],
+    deltaMs: number,
+    options: PointerLayerRenderOptions = { showLinks: true, showSourceGlyphs: false },
+  ): void {
     if (pointers.length === 0 && this.clear) return;
     this.elapsedMs += deltaMs;
-    const laidOutPointers = layoutPointerTargets(pointers);
+    const laidOutPointers = layoutPointerTargets(pointers, options.showSourceGlyphs);
     this.ensurePool(laidOutPointers.length);
 
     for (let i = 0; i < this.pool.length; i += 1) {
       const entry = this.pool[i]!;
       if (i < laidOutPointers.length) {
-        this.renderPointer(entry, laidOutPointers[i]!);
-        entry.link.visible = true;
+        this.renderPointer(entry, laidOutPointers[i]!, options);
+        entry.link.visible = options.showLinks;
+        entry.sourceSprite.visible = options.showSourceGlyphs;
         entry.sprite.visible = true;
         entry.glow.visible = true;
-        entry.sourceGlow.visible = true;
+        entry.sourceGlow.visible = options.showLinks || options.showSourceGlyphs;
       } else {
         entry.link.visible = false;
+        entry.sourceSprite.visible = false;
         entry.sprite.visible = false;
         entry.glow.visible = false;
         entry.sourceGlow.visible = false;
@@ -309,7 +349,11 @@ export class PointerLayer {
       const link = new Graphics();
       const sourceGlow = new Graphics();
       const glow = new Graphics();
+      const sourceSprite = new Sprite();
       const sprite = new Sprite();
+      sourceSprite.anchor.set(0.5);
+      sourceSprite.width = ICON_SIZE;
+      sourceSprite.height = ICON_SIZE;
       sprite.anchor.set(0.5);
       sprite.width = ICON_SIZE;
       sprite.height = ICON_SIZE;
@@ -317,12 +361,17 @@ export class PointerLayer {
       this.root.addChild(link);
       this.root.addChild(sourceGlow);
       this.root.addChild(glow);
+      this.root.addChild(sourceSprite);
       this.root.addChild(sprite);
-      this.pool.push({ link, sprite, glow, sourceGlow });
+      this.pool.push({ link, sourceSprite, sprite, glow, sourceGlow });
     }
   }
 
-  private renderPointer(entry: IconEntry, p: LaidOutPointer): void {
+  private renderPointer(
+    entry: IconEntry,
+    p: LaidOutPointer,
+    options: PointerLayerRenderOptions,
+  ): void {
     const { color, alpha } = this.colorFor(p.intent);
 
     // ── Float animation: small vertical bob relative to the anchor ─────
@@ -331,7 +380,7 @@ export class PointerLayer {
     const anchorY = p.targetY + (p.locked ? 0 : ICON_CURSOR_OFFSET_Y) + bob;
 
     entry.link.clear();
-    if (p.locked) {
+    if (p.locked && options.showLinks) {
       this.drawLink(entry.link, p.fromX, p.fromY, p.targetX, anchorY, color, alpha);
     }
 
@@ -347,7 +396,34 @@ export class PointerLayer {
     entry.glow.circle(p.targetX, anchorY, radius * 0.7);
     entry.glow.fill({ color, alpha: glowAlpha });
 
-    // ── Source-card glow (counter-phased pulse around the source) ─────
+    const texture = this.textures[p.intent];
+    entry.sourceGlow.clear();
+    if (options.showLinks || options.showSourceGlyphs) {
+      const sourceY = options.showSourceGlyphs ? p.sourceGlyphY + bob : p.fromY;
+      const sourceX = options.showSourceGlyphs ? p.sourceGlyphX : p.fromX;
+      this.renderSourceGlow(entry.sourceGlow, sourceX, sourceY, color, alpha);
+      if (options.showSourceGlyphs) {
+        entry.sourceSprite.texture = texture ?? Texture.EMPTY;
+        entry.sourceSprite.x = sourceX;
+        entry.sourceSprite.y = sourceY;
+        entry.sourceSprite.alpha = alpha;
+      }
+    }
+
+    // ── Icon (monochrome — no tint so the glyph stays neutral white) ──
+    entry.sprite.texture = texture ?? Texture.EMPTY;
+    entry.sprite.x = p.targetX;
+    entry.sprite.y = anchorY;
+    entry.sprite.alpha = alpha;
+  }
+
+  private renderSourceGlow(
+    gfx: Graphics,
+    x: number,
+    y: number,
+    color: number,
+    alpha: number,
+  ): void {
     const sourcePhase =
       (this.elapsedMs / ICON_PULSE_PERIOD_MS) * Math.PI * 2 + SOURCE_PULSE_PHASE_OFFSET;
     const sourcePulse = 0.5 + 0.5 * Math.sin(sourcePhase);
@@ -355,18 +431,10 @@ export class PointerLayer {
       SOURCE_GLOW_BASE_RADIUS + sourcePulse * (SOURCE_GLOW_MAX_RADIUS - SOURCE_GLOW_BASE_RADIUS);
     const sourceAlpha = alpha * (SOURCE_GLOW_BASE_ALPHA + sourcePulse * SOURCE_GLOW_PULSE_ALPHA);
 
-    entry.sourceGlow.clear();
-    entry.sourceGlow.circle(p.fromX, p.fromY, sourceRadius);
-    entry.sourceGlow.fill({ color, alpha: sourceAlpha * 0.3 });
-    entry.sourceGlow.circle(p.fromX, p.fromY, sourceRadius * 0.75);
-    entry.sourceGlow.fill({ color, alpha: sourceAlpha });
-
-    // ── Icon (monochrome — no tint so the glyph stays neutral white) ──
-    const texture = this.textures[p.intent];
-    entry.sprite.texture = texture ?? Texture.EMPTY;
-    entry.sprite.x = p.targetX;
-    entry.sprite.y = anchorY;
-    entry.sprite.alpha = alpha;
+    gfx.circle(x, y, sourceRadius);
+    gfx.fill({ color, alpha: sourceAlpha * 0.3 });
+    gfx.circle(x, y, sourceRadius * 0.75);
+    gfx.fill({ color, alpha: sourceAlpha });
   }
 
   private drawLink(
@@ -435,8 +503,9 @@ export class PointerLayer {
   }
 
   destroy(): void {
-    for (const { link, sprite, glow, sourceGlow } of this.pool) {
+    for (const { link, sourceSprite, sprite, glow, sourceGlow } of this.pool) {
       link.destroy();
+      sourceSprite.destroy();
       sprite.destroy();
       glow.destroy();
       sourceGlow.destroy();

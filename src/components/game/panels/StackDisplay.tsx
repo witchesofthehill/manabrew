@@ -196,7 +196,6 @@ export function StackDisplay({
                 card={card}
                 className={cn(
                   "w-full h-full cursor-pointer",
-                  obj.isCasting && "casting-card",
                   isFlashedStackCard && "animate-card-stack-flash-in",
                   enteringIds.has(obj.id) && !isFlashedStackCard && "animate-card-stack-enter",
                   isTopOfStack && !obj.isCasting && "playable-card",
@@ -204,6 +203,12 @@ export function StackDisplay({
                 )}
                 style={cardStyle}
               />
+              {obj.isCasting && (
+                <div
+                  aria-hidden
+                  className="casting-card pointer-events-none absolute inset-0 rounded-lg"
+                />
+              )}
             </div>
           );
         })}

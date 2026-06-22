@@ -385,7 +385,7 @@ export const useScryfallStore = create<ScryfallState>()(
       },
       getCardTexture: async (deckCard, variant = "full", faceIndex = 0) => {
         const pick = (u: ScryfallImageUris | undefined) =>
-          variant === "art" ? u?.art_crop : variant === "hires" ? u?.png : u?.border_crop;
+          variant === "art" ? u?.art_crop : variant === "hires" ? u?.small : u?.border_crop;
         let url = faceIndex === 0 ? pick(deckCard.uris) : undefined;
         if (!url) {
           const entry = await get().getCard({

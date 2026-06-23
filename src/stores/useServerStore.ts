@@ -5,6 +5,7 @@ import { getPlatform } from "@/platform";
 import { attachDraftPeer, detachDraftPeer } from "@/game/draftPeer";
 import { teardownHost as teardownDraftHost } from "@/game/draftHost";
 import { useMultiplayerDraftStore } from "@/stores/useMultiplayerDraftStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { SERVER_ERROR_CODE, USER_FACING_ERROR_MESSAGES } from "@/types/server";
 import type {
   RoomInfo,
@@ -246,6 +247,7 @@ export const useServerStore = create<ServerState>()(
           deckName,
           deck,
           commanderName: commanderName ?? null,
+          avatar: usePreferencesStore.getState().customAvatar,
         });
       },
 

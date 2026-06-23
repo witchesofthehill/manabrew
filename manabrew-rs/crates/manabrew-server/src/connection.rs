@@ -743,6 +743,7 @@ fn handle_client_message(
             deck_name,
             deck,
             commander_name,
+            avatar,
         } => {
             info!(
                 "[lobby] '{}' selected deck '{}' ({} cards)",
@@ -750,8 +751,14 @@ fn handle_client_message(
                 deck_name,
                 deck.cards.len()
             );
-            match lobby::set_deck_selection_sync(state, player_id, deck_name, deck, commander_name)
-            {
+            match lobby::set_deck_selection_sync(
+                state,
+                player_id,
+                deck_name,
+                deck,
+                commander_name,
+                avatar,
+            ) {
                 Ok(room_id) => {
                     if let Some(room) = state.rooms.get(&room_id) {
                         broadcast_to_room(

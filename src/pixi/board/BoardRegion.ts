@@ -1,5 +1,6 @@
 import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
+import type { PlaymatSettings } from "@/protocol/deck";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
 import {
@@ -63,6 +64,7 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
+import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 
 type Point = ScreenPos;
 
@@ -99,6 +101,7 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
@@ -141,6 +144,9 @@ export class BoardRegion {
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
+
+    this.playmat.container.zIndex = -9;
+    this.container.addChild(this.playmat.container);
 
     // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
@@ -616,7 +622,7 @@ export class BoardRegion {
 
   private applyOverflowStacking(topLevelCandidates: CardDto[]): void {
     if (topLevelCandidates.length === 0) return;
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     let freeCellCount = 0;
     for (const cell of grid.cells) {
@@ -675,7 +681,7 @@ export class BoardRegion {
 
   private computeBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
     const positions = new Map<string, Point>();
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     this.gridInfo = grid;
 
@@ -820,7 +826,7 @@ export class BoardRegion {
   }
 
   private findFirstFreeBattlefieldSlot(): Point {
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid =
       this.gridInfo ?? computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     const occupied = new Set<string>();
@@ -960,6 +966,17 @@ export class BoardRegion {
     return { ...zone, height: Math.max(0, zone.height - reserve) };
   }
 
+  private playArea(): PlayZoneRect {
+    const z = this.usableZone();
+    const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    return {
+      x: z.x + pad,
+      y: z.y + pad,
+      width: Math.max(1, z.width - pad * 2),
+      height: Math.max(1, z.height - pad * 2),
+    };
+  }
+
   redrawBackground(): void {
     this.drawBackground();
     this.layoutEmptyText();
@@ -973,6 +990,16 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
+    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
+  }
+
+  setPlaymat(url: string | undefined): void {
+    this.playmat.setImage(url);
+    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
+  }
+
+  setPlaymatSettings(settings: PlaymatSettings | undefined): void {
+    this.playmat.setSettings(settings);
   }
 
   private layoutEmptyText(): void {
@@ -1211,12 +1238,7 @@ export class BoardRegion {
   }
 
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(
-      this.usableZone(),
-      0,
-      this.collectLocalBlockers(),
-      this.cardScale,
-    );
+    const grid = computeGridLayout(this.playArea(), 0, this.collectLocalBlockers(), this.cardScale);
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
@@ -1245,7 +1267,7 @@ export class BoardRegion {
   drawDropField(): void {
     // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
     this.lastDropCell = null;
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
     const pad = GAP * 2;
     const gfx = this.gridSkeletonGfx;
@@ -1263,7 +1285,9 @@ export class BoardRegion {
   }
 
   destroy(): void {
+    this.playmat.destroy();
     this.effects.destroy();
+    this.container.destroy({ children: true });
     this.entries.clear();
   }
 }

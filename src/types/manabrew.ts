@@ -30,7 +30,6 @@ export interface CardRulesSummary {
 /** A deck open in the deck-builder: the wire `Deck` plus editor-only scratch
  *  that never reaches the engine — saved with the deck, dropped on the wire. */
 export type EditorDeck = DeckDto & {
-  stackPositions?: Record<string, { x: number; y: number }>;
   customTags?: string[];
   cardTags?: Record<string, string[]>;
 };

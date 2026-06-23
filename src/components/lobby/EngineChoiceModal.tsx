@@ -6,7 +6,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Cpu, Cloud } from "lucide-react";
+import { Cpu, Cloud, TriangleAlert } from "lucide-react";
 import type { EngineKind } from "@/types/server";
 
 interface EngineChoiceModalProps {
@@ -63,6 +63,14 @@ export function EngineChoiceModal({ onChoose, onCancel, hostedAvailable }: Engin
                 : "Forge on a Manabrew-hosted node — full card support. Not available in this build."}
             </p>
           </button>
+        </div>
+        <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <p>
+            {hostedAvailable
+              ? "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
+              : "The Manabrew engine is a work in progress and may have bugs or missing cards."}
+          </p>
         </div>
       </DialogContent>
     </Dialog>

@@ -24,6 +24,9 @@ interface PreferencesState {
   setServerUsername: (username: string) => void;
   setServerPassword: (password: string) => void;
 
+  customAvatar?: string;
+  setCustomAvatar: (dataUrl: string | undefined) => void;
+
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
 
@@ -69,6 +72,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverPort",
   "serverUsername",
   "serverPassword",
+  "customAvatar",
   "zonePanelOrder",
   "boardArrangement",
   "battlefieldAutoSort",
@@ -120,6 +124,9 @@ export const usePreferencesStore = create<PreferencesState>()(
           setServerPort: (serverPort) => set({ serverPort }),
           setServerUsername: (serverUsername) => set({ serverUsername }),
           setServerPassword: (serverPassword) => set({ serverPassword }),
+
+          customAvatar: undefined,
+          setCustomAvatar: (customAvatar) => set({ customAvatar }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),

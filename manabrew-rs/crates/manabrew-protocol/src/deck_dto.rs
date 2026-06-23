@@ -118,6 +118,36 @@ pub struct DeckLabel {
     pub color: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "deck/index.ts")]
+pub struct PlaymatSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub opacity: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub texture: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub border_width: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub border_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub fit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub offset_x: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub offset_y: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub color: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]
@@ -189,6 +219,15 @@ pub struct Deck {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub cover_card_face: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub playmat: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub playmat_settings: Option<PlaymatSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "Record<string, { x: number; y: number }>")]
+    pub stack_positions: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub tokens: Option<Vec<DeckCard>>,

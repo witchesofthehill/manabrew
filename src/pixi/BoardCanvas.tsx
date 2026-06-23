@@ -34,6 +34,7 @@ import { RotateCw } from "lucide-react";
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { CardDto } from "@/protocol/game";
+import type { PlaymatSettings } from "@/protocol/deck";
 import type {
   ArrowSpec,
   BattlefieldState,
@@ -49,6 +50,8 @@ export interface BoardCanvasRegion {
   playerId: string;
   isLocal: boolean;
   state: BattlefieldState;
+  playmat?: string;
+  playmatSettings?: PlaymatSettings;
 }
 
 /** Canvas-local px == CSS px, so the parent can anchor React panels to each
@@ -171,7 +174,7 @@ export function BoardCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(3, window.devicePixelRatio || 1),
+        resolution: Math.min(2, window.devicePixelRatio || 1),
       });
     } catch (err) {
       console.error("[pixi] BoardCanvas init failed:", err);
@@ -255,8 +258,15 @@ export function BoardCanvas({
   const players: BoardPlayerSpec[] = regions.map((r) => ({
     playerId: r.playerId,
     isLocal: r.isLocal,
+    playmat: r.playmat,
+    playmatSettings: r.playmatSettings,
   }));
-  const playersKey = players.map((p) => `${p.playerId}:${p.isLocal ? 1 : 0}`).join(",");
+  const playersKey = players
+    .map(
+      (p) =>
+        `${p.playerId}:${p.isLocal ? 1 : 0}:${p.playmat ? 1 : 0}:${JSON.stringify(p.playmatSettings ?? {})}`,
+    )
+    .join(",");
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
   // Stable content key so `reconfigure`'s identity doesn't churn when the parent
   // re-creates this array prop.

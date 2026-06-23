@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import type { PlayerDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Heart } from "lucide-react";
 import { getInitials } from "../game.utils";
 import { withAlpha } from "@/themes/gameTheme";
@@ -12,6 +12,7 @@ export interface PlayerAvatarProps {
   player: PlayerDto;
   badges: OrbitBadge[];
   seatColor: string;
+  avatarUrl?: string;
   isActiveTurn?: boolean;
   isPriorityPlayer?: boolean;
   isTargetable?: boolean;
@@ -29,6 +30,7 @@ export function PlayerAvatar({
   player,
   badges,
   seatColor,
+  avatarUrl,
   isActiveTurn,
   isPriorityPlayer,
   isTargetable,
@@ -113,6 +115,7 @@ export function PlayerAvatar({
               : {}),
           }}
         >
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={player.name} />}
           <AvatarFallback
             className="font-bold text-white"
             style={{ backgroundColor: seatColor, fontSize: fontSizes.avatarInitials }}

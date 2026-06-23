@@ -156,6 +156,7 @@ pub async fn server_set_deck_selection(
     deck_name: String,
     deck: Deck,
     commander_name: Option<String>,
+    avatar: Option<String>,
 ) -> Result<(), String> {
     send_server_message(
         &client,
@@ -164,6 +165,7 @@ pub async fn server_set_deck_selection(
             "deck_name": deck_name,
             "deck": deck,
             "commander_name": commander_name,
+            "avatar": avatar,
         }),
     )
 }

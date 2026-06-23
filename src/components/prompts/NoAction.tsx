@@ -11,7 +11,7 @@ export function NoAction({ buttonLayout, label }: NoActionProps) {
             size="sm"
             variant="outline"
             disabled
-            className="h-9 w-full rounded-lg !border-white/20 !bg-white/10 !text-white/70 opacity-30 cursor-default"
+            className="h-9 w-full cursor-default rounded-lg !border-border !bg-muted !text-muted-foreground disabled:!opacity-100"
             title={label}
           >
             <Hourglass className="h-3.5 w-3.5" />
@@ -31,7 +31,7 @@ export function NoAction({ buttonLayout, label }: NoActionProps) {
       size="sm"
       variant="outline"
       disabled
-      className="cursor-default opacity-40"
+      className="cursor-default !bg-muted !text-muted-foreground disabled:!opacity-100"
       title={label}
     >
       <Hourglass className="h-4 w-4" />

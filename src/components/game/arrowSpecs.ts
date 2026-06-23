@@ -92,8 +92,8 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
   if (showTargetingArrows) {
     for (const stackObj of stack ?? []) {
       for (const t of getTargets(stackObj)) {
-        if (t.kind !== "stack" || t.id === stackObj.id) continue;
-        const intent = t.intent ?? (t.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+        if (t.kind !== "spell" || t.id === stackObj.id) continue;
+        const intent = t.intent;
         specs.push({
           from: { kind: "stack", id: stackObj.id, anchor: "top" },
           to: { kind: "stack", id: t.id, anchor: "top" },
@@ -123,7 +123,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
 
   if (activeObj) {
     for (const t of getTargets(activeObj)) {
-      if (t.kind === "stack") continue;
+      if (t.kind === "spell") continue;
       const to: ArrowSpec["to"] | null =
         t.kind === "card"
           ? { kind: "card", id: t.id }
@@ -131,7 +131,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
             ? { kind: "player", id: t.id }
             : null;
       if (!to) continue;
-      const intent = t.intent ?? (t.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+      const intent = t.intent;
       if (intent !== TargetingIntent.Attach) continue;
       specs.push({
         from: { kind: "stack", id: activeObj.id },

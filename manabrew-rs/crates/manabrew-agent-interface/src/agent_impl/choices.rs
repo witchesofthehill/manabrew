@@ -5,7 +5,7 @@ use manabrew_engine::spellability::SpellAbility;
 
 use manabrew_engine::game::GameState;
 
-use crate::game_view_dto::{card_to_dto, CardDto, TargetingIntent};
+use crate::game_view_dto::{card_to_dto, targeting_intent_from_api, CardDto, TargetingIntent};
 use crate::ids_codec::{card_id_str, parse_card_id};
 use crate::prompt::*;
 
@@ -332,7 +332,6 @@ pub(super) fn choose_single_entity_for_effect<T: Responder>(
             _player,
             &players,
             None,
-            false,
             TargetingIntent::Hostile,
         );
         return chosen.map(GameEntity::Player).or_else(|| {
@@ -542,7 +541,7 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
     cost_kind: &str,
     message: &str,
     source: Option<CardId>,
-    _api: Option<manabrew_engine::ability::api_type::ApiType>,
+    api: Option<manabrew_engine::ability::api_type::ApiType>,
     can_pay: bool,
     targets: &[GameEntity],
     effect_text: &str,
@@ -551,6 +550,9 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
         return false;
     }
     let _ = cost_kind;
+    let intent = api
+        .map(targeting_intent_from_api)
+        .unwrap_or(TargetingIntent::Hostile);
     agent.send_prompt(
         PromptInput::ChooseBoolean(
             manabrew_protocol::prompts::choose_boolean::ChooseBooleanInput {
@@ -560,7 +562,10 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
                     text: (!effect_text.trim().is_empty())
                         .then(|| format!("otherwise: \"{}\"", effect_text.trim())),
                     source_card_id: source.map(card_id_str),
-                    targets: targets.iter().map(game_entity_to_target_ref).collect(),
+                    targets: targets
+                        .iter()
+                        .map(|entity| game_entity_to_target_ref(entity, intent))
+                        .collect(),
                 },
                 confirm_label: "Pay".to_string(),
                 deny_label: "Decline".to_string(),
@@ -574,14 +579,10 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
     }
 }
 
-fn game_entity_to_target_ref(entity: &GameEntity) -> TargetRef {
+fn game_entity_to_target_ref(entity: &GameEntity, intent: TargetingIntent) -> TargetRef {
     match entity {
-        GameEntity::Card(id) => TargetRef::Card {
-            id: card_id_str(*id),
-        },
-        GameEntity::Player(id) => TargetRef::Player {
-            id: crate::ids_codec::player_id_str(*id),
-        },
+        GameEntity::Card(id) => TargetRef::card(card_id_str(*id), intent),
+        GameEntity::Player(id) => TargetRef::player(crate::ids_codec::player_id_str(*id), intent),
     }
 }
 

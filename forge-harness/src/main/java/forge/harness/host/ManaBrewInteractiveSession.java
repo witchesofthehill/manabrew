@@ -12,6 +12,7 @@ import com.google.gson.JsonParser;
 import forge.harness.protocol.*;
 import forge.game.Game;
 import forge.game.GameEntity;
+import forge.game.GameObject;
 import forge.game.Match;
 import forge.game.card.Card;
 import forge.game.card.CardCollection;
@@ -1433,13 +1434,13 @@ public final class ManaBrewInteractiveSession {
         final Card source = sa == null ? null : sa.getHostCard();
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
         for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
-            candidateRefs.add(new TargetRef_card(targetId(candidate)));
+            candidateRefs.add(TargetRefs.ref("card", targetId(candidate), "sacrifice"));
         }
         publishAgentPrompt(
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
-                        candidateRefs, true, enumFromWire("sacrifice", TargetingIntent.class),
+                        candidateRefs, enumFromWire("sacrifice", TargetingIntent.class),
                         min, max, chosen, "Sacrifice"));
     }
 
@@ -1712,14 +1713,16 @@ public final class ManaBrewInteractiveSession {
                     text = "otherwise: \"" + trimmed + "\"";
                 }
             }
+            final String intent = TargetRefs.intentFromApi(api, null, null, null);
             if (targetCards != null) {
                 for (final Card card : targetCards) {
-                    targets.add(new TargetRef_card(SnapshotExtractor.javaCardId(card)));
+                    targets.add(TargetRefs.ref("card", SnapshotExtractor.javaCardId(card), intent));
                 }
             }
             if (targetPlayers != null) {
                 for (final Player target : targetPlayers) {
-                    targets.add(new TargetRef_player("player-" + SnapshotExtractor.playerIndex(game, target)));
+                    targets.add(TargetRefs.ref(
+                            "player", "player-" + SnapshotExtractor.playerIndex(game, target), intent));
                 }
             }
             confirmLabel = "Pay";
@@ -1951,29 +1954,34 @@ public final class ManaBrewInteractiveSession {
     ) {
         final String promptKind = targetPromptKind(candidates);
         final Card source = ability == null ? null : ability.getHostCard();
-        final String api = ability != null && ability.getApi() != null ? ability.getApi().name() : null;
-        final String destination = ability != null && ability.hasParam("Destination")
-                ? ability.getParam("Destination") : null;
-        final String counterType = ability != null && ability.hasParam("CounterType")
-                ? ability.getParam("CounterType") : null;
-        final String origin = "choose_target_card".equals(promptKind) ? targetPromptZone(candidates) : null;
-        final String intent = intentFromApi(api, destination, counterType, origin);
+        final String intent = candidates.isEmpty()
+                ? TargetRefs.intent(ability, null)
+                : TargetRefs.intent(ability, targetObject(candidates.get(0)));
 
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
         if ("choose_target_any".equals(promptKind)) {
             for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
                 if ("player".equals(targetKind(candidate))) {
-                    candidateRefs.add(targetRef("player", targetId(candidate)));
+                    candidateRefs.add(TargetRefs.ref(
+                            "player",
+                            targetId(candidate),
+                            TargetRefs.intent(ability, targetObject(candidate))));
                 }
             }
             for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
                 if ("card".equals(targetKind(candidate))) {
-                    candidateRefs.add(targetRef("card", targetId(candidate)));
+                    candidateRefs.add(TargetRefs.ref(
+                            "card",
+                            targetId(candidate),
+                            TargetRefs.intent(ability, targetObject(candidate))));
                 }
             }
         } else {
             for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
-                candidateRefs.add(targetRef(targetKind(candidate), targetId(candidate)));
+                candidateRefs.add(TargetRefs.ref(
+                        targetKind(candidate),
+                        targetId(candidate),
+                        TargetRefs.intent(ability, targetObject(candidate))));
             }
         }
 
@@ -1981,21 +1989,12 @@ public final class ManaBrewInteractiveSession {
                 "player-" + playerId,
                 source == null ? null : SnapshotExtractor.javaCardId(source),
                 new ChooseBoardTargetsInput(
-                        candidateRefs, isHostileIntent(intent),
+                        candidateRefs,
                         enumFromWire(intent, TargetingIntent.class),
                         ability != null ? ability.getMinTargets() : 0,
                         ability != null ? ability.getMaxTargets() : 0,
                         ability != null ? ability.getTargets().size() : 0,
-                        intentLabel(intent)));
-    }
-
-    private static TargetRef targetRef(final String kind, final String id) {
-        switch (kind) {
-            case "player": return new TargetRef_player(id);
-            case "card": return new TargetRef_card(id);
-            case "spell": return new TargetRef_spell(id);
-            default: throw new IllegalArgumentException("unknown target kind: " + kind);
-        }
+                        TargetRefs.label(intent)));
     }
 
     private String targetPromptKind(final List<Pair<GameEntity, forge.game.GameObject>> candidates) {
@@ -2020,40 +2019,6 @@ public final class ManaBrewInteractiveSession {
         return "choose_target_any";
     }
 
-    private String targetPromptZone(final List<Pair<GameEntity, forge.game.GameObject>> candidates) {
-        ZoneType shared = null;
-        boolean hasCard = false;
-        for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
-            if (!"card".equals(targetKind(candidate))) {
-                continue;
-            }
-            final Card card = targetCard(candidate);
-            if (card == null || card.getZone() == null) {
-                return null;
-            }
-            final ZoneType zone = card.getZone().getZoneType();
-            if (zone == ZoneType.Battlefield) {
-                return null;
-            }
-            if (shared != null && shared != zone) {
-                return null;
-            }
-            shared = zone;
-            hasCard = true;
-        }
-        return hasCard && shared != null ? shared.name() : null;
-    }
-
-    private Card targetCard(final Pair<GameEntity, forge.game.GameObject> candidate) {
-        if (candidate.getRight() instanceof Card) {
-            return (Card) candidate.getRight();
-        }
-        if (candidate.getLeft() instanceof Card) {
-            return (Card) candidate.getLeft();
-        }
-        return null;
-    }
-
     private String targetKind(final Pair<GameEntity, forge.game.GameObject> candidate) {
         if (candidate.getRight() instanceof SpellAbility) {
             return "spell";
@@ -2068,6 +2033,13 @@ public final class ManaBrewInteractiveSession {
             return "player";
         }
         return "card";
+    }
+
+    private GameObject targetObject(final Pair<GameEntity, forge.game.GameObject> candidate) {
+        if (candidate.getRight() != null) {
+            return candidate.getRight();
+        }
+        return candidate.getLeft();
     }
 
     private String targetId(final Pair<GameEntity, forge.game.GameObject> candidate) {
@@ -2405,79 +2377,6 @@ public final class ManaBrewInteractiveSession {
         }
         final String costText = cost.toSimpleString();
         return costText != null && !costText.isEmpty() ? costText : null;
-    }
-
-    private static String intentFromApi(
-            final String api, final String destination, final String counterType, final String origin) {
-        if (api == null) {
-            return "hostile";
-        }
-        switch (api) {
-            case "DealDamage": case "DamageAll": case "EachDamage": return "damage";
-            case "Destroy": case "DestroyAll": return "destroy";
-            case "Sacrifice": case "SacrificeAll": return "sacrifice";
-            case "ChangeZone": case "ChangeZoneAll": {
-                final boolean fromDead = "Graveyard".equals(origin) || "Exile".equals(origin);
-                if (fromDead && ("Hand".equals(destination)
-                        || "Library".equals(destination) || "Battlefield".equals(destination))) {
-                    return "friendly";
-                }
-                if ("Exile".equals(destination)) {
-                    return "exile";
-                }
-                if ("Hand".equals(destination) || "Library".equals(destination)) {
-                    return "bounce";
-                }
-                if ("Graveyard".equals(destination)) {
-                    return "destroy";
-                }
-                if ("Battlefield".equals(destination)) {
-                    return "friendly";
-                }
-                return "hostile";
-            }
-            case "Mill": return "mill";
-            case "Discard": return "discard";
-            case "Counter": return "counter";
-            case "ControlSpell": return "gainControl";
-            case "Tap": case "TapAll": case "TapOrUntap": case "TapOrUntapAll": return "tap";
-            case "Untap": case "UntapAll": return "untap";
-            case "CopyPermanent": case "CopySpellAbility": case "Clone": return "copy";
-            case "Pump": case "PumpAll": case "Animate": case "AnimateAll":
-            case "Protection": case "ProtectionAll": return "buff";
-            case "PutCounter": case "PutCounterAll":
-                return counterType != null && (counterType.startsWith("M1M1") || counterType.contains("-1/-1"))
-                        ? "debuff" : "buff";
-            case "RemoveCounter": case "RemoveCounterAll": case "Debuff": return "debuff";
-            case "GainLife": return "heal";
-            case "LoseLife": return "loseLife";
-            case "Draw": return "draw";
-            case "Reveal": case "RevealHand": case "LookAt": case "PeekAndReveal": return "reveal";
-            case "GainControl": case "GainControlVariant":
-            case "ExchangeControl": case "ExchangeControlVariant": return "gainControl";
-            case "Fight": return "fight";
-            case "Attach": case "Unattach": return "attach";
-            default: return "hostile";
-        }
-    }
-
-    private static String intentLabel(final String intent) {
-        switch (intent) {
-            case "loseLife": return "LoseLife";
-            case "gainControl": return "GainControl";
-            default: return Character.toUpperCase(intent.charAt(0)) + intent.substring(1);
-        }
-    }
-
-    private static boolean isHostileIntent(final String intent) {
-        switch (intent) {
-            case "damage": case "destroy": case "sacrifice": case "exile": case "bounce":
-            case "mill": case "discard": case "counter": case "tap": case "debuff":
-            case "loseLife": case "gainControl": case "fight": case "hostile":
-                return true;
-            default:
-                return false;
-        }
     }
 
     private void requireAttached() {

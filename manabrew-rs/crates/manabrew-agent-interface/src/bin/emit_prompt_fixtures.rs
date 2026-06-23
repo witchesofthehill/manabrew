@@ -4,6 +4,7 @@ use manabrew_agent_interface::game_view_dto::TargetingIntent;
 use manabrew_agent_interface::prompt::{
     AgentPrompt, AvailableAction, AvailableActionKind, PromptInput,
 };
+use manabrew_protocol::common::TargetRef;
 use manabrew_protocol::prompts::*;
 
 fn wrap(inner: PromptInput) -> AgentPrompt {
@@ -78,17 +79,10 @@ fn main() {
         }),
         ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput {
             candidates: vec![
-                common::TargetRef::Player {
-                    id: "player-1".into(),
-                },
-                common::TargetRef::Card {
-                    id: "card-1".into(),
-                },
-                common::TargetRef::Spell {
-                    id: "stack-1".into(),
-                },
+                TargetRef::player("player-1".into(), TargetingIntent::default()),
+                TargetRef::card("card-1".into(), TargetingIntent::default()),
+                TargetRef::spell("stack-1".into(), TargetingIntent::default()),
             ],
-            hostile: false,
             intent: TargetingIntent::default(),
             min_targets: 1,
             max_targets: 1,

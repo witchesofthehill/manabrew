@@ -5,6 +5,7 @@
 // virtue of being engine-coupled; these mirrors inherit the GPL.
 
 import type { ScryfallImageUris } from "@/types/scryfall";
+import type { TargetRef } from "@/protocol";
 
 export type DeckFormatId =
   | "standard"
@@ -230,22 +231,9 @@ export interface StackObject {
   targets: StackTarget[];
 }
 
-export type StackTargetKind = "card" | "player" | "stack";
+export type StackTargetKind = TargetRef["kind"];
 
-export interface StackTarget {
-  kind: StackTargetKind;
-  /** Encoded game entity id: card-*, player-*, stack-* */
-  id: string;
-  /** Zero-based index in the ability chain (root node = 0). */
-  nodeIndex: number;
-  /** Zero-based target slot index within the node. */
-  targetIndex: number;
-  /** Whether this target is hostile (damage/destroy) vs friendly (buff).
-   *  Kept for backwards compatibility; prefer `intent`. */
-  hostile: boolean;
-  /** Semantic classification used to pick a pointer icon and glow color. */
-  intent: import("@/types/promptType").TargetingIntent;
-}
+export type StackTarget = TargetRef;
 
 export interface ActivatableAbilityInfo {
   cardId: string;

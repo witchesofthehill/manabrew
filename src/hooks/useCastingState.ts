@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Prompt } from "@/protocol";
 import type { PromptOutput } from "@/protocol";
-import { TargetingIntent } from "@/types/promptType";
+import { TargetingIntent, intentIsHostile } from "@/types/promptType";
 import { useTargetIntentStore } from "@/stores/useTargetIntentStore";
 
 /** Prompt types that are part of the spell-casting flow. */
@@ -25,22 +25,17 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
 
   // Track the chosen target so the arrow persists through cost payment
   const [targetId, setTargetId] = useState<string | null>(null);
-  const [targetHostile, setTargetHostile] = useState(false);
   const [targetIntent, setTargetIntent] = useState<TargetingIntent>(TargetingIntent.Hostile);
   const activeTargetPrompt =
     currentPrompt?.input.type === "chooseBoardTargets" ? currentPrompt : null;
   const clearLockedTarget = useCallback(() => {
     setTargetId(null);
-    setTargetHostile(false);
     setTargetIntent(TargetingIntent.Hostile);
   }, []);
 
-  // Whether the engine says the current effect is hostile
   const targetingInput =
     currentPrompt?.input.type === "chooseBoardTargets" ? currentPrompt.input : null;
-  const promptHostile = targetingInput?.hostile ?? true;
-  const promptIntent =
-    targetingInput?.intent ?? (promptHostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+  const promptIntent = targetingInput?.intent ?? TargetingIntent.Hostile;
 
   const [prevCastingCardId, setPrevCastingCardId] = useState(castingCardId);
   const [prevTargetPrompt, setPrevTargetPrompt] = useState(activeTargetPrompt);
@@ -61,42 +56,49 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
   // Whether we're in the targeting phase (arrow follows cursor).
   const isTargeting = promptType === "chooseBoardTargets";
 
-  // Arrow hostility: use locked value if target chosen, else prompt value
-  const arrowHostile = targetId ? targetHostile : promptHostile;
   const arrowIntent: TargetingIntent = targetId ? targetIntent : promptIntent;
+  const arrowHostile = intentIsHostile(arrowIntent);
 
   const lockTarget = useCallback(
     (kind: "card" | "player", id: string) => {
       if (!castingCardId) return;
       setTargetId(id);
-      setTargetHostile(promptHostile);
       setTargetIntent(promptIntent);
       useTargetIntentStore.getState().setIntent(castingCardId, { kind, id });
     },
-    [castingCardId, promptHostile, promptIntent],
+    [castingCardId, promptIntent],
   );
 
   const wrappedTargetCard = useCallback(
     (cardId: string | null) => {
       if (cardId) lockTarget("card", cardId);
-      respond({ type: "boardTargets", chosen: cardId ? [{ kind: "card", id: cardId }] : [] });
+      respond({
+        type: "boardTargets",
+        chosen: cardId ? [{ kind: "card", id: cardId, intent: promptIntent }] : [],
+      });
     },
-    [respond, lockTarget],
+    [respond, lockTarget, promptIntent],
   );
 
   const wrappedTargetPlayer = useCallback(
     (playerId: string) => {
       lockTarget("player", playerId);
-      respond({ type: "boardTargets", chosen: [{ kind: "player", id: playerId }] });
+      respond({
+        type: "boardTargets",
+        chosen: [{ kind: "player", id: playerId, intent: promptIntent }],
+      });
     },
-    [respond, lockTarget],
+    [respond, lockTarget, promptIntent],
   );
 
   const wrappedTargetSpell = useCallback(
     (spellId: string | null) => {
-      respond({ type: "boardTargets", chosen: spellId ? [{ kind: "spell", id: spellId }] : [] });
+      respond({
+        type: "boardTargets",
+        chosen: spellId ? [{ kind: "spell", id: spellId, intent: promptIntent }] : [],
+      });
     },
-    [respond],
+    [respond, promptIntent],
   );
 
   const declineTargets = useCallback(() => {
@@ -110,7 +112,6 @@ export function useCastingState({ currentPrompt, respond }: UseCastingStateOptio
     isTargeting,
     /** The locked target ID after the player chose a target. */
     targetId,
-    /** Legacy hostile flag — kept for any consumer that hasn't migrated to `arrowIntent`. */
     arrowHostile,
     /** Semantic intent driving pointer icon + glow colour. */
     arrowIntent,

@@ -1,16 +1,13 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::prompts::common::TargetRef;
-use crate::values::TargetingIntent;
+use crate::common::{TargetRef, TargetingIntent};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/chooseBoardTargets.ts")]
 pub struct ChooseBoardTargetsInput {
     pub candidates: Vec<TargetRef>,
-    #[serde(default)]
-    pub hostile: bool,
     pub intent: TargetingIntent,
     pub min_targets: i32,
     pub max_targets: i32,

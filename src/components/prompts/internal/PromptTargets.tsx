@@ -7,6 +7,8 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { getInitials } from "@/components/game/game.utils";
+import { INTENT_GLYPH_SVG } from "@/pixi/pointerGlyphs";
+import { intentIsHostile } from "@/types/promptType";
 import { useResolveDeckCard } from "./usePromptSourceCard";
 import type { GameView, GameCard } from "@/types/manabrew";
 import type { TargetRef } from "@/protocol";
@@ -21,15 +23,42 @@ export function PromptTargets({ targets }: { targets: TargetRef[] }) {
     <div className="flex flex-col gap-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Affects</p>
       <div className="flex flex-wrap items-end gap-2">
-        {targets.map((target, index) =>
-          target.kind === "player" ? (
-            <PromptTargetPlayer key={`player-${target.id}-${index}`} playerId={target.id} />
-          ) : (
-            <PromptTargetCard key={`card-${target.id}-${index}`} cardId={target.id} />
-          ),
-        )}
+        {targets.map((target, index) => (
+          <PromptTarget key={`${target.kind}-${target.id}-${index}`} target={target} />
+        ))}
       </div>
     </div>
+  );
+}
+
+function PromptTarget({ target }: { target: TargetRef }) {
+  return (
+    <div className="relative shrink-0">
+      {target.kind === "player" ? (
+        <PromptTargetPlayer playerId={target.id} />
+      ) : target.kind === "spell" ? (
+        <PromptTargetSpell spellId={target.id} />
+      ) : (
+        <PromptTargetCard cardId={target.id} />
+      )}
+      <PromptTargetIntent intent={target.intent} />
+    </div>
+  );
+}
+
+function PromptTargetIntent({ intent }: { intent: TargetRef["intent"] }) {
+  const themeColors = useTheme().gameTheme;
+  const glyph = INTENT_GLYPH_SVG[intent];
+  if (!glyph) return null;
+  const color = intentIsHostile(intent)
+    ? themeColors.pointer.hostile
+    : themeColors.pointer.friendly;
+  return (
+    <span
+      className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border border-background bg-card shadow-md [&>svg]:h-4 [&>svg]:w-4"
+      style={{ color, boxShadow: `0 0 10px ${withAlpha(color, 0.45)}` }}
+      dangerouslySetInnerHTML={{ __html: glyph }}
+    />
   );
 }
 
@@ -49,6 +78,21 @@ function PromptTargetCard({ cardId }: { cardId: string }) {
 
   const name = findCardName(gameView, cardId);
   if (!name) return null;
+  return (
+    <span
+      className={cn(
+        "flex items-center justify-center rounded-lg border bg-muted p-2 text-center text-xs font-medium",
+        TARGET_TILE,
+      )}
+    >
+      {name}
+    </span>
+  );
+}
+
+function PromptTargetSpell({ spellId }: { spellId: string }) {
+  const gameView = useGameStore((s) => s.gameView);
+  const name = gameView?.stack.find((obj) => obj.id === spellId)?.name ?? "Spell";
   return (
     <span
       className={cn(

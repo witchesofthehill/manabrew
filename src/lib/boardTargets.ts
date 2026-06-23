@@ -5,7 +5,7 @@ import type { GameCard, GameView } from "@/types/manabrew";
  *  the UI renders them on. Card candidates on the battlefield highlight in place;
  *  card candidates in another (public) zone surface in a modal grid; spells
  *  highlight on the stack; players light up their avatar. The split is derived
- *  from `gameView` — the prompt only carries ids + kind. */
+ *  from `gameView` — the prompt only carries target refs, not card zone data. */
 export interface BoardTargetBuckets {
   playerIds: string[];
   battlefieldCardIds: string[];

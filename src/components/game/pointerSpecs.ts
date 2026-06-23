@@ -1,6 +1,6 @@
 import type { PointerSpec } from "@/pixi/types";
 import type { StackObject, StackTarget } from "@/types/manabrew";
-import { intentPrefersArrow, TargetingIntent } from "@/types/promptType";
+import { intentPrefersArrow } from "@/types/promptType";
 
 export interface BuildPointerSpecsOptions {
   stack?: StackObject[];
@@ -31,7 +31,7 @@ function targetEndpoint(target: StackTarget): PointerSpec["to"] | null {
       return { kind: "card", id: target.id };
     case "player":
       return { kind: "player", id: target.id };
-    case "stack":
+    case "spell":
       return { kind: "stack", id: target.id };
     default:
       return null;
@@ -43,11 +43,10 @@ export function buildPointerSpecs(opts: BuildPointerSpecsOptions): PointerSpec[]
   if (!activeObj) return [];
   const specs: PointerSpec[] = [];
   for (const target of getTargets(activeObj)) {
-    if (target.kind === "stack") continue;
+    if (target.kind === "spell") continue;
     const to = targetEndpoint(target);
     if (!to) continue;
-    const intent =
-      target.intent ?? (target.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+    const intent = target.intent;
     if (intentPrefersArrow(intent)) continue;
     specs.push({
       from: { kind: "stack", id: activeObj.id },
@@ -58,11 +57,10 @@ export function buildPointerSpecs(opts: BuildPointerSpecsOptions): PointerSpec[]
   if (opts.includeStackTargets) {
     for (const stackObj of opts.stack ?? []) {
       for (const target of getTargets(stackObj)) {
-        if (target.kind !== "stack" || target.id === stackObj.id) continue;
+        if (target.kind !== "spell" || target.id === stackObj.id) continue;
         const to = targetEndpoint(target);
         if (!to) continue;
-        const intent =
-          target.intent ?? (target.hostile ? TargetingIntent.Hostile : TargetingIntent.Friendly);
+        const intent = target.intent;
         if (intentPrefersArrow(intent)) continue;
         specs.push({
           from: { kind: "stack", id: stackObj.id },

@@ -1,6 +1,7 @@
 //! Engine-free wire protocol shared by `manabrew-server` (the relay) and the game
 //! clients — split out of `manabrew-agent-interface` so the relay needn't compile
 //! the engine. Engine-coupled DTOs (prompts, `StateEnvelope`) stay there.
+pub mod common;
 pub mod deck_dto;
 pub mod display;
 pub mod prompts;

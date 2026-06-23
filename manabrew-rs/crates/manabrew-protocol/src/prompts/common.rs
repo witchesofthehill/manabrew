@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::common::TargetRef;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
@@ -156,17 +158,4 @@ pub enum TargetAnyChoice {
     Player { player_id: String },
     Card { card_id: String },
     None,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(
-    tag = "kind",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-#[ts(export, export_to = "prompts/common.ts")]
-pub enum TargetRef {
-    Player { id: String },
-    Card { id: String },
-    Spell { id: String },
 }

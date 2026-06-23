@@ -90,7 +90,7 @@ fn main() {
     fs::write(
         out.join("index.ts"),
         format!(
-            "{HEADER}export * from \"./prompts\";\nexport * from \"./transport\";\nexport type * from \"./display\";\n"
+            "{HEADER}export * from \"./common\";\nexport * from \"./prompts\";\nexport * from \"./transport\";\nexport type * from \"./display\";\n"
         ),
     )
     .expect("write index.ts");

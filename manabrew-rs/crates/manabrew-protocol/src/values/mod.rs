@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::common::TargetRef;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "values/index.ts")]
@@ -172,85 +174,5 @@ pub struct StackObjectDto {
     pub card_number: String,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
-    pub targets: Vec<StackTargetDto>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
-pub struct StackTargetDto {
-    pub kind: StackTargetKindDto,
-    pub id: String,
-    pub node_index: u32,
-    pub target_index: u32,
-    pub hostile: bool,
-    pub intent: TargetingIntent,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
-pub enum StackTargetKindDto {
-    Card,
-    Player,
-    Stack,
-}
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,
-)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
-pub enum TargetingIntent {
-    #[default]
-    Damage,
-    Destroy,
-    Sacrifice,
-    Exile,
-    Bounce,
-    Mill,
-    Discard,
-    Counter,
-    Tap,
-    Untap,
-    Copy,
-    Buff,
-    Debuff,
-    Heal,
-    LoseLife,
-    Reveal,
-    Draw,
-    GainControl,
-    Fight,
-    Attach,
-    Attack,
-    Block,
-    Hostile,
-    Friendly,
-}
-
-impl TargetingIntent {
-    pub fn prefers_arrow(self) -> bool {
-        matches!(self, TargetingIntent::Attack | TargetingIntent::Block)
-    }
-
-    pub fn is_hostile(self) -> bool {
-        matches!(
-            self,
-            TargetingIntent::Damage
-                | TargetingIntent::Destroy
-                | TargetingIntent::Sacrifice
-                | TargetingIntent::Exile
-                | TargetingIntent::Bounce
-                | TargetingIntent::Mill
-                | TargetingIntent::Discard
-                | TargetingIntent::Counter
-                | TargetingIntent::Tap
-                | TargetingIntent::Debuff
-                | TargetingIntent::LoseLife
-                | TargetingIntent::GainControl
-                | TargetingIntent::Fight
-                | TargetingIntent::Hostile
-        )
-    }
+    pub targets: Vec<TargetRef>,
 }

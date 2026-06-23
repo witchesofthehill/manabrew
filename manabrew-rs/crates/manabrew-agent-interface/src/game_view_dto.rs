@@ -6,30 +6,27 @@ use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 use manabrew_engine::spellability::SpellAbility;
 
+pub use manabrew_protocol::common::*;
 pub use manabrew_protocol::values::*;
 
 use crate::ids_codec::{card_id_str, player_id_str, stack_id_str};
 
-/// Classify the targeting intent of a spell ability from its `ApiType`
-/// and (where needed) parameters. Falls back to `Hostile` / `Friendly`
-/// when the API type is unknown or ambiguous.
-pub fn targeting_intent_of(sa: &SpellAbility) -> TargetingIntent {
+pub fn targeting_intent_from_api(
+    api: manabrew_engine::ability::api_type::ApiType,
+) -> TargetingIntent {
     use manabrew_engine::ability::api_type::ApiType;
-    let Some(api) = sa.api else {
-        return TargetingIntent::Hostile;
-    };
     match api {
         ApiType::DealDamage | ApiType::DamageAll | ApiType::EachDamage => TargetingIntent::Damage,
         ApiType::Destroy | ApiType::DestroyAll => TargetingIntent::Destroy,
         ApiType::Sacrifice | ApiType::SacrificeAll => TargetingIntent::Sacrifice,
-        ApiType::ChangeZone | ApiType::ChangeZoneAll => classify_change_zone(sa),
         ApiType::Mill => TargetingIntent::Mill,
         ApiType::Discard => TargetingIntent::Discard,
         ApiType::Counter => TargetingIntent::Counter,
         ApiType::ControlSpell => TargetingIntent::GainControl,
-        ApiType::Tap | ApiType::TapAll => TargetingIntent::Tap,
+        ApiType::Tap | ApiType::TapAll | ApiType::TapOrUntap | ApiType::TapOrUntapAll => {
+            TargetingIntent::Tap
+        }
         ApiType::Untap | ApiType::UntapAll => TargetingIntent::Untap,
-        ApiType::TapOrUntap | ApiType::TapOrUntapAll => TargetingIntent::Tap,
         ApiType::CopyPermanent | ApiType::CopySpellAbility | ApiType::Clone => {
             TargetingIntent::Copy
         }
@@ -39,9 +36,9 @@ pub fn targeting_intent_of(sa: &SpellAbility) -> TargetingIntent {
         | ApiType::AnimateAll
         | ApiType::Protection
         | ApiType::ProtectionAll => TargetingIntent::Buff,
-        ApiType::PutCounter | ApiType::PutCounterAll => classify_put_counter(sa),
-        ApiType::RemoveCounter | ApiType::RemoveCounterAll => TargetingIntent::Debuff,
-        ApiType::Debuff => TargetingIntent::Debuff,
+        ApiType::RemoveCounter | ApiType::RemoveCounterAll | ApiType::Debuff => {
+            TargetingIntent::Debuff
+        }
         ApiType::GainLife => TargetingIntent::Heal,
         ApiType::LoseLife => TargetingIntent::LoseLife,
         ApiType::Draw => TargetingIntent::Draw,
@@ -55,6 +52,21 @@ pub fn targeting_intent_of(sa: &SpellAbility) -> TargetingIntent {
         ApiType::Fight => TargetingIntent::Fight,
         ApiType::Attach | ApiType::Unattach => TargetingIntent::Attach,
         _ => TargetingIntent::Hostile,
+    }
+}
+
+/// Classify the targeting intent of a spell ability from its `ApiType`
+/// and (where needed) parameters. Falls back to `Hostile` / `Friendly`
+/// when the API type is unknown or ambiguous.
+pub fn targeting_intent_of(sa: &SpellAbility) -> TargetingIntent {
+    use manabrew_engine::ability::api_type::ApiType;
+    let Some(api) = sa.api else {
+        return TargetingIntent::Hostile;
+    };
+    match api {
+        ApiType::ChangeZone | ApiType::ChangeZoneAll => classify_change_zone(sa),
+        ApiType::PutCounter | ApiType::PutCounterAll => classify_put_counter(sa),
+        _ => targeting_intent_from_api(api),
     }
 }
 
@@ -98,13 +110,7 @@ fn classify_put_counter(sa: &SpellAbility) -> TargetingIntent {
     }
 }
 
-/// Determine if a spell ability's effect is hostile based on its API type.
-/// Kept for backwards compatibility; new code should use `targeting_intent_of`.
-pub fn is_hostile_api(sa: &SpellAbility) -> bool {
-    targeting_intent_of(sa).is_hostile()
-}
-
-fn collect_stack_targets(root: &SpellAbility) -> Vec<StackTargetDto> {
+fn collect_stack_targets(root: &SpellAbility) -> Vec<TargetRef> {
     let mut out = Vec::new();
     let mut node_index = 0u32;
     let mut current = Some(root);
@@ -112,39 +118,25 @@ fn collect_stack_targets(root: &SpellAbility) -> Vec<StackTargetDto> {
     while let Some(sa) = current {
         let mut target_index = 0u32;
         let intent = targeting_intent_of(sa);
-        let hostile = intent.is_hostile();
 
         if let Some(cid) = sa.target_chosen.target_card {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Card,
-                id: card_id_str(cid),
-                node_index,
-                target_index,
-                hostile,
-                intent,
-            });
+            out.push(
+                TargetRef::card(card_id_str(cid), intent).with_indexes(node_index, target_index),
+            );
             target_index += 1;
         }
         if let Some(pid) = sa.target_chosen.target_player {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Player,
-                id: player_id_str(pid),
-                node_index,
-                target_index,
-                hostile,
-                intent,
-            });
+            out.push(
+                TargetRef::player(player_id_str(pid), intent)
+                    .with_indexes(node_index, target_index),
+            );
             target_index += 1;
         }
         if let Some(stack_id) = sa.target_chosen.target_stack_entry {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Stack,
-                id: stack_id_str(stack_id),
-                node_index,
-                target_index,
-                hostile,
-                intent,
-            });
+            out.push(
+                TargetRef::spell(stack_id_str(stack_id), intent)
+                    .with_indexes(node_index, target_index),
+            );
         }
 
         node_index += 1;

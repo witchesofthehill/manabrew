@@ -23,6 +23,7 @@ import type { PromptType } from "@/protocol";
 import { PlayerPanel } from "@/components/game/panels";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { manaAbilityInfos } from "@/components/game/game.utils";
+import { intentIsHostile } from "@/types/promptType";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { GAP } from "@/pixi/constants";
@@ -260,7 +261,9 @@ export function GameBoard({
   const chooseActionAbilityCardIds = chooseActionActions
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);
-  const hostileTargeting = boardTargetsPrompt?.input.hostile ?? false;
+  const hostileTargeting = boardTargetsPrompt
+    ? intentIsHostile(boardTargetsPrompt.input.intent)
+    : false;
   const targetZoneCardIds = (zone: string): string[] =>
     boardTargets?.zone?.zone === zone ? boardTargets.zone.validCardIds : [];
   const commandTargetIds = targetZoneCardIds("Command");

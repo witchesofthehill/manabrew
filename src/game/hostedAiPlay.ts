@@ -44,6 +44,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     deckName: request.playerDeck.name || "Player Deck",
     deck: request.playerDeck,
     commanderName: request.commanderName,
+    wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
   });
   await platform.server.setReady({ ready: true });
 

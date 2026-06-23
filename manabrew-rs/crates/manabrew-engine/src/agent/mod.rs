@@ -52,6 +52,10 @@ pub trait PlayerAgent {
     /// Clear the pass-until declaration (e.g. when a trigger interrupts).
     fn clear_pass_until(&mut self) {}
 
+    fn wants_empty_priority_prompts(&self) -> bool {
+        false
+    }
+
     /// Choose whether to keep the current opening hand or mulligan.
     /// `mulligan_count` is the number of mulligans already taken this game.
     /// Returns true to keep, false to mulligan.

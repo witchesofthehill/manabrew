@@ -169,6 +169,7 @@ async fn play_game(
                 deck: serde_json::from_value(basic_deck("Smoke Player", "Mountain", "Hill Giant"))
                     .map_err(|e| e.to_string())?,
                 commander_name: None,
+                wants_empty_priority_prompts: false,
             },
         )
         .await?;

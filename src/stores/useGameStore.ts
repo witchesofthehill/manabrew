@@ -21,6 +21,7 @@ import type { Prompt, PromptOutput } from "@/protocol";
 import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
 import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
@@ -97,6 +98,7 @@ async function initializeGame({
   const selectedFormatId = formatId ?? deck.format ?? "standard";
   const format = getFormat(selectedFormatId);
   const startingLife = format?.deckRules.startingLife ?? DEFAULT_STARTING_LIFE;
+  usePhaseStopStore.getState().clearSmartStops();
 
   // On web, "Play vs AI" can be routed through a self-hosted-node room when
   // the deployment enables it: the node runs the engine and spawns the bot,
@@ -146,6 +148,7 @@ async function initializeGame({
       enginePlayerIndex: hosted.enginePlayerIndex,
       localIsHost: false,
       startingLife: hosted.startingLife,
+      priorityPreferences: hosted.playerOrder.map(() => false),
     });
     set({ debugInfo: "Hosted Forge game started.", isPrefetchingCards: false });
     return;
@@ -175,6 +178,7 @@ async function initializeGame({
     startingLife,
     commanderName: commanderName ?? null,
     opponentDeck: opponentDeck ?? null,
+    wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
   });
   set({ debugInfo: `Game started: ${result}.` });
 }
@@ -308,6 +312,7 @@ export const useGameStore = create<GameState>()(
         enginePlayerIndex,
         localIsHost,
         startingLife,
+        priorityPreferences,
       ) => {
         // Guard against re-entry — a second start while one is already in
         // flight would tear down the first session's response channels in
@@ -325,6 +330,7 @@ export const useGameStore = create<GameState>()(
         decks.forEach((d, i) => {
           gameDecks[`player-${i}`] = d;
         });
+        usePhaseStopStore.getState().clearSmartStops();
         const server = useServerStore.getState();
         if (server.currentRoom) {
           armActiveGameSession({
@@ -360,6 +366,7 @@ export const useGameStore = create<GameState>()(
             enginePlayerIndex,
             localIsHost,
             startingLife,
+            priorityPreferences,
           });
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
         } catch (e) {
@@ -449,6 +456,7 @@ export const useGameStore = create<GameState>()(
           myPlayerSlot: null,
           gameDecks: {},
         });
+        usePhaseStopStore.getState().clearSmartStops();
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();
         const withTimeout = <T>(p: Promise<T>, label: string) =>

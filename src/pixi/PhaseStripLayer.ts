@@ -1,22 +1,15 @@
-/**
- * Horizontal phase strip rendered in Pixi at the vertical center of the canvas.
- * Shows the current phase, enabled stops, and supports click-to-toggle.
- */
-
 import { Container, Graphics, Text, TextStyle, Sprite } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
 
-/** Display cells. "combat" is a merged cell that represents all combat sub-phases. */
 interface PhaseSpec {
   id: string;
   short: string;
-  /** If set, this cell represents multiple phase ids (combat). */
   subPhases?: string[];
-  /** If set, stop indicators/toggles use these phase ids instead of the cell phases. */
   indicatorPhases?: string[];
+  width?: number;
 }
 
 const COMBAT_SUB_PHASES = [
@@ -37,7 +30,17 @@ const COMBAT_LABELS: Record<string, string> = {
   end_combat: "EC",
 };
 
-const PHASES: PhaseSpec[] = [
+const CELL_W = 60;
+const COMBAT_CELL_W = 84;
+const SMART_CELL_W = 50;
+const SMART_COMBAT_CELL_W = 46;
+const CELL_H = 30;
+const CELL_GAP = 5;
+const CELL_R = 4;
+const COMBAT_ICON_SIZE = 16;
+const FONT = "Inter, system-ui, -apple-system, sans-serif";
+
+const LEGACY_PHASES: PhaseSpec[] = [
   { id: "upkeep", short: "UP" },
   { id: "draw", short: "DR" },
   { id: "main1", short: "M1" },
@@ -52,13 +55,24 @@ const PHASES: PhaseSpec[] = [
   { id: "cleanup", short: "CL" },
 ];
 
-const CELL_W = 60;
-const COMBAT_CELL_W = 84;
-const CELL_H = 30;
-const CELL_GAP = 5;
-const CELL_R = 4;
-const COMBAT_ICON_SIZE = 16;
-const FONT = "Inter, system-ui, -apple-system, sans-serif";
+const SMART_PHASES: PhaseSpec[] = [
+  { id: "upkeep", short: "UP", width: SMART_CELL_W },
+  { id: "draw", short: "DR", width: SMART_CELL_W },
+  { id: "main1", short: "M1", width: SMART_CELL_W },
+  { id: "begin_combat", short: COMBAT_LABELS.begin_combat, width: SMART_COMBAT_CELL_W },
+  { id: "declare_attackers", short: COMBAT_LABELS.declare_attackers, width: SMART_COMBAT_CELL_W },
+  { id: "declare_blockers", short: COMBAT_LABELS.declare_blockers, width: SMART_COMBAT_CELL_W },
+  {
+    id: "first_strike_damage",
+    short: COMBAT_LABELS.first_strike_damage,
+    width: SMART_COMBAT_CELL_W,
+  },
+  { id: "combat_damage", short: COMBAT_LABELS.combat_damage, width: SMART_COMBAT_CELL_W },
+  { id: "end_combat", short: COMBAT_LABELS.end_combat, width: SMART_COMBAT_CELL_W },
+  { id: "main2", short: "M2", width: SMART_CELL_W },
+  { id: "end", short: "END", width: SMART_CELL_W },
+  { id: "cleanup", short: "CL", width: SMART_CELL_W },
+];
 
 const FLASH_DURATION_MS = 800;
 const FLASH_MAX_EXPAND = 8;
@@ -164,6 +178,7 @@ interface PhaseCell {
   defaultLabel: string;
   subPhases?: string[];
   indicatorPhases?: string[];
+  width: number;
   flashStart: number;
   selfIndicator: Graphics;
   selfHitArea: Graphics;
@@ -198,6 +213,7 @@ export interface PhaseStripState {
   /** Ordered opponent list (max 3). */
   opponents: OpponentInfo[];
   isInteractive: boolean;
+  smartPriority?: boolean;
 }
 
 export interface PhaseStripCallbacks {
@@ -222,6 +238,7 @@ export class PhaseStripLayer {
   private lineGfx: Graphics;
   private stripHitArea: Graphics;
   private hoveredCellIndex = -1;
+  private smartPriority = false;
 
   constructor(theme: Theme) {
     this.theme = theme;
@@ -238,7 +255,38 @@ export class PhaseStripLayer {
     this.container.addChild(this.stripHitArea);
 
     this.cells = [];
-    for (const p of PHASES) {
+    this.rebuildCells(false);
+  }
+
+  private destroyCells(): void {
+    for (const cell of this.cells) {
+      const children = [
+        cell.bg,
+        cell.flashGfx,
+        cell.hoverBg,
+        cell.hitArea,
+        cell.text,
+        cell.icon,
+        cell.selfIndicator,
+        cell.selfHitArea,
+        cell.oppIndicators,
+        ...cell.oppHitAreas,
+      ];
+      for (const child of children) {
+        if (!child) continue;
+        this.container.removeChild(child);
+        child.destroy();
+      }
+    }
+    this.cells = [];
+    this.hoveredCellIndex = -1;
+  }
+
+  private rebuildCells(smartPriority: boolean): void {
+    this.destroyCells();
+    this.smartPriority = smartPriority;
+    const phases = smartPriority ? SMART_PHASES : LEGACY_PHASES;
+    for (const p of phases) {
       const bg = new Graphics();
       this.container.addChild(bg);
       const flashGfx = new Graphics();
@@ -246,7 +294,6 @@ export class PhaseStripLayer {
       const hoverBg = new Graphics();
       hoverBg.visible = false;
       this.container.addChild(hoverBg);
-      // Combat cell gets an icon; default label is empty (icon replaces it)
       let icon: Sprite | undefined;
       const isCombat = !!p.subPhases;
       if (isCombat) {
@@ -259,11 +306,10 @@ export class PhaseStripLayer {
       const text = new Text({ text: isCombat ? "" : p.short, style: normalStyle });
       text.anchor.set(0.5, 0.5);
       this.container.addChild(text);
-      // Main cell hit area (for hover) — added first so indicators sit on top
       const hitArea = new Graphics();
       hitArea.eventMode = "static";
       hitArea.cursor = "default";
-      const cellIndex = this.cells.length; // index for this cell (before push)
+      const cellIndex = this.cells.length;
       hitArea.on("pointerover", () => {
         this.hoveredCellIndex = cellIndex;
       });
@@ -272,7 +318,6 @@ export class PhaseStripLayer {
       });
       this.container.addChild(hitArea);
 
-      // Self indicator (bottom — my turn toggle)
       const selfIndicator = new Graphics();
       this.container.addChild(selfIndicator);
       const selfHitArea = new Graphics();
@@ -329,6 +374,7 @@ export class PhaseStripLayer {
         defaultLabel: p.short,
         subPhases: p.subPhases,
         indicatorPhases: p.indicatorPhases,
+        width: p.width ?? (isCombat ? COMBAT_CELL_W : CELL_W),
         flashStart: 0,
         selfIndicator,
         selfHitArea,
@@ -364,47 +410,57 @@ export class PhaseStripLayer {
   }
 
   update(state: PhaseStripState): void {
+    const smartPriority = state.smartPriority === true;
+    if (smartPriority !== this.smartPriority) {
+      this.rebuildCells(smartPriority);
+    }
     this.lastState = state;
     const t = this.theme.gameTheme;
     const appTheme = this.theme.appTheme;
     const y = this.canvasHeight / 2 - CELL_H / 2;
     const centerX = this.canvasWidth / 2;
 
-    // Find combat cell index
-    const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
-    const leftCells = this.cells.slice(0, combatIdx);
-    const rightCells = this.cells.slice(combatIdx + 1);
-
-    // Combat cell centered
-    const combatX = centerX - COMBAT_CELL_W / 2;
-
-    // Left cells expand leftward from combat
     const cellPositions: number[] = new Array(this.cells.length);
-    cellPositions[combatIdx] = combatX;
-    let lx = combatX - CELL_GAP;
-    for (let i = leftCells.length - 1; i >= 0; i--) {
-      lx -= CELL_W;
-      cellPositions[i] = lx;
-      lx -= CELL_GAP;
-    }
-    // Right cells expand rightward from combat
-    let rx = combatX + COMBAT_CELL_W + CELL_GAP;
-    for (let i = 0; i < rightCells.length; i++) {
-      cellPositions[combatIdx + 1 + i] = rx;
-      rx += CELL_W + CELL_GAP;
+    let stripLeft = 0;
+    let stripRight = 0;
+    const combatIdx = this.cells.findIndex((c) => !!c.subPhases);
+    if (combatIdx >= 0) {
+      const combatW = this.cells[combatIdx]!.width;
+      const combatX = centerX - combatW / 2;
+      cellPositions[combatIdx] = combatX;
+      let lx = combatX - CELL_GAP;
+      for (let i = combatIdx - 1; i >= 0; i--) {
+        const w = this.cells[i]!.width;
+        lx -= w;
+        cellPositions[i] = lx;
+        lx -= CELL_GAP;
+      }
+      let rx = combatX + combatW + CELL_GAP;
+      for (let i = combatIdx + 1; i < this.cells.length; i++) {
+        cellPositions[i] = rx;
+        rx += this.cells[i]!.width + CELL_GAP;
+      }
+      stripLeft = cellPositions[0]! - CELL_GAP;
+      stripRight = rx;
+    } else {
+      const totalWidth =
+        this.cells.reduce((sum, cell) => sum + cell.width, 0) +
+        Math.max(0, this.cells.length - 1) * CELL_GAP;
+      let x = centerX - totalWidth / 2;
+      for (let i = 0; i < this.cells.length; i++) {
+        cellPositions[i] = x;
+        x += this.cells[i]!.width + CELL_GAP;
+      }
+      stripLeft = cellPositions[0]! - CELL_GAP;
+      stripRight = x;
     }
 
-    // Divider line — only the edges outside all cells
     const lineY = this.canvasHeight / 2;
-    const stripLeft = cellPositions[0]! - CELL_GAP;
-    const stripRight = rx - CELL_GAP + CELL_GAP;
     this.lineGfx.clear();
-    // Left segment
     this.lineGfx.moveTo(0, lineY);
     this.lineGfx.lineTo(stripLeft, lineY);
     const lineColor = hexToNum(t.canvas.neutral);
     this.lineGfx.stroke({ color: lineColor, width: 2, alpha: 0.12 });
-    // Right segment
     this.lineGfx.moveTo(stripRight, lineY);
     this.lineGfx.lineTo(this.canvasWidth, lineY);
     this.lineGfx.stroke({ color: lineColor, width: 2, alpha: 0.12 });
@@ -450,7 +506,7 @@ export class PhaseStripLayer {
     for (let i = 0; i < count; i++) {
       const cell = this.cells[i]!;
       const isCombatCell = !!cell.subPhases;
-      const cellW = isCombatCell ? COMBAT_CELL_W : CELL_W;
+      const cellW = cell.width;
       const cx = cellPositions[i]!;
 
       const combatSubActive = isCombatCell && cell.subPhases!.includes(state.currentStep);
@@ -646,7 +702,7 @@ export class PhaseStripLayer {
       const color = cell._fc;
       if (cx === undefined || cy === undefined || color === undefined) continue;
 
-      const cw = cell._fw ?? CELL_W;
+      const cw = cell._fw ?? cell.width;
       const expand = fade * FLASH_MAX_EXPAND;
       cell.flashGfx.roundRect(
         cx - expand,

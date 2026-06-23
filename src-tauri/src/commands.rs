@@ -16,6 +16,7 @@ pub async fn start_game(
     starting_life: i32,
     commander_name: Option<String>,
     opponent_deck: Option<Deck>,
+    wants_empty_priority_prompts: bool,
 ) -> Result<String, String> {
     let deck_list = wire_deck_to_identities(&deck);
     let opponent_deck_list = opponent_deck.as_ref().map(wire_deck_to_identities);
@@ -25,6 +26,7 @@ pub async fn start_game(
         starting_life,
         commander_name,
         opponent_deck_list,
+        wants_empty_priority_prompts,
     )
 }
 
@@ -84,6 +86,7 @@ pub async fn start_multiplayer_game(
     engine_player_index: usize,
     local_is_host: bool,
     starting_life: i32,
+    priority_preferences: Vec<bool>,
 ) -> Result<String, String> {
     let deck_lists: Vec<Vec<crate::preset_decks::CardIdentity>> =
         decks.iter().map(wire_deck_to_identities).collect();
@@ -95,5 +98,6 @@ pub async fn start_multiplayer_game(
         engine_player_index,
         local_is_host,
         starting_life,
+        priority_preferences,
     )
 }

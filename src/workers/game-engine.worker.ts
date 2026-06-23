@@ -354,6 +354,7 @@ function runInteractiveGame(requestId: string, args?: Record<string, unknown>): 
   const config = {
     starting_life: (args?.startingLife as number) || 20,
     commander_name: args?.commanderName as string | undefined,
+    wants_empty_priority_prompts: args?.wantsEmptyPriorityPrompts === true,
   };
 
   console.log(
@@ -405,6 +406,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
   const playerNames = (args?.playerNames as string[]) ?? decks.map((_, i) => `player-${i}`);
   const localPlayerIndex = (args?.enginePlayerIndex as number) ?? 0;
   const startingLife = (args?.startingLife as number) || 20;
+  const priorityPreferences = (args?.priorityPreferences as boolean[] | undefined) ?? [];
 
   if (decks.length < 2) {
     postError(requestId, "start_multiplayer_game requires at least two decks");
@@ -422,7 +424,10 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
     postError(requestId, "enginePlayerIndex out of range");
     return;
   }
-  const config = { starting_life: startingLife };
+  const config = {
+    starting_life: startingLife,
+    priority_empty_prompts: priorityPreferences,
+  };
 
   console.log(
     "[GameWorker] Starting multiplayer game as host:",

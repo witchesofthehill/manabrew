@@ -61,6 +61,10 @@ export default function Play() {
       const selected = (playerDecks ?? []).find((entry) => entry.username === playerName);
       return selected?.commander_name ?? null;
     });
+    const priorityPreferencesByPlayer = playerOrder.map((playerName) => {
+      const selected = (playerDecks ?? []).find((entry) => entry.username === playerName);
+      return selected?.wants_empty_priority_prompts === true;
+    });
     if (decksByPlayer.length !== playerOrder.length) return;
     setMultiplayerState(true, isHost, myPlayerSlot);
     startMultiplayerGame(
@@ -70,6 +74,7 @@ export default function Play() {
       engineIndex,
       isHost,
       startingLife,
+      priorityPreferencesByPlayer,
     );
   }, [mpState, setMultiplayerState, startMultiplayerGame]);
 

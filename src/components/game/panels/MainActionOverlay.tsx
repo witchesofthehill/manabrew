@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Settings } from "lucide-react";
@@ -10,6 +12,7 @@ import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 export function MainActionOverlay({
   promptType,
@@ -57,6 +60,9 @@ export function MainActionOverlay({
   mulliganSelectedCount,
   onMulliganPutBackConfirm,
 }: MainActionOverlayProps) {
+  const experimentalSmartPriority = usePreferencesStore((s) => s.experimentalSmartPriority);
+  const fullControlPriority = usePreferencesStore((s) => s.fullControlPriority);
+  const setFullControlPriority = usePreferencesStore((s) => s.setFullControlPriority);
   if (promptType === "gameOver") return null;
   const buttonLayout = "modern" as const;
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
@@ -152,6 +158,18 @@ export function MainActionOverlay({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {experimentalSmartPriority && (
+              <>
+                <DropdownMenuCheckboxItem
+                  checked={fullControlPriority}
+                  onCheckedChange={(checked) => setFullControlPriority(checked === true)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Full Control
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem
               disabled={!isMyPriority}
               className="text-destructive focus:text-destructive"

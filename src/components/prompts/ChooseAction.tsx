@@ -11,6 +11,7 @@ import type { ChooseActionProps } from "./internal/types";
 export function ChooseAction({
   buttonLayout,
   isWaitingForResponse,
+  hasAvailableActions = true,
   onPassPriority,
 }: ChooseActionProps) {
   const promptActionColors = usePromptActionColors();
@@ -20,6 +21,11 @@ export function ChooseAction({
 
     return (
       <div className="flex w-3/5 flex-col gap-1.5">
+        {!hasAvailableActions && (
+          <div className="rounded-md border border-white/15 bg-black/35 px-2 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-white/80">
+            No available actions
+          </div>
+        )}
         <Button
           size="sm"
           variant="outline"
@@ -36,6 +42,11 @@ export function ChooseAction({
 
   return (
     <div className={PROMPT_BUTTON_COLUMN}>
+      {!hasAvailableActions && (
+        <div className="rounded-md border bg-muted/40 px-3 py-2 text-center text-xs font-medium text-muted-foreground">
+          No available actions
+        </div>
+      )}
       <PromptActionButton
         layout={buttonLayout}
         label="Pass (Space)"

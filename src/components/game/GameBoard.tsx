@@ -194,6 +194,8 @@ export function GameBoard({
 }: GameBoardProps) {
   const selfStops = usePhaseStopStore((s) => s.selfStops);
   const toggleSelfStop = usePhaseStopStore((s) => s.toggleSelfStop);
+  const smartSelfStops = usePhaseStopStore((s) => s.smartSelfStops);
+  const toggleSmartSelfStop = usePhaseStopStore((s) => s.toggleSmartSelfStop);
 
   const vScale = useHandScale();
 
@@ -421,30 +423,57 @@ export function GameBoard({
 
   const opponentStopsMap = usePhaseStopStore((s) => s.opponentStops);
   const toggleOpponentStop = usePhaseStopStore((s) => s.toggleOpponentStop);
+  const smartOpponentStopsMap = usePhaseStopStore((s) => s.smartOpponentStops);
+  const toggleSmartOpponentStop = usePhaseStopStore((s) => s.toggleSmartOpponentStop);
+  const experimentalSmartPriority = usePreferencesStore((s) => s.experimentalSmartPriority);
 
   const pixiPhaseStrip = useMemo((): import("@/pixi/PhaseStripLayer").PhaseStripState => {
     const oppEnabled = new Map<string, Set<string>>();
     for (const op of opponents) {
-      oppEnabled.set(op.id, opponentStopsMap.get(op.id) ?? new Set(["end"]));
+      oppEnabled.set(
+        op.id,
+        experimentalSmartPriority
+          ? (smartOpponentStopsMap.get(op.id) ?? new Set<string>())
+          : (opponentStopsMap.get(op.id) ?? new Set(["end"])),
+      );
     }
     return {
       currentStep: step,
       isActiveTurn: activePlayerId === me.id,
       activePlayerId,
       myPlayerId: me.id,
-      selfEnabledPhases: selfStops,
+      selfEnabledPhases: experimentalSmartPriority ? smartSelfStops : selfStops,
       opponentEnabledPhases: oppEnabled,
       opponents: opponents.map((op, i) => ({ id: op.id, index: i })),
       isInteractive: true,
+      smartPriority: experimentalSmartPriority,
     };
-  }, [step, activePlayerId, me.id, selfStops, opponents, opponentStopsMap]);
+  }, [
+    step,
+    activePlayerId,
+    me.id,
+    selfStops,
+    smartSelfStops,
+    opponents,
+    opponentStopsMap,
+    smartOpponentStopsMap,
+    experimentalSmartPriority,
+  ]);
 
   const pixiPhaseStripCallbacks = useMemo(
     (): import("@/pixi/PhaseStripLayer").PhaseStripCallbacks => ({
-      onToggleSelfPhase: toggleSelfStop,
-      onToggleOpponentPhase: toggleOpponentStop,
+      onToggleSelfPhase: experimentalSmartPriority ? toggleSmartSelfStop : toggleSelfStop,
+      onToggleOpponentPhase: experimentalSmartPriority
+        ? toggleSmartOpponentStop
+        : toggleOpponentStop,
     }),
-    [toggleSelfStop, toggleOpponentStop],
+    [
+      experimentalSmartPriority,
+      toggleSelfStop,
+      toggleSmartSelfStop,
+      toggleOpponentStop,
+      toggleSmartOpponentStop,
+    ],
   );
 
   const boardRef = useRef<HTMLDivElement>(null);

@@ -425,6 +425,7 @@ class WebGameApi implements IGameApi {
       startingLife: params.startingLife,
       commanderName: params.commanderName,
       opponentDeck: params.opponentDeck,
+      wantsEmptyPriorityPrompts: params.wantsEmptyPriorityPrompts,
     });
   }
 
@@ -442,6 +443,7 @@ class WebGameApi implements IGameApi {
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         startingLife: params.startingLife,
+        priorityPreferences: params.priorityPreferences,
       });
     }
     // Non-host: prompts arrive via game:remote_prompt WebSocket events.
@@ -838,6 +840,7 @@ class WebServerApi implements IServerApi {
       deck_name: params.deckName,
       deck: params.deck,
       commander_name: params.commanderName,
+      wants_empty_priority_prompts: params.wantsEmptyPriorityPrompts ?? false,
     });
   }
 

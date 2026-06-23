@@ -255,6 +255,7 @@ pub fn set_deck_selection_sync(
     deck_name: String,
     deck: Deck,
     commander_name: Option<String>,
+    wants_empty_priority_prompts: bool,
 ) -> Result<String, ServerError> {
     let room_id = {
         state
@@ -274,8 +275,14 @@ pub fn set_deck_selection_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        room.set_deck_selection(player_id, deck_name, deck, commander_name)
-            .map_err(|_| ServerError::NotInRoom)?;
+        room.set_deck_selection(
+            player_id,
+            deck_name,
+            deck,
+            commander_name,
+            wants_empty_priority_prompts,
+        )
+        .map_err(|_| ServerError::NotInRoom)?;
     }
 
     Ok(room_id)

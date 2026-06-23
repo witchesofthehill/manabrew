@@ -10,6 +10,10 @@ pub struct GameConfig {
     pub starting_life: i32,
     #[serde(default)]
     pub commander_name: Option<String>,
+    #[serde(default)]
+    pub wants_empty_priority_prompts: bool,
+    #[serde(default)]
+    pub priority_empty_prompts: Vec<bool>,
 }
 
 fn default_starting_life() -> i32 {
@@ -21,6 +25,8 @@ impl Default for GameConfig {
         Self {
             starting_life: 20,
             commander_name: None,
+            wants_empty_priority_prompts: false,
+            priority_empty_prompts: Vec::new(),
         }
     }
 }
@@ -196,11 +202,13 @@ pub fn run_interactive_game(
         },
         |pid| {
             if pid.index() == 0 {
-                Box::new(PromptAgent::new(
+                let mut agent = PromptAgent::new(
                     pid,
                     game_id_for_agents.clone(),
                     WasmTransport::new(&local_sab),
-                ))
+                );
+                agent.set_wants_empty_priority_prompts(config.wants_empty_priority_prompts);
+                Box::new(agent)
             } else {
                 Box::new(PromptAgent::new(
                     pid,
@@ -276,6 +284,7 @@ pub fn run_multiplayer_game(
             .map_err(|e| JsError::new(&format!("Failed to parse config: {e}")))?
     };
     let starting_life = config.starting_life;
+    let priority_empty_prompts = config.priority_empty_prompts.clone();
 
     let local_sab: SharedArrayBuffer = local_buffer
         .dyn_into()
@@ -366,7 +375,14 @@ pub fn run_multiplayer_game(
             } else {
                 WasmTransport::new_relay(sab)
             };
-            Box::new(PromptAgent::new(pid, game_id_for_agents.clone(), transport))
+            let mut agent = PromptAgent::new(pid, game_id_for_agents.clone(), transport);
+            agent.set_wants_empty_priority_prompts(
+                priority_empty_prompts
+                    .get(pid.index())
+                    .copied()
+                    .unwrap_or(false),
+            );
+            Box::new(agent)
         },
     );
 

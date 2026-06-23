@@ -12,6 +12,7 @@ export interface NoActionProps {
 }
 
 export interface ChooseActionProps extends PromptActionLayoutProps {
+  hasAvailableActions?: boolean;
   onPassPriority: () => void;
 }
 

@@ -45,6 +45,7 @@ class TauriGameApi implements IGameApi {
       startingLife: params.startingLife,
       commanderName: params.commanderName,
       opponentDeck: params.opponentDeck,
+      wantsEmptyPriorityPrompts: params.wantsEmptyPriorityPrompts,
     });
   }
 
@@ -56,6 +57,7 @@ class TauriGameApi implements IGameApi {
       enginePlayerIndex: params.enginePlayerIndex,
       localIsHost: params.localIsHost,
       startingLife: params.startingLife,
+      priorityPreferences: params.priorityPreferences,
     });
   }
 

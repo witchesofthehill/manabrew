@@ -78,6 +78,7 @@ export interface PlayerDeckInfo {
   deck_name: string;
   deck: Deck;
   commander_name?: string;
+  wants_empty_priority_prompts?: boolean;
 }
 
 export interface PlayerInfo {

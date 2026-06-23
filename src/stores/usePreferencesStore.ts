@@ -34,6 +34,12 @@ interface PreferencesState {
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
+  experimentalSmartPriority: boolean;
+  setExperimentalSmartPriority: (value: boolean) => void;
+
+  fullControlPriority: boolean;
+  setFullControlPriority: (value: boolean) => void;
+
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
@@ -72,6 +78,8 @@ const PERSISTED_PREFERENCE_KEYS = [
   "zonePanelOrder",
   "boardArrangement",
   "battlefieldAutoSort",
+  "experimentalSmartPriority",
+  "fullControlPriority",
   "battlefieldCardScale",
   "battlefieldCardStyle",
   "inGameAnimations",
@@ -128,6 +136,13 @@ export const usePreferencesStore = create<PreferencesState>()(
           setBoardArrangement: (boardArrangement) => set({ boardArrangement }),
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
+
+          experimentalSmartPriority: false,
+          setExperimentalSmartPriority: (experimentalSmartPriority) =>
+            set({ experimentalSmartPriority }),
+
+          fullControlPriority: false,
+          setFullControlPriority: (fullControlPriority) => set({ fullControlPriority }),
 
           battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>

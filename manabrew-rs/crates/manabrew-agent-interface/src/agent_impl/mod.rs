@@ -81,6 +81,7 @@ pub struct PromptAgent<R: Responder> {
     pub(crate) latest_view: Option<GameViewDto>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
     pub pass_until_phase: Option<Option<String>>,
+    wants_empty_priority_prompts: bool,
     next_prompt_id: u32,
 }
 
@@ -94,8 +95,13 @@ impl<R: Responder> PromptAgent<R> {
             latest_view: None,
             pending_restore_checkpoint: None,
             pass_until_phase: None,
+            wants_empty_priority_prompts: false,
             next_prompt_id: 0,
         }
+    }
+
+    pub fn set_wants_empty_priority_prompts(&mut self, value: bool) {
+        self.wants_empty_priority_prompts = value;
     }
 
     fn build_prompt(&mut self, inner: PromptInput, source: Option<CardId>) -> AgentPrompt {
@@ -318,6 +324,10 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
 
     fn clear_pass_until(&mut self) {
         self.pass_until_phase = None;
+    }
+
+    fn wants_empty_priority_prompts(&self) -> bool {
+        self.wants_empty_priority_prompts
     }
 
     fn snapshot_state(&mut self, game: &GameState, mana_pools: &[ManaPool]) {

@@ -27,6 +27,7 @@ export interface StartGameParams {
   startingLife: number;
   commanderName: string | null;
   opponentDeck: Deck | null;
+  wantsEmptyPriorityPrompts: boolean;
 }
 
 export interface StartMultiplayerGameParams {
@@ -36,6 +37,7 @@ export interface StartMultiplayerGameParams {
   enginePlayerIndex: number;
   localIsHost: boolean;
   startingLife: number;
+  priorityPreferences: boolean[];
 }
 
 export interface RespondParams {
@@ -107,6 +109,7 @@ export interface SetDeckSelectionParams {
   deckName: string;
   deck: Deck;
   commanderName: string | null;
+  wantsEmptyPriorityPrompts?: boolean;
 }
 
 export const serverCommands = {

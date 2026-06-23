@@ -71,6 +71,7 @@ impl GameManager {
         starting_life: i32,
         commander_name: Option<String>,
         opponent_deck_list: Option<Vec<CardIdentity>>,
+        wants_empty_priority_prompts: bool,
     ) -> Result<String, String> {
         let mut session_guard = self.session.lock().map_err(|e| e.to_string())?;
 
@@ -131,6 +132,7 @@ impl GameManager {
                             notify_tx,
                             snapshot_tx,
                             abort_signal_for_thread,
+                            wants_empty_priority_prompts,
                         ),
                         EngineBackendKind::Forge => java_backend::run_game(
                             game_id_clone.clone(),
@@ -206,6 +208,7 @@ impl GameManager {
         engine_player_index: usize,
         local_is_host: bool,
         starting_life: i32,
+        priority_preferences: Vec<bool>,
     ) -> Result<String, String> {
         let num_players = player_names.len();
         if num_players < 2 {
@@ -219,6 +222,9 @@ impl GameManager {
         }
         if commander_names.len() != num_players {
             return Err("Commander list count must match player count".into());
+        }
+        if !priority_preferences.is_empty() && priority_preferences.len() != num_players {
+            return Err("Priority preference count must match player count".into());
         }
         if deck_lists.iter().any(|deck| deck.is_empty()) {
             return Err("All players must have a selected deck".into());
@@ -289,6 +295,11 @@ impl GameManager {
         let player_name_strs = player_names.clone();
         let selected_deck_lists = deck_lists.clone();
         let selected_commander_names = commander_names.clone();
+        let selected_priority_preferences = if priority_preferences.is_empty() {
+            vec![false; num_players]
+        } else {
+            priority_preferences.clone()
+        };
         let abort_signal = Arc::new(AtomicBool::new(false));
         let abort_signal_for_thread = abort_signal.clone();
         let handle = thread::Builder::new()
@@ -308,6 +319,7 @@ impl GameManager {
                             player_name_strs,
                             selected_deck_lists,
                             selected_commander_names,
+                            selected_priority_preferences,
                             engine_player_index,
                             starting_life,
                             game_engine_prompt_tx,

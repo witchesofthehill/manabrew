@@ -146,12 +146,15 @@ export function PromptActionController({
   const currentPromptInput = useGameStore((s) => s.currentPrompt?.input);
   const boardTargetLabel =
     currentPromptInput?.type === "chooseBoardTargets" ? currentPromptInput.label : undefined;
+  const hasChooseActionActions =
+    currentPromptInput?.type === "chooseAction" ? currentPromptInput.actions.length > 0 : true;
 
   const renderers: Record<PromptActionViewKey, () => ReactElement> = {
     chooseAction: () => (
       <ChooseAction
         buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
+        hasAvailableActions={hasChooseActionActions}
         onPassPriority={onPassPriority}
       />
     ),

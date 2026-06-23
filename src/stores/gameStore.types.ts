@@ -70,6 +70,7 @@ export interface GameState {
     enginePlayerIndex: number,
     localIsHost: boolean,
     startingLife: number,
+    priorityPreferences: boolean[],
   ) => Promise<void>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;

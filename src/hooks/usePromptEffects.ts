@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
 import type { Prompt, PromptOutput } from "@/protocol";
+import type { AvailableAction } from "@/protocol/prompts/common";
 import { passOutput } from "@/components/prompts/internal/playerActions";
 import type { GameView } from "@/types/manabrew";
+import { usePreferencesStore } from "@/stores/usePreferencesStore";
 
 interface UsePromptEffectsOptions {
   currentPrompt: Prompt | null;
@@ -32,6 +34,7 @@ const ACTIVE_COMBAT_PRIORITY_STEPS = new Set([
 ]);
 
 const MANDATORY_COMBAT_STOPS = new Set(["declare_blockers"]);
+const SMART_COMBAT_SOFT_STEPS = new Set(["declare_attackers", "declare_blockers"]);
 
 function hasActiveCombatAfterAttackers(gameView: GameView): boolean {
   return (
@@ -45,6 +48,87 @@ function hasNonPassPriorityAction(prompt: Prompt): boolean {
   // Every entry in `actions` is a real, non-pass action (pass lives in the
   // response type, never in the list).
   return prompt.input.actions.length > 0;
+}
+
+function hasSmartRelevantAction(actions: AvailableAction[]): boolean {
+  return actions.some(
+    (action) =>
+      action.type === "cast" ||
+      action.type === "undoMana" ||
+      (action.type === "activateAbility" && !action.isManaAbility),
+  );
+}
+
+function topStackObject(gameView: GameView) {
+  return gameView.stack[gameView.stack.length - 1] ?? null;
+}
+
+function hasTargetedManaSourceAction(
+  gameView: GameView,
+  actions: AvailableAction[],
+  myPlayerId: string,
+): boolean {
+  const top = topStackObject(gameView);
+  if (!top) return false;
+  const localBattlefieldCardIds = new Set(
+    gameView.battlefield.filter((card) => card.controllerId === myPlayerId).map((card) => card.id),
+  );
+  const targetedLocalCardIds = new Set(
+    top.targets
+      .filter((target) => target.kind === "card" && localBattlefieldCardIds.has(target.id))
+      .map((target) => target.id),
+  );
+  if (targetedLocalCardIds.size === 0) return false;
+  return actions.some(
+    (action) =>
+      action.type === "activateAbility" &&
+      action.isManaAbility &&
+      targetedLocalCardIds.has(action.cardId),
+  );
+}
+
+function isSmartSoftWindow(gameView: GameView, myPlayerId: string): boolean {
+  const top = topStackObject(gameView);
+  if (top) return top.controllerId !== myPlayerId;
+  if (
+    gameView.activePlayerId === myPlayerId &&
+    (gameView.step === "main1" || gameView.step === "main2")
+  ) {
+    return true;
+  }
+  return SMART_COMBAT_SOFT_STEPS.has(gameView.step) || gameView.step === "end";
+}
+
+function promptKey(currentPrompt: Prompt, gameView: GameView): string {
+  const id = (currentPrompt as { promptId?: unknown }).promptId;
+  if (id !== undefined && id !== null) return `${gameView.gameId}:${String(id)}`;
+  return [
+    gameView.gameId,
+    gameView.turn,
+    gameView.step,
+    gameView.priorityPlayerId,
+    gameView.stack.length,
+    currentPrompt.input.type,
+  ].join(":");
+}
+
+interface SmartHardStop {
+  opponentId: string | null;
+  phaseId: string;
+}
+
+function getSmartHardStop(
+  gameView: GameView,
+  myPlayerId: string,
+  smartSelfStops: Set<string>,
+  smartOpponentStops: Map<string, Set<string>>,
+): SmartHardStop | null {
+  if (gameView.activePlayerId === myPlayerId) {
+    return smartSelfStops.has(gameView.step) ? { opponentId: null, phaseId: gameView.step } : null;
+  }
+  return (smartOpponentStops.get(gameView.activePlayerId) ?? new Set()).has(gameView.step)
+    ? { opponentId: gameView.activePlayerId, phaseId: gameView.step }
+    : null;
 }
 
 type AutoPassPlan =
@@ -155,6 +239,31 @@ function computeAutoPassPlan(
   );
 }
 
+function computeSmartAutoPassPlan(
+  currentPrompt: Prompt | null,
+  gameView: GameView | null,
+  isWaitingForResponse: boolean,
+  fullControlPriority: boolean,
+  hardStopPromptKeys: Set<string>,
+  smartSelfStops: Set<string>,
+  smartOpponentStops: Map<string, Set<string>>,
+  myPlayerId: string,
+): AutoPassPlan {
+  if (!currentPrompt || !gameView || isWaitingForResponse) return { action: "none" };
+  if (currentPrompt.input.type !== "chooseAction") return { action: "none" };
+  const key = promptKey(currentPrompt, gameView);
+  if (fullControlPriority || hardStopPromptKeys.has(key)) return { action: "none" };
+  if (getSmartHardStop(gameView, myPlayerId, smartSelfStops, smartOpponentStops)) {
+    return { action: "none" };
+  }
+  const actions = currentPrompt.input.actions;
+  if (hasTargetedManaSourceAction(gameView, actions, myPlayerId)) return { action: "none" };
+  if (isSmartSoftWindow(gameView, myPlayerId) && hasSmartRelevantAction(actions)) {
+    return { action: "none" };
+  }
+  return { action: "schedulePass", untilPhase: null };
+}
+
 export function usePromptEffects({
   currentPrompt,
   gameView,
@@ -173,20 +282,47 @@ export function usePromptEffects({
   );
   const passUntilPhase = usePhaseStopStore((s) => s.passUntilPhase);
   const passUntilTurn = usePhaseStopStore((s) => s.passUntilTurn);
+  const smartSelfStops = usePhaseStopStore((s) => s.smartSelfStops);
+  const smartOpponentStops = usePhaseStopStore((s) => s.smartOpponentStops);
+  const triggeredSmartStopPromptKeys = usePhaseStopStore((s) => s.triggeredSmartStopPromptKeys);
+  const experimentalSmartPriority = usePreferencesStore((s) => s.experimentalSmartPriority);
+  const fullControlPriority = usePreferencesStore((s) => s.fullControlPriority);
 
-  const autoPassPlan = useMemo(
-    () =>
-      computeAutoPassPlan(
+  const activeSmartHardStop = useMemo(() => {
+    if (
+      !experimentalSmartPriority ||
+      !currentPrompt ||
+      !gameView ||
+      currentPrompt.input.type !== "chooseAction"
+    ) {
+      return null;
+    }
+    const stop = getSmartHardStop(gameView, myPlayerId, smartSelfStops, smartOpponentStops);
+    if (!stop) return null;
+    return { ...stop, key: promptKey(currentPrompt, gameView) };
+  }, [
+    experimentalSmartPriority,
+    currentPrompt,
+    gameView,
+    myPlayerId,
+    smartSelfStops,
+    smartOpponentStops,
+  ]);
+
+  const autoPassPlan = useMemo(() => {
+    if (experimentalSmartPriority) {
+      return computeSmartAutoPassPlan(
         currentPrompt,
         gameView,
         isWaitingForResponse,
-        passUntilTurn,
-        passUntilPhase,
-        turn,
-        stackLength,
+        fullControlPriority,
+        triggeredSmartStopPromptKeys,
+        smartSelfStops,
+        smartOpponentStops,
         myPlayerId,
-      ),
-    [
+      );
+    }
+    return computeAutoPassPlan(
       currentPrompt,
       gameView,
       isWaitingForResponse,
@@ -195,11 +331,30 @@ export function usePromptEffects({
       turn,
       stackLength,
       myPlayerId,
-    ],
-  );
+    );
+  }, [
+    currentPrompt,
+    gameView,
+    isWaitingForResponse,
+    experimentalSmartPriority,
+    fullControlPriority,
+    triggeredSmartStopPromptKeys,
+    passUntilTurn,
+    passUntilPhase,
+    turn,
+    stackLength,
+    myPlayerId,
+    smartSelfStops,
+    smartOpponentStops,
+  ]);
 
   const unifiedPass = useCallback(() => {
     if (!currentPrompt || !gameView || isWaitingForResponse) return;
+
+    if (experimentalSmartPriority) {
+      pass(null);
+      return;
+    }
 
     const gv = gameView;
     const hasStack = (gv.stack?.length ?? 0) > 0;
@@ -218,13 +373,29 @@ export function usePromptEffects({
     usePhaseStopStore.getState().setPassUntil(nextStop, turn);
 
     pass(nextStop);
-  }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId, turn]);
+  }, [
+    currentPrompt,
+    gameView,
+    isWaitingForResponse,
+    experimentalSmartPriority,
+    pass,
+    myPlayerId,
+    turn,
+  ]);
 
   function activatePassUntilEot() {
     unifiedPass();
   }
 
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!activeSmartHardStop) return;
+    usePhaseStopStore.getState().markSmartStopPromptTriggered(activeSmartHardStop.key);
+    usePhaseStopStore
+      .getState()
+      .consumeSmartStop(activeSmartHardStop.opponentId, activeSmartHardStop.phaseId);
+  }, [activeSmartHardStop]);
 
   useEffect(() => {
     if (autoPassPlan.action === "clearPassUntil") {

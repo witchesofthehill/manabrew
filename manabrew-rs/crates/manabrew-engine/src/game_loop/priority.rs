@@ -160,7 +160,9 @@ impl GameLoop {
             } else {
                 None
             };
-            if action_space.as_ref().is_some_and(|space| space.is_empty()) {
+            if action_space.as_ref().is_some_and(|space| space.is_empty())
+                && !agents[priority_player.index()].wants_empty_priority_prompts()
+            {
                 self.invalidate_mana_undo_for_player(priority_player);
                 self.log_priority_pass(game, priority_player);
                 passed_count += 1;

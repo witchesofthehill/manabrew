@@ -408,6 +408,7 @@ async fn seat_client(
             deck_name: deck.name.clone(),
             deck: deck.deck.clone(),
             commander_name: deck.commander_name.clone(),
+            wants_empty_priority_prompts: false,
         })
         .await?;
     client

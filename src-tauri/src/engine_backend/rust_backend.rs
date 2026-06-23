@@ -31,6 +31,7 @@ pub fn run_game(
     notify_tx: mpsc::Sender<GameLogEntryDto>,
     snapshot_tx: mpsc::Sender<GameSnapshotEventDto>,
     abort_signal: Arc<AtomicBool>,
+    wants_empty_priority_prompts: bool,
 ) {
     let mut human = if deck_list.len() == 1 && is_preset_id(&deck_list[0].name) {
         prepare_preset_registered_player("You", &deck_list[0].name)
@@ -64,13 +65,13 @@ pub fn run_game(
     let prepared_players = vec![human, opponent];
 
     let p0 = PlayerId(0);
-    // The human seat owns the channels passed in from the command layer, so
-    // its agent is built up front and handed to the factory via this slot.
-    let mut human_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(PromptAgent::new(
+    let mut human_agent = PromptAgent::new(
         p0,
         game_id.clone(),
         TauriTransport::new_local(prompt_tx.clone(), response_rx, notify_tx, snapshot_tx),
-    )));
+    );
+    human_agent.set_wants_empty_priority_prompts(wants_empty_priority_prompts);
+    let mut human_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(human_agent));
     let game_id_for_agents = game_id.clone();
 
     let mut rng = rand::rngs::StdRng::from_entropy();
@@ -115,6 +116,7 @@ pub fn run_multiplayer_game(
     player_names: Vec<String>,
     deck_lists: Vec<Vec<CardIdentity>>,
     commander_names: Vec<Option<String>>,
+    priority_preferences: Vec<bool>,
     engine_player_index: usize,
     starting_life: i32,
     engine_prompt_tx: mpsc::Sender<AgentMessage>,
@@ -141,8 +143,7 @@ pub fn run_multiplayer_game(
         prepared_players.push(prepared);
     }
 
-    // Option so the agent_factory can move it out on its one local call.
-    let mut engine_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(PromptAgent::new(
+    let mut engine_agent = PromptAgent::new(
         PlayerId(engine_player_index as u32),
         game_id.clone(),
         TauriTransport::new_local(
@@ -151,7 +152,14 @@ pub fn run_multiplayer_game(
             engine_notify_tx,
             engine_snapshot_tx,
         ),
-    )));
+    );
+    engine_agent.set_wants_empty_priority_prompts(
+        priority_preferences
+            .get(engine_player_index)
+            .copied()
+            .unwrap_or(false),
+    );
+    let mut engine_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(engine_agent));
     let mut remote_rx_map: HashMap<usize, mpsc::Receiver<PromptOutput>> =
         remote_response_rxs.into_iter().collect();
     let game_id_for_agents = game_id.clone();
@@ -185,11 +193,15 @@ pub fn run_multiplayer_game(
                 let resp_rx = remote_rx_map
                     .remove(&i)
                     .expect("Missing response rx for remote player");
-                Box::new(PromptAgent::new(
+                let mut agent = PromptAgent::new(
                     pid,
                     game_id_for_agents.clone(),
                     TauriTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), resp_rx),
-                ))
+                );
+                agent.set_wants_empty_priority_prompts(
+                    priority_preferences.get(i).copied().unwrap_or(false),
+                );
+                Box::new(agent)
             }
         },
     );

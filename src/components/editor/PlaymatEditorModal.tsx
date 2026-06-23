@@ -8,7 +8,11 @@ import { ImagePlus, Trash2 } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
-import { PlaymatLayer, DEFAULT_PLAYMAT_SETTINGS } from "@/pixi/board/PlaymatLayer";
+import {
+  PlaymatLayer,
+  DEFAULT_PLAYMAT_SETTINGS,
+  clampBorderColor,
+} from "@/pixi/board/PlaymatLayer";
 import { computeBoardLayout } from "@/pixi/board/boardLayout";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
@@ -259,14 +263,15 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
                 <input
                   type="color"
                   value={settings.borderColor}
-                  onChange={(e) => update({ borderColor: e.target.value })}
+                  onChange={(e) => update({ borderColor: clampBorderColor(e.target.value) })}
                   className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
                 />
                 <input
                   value={borderHex}
                   onChange={(e) => {
                     setBorderHex(e.target.value);
-                    if (HEX_RE.test(e.target.value)) update({ borderColor: e.target.value });
+                    if (HEX_RE.test(e.target.value))
+                      update({ borderColor: clampBorderColor(e.target.value) });
                   }}
                   onBlur={() => setBorderHex(settings.borderColor)}
                   spellCheck={false}

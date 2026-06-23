@@ -24,6 +24,63 @@ const PLAYMAT_FABRIC_MAX_ALPHA = 0.75;
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
+const BORDER_LIGHTNESS_MIN = 0.04;
+const BORDER_LIGHTNESS_MAX = 0.42;
+const BORDER_SATURATION_MAX = 0.5;
+
+function hue2rgb(p: number, q: number, t: number): number {
+  if (t < 0) t += 1;
+  if (t > 1) t -= 1;
+  if (t < 1 / 6) return p + (q - p) * 6 * t;
+  if (t < 1 / 2) return q;
+  if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+  return p;
+}
+
+/** Clamp a border color's lightness and saturation so the frame stays muted.
+ *  A too-bright or saturated border pulls focus from the cards, which must always
+ *  be the foreground. Applied at render time so it holds for every deck. */
+export function clampBorderColor(hex: string): string {
+  const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!match) return hex;
+  const int = parseInt(match[1], 16);
+  const r = ((int >> 16) & 255) / 255;
+  const g = ((int >> 8) & 255) / 255;
+  const b = (int & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  let h = 0;
+  let s = 0;
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  const cl = Math.min(BORDER_LIGHTNESS_MAX, Math.max(BORDER_LIGHTNESS_MIN, l));
+  const cs = Math.min(BORDER_SATURATION_MAX, s);
+  let cr: number;
+  let cg: number;
+  let cb: number;
+  if (cs === 0) {
+    cr = cg = cb = cl;
+  } else {
+    const q = cl < 0.5 ? cl * (1 + cs) : cl + cs - cl * cs;
+    const p = 2 * cl - q;
+    cr = hue2rgb(p, q, h + 1 / 3);
+    cg = hue2rgb(p, q, h);
+    cb = hue2rgb(p, q, h - 1 / 3);
+  }
+  const toHex = (v: number) =>
+    Math.round(clamp01(v) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(cr)}${toHex(cg)}${toHex(cb)}`;
+}
+
 /** A tileable woven-cloth tile on a white base (white = identity under MULTIPLY,
  *  so only the darker threads register as cloth grain over the playmat art). */
 let fabricTextureCache: Texture | null = null;
@@ -227,7 +284,10 @@ export class PlaymatLayer {
         rect.height - bw,
         Math.max(0, TABLE_RADIUS - bw / 2),
       );
-      this.border.stroke({ width: bw, color: hexToNum(this.settings.borderColor) });
+      this.border.stroke({
+        width: bw,
+        color: hexToNum(clampBorderColor(this.settings.borderColor)),
+      });
     }
 
     const opacity = clamp01(this.settings.opacity);

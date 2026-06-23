@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { ArrowLeft, Check, ChevronDown, Pencil } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Check, ChevronDown, ImagePlus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +15,7 @@ import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { cn } from "@/lib/utils";
 import type { DeckFormatId } from "@/types/manabrew";
 
@@ -22,11 +24,27 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
   const setDeckFormat = useDeckStore((s) => s.setDeckFormat);
+  const setPlaymat = useDeckStore((s) => s.setPlaymat);
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(currentDeck.name);
+  const playmatInputRef = useRef<HTMLInputElement>(null);
 
+  const playmat = currentDeck.playmat;
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
+
+  async function onPlaymatPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      setPlaymat(await normalizeToWebp(file, PLAYMAT_IMAGE_BUDGET));
+    } catch (err) {
+      toast.error(
+        err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as a playmat",
+      );
+    }
+  }
   const commanders = currentDeck.commanders ?? [];
   const mainCount = currentDeck.cards.length + commanders.length;
   const sideCount = currentDeck.sideboard.length;
@@ -67,6 +85,49 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
+      )}
+
+      {!isReadOnly && (
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+          <input
+            ref={playmatInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onPlaymatPick}
+          />
+          {playmat && (
+            <img
+              src={playmat}
+              alt="Deck playmat"
+              className="h-8 w-12 rounded border object-cover shadow-sm"
+            />
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background/60 px-2.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
+                title="Deck playmat"
+              >
+                <ImagePlus className="h-4 w-4" />
+                <span>Playmat</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => playmatInputRef.current?.click()}>
+                <ImagePlus className="h-4 w-4" />
+                {playmat ? "Replace playmat" : "Upload playmat"}
+              </DropdownMenuItem>
+              {playmat && (
+                <DropdownMenuItem onSelect={() => setPlaymat(undefined)}>
+                  <Trash2 className="h-4 w-4" />
+                  Remove playmat
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )}
 
       <div className={cn("relative flex flex-col gap-1.5 px-5 pb-4", onBack ? "pt-16" : "pt-10")}>

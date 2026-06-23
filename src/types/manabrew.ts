@@ -136,6 +136,9 @@ export interface Deck {
   coverCardName?: string;
   /** Which face of a double-faced cover card to use: 0 = front (default), 1 = back. */
   coverCardFace?: 0 | 1;
+  /** Custom battlefield playmat for this deck — a normalized WebP data URL. Distinct from
+   *  coverCardName (card art for thumbnails); broadcast to opponents via PlayerDeckInfo.deck. */
+  playmat?: string;
   /** Saved stack-view section positions (section ID → {x, y} in pixels). */
   stackPositions?: Record<string, { x: number; y: number }>;
   /** Cached token cards referenced by cards in this deck. */

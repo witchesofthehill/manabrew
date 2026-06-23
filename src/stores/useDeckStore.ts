@@ -183,6 +183,7 @@ interface DeckState {
   removeDeckLabel: (label: string) => void;
   updateDeckLabelColor: (label: string, color?: string) => void;
   setCoverCard: (name: string | undefined, face?: 0 | 1) => void;
+  setPlaymat: (dataUrl: string | undefined) => void;
   setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
 }
 
@@ -696,6 +697,10 @@ export const useDeckStore = create<DeckState>()(
               coverCardName: name,
               coverCardFace: name !== undefined ? (face ?? 0) : undefined,
             },
+          })),
+        setPlaymat: (dataUrl) =>
+          set((state) => ({
+            currentDeck: { ...state.currentDeck, playmat: dataUrl },
           })),
         setStackPositions: (positions) =>
           set((state) => ({

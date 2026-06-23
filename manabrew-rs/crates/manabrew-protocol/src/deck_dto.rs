@@ -121,6 +121,8 @@ pub struct Deck {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_card_face: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playmat: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack_positions: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tokens: Option<Vec<DeckCard>>,

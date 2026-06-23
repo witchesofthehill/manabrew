@@ -11,6 +11,8 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   borderWidth: 2,
   borderColor: "#000000",
   fit: "cover",
+  offsetX: 0.5,
+  offsetY: 0.5,
 };
 
 const PLAYMAT_DROP_DIM = 0.29;
@@ -163,15 +165,24 @@ export class PlaymatLayer {
     const th = this.image.texture.height || 1;
     const sx = rect.width / tw;
     const sy = rect.height / th;
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
     if (this.settings.fit === "stretch") {
       this.image.scale.set(sx, sy);
+      this.image.x = cx;
+      this.image.y = cy;
     } else if (this.settings.fit === "fit") {
       this.image.scale.set(Math.min(sx, sy));
+      this.image.x = cx;
+      this.image.y = cy;
     } else {
-      this.image.scale.set(Math.max(sx, sy));
+      const scale = Math.max(sx, sy);
+      this.image.scale.set(scale);
+      const ox = clamp01(this.settings.offsetX);
+      const oy = clamp01(this.settings.offsetY);
+      this.image.x = cx + (0.5 - ox) * (tw * scale - rect.width);
+      this.image.y = cy + (0.5 - oy) * (th * scale - rect.height);
     }
-    this.image.x = rect.x + rect.width / 2;
-    this.image.y = rect.y + rect.height / 2;
 
     for (const overlay of [this.fabric, this.vignette]) {
       overlay.x = rect.x;

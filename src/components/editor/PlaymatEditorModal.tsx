@@ -14,9 +14,11 @@ import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
 import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
+import { cn } from "@/lib/utils";
 import type { PlaymatSettings } from "@/types/manabrew";
 
 const PREVIEW_WIDTH = 560;
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 /** The local player's battlefield felt aspect ratio, mirroring GameBoard's
  *  region + hand-reserve math, so the preview is shaped like the real board. */
@@ -50,7 +52,17 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
   const layerRef = useRef<PlaymatLayer | null>(null);
   const feltRef = useRef<Graphics | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const naturalRef = useRef<{ w: number; h: number }>({ w: 1, h: 1 });
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!playmat) return;
+    const img = new Image();
+    img.onload = () => {
+      naturalRef.current = { w: img.naturalWidth || 1, h: img.naturalHeight || 1 };
+    };
+    img.src = playmat;
+  }, [playmat]);
 
   function update(patch: Partial<PlaymatSettings>) {
     setSettings((prev) => {
@@ -58,6 +70,39 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
       setPlaymatSettings(next);
       return next;
     });
+  }
+
+  // Drag the cover image to reposition its focal point. Offsets are normalized,
+  // so the same `offsetX/offsetY` reproduce exactly on the battlefield.
+  function onPreviewPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (settings.fit !== "cover") return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const start = {
+      sx: e.clientX,
+      sy: e.clientY,
+      ox: settings.offsetX,
+      oy: settings.offsetY,
+      rectW: rect.width || PREVIEW_WIDTH,
+      rectH: rect.height || previewHeight,
+    };
+    const move = (ev: PointerEvent) => {
+      const { w: nw, h: nh } = naturalRef.current;
+      const scale = Math.max(PREVIEW_WIDTH / nw, previewHeight / nh);
+      const overflowX = nw * scale - PREVIEW_WIDTH;
+      const overflowY = nh * scale - previewHeight;
+      const dx = ((ev.clientX - start.sx) * PREVIEW_WIDTH) / start.rectW;
+      const dy = ((ev.clientY - start.sy) * previewHeight) / start.rectH;
+      update({
+        offsetX: overflowX > 0 ? clamp01(start.ox - dx / overflowX) : start.ox,
+        offsetY: overflowY > 0 ? clamp01(start.oy - dy / overflowY) : start.oy,
+      });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   }
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -142,12 +187,19 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
       <Modal.Header>Customize Playmat</Modal.Header>
       <Modal.Body>
         <div className="space-y-4">
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
             <canvas
               ref={canvasRef}
+              onPointerDown={onPreviewPointerDown}
               style={{ width: PREVIEW_WIDTH, height: previewHeight }}
-              className="max-w-full rounded-md border"
+              className={cn(
+                "max-w-full touch-none rounded-md border",
+                settings.fit === "cover" && "cursor-grab active:cursor-grabbing",
+              )}
             />
+            {settings.fit === "cover" && (
+              <p className="text-xs text-muted-foreground">Drag the image to reposition</p>
+            )}
           </div>
 
           <div className="space-y-1.5">

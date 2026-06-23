@@ -118,6 +118,10 @@ export interface PlaymatSettings {
   borderColor?: string;
   /** Image placement mode. */
   fit?: PlaymatFit;
+  /** Cover focal point, 0..1 (like CSS object-position). Only used when `fit === "cover"`;
+   *  0.5/0.5 is centered. Drag-set in the editor to choose which part of the image shows. */
+  offsetX?: number;
+  offsetY?: number;
 }
 
 export interface Deck {

@@ -507,11 +507,21 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                         <GameIcon name="anvil" className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="text-xs font-medium">Forge</span>
                         <Badge variant="outline" className="text-[9px]">
-                          node-hosted
+                          hosted
                         </Badge>
                       </div>
                       <span className="text-[10px] text-muted-foreground leading-tight">
-                        Full card support, on self-hosted nodes. Join a Forge room from the list, or{" "}
+                        Full card support. Available on
+                        <a
+                          href="https://docs.manabrew.app/getting-started/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline underline-offset-2"
+                        >
+                          {" "}
+                          Desktop{". "}
+                        </a>
+                        Or join a Forge room from the list, alternatively,{" "}
                         <a
                           href="https://docs.manabrew.app/self-hosting/"
                           target="_blank"

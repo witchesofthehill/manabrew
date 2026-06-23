@@ -12,7 +12,7 @@ import { computeBoardLayout } from "@/pixi/board/boardLayout";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
-import type { PlaymatSettings } from "@/protocol/deck";
+import type { PlaymatSettings } from "@/protocol/game";
 
 export const PREVIEW_WIDTH = 560;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));

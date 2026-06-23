@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import type { DeckCard, DeckFormat, PlaymatSettings } from "@/protocol/deck";
+import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME } from "@/lib/constants";

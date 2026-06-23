@@ -13,7 +13,7 @@ import {
 import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { usePlaymatPreview } from "./usePlaymatPreview";
 import { cn } from "@/lib/utils";
-import type { PlaymatSettings } from "@/protocol/deck";
+import type { PlaymatSettings } from "@/protocol/game";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 

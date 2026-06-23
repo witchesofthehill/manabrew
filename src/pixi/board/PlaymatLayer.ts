@@ -1,5 +1,5 @@
 import { Container, Graphics, ImageSource, Sprite, Texture, TilingSprite } from "pixi.js";
-import type { PlaymatSettings } from "@/protocol/deck";
+import type { PlaymatSettings } from "@/protocol/game";
 import type { PlayZoneRect } from "../types";
 import { TABLE_RADIUS } from "../constants";
 import { hexToNum } from "../colorUtils";

@@ -1,6 +1,5 @@
 import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
-import type { CardDto } from "@/protocol/game";
-import type { PlaymatSettings } from "@/protocol/deck";
+import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
 import {

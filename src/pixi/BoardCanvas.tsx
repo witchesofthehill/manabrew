@@ -33,8 +33,7 @@ import { RotateCw } from "lucide-react";
 /** Matches HandCardActions `w-[220px]`. */
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
-import type { CardDto } from "@/protocol/game";
-import type { PlaymatSettings } from "@/protocol/deck";
+import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import type {
   ArrowSpec,
   BattlefieldState,

@@ -1118,7 +1118,7 @@ export class BoardRegion {
 
     const tw = this.playmatSprite.texture.width || 1;
     const th = this.playmatSprite.texture.height || 1;
-    this.playmatSprite.scale.set(Math.max(felt.width / tw, felt.height / th));
+    this.playmatSprite.scale.set(felt.width / tw, felt.height / th);
     this.playmatSprite.x = felt.x + felt.width / 2;
     this.playmatSprite.y = felt.y + felt.height / 2;
 

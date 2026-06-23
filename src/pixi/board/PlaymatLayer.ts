@@ -17,6 +17,7 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
 };
 
 const PLAYMAT_DROP_DIM = 0.29;
+const PLAYMAT_PADDING = 0.04;
 const PLAYMAT_VIGNETTE_ALPHA = 0.7;
 const PLAYMAT_TINT = 0xe4e4e4;
 const PLAYMAT_FABRIC_TILE_SCALE = 0.6;
@@ -243,18 +244,27 @@ export class PlaymatLayer {
     this.rect = rect;
     this.dropActive = opts.dropActive;
 
+    // Inset the mat so it doesn't crowd the field edges (the felt margin shows).
+    const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
+    const r = {
+      x: rect.x + pad,
+      y: rect.y + pad,
+      width: Math.max(1, rect.width - pad * 2),
+      height: Math.max(1, rect.height - pad * 2),
+    };
+
     this.colorFill.clear();
     if (this.settings.color) {
-      this.colorFill.rect(rect.x, rect.y, rect.width, rect.height);
+      this.colorFill.rect(r.x, r.y, r.width, r.height);
       this.colorFill.fill({ color: hexToNum(clampPlaymatColor(this.settings.color)) });
     }
 
     const tw = this.image.texture.width || 1;
     const th = this.image.texture.height || 1;
-    const sx = rect.width / tw;
-    const sy = rect.height / th;
-    const cx = rect.x + rect.width / 2;
-    const cy = rect.y + rect.height / 2;
+    const sx = r.width / tw;
+    const sy = r.height / th;
+    const cx = r.x + r.width / 2;
+    const cy = r.y + r.height / 2;
     if (this.settings.fit === "stretch") {
       this.image.scale.set(sx, sy);
       this.image.x = cx;
@@ -268,29 +278,29 @@ export class PlaymatLayer {
       this.image.scale.set(scale);
       const ox = clamp01(this.settings.offsetX);
       const oy = clamp01(this.settings.offsetY);
-      this.image.x = cx + (0.5 - ox) * (tw * scale - rect.width);
-      this.image.y = cy + (0.5 - oy) * (th * scale - rect.height);
+      this.image.x = cx + (0.5 - ox) * (tw * scale - r.width);
+      this.image.y = cy + (0.5 - oy) * (th * scale - r.height);
     }
 
     for (const overlay of [this.fabric, this.vignette]) {
-      overlay.x = rect.x;
-      overlay.y = rect.y;
-      overlay.width = rect.width;
-      overlay.height = rect.height;
+      overlay.x = r.x;
+      overlay.y = r.y;
+      overlay.width = r.width;
+      overlay.height = r.height;
     }
 
     this.mask.clear();
-    this.mask.roundRect(rect.x, rect.y, rect.width, rect.height, TABLE_RADIUS);
+    this.mask.roundRect(r.x, r.y, r.width, r.height, TABLE_RADIUS);
     this.mask.fill({ color: 0xffffff });
 
     this.border.clear();
     const bw = this.settings.borderWidth;
     if (bw > 0) {
       this.border.roundRect(
-        rect.x + bw / 2,
-        rect.y + bw / 2,
-        rect.width - bw,
-        rect.height - bw,
+        r.x + bw / 2,
+        r.y + bw / 2,
+        r.width - bw,
+        r.height - bw,
         Math.max(0, TABLE_RADIUS - bw / 2),
       );
       this.border.stroke({

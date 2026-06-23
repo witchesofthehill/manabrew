@@ -1,0 +1,12 @@
+[
+  { "name": "org.apache.commons.lang3.tuple.MutablePair" },
+  { "name": "[Lorg.apache.commons.lang3.tuple.MutablePair;" },
+  { "name": "org.apache.commons.lang3.tuple.ImmutablePair" },
+  { "name": "[Lorg.apache.commons.lang3.tuple.ImmutablePair;" },
+  { "name": "forge.game.spellability.SpellAbility", "fields": [{ "name": "maxId" }] },
+  { "name": "forge.game.spellability.SpellAbilityStackInstance", "fields": [{ "name": "maxId" }] },
+  { "name": "forge.game.trigger.Trigger", "fields": [{ "name": "maxId" }] },
+  { "name": "forge.game.replacement.ReplacementEffect", "fields": [{ "name": "maxId" }] },
+  { "name": "forge.game.staticability.StaticAbility", "fields": [{ "name": "maxId" }] },
+  { "name": "forge.game.Game", "fields": [{ "name": "maxId" }] }
+]

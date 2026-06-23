@@ -15,6 +15,7 @@
         { "url": "https://backend.commanderspellbook.com/*" },
         { "url": "https://api.scryfall.com/*" },
         { "url": "https://cards.scryfall.io/*" },
+        { "url": "https://backs.scryfall.io/*" },
         { "url": "https://svgs.scryfall.io/*" },
         { "url": "https://game.scryfall.io/*" }
       ]

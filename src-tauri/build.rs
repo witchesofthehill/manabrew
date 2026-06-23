@@ -2,12 +2,27 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 fn main() {
-    // Order matters: tauri_build validates that every resource listed in
-    // tauri.conf.json exists. Generated resource roots must be present
-    // *before* tauri_build runs.
+    // Order matters
     ensure_forge_runtime_resource_dir();
     build_cardset_archive_if_stale();
+    emit_forge_native_rpath();
     tauri_build::build();
+}
+
+fn emit_forge_native_rpath() {
+    if std::env::var_os("CARGO_FEATURE_FORGE_ROOM").is_none() {
+        return;
+    }
+    let lib_dir = std::env::var("FORGE_NATIVE_LIB_DIR").unwrap_or_else(|_| {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("repo root above src-tauri")
+            .join("forge-harness/native/build")
+            .display()
+            .to_string()
+    });
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
+    println!("cargo:rerun-if-env-changed=FORGE_NATIVE_LIB_DIR");
 }
 
 fn ensure_forge_runtime_resource_dir() {

@@ -2140,12 +2140,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fs_extra"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
-
-[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3255,34 +3249,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 
 [[package]]
-name = "j4rs"
-version = "0.25.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40b74bd6834c2e269b3a195f4ebd964e1d75ec53dc85df3cbf9e41482fd6c4fa"
-dependencies = [
- "cesu8",
- "dunce",
- "fs_extra",
- "futures",
- "java-locator",
- "jni-sys 0.4.1",
- "libc",
- "libloading 0.8.9",
- "log",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "java-locator"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09c46c1fe465c59b1474e665e85e1256c3893dd00927b8d55f63b09044c1e64f"
-dependencies = [
- "glob",
-]
-
-[[package]]
 name = "javascriptcore-rs"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3654,15 +3620,11 @@ dependencies = [
  "forge-cardset-archive",
  "forge-foundation",
  "forge-limited",
- "futures-util",
- "j4rs",
- "manabot",
  "manabrew-agent-interface",
  "manabrew-engine",
- "manabrew-server",
- "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
+ "self-hosted-node",
  "serde",
  "serde_json",
  "tauri",
@@ -3670,7 +3632,6 @@ dependencies = [
  "tauri-plugin-http",
  "tauri-plugin-opener",
  "tokio",
- "tokio-tungstenite",
  "walkdir",
 ]
 

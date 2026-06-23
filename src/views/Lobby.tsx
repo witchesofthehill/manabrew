@@ -108,6 +108,7 @@ export default function Lobby() {
     playerId,
     rooms,
     currentRoom,
+    roomPassword,
     players,
     gameStarted,
     playerOrder,
@@ -574,6 +575,7 @@ export default function Lobby() {
           <TablesList
             rooms={rooms}
             currentRoom={currentRoom}
+            roomPassword={roomPassword}
             username={username}
             onNewGame={() => setCreateRoomOpen(true)}
             onRefresh={refreshLobbyData}

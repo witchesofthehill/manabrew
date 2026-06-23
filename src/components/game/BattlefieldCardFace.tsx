@@ -9,6 +9,7 @@ import {
   withAlpha,
 } from "@/themes/gameTheme";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
@@ -193,7 +194,7 @@ export function BattlefieldCardFace({
         }}
       >
         {artCrop && (
-          <img
+          <ScryfallImg
             src={artCrop}
             alt={card.name}
             className="absolute inset-0 w-full h-full object-cover"
@@ -299,7 +300,7 @@ export function BattlefieldCardFace({
 
       <div className="relative flex-1 overflow-hidden" style={{ background: theme.canvas.shadow }}>
         {artCrop && (
-          <img
+          <ScryfallImg
             src={artCrop}
             alt={card.name}
             className="absolute inset-0 w-full h-full object-cover"

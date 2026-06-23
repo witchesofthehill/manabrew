@@ -9,9 +9,10 @@ import { DRAFTABLE_SET_TYPES } from "@/components/limited/setFilters";
 import { fetchCubeMetadata, fetchSetPool } from "@/api/limitedEdition";
 import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { getPlatformType } from "@/platform";
 import type { CubeImportResult } from "@/types/limited";
 import { DEFAULT_RECONNECT_TIMEOUT_S } from "@/types/server";
-import type { DraftConfig, GameFormat, SealedConfig } from "@/types/server";
+import type { DraftConfig, EngineKind, GameFormat, SealedConfig } from "@/types/server";
 import { cn } from "@/lib/utils";
 import {
   Boxes,
@@ -143,6 +144,9 @@ interface CreateRoomDialogProps {
 
 export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) {
   const { createRoom, username } = useServerStore();
+  const isTauri = getPlatformType() === "tauri";
+  const [engine, setEngine] = useState<EngineKind>(isTauri ? "Forge" : "Manabrew");
+  const [roomPassword, setRoomPassword] = useState("");
   const allSets = useScryfallStore((s) => s.sets);
   const prefetchSet = useScryfallStore((s) => s.prefetchSet);
   const [kind, setKind] = useState<RoomKind>("match");
@@ -245,6 +249,8 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
   useEffect(() => {
     if (open) return;
     setKind("match");
+    setEngine(isTauri ? "Forge" : "Manabrew");
+    setRoomPassword("");
     setLimitedKind("draft");
     setRoomName("");
     setMatchPlayersOverride(null);
@@ -261,7 +267,7 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
     setSealedSet("");
     setSealedNumBoosters(6);
     setSealedSeed("");
-  }, [open]);
+  }, [open, isTauri]);
 
   const isBoosterDraft = kind === "limited" && limitedKind === "draft";
   const isCube = kind === "limited" && limitedKind === "cube";
@@ -317,14 +323,17 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
           base_seed: Number.isFinite(parsedSeed) ? parsedSeed : undefined,
         };
       }
+      const password = roomPassword.trim() || undefined;
+      const submittedEngine: EngineKind = kind === "match" ? engine : "Manabrew";
       await createRoom(
         roomName.trim() || defaultName,
         maxPlayers,
         submittedFormat,
-        "Manabrew",
+        submittedEngine,
         draftConfig,
         sealedConfig,
         reconnectTimeoutS,
+        password,
       );
       onOpenChange(false);
       setRoomName("");
@@ -414,15 +423,46 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
               />
             </div>
 
+            {/* Room password (optional) */}
+            <div className="space-y-1.5">
+              <Label htmlFor="room-password" className="text-xs font-medium">
+                Password <span className="font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                id="room-password"
+                type="password"
+                value={roomPassword}
+                onChange={(e) => setRoomPassword(e.target.value)}
+                placeholder="Leave blank for an open room"
+                className="h-9"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              />
+            </div>
+
             {/* Engine — rooms created here always run the Manabrew engine. Forge
                 rooms come from self-hosted nodes and are joined from the list, but
                 nodes only host constructed matches, not limited (draft/sealed). */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Engine</Label>
               <div className={cn("grid gap-2", kind === "match" ? "grid-cols-2" : "grid-cols-1")}>
-                <div className="flex flex-col items-start gap-0.5 rounded-lg border border-primary bg-primary/5 p-2 text-left">
+                <button
+                  type="button"
+                  onClick={() => setEngine("Manabrew")}
+                  className={cn(
+                    "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
+                    engine === "Manabrew"
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/30 hover:bg-muted/30",
+                  )}
+                >
                   <div className="flex items-center gap-1.5">
-                    <GameIcon name="beer-stein" className="h-3.5 w-3.5 text-primary" />
+                    <GameIcon
+                      name="beer-stein"
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        engine === "Manabrew" ? "text-primary" : "text-muted-foreground",
+                      )}
+                    />
                     <span className="text-xs font-medium">Manabrew</span>
                     <Badge variant="outline" className="text-[9px]">
                       in-browser
@@ -431,39 +471,80 @@ export function CreateRoomDialog({ open, onOpenChange }: CreateRoomDialogProps) 
                   <span className="text-[10px] text-muted-foreground leading-tight">
                     Manabrew's own engine, running locally. Instant, no network.
                   </span>
-                </div>
-                {kind === "match" && (
-                  <div className="flex flex-col items-start gap-0.5 rounded-lg border border-border p-2 text-left">
-                    <div className="flex items-center gap-1.5">
-                      <GameIcon name="anvil" className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-xs font-medium">Forge</span>
-                      <Badge variant="outline" className="text-[9px]">
-                        node-hosted
-                      </Badge>
+                </button>
+                {kind === "match" &&
+                  (isTauri ? (
+                    <button
+                      type="button"
+                      onClick={() => setEngine("Forge")}
+                      className={cn(
+                        "flex flex-col items-start gap-0.5 rounded-lg border p-2 text-left transition-colors",
+                        engine === "Forge"
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/30 hover:bg-muted/30",
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <GameIcon
+                          name="anvil"
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            engine === "Forge" ? "text-primary" : "text-muted-foreground",
+                          )}
+                        />
+                        <span className="text-xs font-medium">Forge</span>
+                        <Badge variant="outline" className="text-[9px]">
+                          on this device
+                        </Badge>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Full card support, hosted in-app on this device. Others join from the lobby.
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="flex flex-col items-start gap-0.5 rounded-lg border border-border p-2 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <GameIcon name="anvil" className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-medium">Forge</span>
+                        <Badge variant="outline" className="text-[9px]">
+                          hosted
+                        </Badge>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        Full card support. Available on
+                        <a
+                          href="https://docs.manabrew.app/getting-started/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline underline-offset-2"
+                        >
+                          {" "}
+                          Desktop{". "}
+                        </a>
+                        Or join a Forge room from the list, alternatively,{" "}
+                        <a
+                          href="https://docs.manabrew.app/self-hosting/"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline underline-offset-2"
+                        >
+                          host your own
+                        </a>
+                        .
+                      </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground leading-tight">
-                      Full card support, on self-hosted nodes. Join a Forge room from the list, or{" "}
-                      <a
-                        href="https://docs.manabrew.app/self-hosting/"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline underline-offset-2"
-                      >
-                        host your own
-                      </a>
-                      .
-                    </span>
-                  </div>
-                )}
+                  ))}
               </div>
-              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
-                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <p>
-                  {kind === "match"
-                    ? "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
-                    : "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."}
-                </p>
-              </div>
+              {!(kind === "match" && engine === "Forge") && (
+                <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <p>
+                    {kind === "match"
+                      ? "The Manabrew engine is a work in progress and may have bugs or missing cards. For the most stable experience, play on the Forge engine."
+                      : "Limited runs on the Manabrew engine only — a work in progress that may have bugs or missing cards. Forge nodes host constructed matches, not drafts."}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Format (Match only) */}

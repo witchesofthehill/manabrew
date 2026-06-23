@@ -50,6 +50,7 @@ interface ServerState {
 
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
+  roomPassword: string | null;
   players: PlayerInfo[];
 
   gameStarted: boolean;
@@ -69,6 +70,7 @@ interface ServerState {
     draftConfig?: DraftConfig,
     sealedConfig?: SealedConfig,
     reconnectTimeoutS?: number,
+    password?: string,
   ): Promise<void>;
   joinRoom(roomId: string, password?: string): Promise<void>;
   leaveRoom(): Promise<void>;
@@ -114,6 +116,7 @@ export const useServerStore = create<ServerState>()(
       reconnect: { phase: "idle", attempt: 0 },
       rooms: [],
       currentRoom: null,
+      roomPassword: null,
       players: [],
       gameStarted: false,
       playerOrder: [],
@@ -172,10 +175,12 @@ export const useServerStore = create<ServerState>()(
         draftConfig,
         sealedConfig,
         reconnectTimeoutS,
+        password,
       ) {
         const platform = getPlatform();
         if (!platform.server) return;
-        await platform.server.createRoom({
+        set({ roomPassword: password ? password : null });
+        const roomId = await platform.server.createRoom({
           roomName,
           maxPlayers,
           format,
@@ -183,13 +188,18 @@ export const useServerStore = create<ServerState>()(
           draftConfig,
           sealedConfig,
           reconnectTimeoutS,
+          password,
         });
+        if (roomId) {
+          await get().joinRoom(roomId, password);
+        }
       },
 
       async joinRoom(roomId, password) {
         const platform = getPlatform();
         if (!platform.server) return;
         settlePendingJoin(new Error("join_superseded"));
+        set({ roomPassword: password ? password : null });
         await platform.server.joinRoom({ roomId, password });
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
@@ -215,6 +225,7 @@ export const useServerStore = create<ServerState>()(
         useMultiplayerDraftStore.getState().clear();
         set({
           currentRoom: null,
+          roomPassword: null,
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
@@ -226,6 +237,11 @@ export const useServerStore = create<ServerState>()(
           await platform.server.leaveRoom();
         } catch (e) {
           console.warn("server.leaveRoom() failed:", e);
+        }
+        try {
+          await platform.server.stopRoom();
+        } catch (e) {
+          console.warn("server.stopForgeRoom() failed:", e);
         }
         try {
           await get().listRooms();

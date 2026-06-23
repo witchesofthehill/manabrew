@@ -3,6 +3,7 @@ import type { CardDto } from "@/protocol/game";
 import { useCard } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import {
   BattlefieldCardFace,
   type BattlefieldCardFaceVariant,
@@ -79,7 +80,7 @@ function GalleryRow({
   return (
     <div className="flex items-start gap-2">
       {variant === "realistic" ? (
-        <img
+        <ScryfallImg
           src={entry.uris.normal}
           alt={card.name}
           style={size}
@@ -95,7 +96,7 @@ function GalleryRow({
         />
       )}
       {showReal && variant !== "realistic" && (
-        <img
+        <ScryfallImg
           src={entry.uris.normal}
           alt={card.name}
           style={size}

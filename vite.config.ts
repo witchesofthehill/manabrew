@@ -7,13 +7,15 @@ import Icons from "unplugin-icons/vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
+const COEP = process.env.TAURI_ENV_PLATFORM ? "require-corp" : "credentialless";
+
 function crossOriginIsolation(): Plugin {
   return {
     name: "cross-origin-isolation",
     configureServer(server) {
       server.middlewares.use((_req, res, next) => {
         res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-        res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+        res.setHeader("Cross-Origin-Embedder-Policy", COEP);
         next();
       });
     },
@@ -45,7 +47,7 @@ export default defineConfig({
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "credentialless",
+      "Cross-Origin-Embedder-Policy": COEP,
     },
     proxy: {
       "/spellbook-api": {

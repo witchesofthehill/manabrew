@@ -1,4 +1,5 @@
 import { manaSymbolUrl } from "@/api/scryfall";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import { cn } from "@/lib/utils";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import { MANA_COLORS, type ManaColor } from "@/stores/useCompanionStore.types";
@@ -46,7 +47,7 @@ function ManaPip({
       aria-label={`Mana ${color}: ${value} (tap +1, hold -1)`}
       {...bindings}
     >
-      <img src={manaSymbolUrl(color)} alt="" className="size-3.5" draggable={false} />
+      <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-3.5" draggable={false} />
       <span className="tabular-nums">{value}</span>
     </button>
   );

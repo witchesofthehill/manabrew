@@ -65,6 +65,7 @@ export interface CreateRoomParams {
   draftConfig?: DraftConfig;
   sealedConfig?: SealedConfig;
   reconnectTimeoutS?: number;
+  password?: string;
 }
 
 export interface JoinRoomParams {
@@ -146,7 +147,8 @@ export interface IServerApi {
   disconnect(): Promise<void>;
   listRooms(): Promise<void>;
   listPlayers(): Promise<void>;
-  createRoom(params: CreateRoomParams): Promise<void>;
+  createRoom(params: CreateRoomParams): Promise<string | null>;
+  stopRoom(): Promise<void>;
   joinRoom(params: JoinRoomParams): Promise<void>;
   leaveRoom(): Promise<void>;
   setReady(params: SetReadyParams): Promise<void>;

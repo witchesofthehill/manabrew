@@ -801,7 +801,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "ListPlayers" });
   }
 
-  async createRoom(params: CreateRoomParams): Promise<void> {
+  async createRoom(params: CreateRoomParams): Promise<string | null> {
+    if (params.engine === "Forge") {
+      throw new Error("Forge engine is not supported on the web");
+    }
     this.send({
       type: "CreateRoom",
       room_name: params.roomName,
@@ -812,7 +815,13 @@ class WebServerApi implements IServerApi {
       draft_config: params.draftConfig ?? null,
       sealed_config: params.sealedConfig ?? null,
       reconnect_timeout_s: params.reconnectTimeoutS ?? null,
+      password: params.password ?? null,
     });
+    return null;
+  }
+
+  async stopRoom(): Promise<void> {
+    // No embedded room host on web — the relay owns room lifecycle.
   }
 
   async joinRoom(params: JoinRoomParams): Promise<void> {

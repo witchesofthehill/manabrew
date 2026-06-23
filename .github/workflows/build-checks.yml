@@ -18,14 +18,27 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_checks: ${{ steps.scope.outputs.run_checks }}
+      run_forge_room: ${{ steps.scope.outputs.run_forge_room }}
     steps:
       - name: Detect website-only PR
         id: scope
         uses: actions/github-script@v7
         with:
           script: |
+            // The GraalVM + forge-room build is slow (native-image), so only run
+            // it when a file in the harness → native-lib → tauri link chain moves.
+            const FORGE_ROOM_PATHS = [
+              'forge/',
+              'forge-harness/',
+              'src-tauri/',
+              'manabrew-rs/crates/self-hosted-node/',
+              'scripts/harness.mjs',
+              '.github/workflows/build-checks.yml',
+            ];
+
             if (context.eventName !== 'pull_request') {
               core.setOutput('run_checks', 'true');
+              core.setOutput('run_forge_room', 'true');
               return;
             }
 
@@ -37,6 +50,10 @@ jobs:
             });
             const websiteOnly = files.length > 0 && files.every((file) => file.filename.startsWith('website/'));
             core.setOutput('run_checks', websiteOnly ? 'false' : 'true');
+            const forgeRoom = files.some((file) =>
+              FORGE_ROOM_PATHS.some((prefix) => file.filename.startsWith(prefix)),
+            );
+            core.setOutput('run_forge_room', forgeRoom ? 'true' : 'false');
 
   # ── TypeScript type-check ──────────────────────────────────────────
   typescript:
@@ -220,3 +237,84 @@ jobs:
             fi
           done
           exit $EXIT
+
+  # ── GraalVM native Forge + tauri forge-room feature ────────────────
+  # End-to-end build of the self-hosted-node link chain:
+  #   yarn build:harness     → Maven fat jar (GraalVM JDK 21, release 17)
+  #   build-native.sh        → GraalVM native-image → libforgeharness.so
+  #   cargo build … forge-room → tauri crate links the native lib via
+  #                              self-hosted-node's graal-forge feature
+  # native-image can't cross-compile, so the runner platform is what's
+  # validated (Linux here).
+  forge-room-graalvm:
+    name: GraalVM + forge-room build
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.run_forge_room == 'true'
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: forge-room
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: forge-room
+          submodules: recursive
+          clean: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: forge-room
+
+      - name: Install Tauri + native-image system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            libssl-dev \
+            libxdo-dev \
+            build-essential \
+            zlib1g-dev
+
+      - run: yarn
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn build:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        run: ./forge-harness/build-native.sh
+
+      # `cargo build` of the tauri crate runs `generate_context!`, which embeds
+      # `frontendDist` (../dist). Stub it so the link test doesn't drag in the
+      # full wasm + vite frontend build.
+      - name: Stub frontend dist for tauri context macro
+        run: |
+          mkdir -p dist
+          printf '<!doctype html><title>ci</title>' > dist/index.html
+
+      - name: Build tauri crate with forge-room feature
+        run: cargo build --release -p manabrew --features forge-room

@@ -7,7 +7,7 @@ use crate::protocol::{
 use crate::replay::GameReplayCache;
 use crate::room::Room;
 use crate::state::ServerState;
-use manabrew_protocol::deck_dto::Deck;
+use manabrew_protocol::deck_dto::{Deck, PlaymatSettings};
 use manabrew_protocol::protocol::DEFAULT_RECONNECT_TIMEOUT_S;
 
 const MIN_RECONNECT_TIMEOUT_S: u32 = 10;
@@ -249,12 +249,29 @@ pub fn set_ready_sync(
     Ok(room_id)
 }
 
+const MAX_COSMETIC_LEN: usize = 1_500_000;
+const COSMETIC_PREFIX: &str = "data:image/webp;base64,";
+const MAX_COLOR_LEN: usize = 32;
+
+fn sanitize_cosmetic(value: Option<String>) -> Option<String> {
+    value.filter(|s| s.len() <= MAX_COSMETIC_LEN && s.starts_with(COSMETIC_PREFIX))
+}
+
+fn sanitize_playmat_settings(settings: &mut PlaymatSettings) {
+    settings.color = settings.color.take().filter(|s| s.len() <= MAX_COLOR_LEN);
+    settings.border_color = settings
+        .border_color
+        .take()
+        .filter(|s| s.len() <= MAX_COLOR_LEN);
+}
+
 pub fn set_deck_selection_sync(
     state: &Arc<ServerState>,
     player_id: &str,
     deck_name: String,
-    deck: Deck,
+    mut deck: Deck,
     commander_name: Option<String>,
+    avatar: Option<String>,
 ) -> Result<String, ServerError> {
     let room_id = {
         state
@@ -263,6 +280,12 @@ pub fn set_deck_selection_sync(
             .and_then(|p| p.room_id.clone())
             .ok_or(ServerError::NotInRoom)?
     };
+
+    deck.playmat = sanitize_cosmetic(deck.playmat.take());
+    if let Some(settings) = deck.playmat_settings.as_mut() {
+        sanitize_playmat_settings(settings);
+    }
+    let avatar = sanitize_cosmetic(avatar);
 
     {
         let mut room = state
@@ -274,7 +297,7 @@ pub fn set_deck_selection_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        room.set_deck_selection(player_id, deck_name, deck, commander_name)
+        room.set_deck_selection(player_id, deck_name, deck, commander_name, avatar)
             .map_err(|_| ServerError::NotInRoom)?;
     }
 

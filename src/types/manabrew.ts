@@ -102,6 +102,19 @@ export interface DeckLabel {
   color?: string;
 }
 
+export type PlaymatFit = "cover" | "fit" | "stretch";
+
+export interface PlaymatSettings {
+  opacity?: number;
+  texture?: number;
+  borderWidth?: number;
+  borderColor?: string;
+  fit?: PlaymatFit;
+  offsetX?: number;
+  offsetY?: number;
+  color?: string;
+}
+
 export interface Deck {
   id?: string;
   name: string;
@@ -136,6 +149,8 @@ export interface Deck {
   coverCardName?: string;
   /** Which face of a double-faced cover card to use: 0 = front (default), 1 = back. */
   coverCardFace?: 0 | 1;
+  playmat?: string;
+  playmatSettings?: PlaymatSettings;
   /** Saved stack-view section positions (section ID → {x, y} in pixels). */
   stackPositions?: Record<string, { x: number; y: number }>;
   /** Cached token cards referenced by cards in this deck. */

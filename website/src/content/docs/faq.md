@@ -60,6 +60,6 @@ care about.
 
 ## Is this free? Is it official?
 
-Free and open source, GPL-3.0-or-later. It is unofficial fan software — not
+Free and open source, AGPL-3.0-or-later. It is unofficial fan software — not
 affiliated with, endorsed by, or sponsored by Wizards of the Coast LLC or the
 Forge project.

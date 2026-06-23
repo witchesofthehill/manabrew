@@ -44,6 +44,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     deckName: request.playerDeck.name || "Player Deck",
     deck: request.playerDeck,
     commanderName: request.commanderName,
+    avatar: usePreferencesStore.getState().customAvatar,
   });
   await platform.server.setReady({ ready: true });
 

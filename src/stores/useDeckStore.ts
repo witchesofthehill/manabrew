@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import type { Deck, DeckCard, DeckFormatId } from "@/types/manabrew";
+import type { Deck, DeckCard, DeckFormatId, PlaymatSettings } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME } from "@/lib/constants";
 import { getFormat, canBePartners, canHaveAnyNumberOf, copyLimitFromText } from "@/lib/formats";
@@ -183,6 +183,8 @@ interface DeckState {
   removeDeckLabel: (label: string) => void;
   updateDeckLabelColor: (label: string, color?: string) => void;
   setCoverCard: (name: string | undefined, face?: 0 | 1) => void;
+  setPlaymat: (dataUrl: string | undefined) => void;
+  setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
   setStackPositions: (positions: Record<string, { x: number; y: number }>) => void;
 }
 
@@ -696,6 +698,14 @@ export const useDeckStore = create<DeckState>()(
               coverCardName: name,
               coverCardFace: name !== undefined ? (face ?? 0) : undefined,
             },
+          })),
+        setPlaymat: (dataUrl) =>
+          set((state) => ({
+            currentDeck: { ...state.currentDeck, playmat: dataUrl },
+          })),
+        setPlaymatSettings: (settings) =>
+          set((state) => ({
+            currentDeck: { ...state.currentDeck, playmatSettings: settings },
           })),
         setStackPositions: (positions) =>
           set((state) => ({

@@ -37,6 +37,8 @@ export function buildDeckSnapshot(deck: Deck): string {
     cardTags: deck.cardTags ?? {},
     coverCardName: deck.coverCardName,
     coverCardFace: deck.coverCardFace,
+    playmat: deck.playmat,
+    playmatSettings: deck.playmatSettings,
     stackPositions: deck.stackPositions,
   });
 }

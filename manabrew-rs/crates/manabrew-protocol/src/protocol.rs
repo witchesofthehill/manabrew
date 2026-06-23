@@ -8,6 +8,8 @@ pub struct PlayerDeckInfo {
     pub deck: Deck,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commander_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +68,8 @@ pub enum ClientMessage {
         deck_name: String,
         deck: Deck,
         commander_name: Option<String>,
+        #[serde(default)]
+        avatar: Option<String>,
     },
 
     SetFormat {

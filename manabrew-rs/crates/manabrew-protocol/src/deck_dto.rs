@@ -74,6 +74,27 @@ pub struct DeckLabel {
     pub color: Option<String>,
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlaymatSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub texture: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border_width: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub border_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset_x: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset_y: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+}
+
 /// Mirror of `manabrew.ts:Deck`. The engine cares about `cards`,
 /// `sideboard`, `commanders`, and the supplementary decks
 /// (`attractions`/`contraptions`/`schemes`/`planes`); the rest is UI
@@ -120,6 +141,10 @@ pub struct Deck {
     pub cover_card_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_card_face: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playmat: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playmat_settings: Option<PlaymatSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack_positions: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

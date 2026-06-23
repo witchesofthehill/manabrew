@@ -843,6 +843,7 @@ class WebServerApi implements IServerApi {
       deck_name: params.deckName,
       deck: params.deck,
       commander_name: params.commanderName,
+      avatar: params.avatar ?? null,
     });
   }
 

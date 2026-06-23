@@ -19,7 +19,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      }
     }
   },
   "bundle": {
@@ -27,7 +31,6 @@
     "targets": "all",
     "resources": {
       "resources/forge-runtime": "engine/forge",
-      "../public/preset_decks": "preset_decks",
       "resources/cardset.rkyv": "cardset.rkyv"
     },
     "icon": [

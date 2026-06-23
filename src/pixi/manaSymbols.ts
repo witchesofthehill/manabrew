@@ -1,6 +1,8 @@
 import { Sprite, Texture } from "pixi.js";
 import type { ManaCode } from "@/types/scryfall";
 import { manaSymbolUrl, normalizeManaCode } from "@/api/scryfall";
+import { getPlatformType } from "@/platform";
+import { loadScryfallImage } from "@/lib/scryfallImageSource";
 
 const texCache = new Map<string, Texture>();
 const pendingSprites = new Map<string, Set<Sprite>>();
@@ -13,11 +15,13 @@ export function parseManaCost(cost: string | undefined): ManaCode[] {
   return tokens.map(normalizeManaCode).filter((c): c is ManaCode => c != null);
 }
 
-function raster(code: ManaCode, size: number): void {
+async function raster(code: ManaCode, size: number): Promise<void> {
   const key = `${code}:${size}`;
   if (texCache.has(key)) return;
+  const onDesktop = getPlatformType() === "tauri";
+  const src = onDesktop ? await loadScryfallImage(manaSymbolUrl(code)) : manaSymbolUrl(code);
   const img = new Image();
-  img.crossOrigin = "anonymous";
+  if (!onDesktop) img.crossOrigin = "anonymous";
   img.width = size;
   img.height = size;
   img.onload = () => {
@@ -36,7 +40,7 @@ function raster(code: ManaCode, size: number): void {
     pendingSprites.delete(key);
   };
   img.onerror = () => pendingSprites.delete(key);
-  img.src = manaSymbolUrl(code);
+  img.src = src;
 }
 
 export function applyManaSymbol(sprite: Sprite, code: ManaCode, size: number): void {
@@ -48,7 +52,7 @@ export function applyManaSymbol(sprite: Sprite, code: ManaCode, size: number): v
     sprite.texture = cached;
     return;
   }
-  raster(code, size);
   if (!pendingSprites.has(key)) pendingSprites.set(key, new Set());
   pendingSprites.get(key)!.add(sprite);
+  void raster(code, size);
 }

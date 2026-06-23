@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import type { CompanionCommanderRef } from "@/stores/useCompanionStore.types";
 
 interface CommanderArtProps {
@@ -19,7 +20,7 @@ export function CommanderArt({ refs, className, variant = "banner" }: CommanderA
     return (
       <div className={cn("relative overflow-hidden", className)} aria-hidden>
         {primary && (
-          <img
+          <ScryfallImg
             src={primary}
             alt=""
             draggable={false}
@@ -33,7 +34,7 @@ export function CommanderArt({ refs, className, variant = "banner" }: CommanderA
   return (
     <div className={cn("absolute inset-0 overflow-hidden", className)} aria-hidden>
       {primary && (
-        <img
+        <ScryfallImg
           src={primary}
           alt=""
           draggable={false}
@@ -44,7 +45,7 @@ export function CommanderArt({ refs, className, variant = "banner" }: CommanderA
         />
       )}
       {partner && (
-        <img
+        <ScryfallImg
           src={partner}
           alt=""
           draggable={false}

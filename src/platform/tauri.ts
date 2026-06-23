@@ -1,15 +1,10 @@
 /**
  * Tauri platform implementation.
  *
- * This wraps the existing Tauri API to conform to the platform interface.
- * It's the backend used for desktop (macOS, Windows, Linux) deployments.
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Deck } from "@/types/manabrew";
-import type { Prompt } from "@/protocol";
-import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
+import { WebPlatform } from "./web";
 
 import type {
   IPlatformApi,
@@ -18,10 +13,6 @@ import type {
   IStorageApi,
   IEventBus,
   PlatformFeature,
-  StartGameParams,
-  StartMultiplayerGameParams,
-  RespondParams,
-  RestoreSnapshotParams,
   ServerConnectParams,
   CreateRoomParams,
   JoinRoomParams,
@@ -35,233 +26,94 @@ import type {
 import type { RoomRelayEnvelope } from "@/types/server";
 
 // ============================================================================
-// Tauri Game API
-// ============================================================================
-
-class TauriGameApi implements IGameApi {
-  async startGame(params: StartGameParams): Promise<string> {
-    return invoke<string>("start_game", {
-      deck: params.deck,
-      startingLife: params.startingLife,
-      commanderName: params.commanderName,
-      opponentDeck: params.opponentDeck,
-    });
-  }
-
-  async startMultiplayerGame(params: StartMultiplayerGameParams): Promise<void> {
-    return invoke<void>("start_multiplayer_game", {
-      playerNames: params.playerNames,
-      decks: params.decks,
-      commanderNames: params.commanderNames,
-      enginePlayerIndex: params.enginePlayerIndex,
-      localIsHost: params.localIsHost,
-      startingLife: params.startingLife,
-    });
-  }
-
-  async respond(params: RespondParams): Promise<void> {
-    return invoke<void>("respond", {
-      action: params.action,
-      playerSlot: params.playerSlot,
-    });
-  }
-
-  async endGame(): Promise<void> {
-    return invoke<void>("end_game");
-  }
-
-  async restoreSnapshot(params: RestoreSnapshotParams): Promise<void> {
-    return invoke<void>("restore_snapshot", {
-      checkpointId: params.checkpointId,
-    });
-  }
-
-  async getPresetDecks(): Promise<Deck[]> {
-    return expandPresetDeckDefinitions(await invoke<PresetDeckDefinition[]>("get_preset_decks"));
-  }
-
-  async getPrompt(): Promise<Prompt | null> {
-    return invoke<Prompt | null>("get_prompt");
-  }
-}
-
-// ============================================================================
-// Tauri Server API
+// Tauri Server API — delegates to the web relay client, except Forge hosting
 // ============================================================================
 
 class TauriServerApi implements IServerApi {
+  private connection: ServerConnectParams | null = null;
+  private readonly inner: IServerApi;
+
+  constructor(inner: IServerApi) {
+    this.inner = inner;
+  }
+
   async connect(params: ServerConnectParams): Promise<void> {
-    return invoke<void>("server_connect", { ...params });
+    this.connection = params;
+    return this.inner.connect(params);
   }
 
   async disconnect(): Promise<void> {
-    return invoke<void>("server_disconnect");
-  }
-
-  async listRooms(): Promise<void> {
-    return invoke<void>("server_list_rooms");
-  }
-
-  async listPlayers(): Promise<void> {
-    return invoke<void>("server_list_players");
+    this.connection = null;
+    return this.inner.disconnect();
   }
 
   async createRoom(params: CreateRoomParams): Promise<string | null> {
-    return invoke<string | null>("server_create_room", {
-      roomName: params.roomName,
-      maxPlayers: params.maxPlayers,
-      format: params.format,
-      hosted: params.hosted ?? false,
-      engine: params.engine ?? "Manabrew",
-      draftConfig: params.draftConfig ?? null,
-      sealedConfig: params.sealedConfig ?? null,
-      reconnectTimeoutS: params.reconnectTimeoutS ?? null,
-      password: params.password ?? null,
-    });
+    if (params.engine === "Forge") {
+      if (!this.connection) {
+        throw new Error("Connect to a server before hosting a Forge room");
+      }
+      return invoke<string>("start_forge_host", {
+        host: this.connection.host,
+        port: this.connection.port,
+        relayPassword: this.connection.password,
+        roomName: params.roomName,
+        format: params.format,
+        maxPlayers: params.maxPlayers,
+        password: params.password ?? null,
+      });
+    }
+    return this.inner.createRoom(params);
   }
 
   async stopRoom(): Promise<void> {
-    return invoke<void>("server_stop_room");
+    await invoke("stop_forge_host");
+    return this.inner.stopRoom();
   }
 
-  async joinRoom(params: JoinRoomParams): Promise<void> {
-    return invoke<void>("server_join_room", { ...params });
+  listRooms(): Promise<void> {
+    return this.inner.listRooms();
   }
-
-  async leaveRoom(): Promise<void> {
-    return invoke<void>("server_leave_room");
+  listPlayers(): Promise<void> {
+    return this.inner.listPlayers();
   }
-
-  async setReady(params: SetReadyParams): Promise<void> {
-    return invoke<void>("server_set_ready", { ...params });
+  joinRoom(params: JoinRoomParams): Promise<void> {
+    return this.inner.joinRoom(params);
   }
-
-  async setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
-    return invoke<void>("server_set_deck_selection", { ...params });
+  leaveRoom(): Promise<void> {
+    return this.inner.leaveRoom();
   }
-
-  async setFormat(params: SetFormatParams): Promise<void> {
-    return invoke<void>("server_set_format", { ...params });
+  setReady(params: SetReadyParams): Promise<void> {
+    return this.inner.setReady(params);
   }
-
-  async setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
-    return invoke<void>("server_set_max_players", { maxPlayers: params.maxPlayers });
+  setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
+    return this.inner.setDeckSelection(params);
   }
-
-  async startGame(params?: StartServerGameParams): Promise<void> {
-    return invoke<void>("server_start_game", { format: params?.format ?? null });
+  setFormat(params: SetFormatParams): Promise<void> {
+    return this.inner.setFormat(params);
   }
-
-  async endGame(): Promise<void> {
-    return invoke<void>("server_end_game");
+  setMaxPlayers(params: SetMaxPlayersParams): Promise<void> {
+    return this.inner.setMaxPlayers(params);
   }
-
-  async requestResync(): Promise<void> {
-    return invoke<void>("server_request_resync");
+  startGame(params?: StartServerGameParams): Promise<void> {
+    return this.inner.startGame(params);
   }
-
-  async broadcastState(state: Record<string, unknown>): Promise<void> {
-    return invoke<void>("server_broadcast_state", { state });
+  endGame(): Promise<void> {
+    return this.inner.endGame();
   }
-
-  async sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
-    return invoke<void>("server_send_room_message", { message });
+  requestResync(): Promise<void> {
+    return this.inner.requestResync();
   }
-
-  async spawnAiBot(params: SpawnAiBotParams): Promise<void> {
-    return invoke<void>("server_spawn_ai_bot", {
-      roomId: params.roomId,
-      roomPassword: params.roomPassword ?? null,
-      username: params.username,
-      deckName: params.deckName,
-      deck: params.deck,
-      commanderName: params.commanderName,
-      agent: params.agent ?? "simple",
-    });
+  broadcastState(state: Record<string, unknown>): Promise<void> {
+    return this.inner.broadcastState(state);
   }
-
-  async removeAiBot(username: string): Promise<void> {
-    return invoke<void>("server_remove_ai_bot", { username });
+  sendRoomMessage(message: RoomRelayEnvelope): Promise<void> {
+    return this.inner.sendRoomMessage(message);
   }
-}
-
-// ============================================================================
-// Tauri Storage API (uses localStorage for now, could use Tauri fs)
-// ============================================================================
-
-class TauriStorageApi implements IStorageApi {
-  async get<T>(key: string): Promise<T | null> {
-    const item = localStorage.getItem(key);
-    if (item === null) return null;
-    try {
-      return JSON.parse(item) as T;
-    } catch {
-      return null;
-    }
+  spawnAiBot(params: SpawnAiBotParams): Promise<void> {
+    return this.inner.spawnAiBot(params);
   }
-
-  async set<T>(key: string, value: T): Promise<void> {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-
-  async remove(key: string): Promise<void> {
-    localStorage.removeItem(key);
-  }
-
-  async keys(): Promise<string[]> {
-    return Object.keys(localStorage);
-  }
-}
-
-// ============================================================================
-// Tauri Event Bus
-// ============================================================================
-
-class TauriEventBus implements IEventBus {
-  private listeners = new Map<string, Set<(payload: unknown) => void>>();
-  private unlistenFns = new Map<string, UnlistenFn>();
-
-  on<T>(event: string, handler: (payload: T) => void): () => void {
-    // Add to local listener set
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
-
-      // Set up Tauri listener once per event type
-      listen<T>(event, (e) => {
-        const handlers = this.listeners.get(event);
-        if (handlers) {
-          handlers.forEach((h) => h(e.payload));
-        }
-      }).then((unlisten) => {
-        this.unlistenFns.set(event, unlisten);
-      });
-    }
-
-    const handlers = this.listeners.get(event)!;
-    const typedHandler = handler as (payload: unknown) => void;
-    handlers.add(typedHandler);
-
-    // Return unsubscribe function
-    return () => {
-      handlers.delete(typedHandler);
-      // If no more handlers, clean up Tauri listener
-      if (handlers.size === 0) {
-        const unlisten = this.unlistenFns.get(event);
-        if (unlisten) {
-          unlisten();
-          this.unlistenFns.delete(event);
-        }
-        this.listeners.delete(event);
-      }
-    };
-  }
-
-  emit<T>(event: string, payload: T): void {
-    // Local dispatch (Tauri events are backend → frontend, not frontend → frontend)
-    const handlers = this.listeners.get(event);
-    if (handlers) {
-      handlers.forEach((h) => h(payload));
-    }
+  removeAiBot(username: string): Promise<void> {
+    return this.inner.removeAiBot(username);
   }
 }
 
@@ -280,11 +132,18 @@ export class TauriPlatform implements IPlatformApi {
   readonly storage: IStorageApi;
   readonly events: IEventBus;
 
+  private readonly web: WebPlatform;
+
   constructor() {
-    this.game = new TauriGameApi();
-    this.server = new TauriServerApi();
-    this.storage = new TauriStorageApi();
-    this.events = new TauriEventBus();
+    this.web = new WebPlatform();
+    this.game = this.web.game;
+    this.storage = this.web.storage;
+    this.events = this.web.events;
+    this.server = new TauriServerApi(this.web.server);
+  }
+
+  async init(): Promise<void> {
+    return this.web.init();
   }
 
   async invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -294,15 +153,15 @@ export class TauriPlatform implements IPlatformApi {
   isSupported(feature: PlatformFeature): boolean {
     switch (feature) {
       case "multiplayer":
-        return true; // WebSocket server support
+        return true;
       case "native-dialogs":
-        return true; // Tauri dialog plugin
+        return true;
       case "system-tray":
-        return true; // Tauri tray plugin
+        return true;
       case "auto-update":
-        return true; // Tauri updater
+        return true;
       case "offline-play":
-        return true; // Full local engine
+        return true;
       default:
         return false;
     }

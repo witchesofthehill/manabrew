@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Application, Graphics, Sprite, Texture } from "pixi.js";
+import { Application, Graphics } from "pixi.js";
 import { toast } from "sonner";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { useScryfallStore } from "@/stores/useScryfallStore";
+import { useCard } from "@/stores/useScryfallStore";
+import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
+import { CardSprite } from "@/pixi/CardSprite";
+import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { safeDestroy } from "@/pixi/board/pixiHelpers";
 import { useTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
 import {
@@ -21,17 +25,11 @@ import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
 import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { cn } from "@/lib/utils";
-import type { DeckCard, PlaymatSettings } from "@/types/manabrew";
+import type { PlaymatSettings } from "@/types/manabrew";
 
 const PREVIEW_WIDTH = 560;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-
-// A few real cards shown over the preview so the mat reads as the background it is.
-const PREVIEW_CARD_NAMES = ["Serra Angel", "Tarmogoyf", "Steam Vents"];
-function sampleDeckCard(name: string): DeckCard {
-  return { name, setCode: "", cardNumber: "" } as unknown as DeckCard;
-}
 
 /** The local player's battlefield felt aspect ratio, mirroring GameBoard's
  *  region + hand-reserve math, so the preview is shaped like the real board. */
@@ -59,6 +57,17 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
 
   const aspect = useBattlefieldAspect();
   const previewHeight = Math.round(PREVIEW_WIDTH / aspect);
+
+  const sampleA = useCard({ name: "Serra Angel" });
+  const sampleB = useCard({ name: "Tarmogoyf" });
+  const sampleC = useCard({ name: "Steam Vents" });
+  const previewCards = useMemo(
+    () =>
+      [sampleA, sampleB, sampleC]
+        .filter((e): e is NonNullable<typeof e> => !!e)
+        .map((e) => scryfallToSampleGameCard(e.info)),
+    [sampleA, sampleB, sampleC],
+  );
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -167,30 +176,6 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
       layerRef.current = layer;
       feltRef.current = felt;
       setReady(true);
-
-      const cardH = previewHeight * 0.62;
-      const cardW = cardH * 0.716;
-      const gap = cardW * 0.16;
-      const total = PREVIEW_CARD_NAMES.length * cardW + (PREVIEW_CARD_NAMES.length - 1) * gap;
-      let cardX = (PREVIEW_WIDTH - total) / 2 + cardW / 2;
-      const cardY = previewHeight * 0.56;
-      for (const name of PREVIEW_CARD_NAMES) {
-        const tex = await useScryfallStore
-          .getState()
-          .getCardTexture(sampleDeckCard(name), "full", 0)
-          .catch(() => Texture.EMPTY);
-        if (disposed) return;
-        if (tex !== Texture.EMPTY) {
-          const sprite = new Sprite(tex);
-          sprite.anchor.set(0.5);
-          sprite.eventMode = "none";
-          sprite.scale.set(cardH / (tex.height || 1040));
-          sprite.x = cardX;
-          sprite.y = cardY;
-          app.stage.addChild(sprite);
-        }
-        cardX += cardW + gap;
-      }
     })();
     return () => {
       disposed = true;
@@ -222,6 +207,36 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
       { dropActive: false },
     );
   }, [ready, playmat, settings, previewHeight, theme.gameTheme.canvas.background]);
+
+  // Real CardSprites over the mat — the same renderer the battlefield uses — so the
+  // preview shows the exact foreground/background relationship, in your card style.
+  useEffect(() => {
+    const app = appRef.current;
+    if (!ready || !app || previewCards.length === 0) return;
+    const scale = (previewHeight * 0.62) / CARD_H;
+    const cardW = CARD_W * scale;
+    const gap = cardW * 0.16;
+    const total = previewCards.length * cardW + (previewCards.length - 1) * gap;
+    let x = (PREVIEW_WIDTH - total) / 2 + cardW / 2;
+    const cy = previewHeight * 0.56;
+    const sprites = previewCards.map((card) => {
+      const sprite = new CardSprite(card);
+      sprite.updateCardContent(card);
+      sprite.eventMode = "none";
+      sprite.scale.set(scale);
+      sprite.x = x;
+      sprite.y = cy;
+      x += cardW + gap;
+      app.stage.addChild(sprite);
+      return sprite;
+    });
+    return () => {
+      for (const sprite of sprites) {
+        app.stage.removeChild(sprite);
+        safeDestroy(sprite);
+      }
+    };
+  }, [ready, previewCards, previewHeight]);
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-2xl">

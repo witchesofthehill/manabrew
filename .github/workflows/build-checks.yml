@@ -145,7 +145,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build manabrew-server (release)
-        run: cargo build --release -pmanabrew-server
+        run: cargo build --release -p manabrew-server
 
   # ── Rust parity dashboard ─────────────────────────────────────────
   rust-parity:

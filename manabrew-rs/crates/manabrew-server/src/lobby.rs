@@ -7,7 +7,8 @@ use crate::protocol::{
 use crate::replay::GameReplayCache;
 use crate::room::Room;
 use crate::state::ServerState;
-use manabrew_protocol::deck_dto::{Deck, PlaymatSettings};
+use manabrew_protocol::deck_dto::Deck;
+use manabrew_protocol::game::PlaymatSettings;
 use manabrew_protocol::protocol::DEFAULT_RECONNECT_TIMEOUT_S;
 
 const MIN_RECONNECT_TIMEOUT_S: u32 = 10;

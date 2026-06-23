@@ -63,7 +63,7 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
-import { PlaymatLayer } from "./PlaymatLayer";
+import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 
 type Point = ScreenPos;
 
@@ -621,7 +621,7 @@ export class BoardRegion {
 
   private applyOverflowStacking(topLevelCandidates: GameCard[]): void {
     if (topLevelCandidates.length === 0) return;
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     let freeCellCount = 0;
     for (const cell of grid.cells) {
@@ -680,7 +680,7 @@ export class BoardRegion {
 
   private computeBattlefieldGrid(cards: GameCard[]): Map<string, Point> {
     const positions = new Map<string, Point>();
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     this.gridInfo = grid;
 
@@ -825,7 +825,7 @@ export class BoardRegion {
   }
 
   private findFirstFreeBattlefieldSlot(): Point {
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid =
       this.gridInfo ?? computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     const occupied = new Set<string>();
@@ -963,6 +963,17 @@ export class BoardRegion {
     const reserve = this.host.getHandReserveBottom();
     if (reserve <= 0) return zone;
     return { ...zone, height: Math.max(0, zone.height - reserve) };
+  }
+
+  private playArea(): PlayZoneRect {
+    const z = this.usableZone();
+    const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    return {
+      x: z.x + pad,
+      y: z.y + pad,
+      width: Math.max(1, z.width - pad * 2),
+      height: Math.max(1, z.height - pad * 2),
+    };
   }
 
   redrawBackground(): void {
@@ -1226,12 +1237,7 @@ export class BoardRegion {
   }
 
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(
-      this.usableZone(),
-      0,
-      this.collectLocalBlockers(),
-      this.cardScale,
-    );
+    const grid = computeGridLayout(this.playArea(), 0, this.collectLocalBlockers(), this.cardScale);
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
@@ -1260,7 +1266,7 @@ export class BoardRegion {
   drawDropField(): void {
     // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
     this.lastDropCell = null;
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
     const pad = GAP * 2;
     const gfx = this.gridSkeletonGfx;

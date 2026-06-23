@@ -102,6 +102,17 @@ export interface DeckLabel {
   color?: string;
 }
 
+export interface PlaymatSettings {
+  /** 0..1 — overall playmat opacity over the felt. */
+  opacity?: number;
+  /** 0..1 — woven-cloth texture strength. */
+  texture?: number;
+  /** Border thickness in px (0 = no border). */
+  borderWidth?: number;
+  /** Border color as a hex string. */
+  borderColor?: string;
+}
+
 export interface Deck {
   id?: string;
   name: string;
@@ -139,6 +150,9 @@ export interface Deck {
   /** Custom battlefield playmat for this deck — a normalized WebP data URL. Distinct from
    *  coverCardName (card art for thumbnails); broadcast to opponents via PlayerDeckInfo.deck. */
   playmat?: string;
+  /** How the playmat is rendered on the battlefield (opacity, cloth texture, border).
+   *  Tuned in the deck editor; broadcast alongside `playmat`. */
+  playmatSettings?: PlaymatSettings;
   /** Saved stack-view section positions (section ID → {x, y} in pixels). */
   stackPositions?: Record<string, { x: number; y: number }>;
   /** Cached token cards referenced by cards in this deck. */

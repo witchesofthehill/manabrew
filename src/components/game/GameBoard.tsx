@@ -11,6 +11,7 @@ import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { useServerStore } from "@/stores/useServerStore";
 import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
@@ -512,6 +513,18 @@ export function GameBoard({
   );
 
   const gameDecks = useGameStore((s) => s.gameDecks);
+  const myAvatar = usePreferencesStore((s) => s.customAvatar);
+  const playerDecks = useServerStore((s) => s.playerDecks);
+
+  const avatarByPlayerId = useMemo(() => {
+    const map = new Map<string, string>();
+    if (myAvatar) map.set(me.id, myAvatar);
+    for (const op of opponents) {
+      const entry = playerDecks.find((d) => d.username === op.name);
+      if (entry?.avatar) map.set(op.id, entry.avatar);
+    }
+    return map;
+  }, [myAvatar, playerDecks, me.id, opponents]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const oppState = (cards: GameCard[]): BattlefieldState => ({
@@ -643,6 +656,7 @@ export function GameBoard({
         player={me}
         isOpponent={false}
         seat="self"
+        avatarUrl={avatarByPlayerId.get(me.id)}
         verticalAlign="bottom"
         split={selfIsSplit}
         zonesGrid={selfSplit.grid}
@@ -795,6 +809,7 @@ export function GameBoard({
               player={op}
               isOpponent
               seat={OPPONENT_SEATS[i] ?? "opponent1"}
+              avatarUrl={avatarByPlayerId.get(op.id)}
               verticalAlign="top"
               zoneOrientation={
                 orientation === "left" || orientation === "right" ? "vertical" : "horizontal"

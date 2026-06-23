@@ -19,6 +19,8 @@ interface PlayerPanelProps {
   isOpponent: boolean;
   /** Seat identifier used to pick the per-player theme colour. */
   seat: PlayerSeat;
+  /** This player's custom avatar (normalized WebP data URL); falls back to initials. */
+  avatarUrl?: string;
   className?: string;
   /** `bottom` = avatar anchored at the bottom of the cluster (local player); zones row sits on top. `top` = opponent mirror. */
   /** Retained for backwards compat with existing callers but no longer
@@ -64,6 +66,7 @@ export function PlayerPanel({
   player,
   isOpponent,
   seat,
+  avatarUrl,
   className,
   verticalAlign: _verticalAlign = "bottom",
   zoneOrientation = "horizontal",
@@ -262,6 +265,7 @@ export function PlayerPanel({
         player={effectivePlayer}
         badges={orbitBadges}
         seatColor={seatColor}
+        avatarUrl={avatarUrl}
         isActiveTurn={isActiveTurn}
         isPriorityPlayer={isPriorityPlayer}
         isTargetable={isTargetable}

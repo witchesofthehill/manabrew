@@ -17,7 +17,9 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
 };
 
 const PLAYMAT_DROP_DIM = 0.29;
-const PLAYMAT_PADDING = 0.04;
+/** Fraction of the felt's shorter side the mat is inset from the field edges.
+ *  Exported so panel placement (GameBoard) can align to the same inset. */
+export const PLAYMAT_PADDING = 0.04;
 const PLAYMAT_VIGNETTE_ALPHA = 0.7;
 const PLAYMAT_TINT = 0xe4e4e4;
 const PLAYMAT_FABRIC_TILE_SCALE = 0.6;

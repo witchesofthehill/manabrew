@@ -9,6 +9,7 @@ import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
+import { PLAYMAT_PADDING } from "@/pixi/board/PlaymatLayer";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -779,24 +780,27 @@ export function GameBoard({
         const op = opponents.find((o) => o.id === playerId);
         if (!op) return null;
         const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
+        // Align the panel to the inset playmat (same padding the mat uses) so it
+        // sits flush on the mat corner instead of floating in the felt margin.
+        const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
         const panelStyle: React.CSSProperties =
           orientation === "left"
             ? {
-                left: rect.x + 8,
+                left: rect.x + 8 + pad,
                 top: rect.y + rect.height / 2,
                 transform: `translateY(-50%) ${scale}`,
                 transformOrigin: "left center",
               }
             : orientation === "right"
               ? {
-                  left: rect.x + rect.width - 8,
+                  left: rect.x + rect.width - 8 - pad,
                   top: rect.y + rect.height / 2,
                   transform: `translate(-100%, -50%) ${scale}`,
                   transformOrigin: "right center",
                 }
               : {
-                  left: rect.x + 8,
-                  top: rect.y + 8,
+                  left: rect.x + 8 + pad,
+                  top: rect.y + 8 + pad,
                   transform: scale,
                   transformOrigin: "top left",
                 };

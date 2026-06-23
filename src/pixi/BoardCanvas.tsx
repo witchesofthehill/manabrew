@@ -49,9 +49,7 @@ export interface BoardCanvasRegion {
   playerId: string;
   isLocal: boolean;
   state: BattlefieldState;
-  /** This player's deck playmat (normalized WebP data URL), rendered as the felt. */
   playmat?: string;
-  /** Render tuning for the playmat (opacity, texture, border). */
   playmatSettings?: PlaymatSettings;
 }
 

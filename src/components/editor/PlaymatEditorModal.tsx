@@ -27,8 +27,6 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
     ...DEFAULT_PLAYMAT_SETTINGS,
     ...(storedSettings ?? {}),
   });
-  // Local copies so the hex fields accept in-progress (invalid) typing; resync
-  // when the committed color changes (e.g. from the swatch) without an effect.
   const [borderHex, setBorderHex] = useState(settings.borderColor);
   const [prevBorder, setPrevBorder] = useState(settings.borderColor);
   if (prevBorder !== settings.borderColor) {

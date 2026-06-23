@@ -24,8 +24,6 @@ interface PreferencesState {
   setServerUsername: (username: string) => void;
   setServerPassword: (password: string) => void;
 
-  // Global player avatar shown on the player panel — a normalized WebP data URL.
-  // Broadcast to opponents at game start via PlayerDeckInfo.avatar.
   customAvatar?: string;
   setCustomAvatar: (dataUrl: string | undefined) => void;
 

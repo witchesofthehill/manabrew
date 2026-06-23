@@ -17,8 +17,6 @@ import type { PlaymatSettings } from "@/types/manabrew";
 export const PREVIEW_WIDTH = 560;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
-/** Local player's battlefield felt aspect ratio (region + hand-reserve math),
- *  so the preview is shaped like the real board. */
 function useBattlefieldAspect(): number {
   const vScale = useHandScale();
   return useMemo(() => {
@@ -35,9 +33,6 @@ interface PlaymatPreviewArgs {
   onOffsetChange: (offset: { offsetX: number; offsetY: number }) => void;
 }
 
-/** Drives the Pixi playmat preview: a felt + the shared `PlaymatLayer` + real
- *  `CardSprite`s on top, so the editor matches the battlefield. Returns the
- *  canvas ref, its size, and the cover drag-to-reposition handler. */
 export function usePlaymatPreview({ playmat, settings, onOffsetChange }: PlaymatPreviewArgs) {
   const theme = useTheme();
   const aspect = useBattlefieldAspect();
@@ -156,8 +151,6 @@ export function usePlaymatPreview({ playmat, settings, onOffsetChange }: Playmat
     };
   }, [ready, previewCards, previewHeight]);
 
-  // Offsets are normalized, so the dragged focal point reproduces exactly on the
-  // battlefield regardless of size; only the overflowing axis can move.
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (settings.fit !== "cover") return;
     const rect = e.currentTarget.getBoundingClientRect();

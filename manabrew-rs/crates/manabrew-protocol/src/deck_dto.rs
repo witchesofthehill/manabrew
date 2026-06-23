@@ -3,11 +3,6 @@
 //! it cares about (cards, sideboard, commanders, supplementary decks)
 //! and serde silently drops the rest (UI-only state like
 //! `stackPositions`, `customTags`, `coverCardName`, etc.).
-//!
-//! The engine ignores `playmat` too, but the relay does not: because the deck
-//! travels inside `PlayerDeckInfo`, the deck's `playmat` cosmetic reaches every
-//! player in the `GameStarted` broadcast. It is sanitized server-side
-//! (`lobby::sanitize_cosmetic`) to a bounded WebP data URL before forwarding.
 
 use serde::{Deserialize, Serialize};
 
@@ -79,8 +74,6 @@ pub struct DeckLabel {
     pub color: Option<String>,
 }
 
-/// Mirror of `manabrew.ts:PlaymatSettings`. UI-only render tuning carried with
-/// the deck so opponents see the same customized playmat.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaymatSettings {
@@ -148,8 +141,6 @@ pub struct Deck {
     pub cover_card_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cover_card_face: Option<u8>,
-    /// Battlefield playmat cosmetic — a bounded WebP data URL. Forwarded to
-    /// opponents at game start; see the module doc.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub playmat: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

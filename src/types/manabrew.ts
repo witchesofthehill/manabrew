@@ -102,28 +102,16 @@ export interface DeckLabel {
   color?: string;
 }
 
-/** How the playmat image is scaled into the battlefield region. `cover` fills and
- *  crops overflow, `fit` shows the whole image with margins, `stretch` fills exactly
- *  by distorting the aspect ratio. */
 export type PlaymatFit = "cover" | "fit" | "stretch";
 
 export interface PlaymatSettings {
-  /** 0..1 — overall playmat opacity over the felt. */
   opacity?: number;
-  /** 0..1 — woven-cloth texture strength. */
   texture?: number;
-  /** Border thickness in px (0 = no border). */
   borderWidth?: number;
-  /** Border color as a hex string. */
   borderColor?: string;
-  /** Image placement mode. */
   fit?: PlaymatFit;
-  /** Cover focal point, 0..1 (like CSS object-position). Only used when `fit === "cover"`;
-   *  0.5/0.5 is centered. Drag-set in the editor to choose which part of the image shows. */
   offsetX?: number;
   offsetY?: number;
-  /** Solid playmat color (hex) drawn behind the image; with no image it is the whole
-   *  playmat. Empty string means none. */
   color?: string;
 }
 
@@ -161,11 +149,7 @@ export interface Deck {
   coverCardName?: string;
   /** Which face of a double-faced cover card to use: 0 = front (default), 1 = back. */
   coverCardFace?: 0 | 1;
-  /** Custom battlefield playmat for this deck — a normalized WebP data URL. Distinct from
-   *  coverCardName (card art for thumbnails); broadcast to opponents via PlayerDeckInfo.deck. */
   playmat?: string;
-  /** How the playmat is rendered on the battlefield (opacity, cloth texture, border).
-   *  Tuned in the deck editor; broadcast alongside `playmat`. */
   playmatSettings?: PlaymatSettings;
   /** Saved stack-view section positions (section ID → {x, y} in pixels). */
   stackPositions?: Record<string, { x: number; y: number }>;

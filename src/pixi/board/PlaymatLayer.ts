@@ -17,8 +17,6 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
 };
 
 const PLAYMAT_DROP_DIM = 0.29;
-/** Fraction of the felt's shorter side the mat is inset from the field edges.
- *  Exported so panel placement (GameBoard) can align to the same inset. */
 export const PLAYMAT_PADDING = 0.04;
 const PLAYMAT_VIGNETTE_ALPHA = 0.7;
 const PLAYMAT_TINT = 0xe4e4e4;
@@ -43,9 +41,6 @@ function hue2rgb(p: number, q: number, t: number): number {
   return p;
 }
 
-/** Clamp a color's lightness and saturation into a muted range (hue preserved).
- *  Keeps the playmat firmly in the background so the cards stay the foreground.
- *  Applied at render time so it holds for every deck. */
 function clampColor(hex: string, lMin: number, lMax: number, sMax: number): string {
   const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
   if (!match) return "#000000";
@@ -93,8 +88,6 @@ export const clampBorderColor = (hex: string): string =>
 export const clampPlaymatColor = (hex: string): string =>
   clampColor(hex, BACKGROUND_LIGHTNESS_MIN, BACKGROUND_LIGHTNESS_MAX, BACKGROUND_SATURATION_MAX);
 
-/** A tileable woven-cloth tile on a white base (white = identity under MULTIPLY,
- *  so only the darker threads register as cloth grain over the playmat art). */
 let fabricTextureCache: Texture | null = null;
 function getFabricTexture(): Texture {
   if (fabricTextureCache) return fabricTextureCache;
@@ -130,9 +123,6 @@ function getFabricTexture(): Texture {
   return fabricTextureCache;
 }
 
-/** Radial darkening overlay — transparent center fading to near-black at the
- *  corners — so the playmat sinks into the table instead of reading as a hard
- *  stretched rectangle. */
 let vignetteTextureCache: Texture | null = null;
 function getVignetteTexture(): Texture {
   if (vignetteTextureCache) return vignetteTextureCache;
@@ -153,11 +143,6 @@ function getVignetteTexture(): Texture {
   return vignetteTextureCache;
 }
 
-/** Renders a deck's playmat — cover-fit art + woven cloth + edge vignette +
- *  optional border — clipped to the felt's rounded rect. Shared by the in-game
- *  battlefield (`BoardRegion`) and the deck-editor preview so the two match
- *  pixel-for-pixel. The owner adds `container` to its scene and drives it via
- *  `setImage` / `setSettings` / `layout`. */
 export class PlaymatLayer {
   readonly container: Container;
   private content: Container;
@@ -192,10 +177,6 @@ export class PlaymatLayer {
     this.content.addChild(this.colorFill, this.image, this.fabric, this.vignette);
 
     this.mask = new Graphics();
-    // The border is intentionally NOT a child of `content`: a Graphics mask clips
-    // through the (1-bit, non-antialiased) stencil buffer, so its rounded corners
-    // are aliased and would chop the stroke. Drawn unmasked and on top, the stroke
-    // keeps Pixi's crisp antialiased corners and covers the content's clipped edge.
     this.border = new Graphics();
     this.container.addChild(this.content, this.mask, this.border);
     this.content.mask = this.mask;
@@ -246,7 +227,6 @@ export class PlaymatLayer {
     this.rect = rect;
     this.dropActive = opts.dropActive;
 
-    // Inset the mat so it doesn't crowd the field edges (the felt margin shows).
     const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
     const r = {
       x: rect.x + pad,

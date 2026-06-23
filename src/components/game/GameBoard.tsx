@@ -780,8 +780,6 @@ export function GameBoard({
         const op = opponents.find((o) => o.id === playerId);
         if (!op) return null;
         const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
-        // Align the panel to the inset playmat (same padding the mat uses) so it
-        // sits flush on the mat corner instead of floating in the felt margin.
         const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
         const panelStyle: React.CSSProperties =
           orientation === "left"

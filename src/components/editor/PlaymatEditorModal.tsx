@@ -60,7 +60,7 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
 
   const sampleA = useCard({ name: "Serra Angel" });
   const sampleB = useCard({ name: "Tarmogoyf" });
-  const sampleC = useCard({ name: "Steam Vents" });
+  const sampleC = useCard({ name: "Llanowar Elves" });
   const previewCards = useMemo(
     () =>
       [sampleA, sampleB, sampleC]
@@ -231,10 +231,7 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
       return sprite;
     });
     return () => {
-      for (const sprite of sprites) {
-        app.stage.removeChild(sprite);
-        safeDestroy(sprite);
-      }
+      for (const sprite of sprites) safeDestroy(sprite);
     };
   }, [ready, previewCards, previewHeight]);
 

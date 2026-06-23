@@ -1,14 +1,5 @@
-import {
-  Container,
-  Graphics,
-  ImageSource,
-  Sprite,
-  Text,
-  Texture,
-  TilingSprite,
-  type FederatedPointerEvent,
-} from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import type { GameCard, PlaymatSettings } from "@/types/manabrew";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
 import {
@@ -72,6 +63,7 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
+import { PlaymatLayer } from "./PlaymatLayer";
 
 type Point = ScreenPos;
 
@@ -80,73 +72,6 @@ interface BoardRegionOptions {
 }
 
 const ENTRANCE_LAND_PX = 8;
-
-const PLAYMAT_ALPHA_IDLE = 0.62;
-const PLAYMAT_ALPHA_DROP = 0.18;
-const PLAYMAT_FABRIC_ALPHA = 0.5;
-const PLAYMAT_VIGNETTE_ALPHA = 0.7;
-const PLAYMAT_TINT = 0xe4e4e4;
-const PLAYMAT_FABRIC_TILE_SCALE = 0.6;
-
-/** A tileable woven-cloth tile on a white base (white = identity under MULTIPLY,
- *  so only the darker threads register as cloth grain over the playmat art). */
-let fabricTextureCache: Texture | null = null;
-function getFabricTexture(): Texture {
-  if (fabricTextureCache) return fabricTextureCache;
-  const tile = 64;
-  const cell = 8;
-  const canvas = document.createElement("canvas");
-  canvas.width = tile;
-  canvas.height = tile;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return Texture.EMPTY;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, tile, tile);
-  for (let y = 0; y < tile; y += cell) {
-    for (let x = 0; x < tile; x += cell) {
-      const over = (x / cell + y / cell) % 2 === 0;
-      ctx.fillStyle = over ? "rgba(0,0,0,0.05)" : "rgba(0,0,0,0.11)";
-      ctx.fillRect(x, y, cell, cell);
-    }
-  }
-  ctx.strokeStyle = "rgba(0,0,0,0.07)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= tile; i += cell) {
-    ctx.beginPath();
-    ctx.moveTo(i + 0.5, 0);
-    ctx.lineTo(i + 0.5, tile);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, i + 0.5);
-    ctx.lineTo(tile, i + 0.5);
-    ctx.stroke();
-  }
-  fabricTextureCache = Texture.from(canvas);
-  return fabricTextureCache;
-}
-
-/** Radial darkening overlay — transparent center fading to near-black at the
- *  corners — so the playmat sinks into the table instead of reading as a hard
- *  stretched rectangle. */
-let vignetteTextureCache: Texture | null = null;
-function getVignetteTexture(): Texture {
-  if (vignetteTextureCache) return vignetteTextureCache;
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return Texture.EMPTY;
-  const c = size / 2;
-  const gradient = ctx.createRadialGradient(c, c, size * 0.3, c, c, size * 0.62);
-  gradient.addColorStop(0, "rgba(0,0,0,0)");
-  gradient.addColorStop(0.75, "rgba(0,0,0,0.35)");
-  gradient.addColorStop(1, "rgba(0,0,0,0.92)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  vignetteTextureCache = Texture.from(canvas);
-  return vignetteTextureCache;
-}
 
 /** Keyed by the card object. The engine mints fresh `GameCard` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
@@ -175,13 +100,7 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
-  private playmatUrl: string | null = null;
-  private playmatLayer: Container | null = null;
-  private playmatSprite: Sprite | null = null;
-  private fabricSprite: TilingSprite | null = null;
-  private vignetteSprite: Sprite | null = null;
-  private playmatImageTexture: Texture | null = null;
-  private playmatMask: Graphics | null = null;
+  private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
@@ -224,6 +143,9 @@ export class BoardRegion {
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
+
+    this.playmat.container.zIndex = -9;
+    this.container.addChild(this.playmat.container);
 
     // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
@@ -1056,105 +978,16 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
-    this.layoutPlaymat();
+    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
   }
 
   setPlaymat(url: string | undefined): void {
-    const next = url ?? null;
-    if (next === this.playmatUrl) return;
-    this.playmatUrl = next;
-    if (!next) {
-      this.destroyPlaymat();
-      return;
-    }
-    const img = new Image();
-    img.onload = () => {
-      if (this.host.isDestroyed() || this.playmatUrl !== next) return;
-      this.ensurePlaymatLayer();
-      this.playmatImageTexture?.destroy(true);
-      this.playmatImageTexture = new Texture({ source: new ImageSource({ resource: img }) });
-      this.playmatSprite!.texture = this.playmatImageTexture;
-      this.layoutPlaymat();
-    };
-    img.src = next;
+    this.playmat.setImage(url);
+    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
   }
 
-  private ensurePlaymatLayer(): void {
-    if (this.playmatLayer) return;
-    const layer = new Container();
-    layer.zIndex = -9;
-    layer.eventMode = "none";
-
-    const image = new Sprite();
-    image.anchor.set(0.5);
-    image.tint = PLAYMAT_TINT;
-
-    const fabric = new TilingSprite({ texture: getFabricTexture() });
-    fabric.tileScale.set(PLAYMAT_FABRIC_TILE_SCALE);
-    fabric.alpha = PLAYMAT_FABRIC_ALPHA;
-    fabric.blendMode = "multiply";
-
-    const vignette = new Sprite(getVignetteTexture());
-    vignette.alpha = PLAYMAT_VIGNETTE_ALPHA;
-
-    layer.addChild(image, fabric, vignette);
-    this.container.addChild(layer);
-
-    const mask = new Graphics();
-    this.container.addChild(mask);
-    layer.mask = mask;
-
-    this.playmatLayer = layer;
-    this.playmatSprite = image;
-    this.fabricSprite = fabric;
-    this.vignetteSprite = vignette;
-    this.playmatMask = mask;
-  }
-
-  private layoutPlaymat(): void {
-    const layer = this.playmatLayer;
-    if (!layer || !this.playmatSprite || !this.fabricSprite || !this.vignetteSprite) return;
-    const felt = this.usableZone();
-
-    const tw = this.playmatSprite.texture.width || 1;
-    const th = this.playmatSprite.texture.height || 1;
-    this.playmatSprite.scale.set(Math.max(felt.width / tw, felt.height / th));
-    this.playmatSprite.x = felt.x + felt.width / 2;
-    this.playmatSprite.y = felt.y + felt.height / 2;
-
-    for (const overlay of [this.fabricSprite, this.vignetteSprite]) {
-      overlay.x = felt.x;
-      overlay.y = felt.y;
-      overlay.width = felt.width;
-      overlay.height = felt.height;
-    }
-
-    if (this.playmatMask) {
-      this.playmatMask.clear();
-      this.playmatMask.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
-      this.playmatMask.fill({ color: 0xffffff });
-    }
-
-    layer.alpha = this.dropActive ? PLAYMAT_ALPHA_DROP : PLAYMAT_ALPHA_IDLE;
-  }
-
-  private destroyPlaymat(): void {
-    if (this.playmatLayer) {
-      this.playmatLayer.mask = null;
-      this.container.removeChild(this.playmatLayer);
-      safeDestroy(this.playmatLayer);
-      this.playmatLayer = null;
-    }
-    if (this.playmatMask) {
-      this.container.removeChild(this.playmatMask);
-      safeDestroy(this.playmatMask);
-      this.playmatMask = null;
-    }
-    this.playmatImageTexture?.destroy(true);
-    this.playmatImageTexture = null;
-    this.playmatSprite = null;
-    this.fabricSprite = null;
-    this.vignetteSprite = null;
+  setPlaymatSettings(settings: PlaymatSettings | undefined): void {
+    this.playmat.setSettings(settings);
   }
 
   private layoutEmptyText(): void {
@@ -1445,7 +1278,7 @@ export class BoardRegion {
   }
 
   destroy(): void {
-    this.destroyPlaymat();
+    this.playmat.destroy();
     this.effects.destroy();
     this.container.destroy({ children: true });
     this.entries.clear();

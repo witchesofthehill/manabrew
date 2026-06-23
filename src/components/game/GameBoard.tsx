@@ -540,12 +540,14 @@ export function GameBoard({
         isLocal: true,
         state: pixiBattlefield,
         playmat: gameDecks[me.id]?.playmat,
+        playmatSettings: gameDecks[me.id]?.playmatSettings,
       },
       ...opponents.map((op) => ({
         playerId: op.id,
         isLocal: false,
         state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
         playmat: gameDecks[op.id]?.playmat,
+        playmatSettings: gameDecks[op.id]?.playmatSettings,
       })),
     ];
   }, [

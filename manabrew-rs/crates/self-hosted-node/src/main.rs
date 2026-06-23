@@ -199,7 +199,7 @@ async fn run(mut config: Config) -> Result<(), Box<dyn std::error::Error + Send 
         && backend.is_supported()
         && matches!(backend, EngineBackendKind::Forge)
     {
-        info!("initializing shared java engine (one JVM for all hosted games)");
+        info!("initializing forge engine backend");
         java_backend::init_engine()?;
     }
 

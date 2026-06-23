@@ -33,6 +33,8 @@ public final class ForgeEngineReset {
             Field field = clazz.getDeclaredField(fieldName);
             field.setAccessible(true);
             field.setInt(null, 0);
+        } catch (ClassNotFoundException | NoSuchFieldException e) {
+            // Class or field absent in this Forge build — nothing to reset.
         } catch (Exception e) {
             System.err.printf("[manabrew-engine-reset] WARNING: Failed to reset %s.%s: %s%n",
                 className, fieldName, e.getMessage());

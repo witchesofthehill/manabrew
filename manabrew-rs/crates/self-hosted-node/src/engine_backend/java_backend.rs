@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use std::collections::HashMap;
 use std::env;
 #[cfg(feature = "java-forge")]
@@ -11,33 +11,38 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc as std_mpsc;
 #[cfg(feature = "java-forge")]
-use std::sync::mpsc::{RecvTimeoutError, TryRecvError};
+use std::sync::mpsc::RecvTimeoutError;
+#[cfg(forge_backend)]
+use std::sync::mpsc::TryRecvError;
 use std::sync::Arc;
 #[cfg(feature = "java-forge")]
 use std::sync::Mutex;
+#[cfg(forge_backend)]
+use std::time::Duration;
 #[cfg(feature = "java-forge")]
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use manabrew_agent_interface::deck_dto::{CardIdentity, Deck};
 
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
 use manabot::{BotAgent, SimpleAi};
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use manabrew_agent_interface::game_view_dto::GameViewDto;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use manabrew_agent_interface::prompt::{
-    AgentPrompt, ChooseActionOutput, DiceRolledOutput, GameOverInput, MulliganOutput,
-    MulliganPutBackOutput, PromptInput, StateUpdate,
+    AgentPrompt, ChooseActionOutput, DiceRolledOutput, GameOverInput, PromptInput, StateUpdate,
 };
+#[cfg(feature = "java-forge")]
+use manabrew_agent_interface::prompt::{MulliganOutput, MulliganPutBackOutput};
 use serde::Serialize;
 #[cfg(feature = "java-forge")]
 use serde_json::json;
 #[cfg(feature = "java-forge")]
 use serde_json::Value;
 use tracing::warn;
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use tracing::{debug, info};
 
 use super::HostedGameOver;
@@ -493,9 +498,17 @@ pub fn init_engine() -> Result<(), String> {
         .map_err(|_| "java engine already initialized".to_string())
 }
 
-#[cfg(not(feature = "java-forge"))]
+#[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
 pub fn init_engine() -> Result<(), String> {
-    Err("java engine requires building self-hosted-node with --features java-forge".to_string())
+    Ok(())
+}
+
+#[cfg(not(forge_backend))]
+pub fn init_engine() -> Result<(), String> {
+    Err(
+        "forge engine requires building self-hosted-node with --features java-forge or graal-forge"
+            .to_string(),
+    )
 }
 
 #[cfg(feature = "java-forge")]
@@ -504,6 +517,216 @@ fn engine_handle() -> Result<JavaEngineHandle, String> {
         .get()
         .map(JavaEnginePool::handle)
         .ok_or_else(|| "java engine is not initialized".to_string())
+}
+
+#[cfg(feature = "java-forge")]
+type ForgeEngine = JavaEngineHandle;
+
+#[cfg(feature = "java-forge")]
+fn obtain_engine() -> Result<ForgeEngine, String> {
+    engine_handle()
+}
+
+#[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
+type ForgeEngine = GraalEngineHandle;
+
+#[cfg(all(feature = "graal-forge", not(feature = "java-forge")))]
+fn obtain_engine() -> Result<ForgeEngine, String> {
+    GraalEngineHandle::create(&JavaRuntimeConfig::from_env().assets_dir)
+}
+
+#[cfg(feature = "graal-forge")]
+mod graal_ffi {
+    use std::os::raw::{c_char, c_int};
+
+    #[allow(non_camel_case_types)]
+    pub type graal_isolate_t = std::ffi::c_void;
+    #[allow(non_camel_case_types)]
+    pub type graal_isolatethread_t = std::ffi::c_void;
+
+    extern "C" {
+        pub fn graal_create_isolate(
+            params: *mut std::ffi::c_void,
+            isolate: *mut *mut graal_isolate_t,
+            thread: *mut *mut graal_isolatethread_t,
+        ) -> c_int;
+        pub fn graal_tear_down_isolate(thread: *mut graal_isolatethread_t) -> c_int;
+        pub fn forge_initialize(
+            thread: *mut graal_isolatethread_t,
+            assets_dir: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_start_game(
+            thread: *mut graal_isolatethread_t,
+            request_json: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_submit_action(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+            action_json: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_get_prompt(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+            player_index: c_int,
+        ) -> *mut c_char;
+        pub fn forge_get_snapshot(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_get_game_over(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_end_game(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_abort_game(
+            thread: *mut graal_isolatethread_t,
+            session_id: *const c_char,
+        ) -> *mut c_char;
+        pub fn forge_free_string(thread: *mut graal_isolatethread_t, ptr: *mut c_char);
+    }
+}
+
+#[cfg(feature = "graal-forge")]
+#[derive(serde::Deserialize)]
+struct ForgeReply {
+    ok: bool,
+    #[serde(default)]
+    result: String,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+// One GraalVM isolate hosts the in-process Forge engine. It is created on, and
+// confined to, the hosted-engine thread (isolate threads are not portable), so
+// the handle is Rc/!Send by design.
+#[cfg(feature = "graal-forge")]
+struct GraalBridge {
+    thread: *mut graal_ffi::graal_isolatethread_t,
+}
+
+#[cfg(feature = "graal-forge")]
+impl GraalBridge {
+    fn create() -> Result<Self, String> {
+        let mut isolate: *mut graal_ffi::graal_isolate_t = std::ptr::null_mut();
+        let mut thread: *mut graal_ffi::graal_isolatethread_t = std::ptr::null_mut();
+        let rc = unsafe {
+            graal_ffi::graal_create_isolate(std::ptr::null_mut(), &mut isolate, &mut thread)
+        };
+        if rc != 0 {
+            return Err(format!("graal_create_isolate failed with code {rc}"));
+        }
+        Ok(Self { thread })
+    }
+
+    fn decode(&self, raw: *mut std::os::raw::c_char) -> Result<String, String> {
+        if raw.is_null() {
+            return Err("forge native lib returned null".to_string());
+        }
+        let envelope = unsafe { std::ffi::CStr::from_ptr(raw) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { graal_ffi::forge_free_string(self.thread, raw) };
+        let reply: ForgeReply = serde_json::from_str(&envelope)
+            .map_err(|err| format!("malformed forge envelope: {err}"))?;
+        if reply.ok {
+            Ok(reply.result)
+        } else {
+            Err(reply
+                .error
+                .unwrap_or_else(|| "unknown forge error".to_string()))
+        }
+    }
+}
+
+#[cfg(feature = "graal-forge")]
+impl Drop for GraalBridge {
+    fn drop(&mut self) {
+        unsafe { graal_ffi::graal_tear_down_isolate(self.thread) };
+    }
+}
+
+#[cfg(feature = "graal-forge")]
+#[derive(Clone)]
+struct GraalEngineHandle {
+    bridge: std::rc::Rc<GraalBridge>,
+}
+
+#[cfg(feature = "graal-forge")]
+impl GraalEngineHandle {
+    fn create(assets_dir: &Path) -> Result<Self, String> {
+        let bridge = GraalBridge::create()?;
+        let assets = cstring(&assets_dir.to_string_lossy())?;
+        bridge.decode(unsafe { graal_ffi::forge_initialize(bridge.thread, assets.as_ptr()) })?;
+        Ok(Self {
+            bridge: std::rc::Rc::new(bridge),
+        })
+    }
+
+    fn start_game(&self, request_json: &str) -> Result<String, String> {
+        let request = cstring(request_json)?;
+        let response = self
+            .bridge
+            .decode(unsafe { graal_ffi::forge_start_game(self.bridge.thread, request.as_ptr()) })?;
+        let parsed: StartGameResponse = serde_json::from_str(&response)
+            .map_err(|err| format!("malformed startGame response: {err}"))?;
+        Ok(parsed.session_id)
+    }
+
+    fn submit_action(&self, session_id: &str, action_json: &str) -> Result<String, String> {
+        let session = cstring(session_id)?;
+        let action = cstring(action_json)?;
+        self.bridge.decode(unsafe {
+            graal_ffi::forge_submit_action(self.bridge.thread, session.as_ptr(), action.as_ptr())
+        })
+    }
+
+    fn get_prompt(&self, session_id: &str, player_index: usize) -> Result<Option<String>, String> {
+        let session = cstring(session_id)?;
+        let prompt = self.bridge.decode(unsafe {
+            graal_ffi::forge_get_prompt(
+                self.bridge.thread,
+                session.as_ptr(),
+                player_index as std::os::raw::c_int,
+            )
+        })?;
+        Ok((!prompt.is_empty()).then_some(prompt))
+    }
+
+    fn is_game_over(&self, session_id: &str) -> Result<bool, String> {
+        let session = cstring(session_id)?;
+        let value = self.bridge.decode(unsafe {
+            graal_ffi::forge_get_game_over(self.bridge.thread, session.as_ptr())
+        })?;
+        Ok(value.trim() == "true")
+    }
+
+    fn get_snapshot(&self, session_id: &str) -> Result<String, String> {
+        let session = cstring(session_id)?;
+        self.bridge
+            .decode(unsafe { graal_ffi::forge_get_snapshot(self.bridge.thread, session.as_ptr()) })
+    }
+
+    fn end_game(&self, session_id: &str) -> Result<(), String> {
+        let session = cstring(session_id)?;
+        self.bridge
+            .decode(unsafe { graal_ffi::forge_end_game(self.bridge.thread, session.as_ptr()) })
+            .map(|_| ())
+    }
+
+    fn abort_game(&self, session_id: &str) -> Result<(), String> {
+        let session = cstring(session_id)?;
+        self.bridge
+            .decode(unsafe { graal_ffi::forge_abort_game(self.bridge.thread, session.as_ptr()) })
+            .map(|_| ())
+    }
+}
+
+#[cfg(feature = "graal-forge")]
+fn cstring(value: &str) -> Result<std::ffi::CString, String> {
+    std::ffi::CString::new(value).map_err(|_| "string contained interior NUL".to_string())
 }
 
 #[cfg(feature = "java-forge")]
@@ -678,7 +901,7 @@ impl JavaRuntimeConfig {
     }
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 pub fn run_hosted_engine_game(
     game_id: String,
     player_names: Vec<String>,
@@ -709,7 +932,7 @@ pub fn run_hosted_engine_game(
     }
 }
 
-#[cfg(not(feature = "java-forge"))]
+#[cfg(not(forge_backend))]
 pub fn run_hosted_engine_game(
     _game_id: String,
     _player_names: Vec<String>,
@@ -729,7 +952,7 @@ pub fn run_hosted_engine_game(
     );
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 fn run_hosted_engine_game_inner(
     game_id: String,
     player_names: Vec<String>,
@@ -743,7 +966,7 @@ fn run_hosted_engine_game_inner(
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
     cancel: Arc<AtomicBool>,
 ) -> Result<(), String> {
-    let engine = engine_handle()?;
+    let engine = obtain_engine()?;
 
     let mut players = Vec::with_capacity(player_names.len());
     for (index, name) in player_names.iter().enumerate() {
@@ -764,7 +987,7 @@ fn run_hosted_engine_game_inner(
     info!(game_id, session_id, "hosted java-forge session started");
 
     struct SessionGuard {
-        engine: JavaEngineHandle,
+        engine: ForgeEngine,
         session_id: String,
         armed: std::cell::Cell<bool>,
     }
@@ -914,7 +1137,7 @@ fn wait_for_prompt<B: JavaBridge>(
     Ok(None)
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 fn player_index(deciding_player_id: &str) -> usize {
     deciding_player_id
         .strip_prefix("player-")
@@ -922,7 +1145,7 @@ fn player_index(deciding_player_id: &str) -> usize {
         .unwrap_or(0)
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
         PromptInput::ChooseAction(_) => {
@@ -934,7 +1157,7 @@ fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     }
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 fn game_over_prompt() -> AgentPrompt {
     AgentPrompt {
         prompt_id: u32::MAX,
@@ -944,14 +1167,14 @@ fn game_over_prompt() -> AgentPrompt {
     }
 }
 
-#[cfg(feature = "java-forge")]
-fn state_via_handle(engine: &JavaEngineHandle, session_id: &str) -> Result<StateUpdate, String> {
+#[cfg(forge_backend)]
+fn state_via_handle(engine: &ForgeEngine, session_id: &str) -> Result<StateUpdate, String> {
     let game_view: GameViewDto = serde_json::from_str(&engine.get_snapshot(session_id)?)
         .map_err(|err| format!("failed to parse java snapshot: {err}"))?;
     Ok(StateUpdate { game_view })
 }
 
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 fn deck_card_identities(deck: &Deck) -> Vec<CardIdentity> {
     deck.cards
         .iter()

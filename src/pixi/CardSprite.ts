@@ -548,8 +548,6 @@ export class CardSprite extends Container {
     const tex = await useScryfallStore
       .getState()
       .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
-    // A later loadImage (e.g. a fast face toggle) supersedes this one; bail so
-    // a slow earlier request can't overwrite the current face.
     if (this.destroyed || generation !== this.loadGeneration) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
@@ -830,8 +828,6 @@ export class CardSprite extends Container {
       this.sickFilter.destroy();
       this.sickFilter = null;
     }
-    // Only frame name/type use per-instance cloned styles; super.destroy is
-    // called without `style` so it won't touch the shared module styles.
     const frameNameStyle = this.frameNameText.style;
     const frameTypeStyle = this.frameTypeText.style;
     super.destroy(options);

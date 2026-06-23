@@ -360,8 +360,6 @@ export class ArrowLayer {
 
     const gradKey = `${ax1.toFixed(1)},${ay1.toFixed(1)},${ax2.toFixed(1)},${ay2.toFixed(1)},${hue}`;
     if (entry.gradKey !== gradKey || !entry.underGrad || !entry.coreGrad) {
-      // A moving arrow changes gradKey every frame; free the superseded
-      // gradients (each owns a GPU texture) before allocating replacements.
       entry.underGrad?.destroy();
       entry.coreGrad?.destroy();
       entry.underGrad = new FillGradient(ax1, ay1, ax2, ay2);

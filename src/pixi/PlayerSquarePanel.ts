@@ -426,8 +426,6 @@ export class PlayerSquarePanel implements PlayerPanel {
 
   destroy(): void {
     try {
-      // Each stat cell owns a cloned TextStyle; container.destroy doesn't free
-      // styles (mana counts share a module-level one, so style:true is unsafe).
       for (const cell of this.allStats) cell.value.style.destroy();
       this.container.destroy({ children: true });
     } catch {

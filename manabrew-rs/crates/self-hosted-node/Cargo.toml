@@ -7,6 +7,10 @@ edition = "2021"
 java-forge = []
 graal-forge = []
 
+[lib]
+name = "self_hosted_node"
+path = "src/lib.rs"
+
 [[bin]]
 name = "self-hosted-node"
 path = "src/main.rs"

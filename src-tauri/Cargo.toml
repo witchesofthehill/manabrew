@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 java-forge = ["dep:j4rs"]
+forge-room = ["dep:self-hosted-node"]
 
 [lib]
 name = "manabrew_lib"
@@ -28,7 +29,7 @@ forge-carddb = { path = "../manabrew-rs/crates/forge-carddb" }
 forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive" }
 memmap2 = "0.9"
 rand = "0.8"
-tokio = { version = "1", features = ["rt", "sync", "macros"] }
+tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
 manabrew-server = { path = "../manabrew-rs/crates/manabrew-server" }
@@ -38,3 +39,6 @@ manabrew_game_runtime = { path = "../manabrew-rs/crates/manabrew-game-runtime" }
 forge-limited = { path = "../manabrew-rs/crates/forge-limited" }
 tauri-plugin-http = "2.5.9"
 j4rs = { version = "0.25.1", optional = true }
+self-hosted-node = { path = "../manabrew-rs/crates/self-hosted-node", default-features = false, features = [
+    "graal-forge",
+], optional = true }

@@ -4,6 +4,7 @@ mod card_db;
 mod client_bot;
 mod commands;
 mod engine_backend;
+mod forge_room;
 mod game_manager;
 mod limited_bootstrap;
 mod limited_commands;
@@ -78,6 +79,7 @@ pub fn run() {
         .manage(ServerClient::new())
         .manage(ClientBotManager::new())
         .manage(LimitedManager::new())
+        .manage(forge_room::ForgeRoomHost::new())
         .invoke_handler(tauri::generate_handler![
             commands::start_game,
             commands::respond,
@@ -86,13 +88,14 @@ pub fn run() {
             commands::get_prompt,
             commands::get_preset_decks,
             commands::is_card_supported,
+            server_commands::server_stop_room,
+            server_commands::server_create_room,
             server_commands::server_connect,
             server_commands::server_disconnect,
             server_commands::server_spawn_ai_bot,
             server_commands::server_remove_ai_bot,
             server_commands::server_list_rooms,
             server_commands::server_list_players,
-            server_commands::server_create_room,
             server_commands::server_join_room,
             server_commands::server_leave_room,
             server_commands::server_set_ready,

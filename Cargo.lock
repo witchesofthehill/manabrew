@@ -3663,6 +3663,7 @@ dependencies = [
  "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
+ "self-hosted-node",
  "serde",
  "serde_json",
  "tauri",

@@ -6,8 +6,11 @@ use manabrew_agent_interface::protocol::GameFormat;
 use serde::Deserialize;
 use tracing::warn;
 
+use crate::engine_backend::EngineBackendKind;
+
 #[derive(Debug, Clone)]
 pub struct Config {
+    pub backend: EngineBackendKind,
     pub relay_url: String,
     pub username: String,
     pub password: String,
@@ -73,6 +76,7 @@ impl Config {
             .and_then(|value| parse_format(&value))
             .unwrap_or(GameFormat::Any);
         Self {
+            backend: EngineBackendKind::from_env(),
             relay_url: env_first("SELF_HOSTED_NODE_RELAY_URL", "FORGE_RELAY_URL")
                 .unwrap_or_else(|| "ws://127.0.0.1:9443".to_string()),
             username,
@@ -119,6 +123,43 @@ impl Config {
             forge_ai: env_bool("SELF_HOSTED_NODE_FORGE_AI", "FORGE_ROOM_FORGE_AI", false),
             host_deck: load_deck_selection(&host_deck_id, host_commander),
             bot_deck: load_deck_selection(&bot_deck_id, bot_commander),
+        }
+    }
+
+    /// Config for an embedded Forge room host (e.g. the Tauri desktop app):
+    /// reuse the caller's relay connection, host the engine without taking a
+    /// seat, no bot. Deck fields are placeholders — unused when `host_plays` and
+    /// `bot_enabled` are false.
+    pub fn for_hosted_room(
+        relay_url: String,
+        password: String,
+        room_name: String,
+        format: GameFormat,
+        max_players: u8,
+        room_password: Option<String>,
+    ) -> Self {
+        let username = format!("forge-host-{}", uuid::Uuid::new_v4());
+        let bot_username = format!("{username}-bot");
+        Self {
+            backend: EngineBackendKind::Forge,
+            relay_url,
+            username,
+            password,
+            room_id: None,
+            room_name,
+            max_players,
+            max_games: 1,
+            format,
+            auto_start: false,
+            engine_enabled: true,
+            host_plays: false,
+            official_key: None,
+            room_password,
+            bot_enabled: false,
+            bot_username,
+            forge_ai: false,
+            host_deck: synthetic_deck("forge-host", None),
+            bot_deck: synthetic_deck("forge-bot", None),
         }
     }
 }

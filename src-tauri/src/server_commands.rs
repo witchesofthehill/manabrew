@@ -1,8 +1,10 @@
+use manabrew_server::protocol::GameFormat;
 use tauri::{AppHandle, State};
 
-use crate::client_bot::ClientBotManager;
+use crate::forge_room::{start_forge_host, stop_forge_host};
 use crate::multiplayer_controller::relay_response_value;
 use crate::server_client::ServerClient;
+use crate::{client_bot::ClientBotManager, forge_room::ForgeRoomHost};
 use manabot::{AgentKind, BotConfig};
 use manabrew_agent_interface::deck_dto::Deck;
 
@@ -85,31 +87,55 @@ pub async fn server_list_players(client: State<'_, ServerClient>) -> Result<(), 
 }
 
 #[tauri::command]
+pub async fn server_stop_room(
+    client: State<'_, ServerClient>,
+    forge: State<'_, ForgeRoomHost>,
+) -> Result<(), String> {
+    match stop_forge_host(forge).await {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
 pub async fn server_create_room(
     client: State<'_, ServerClient>,
+    forge: State<'_, ForgeRoomHost>,
     room_name: String,
     max_players: u8,
-    format: String,
+    format: GameFormat,
     hosted: Option<bool>,
     engine: Option<String>,
     draft_config: Option<serde_json::Value>,
     sealed_config: Option<serde_json::Value>,
     reconnect_timeout_s: Option<u32>,
-) -> Result<(), String> {
-    send_server_message(
-        &client,
-        serde_json::json!({
-            "type": "CreateRoom",
-            "room_name": room_name,
-            "max_players": max_players,
-            "format": format,
-            "hosted": hosted.unwrap_or(false),
-            "engine": engine.unwrap_or_else(|| "Manabrew".to_string()),
-            "draft_config": draft_config,
-            "sealed_config": sealed_config,
-            "reconnect_timeout_s": reconnect_timeout_s,
-        }),
-    )
+    password: Option<String>,
+) -> Result<Option<String>, String> {
+    if engine == Some("Forge".to_string()) {
+        match start_forge_host(client, forge, room_name, format, max_players, password).await {
+            Ok(room_id) => Ok(Some(room_id)),
+            Err(e) => return Err(e),
+        }
+    } else {
+        match send_server_message(
+            &client,
+            serde_json::json!({
+                "type": "CreateRoom",
+                "room_name": room_name,
+                "max_players": max_players,
+                "format": format,
+                "hosted": hosted.unwrap_or(false),
+                "engine": engine.unwrap_or_else(|| "Manabrew".to_string()),
+                "draft_config": draft_config,
+                "sealed_config": sealed_config,
+                "reconnect_timeout_s": reconnect_timeout_s,
+                "password": password.filter(|value| !value.is_empty()),
+            }),
+        ) {
+            Ok(_) => Ok(None),
+            Err(e) => return Err(e),
+        }
+    }
 }
 
 #[tauri::command]

@@ -28,8 +28,17 @@ function walk(dir, ext) {
 // name -> raw TS type body, across all generated bindings.
 const tsBody = {};
 for (const f of walk(TS_DIR, ".ts")) {
-  for (const m of readFileSync(f, "utf8").matchAll(/export type (\w+) = ([^;]*);/g)) {
-    tsBody[m[1]] = m[2].trim();
+  const src = readFileSync(f, "utf8");
+  for (const m of src.matchAll(/export type (\w+) = /g)) {
+    let depth = 0;
+    let i = m.index + m[0].length;
+    for (; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "{" || ch === "(" || ch === "[") depth++;
+      else if (ch === "}" || ch === ")" || ch === "]") depth--;
+      else if (ch === ";" && depth === 0) break;
+    }
+    tsBody[m[1]] = src.slice(m.index + m[0].length, i).trim();
   }
 }
 const known = new Set(Object.keys(tsBody));

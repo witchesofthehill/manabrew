@@ -3,7 +3,7 @@ title: Contributing
 description: How the Manabrew project is organized and where to start helping.
 ---
 
-Manabrew is GPL-3.0-or-later and developed in the open at
+Manabrew is AGPL-3.0-or-later and developed in the open at
 [github.com/witchesofthehill/manabrew](https://github.com/witchesofthehill/manabrew).
 Read the repository's
 [CONTRIBUTING guide](https://github.com/witchesofthehill/manabrew/blob/main/CONTRIBUTING.md)
@@ -44,7 +44,7 @@ back to Forge or a documented convention — see
 The wire protocol between frontends and engine backends is specified in
 [PROTOCOL.md](https://github.com/witchesofthehill/manabrew/blob/main/docs/PROTOCOL.md)
 — message shapes, game-state snapshots, prompts, and actions. Unlike the
-GPL-licensed implementation, the spec itself is CC-BY-4.0, so independent
+AGPL-licensed implementation, the spec itself is CC-BY-4.0, so independent
 clients and engines can implement it without license entanglement.
 
 ## Where to start

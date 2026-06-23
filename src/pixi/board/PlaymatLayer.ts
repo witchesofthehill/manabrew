@@ -45,7 +45,7 @@ function hue2rgb(p: number, q: number, t: number): number {
  *  Applied at render time so it holds for every deck. */
 function clampColor(hex: string, lMin: number, lMax: number, sMax: number): string {
   const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!match) return hex;
+  if (!match) return "#000000";
   const int = parseInt(match[1], 16);
   const r = ((int >> 16) & 255) / 255;
   const g = ((int >> 8) & 255) / 255;

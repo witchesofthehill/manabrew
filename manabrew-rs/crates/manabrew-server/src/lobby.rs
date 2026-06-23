@@ -7,7 +7,7 @@ use crate::protocol::{
 use crate::replay::GameReplayCache;
 use crate::room::Room;
 use crate::state::ServerState;
-use manabrew_protocol::deck_dto::Deck;
+use manabrew_protocol::deck_dto::{Deck, PlaymatSettings};
 use manabrew_protocol::protocol::DEFAULT_RECONNECT_TIMEOUT_S;
 
 const MIN_RECONNECT_TIMEOUT_S: u32 = 10;
@@ -251,12 +251,23 @@ pub fn set_ready_sync(
 
 const MAX_COSMETIC_LEN: usize = 1_500_000;
 const COSMETIC_PREFIX: &str = "data:image/webp;base64,";
+const MAX_COLOR_LEN: usize = 32;
 
 /// Drop any cosmetic image that isn't a bounded WebP data URL — the client
 /// normalizes to WebP before sending, so anything else is malformed or oversized
 /// and must never reach a `GameStarted` broadcast.
 fn sanitize_cosmetic(value: Option<String>) -> Option<String> {
     value.filter(|s| s.len() <= MAX_COSMETIC_LEN && s.starts_with(COSMETIC_PREFIX))
+}
+
+/// Playmat render-tuning colors are free strings broadcast to everyone; cap their
+/// length so a deck can't smuggle a large payload through `playmatSettings`.
+fn sanitize_playmat_settings(settings: &mut PlaymatSettings) {
+    settings.color = settings.color.take().filter(|s| s.len() <= MAX_COLOR_LEN);
+    settings.border_color = settings
+        .border_color
+        .take()
+        .filter(|s| s.len() <= MAX_COLOR_LEN);
 }
 
 pub fn set_deck_selection_sync(
@@ -276,6 +287,9 @@ pub fn set_deck_selection_sync(
     };
 
     deck.playmat = sanitize_cosmetic(deck.playmat.take());
+    if let Some(settings) = deck.playmat_settings.as_mut() {
+        sanitize_playmat_settings(settings);
+    }
     let avatar = sanitize_cosmetic(avatar);
 
     {

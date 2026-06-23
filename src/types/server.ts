@@ -78,6 +78,8 @@ export interface PlayerDeckInfo {
   deck_name: string;
   deck: Deck;
   commander_name?: string;
+  /** Player's global avatar (normalized WebP data URL), broadcast to everyone at
+   *  game start. The deck's own playmat cosmetic rides along inside `deck`. */
   avatar?: string;
 }
 

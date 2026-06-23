@@ -8,6 +8,9 @@ pub struct PlayerDeckInfo {
     pub deck: Deck,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commander_name: Option<String>,
+    /// The player's global avatar (bounded WebP data URL), broadcast to everyone
+    /// in `GameStarted`. Sanitized server-side (`lobby::sanitize_cosmetic`). The
+    /// deck's own playmat cosmetic rides along inside `deck`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
 }
@@ -68,6 +71,8 @@ pub enum ClientMessage {
         deck_name: String,
         deck: Deck,
         commander_name: Option<String>,
+        /// Sender's global avatar (WebP data URL). Stored on the room slot and
+        /// surfaced to all players via `PlayerDeckInfo.avatar` at game start.
         #[serde(default)]
         avatar: Option<String>,
     },

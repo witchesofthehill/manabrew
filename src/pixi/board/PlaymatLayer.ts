@@ -27,6 +27,9 @@ const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 const BORDER_LIGHTNESS_MIN = 0.04;
 const BORDER_LIGHTNESS_MAX = 0.42;
 const BORDER_SATURATION_MAX = 0.5;
+const BACKGROUND_LIGHTNESS_MIN = 0.03;
+const BACKGROUND_LIGHTNESS_MAX = 0.4;
+const BACKGROUND_SATURATION_MAX = 0.5;
 
 function hue2rgb(p: number, q: number, t: number): number {
   if (t < 0) t += 1;
@@ -37,10 +40,10 @@ function hue2rgb(p: number, q: number, t: number): number {
   return p;
 }
 
-/** Clamp a border color's lightness and saturation so the frame stays muted.
- *  A too-bright or saturated border pulls focus from the cards, which must always
- *  be the foreground. Applied at render time so it holds for every deck. */
-export function clampBorderColor(hex: string): string {
+/** Clamp a color's lightness and saturation into a muted range (hue preserved).
+ *  Keeps the playmat firmly in the background so the cards stay the foreground.
+ *  Applied at render time so it holds for every deck. */
+function clampColor(hex: string, lMin: number, lMax: number, sMax: number): string {
   const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
   if (!match) return hex;
   const int = parseInt(match[1], 16);
@@ -60,8 +63,8 @@ export function clampBorderColor(hex: string): string {
     else h = (r - g) / d + 4;
     h /= 6;
   }
-  const cl = Math.min(BORDER_LIGHTNESS_MAX, Math.max(BORDER_LIGHTNESS_MIN, l));
-  const cs = Math.min(BORDER_SATURATION_MAX, s);
+  const cl = Math.min(lMax, Math.max(lMin, l));
+  const cs = Math.min(sMax, s);
   let cr: number;
   let cg: number;
   let cb: number;
@@ -80,6 +83,12 @@ export function clampBorderColor(hex: string): string {
       .padStart(2, "0");
   return `#${toHex(cr)}${toHex(cg)}${toHex(cb)}`;
 }
+
+export const clampBorderColor = (hex: string): string =>
+  clampColor(hex, BORDER_LIGHTNESS_MIN, BORDER_LIGHTNESS_MAX, BORDER_SATURATION_MAX);
+
+export const clampPlaymatColor = (hex: string): string =>
+  clampColor(hex, BACKGROUND_LIGHTNESS_MIN, BACKGROUND_LIGHTNESS_MAX, BACKGROUND_SATURATION_MAX);
 
 /** A tileable woven-cloth tile on a white base (white = identity under MULTIPLY,
  *  so only the darker threads register as cloth grain over the playmat art). */
@@ -237,7 +246,7 @@ export class PlaymatLayer {
     this.colorFill.clear();
     if (this.settings.color) {
       this.colorFill.rect(rect.x, rect.y, rect.width, rect.height);
-      this.colorFill.fill({ color: hexToNum(this.settings.color) });
+      this.colorFill.fill({ color: hexToNum(clampPlaymatColor(this.settings.color)) });
     }
 
     const tw = this.image.texture.width || 1;

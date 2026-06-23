@@ -13,6 +13,7 @@ import {
   PlaymatLayer,
   DEFAULT_PLAYMAT_SETTINGS,
   clampBorderColor,
+  clampPlaymatColor,
 } from "@/pixi/board/PlaymatLayer";
 import { computeBoardLayout } from "@/pixi/board/boardLayout";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
@@ -318,7 +319,7 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
                 <input
                   type="color"
                   value={settings.color || "#000000"}
-                  onChange={(e) => update({ color: e.target.value })}
+                  onChange={(e) => update({ color: clampPlaymatColor(e.target.value) })}
                   className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
                 />
                 <input
@@ -326,7 +327,8 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
                   placeholder="none"
                   onChange={(e) => {
                     setBgHex(e.target.value);
-                    if (HEX_RE.test(e.target.value)) update({ color: e.target.value });
+                    if (HEX_RE.test(e.target.value))
+                      update({ color: clampPlaymatColor(e.target.value) });
                   }}
                   onBlur={() => setBgHex(settings.color)}
                   spellCheck={false}

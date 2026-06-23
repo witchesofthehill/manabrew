@@ -150,6 +150,24 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
             />
           </div>
 
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Image placement</Label>
+            <div className="flex gap-2">
+              {(["cover", "fit", "stretch"] as const).map((mode) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  variant={settings.fit === mode ? "default" : "outline"}
+                  onClick={() => update({ fit: mode })}
+                  className="flex-1 capitalize"
+                >
+                  {mode}
+                </Button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">

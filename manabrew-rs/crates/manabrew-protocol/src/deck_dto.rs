@@ -92,6 +92,8 @@ pub struct PlaymatSettings {
     pub border_width: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub border_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fit: Option<String>,
 }
 
 /// Mirror of `manabrew.ts:Deck`. The engine cares about `cards`,

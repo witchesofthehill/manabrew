@@ -102,6 +102,11 @@ export interface DeckLabel {
   color?: string;
 }
 
+/** How the playmat image is scaled into the battlefield region. `cover` fills and
+ *  crops overflow, `fit` shows the whole image with margins, `stretch` fills exactly
+ *  by distorting the aspect ratio. */
+export type PlaymatFit = "cover" | "fit" | "stretch";
+
 export interface PlaymatSettings {
   /** 0..1 — overall playmat opacity over the felt. */
   opacity?: number;
@@ -111,6 +116,8 @@ export interface PlaymatSettings {
   borderWidth?: number;
   /** Border color as a hex string. */
   borderColor?: string;
+  /** Image placement mode. */
+  fit?: PlaymatFit;
 }
 
 export interface Deck {

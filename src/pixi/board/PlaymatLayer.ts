@@ -8,8 +8,9 @@ import { safeDestroy } from "./pixiHelpers";
 export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   opacity: 0.62,
   texture: 0.5,
-  borderWidth: 0,
+  borderWidth: 2,
   borderColor: "#000000",
+  fit: "cover",
 };
 
 const PLAYMAT_DROP_DIM = 0.29;
@@ -160,7 +161,15 @@ export class PlaymatLayer {
 
     const tw = this.image.texture.width || 1;
     const th = this.image.texture.height || 1;
-    this.image.scale.set(Math.max(rect.width / tw, rect.height / th));
+    const sx = rect.width / tw;
+    const sy = rect.height / th;
+    if (this.settings.fit === "stretch") {
+      this.image.scale.set(sx, sy);
+    } else if (this.settings.fit === "fit") {
+      this.image.scale.set(Math.min(sx, sy));
+    } else {
+      this.image.scale.set(Math.max(sx, sy));
+    }
     this.image.x = rect.x + rect.width / 2;
     this.image.y = rect.y + rect.height / 2;
 

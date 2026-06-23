@@ -19,6 +19,7 @@ import type { PlaymatSettings } from "@/types/manabrew";
 
 const PREVIEW_WIDTH = 560;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 /** The local player's battlefield felt aspect ratio, mirroring GameBoard's
  *  region + hand-reserve math, so the preview is shaped like the real board. */
@@ -54,6 +55,8 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const naturalRef = useRef<{ w: number; h: number }>({ w: 1, h: 1 });
   const [ready, setReady] = useState(false);
+  const [borderHex, setBorderHex] = useState(settings.borderColor);
+  useEffect(() => setBorderHex(settings.borderColor), [settings.borderColor]);
 
   useEffect(() => {
     if (!playmat) return;
@@ -203,77 +206,72 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Image placement</Label>
-            <div className="flex gap-2">
+            <Label className="text-xs font-medium text-muted-foreground">Image placement</Label>
+            <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
               {(["cover", "fit", "stretch"] as const).map((mode) => (
-                <Button
+                <button
                   key={mode}
                   type="button"
-                  size="sm"
-                  variant={settings.fit === mode ? "default" : "outline"}
                   onClick={() => update({ fit: mode })}
-                  className="flex-1 capitalize"
+                  className={cn(
+                    "flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                    settings.fit === mode
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
                   {mode}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Opacity ({Math.round(settings.opacity * 100)}%)
-              </Label>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                step={1}
-                value={Math.round(settings.opacity * 100)}
-                onChange={(e) => update({ opacity: Number(e.target.value) / 100 })}
-                className="w-full accent-primary"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Cloth texture ({Math.round(settings.texture * 100)}%)
-              </Label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={Math.round(settings.texture * 100)}
-                onChange={(e) => update({ texture: Number(e.target.value) / 100 })}
-                className="w-full accent-primary"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Border width ({settings.borderWidth}px)
-              </Label>
-              <input
-                type="range"
-                min={0}
-                max={40}
-                step={1}
-                value={settings.borderWidth}
-                onChange={(e) => update({ borderWidth: Number(e.target.value) })}
-                className="w-full accent-primary"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Border color</Label>
-              <input
-                type="color"
-                value={settings.borderColor}
-                onChange={(e) => update({ borderColor: e.target.value })}
-                className="h-9 w-full cursor-pointer rounded-md border bg-background"
-              />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SliderControl
+              label="Opacity"
+              value={`${Math.round(settings.opacity * 100)}%`}
+              min={10}
+              max={100}
+              current={Math.round(settings.opacity * 100)}
+              onChange={(v) => update({ opacity: v / 100 })}
+            />
+            <SliderControl
+              label="Cloth texture"
+              value={`${Math.round(settings.texture * 100)}%`}
+              min={0}
+              max={100}
+              current={Math.round(settings.texture * 100)}
+              onChange={(v) => update({ texture: v / 100 })}
+            />
+            <SliderControl
+              label="Border width"
+              value={`${settings.borderWidth}px`}
+              min={0}
+              max={40}
+              current={settings.borderWidth}
+              onChange={(v) => update({ borderWidth: v })}
+            />
+            <div className="rounded-lg border bg-card/40 p-3 space-y-2">
+              <Label className="text-xs font-medium">Border color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={settings.borderColor}
+                  onChange={(e) => update({ borderColor: e.target.value })}
+                  className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                />
+                <input
+                  value={borderHex}
+                  onChange={(e) => {
+                    setBorderHex(e.target.value);
+                    if (HEX_RE.test(e.target.value)) update({ borderColor: e.target.value });
+                  }}
+                  onBlur={() => setBorderHex(settings.borderColor)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -306,5 +304,41 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
         </Button>
       </Modal.Footer>
     </Modal>
+  );
+}
+
+function SliderControl({
+  label,
+  value,
+  min,
+  max,
+  current,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  min: number;
+  max: number;
+  current: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-lg border bg-card/40 p-3">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium">{label}</Label>
+        <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+          {value}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={1}
+        value={current}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-primary"
+      />
+    </div>
   );
 }

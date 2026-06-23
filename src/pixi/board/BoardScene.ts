@@ -61,6 +61,7 @@ import type {
 export interface BoardPlayerSpec {
   playerId: string;
   isLocal: boolean;
+  playmat?: string;
 }
 
 interface RegionRecord {
@@ -197,6 +198,7 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.setZone(zone, orientation);
         existing.region.setCardScale(cardScale);
+        existing.region.setPlaymat(spec.playmat);
         continue;
       }
       const region = new BoardRegion(
@@ -206,6 +208,7 @@ export class BoardScene {
         cardScale,
         { orientation },
       );
+      region.setPlaymat(spec.playmat);
       region.container.zIndex = spec.isLocal ? 100 : 50;
       region.setAutoSort(this.autoSort);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });

@@ -1,4 +1,12 @@
-import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import {
+  Container,
+  Graphics,
+  ImageSource,
+  Sprite,
+  Text,
+  Texture,
+  type FederatedPointerEvent,
+} from "pixi.js";
 import type { GameCard } from "@/types/manabrew";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
@@ -99,6 +107,9 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private playmatUrl: string | null = null;
+  private playmatSprite: Sprite | null = null;
+  private playmatMask: Graphics | null = null;
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
@@ -973,6 +984,70 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
+    this.layoutPlaymat();
+  }
+
+  setPlaymat(url: string | undefined): void {
+    const next = url ?? null;
+    if (next === this.playmatUrl) return;
+    this.playmatUrl = next;
+    if (!next) {
+      this.destroyPlaymat();
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      if (this.host.isDestroyed() || this.playmatUrl !== next) return;
+      const texture = new Texture({ source: new ImageSource({ resource: img }) });
+      if (!this.playmatSprite) {
+        const sprite = new Sprite();
+        sprite.anchor.set(0.5);
+        sprite.eventMode = "none";
+        sprite.zIndex = -9;
+        this.container.addChild(sprite);
+        this.playmatSprite = sprite;
+      } else {
+        this.playmatSprite.texture?.destroy(true);
+      }
+      this.playmatSprite.texture = texture;
+      this.layoutPlaymat();
+    };
+    img.src = next;
+  }
+
+  private layoutPlaymat(): void {
+    const sprite = this.playmatSprite;
+    if (!sprite) return;
+    const felt = this.usableZone();
+    const tw = sprite.texture.width || 1;
+    const th = sprite.texture.height || 1;
+    sprite.scale.set(Math.max(felt.width / tw, felt.height / th));
+    sprite.x = felt.x + felt.width / 2;
+    sprite.y = felt.y + felt.height / 2;
+    sprite.alpha = this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE;
+    if (!this.playmatMask) {
+      this.playmatMask = new Graphics();
+      this.container.addChild(this.playmatMask);
+      sprite.mask = this.playmatMask;
+    }
+    this.playmatMask.clear();
+    this.playmatMask.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
+    this.playmatMask.fill({ color: 0xffffff });
+  }
+
+  private destroyPlaymat(): void {
+    if (this.playmatSprite) {
+      this.playmatSprite.mask = null;
+      this.container.removeChild(this.playmatSprite);
+      this.playmatSprite.texture?.destroy(true);
+      safeDestroy(this.playmatSprite);
+      this.playmatSprite = null;
+    }
+    if (this.playmatMask) {
+      this.container.removeChild(this.playmatMask);
+      safeDestroy(this.playmatMask);
+      this.playmatMask = null;
+    }
   }
 
   private layoutEmptyText(): void {
@@ -1263,6 +1338,7 @@ export class BoardRegion {
   }
 
   destroy(): void {
+    this.destroyPlaymat();
     this.effects.destroy();
     this.container.destroy({ children: true });
     this.entries.clear();

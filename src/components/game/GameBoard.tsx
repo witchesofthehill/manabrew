@@ -10,6 +10,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { useGameStore } from "@/stores/useGameStore";
 import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
@@ -510,6 +511,8 @@ export function GameBoard({
     [opponents.length, opponentSplits],
   );
 
+  const gameDecks = useGameStore((s) => s.gameDecks);
+
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const oppState = (cards: GameCard[]): BattlefieldState => ({
       cards,
@@ -519,11 +522,17 @@ export function GameBoard({
       hostileTargeting,
     });
     return [
-      { playerId: me.id, isLocal: true, state: pixiBattlefield },
+      {
+        playerId: me.id,
+        isLocal: true,
+        state: pixiBattlefield,
+        playmat: gameDecks[me.id]?.playmat,
+      },
       ...opponents.map((op) => ({
         playerId: op.id,
         isLocal: false,
         state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
+        playmat: gameDecks[op.id]?.playmat,
       })),
     ];
   }, [
@@ -536,6 +545,7 @@ export function GameBoard({
     damageOrder,
     selectableBattlefieldCardIds,
     hostileTargeting,
+    gameDecks,
   ]);
 
   const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;

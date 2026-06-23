@@ -57,6 +57,8 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
   const [ready, setReady] = useState(false);
   const [borderHex, setBorderHex] = useState(settings.borderColor);
   useEffect(() => setBorderHex(settings.borderColor), [settings.borderColor]);
+  const [bgHex, setBgHex] = useState(settings.color);
+  useEffect(() => setBgHex(settings.color), [settings.color]);
 
   useEffect(() => {
     if (!playmat) return;
@@ -273,6 +275,40 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
             </div>
+
+            <div className="space-y-2 rounded-lg border bg-card/40 p-3">
+              <Label className="text-xs font-medium">Background color</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={settings.color || "#000000"}
+                  onChange={(e) => update({ color: e.target.value })}
+                  className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                />
+                <input
+                  value={bgHex}
+                  placeholder="none"
+                  onChange={(e) => {
+                    setBgHex(e.target.value);
+                    if (HEX_RE.test(e.target.value)) update({ color: e.target.value });
+                  }}
+                  onBlur={() => setBgHex(settings.color)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
+                />
+                {settings.color && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 px-2"
+                    onClick={() => update({ color: "" })}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </Modal.Body>
@@ -286,19 +322,22 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
         />
         <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
           <ImagePlus className="h-4 w-4" />
-          Replace image
+          {playmat ? "Replace image" : "Upload image"}
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            setPlaymat(undefined);
-            onClose();
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-          Remove playmat
-        </Button>
+        {(playmat || settings.color) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setPlaymat(undefined);
+              update({ color: "" });
+              onClose();
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Remove playmat
+          </Button>
+        )}
         <Button size="sm" className="ml-auto" onClick={onClose}>
           Done
         </Button>

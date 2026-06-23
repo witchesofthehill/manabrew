@@ -13,6 +13,7 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   fit: "cover",
   offsetX: 0.5,
   offsetY: 0.5,
+  color: "",
 };
 
 const PLAYMAT_DROP_DIM = 0.29;
@@ -91,6 +92,7 @@ function getVignetteTexture(): Texture {
 export class PlaymatLayer {
   readonly container: Container;
   private content: Container;
+  private colorFill: Graphics;
   private image: Sprite;
   private fabric: TilingSprite;
   private vignette: Sprite;
@@ -108,16 +110,18 @@ export class PlaymatLayer {
     this.container.visible = false;
 
     this.content = new Container();
+    this.colorFill = new Graphics();
     this.image = new Sprite();
     this.image.anchor.set(0.5);
     this.image.tint = PLAYMAT_TINT;
+    this.image.visible = false;
     this.fabric = new TilingSprite({ texture: getFabricTexture() });
     this.fabric.tileScale.set(PLAYMAT_FABRIC_TILE_SCALE);
     this.fabric.blendMode = "multiply";
     this.vignette = new Sprite(getVignetteTexture());
     this.vignette.alpha = PLAYMAT_VIGNETTE_ALPHA;
     this.border = new Graphics();
-    this.content.addChild(this.image, this.fabric, this.vignette, this.border);
+    this.content.addChild(this.colorFill, this.image, this.fabric, this.vignette, this.border);
 
     this.mask = new Graphics();
     this.container.addChild(this.content, this.mask);
@@ -132,7 +136,9 @@ export class PlaymatLayer {
     if (!next) {
       this.imageTexture?.destroy(true);
       this.imageTexture = null;
-      this.container.visible = false;
+      this.image.visible = false;
+      this.updateVisibility();
+      if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
       return;
     }
     const img = new Image();
@@ -141,7 +147,8 @@ export class PlaymatLayer {
       this.imageTexture?.destroy(true);
       this.imageTexture = new Texture({ source: new ImageSource({ resource: img }) });
       this.image.texture = this.imageTexture;
-      this.container.visible = true;
+      this.image.visible = true;
+      this.updateVisibility();
       if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
     };
     img.src = next;
@@ -150,7 +157,12 @@ export class PlaymatLayer {
   setSettings(settings: PlaymatSettings | undefined): void {
     this.settings = { ...DEFAULT_PLAYMAT_SETTINGS, ...(settings ?? {}) };
     this.applySettings();
+    this.updateVisibility();
     if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+  }
+
+  private updateVisibility(): void {
+    this.container.visible = !!this.url || !!this.settings.color;
   }
 
   private applySettings(): void {
@@ -160,6 +172,12 @@ export class PlaymatLayer {
   layout(rect: PlayZoneRect, opts: { dropActive: boolean }): void {
     this.rect = rect;
     this.dropActive = opts.dropActive;
+
+    this.colorFill.clear();
+    if (this.settings.color) {
+      this.colorFill.rect(rect.x, rect.y, rect.width, rect.height);
+      this.colorFill.fill({ color: hexToNum(this.settings.color) });
+    }
 
     const tw = this.image.texture.width || 1;
     const th = this.image.texture.height || 1;

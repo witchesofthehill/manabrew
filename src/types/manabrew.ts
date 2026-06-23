@@ -122,6 +122,9 @@ export interface PlaymatSettings {
    *  0.5/0.5 is centered. Drag-set in the editor to choose which part of the image shows. */
   offsetX?: number;
   offsetY?: number;
+  /** Solid playmat color (hex) drawn behind the image; with no image it is the whole
+   *  playmat. Empty string means none. */
+  color?: string;
 }
 
 export interface Deck {

@@ -98,6 +98,8 @@ pub struct PlaymatSettings {
     pub offset_x: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub offset_y: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 
 /// Mirror of `manabrew.ts:Deck`. The engine cares about `cards`,

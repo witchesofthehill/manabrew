@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Check, ChevronDown, ImagePlus, Pencil } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +14,6 @@ import { DeckLabelBadge } from "@/components/deck/DeckLabelBadge";
 import { resolveCoverCard } from "@/components/deck/deckCover.utils";
 import { GAME_FORMATS, getFormat } from "@/lib/formats";
 import { useDeckStore } from "@/stores/useDeckStore";
-import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { PlaymatEditorModal } from "./PlaymatEditorModal";
 import { cn } from "@/lib/utils";
 import type { DeckFormatId } from "@/types/manabrew";
@@ -25,28 +23,15 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
   const setDeckFormat = useDeckStore((s) => s.setDeckFormat);
-  const setPlaymat = useDeckStore((s) => s.setPlaymat);
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(currentDeck.name);
   const [editorOpen, setEditorOpen] = useState(false);
-  const playmatInputRef = useRef<HTMLInputElement>(null);
 
   const playmat = currentDeck.playmat;
+  const playmatColor = currentDeck.playmatSettings?.color;
   const coverArt = resolveCoverCard(currentDeck)?.uris?.art_crop;
 
-  async function onPlaymatPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      setPlaymat(await normalizeToWebp(file, PLAYMAT_IMAGE_BUDGET));
-    } catch (err) {
-      toast.error(
-        err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as a playmat",
-      );
-    }
-  }
   const commanders = currentDeck.commanders ?? [];
   const mainCount = currentDeck.cards.length + commanders.length;
   const sideCount = currentDeck.sideboard.length;
@@ -91,34 +76,28 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
 
       {!isReadOnly && (
         <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
-          <input
-            ref={playmatInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onPlaymatPick}
-          />
-          {playmat ? (
-            <button
-              type="button"
-              title="Customize playmat"
-              onClick={() => setEditorOpen(true)}
-              className="inline-flex items-center gap-2 rounded-md border bg-background/60 p-1 pr-2.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
-            >
-              <img src={playmat} alt="Deck playmat" className="h-7 w-11 rounded object-cover" />
-              <span>Edit playmat</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              title="Add playmat"
-              onClick={() => playmatInputRef.current?.click()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-background/60 px-2.5 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground"
-            >
+          <button
+            type="button"
+            title="Customize playmat"
+            onClick={() => setEditorOpen(true)}
+            className={cn(
+              "inline-flex h-8 items-center gap-2 rounded-md border bg-background/60 text-xs font-medium text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background/80 hover:text-foreground",
+              playmat || playmatColor ? "p-1 pr-2.5" : "px-2.5",
+            )}
+          >
+            {playmat ? (
+              <img src={playmat} alt="Deck playmat" className="h-6 w-10 rounded object-cover" />
+            ) : playmatColor ? (
+              <span
+                className="h-6 w-10 rounded border"
+                style={{ backgroundColor: playmatColor }}
+                aria-hidden
+              />
+            ) : (
               <ImagePlus className="h-4 w-4" />
-              <span>Playmat</span>
-            </button>
-          )}
+            )}
+            <span>{playmat || playmatColor ? "Edit playmat" : "Playmat"}</span>
+          </button>
         </div>
       )}
 

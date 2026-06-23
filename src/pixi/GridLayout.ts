@@ -108,10 +108,7 @@ export const computeGridLayout = (
   const midCol = (cols - 1) / 2;
   // Card center for midCol: originX + midCol * cellW + cardW/2 = zoneCenterX
   const originX = zoneCenterX - midCol * cellW - cardW / 2;
-  // Top-anchor: cards pack from the top of the zone, leaving the bottom
-  // clear for the hand fan and UI overlays.  A small top margin keeps
-  // the first row from kissing the zone edge.
-  const topMargin = Math.min(GAP, Math.max(0, (usableH - gridH) / 2));
+  const topMargin = Math.max(0, (usableH - gridH) / 2);
   const originY = zone.y + topMargin;
 
   const cells: GridCell[] = new Array(cols * rows);

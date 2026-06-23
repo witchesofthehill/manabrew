@@ -820,6 +820,10 @@ class WebServerApi implements IServerApi {
     return null;
   }
 
+  async stopRoom(): Promise<void> {
+    // No embedded room host on web — the relay owns room lifecycle.
+  }
+
   async joinRoom(params: JoinRoomParams): Promise<void> {
     this.send({
       type: "JoinRoom",

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Application, Graphics } from "pixi.js";
+import { Application, Graphics, Sprite, Texture } from "pixi.js";
 import { toast } from "sonner";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { useDeckStore } from "@/stores/useDeckStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
 import {
@@ -19,11 +20,17 @@ import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
 import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { cn } from "@/lib/utils";
-import type { PlaymatSettings } from "@/types/manabrew";
+import type { DeckCard, PlaymatSettings } from "@/types/manabrew";
 
 const PREVIEW_WIDTH = 560;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+// A few real cards shown over the preview so the mat reads as the background it is.
+const PREVIEW_CARD_NAMES = ["Serra Angel", "Tarmogoyf", "Steam Vents"];
+function sampleDeckCard(name: string): DeckCard {
+  return { name, setCode: "", cardNumber: "" } as unknown as DeckCard;
+}
 
 /** The local player's battlefield felt aspect ratio, mirroring GameBoard's
  *  region + hand-reserve math, so the preview is shaped like the real board. */
@@ -159,6 +166,30 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
       layerRef.current = layer;
       feltRef.current = felt;
       setReady(true);
+
+      const cardH = previewHeight * 0.62;
+      const cardW = cardH * 0.716;
+      const gap = cardW * 0.16;
+      const total = PREVIEW_CARD_NAMES.length * cardW + (PREVIEW_CARD_NAMES.length - 1) * gap;
+      let cardX = (PREVIEW_WIDTH - total) / 2 + cardW / 2;
+      const cardY = previewHeight * 0.56;
+      for (const name of PREVIEW_CARD_NAMES) {
+        const tex = await useScryfallStore
+          .getState()
+          .getCardTexture(sampleDeckCard(name), "full", 0)
+          .catch(() => Texture.EMPTY);
+        if (disposed) return;
+        if (tex !== Texture.EMPTY) {
+          const sprite = new Sprite(tex);
+          sprite.anchor.set(0.5);
+          sprite.eventMode = "none";
+          sprite.scale.set(cardH / (tex.height || 1040));
+          sprite.x = cardX;
+          sprite.y = cardY;
+          app.stage.addChild(sprite);
+        }
+        cardX += cardW + gap;
+      }
     })();
     return () => {
       disposed = true;

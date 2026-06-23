@@ -120,11 +120,15 @@ export class PlaymatLayer {
     this.fabric.blendMode = "multiply";
     this.vignette = new Sprite(getVignetteTexture());
     this.vignette.alpha = PLAYMAT_VIGNETTE_ALPHA;
-    this.border = new Graphics();
-    this.content.addChild(this.colorFill, this.image, this.fabric, this.vignette, this.border);
+    this.content.addChild(this.colorFill, this.image, this.fabric, this.vignette);
 
     this.mask = new Graphics();
-    this.container.addChild(this.content, this.mask);
+    // The border is intentionally NOT a child of `content`: a Graphics mask clips
+    // through the (1-bit, non-antialiased) stencil buffer, so its rounded corners
+    // are aliased and would chop the stroke. Drawn unmasked and on top, the stroke
+    // keeps Pixi's crisp antialiased corners and covers the content's clipped edge.
+    this.border = new Graphics();
+    this.container.addChild(this.content, this.mask, this.border);
     this.content.mask = this.mask;
     this.applySettings();
   }
@@ -228,6 +232,7 @@ export class PlaymatLayer {
 
     const opacity = clamp01(this.settings.opacity);
     this.content.alpha = opts.dropActive ? opacity * PLAYMAT_DROP_DIM : opacity;
+    this.border.alpha = this.content.alpha;
   }
 
   destroy(): void {

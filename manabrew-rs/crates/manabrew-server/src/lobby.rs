@@ -249,12 +249,23 @@ pub fn set_ready_sync(
     Ok(room_id)
 }
 
+const MAX_COSMETIC_LEN: usize = 1_500_000;
+const COSMETIC_PREFIX: &str = "data:image/webp;base64,";
+
+/// Drop any cosmetic image that isn't a bounded WebP data URL — the client
+/// normalizes to WebP before sending, so anything else is malformed or oversized
+/// and must never reach a `GameStarted` broadcast.
+fn sanitize_cosmetic(value: Option<String>) -> Option<String> {
+    value.filter(|s| s.len() <= MAX_COSMETIC_LEN && s.starts_with(COSMETIC_PREFIX))
+}
+
 pub fn set_deck_selection_sync(
     state: &Arc<ServerState>,
     player_id: &str,
     deck_name: String,
-    deck: Deck,
+    mut deck: Deck,
     commander_name: Option<String>,
+    avatar: Option<String>,
 ) -> Result<String, ServerError> {
     let room_id = {
         state
@@ -263,6 +274,9 @@ pub fn set_deck_selection_sync(
             .and_then(|p| p.room_id.clone())
             .ok_or(ServerError::NotInRoom)?
     };
+
+    deck.playmat = sanitize_cosmetic(deck.playmat.take());
+    let avatar = sanitize_cosmetic(avatar);
 
     {
         let mut room = state
@@ -274,7 +288,7 @@ pub fn set_deck_selection_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        room.set_deck_selection(player_id, deck_name, deck, commander_name)
+        room.set_deck_selection(player_id, deck_name, deck, commander_name, avatar)
             .map_err(|_| ServerError::NotInRoom)?;
     }
 

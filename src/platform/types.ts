@@ -81,6 +81,7 @@ export interface SetDeckSelectionParams {
   deckName: string;
   deck: Deck;
   commanderName: string | null;
+  avatar?: string;
 }
 
 export interface StartServerGameParams {

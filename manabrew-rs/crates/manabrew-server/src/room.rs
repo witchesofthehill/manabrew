@@ -15,6 +15,7 @@ pub struct RoomSlot {
     pub selected_deck_name: Option<String>,
     pub selected_deck: Option<Deck>,
     pub selected_commander_name: Option<String>,
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -72,6 +73,7 @@ impl Room {
                     selected_deck_name: None,
                     selected_deck: None,
                     selected_commander_name: None,
+                    avatar: None,
                 }],
                 vec![],
             )
@@ -162,6 +164,7 @@ impl Room {
             selected_deck_name: None,
             selected_deck: None,
             selected_commander_name: None,
+            avatar: None,
         });
         Ok(())
     }
@@ -237,11 +240,13 @@ impl Room {
         deck_name: String,
         deck: Deck,
         commander_name: Option<String>,
+        avatar: Option<String>,
     ) -> Result<(), String> {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.selected_deck_name = Some(deck_name);
             slot.selected_deck = Some(deck);
             slot.selected_commander_name = commander_name;
+            slot.avatar = avatar;
             slot.ready = false;
             Ok(())
         } else {
@@ -269,6 +274,7 @@ impl Room {
                         .unwrap_or_else(|| "Unknown Deck".to_string()),
                     deck,
                     commander_name: p.selected_commander_name.clone(),
+                    avatar: p.avatar.clone(),
                 })
             })
             .collect()

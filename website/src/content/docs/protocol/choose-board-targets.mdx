@@ -1,0 +1,69 @@
+---
+title: "chooseBoardTargets"
+description: Ask the player to choose targets on the board for a spell or ability.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when a spell or ability needs targets chosen from the board — players,
+permanents, or spells on the stack. For example, picking the creature or player
+Lightning Bolt will deal 3 damage to.
+
+:::note[Answered on the board]
+The reference client answers this prompt through interaction with the battlefield (not a modal dialog), so it has no standalone screenshot. The fields below are what the engine sends; the response is what the client returns once the player has acted.
+:::
+
+## Arguments
+
+`input.type` is `"chooseBoardTargets"`. The remaining fields:
+
+<ProtocolType slug="choose-board-targets" />
+
+Each `candidates` entry is a `TargetRef`:
+
+| Field  | Type                            | Description                        |
+| ------ | ------------------------------- | ---------------------------------- |
+| `kind` | `"player" \| "card" \| "spell"` | What kind of object the target is. |
+| `id`   | `string`                        | Id of the player/card/spell.       |
+
+## Response
+
+```ts
+type ChooseBoardTargetsOutput = { type: "boardTargets"; chosen: TargetRef[] };
+```
+
+Return the chosen `TargetRef`s — between `minTargets` and `maxTargets` of them,
+drawn from `candidates`.
+
+## Example
+
+```json
+{
+  "promptId": 5,
+  "decidingPlayerId": "player-0",
+  "sourceCardId": "hand-2",
+  "input": {
+    "type": "chooseBoardTargets",
+    "candidates": [
+      { "kind": "player", "id": "player-1" },
+      { "kind": "card", "id": "bf-7" }
+    ],
+    "hostile": true,
+    "intent": "damage",
+    "minTargets": 1,
+    "maxTargets": 1,
+    "chosenTargets": 0,
+    "label": "Damage"
+  }
+}
+```
+
+```json
+{
+  "promptId": 5,
+  "output": {
+    "type": "boardTargets",
+    "chosen": [{ "kind": "card", "id": "bf-7" }]
+  }
+}
+```

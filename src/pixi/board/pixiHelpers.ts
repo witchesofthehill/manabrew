@@ -1,3 +1,5 @@
+import type { DestroyOptions } from "pixi.js";
+
 /**
  * Linear-interpolate `current` toward `target` by `speed`, snapping to the
  * target once within `snap` to avoid endless sub-pixel easing.
@@ -7,16 +9,12 @@ export const lerp = (current: number, target: number, speed: number, snap: numbe
   return Math.abs(d) > snap ? current + d * speed : target;
 };
 
-/**
- * Destroy a Pixi display object without cascading into children. Pixi v8
- * can throw inside `TexturePool.returnTexture` when destroying certain Text
- * objects; dropping our own reference is enough — the leaked children get
- * collected when the Application is disposed. Wrapped so an internal Pixi
- * bug never crashes the React tree during teardown.
- */
-export const safeDestroy = (obj: { destroy: (...args: never[]) => void }): void => {
+export const safeDestroy = (
+  obj: { destroy: (options?: DestroyOptions) => void },
+  options: DestroyOptions = { children: true },
+): void => {
   try {
-    obj.destroy();
+    obj.destroy(options);
   } catch (err) {
     console.warn("[pixi] display-object destroy threw:", err);
   }

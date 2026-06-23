@@ -1,0 +1,56 @@
+---
+title: "chooseBoolean"
+description: Ask the deciding player to make a yes/no decision.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when the engine needs a yes/no decision from the player — for example,
+whether to pay an optional cost such as buyback when casting a spell.
+
+## Arguments
+
+`input.type` is `"chooseBoolean"`. The remaining fields:
+
+<ProtocolType slug="choose-boolean" />
+
+## Rendering
+
+<figure class="prompt-figure">
+  <img src="/protocol/choose-boolean.webp" alt="A yes/no prompt with two labelled buttons" />
+  <div class="prompt-figure__caption">
+    A two-button prompt — the button text comes straight from `confirmLabel` and `denyLabel`, so the
+    wording matches the effect (here, "Pay Buyback" / "No").
+  </div>
+</figure>
+
+## Response
+
+```ts
+type ChooseBooleanOutput = { type: "decision"; value: boolean };
+```
+
+Return `true` to accept and `false` to decline.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseBoolean",
+    "presentation": {
+      "title": "Buyback",
+      "description": "Pay {3} more to return this spell to your hand as it resolves?",
+      "targets": []
+    },
+    "confirmLabel": "Pay",
+    "denyLabel": "Decline"
+  }
+}
+```
+
+```json
+{ "promptId": 7, "output": { "type": "decision", "value": true } }
+```

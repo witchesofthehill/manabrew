@@ -1,0 +1,73 @@
+---
+title: "payManaCost"
+description: Drive interactive payment of a spell or ability's mana cost.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent while the player pays a spell or ability's mana cost interactively —
+tapping lands, activating mana abilities, spending from the floating pool, or
+paying alternative costs such as delve. Every available step is one entry in
+`actions`; the client sends **incremental** actions by echoing an entry's `id`
+and the engine re-sends an updated `payManaCost` prompt until the cost is met,
+then the client sends a final `pay`.
+
+![The payManaCost prompt in the Manabrew client](/protocol/pay-mana-cost.svg)
+
+## Arguments
+
+`input.type` is `"payManaCost"`. The remaining fields:
+
+<ProtocolType slug="pay-mana-cost" />
+
+## Response
+
+```ts
+type PayManaCostOutput =
+  | { type: "act"; actionId: string }
+  | { type: "pay"; auto: boolean }
+  | { type: "payLife" }
+  | { type: "cancel" };
+```
+
+Send `{ type: "act", actionId }` with the `id` of an entry in `actions` to take
+an incremental step — tapping a mana source, untapping one (`undoMana`), or
+delving/un-delving a graveyard card — and the engine answers with an updated
+`payManaCost` prompt. The client never builds an `actionId`; it only echoes one
+the prompt offered. Send `{ type: "pay", auto }` to finalize (`auto: true` lets
+the engine auto-tap the remaining sources), `payLife` to pay a Phyrexian cost
+with life, or `cancel` to back out of the payment entirely.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "payManaCost",
+    "cardId": "stack-3",
+    "cardName": "Cryptic Command",
+    "manaCost": "{1}{U}{U}{U}",
+    "canConfirmFromPool": false,
+    "actions": [
+      {
+        "id": "tap:perm-9:0",
+        "type": "activateAbility",
+        "cardId": "perm-9",
+        "abilityIndex": 0,
+        "description": "{T}: Add {U}.",
+        "isManaAbility": true,
+        "producedMana": [{ "color": "U", "amount": 1 }]
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "promptId": 7,
+  "output": { "type": "act", "actionId": "tap:perm-9:0" }
+}
+```

@@ -38,8 +38,6 @@ function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): GameC
     controllerId: playerId,
     ownerId: playerId,
     zoneId,
-    isPlayable: false,
-    isSelected: false,
     tapped: false,
   };
 }

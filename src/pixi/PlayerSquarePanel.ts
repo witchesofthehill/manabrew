@@ -42,7 +42,7 @@ function makeStatCell(iconKey: string): StatCell {
   const icon = new Sprite();
   icon.width = ICON_SIZE;
   icon.height = ICON_SIZE;
-  const value = new Text({ text: "0", style: statStyle });
+  const value = new Text({ text: "0", style: statStyle.clone() });
   value.anchor.set(0, 0.5);
   return { icon, value, iconKey };
 }
@@ -176,6 +176,7 @@ export class PlayerSquarePanel implements PlayerPanel {
       if (tex) sprite.texture = tex;
       else
         loadManaSymbolTexture(key).then((t) => {
+          if (sprite.destroyed) return;
           sprite.texture = t;
         });
       const count = new Text({ text: "", style: manaCountStyle });
@@ -192,7 +193,6 @@ export class PlayerSquarePanel implements PlayerPanel {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
-    statStyle.fill = theme.gameTheme.textOnTinted;
     manaCountStyle.fill = theme.gameTheme.textOnTinted;
     if (this.lastState) this.update(this.lastState);
   }
@@ -426,7 +426,8 @@ export class PlayerSquarePanel implements PlayerPanel {
 
   destroy(): void {
     try {
-      this.container.destroy();
+      for (const cell of this.allStats) cell.value.style.destroy();
+      this.container.destroy({ children: true });
     } catch {
       /* pixi teardown */
     }

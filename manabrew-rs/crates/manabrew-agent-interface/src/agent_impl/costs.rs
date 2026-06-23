@@ -3,7 +3,7 @@ use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 
 use crate::ids_codec::{card_id_str, parse_card_id};
-use crate::mana_action_id::payment_mana_ability_options;
+use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
 
 use super::{parse_express_mana_choice, PromptAgent, Responder};
@@ -155,13 +155,19 @@ pub(super) fn pay_mana_cost<T: Responder>(
     mana_cost_display: &str,
     can_confirm_from_pool: bool,
     mana_ability_options: &[ManaAbilityOption],
-    tappable_lands: &[CardId],
+    _tappable_lands: &[CardId],
     untappable_lands: &[CardId],
-    mana_pool: &ManaPool,
+    _mana_pool: &ManaPool,
 ) -> ManaCostAction {
     let card_id_s = card_id_str(card_id);
-    let tappable_land_ids = PromptAgent::<T>::card_ids(tappable_lands);
-    let untappable_land_ids = PromptAgent::<T>::card_ids(untappable_lands);
+    let mut actions = mana_payment_actions(mana_ability_options);
+    for &land in untappable_lands {
+        let id = card_id_str(land);
+        actions.push(AvailableAction {
+            id: format!("untap:{id}"),
+            kind: AvailableActionKind::UndoMana { card_id: id },
+        });
+    }
 
     agent.send_prompt(
         PromptInput::PayManaCost(
@@ -170,55 +176,57 @@ pub(super) fn pay_mana_cost<T: Responder>(
                 card_name: card_name.to_string(),
                 description: None,
                 mana_cost: mana_cost_display.to_string(),
-                mana_ability_options: mana_ability_options
-                    .iter()
-                    .flat_map(|opt| {
-                        payment_mana_ability_options(
-                            &card_id_str(opt.card_id),
-                            opt.ability_index,
-                            &opt.description,
-                            opt.cost.clone(),
-                            opt.produced_mana.clone(),
-                            opt.produced_mana_amount,
-                        )
-                    })
-                    .collect(),
-                tappable_source_ids: tappable_land_ids,
-                untappable_source_ids: untappable_land_ids,
-                delve_source_ids: Vec::new(),
-                mana_pool_total: mana_pool.total_mana(),
                 can_confirm_from_pool,
+                actions,
             },
         ),
         Some(card_id),
     );
     match agent.recv_action() {
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
-            ManaSourceAction::TapForMana {
-                card_id,
-                ability_index,
-                color,
-            },
-        )) => parse_card_id(&card_id)
-            .map(|card_id| ManaCostAction::TapForMana {
-                card_id,
-                mana_ability_index: ability_index,
-                express_choice: parse_express_mana_choice(color.as_deref()),
-            })
-            .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaSourceAction(
-            ManaSourceAction::Untap { card_id },
-        )) => parse_card_id(&card_id)
-            .map(ManaCostAction::Untap)
-            .unwrap_or(ManaCostAction::AttemptedAndFailed),
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Pay { auto })) => {
-            ManaCostAction::Pay { auto }
+        PromptOutput::PayManaCost(PayManaCostOutput::Act { action_id }) => {
+            parse_mana_cost_action(&action_id)
         }
-        PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(ManaPayment::Cancel)) => {
-            ManaCostAction::AttemptedAndFailed
-        }
+        PromptOutput::PayManaCost(PayManaCostOutput::Pay { auto }) => ManaCostAction::Pay { auto },
         _ => ManaCostAction::AttemptedAndFailed,
     }
+}
+
+pub(super) fn mana_payment_actions(
+    mana_ability_options: &[ManaAbilityOption],
+) -> Vec<AvailableAction> {
+    mana_ability_options
+        .iter()
+        .flat_map(|opt| {
+            mana_ability_actions(
+                &card_id_str(opt.card_id),
+                opt.ability_index,
+                &opt.description,
+                opt.cost.clone(),
+                opt.produced_mana.clone(),
+                opt.produced_mana_amount,
+            )
+        })
+        .collect()
+}
+
+pub(super) fn parse_mana_cost_action(action_id: &str) -> ManaCostAction {
+    if let Some(rest) = action_id.strip_prefix("tap:") {
+        let tap = parse_tap_action_id(rest);
+        return match parse_card_id(tap.card_id) {
+            Some(card_id) => ManaCostAction::TapForMana {
+                card_id,
+                mana_ability_index: tap.ability_index,
+                express_choice: parse_express_mana_choice(tap.color),
+            },
+            None => ManaCostAction::AttemptedAndFailed,
+        };
+    }
+    if let Some(id) = action_id.strip_prefix("untap:") {
+        return parse_card_id(id)
+            .map(ManaCostAction::Untap)
+            .unwrap_or(ManaCostAction::AttemptedAndFailed);
+    }
+    ManaCostAction::AttemptedAndFailed
 }
 
 pub(super) fn specify_mana_combo<T: Responder>(

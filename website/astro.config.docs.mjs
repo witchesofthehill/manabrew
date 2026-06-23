@@ -42,6 +42,53 @@ export default defineConfig({
         },
         { label: "Playing", items: ["playing", "formats", "faq"] },
         {
+          label: "Protocol",
+          items: [
+            "protocol",
+            "protocol/transport",
+            {
+              label: "Prompts",
+              items: [
+                {
+                  label: "Choices",
+                  items: [
+                    "protocol/choose-number",
+                    "protocol/choose-cards",
+                    "protocol/choose-color",
+                    "protocol/choose-boolean",
+                    "protocol/choose-from-selection",
+                    "protocol/reveal-cards",
+                    "protocol/scry",
+                    "protocol/reorder-cards",
+                    "protocol/dice-rolled",
+                  ],
+                },
+                {
+                  label: "Priority & costs",
+                  items: ["protocol/choose-action", "protocol/pay-mana-cost"],
+                },
+                {
+                  label: "Mulligan",
+                  items: ["protocol/mulligan", "protocol/mulligan-put-back"],
+                },
+                {
+                  label: "Combat & targeting",
+                  items: [
+                    "protocol/choose-attackers",
+                    "protocol/choose-blockers",
+                    "protocol/choose-damage-assignment-order",
+                    "protocol/choose-combat-damage-assignment",
+                    "protocol/choose-board-targets",
+                  ],
+                },
+                { label: "End", items: ["protocol/game-over"] },
+              ],
+            },
+            "protocol/shared-types",
+            "protocol/conformance",
+          ],
+        },
+        {
           label: "Hosting",
           items: ["self-hosting", "hosting-relay", "hosting-web-client"],
         },

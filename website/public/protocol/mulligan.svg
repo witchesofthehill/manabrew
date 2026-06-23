@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" role="img" aria-label="mulligan screenshot placeholder">
+  <rect width="1000" height="640" fill="#1e1b2e"/>
+  <rect x="20" y="20" width="960" height="600" rx="16" fill="none" stroke="#4c4470" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="500" y="296" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="44" fill="#cdbfff">mulligan</text>
+  <text x="500" y="346" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" fill="#8a82a8">screenshot pending</text>
+</svg>

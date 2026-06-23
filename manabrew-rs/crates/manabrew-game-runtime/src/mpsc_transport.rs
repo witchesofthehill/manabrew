@@ -5,7 +5,7 @@ use manabrew_agent_interface::agent_impl::Responder;
 use manabrew_agent_interface::game_log_event::GameLogEntryDto;
 use manabrew_agent_interface::game_snapshot_event::GameSnapshotEventDto;
 use manabrew_agent_interface::prompt::{
-    AgentMessage, AgentPrompt, ChooseActionDecision, ChooseActionOutput, PromptOutput,
+    AgentMessage, AgentPrompt, ChooseActionOutput, PromptOutput,
 };
 
 enum PromptSink {
@@ -88,20 +88,16 @@ impl MpscTransport {
             match self.response_rx.recv_timeout(timeout) {
                 Ok(action) => action,
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-                        ChooseActionDecision::Pass { until_phase: None },
-                    ))
+                    PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })
                 }
-                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => PromptOutput::ChooseAction(
-                    ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Concede),
-                ),
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    PromptOutput::ChooseAction(ChooseActionOutput::Concede)
+                }
             }
         } else {
             self.response_rx
                 .recv()
-                .unwrap_or(PromptOutput::ChooseAction(
-                    ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Concede),
-                ))
+                .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Concede))
         }
     }
 }

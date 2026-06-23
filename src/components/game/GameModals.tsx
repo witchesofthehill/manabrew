@@ -1,10 +1,16 @@
 import { PromptModalHost } from "@/components/prompts/promptComponents";
-// import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
-// import { ChooseBooleanModalPreview } from "@/components/prompts/dev/ChooseBooleanModalPreview";
+// Dev-only prompt previews — uncomment one to summon that prompt in a live game
+// and screenshot it. Each has an `EDIT ME` fixture block at the top.
 // import { ChooseNumberModalPreview } from "@/components/prompts/dev/ChooseNumberModalPreview";
 // import { ChooseCardsModalPreview } from "@/components/prompts/dev/ChooseCardsModalPreview";
 // import { ReorderCardsModalPreview } from "@/components/prompts/dev/ReorderCardsModalPreview";
 // import { ScryModalPreview } from "@/components/prompts/dev/ScryModalPreview";
+// import { ChooseFromSelectionModalPreview } from "@/components/prompts/dev/ChooseFromSelectionModalPreview";
+// import { ChooseBooleanModalPreview } from "@/components/prompts/dev/ChooseBooleanModalPreview";
+// import { ChooseColorModalPreview } from "@/components/prompts/dev/ChooseColorModalPreview";
+// import { RevealCardsModalPreview } from "@/components/prompts/dev/RevealCardsModalPreview";
+// import { DiceRolledPreview } from "@/components/prompts/dev/DiceRolledPreview";
+// import { VAssignCombatDamagePreview } from "@/components/prompts/dev/VAssignCombatDamagePreview";
 import { GameOverlays } from "@/components/game/GameOverlays";
 import type { DeckCard, GameCard, StackObject } from "@/types/manabrew";
 import type { Prompt } from "@/protocol";
@@ -50,12 +56,16 @@ export function GameModals({
   return (
     <>
       <PromptModalHost currentPrompt={currentPrompt} ctx={{ sourceDeckCard }} />
-      {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
-      {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseNumberModalPreview />}*/}
       {/*{import.meta.env.DEV && <ChooseCardsModalPreview />}*/}
       {/*{import.meta.env.DEV && <ReorderCardsModalPreview />}*/}
       {/*{import.meta.env.DEV && <ScryModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ChooseFromSelectionModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ChooseBooleanModalPreview />}*/}
+      {/*{import.meta.env.DEV && <ChooseColorModalPreview />}*/}
+      {/*{import.meta.env.DEV && <RevealCardsModalPreview />}*/}
+      {/*{import.meta.env.DEV && <DiceRolledPreview />}*/}
+      {/*{import.meta.env.DEV && <VAssignCombatDamagePreview />}*/}
       <GameOverlays
         viewingZone={viewingZone}
         onCloseZone={onCloseZone}

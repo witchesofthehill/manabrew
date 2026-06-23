@@ -1,0 +1,95 @@
+---
+title: "chooseAction"
+description: Offer the deciding player their legal actions while they hold priority.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent whenever the player has priority and may take a legal action or pass — cast
+a spell, play a land, activate an ability, or do nothing. Unlike the modal
+prompts, the reference client doesn't show a dialog for this: it **highlights the
+available actions directly on the board**.
+
+## Arguments
+
+`input.type` is `"chooseAction"`. The remaining fields:
+
+<ProtocolType slug="choose-action" />
+
+## Rendering
+
+There's no dialog — while you hold priority, each entry in `actions` is
+highlighted in place.
+
+<figure class="prompt-figure">
+  <img src="/protocol/choose-action.webp" alt="A board with playable cards and phase steps highlighted" />
+  <div class="prompt-figure__caption">
+    Available actions glow on the board: castable cards in hand, activatable
+    permanents, and the steps on the phase strip. Clicking a highlight sends
+    `{ type: "act", actionId }` for the matching action.
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img
+    src="/protocol/choose-action-multi-ability.webp"
+    alt="A card with a picker listing two abilities"
+  />
+  <div class="prompt-figure__caption">
+    When one card offers several abilities, selecting it opens a small picker to choose which
+    `activateAbility` to use — here, Sunken Hollow's two mana abilities.
+  </div>
+</figure>
+
+## Response
+
+```ts
+type ChooseActionOutput =
+  | { type: "pass"; untilPhase?: string }
+  | { type: "concede" }
+  | { type: "restoreSnapshot"; checkpointId: number }
+  | { type: "act"; actionId: string };
+```
+
+Send `{ type: "act", actionId }` to perform an action by its `id` — including
+tapping a mana source or untapping one (`undoMana`), which appear in `actions`
+like any other entry. Send `pass` to pass priority, optionally `untilPhase` to
+keep passing until a named phase. `concede` and `restoreSnapshot` are control
+actions.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseAction",
+    "actions": [
+      {
+        "id": "act-0",
+        "type": "cast",
+        "cardId": "hand-2",
+        "mode": "cast",
+        "modeLabel": "Cast Lightning Bolt"
+      },
+      {
+        "id": "tap:perm-5:0",
+        "type": "activateAbility",
+        "cardId": "perm-5",
+        "abilityIndex": 0,
+        "description": "{T}: Add {G}.",
+        "isManaAbility": true,
+        "producedMana": [{ "color": "G", "amount": 1 }]
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "promptId": 7,
+  "output": { "type": "pass" }
+}
+```

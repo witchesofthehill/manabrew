@@ -113,12 +113,7 @@ interface GameBoardProps {
   onCastSpell: (cardId: string) => void;
   onTapLand?: (card: GameCard) => void;
   onTapLands?: (cardIds: string[]) => void;
-  onTapLandAbility?: (
-    cardId: string,
-    abilityIndex: number,
-    color?: string,
-    actionId?: string,
-  ) => void;
+  onTapLandAbility?: (actionId: string) => void;
   onUntapLand?: (card: GameCard) => void;
   onUntapLands?: (cardIds: string[]) => void;
 
@@ -247,9 +242,8 @@ export function GameBoard({
   }, [combatAssignments, blockAssignments, attackingCardIdSet]);
 
   const chooseActionActions = chooseActionPrompt?.input.actions;
-  const manaAbilityOptions = chooseActionActions
-    ? manaAbilityInfos(chooseActionActions)
-    : payManaCostPrompt?.input.manaAbilityOptions;
+  const promptActions = chooseActionActions ?? payManaCostPrompt?.input.actions;
+  const manaAbilityOptions = promptActions ? manaAbilityInfos(promptActions) : undefined;
   const chooseActionAbilityCardIds = chooseActionActions
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);
@@ -323,14 +317,10 @@ export function GameBoard({
       attackingCardIds: promptAttackerIds,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
-      tappableLandIds: chooseActionActions
-        ? chooseActionActions
-            .filter((a) => a.type === "activateAbility" && a.isManaAbility)
-            .map((a) => a.cardId)
-        : payManaCostPrompt?.input.tappableSourceIds,
-      untappableLandIds: chooseActionActions
-        ? chooseActionActions.filter((a) => a.type === "undoMana").map((a) => a.cardId)
-        : payManaCostPrompt?.input.untappableSourceIds,
+      tappableLandIds: promptActions
+        ?.filter((a) => a.type === "activateAbility" && a.isManaAbility)
+        .map((a) => a.cardId),
+      untappableLandIds: promptActions?.filter((a) => a.type === "undoMana").map((a) => a.cardId),
       manaAbilityOptions,
       hostileTargeting,
     }),
@@ -343,8 +333,7 @@ export function GameBoard({
       promptAttackerIds,
       damageOrder,
       selectableBattlefieldCardIds,
-      chooseActionActions,
-      payManaCostPrompt,
+      promptActions,
       manaAbilityOptions,
       hostileTargeting,
     ],

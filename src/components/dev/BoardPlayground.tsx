@@ -60,8 +60,6 @@ function makeCard(spec: CardSpec): GameCard {
     basePower: spec.power != null ? parseInt(spec.power, 10) : undefined,
     baseToughness: spec.toughness != null ? parseInt(spec.toughness, 10) : undefined,
     text: "Dev playground card.",
-    isPlayable: false,
-    isSelected: false,
     controllerId: PLAYER_ID,
     ownerId: PLAYER_ID,
     zoneId: "battlefield",
@@ -112,16 +110,9 @@ export function BoardPlayground() {
     }));
   const attack = () => update(targetId, (c) => ({ ...c, isAttacking: !c.isAttacking }));
 
-  // The region diff fires ETB only for cards that weren't in the previous
-  // state, so isSelected is layered on at render time (it must not look like a
-  // brand-new card or it would re-stomp on every selection).
-  const renderedCards = useMemo(
-    () => cards.map((c) => ({ ...c, isSelected: c.id === selectedId })),
-    [cards, selectedId],
-  );
   const regions = useMemo(
-    () => [{ playerId: PLAYER_ID, isLocal: true, state: { cards: renderedCards } }],
-    [renderedCards],
+    () => [{ playerId: PLAYER_ID, isLocal: true, state: { cards } }],
+    [cards],
   );
 
   return (

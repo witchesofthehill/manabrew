@@ -16,7 +16,7 @@ use crate::game_log_event::GameLogEntryDto;
 use crate::game_snapshot_event::GameSnapshotEventDto;
 use crate::game_view_dto::{GameViewDto, GameViewDtoExt};
 use crate::ids_codec::{card_id_str, parse_card_id, parse_player_id, player_id_str};
-use crate::mana_action_id::{parse_tap_action_id, priority_mana_actions};
+use crate::mana_action_id::{mana_ability_actions, parse_tap_action_id};
 use crate::prompt::*;
 
 mod choices;
@@ -326,7 +326,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             mana_pools,
             self.player_id,
             &self.game_id,
-            &[], // playable filled at prompt time
         ));
     }
 
@@ -390,7 +389,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         };
         let playable = &action_space.playable;
         let untappable_lands = &action_space.untappable_lands;
-        let activatable = &action_space.activatable;
+        let _activatable = &action_space.activatable;
         let playable_options: Vec<PlayOptionDto> = playable
             .iter()
             .map(|play| Self::play_option_to_dto(play))
@@ -417,7 +416,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         {
             let card_id = card_id_str(a.card_id);
             if a.is_mana_ability {
-                actions.extend(priority_mana_actions(
+                actions.extend(mana_ability_actions(
                     &card_id,
                     a.ability_index,
                     &a.description,
@@ -428,14 +427,14 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             } else {
                 actions.push(AvailableAction {
                     id: format!("ability:{card_id}:{}", a.ability_index),
-                    kind: AvailableActionKind::ActivateAbility {
+                    kind: AvailableActionKind::ActivateAbility(ActivatableAbilityInfo {
                         card_id,
                         ability_index: a.ability_index,
                         description: a.description.clone(),
                         cost: a.cost.clone(),
                         is_mana_ability: false,
                         produced_mana: None,
-                    },
+                    }),
                 });
             }
         }
@@ -455,9 +454,7 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             None,
         );
         match self.recv_action() {
-            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-                ChooseActionDecision::Act { action_id },
-            )) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::Act { action_id }) => {
                 if let Some(rest) = action_id.strip_prefix("cast:") {
                     let (id_part, mode) = rest.split_once(':').unwrap_or((rest, "normal"));
                     let resolved = parse_card_id(id_part).and_then(|cid| {
@@ -504,12 +501,8 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             }
             // Only the priority-loop branch acts on Concede; other recv_action
             // sites discard it and concede re-enters at the next priority window.
-            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-                ChooseActionDecision::Concede,
-            )) => EnginePlayerAction::Concede,
-            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-                ChooseActionDecision::Pass { until_phase },
-            )) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::Concede) => EnginePlayerAction::Concede,
+            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase }) => {
                 // Only store a fast-forward declaration when there's a target phase.
                 // None = atomic single pass, no fast-forward.
                 if until_phase.is_some() {
@@ -517,68 +510,10 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
                 }
                 EnginePlayerAction::PassPriority
             }
-            PromptOutput::ChooseAction(ChooseActionOutput::ChooseActionDecision(
-                ChooseActionDecision::RestoreSnapshot { checkpoint_id },
-            )) => {
+            PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { checkpoint_id }) => {
                 self.pending_restore_checkpoint = Some(checkpoint_id);
                 EnginePlayerAction::PassPriority
             }
-            PromptOutput::ChooseAction(ChooseActionOutput::ManaSourceAction(
-                ManaSourceAction::TapForMana {
-                    card_id,
-                    ability_index,
-                    color,
-                },
-            )) => {
-                let parsed = parse_card_id(&card_id);
-                match parsed {
-                    Some(cid) => {
-                        // Check if the specified ability is a non-mana activated ability
-                        // (e.g. Evolving Wilds sacrifice). Mana abilities route through
-                        // ActivateMana which handles the ability index directly.
-                        let is_non_mana_activatable = ability_index
-                            .map(|idx| {
-                                activatable
-                                    .iter()
-                                    .any(|a| a.card_id == cid && a.ability_index == idx)
-                            })
-                            .unwrap_or(false);
-                        if is_non_mana_activatable {
-                            EnginePlayerAction::ActivateAbility(AbilityRef {
-                                card_id: cid,
-                                ability_index: ability_index.unwrap(),
-                            })
-                        } else if ability_index.is_none() {
-                            // No ability index — check if there's a single non-mana
-                            // activatable ability on this card (legacy fallback).
-                            if let Some(a) = activatable.iter().find(|a| a.card_id == cid) {
-                                EnginePlayerAction::ActivateAbility(AbilityRef {
-                                    card_id: a.card_id,
-                                    ability_index: a.ability_index,
-                                })
-                            } else {
-                                EnginePlayerAction::ActivateMana(
-                                    cid,
-                                    None,
-                                    parse_express_mana_choice(color.as_deref()),
-                                )
-                            }
-                        } else {
-                            EnginePlayerAction::ActivateMana(
-                                cid,
-                                ability_index,
-                                parse_express_mana_choice(color.as_deref()),
-                            )
-                        }
-                    }
-                    None => EnginePlayerAction::PassPriority,
-                }
-            }
-            PromptOutput::ChooseAction(ChooseActionOutput::ManaSourceAction(
-                ManaSourceAction::Untap { card_id },
-            )) => parse_card_id(&card_id)
-                .map(EnginePlayerAction::UndoMana)
-                .unwrap_or(EnginePlayerAction::PassPriority),
             _ => EnginePlayerAction::PassPriority,
         }
     }

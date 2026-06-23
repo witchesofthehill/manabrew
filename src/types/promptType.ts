@@ -8,7 +8,8 @@
  *
  * Mirrors the `TargetingIntent` enum in
  * `manabrew-rs/crates/manabrew-agent-interface/src/game_view_dto.rs`. The
- * canonical wire-format description is in `docs/PROTOCOL.md` §5.4.
+ * canonical wire-format description is at
+ * https://docs.manabrew.app/protocol/shared-types/#targetingintent.
  */
 export const TargetingIntent = {
   Damage: "damage",

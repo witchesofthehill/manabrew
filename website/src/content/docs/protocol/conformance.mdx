@@ -1,0 +1,45 @@
+---
+title: Conformance
+description: Identifier rules, what conforming engines and clients must do, and how to extend the protocol.
+---
+
+## Identifiers
+
+The protocol uses **opaque string identifiers**. The reference encoding is:
+
+| Form         | Refers to                                                        |
+| ------------ | ---------------------------------------------------------------- |
+| `card-{n}`   | A card instance — `{n}` is an integer unique within the session. |
+| `player-{n}` | A player slot — `{n}` is the zero-based seat index.              |
+| `stack-{n}`  | A stack object — `{n}` is an integer unique within the session.  |
+
+Implementations MAY use other encodings provided they are stable strings unique
+within a session. **Clients MUST treat identifiers as opaque** and MUST NOT
+derive game-state meaning from their textual form.
+
+## What a conforming engine must do
+
+- Emit prompts whose `type` is one of the documented variants, or a
+  vendor-extension type that doesn't collide with a documented one.
+- Send game state via the `state` message ([StateUpdate](/protocol/)); a prompt
+  itself carries no `gameView`.
+- Use the identifier scheme above, or an alternative that satisfies the
+  per-session uniqueness contract.
+- Accept any response whose shape matches a prompt it emitted.
+
+## What a conforming client must do
+
+- Render any state snapshot it receives without assuming engine-specific
+  extensions.
+- Treat identifiers as opaque.
+- Send a response to every prompt that requires a decision. (`gameOver` is
+  terminal and takes no response; acknowledgement prompts like `revealCards` and
+  `diceRolled` take a simple "acknowledged" response.)
+- Treat an unknown prompt `type` as a **soft error** — surface it, but never
+  crash on it.
+
+## Extensions
+
+Implementations MAY add fields beyond those documented; conforming consumers
+MUST ignore unknown fields. Extension fields SHOULD use a vendor prefix (e.g.
+`x-vendor-feature`) to avoid colliding with future revisions of the protocol.

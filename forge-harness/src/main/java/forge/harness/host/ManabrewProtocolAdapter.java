@@ -27,23 +27,6 @@ final class ManabrewProtocolAdapter {
         return prompt.toString();
     }
 
-    static JsonObject cardChoicePresentation(
-            final String title,
-            final String description,
-            final String sourceCardId
-    ) {
-        final JsonObject presentation = new JsonObject();
-        presentation.addProperty("title", title);
-        if (description != null) {
-            presentation.addProperty("description", description);
-        }
-        if (sourceCardId != null) {
-            presentation.addProperty("sourceCardId", sourceCardId);
-        }
-        presentation.add("targets", new com.google.gson.JsonArray());
-        return presentation;
-    }
-
     static JsonObject decodeAction(final JsonObject canonical) {
         if (!canonical.has("type")) {
             // Already a flat action (close()/internal auto-pass); pass through.
@@ -207,20 +190,6 @@ final class ManabrewProtocolAdapter {
             case "concede":
                 flat.addProperty("kind", "pass");
                 return flat;
-            case "tapForMana":
-                flat.addProperty("kind", "tap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                if (output.has("abilityIndex") && !output.get("abilityIndex").isJsonNull()) {
-                    flat.addProperty("manaAbilityIndex", output.get("abilityIndex").getAsInt());
-                }
-                if (output.has("color") && !output.get("color").isJsonNull()) {
-                    flat.addProperty("color", output.get("color").getAsString());
-                }
-                return flat;
-            case "untap":
-                flat.addProperty("kind", "untap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
             case "restoreSnapshot":
                 throw new UnsupportedOperationException("unsupported canonical action type: restoreSnapshot");
             default:
@@ -232,28 +201,8 @@ final class ManabrewProtocolAdapter {
         final String kind = output.has("type") ? output.get("type").getAsString() : "";
         final JsonObject flat = new JsonObject();
         switch (kind) {
-            case "tapForMana":
-                flat.addProperty("kind", "tap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                if (output.has("abilityIndex") && !output.get("abilityIndex").isJsonNull()) {
-                    flat.addProperty("manaAbilityIndex", output.get("abilityIndex").getAsInt());
-                }
-                if (output.has("color") && !output.get("color").isJsonNull()) {
-                    flat.addProperty("color", output.get("color").getAsString());
-                }
-                return flat;
-            case "untap":
-                flat.addProperty("kind", "untap_land");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
-            case "delve":
-                flat.addProperty("kind", "delve");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
-            case "undelve":
-                flat.addProperty("kind", "undelve");
-                flat.addProperty("cardId", asString(output, "cardId"));
-                return flat;
+            case "act":
+                return parseActionId(asString(output, "actionId"));
             case "pay":
                 flat.addProperty("kind", "pay_mana");
                 flat.addProperty("auto", output.has("auto") && output.get("auto").getAsBoolean());
@@ -304,6 +253,16 @@ final class ManabrewProtocolAdapter {
         if (actionId.startsWith("untap:")) {
             flat.addProperty("kind", "untap_land");
             flat.addProperty("cardId", actionId.substring("untap:".length()));
+            return flat;
+        }
+        if (actionId.startsWith("delve:")) {
+            flat.addProperty("kind", "delve");
+            flat.addProperty("cardId", actionId.substring("delve:".length()));
+            return flat;
+        }
+        if (actionId.startsWith("undelve:")) {
+            flat.addProperty("kind", "undelve");
+            flat.addProperty("cardId", actionId.substring("undelve:".length()));
             return flat;
         }
         if (actionId.startsWith("tap:")) {

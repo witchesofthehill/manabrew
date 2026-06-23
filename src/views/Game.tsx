@@ -6,7 +6,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ActivatableAbilityInfo, GameCard, Player, StackObject } from "@/types/manabrew";
+import type { GameCard, Player, StackObject } from "@/types/manabrew";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
@@ -87,8 +87,6 @@ function buildDebugKeywordCard(controllerId: string, name: string, keywords: str
     power: "1",
     toughness: "1",
     text: "Dev debug card.",
-    isPlayable: false,
-    isSelected: false,
     controllerId,
     ownerId: controllerId,
     zoneId: "dev-zone",
@@ -185,21 +183,20 @@ export default function Game({ exitTo }: GameProps = {}) {
     activePrompt?.input.type === "chooseDamageAssignmentOrder" ? activePrompt.input : null;
   const payManaCostInput = activePrompt?.input.type === "payManaCost" ? activePrompt.input : null;
   const mulliganInput = activePrompt?.input.type === "mulligan" ? activePrompt.input : null;
-  const tappableLandIds = useMemo<string[]>(
-    () =>
-      chooseActionInput
-        ? chooseActionInput.actions.flatMap((a) =>
-            a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
-          )
-        : (payManaCostInput?.tappableSourceIds ?? []),
+  const promptActions = useMemo(
+    () => chooseActionInput?.actions ?? payManaCostInput?.actions ?? [],
     [chooseActionInput, payManaCostInput],
   );
-  const untappableLandIds = useMemo<string[]>(
+  const tappableLandIds = useMemo<string[]>(
     () =>
-      chooseActionInput
-        ? chooseActionInput.actions.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : []))
-        : (payManaCostInput?.untappableSourceIds ?? []),
-    [chooseActionInput, payManaCostInput],
+      promptActions.flatMap((a) =>
+        a.type === "activateAbility" && a.isManaAbility ? [a.cardId] : [],
+      ),
+    [promptActions],
+  );
+  const untappableLandIds = useMemo<string[]>(
+    () => promptActions.flatMap((a) => (a.type === "undoMana" ? [a.cardId] : [])),
+    [promptActions],
   );
 
   const mulliganPutBack = useMulliganSelection(activePrompt, (cardIds) =>
@@ -298,42 +295,25 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const manaAbilitiesByCardId = useMemo(() => {
     const map = new Map<string, HandActionOption[]>();
-    if (chooseActionInput) {
-      for (const a of chooseActionInput.actions) {
-        if (a.type !== "activateAbility" || !a.isManaAbility) continue;
-        const arr = map.get(a.cardId) ?? [];
-        const displayed = getDisplayedManaAbilities(a.cardId, [
-          {
-            cardId: a.cardId,
-            abilityIndex: a.abilityIndex,
-            description: a.description,
-            isManaAbility: true,
-            cost: a.cost,
-            producedMana: a.producedMana,
-            actionId: a.id,
-          },
-        ]);
-        arr.push(...displayed.map((ab) => toAbilityOption(ab, ab.actionId)));
-        map.set(a.cardId, arr);
-      }
-      return map;
-    }
-    const rawOptions = payManaCostInput?.manaAbilityOptions ?? [];
-    if (rawOptions.length === 0) return map;
-    const byCard = new Map<string, ActivatableAbilityInfo[]>();
-    for (const ab of rawOptions) {
-      const arr = byCard.get(ab.cardId) ?? [];
-      arr.push(ab);
-      byCard.set(ab.cardId, arr);
-    }
-    for (const [cardId, abilities] of byCard) {
-      map.set(
-        cardId,
-        getDisplayedManaAbilities(cardId, abilities).map((ab) => toAbilityOption(ab)),
-      );
+    for (const a of promptActions) {
+      if (a.type !== "activateAbility" || !a.isManaAbility) continue;
+      const arr = map.get(a.cardId) ?? [];
+      const displayed = getDisplayedManaAbilities(a.cardId, [
+        {
+          cardId: a.cardId,
+          abilityIndex: a.abilityIndex,
+          description: a.description,
+          isManaAbility: true,
+          cost: a.cost,
+          producedMana: a.producedMana,
+          actionId: a.id,
+        },
+      ]);
+      arr.push(...displayed.map((ab) => toAbilityOption(ab, ab.actionId)));
+      map.set(a.cardId, arr);
     }
     return map;
-  }, [chooseActionInput, payManaCostInput?.manaAbilityOptions]);
+  }, [promptActions]);
 
   const tappableLandIdSet = useMemo(() => new Set(tappableLandIds), [tappableLandIds]);
 
@@ -435,23 +415,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const respondHandAction = (option: HandActionOption): boolean => {
     if (option.actionId != null) {
       respond({ type: "act", actionId: option.actionId });
-      return true;
-    }
-    if (option.kind === "ability" && option.isManaAbility) {
-      respond({
-        type: "tapForMana",
-        cardId: option.cardId,
-        abilityIndex: option.abilityIndex,
-        color: option.colorChoice,
-      });
-      return true;
-    }
-    if (option.kind === "ability" && option.abilityIndex != null) {
-      respond({
-        type: "tapForMana",
-        cardId: option.cardId,
-        abilityIndex: option.abilityIndex >= 0 ? option.abilityIndex : undefined,
-      });
       return true;
     }
     return false;
@@ -645,54 +608,18 @@ export default function Game({ exitTo }: GameProps = {}) {
   }
 
   const handleTapLand = (card: GameCard) => {
-    const paymentManaOptions = payManaCostInput?.manaAbilityOptions;
-    if (paymentManaOptions) {
-      const manaAbilities = getDisplayedManaAbilities(card.id, paymentManaOptions).map((ab) =>
-        toAbilityOption(ab),
-      );
-
-      if (manaAbilities.length > 1) {
-        preview.showSticky(card);
-        return;
-      }
-      if (manaAbilities.length === 1) {
-        respond({
-          type: "tapForMana",
-          cardId: card.id,
-          abilityIndex: manaAbilities[0].abilityIndex,
-          color: manaAbilities[0].colorChoice,
-        });
-        return;
-      }
-      respond({ type: "tapForMana", cardId: card.id });
-      return;
-    }
-
-    if (promptType !== "chooseAction") {
-      respond({ type: "tapForMana", cardId: card.id });
-      return;
-    }
-
     const manaAbilities = manaAbilitiesByCardId.get(card.id) ?? [];
     if (manaAbilities.length > 1) {
       preview.showSticky(card);
       return;
     }
     if (manaAbilities.length === 1) {
-      const actionId =
-        manaAbilities[0].actionId ??
-        chooseActionInput?.actions.find(
-          (a) =>
-            a.type === "activateAbility" &&
-            a.isManaAbility &&
-            a.cardId === card.id &&
-            a.abilityIndex === manaAbilities[0].abilityIndex,
-        )?.id;
+      const actionId = manaAbilities[0].actionId;
       if (actionId) respond({ type: "act", actionId });
       return;
     }
 
-    const cardActions = (chooseActionInput?.actions ?? []).filter(
+    const cardActions = promptActions.filter(
       (a) => a.type === "activateAbility" && a.cardId === card.id,
     );
     if (cardActions.length > 1) {
@@ -703,14 +630,8 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
 
   const handleUntapLand = (card: GameCard) => {
-    const undo = chooseActionInput?.actions.find(
-      (a) => a.type === "undoMana" && a.cardId === card.id,
-    );
-    if (undo) {
-      respond({ type: "act", actionId: undo.id });
-      return;
-    }
-    respond({ type: "untap", cardId: card.id });
+    const undo = promptActions.find((a) => a.type === "undoMana" && a.cardId === card.id);
+    if (undo) respond({ type: "act", actionId: undo.id });
   };
 
   const pendingTapQueueRef = useRef<string[]>([]);
@@ -731,26 +652,16 @@ export default function Game({ exitTo }: GameProps = {}) {
     const option = manaAbilitiesByCardId.get(id)?.[0];
     if (option?.actionId) {
       respond({ type: "act", actionId: option.actionId });
-    } else if (option) {
-      respond({
-        type: "tapForMana",
-        cardId: id,
-        abilityIndex: option.abilityIndex,
-        color: option.colorChoice,
-      });
-    } else if (promptType === "chooseAction") {
-      const action = chooseActionInput?.actions.find(
-        (a) => a.type === "activateAbility" && a.isManaAbility && a.cardId === id,
-      );
-      if (action) respond({ type: "act", actionId: action.id });
-    } else {
-      respond({ type: "tapForMana", cardId: id });
+      return;
     }
+    const action = promptActions.find(
+      (a) => a.type === "activateAbility" && a.isManaAbility && a.cardId === id,
+    );
+    if (action) respond({ type: "act", actionId: action.id });
   };
   const untapResponse = (id: string) => {
-    const a = chooseActionInput?.actions.find((x) => x.type === "undoMana" && x.cardId === id);
+    const a = promptActions.find((x) => x.type === "undoMana" && x.cardId === id);
     if (a) respond({ type: "act", actionId: a.id });
-    else respond({ type: "untap", cardId: id });
   };
 
   const handleTapLands = (cardIds: string[]) =>
@@ -951,30 +862,26 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const payManaCostPrompt =
     currentPrompt?.input.type === "payManaCost" ? currentPrompt.input : null;
-  const delveSourceIds = useMemo(
-    () => payManaCostPrompt?.delveSourceIds ?? [],
+  const delveActionIdByCardId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of payManaCostPrompt?.actions ?? []) {
+      if (a.type === "delve" || a.type === "undelve") map.set(a.cardId, a.id);
+    }
+    return map;
+  }, [payManaCostPrompt]);
+  const delveSourceIds = useMemo(() => [...delveActionIdByCardId.keys()], [delveActionIdByCardId]);
+  const delvedCardIds = useMemo(
+    () => payManaCostPrompt?.actions.flatMap((a) => (a.type === "undelve" ? [a.cardId] : [])) ?? [],
     [payManaCostPrompt],
   );
-  const payManaCardId = payManaCostPrompt?.cardId ?? null;
-  const [delvedCardIds, setDelvedCardIds] = useState<string[]>([]);
-  const delvedCardIdsRef = useRef<string[]>([]);
-  delvedCardIdsRef.current = delvedCardIds;
-
-  useEffect(() => {
-    setDelvedCardIds([]);
-  }, [payManaCardId]);
 
   const handleDelveCard = useCallback(
     (cardId: string) => {
       if (useGameStore.getState().isWaitingForResponse) return;
-      const current = delvedCardIdsRef.current;
-      const isDelved = current.includes(cardId);
-      respond(isDelved ? { type: "undelve", cardId } : { type: "delve", cardId });
-      const next = isDelved ? current.filter((id) => id !== cardId) : [...current, cardId];
-      delvedCardIdsRef.current = next;
-      setDelvedCardIds(next);
+      const actionId = delveActionIdByCardId.get(cardId);
+      if (actionId) respond({ type: "act", actionId });
     },
-    [respond],
+    [respond, delveActionIdByCardId],
   );
 
   const openDelveZone = useCallback(() => {
@@ -983,12 +890,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       cards: me?.graveyard ?? [],
       onClickCard: handleDelveCard,
       clickableCardIds: delveSourceIds,
-      selectedCardIds: delvedCardIdsRef.current,
+      selectedCardIds: delvedCardIds,
       clickLabel: "DELVE",
       selectedLabel: "UN-DELVE",
       stickyPromptType: "payManaCost",
     });
-  }, [openZoneViewer, me?.graveyard, handleDelveCard, delveSourceIds]);
+  }, [openZoneViewer, me?.graveyard, handleDelveCard, delveSourceIds, delvedCardIds]);
 
   useEffect(() => {
     const vz = useGameUIStore.getState().viewingZone;
@@ -1505,17 +1412,8 @@ export default function Game({ exitTo }: GameProps = {}) {
               ? handleTapLands
               : undefined
           }
-          onTapLandAbility={(cardId, abilityIndex, color, actionId) => {
-            if (actionId) {
-              respond({ type: "act", actionId });
-            } else {
-              respond({
-                type: "tapForMana",
-                cardId,
-                abilityIndex: abilityIndex ?? undefined,
-                color: color ?? undefined,
-              });
-            }
+          onTapLandAbility={(actionId) => {
+            if (actionId) respond({ type: "act", actionId });
           }}
           onUntapLand={
             promptType === "chooseAction" || promptType === "payManaCost"

@@ -1,0 +1,68 @@
+---
+title: "diceRolled"
+description: Inform a player of the result of one or more dice rolls.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent after dice are rolled — spinning the planar die, or a "roll a d20" effect
+like The Deck of Many Things. Informational only; the player acknowledges the
+result to continue.
+
+![The diceRolled prompt in the Manabrew client](/protocol/dice-rolled.svg)
+
+## Arguments
+
+`input.type` is `"diceRolled"`. The remaining fields:
+
+<ProtocolType slug="dice-rolled" />
+
+Each entry in `rolls` is a `DiceRollEntry`:
+
+| Field            | Type       | Description                                     |
+| ---------------- | ---------- | ----------------------------------------------- |
+| `label?`         | `string`   | Optional label for this roll.                   |
+| `playerId?`      | `string`   | Optional player the roll belongs to.            |
+| `naturalResults` | `number[]` | The raw rolls before any modifiers.             |
+| `finalResults`   | `number[]` | The results after modifiers are applied.        |
+| `ignoredRolls`   | `number[]` | Rolls that were discarded, e.g. from advantage. |
+| `highlighted`    | `boolean`  | Whether to visually emphasize this entry.       |
+
+## Response
+
+```ts
+type DiceRolledOutput = { type: "diceRolledAcknowledged" };
+```
+
+This prompt is read-only — acknowledge to continue.
+
+## Example
+
+Rolling a d20 with advantage, keeping the higher of two natural rolls:
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "diceRolled",
+    "sides": 20,
+    "rolls": [
+      {
+        "label": "Advantage",
+        "playerId": "player-0",
+        "naturalResults": [14, 8],
+        "finalResults": [14],
+        "ignoredRolls": [8],
+        "highlighted": true
+      }
+    ],
+    "title": "Roll a d20",
+    "sourceCardName": "Wand of Wonder"
+  }
+}
+```
+
+```json
+{ "promptId": 7, "output": { "type": "diceRolledAcknowledged" } }
+```

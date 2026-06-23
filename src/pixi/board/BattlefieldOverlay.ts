@@ -241,9 +241,9 @@ export class BattlefieldOverlay {
               });
               return;
             }
-            this.host
-              .getCallbacks()
-              .onTapLandAbility?.(card.id, ab.abilityIndex, ab.colorChoice, ab.actionId);
+            if (ab.actionId) {
+              this.host.getCallbacks().onTapLandAbility?.(ab.actionId);
+            }
           },
           (highlighted) => {
             paintBtn(highlighted);

@@ -171,7 +171,7 @@ export function BoardCanvas({
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
-        resolution: Math.max(3, window.devicePixelRatio || 1),
+        resolution: Math.min(2, window.devicePixelRatio || 1),
       });
     } catch (err) {
       console.error("[pixi] BoardCanvas init failed:", err);

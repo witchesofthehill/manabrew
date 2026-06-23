@@ -1,0 +1,49 @@
+---
+title: "mulligan"
+description: Ask the deciding player to keep or mulligan their opening hand.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent at the start of the game (and after each mulligan) to ask whether the
+player keeps their opening hand. Unlike the modal prompts, the reference client
+renders this in the bottom action slot as **Keep** / **Mulligan** buttons.
+
+![The mulligan prompt in the Manabrew client](/protocol/mulligan.svg)
+
+## Arguments
+
+`input.type` is `"mulligan"`. The remaining fields:
+
+<ProtocolType slug="mulligan" />
+
+:::note[London mulligan]
+After keeping, a player who mulliganed `n` times puts `n` cards back. That
+second step is a separate prompt (`mulliganPutBack`), not part of this one.
+:::
+
+## Response
+
+```ts
+type MulliganOutput = { type: "mulliganDecision"; keep: boolean };
+```
+
+`keep: true` to keep the hand, `false` to mulligan and draw a new one.
+
+## Example
+
+```json
+{
+  "promptId": 1,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "mulligan",
+    "handCardIds": ["hand-0", "hand-1", "hand-2", "hand-3", "hand-4", "hand-5", "hand-6"],
+    "mulliganCount": 1
+  }
+}
+```
+
+```json
+{ "promptId": 1, "output": { "type": "mulliganDecision", "keep": true } }
+```

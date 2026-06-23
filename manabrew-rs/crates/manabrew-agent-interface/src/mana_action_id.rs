@@ -1,4 +1,6 @@
-use crate::prompt::{ActivatableAbilityInfo, AvailableAction, AvailableActionKind};
+use crate::prompt::{
+    ActivatableAbilityInfo, AvailableAction, AvailableActionKind, Mana, ManaColor,
+};
 
 const ANY_COLOR_LETTERS: [&str; 5] = ["W", "U", "B", "R", "G"];
 
@@ -34,7 +36,7 @@ pub(crate) fn parse_tap_action_id(rest: &str) -> ParsedTapAction<'_> {
     }
 }
 
-pub(crate) fn priority_mana_actions(
+pub(crate) fn mana_ability_actions(
     card_id: &str,
     ability_index: usize,
     description: &str,
@@ -51,44 +53,22 @@ pub(crate) fn priority_mana_actions(
             };
             AvailableAction {
                 id,
-                kind: AvailableActionKind::ActivateAbility {
+                kind: AvailableActionKind::ActivateAbility(ActivatableAbilityInfo {
                     card_id: card_id.to_string(),
                     ability_index,
                     description: description.to_string(),
-                    cost: cost.clone(),
                     is_mana_ability: true,
+                    cost: cost.clone(),
                     produced_mana: choice.produced_mana,
-                },
+                }),
             }
-        })
-        .collect()
-}
-
-pub(crate) fn payment_mana_ability_options(
-    card_id: &str,
-    ability_index: usize,
-    description: &str,
-    cost: Option<String>,
-    produced_mana: Option<String>,
-    produced_mana_amount: Option<i32>,
-) -> Vec<ActivatableAbilityInfo> {
-    split_mana_choices(produced_mana.as_deref(), produced_mana_amount)
-        .into_iter()
-        .map(|choice| ActivatableAbilityInfo {
-            card_id: card_id.to_string(),
-            ability_index,
-            description: description.to_string(),
-            is_mana_ability: true,
-            cost: cost.clone(),
-            produced_mana: choice.produced_mana,
-            color: choice.action_color.map(str::to_string),
         })
         .collect()
 }
 
 struct ManaChoice {
     action_color: Option<&'static str>,
-    produced_mana: Option<String>,
+    produced_mana: Option<Vec<Mana>>,
 }
 
 fn split_mana_choices(
@@ -96,17 +76,11 @@ fn split_mana_choices(
     produced_mana_amount: Option<i32>,
 ) -> Vec<ManaChoice> {
     let Some(raw_produced_mana) = produced_mana else {
-        return vec![ManaChoice {
-            action_color: None,
-            produced_mana: None,
-        }];
+        return vec![prompt_choice()];
     };
     let tokens = produced_mana_tokens(raw_produced_mana);
     if tokens.is_empty() {
-        return vec![ManaChoice {
-            action_color: None,
-            produced_mana: Some(raw_produced_mana.to_string()),
-        }];
+        return vec![prompt_choice()];
     }
 
     let is_combo = tokens.iter().any(|token| token == "COMBO");
@@ -123,7 +97,7 @@ fn split_mana_choices(
     }
     if is_combo {
         if amount > 1 {
-            return fixed_choice(raw_produced_mana);
+            return vec![prompt_choice()];
         }
         if is_any {
             return choices_for_letters(ANY_COLOR_LETTERS, amount);
@@ -134,22 +108,20 @@ fn split_mana_choices(
         }
     }
 
-    let letters = mana_tokens_to_letters(&mana_tokens);
-    if let Some(letters) = letters {
-        return vec![ManaChoice {
+    match mana_tokens_to_letters(&mana_tokens) {
+        Some(letters) => vec![ManaChoice {
             action_color: None,
-            produced_mana: Some(mana_string(&letters, amount)),
-        }];
+            produced_mana: Some(letters_to_mana(&letters, amount)),
+        }],
+        None => vec![prompt_choice()],
     }
-
-    fixed_choice(raw_produced_mana)
 }
 
-fn fixed_choice(produced_mana: &str) -> Vec<ManaChoice> {
-    vec![ManaChoice {
+fn prompt_choice() -> ManaChoice {
+    ManaChoice {
         action_color: None,
-        produced_mana: Some(produced_mana.to_string()),
-    }]
+        produced_mana: None,
+    }
 }
 
 fn choices_for_letters(
@@ -160,9 +132,24 @@ fn choices_for_letters(
         .into_iter()
         .map(|letter| ManaChoice {
             action_color: Some(letter),
-            produced_mana: Some(mana_string(&[letter], amount)),
+            produced_mana: Some(letters_to_mana(&[letter], amount)),
         })
         .collect()
+}
+
+fn letters_to_mana(letters: &[&str], amount: i32) -> Vec<Mana> {
+    let amount = amount.max(1);
+    let mut out: Vec<Mana> = Vec::new();
+    for letter in letters {
+        let Some(color) = letter_to_color(letter) else {
+            continue;
+        };
+        match out.iter_mut().find(|mana| mana.color == color) {
+            Some(mana) => mana.amount += amount,
+            None => out.push(Mana { color, amount }),
+        }
+    }
+    out
 }
 
 fn produced_mana_tokens(produced_mana: &str) -> Vec<String> {
@@ -193,14 +180,6 @@ fn mana_tokens_to_letters(tokens: &[&str]) -> Option<Vec<&'static str>> {
         .collect()
 }
 
-fn mana_string(letters: &[&str], amount: i32) -> String {
-    let amount = amount.max(1) as usize;
-    (0..amount)
-        .flat_map(|_| letters.iter().copied())
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 fn parse_card_and_index(rest: &str) -> Option<(&str, usize)> {
     let (card_id, index) = rest.rsplit_once(':')?;
     Some((card_id, index.parse().ok()?))
@@ -208,6 +187,18 @@ fn parse_card_and_index(rest: &str) -> Option<(&str, usize)> {
 
 fn is_mana_letter(token: &str) -> bool {
     matches!(token, "W" | "U" | "B" | "R" | "G" | "C")
+}
+
+fn letter_to_color(letter: &str) -> Option<ManaColor> {
+    match letter {
+        "W" => Some(ManaColor::White),
+        "U" => Some(ManaColor::Blue),
+        "B" => Some(ManaColor::Black),
+        "R" => Some(ManaColor::Red),
+        "G" => Some(ManaColor::Green),
+        "C" => Some(ManaColor::Colorless),
+        _ => None,
+    }
 }
 
 fn mana_token_to_letter(token: &str) -> Option<&'static str> {

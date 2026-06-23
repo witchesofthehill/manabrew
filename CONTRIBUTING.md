@@ -140,5 +140,6 @@ Keep the PR reviewable:
 ## License
 
 By contributing, you agree that your contribution is licensed under the same
-license as the file you changed. Most of the repository is GPL-3.0-or-later.
-`docs/PROTOCOL.md` is CC-BY-4.0.
+license as the file you changed. Most of the repository is GPL-3.0-or-later. The
+protocol specification under `website/src/content/docs/protocol/`
+([docs.manabrew.app/protocol](https://docs.manabrew.app/protocol/)) is CC-BY-4.0.

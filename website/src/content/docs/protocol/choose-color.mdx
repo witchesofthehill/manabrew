@@ -1,0 +1,65 @@
+---
+title: "chooseColor"
+description: Ask the deciding player to choose one or more colors.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when an effect asks the player to choose a color — for example, the color
+named by Painter's Servant, or the color half of a hybrid mana payment.
+
+## Arguments
+
+`input.type` is `"chooseColor"`. The remaining fields:
+
+<ProtocolType slug="choose-color" />
+
+## Rendering
+
+The control depends on how many picks are needed.
+
+<figure class="prompt-figure">
+  <img src="/protocol/choose-color.webp" alt="A single color picked from coloured tiles" />
+  <div class="prompt-figure__caption">
+    For a single pick (`amount` of 1) the colors are tiles — click one and the choice is sent
+    immediately.
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img
+    src="/protocol/choose-color-combination.webp"
+    alt="Per-color counters distributing several picks"
+  />
+  <div class="prompt-figure__caption">
+    For multiple picks (`amount` &gt; 1 with `repeatAllowed`) it becomes a per-color counter — the
+    player spreads `amount` across the colors, then confirms.
+  </div>
+</figure>
+
+## Response
+
+```ts
+type ChooseColorOutput = { type: "colorDecision"; chosenColors: { [color: string]: number } };
+```
+
+Return a map of color → number of times chosen, with the counts summing to `amount`.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseColor",
+    "validColors": ["W", "U", "B", "R", "G"],
+    "amount": 1,
+    "repeatAllowed": false
+  }
+}
+```
+
+```json
+{ "promptId": 7, "output": { "type": "colorDecision", "chosenColors": { "R": 1 } } }
+```

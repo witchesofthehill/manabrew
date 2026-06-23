@@ -1,0 +1,72 @@
+---
+title: "chooseFromSelection"
+description: Ask the deciding player to choose from a list of options.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+Sent when the player must choose modes of a modal spell — for example, picking
+"choose one or both" on a charm, or selecting the modes of a Command.
+
+## Arguments
+
+`input.type` is `"chooseFromSelection"`. The remaining fields:
+
+<ProtocolType slug="choose-from-selection" />
+
+## Rendering
+
+The control depends on how many options may be chosen.
+
+<figure class="prompt-figure">
+  <img src="/protocol/choose-from-selection.webp" alt="A list of single-choice option buttons" />
+  <div class="prompt-figure__caption">
+    For a single choice (`maxChoices` of 1) the options are plain buttons — clicking one sends it
+    immediately.
+  </div>
+</figure>
+
+<figure class="prompt-figure">
+  <img
+    src="/protocol/choose-from-selection-multi.webp"
+    alt="Option rows with checkboxes and a confirm button"
+  />
+  <div class="prompt-figure__caption">
+    For multiple choices each option gets a checkbox and a counter; the player selects within
+    `minChoices`–`maxChoices`, then confirms.
+  </div>
+</figure>
+
+Beyond six options the list collapses into a type-to-filter field (search and
+pick), keeping long lists manageable.
+
+## Response
+
+```ts
+type ChooseFromSelectionOutput = { type: "selectionDecision"; chosenIndices: number[] };
+```
+
+Return the indices (into `options`) of the chosen modes.
+
+## Example
+
+```json
+{
+  "promptId": 7,
+  "decidingPlayerId": "player-0",
+  "input": {
+    "type": "chooseFromSelection",
+    "presentation": {
+      "title": "Choose one or both",
+      "targets": []
+    },
+    "options": ["Destroy target artifact.", "Destroy target enchantment."],
+    "minChoices": 1,
+    "maxChoices": 2
+  }
+}
+```
+
+```json
+{ "promptId": 7, "output": { "type": "selectionDecision", "chosenIndices": [0] } }
+```

@@ -33,15 +33,18 @@ inclusion, notice of modifications).
 
 ## Protocol — CC-BY-4.0
 
-`docs/PROTOCOL.md` is published under
+The protocol specification — the documentation under
+`website/src/content/docs/protocol/` (published at <https://docs.manabrew.app/protocol/>) —
+is published under
 **Creative Commons Attribution 4.0 International (CC-BY-4.0)** so that third
 parties may describe or implement against the same wire format without
-depending on this repository. The license is declared in the file's header.
+depending on this repository. The license is declared in the overview page's
+header.
 
 ## Contributing
 
 Contributors are asked to add a `Signed-off-by:` trailer to every commit (the
 [Developer Certificate of Origin](https://developercertificate.org/)
 convention). All contributions to this repository are offered under
-AGPL-3.0-or-later, except changes to `docs/PROTOCOL.md`, which are offered under
-CC-BY-4.0.
+AGPL-3.0-or-later, except changes to the protocol specification under
+`website/src/content/docs/protocol/`, which are offered under CC-BY-4.0.

@@ -60,16 +60,6 @@ export const singleLegalColor: PromptResolver<"chooseColor"> = (prompt) => {
   };
 };
 
-export const singleLegalType: PromptResolver<"chooseType"> = (prompt) => {
-  const types = prompt.input.validTypes;
-  if (types.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "typeDecision", chosenType: types[0] },
-    reason: `only legal type: ${types[0]}`,
-  };
-};
-
 export const singleLegalNumber: PromptResolver<"chooseNumber"> = (prompt) => {
   const min = prompt.input.min;
   const max = prompt.input.max;
@@ -78,16 +68,6 @@ export const singleLegalNumber: PromptResolver<"chooseNumber"> = (prompt) => {
     kind: "auto",
     respond: { type: "numberDecision", chosenNumber: min },
     reason: `only legal number: ${min}`,
-  };
-};
-
-export const singleLegalName: PromptResolver<"chooseCardName"> = (prompt) => {
-  const names = prompt.input.validNames;
-  if (names.length !== 1) return { kind: "force-show" };
-  return {
-    kind: "auto",
-    respond: { type: "cardNameDecision", chosenName: names[0] },
-    reason: `only legal name: ${names[0]}`,
   };
 };
 

@@ -28,6 +28,31 @@ pub struct PlayOptionDto {
     pub mode_label: String,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum ManaColor {
+    #[serde(rename = "W")]
+    White,
+    #[serde(rename = "U")]
+    Blue,
+    #[serde(rename = "B")]
+    Black,
+    #[serde(rename = "R")]
+    Red,
+    #[serde(rename = "G")]
+    Green,
+    #[serde(rename = "C")]
+    Colorless,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct Mana {
+    pub color: ManaColor,
+    pub amount: i32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
@@ -41,10 +66,41 @@ pub struct ActivatableAbilityInfo {
     pub cost: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub produced_mana: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub color: Option<String>,
+    pub produced_mana: Option<Vec<Mana>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub enum AvailableActionKind {
+    Cast {
+        card_id: String,
+        mode: String,
+        mode_label: String,
+    },
+    ActivateAbility(ActivatableAbilityInfo),
+    UndoMana {
+        card_id: String,
+    },
+    Delve {
+        card_id: String,
+    },
+    Undelve {
+        card_id: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct AvailableAction {
+    pub id: String,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub kind: AvailableActionKind,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -113,26 +169,4 @@ pub enum TargetRef {
     Player { id: String },
     Card { id: String },
     Spell { id: String },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-#[ts(export, export_to = "prompts/common.ts")]
-pub enum ManaSourceAction {
-    TapForMana {
-        card_id: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        ability_index: Option<usize>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[ts(optional)]
-        color: Option<String>,
-    },
-    Untap {
-        card_id: String,
-    },
 }

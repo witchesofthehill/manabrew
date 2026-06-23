@@ -1,0 +1,94 @@
+---
+title: Shared types
+description: Common data types referenced across the manabrew protocol prompts.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+The prompt protocol is built from a small set of reusable structures. Instead of
+redefining them on every prompt page, they're collected here — each prompt's
+arguments link back to the entries it uses.
+
+Every block below is generated from the same source as the engine bindings
+(`ts-rs` for TypeScript, the `manabrew-protocol` crate for Rust), so it can't
+drift from what's actually on the wire.
+
+## PromptPresentation
+
+The title/description header most modal prompts open with.
+
+<ProtocolType type="PromptPresentation" />
+
+## CardDto
+
+The engine's snapshot of a card, sent inline wherever a prompt shows cards. Only
+`id` and `name` are needed to round-trip a choice; the rest drives richer
+rendering.
+
+<ProtocolType type="CardDto" />
+
+## TargetRef
+
+A typed reference to a player, card, or spell. The `kind` tag tells the client
+which id space `id` belongs to.
+
+<ProtocolType type="TargetRef" />
+
+## TargetingIntent
+
+A semantic hint describing what an effect intends to do to its target — the
+client uses it to pre-highlight sensible targets.
+
+<ProtocolType type="TargetingIntent" />
+
+## ScryDestination
+
+The zones a scry-style prompt can sort cards into.
+
+<ProtocolType type="ScryDestination" />
+
+## DiceRollEntry
+
+One player's dice result.
+
+<ProtocolType type="DiceRollEntry" />
+
+## AvailableAction
+
+One legal action offered by [chooseAction](/protocol/choose-action/): cast a
+spell, activate an ability, or undo a mana activation.
+
+<ProtocolType type="AvailableAction" />
+
+## ActivatableAbilityInfo
+
+A mana ability the player can activate while paying a cost
+([payManaCost](/protocol/pay-mana-cost/)).
+
+<ProtocolType type="ActivatableAbilityInfo" />
+
+## AttackerOptionDto
+
+A creature that can attack, with the set of targets it may attack
+([chooseAttackers](/protocol/choose-attackers/)).
+
+<ProtocolType type="AttackerOptionDto" />
+
+## AttackTargetDto
+
+Something an attacker can be declared against — a player, planeswalker, or battle.
+
+<ProtocolType type="AttackTargetDto" />
+
+## AttackTargetKind
+
+Which kind of thing an [AttackTargetDto](#attacktargetdto) is.
+
+<ProtocolType type="AttackTargetKind" />
+
+## BlockableAttackerDto
+
+An incoming attacker and how it may be blocked
+([chooseBlockers](/protocol/choose-blockers/)).
+
+<ProtocolType type="BlockableAttackerDto" />

@@ -59,14 +59,11 @@ impl BotAgent for SimpleAi {
             })),
             PromptInput::ChooseAction(manabrew_protocol::prompts::choose_action::ChooseActionInput { actions }) => {
                 let useful = |a: &&AvailableAction| {
-                    !matches!(
-                        a.kind,
-                        AvailableActionKind::UndoMana { .. }
-                            | AvailableActionKind::ActivateAbility {
-                                is_mana_ability: true,
-                                ..
-                            }
-                    )
+                    !matches!(&a.kind, AvailableActionKind::UndoMana { .. })
+                        && !matches!(
+                            &a.kind,
+                            AvailableActionKind::ActivateAbility(info) if info.is_mana_ability
+                        )
                 };
                 let pick = if self.looping_on(format!("{actions:?}")) {
                     None
@@ -79,8 +76,8 @@ impl BotAgent for SimpleAi {
                         .map(|a| a.id.clone())
                 };
                 Some(PromptOutput::ChooseAction(
-                    pick.map(|action_id| ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Act { action_id }))
-                        .unwrap_or(ChooseActionOutput::ChooseActionDecision(ChooseActionDecision::Pass { until_phase: None })),
+                    pick.map(|action_id| ChooseActionOutput::Act { action_id })
+                        .unwrap_or(ChooseActionOutput::Pass { until_phase: None }),
                 ))
             }
             PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
@@ -111,14 +108,28 @@ impl BotAgent for SimpleAi {
                 available_blocker_ids,
                 ..
             }) => {
-                let assignments = if !attackers.is_empty() && !available_blocker_ids.is_empty() {
-                    vec![BlockAssignment {
-                        blocker_id: available_blocker_ids[0].clone(),
-                        attacker_id: attackers[0].attacker_id.clone(),
-                    }]
-                } else {
-                    Vec::new()
-                };
+                let mut remaining = available_blocker_ids.clone();
+                let mut assignments = Vec::new();
+                for attacker in &attackers {
+                    let need = attacker.min_blockers.max(1) as usize;
+                    let usable: Vec<String> = remaining
+                        .iter()
+                        .filter(|b| attacker.valid_blocker_ids.contains(b))
+                        .take(need)
+                        .cloned()
+                        .collect();
+                    if usable.len() < need {
+                        continue;
+                    }
+                    for blocker_id in usable {
+                        remaining.retain(|b| b != &blocker_id);
+                        assignments.push(BlockAssignment {
+                            blocker_id,
+                            attacker_id: attacker.attacker_id.clone(),
+                        });
+                    }
+                    break;
+                }
                 Some(PromptOutput::ChooseBlockers(ChooseBlockersOutput::DeclareBlockers { assignments }))
             }
             PromptInput::ChooseBoardTargets(manabrew_protocol::prompts::choose_board_targets::ChooseBoardTargetsInput {
@@ -182,17 +193,9 @@ impl BotAgent for SimpleAi {
                     chosen_colors: chosen,
                 }))
             }
-            PromptInput::ChooseType(manabrew_protocol::prompts::choose_type::ChooseTypeInput { valid_types, .. }) => Some(PromptOutput::ChooseType(ChooseTypeOutput::TypeDecision {
-                chosen_type: valid_types.first().cloned(),
-            })),
             PromptInput::ChooseNumber(manabrew_protocol::prompts::choose_number::ChooseNumberInput { min, .. }) => Some(PromptOutput::ChooseNumber(ChooseNumberOutput::NumberDecision {
                 chosen_number: Some(min),
             })),
-            PromptInput::ChooseCardName(manabrew_protocol::prompts::choose_card_name::ChooseCardNameInput { valid_names, .. }) => {
-                Some(PromptOutput::ChooseCardName(ChooseCardNameOutput::CardNameDecision {
-                    chosen_name: valid_names.first().cloned(),
-                }))
-            }
             PromptInput::ChooseDamageAssignmentOrder(manabrew_protocol::prompts::choose_damage_assignment_order::ChooseDamageAssignmentOrderInput { blocker_ids, .. }) => {
                 Some(PromptOutput::ChooseDamageAssignmentOrder(ChooseDamageAssignmentOrderOutput::DamageAssignmentOrderDecision {
                     ordered_blocker_ids: blocker_ids,
@@ -213,25 +216,21 @@ impl BotAgent for SimpleAi {
                 Some(PromptOutput::ChooseCombatDamageAssignment(ChooseCombatDamageAssignmentOutput::CombatDamageAssignmentDecision { assignments }))
             }
             PromptInput::PayManaCost(input) => {
-                let can_pay = input.can_confirm_from_pool
-                    || !input.tappable_source_ids.is_empty()
-                    || !input.mana_ability_options.is_empty()
-                    || !input.delve_source_ids.is_empty();
+                let can_pay = input.can_confirm_from_pool || !input.actions.is_empty();
                 // auto-pay is one-shot: a failed attempt bounces the identical
                 // prompt back, so a repeat means auto-pay can't complete — bail.
                 let signature = format!(
-                    "pay:{}|{}|{}|{}",
+                    "pay:{}|{}|{}",
                     input.card_id,
                     input.mana_cost,
-                    input.mana_pool_total,
-                    input.tappable_source_ids.len()
+                    input.actions.len()
                 );
                 let payment = if !can_pay || self.looping_on(signature) {
-                    ManaPayment::Cancel
+                    PayManaCostOutput::Cancel
                 } else {
-                    ManaPayment::Pay { auto: true }
+                    PayManaCostOutput::Pay { auto: true }
                 };
-                Some(PromptOutput::PayManaCost(PayManaCostOutput::ManaPayment(payment)))
+                Some(PromptOutput::PayManaCost(payment))
             }
             PromptInput::ChooseCards(manabrew_protocol::prompts::choose_cards::ChooseCardsInput {
                 presentation,

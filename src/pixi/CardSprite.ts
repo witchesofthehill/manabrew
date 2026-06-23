@@ -324,6 +324,7 @@ export class CardSprite extends Container {
   private _imageLoaded = false;
   private readonly isBattlefield: boolean;
   private previewFace: 0 | 1 | null = null;
+  private loadGeneration = 0;
 
   constructor(card: GameCard, kind: "battlefield" | "hand" = "battlefield") {
     super();
@@ -539,6 +540,7 @@ export class CardSprite extends Container {
   }
 
   private async loadImage(): Promise<void> {
+    const generation = ++this.loadGeneration;
     const deck = useGameStore.getState().gameDecks[this.card.ownerId];
     const deckCard = asDeckCard(deck, this.card);
     const custom = this.isBattlefield && activeStyle !== "realistic";
@@ -546,7 +548,7 @@ export class CardSprite extends Container {
     const tex = await useScryfallStore
       .getState()
       .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
-    if (this.destroyed) return;
+    if (this.destroyed || generation !== this.loadGeneration) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
       if (custom) this.fitArtCover();
@@ -822,7 +824,15 @@ export class CardSprite extends Container {
     // If the card is removed mid-stomp the GSAP tween would keep mutating a
     // destroyed sprite's fxScale forever; kill it before teardown.
     gsap.killTweensOf(this.fxScale);
+    if (this.sickFilter) {
+      this.sickFilter.destroy();
+      this.sickFilter = null;
+    }
+    const frameNameStyle = this.frameNameText.style;
+    const frameTypeStyle = this.frameTypeText.style;
     super.destroy(options);
+    frameNameStyle.destroy();
+    frameTypeStyle.destroy();
   }
 
   /** Phased-out cards are desaturated here, but their alpha fade is owned by the

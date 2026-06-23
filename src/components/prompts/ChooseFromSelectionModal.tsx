@@ -1,14 +1,18 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
+import { MODAL_INPUT } from "@/components/game/game.styles";
 import { cn } from "@/lib/utils";
 import { useModalKeyboard } from "@/hooks/useModalKeyboard";
 import { PromptPresentation } from "./internal/PromptPresentation";
 import type { PromptProps } from "./internal/promptProps";
 import type { ChooseFromSelectionInput, ChooseFromSelectionOutput } from "@/protocol";
+
+// Past this many options the button list becomes a type-to-filter field.
+const FILTER_THRESHOLD = 5;
 
 export function ChooseFromSelectionModal({
   input,
@@ -16,6 +20,17 @@ export function ChooseFromSelectionModal({
 }: PromptProps<ChooseFromSelectionInput, ChooseFromSelectionOutput>) {
   const { options, minChoices, maxChoices, presentation } = input;
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState("");
+  const filterRef = useRef<HTMLInputElement>(null);
+
+  const showFilter = options.length > FILTER_THRESHOLD;
+  const visibleOptions = options
+    .map((label, idx) => ({ label, idx }))
+    .filter(({ label }) => !filter || label.toLowerCase().includes(filter.toLowerCase()));
+
+  useEffect(() => {
+    if (showFilter) filterRef.current?.focus();
+  }, [showFilter]);
 
   const isAutoConfirm = minChoices === 1 && maxChoices === 1;
   const showCheckboxes = maxChoices > 1;
@@ -65,8 +80,24 @@ export function ChooseFromSelectionModal({
       <div className="shrink-0 p-5">
         <PromptPresentation presentation={presentation} />
       </div>
+      {showFilter && (
+        <div className="shrink-0 px-5 pb-2">
+          <input
+            ref={filterRef}
+            type="text"
+            placeholder="Type to filter…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className={MODAL_INPUT}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+          />
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-5 pb-4">
-        {options.map((label, idx) => {
+        {visibleOptions.map(({ label, idx }) => {
           const isSelected = selected.has(idx);
           const isDisabled =
             !isAutoConfirm && !isSelected && selected.size >= maxChoices && maxChoices > 1;
@@ -116,6 +147,9 @@ export function ChooseFromSelectionModal({
             </button>
           );
         })}
+        {visibleOptions.length === 0 && (
+          <p className="px-1 text-sm text-muted-foreground">No matching options.</p>
+        )}
       </div>
       {isAutoConfirm ? (
         <div className="px-5 pb-4 pt-2 text-center text-xs text-muted-foreground">

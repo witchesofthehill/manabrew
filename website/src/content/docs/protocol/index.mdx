@@ -1,0 +1,147 @@
+---
+title: The Manabrew Protocol
+description: How a Manabrew engine talks to a client — the prompt protocol for implementers.
+---
+
+{/* SPDX-License-Identifier: CC-BY-4.0 — see the License section below. */}
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+Manabrew separates the **engine** (the rules) from the **client** (the UI). Any
+engine that speaks this protocol can drive the Manabrew client, and any client
+that implements it can host the Manabrew engine. This section documents the
+protocol so you can implement it for your own engine.
+
+:::caution[Work in progress]
+The Manabrew protocol is still evolving and we're working hard towards a **v1.0.0**, after which, we'll start honoring [semantic versioning](https://semver.org/)
+:::
+
+## Goals
+
+- A **transport-agnostic JSON message format** — a client written against this
+  spec can talk to any conforming engine.
+- **Complete enough to drive interactive play**: priority, targeting, combat,
+  cost payment, library manipulation, dice, and the opening-hand procedure.
+
+## Non-goals
+
+- **Card behaviour.** The protocol carries already-resolved decisions; it does
+  not say how the engine decides what's legal or how spells resolve.
+- **Card data.** Oracle text and costs are rendered by the engine from its own
+  database; image URLs, rulings, and printing metadata are fetched separately
+  (e.g. from Scryfall), not transmitted here.
+- **Replay or persistence formats.**
+
+## Three message families
+
+The engine → client channel carries **three separate kinds of message**. They
+are never conflated:
+
+<CardGrid>
+  <Card title="state" icon="seti:db">
+    A `StateUpdate` carrying the full `gameView` — the **only** carrier of game state. The client
+    re-renders the board from it.
+  </Card>
+  <Card title="display" icon="sparkles">
+    [**⚠️ Work in Progress**]
+    A `DisplayEvent` — a transient, potentially very frequent UI display information. Carries no
+    authoritative state. This could be used to sync up the fields, as well as the cursors positions of the players
+    for multiplayer "livelyness".
+  </Card>
+  <Card title="prompt" icon="comment">
+    An `AgentPrompt` — a **call to action**. The engine has paused and needs a decision from a
+    specific player. Carries **no** game state.
+  </Card>
+</CardGrid>
+
+Prompts deliberately carry no `gameView`: the client already has the latest
+state from the most recent `StateUpdate` message.
+
+## The prompt envelope
+
+Every prompt is wrapped in an `AgentPrompt`:
+
+```ts
+interface AgentPrompt {
+  promptId: number; // correlate the response back to this prompt
+  decidingPlayerId: string; // who must answer
+  sourceCardId?: string; // the card that caused this prompt, if any
+  input: PromptInput; // the discriminated union below
+}
+```
+
+`input` is a discriminated union tagged by a `type` field. Each variant is one
+kind of decision — `mulligan`, `chooseNumber`, `chooseCards`, `payManaCost`,
+`chooseAttackers`, and so on. The pages in this section document one variant each.
+
+## Answering a prompt
+
+The client replies with a `PromptOutput` — also a discriminated union tagged by
+`type` — echoing the `promptId` so the engine can match it. Each prompt page
+lists the exact response shape the engine expects.
+
+```ts
+// engine → client
+{ "promptId": 7, "decidingPlayerId": "player-0", "input": { "type": "chooseNumber", ... } }
+
+// client → engine
+{ "promptId": 7, "output": { "type": "numberDecision", "chosenNumber": 3 } }
+```
+
+
+:::note[Careful about the type blocks]
+For language convenience, we show the type blocks in multiple languages.
+Be mindful that the correct protocol on the wire is **camelCase**.
+Follow the **TypeScript** type definitions for the exact protocol.
+:::
+
+
+## The prompt catalogue
+
+Every prompt the engine can send. Each links to its arguments, response shape,
+and a wire example.
+
+**Choices & information**
+
+- [chooseNumber](/protocol/choose-number/) — pick a number in a range.
+- [chooseCards](/protocol/choose-cards/) — select cards from a set.
+- [chooseColor](/protocol/choose-color/) — choose one or more colors.
+- [chooseBoolean](/protocol/choose-boolean/) — a yes/no decision.
+- [chooseFromSelection](/protocol/choose-from-selection/) — pick spell modes.
+- [revealCards](/protocol/reveal-cards/) — acknowledge revealed cards.
+- [scry](/protocol/scry/) — sort cards into destination zones.
+- [reorderCards](/protocol/reorder-cards/) — order cards on top/bottom of library.
+- [diceRolled](/protocol/dice-rolled/) — acknowledge a dice roll.
+
+**Priority & costs**
+
+- [chooseAction](/protocol/choose-action/) — take an action or pass priority.
+- [payManaCost](/protocol/pay-mana-cost/) — pay a mana cost interactively.
+
+**Mulligan**
+
+- [mulligan](/protocol/mulligan/) — keep or mulligan the opening hand.
+- [mulliganPutBack](/protocol/mulligan-put-back/) — London-mulligan put-back.
+
+**Combat & targeting**
+
+- [chooseAttackers](/protocol/choose-attackers/) — declare attackers.
+- [chooseBlockers](/protocol/choose-blockers/) — declare blockers.
+- [chooseDamageAssignmentOrder](/protocol/choose-damage-assignment-order/) — order multiple blockers.
+- [chooseCombatDamageAssignment](/protocol/choose-combat-damage-assignment/) — assign combat damage.
+- [chooseBoardTargets](/protocol/choose-board-targets/) — choose targets on the board.
+
+**End**
+
+- [gameOver](/protocol/game-over/) — the game has ended.
+
+## License
+
+This protocol specification — every page under **/protocol/** — is licensed
+**[Creative Commons Attribution 4.0 International (CC-BY-4.0)](https://creativecommons.org/licenses/by/4.0/)**,
+deliberately separate from the reference implementation, so that anyone may
+describe or implement the same wire format without depending on this repository.
+
+The reference implementation (the rest of the project) is **AGPL-3.0-or-later**.
+Independent re-implementations of this protocol under any license are explicitly
+invited.

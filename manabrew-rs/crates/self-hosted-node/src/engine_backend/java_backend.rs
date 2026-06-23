@@ -41,7 +41,7 @@ use serde::Serialize;
 use serde_json::json;
 #[cfg(feature = "java-forge")]
 use serde_json::Value;
-#[cfg(feature = "java-forge")]
+#[cfg(forge_backend)]
 use tracing::warn;
 #[cfg(forge_backend)]
 use tracing::{debug, info};

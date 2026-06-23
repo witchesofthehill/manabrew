@@ -832,6 +832,7 @@ fn maybe_start_hosted_engine(
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
+            let outbound_tx = outbound_tx.clone();
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -853,8 +854,7 @@ fn maybe_start_hosted_engine(
                         game_over_tx,
                     )
                 }));
-                log_hosted_engine_result(result);
-                clear_engine_session(&session_handle);
+                finish_hosted_engine(result, &outbound_tx, &session_handle);
             });
         }
         EngineBackendKind::Forge => {
@@ -879,6 +879,7 @@ fn maybe_start_hosted_engine(
             spawn_remote_prompt_forwarder(outbound_tx.clone(), remote_prompt_rx);
             let (game_over_tx, game_over_rx) = std_mpsc::channel::<HostedGameOver>();
             spawn_game_over_forwarder(outbound_tx.clone(), game_over_rx);
+            let outbound_tx = outbound_tx.clone();
             spawn_engine_thread(move || {
                 info!(
                     game_id,
@@ -902,8 +903,7 @@ fn maybe_start_hosted_engine(
                         cancel,
                     )
                 }));
-                log_hosted_engine_result(result);
-                clear_engine_session(&session_handle);
+                finish_hosted_engine(result, &outbound_tx, &session_handle);
             });
         }
     }
@@ -976,20 +976,39 @@ fn end_hosted_game_on_abandon(
     }
 }
 
-fn log_hosted_engine_result(result: std::thread::Result<()>) {
-    match result {
-        Ok(()) => info!("hosted engine thread finished"),
-        Err(error) => {
-            let message = if let Some(message) = error.downcast_ref::<String>() {
+fn finish_hosted_engine(
+    result: std::thread::Result<Result<(), String>>,
+    outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
+    session_handle: &SharedEngineSession,
+) {
+    let fatal = match result {
+        Ok(Ok(())) => {
+            info!("hosted engine thread finished");
+            None
+        }
+        Ok(Err(message)) => {
+            error!(message, "hosted engine exited with a fatal error");
+            Some(message)
+        }
+        Err(panic) => {
+            let message = if let Some(message) = panic.downcast_ref::<String>() {
                 message.clone()
-            } else if let Some(message) = error.downcast_ref::<&str>() {
+            } else if let Some(message) = panic.downcast_ref::<&str>() {
                 message.to_string()
             } else {
-                "unknown panic".to_string()
+                "the host engine panicked".to_string()
             };
             error!(message, "hosted engine thread panicked");
+            Some(message)
         }
+    };
+    if let Some(message) = fatal {
+        if let Ok(state) = serde_json::to_value(StateEnvelope::Fatal { message }) {
+            let _ = outbound_tx.send(ClientMessage::BroadcastState { state });
+        }
+        let _ = outbound_tx.send(ClientMessage::EndGame);
     }
+    clear_engine_session(session_handle);
 }
 
 fn route_remote_response(engine_session: &SharedEngineSession, state: &Value) {

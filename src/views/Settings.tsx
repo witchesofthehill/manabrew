@@ -14,7 +14,6 @@ import { useBattlefieldCardScale } from "@/hooks/useBattlefieldCardScale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useTheme as useColorMode } from "next-themes";
 import { Navigate } from "react-router-dom";
 import { HelpCircle } from "lucide-react";
@@ -673,22 +672,27 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <div className="flex items-start gap-3">
-                <Checkbox
-                  id="experimental-smart-priority"
-                  checked={prefs.experimentalSmartPriority}
-                  onCheckedChange={(checked) =>
-                    prefs.setExperimentalSmartPriority(checked === true)
-                  }
-                />
-                <div className="space-y-1">
-                  <Label htmlFor="experimental-smart-priority">Experimental smart priority</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Uses Arena-style priority prompts, hidden soft stops, one-shot phase stops, and
-                    the in-game Full Control toggle.
-                  </p>
-                </div>
+              <Label>Experimental smart priority</Label>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={!prefs.experimentalSmartPriority ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setExperimentalSmartPriority(false)}
+                >
+                  Off
+                </Button>
+                <Button
+                  variant={prefs.experimentalSmartPriority ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setExperimentalSmartPriority(true)}
+                >
+                  On
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Uses Arena-style priority prompts, hidden soft stops, one-shot phase stops, and the
+                in-game Full Control toggle.
+              </p>
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">

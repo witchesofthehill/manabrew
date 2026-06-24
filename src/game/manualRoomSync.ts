@@ -1,7 +1,7 @@
 import type { ManualTabletopAction, ManualTabletopApi } from "./runtime.types";
 import { BroadcastRoomHost } from "./roomHost";
 import type { RoomHostEnvelope } from "./roomHost";
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 
 let activeRoomHost: BroadcastRoomHost | null = null;
 let activeUnsubscribe: (() => void) | null = null;
@@ -32,7 +32,7 @@ export function getActiveManualRoomHost(): BroadcastRoomHost | null {
 export async function applyManualTabletopAction(
   api: ManualTabletopApi,
   action: ManualTabletopAction,
-): Promise<GameView | null> {
+): Promise<GameViewDto | null> {
   const roomHost = activeRoomHost;
   if (!roomHost) {
     return api.applyManualAction(action);

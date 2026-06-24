@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { Card } from "@/components/game/Card";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
 import { HAND_CARD } from "../game.styles";
@@ -14,7 +14,7 @@ import type { CSSProperties } from "react";
 
 interface ZoneViewerProps {
   title: string;
-  cards: GameCard[];
+  cards: CardDto[];
   onClose: () => void;
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];

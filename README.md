@@ -200,6 +200,14 @@ in `forge-harness/` before it builds — do that in the same change. Then commit
 the submodule pointer bump (`git status` shows `M forge`) and open a PR like any
 other.
 
+### Native Forge engine (GraalVM)
+
+`self-hosted-node` can run the Forge engine **in-process** instead of spawning a
+JVM subprocess: Forge is compiled ahead-of-time with GraalVM `native-image` into
+a shared library that the node links via FFI (feature `graal-forge`). Build
+prerequisites and steps are in
+[`forge-harness/native/README.md`](forge-harness/native/README.md).
+
 ### Run the desktop app
 
 ```bash

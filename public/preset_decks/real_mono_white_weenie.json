@@ -14,19 +14,11 @@
       "cardNumber": "260",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {
@@ -46,16 +38,10 @@
       "cardNumber": "246",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
       "supertypes": [],
       "text": "({T}: Add {W}.)\nThis land enters tapped unless you control three or more other Plains.\nWhen this land enters untapped, put a +1/+1 counter on target creature you control.",
       "layout": "normal",
@@ -75,20 +61,11 @@
       "set": "inr",
       "cardNumber": "45",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Soldier"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Soldier"],
       "supertypes": [],
       "text": "When this creature enters, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
       "layout": "normal",
@@ -119,20 +96,11 @@
       "set": "mkm",
       "cardNumber": "29",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Detective"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Detective"],
       "supertypes": [],
       "text": "When this creature enters, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
       "layout": "normal",
@@ -163,20 +131,11 @@
       "set": "inr",
       "cardNumber": "32",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Cleric"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Cleric"],
       "supertypes": [],
       "text": "Whenever another creature you control enters, you gain 1 life.\nDisturb {1}{W} (You may cast this card from your graveyard transformed for its disturb cost.)",
       "layout": "transform",
@@ -198,20 +157,11 @@
       "set": "mm3",
       "cardNumber": "11",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Kor",
-        "Soldier"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Kor", "Soldier"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, return a permanent you control to its owner's hand.",
       "layout": "normal",
@@ -233,20 +183,11 @@
       "set": "snc",
       "cardNumber": "26",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Wizard"],
       "supertypes": [],
       "text": "When this creature enters, it connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)",
       "layout": "normal",
@@ -268,20 +209,11 @@
       "set": "2x2",
       "cardNumber": "19",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Soldier"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Soldier"],
       "supertypes": [],
       "text": "Vigilance (Attacking doesn't cause this creature to tap.)\nWhen this creature enters, look at the top four cards of your library. You may reveal a creature card with power 2 or less from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
       "layout": "normal",
@@ -303,16 +235,10 @@
       "set": "cmm",
       "cardNumber": "17",
       "manaCost": "{2}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Create two 1/1 white Bird creature tokens with flying.\nFlashback—Tap three untapped white creatures you control. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -342,16 +268,10 @@
       "set": "mh3",
       "cardNumber": "45",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one —\n• Thraben Charm deals damage equal to twice the number of creatures you control to target creature.\n• Destroy target enchantment.\n• Exile any number of target players' graveyards.",
@@ -372,16 +292,10 @@
       "set": "m12",
       "cardNumber": "22",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "White creatures you control get +2/+2 until end of turn.",
@@ -402,16 +316,10 @@
       "set": "c19",
       "cardNumber": "69",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Prevent all damage that sources of the color of your choice would deal this turn.\nFlashback—Tap an untapped white creature you control. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -432,16 +340,10 @@
       "set": "mmq",
       "cardNumber": "38",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "If you control a Plains, you may tap an untapped creature you control rather than pay this spell's mana cost.\nCreatures you control get +1/+1 until end of turn.",
@@ -462,24 +364,12 @@
       "set": "tmt",
       "cardNumber": "14",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Mutant",
-        "Ninja",
-        "Turtle"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Mutant", "Ninja", "Turtle"],
+      "supertypes": ["Legendary"],
       "text": "Sneak {W} (You may cast this spell for {W} if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.)\nLeonardo gets +1/+0 for each other creature you control.",
       "layout": "normal",
       "power": "1",

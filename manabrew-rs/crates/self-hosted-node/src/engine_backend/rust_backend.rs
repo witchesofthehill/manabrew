@@ -32,10 +32,11 @@ pub fn run_hosted_engine_game(
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
     starting_life: i32,
+    priority_preferences: Vec<bool>,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
-) {
+) -> Result<(), String> {
     let prepared_players = prepare_players(
         &player_names,
         &decks,
@@ -48,11 +49,13 @@ pub fn run_hosted_engine_game(
     // is a networked player whose prompts/actions are relayed over the
     // WebSocket. Both are wired into the shared host runtime via the closures.
     let mut local_ai: Option<Box<dyn PlayerAgent>> = local_player_index.map(|player_index| {
-        Box::new(PromptAgent::new(
+        let mut agent = PromptAgent::new(
             PlayerId(player_index as u32),
             game_id.clone(),
             BotResponder::default(),
-        )) as Box<dyn PlayerAgent>
+        );
+        agent.set_wants_empty_priority_prompts(false);
+        Box::new(agent) as Box<dyn PlayerAgent>
     });
     let mut remote_rx_map: HashMap<usize, std_mpsc::Receiver<PromptOutput>> =
         remote_response_rxs.into_iter().collect();
@@ -77,11 +80,13 @@ pub fn run_hosted_engine_game(
                 let response_rx = remote_rx_map
                     .remove(&i)
                     .expect("missing remote response receiver");
-                Box::new(PromptAgent::new(
+                let mut agent = PromptAgent::new(
                     pid,
                     game_id_for_agents.clone(),
                     NodeTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), response_rx),
-                ))
+                );
+                agent.set_wants_empty_priority_prompts(priority_preferences[i]);
+                Box::new(agent)
             }
         },
     );
@@ -91,6 +96,7 @@ pub fn run_hosted_engine_game(
         // If that changes, bundle them here so the game-over forwarder preserves ordering.
         messages: Vec::new(),
     });
+    Ok(())
 }
 
 pub fn run_self_play(

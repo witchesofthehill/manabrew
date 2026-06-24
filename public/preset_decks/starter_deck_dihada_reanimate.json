@@ -13,26 +13,12 @@
       "set": "dmc",
       "cardNumber": "1",
       "manaCost": "{1}{R}{W}{B}",
-      "colors": [
-        "B",
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colors": ["B", "R", "W"],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 4,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Dihada"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Dihada"],
+      "supertypes": ["Legendary"],
       "text": "+2: Up to one target legendary creature gains vigilance, lifelink, and indestructible until your next turn.\n−3: Reveal the top four cards of your library. Put any number of legendary cards from among them into your hand and the rest into your graveyard. Create a Treasure token for each card put into your graveyard this way.\n−11: Gain control of all nonland permanents until end of turn. Untap them. They gain haste until end of turn.\nDihada, Binder of Wills can be your commander.",
       "layout": "normal",
       "uris": {
@@ -60,16 +46,10 @@
       "set": "dsc",
       "cardNumber": "155",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
@@ -90,19 +70,11 @@
       "set": "5ed",
       "cardNumber": "140",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Enchant creature card in a graveyard\nWhen this Aura enters, if it's on the battlefield, it loses \"enchant creature card in a graveyard\" and gains \"enchant creature put onto the battlefield with this Aura.\" Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature's controller sacrifices it.\nEnchanted creature gets -1/-0.",
       "layout": "normal",
@@ -123,18 +95,10 @@
       "cardNumber": "248",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -155,17 +119,11 @@
       "cardNumber": "244",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {W}.\n{T}: Return target legendary creature to its owner's hand.",
       "layout": "normal",
       "uris": {
@@ -185,18 +143,10 @@
       "cardNumber": "254",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain",
-        "Plains"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain", "Plains"],
       "supertypes": [],
       "text": "({T}: Add {R} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -219,13 +169,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "Each land is a Swamp in addition to its other land types.",
       "layout": "normal",
       "uris": {
@@ -244,24 +190,12 @@
       "set": "war",
       "cardNumber": "217",
       "manaCost": "{2}{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 4,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Sorin"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Sorin"],
+      "supertypes": ["Legendary"],
       "text": "During your turn, creatures and planeswalkers you control have lifelink.\n+2: Sorin deals 1 damage to target player or planeswalker.\n−X: Return target creature card with mana value X from your graveyard to the battlefield. That creature is a Vampire in addition to its other types.",
       "layout": "normal",
       "uris": {
@@ -280,27 +214,12 @@
       "set": "c20",
       "cardNumber": "11",
       "manaCost": "{R}{W}{B}",
-      "colors": [
-        "B",
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colors": ["B", "R", "W"],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Assassin"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Assassin"],
+      "supertypes": ["Legendary"],
       "text": "Vigilance, haste\nKelsien gets +1/+1 for each experience counter you have.\n{T}: Kelsien deals 1 damage to target creature you don't control. When that creature dies this turn, you get an experience counter.",
       "layout": "normal",
       "power": "2",
@@ -331,18 +250,10 @@
       "cardNumber": "238",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp",
-        "Mountain"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp", "Mountain"],
       "supertypes": [],
       "text": "({T}: Add {B} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -362,25 +273,12 @@
       "set": "thb",
       "cardNumber": "221",
       "manaCost": "{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elder",
-        "Giant"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elder", "Giant"],
+      "supertypes": ["Legendary"],
       "text": "When Kroxa enters, sacrifice it unless it escaped.\nWhenever Kroxa enters or attacks, each opponent discards a card, then each opponent who didn't discard a nonland card this way loses 3 life.\nEscape—{B}{B}{R}{R}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
       "layout": "normal",
       "power": "6",
@@ -402,20 +300,10 @@
       "cardNumber": "253p",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain",
-        "Plains",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain", "Plains", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {R}, {W}, or {B}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
       "layout": "normal",
@@ -435,22 +323,12 @@
       "set": "rix",
       "cardNumber": "165",
       "manaCost": "{R}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "When Path of Mettle enters, it deals 1 damage to each creature that doesn't have first strike, double strike, vigilance, or haste.\nWhenever you attack with at least two creatures that have first strike, double strike, vigilance, and/or haste, transform Path of Mettle.",
       "layout": "transform",
       "uris": {
@@ -479,14 +357,9 @@
       "cardNumber": "239",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.",
@@ -510,13 +383,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add one mana of any color among legendary creatures and planeswalkers you control.",
       "layout": "normal",
       "uris": {
@@ -535,20 +404,12 @@
       "set": "dom",
       "cardNumber": "114",
       "manaCost": "{4}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "(You may cast a legendary sorcery only if you control a legendary creature or planeswalker.)\nPut up to one target creature or planeswalker card from a graveyard onto the battlefield under your control. Destroy up to one target creature or planeswalker. Exile Yawgmoth's Vile Offering.",
       "layout": "normal",
       "uris": {
@@ -567,19 +428,11 @@
       "set": "ddi",
       "cardNumber": "51",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Incarnation"],
       "supertypes": [],
       "text": "Haste\nAs long as this card is in your graveyard and you control a Mountain, creatures you control have haste.",
       "layout": "normal",
@@ -602,14 +455,9 @@
       "cardNumber": "242",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
@@ -633,9 +481,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -666,14 +512,9 @@
       "cardNumber": "356",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {R} or {W}.",
@@ -695,14 +536,9 @@
       "cardNumber": "360",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {W} or {B}.",
@@ -723,16 +559,10 @@
       "set": "cmr",
       "cardNumber": "387",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target creature. Its controller gains life equal to its power.",
@@ -753,23 +583,12 @@
       "set": "khm",
       "cardNumber": "115",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon",
-        "Rogue"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon", "Rogue"],
+      "supertypes": ["Legendary"],
       "text": "Deathtouch\nBoast — {1}{B}: Target player searches their library for a card, then shuffles and puts that card on top. (Activate only if this creature attacked this turn and only once each turn.)",
       "layout": "normal",
       "power": "2",
@@ -790,25 +609,12 @@
       "set": "khm",
       "cardNumber": "324",
       "manaCost": "{2}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Demon",
-        "Berserker"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Demon", "Berserker"],
+      "supertypes": ["Legendary"],
       "text": "When Kardur enters, until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able.\nWhenever an attacking creature dies, each opponent loses 1 life and you gain 1 life.",
       "layout": "normal",
       "power": "4",
@@ -829,23 +635,12 @@
       "set": "c21",
       "cardNumber": "169",
       "manaCost": "{1}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Artificer"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Artificer"],
+      "supertypes": ["Legendary"],
       "text": "{2}{R}, {T}: Create a token that's a copy of target creature card in your graveyard, except it's an artifact in addition to its other types. It gains haste. Sacrifice it at the beginning of the next end step.",
       "layout": "normal",
       "power": "2",
@@ -875,23 +670,12 @@
       "set": "mh2",
       "cardNumber": "138",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Monkey",
-        "Pirate"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Monkey", "Pirate"],
+      "supertypes": ["Legendary"],
       "text": "Whenever Ragavan deals combat damage to a player, create a Treasure token and exile the top card of that player's library. Until end of turn, you may cast that card.\nDash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)",
       "layout": "normal",
       "power": "2",
@@ -925,21 +709,11 @@
       "set": "mh2",
       "cardNumber": "12",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Soldier"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Human", "Soldier"],
       "supertypes": [],
       "text": "Whenever an opponent casts their first noncreature spell each turn, draw a card unless that player pays {X}, where X is this creature's power.",
       "layout": "normal",
@@ -961,17 +735,10 @@
       "set": "mh2",
       "cardNumber": "80",
       "manaCost": "{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B", "W"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
@@ -992,25 +759,12 @@
       "set": "mh2",
       "cardNumber": "289",
       "manaCost": "{2}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Minion"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Minion"],
+      "supertypes": ["Legendary"],
       "text": "Discard a card: You may cast a creature spell from your graveyard this turn. Activate only once each turn.\nWhenever a nontoken creature you control enters, if you didn't cast it from your hand, it gains haste until your next turn.",
       "layout": "normal",
       "power": "3",
@@ -1031,18 +785,10 @@
       "set": "afc",
       "cardNumber": "184",
       "manaCost": "{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target permanent with mana value 4 or greater.",
@@ -1063,23 +809,12 @@
       "set": "mid",
       "cardNumber": "312",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Knight"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Knight"],
+      "supertypes": ["Legendary"],
       "text": "Vigilance\nAdeline's power is equal to the number of creatures you control.\nWhenever you attack, for each opponent, create a 1/1 white Human creature token that's tapped and attacking that player or a planeswalker they control.",
       "layout": "normal",
       "power": "*",
@@ -1109,25 +844,12 @@
       "set": "q06",
       "cardNumber": "9",
       "manaCost": "{1}{W/B}{W/B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Cat",
-        "Nightmare"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Cat", "Nightmare"],
+      "supertypes": ["Legendary"],
       "text": "Companion — Each permanent card in your starting deck has mana value 2 or less. (If this card is your chosen companion, you may put it into your hand from outside the game for {3} as a sorcery.)\nLifelink\nOnce during each of your turns, you may cast a permanent spell with mana value 2 or less from your graveyard.",
       "layout": "normal",
       "power": "3",
@@ -1149,17 +871,11 @@
       "cardNumber": "276",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {R}.\nChannel — {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control.",
       "layout": "normal",
       "uris": {
@@ -1188,17 +904,11 @@
       "cardNumber": "278",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {B}.\nChannel — {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control.",
       "layout": "normal",
       "uris": {
@@ -1217,22 +927,12 @@
       "set": "nec",
       "cardNumber": "46",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Dog"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Dog"],
+      "supertypes": ["Legendary"],
       "text": "Whenever another legendary permanent you control enters, put a +1/+1 counter on Yoshimaru.\nPartner (You can have two commanders if both have partner.)",
       "layout": "normal",
       "power": "1",
@@ -1254,17 +954,11 @@
       "cardNumber": "502",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {W}.\nChannel — {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less to activate for each legendary creature you control.",
       "layout": "normal",
       "uris": {
@@ -1283,23 +977,12 @@
       "set": "nec",
       "cardNumber": "90",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Bird",
-        "Cleric"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Bird", "Cleric"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever you cast a historic spell, return target creature card with mana value 3 or less from your graveyard to the battlefield. (Artifacts, legendaries, and Sagas are historic.)",
       "layout": "normal",
       "power": "2",
@@ -1321,14 +1004,9 @@
       "cardNumber": "355",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {B} or {R}.",
@@ -1349,24 +1027,12 @@
       "set": "snc",
       "cardNumber": "206",
       "manaCost": "{1}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 3,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Nixilis"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Nixilis"],
+      "supertypes": ["Legendary"],
       "text": "Casualty X. The copy isn't legendary and has starting loyalty X. (As you cast this spell, you may sacrifice a creature with power X. When you do, copy this spell. The copy becomes a token.)\n+1: Each opponent loses 2 life unless they discard a card. If you control a Demon or Devil, you gain 2 life.\n−2: Create a 1/1 red Devil creature token with \"When this token dies, it deals 1 damage to any target.\"\n−7: Target player draws seven cards and loses 7 life.",
       "layout": "normal",
       "uris": {
@@ -1401,15 +1067,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
+      "supertypes": ["Legendary"],
       "text": "Equipped creature gets +1/+1 for each counter on it.\nEquipped permanent isn't a planeswalker and is a creature in addition to its other types. (Loyalty abilities can still be activated.)\nEquip planeswalker {1}\nEquip {3}",
       "layout": "normal",
       "uris": {
@@ -1429,19 +1089,11 @@
       "cardNumber": "461",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -1460,16 +1112,10 @@
       "set": "clb",
       "cardNumber": "707",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target permanent card with mana value 3 or less from your graveyard to the battlefield. If this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy.\nFlashback {4}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -1490,20 +1136,11 @@
       "set": "2x2",
       "cardNumber": "107",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Goblin",
-        "Pirate"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Goblin", "Pirate"],
       "supertypes": [],
       "text": "When this creature enters, create X Treasure tokens, where X is the number of artifacts and enchantments your opponents control. (Treasure tokens are artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
       "layout": "normal",
@@ -1534,16 +1171,10 @@
       "set": "2x2",
       "cardNumber": "96",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)",
@@ -1564,25 +1195,12 @@
       "set": "2x2",
       "cardNumber": "237",
       "manaCost": "{1}{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Advisor"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Advisor"],
+      "supertypes": ["Legendary"],
       "text": "Whenever an opponent casts a noncreature spell, that player loses 2 life and you gain 2 life.",
       "layout": "normal",
       "power": "2",
@@ -1603,18 +1221,10 @@
       "set": "2x2",
       "cardNumber": "239",
       "manaCost": "{1}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose two —\n• Return target creature card from your graveyard to your hand.\n• Target player discards a card.\n• Destroy target artifact.\n• Kolaghan's Command deals 2 damage to any target.",
@@ -1635,16 +1245,10 @@
       "set": "2x2",
       "cardNumber": "31",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
@@ -1674,22 +1278,12 @@
       "set": "dmu",
       "cardNumber": "288",
       "manaCost": "{1}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Nightmare"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Nightmare"],
+      "supertypes": ["Legendary"],
       "text": "At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn't, that player loses 2 life and you draw a card.",
       "layout": "normal",
       "power": "3",
@@ -1713,9 +1307,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a legendary spell.\n{T}: Add one mana of any color among legendary permanents you control.\n{3}, {T}, Exile this land: Target legendary creature gains hexproof and indestructible until end of turn.",
@@ -1736,22 +1328,12 @@
       "set": "dmc",
       "cardNumber": "165",
       "manaCost": "{5}{W}{B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "(You may cast a legendary sorcery only if you control a legendary creature or planeswalker.)\nReturn all legendary permanent cards from your graveyard to the battlefield.",
       "layout": "normal",
       "uris": {
@@ -1770,20 +1352,12 @@
       "set": "dmc",
       "cardNumber": "107",
       "manaCost": "{4}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "(You may cast a legendary sorcery only if you control a legendary creature or planeswalker.)\nExile all nonland permanents that aren't legendary.",
       "layout": "normal",
       "uris": {
@@ -1803,14 +1377,9 @@
       "cardNumber": "207",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}.",
@@ -1831,16 +1400,10 @@
       "set": "dmc",
       "cardNumber": "122",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -1864,9 +1427,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color.\nTap an untapped legendary creature you control: Add one mana of any color.",
@@ -1887,27 +1448,12 @@
       "set": "dmc",
       "cardNumber": "79",
       "manaCost": "{1}{R}{W}{B}",
-      "colors": [
-        "B",
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "R",
-        "W"
-      ],
+      "colors": ["B", "R", "W"],
+      "colorIdentity": ["B", "R", "W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Knight"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Knight"],
+      "supertypes": ["Legendary"],
       "text": "Menace\nOther legendary creatures you control have menace.\nWhenever you play a legendary land or cast a legendary spell, you draw a card and you lose 1 life.",
       "layout": "normal",
       "power": "2",
@@ -1931,16 +1477,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Construct"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Construct"],
+      "supertypes": ["Legendary"],
       "text": "Haste\n{1}, {T}: Copy target activated or triggered ability you control from another legendary source that's not a commander. You may choose new targets for the copy. (Mana abilities can't be targeted.)",
       "layout": "normal",
       "power": "1",
@@ -1962,19 +1501,11 @@
       "cardNumber": "463",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -1994,19 +1525,11 @@
       "cardNumber": "454",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {

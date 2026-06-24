@@ -10,13 +10,15 @@ import {
   getCardBySetAndNumber,
   getRulings,
 } from "@/api/scryfall";
+import { getPlatformType } from "@/platform";
+import { loadScryfallImage } from "@/lib/scryfallImageSource";
 import type {
   ScryfallCard,
   ScryfallImageUris,
   ScryfallRulingsResponse,
   ScryfallSet,
 } from "@/types/scryfall";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import { Texture, ImageSource } from "pixi.js";
 import { useEffect, useState } from "react";
 import { frontFaceName } from "@/lib/scryfall.utils";
@@ -401,8 +403,12 @@ export const useScryfallStore = create<ScryfallState>()(
           if (!info || info.set?.toLowerCase() !== code) continue;
           const uris = entry.card?.uris;
           if (!uris?.normal) continue;
-          const img = new Image();
-          img.src = uris.normal;
+          if (getPlatformType() === "tauri") {
+            void loadScryfallImage(uris.normal).catch(() => {});
+          } else {
+            const img = new Image();
+            img.src = uris.normal;
+          }
         }
       },
       updatePrinting: (print) => {

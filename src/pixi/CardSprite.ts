@@ -9,7 +9,7 @@ import {
   ColorMatrixFilter,
   type DestroyOptions,
 } from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { isHorizontalCard } from "@/lib/cardLayout";
 import type { Theme } from "@/hooks/useTheme";
@@ -169,13 +169,13 @@ const MAX_VISIBLE_COUNTERS = 4;
 
 const WUBRG = new Set(["W", "U", "B", "R", "G"]);
 
-function cardTintHex(card: GameCard): string {
+function cardTintHex(colorIdentity: string[] | undefined): string {
   const mana = activeTheme.gameTheme.mana;
-  const first = (card.colorIdentity ?? []).find((c) => WUBRG.has(c));
+  const first = (colorIdentity ?? []).find((c) => WUBRG.has(c));
   return first ? mana[first as keyof typeof mana] : mana.C;
 }
 
-function frameTypeLine(card: GameCard): string {
+function frameTypeLine(card: CardDto): string {
   const left = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
   const subtypes = card.subtypes ?? [];
   return subtypes.length > 0 ? `${left} - ${subtypes.join(" ")}` : left;
@@ -185,7 +185,7 @@ type CardStatusKey = keyof Theme["gameTheme"]["cardStatus"];
 
 interface BadgeRule {
   label: string;
-  test: (card: GameCard) => boolean;
+  test: (card: CardDto) => boolean;
   colorKey: CardStatusKey;
 }
 
@@ -247,13 +247,13 @@ const COUNTER_ICON_NAMES: Record<string, string> = {
   Page: "scroll-unfurled",
 };
 
-const parseStat = (value: string | undefined): number => {
+const parseStat = (value: string | null | undefined): number => {
   if (!value) return 0;
   const n = parseInt(value, 10);
   return Number.isNaN(n) ? 0 : n;
 };
 
-const resolvePTBgColor = (card: GameCard): number => {
+const resolvePTBgColor = (card: CardDto): number => {
   const pt = activeTheme.gameTheme.pt;
   const toughness = parseStat(card.toughness);
   if (card.damage != null && card.damage >= toughness) return hexToNum(pt.lethal);
@@ -269,7 +269,7 @@ const resolvePTBgColor = (card: GameCard): number => {
 };
 
 export class CardSprite extends Container {
-  card: GameCard;
+  card: CardDto;
 
   private imageSpr: Sprite;
   private imageMask: Graphics;
@@ -324,8 +324,9 @@ export class CardSprite extends Container {
   private _imageLoaded = false;
   private readonly isBattlefield: boolean;
   private previewFace: 0 | 1 | null = null;
+  private loadGeneration = 0;
 
-  constructor(card: GameCard, kind: "battlefield" | "hand" = "battlefield") {
+  constructor(card: CardDto, kind: "battlefield" | "hand" = "battlefield") {
     super();
     this.card = card;
     this.isBattlefield = kind === "battlefield";
@@ -506,15 +507,16 @@ export class CardSprite extends Container {
     this.hoverDebugGfx.fill({ color: hexToNum(activeTheme.gameTheme.success), alpha: 0.28 });
   }
 
+  private deckCard() {
+    return asDeckCard(useGameStore.getState().gameDecks[this.card.ownerId], this.card);
+  }
+
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
   // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
-    const key = `name:${this.card.name.toLowerCase()}`;
-    const sf = useScryfallStore.getState().cards[key]?.card?.info;
     return isHorizontalCard({
-      layout: this.card.layout ?? sf?.layout,
+      layout: this.deckCard().layout,
       types: this.card.types,
-      typeLine: sf?.type_line,
     });
   }
 
@@ -539,14 +541,20 @@ export class CardSprite extends Container {
   }
 
   private async loadImage(): Promise<void> {
+    const generation = ++this.loadGeneration;
     const deck = useGameStore.getState().gameDecks[this.card.ownerId];
     const deckCard = asDeckCard(deck, this.card);
     const custom = this.isBattlefield && activeStyle !== "realistic";
     const faceIndex = this.previewFace ?? (this.card.isTransformed ? 1 : 0);
-    const tex = await useScryfallStore
-      .getState()
-      .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
-    if (this.destroyed) return;
+    let tex: Texture;
+    try {
+      tex = await useScryfallStore
+        .getState()
+        .getCardTexture(deckCard, custom ? "art" : "full", faceIndex);
+    } catch {
+      tex = Texture.EMPTY;
+    }
+    if (this.destroyed || generation !== this.loadGeneration) return;
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
       if (custom) this.fitArtCover();
@@ -617,9 +625,10 @@ export class CardSprite extends Container {
       return;
     }
     this.frameContainer.visible = true;
-    const colorless = !(this.card.colorIdentity ?? []).some((c) => WUBRG.has(c));
+    const colorIdentity = this.deckCard().colorIdentity;
+    const colorless = !(colorIdentity ?? []).some((c) => WUBRG.has(c));
     const tintHex = frameTint(
-      cardTintHex(this.card),
+      cardTintHex(colorIdentity),
       colorless ? FRAME_TINT_COLORLESS_MAX_LUMINANCE : undefined,
     );
     const tintNum = hexToNum(tintHex);
@@ -711,7 +720,7 @@ export class CardSprite extends Container {
    * alpha for combat dim / phased-out / exit fade). Writing them here would snap
    * them back to defaults on every state update, causing a re-lerp flicker.
    */
-  updateCardContent(card: GameCard): void {
+  updateCardContent(card: CardDto): void {
     const nameChanged =
       card.name !== this.card.name ||
       card.setCode !== this.card.setCode ||
@@ -822,7 +831,15 @@ export class CardSprite extends Container {
     // If the card is removed mid-stomp the GSAP tween would keep mutating a
     // destroyed sprite's fxScale forever; kill it before teardown.
     gsap.killTweensOf(this.fxScale);
+    if (this.sickFilter) {
+      this.sickFilter.destroy();
+      this.sickFilter = null;
+    }
+    const frameNameStyle = this.frameNameText.style;
+    const frameTypeStyle = this.frameTypeText.style;
     super.destroy(options);
+    frameNameStyle.destroy();
+    frameTypeStyle.destroy();
   }
 
   /** Phased-out cards are desaturated here, but their alpha fade is owned by the

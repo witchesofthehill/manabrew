@@ -1,4 +1,4 @@
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 
 export interface ScreenBounds {
@@ -64,24 +64,24 @@ export interface CastingArrowSpec {
 }
 
 export interface GameCanvasCallbacks {
-  onClickCard?: (card: GameCard) => void;
-  onClickAnyCard?: (card: GameCard) => void;
+  onClickCard?: (card: CardDto) => void;
+  onClickAnyCard?: (card: CardDto) => void;
   onHoverCard?: (
-    card: GameCard | null,
+    card: CardDto | null,
     screenBounds?: ScreenBounds,
     options?: { useAnchor?: boolean; placement?: HoverPlacement },
   ) => void;
   onFlipCard?: () => void;
-  onStartDrag?: (card: GameCard, screenPos: ScreenPos) => void;
-  onClickCard_Hand?: (card: GameCard) => void;
-  onHoverHandCard?: (card: GameCard | null, screenBounds?: ScreenBounds) => void;
+  onStartDrag?: (card: CardDto, screenPos: ScreenPos) => void;
+  onClickCard_Hand?: (card: CardDto) => void;
+  onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
-  onTapLand?: (card: GameCard) => void;
+  onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
   onTapLandAbility?: (actionId: string) => void;
-  onUntapLand?: (card: GameCard) => void;
+  onUntapLand?: (card: CardDto) => void;
   onUntapLands?: (cardIds: string[]) => void;
-  onAttackerClick?: (card: GameCard) => void;
+  onAttackerClick?: (card: CardDto) => void;
   /** Drag-to-block: a blocker sprite was dropped onto an attacker sprite. */
   onAssignBlock?: (blockerId: string, attackerId: string) => void;
   /** Drag-to-unblock: a staged blocker was dragged back off its attacker. */
@@ -98,7 +98,7 @@ export interface GameCanvasCallbacks {
 }
 
 export interface BattlefieldState {
-  cards: GameCard[];
+  cards: CardDto[];
   pendingCardIds?: string[];
   attackingCardIds?: string[];
   /** Blockers chosen so far in damage-assignment ordering; index+1 is shown as a
@@ -112,7 +112,8 @@ export interface BattlefieldState {
 }
 
 export interface HandState {
-  cards: GameCard[];
+  cards: CardDto[];
+  playableIds?: Set<string>;
   draggingCardId?: string;
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
@@ -121,7 +122,7 @@ export interface HandState {
 }
 
 export interface CardSpriteData {
-  card: GameCard;
+  card: CardDto;
   x: number;
   y: number;
   tapped: boolean;

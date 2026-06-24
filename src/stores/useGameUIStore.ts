@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import type { DeckCard, GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 
 // ── State Shapes ──────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ interface PlayModePickerState {
 
 interface ViewingZoneState {
   title: string;
-  cards: GameCard[];
+  cards: CardDto[];
   onClickCard?: (cardId: string) => void;
   clickableCardIds?: string[];
   selectedCardIds?: string[];

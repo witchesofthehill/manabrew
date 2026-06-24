@@ -8,7 +8,8 @@ import { Loader2, LayoutGrid, List, Info, SlidersHorizontal, PanelRightClose } f
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ScryfallCard } from "@/types/scryfall";
-import type { DeckCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import { useDraggable } from "@dnd-kit/core";
 import { CardDetailModal } from "@/components/editor/CardDetailModal";
 import { CardThumbnail } from "@/components/editor/deckEditor.primitives";
@@ -18,7 +19,6 @@ import { manaSymbolUrl } from "@/api/scryfall";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
 import { useCardPreview } from "@/hooks/useCardPreview";
-import type { GameCard } from "@/types/manabrew";
 import type { ManaCode } from "@/types/scryfall";
 
 // ─── Filter definitions ────────────────────────────────────────────────────────
@@ -1054,7 +1054,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                     onMoreInfo={() => setDetailCard(rawCards[i])}
                     standalone={standalone}
                     onHover={(c, e) =>
-                      preview.handleMouseEnter(c as unknown as GameCard, e, { useDelay: true })
+                      preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
                     }
                     onLeave={preview.handleMouseLeave}
                   />
@@ -1070,7 +1070,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   onMoreInfo={() => setDetailCard(rawCards[i])}
                   standalone={standalone}
                   onHover={(c, e) =>
-                    preview.handleMouseEnter(c as unknown as GameCard, e, { useDelay: true })
+                    preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
                   }
                   onLeave={preview.handleMouseLeave}
                 />

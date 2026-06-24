@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useCardSupportStore, selectUnsupportedNames } from "@/stores/useCardSupportStore";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 
 function collectDeckNames(deck: Deck): string[] {
   const names = new Set<string>();

@@ -103,6 +103,8 @@ const javaType = (ts, optional) => {
   const opt = optional || nullable;
   const map = ts.match(/^\{ \[key in string\]\??: (.+) \}$/);
   if (map) return `java.util.Map<String, ${javaType(map[1], true)}>`;
+  const record = ts.match(/^Record<string, (.+)>$/);
+  if (record) return `java.util.Map<String, ${javaType(record[1], true)}>`;
   const arr = ts.match(/^Array<(.+)>$/);
   if (arr) return `java.util.List<${javaType(arr[1], true)}>`;
   switch (ts) {

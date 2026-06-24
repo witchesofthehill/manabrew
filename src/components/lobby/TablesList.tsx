@@ -25,6 +25,8 @@ import {
   Cpu,
   Anvil,
   Search,
+  Copy,
+  Check,
 } from "lucide-react";
 import { GameIcon } from "@/components/game/GameIcon";
 import type { GameFormat, RoomInfo } from "@/types/server";
@@ -98,6 +100,7 @@ function needsFormatChoice(room: RoomInfo) {
 interface TablesListProps {
   rooms: RoomInfo[];
   currentRoom: RoomInfo | null;
+  roomPassword?: string | null;
   username: string | null;
   onNewGame: () => void;
   onRefresh: () => void;
@@ -124,6 +127,7 @@ interface TablesListProps {
 export function TablesList({
   rooms,
   currentRoom,
+  roomPassword,
   username,
   onJoinRoom,
   onLeaveRoom,
@@ -145,6 +149,7 @@ export function TablesList({
   const [formatRoom, setFormatRoom] = useState<RoomInfo | null>(null);
   const [formatAfterJoin, setFormatAfterJoin] = useState(false);
   const [search, setSearch] = useState("");
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const inRoom = currentRoom != null;
   const myPlayer = currentRoom?.players.find((p) => p.username === username);
@@ -226,6 +231,29 @@ export function TablesList({
               <div className="flex items-center gap-2 min-w-0">
                 <Swords className="h-4 w-4 text-primary shrink-0" />
                 <span className="font-semibold text-sm truncate">{currentRoom.room_name}</span>
+                {currentRoom.password_protected && roomPassword && (
+                  <button
+                    type="button"
+                    title="Copy room password"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(roomPassword);
+                        setCopiedPassword(true);
+                        setTimeout(() => setCopiedPassword(false), 1500);
+                      } catch {
+                        // clipboard unavailable
+                      }
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-[10px] font-medium hover:bg-muted/60"
+                  >
+                    {copiedPassword ? (
+                      <Check className="h-2.5 w-2.5" />
+                    ) : (
+                      <Copy className="h-2.5 w-2.5" />
+                    )}
+                    {copiedPassword ? "Copied" : "Password"}
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {currentRoom.draft_config && (

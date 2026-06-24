@@ -41,12 +41,18 @@ function shellSplit(s) {
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
     if (quote) {
-      if (c === quote) { quote = null; continue; }
+      if (c === quote) {
+        quote = null;
+        continue;
+      }
       cur += c;
     } else if (c === "'" || c === '"') {
       quote = c;
     } else if (/\s/.test(c)) {
-      if (cur) { out.push(cur); cur = ""; }
+      if (cur) {
+        out.push(cur);
+        cur = "";
+      }
     } else {
       cur += c;
     }
@@ -176,7 +182,9 @@ function main() {
   writeFileSync(join(outDir, "summary.json"), JSON.stringify(summary, null, 2));
 
   if (divergences.length > 0) {
-    console.error(`rust-vs-rust: ${divergences.length}/${entries.length} entries diverged in ${wallSec}s`);
+    console.error(
+      `rust-vs-rust: ${divergences.length}/${entries.length} entries diverged in ${wallSec}s`,
+    );
     process.exit(1);
   }
   console.log(`rust-vs-rust: all ${entries.length} entries matched in ${wallSec}s`);

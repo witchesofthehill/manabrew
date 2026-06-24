@@ -13,16 +13,10 @@
       "set": "vow",
       "cardNumber": "95",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this artifact enters, create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")\n{3}{B}, {T}, Sacrifice this artifact: Return up to two target creature cards from your graveyard to your hand.",
@@ -52,16 +46,10 @@
       "set": "clb",
       "cardNumber": "119",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target nonlegendary creature.",
@@ -82,16 +70,10 @@
       "set": "znr",
       "cardNumber": "137",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle.\nDraw a card.",
@@ -113,15 +95,9 @@
       "cardNumber": "246",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Artifact",
-        "Land"
-      ],
+      "types": ["Artifact", "Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nIndestructible\n{T}: Add {B} or {R}.",
@@ -142,16 +118,10 @@
       "set": "mh3",
       "cardNumber": "93",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards.\nFlashback {4}{B} (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
@@ -172,16 +142,10 @@
       "set": "lci",
       "cardNumber": "105",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards and create a Map token. (It's an artifact with \"{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.\")",
@@ -212,19 +176,11 @@
       "cardNumber": "272",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {G}.)",
       "layout": "normal",
       "uris": {
@@ -252,16 +208,10 @@
       "set": "2xm",
       "cardNumber": "125",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Galvanic Blast deals 2 damage to any target.\nMetalcraft — Galvanic Blast deals 4 damage instead if you control three or more artifacts.",
@@ -285,9 +235,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this artifact enters or is put into a graveyard from the battlefield, draw a card.",
@@ -308,20 +256,11 @@
       "set": "mrd",
       "cardNumber": "98",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Goblin",
-        "Shaman"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Goblin", "Shaman"],
       "supertypes": [],
       "text": "Sacrifice an artifact: This creature deals 1 damage to each creature without flying.",
       "layout": "normal",
@@ -346,12 +285,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Food"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Food"],
       "supertypes": [],
       "text": "When this artifact enters, scry 1, then draw a card.\n{2}, {T}, Sacrifice this artifact: You gain 3 life.\nWhen this artifact is put into a graveyard from the battlefield, its owner shuffles it into their library.",
       "layout": "normal",
@@ -371,16 +306,10 @@
       "set": "cmm",
       "cardNumber": "242",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, Sacrifice an artifact or creature: This enchantment deals 1 damage to any target.",
@@ -402,19 +331,11 @@
       "cardNumber": "269",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -434,13 +355,9 @@
       "cardNumber": "226",
       "manaCost": "{1}",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this artifact: Exile target player's graveyard.\nWhen this artifact is put into a graveyard from the battlefield, you may pay {B}. If you do, draw a card.",
@@ -461,20 +378,11 @@
       "set": "mh3",
       "cardNumber": "164",
       "manaCost": "{X}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "Hydra"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Hydra"],
       "supertypes": [],
       "text": "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nReach, trample\nThis permanent enters with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on this Aura and has reach and trample.",
       "layout": "normal",
@@ -496,16 +404,10 @@
       "set": "c21",
       "cardNumber": "202",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target creature or land card from a graveyard to its owner's hand. You gain 6 life.",
@@ -526,21 +428,11 @@
       "set": "mh3",
       "cardNumber": "105",
       "manaCost": "{3}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 4,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie",
-        "Rat"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Zombie", "Rat"],
       "supertypes": [],
       "text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nFlying\nWhen this creature enters, each opponent discards a card. For each opponent who can't, you draw a card.",
       "layout": "normal",
@@ -563,15 +455,9 @@
       "cardNumber": "256",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Artifact",
-        "Land"
-      ],
+      "types": ["Artifact", "Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nIndestructible\n{T}: Add {R} or {G}.",
@@ -593,19 +479,11 @@
       "cardNumber": "266",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -624,16 +502,10 @@
       "set": "mkm",
       "cardNumber": "107",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target creature gains deathtouch and lifelink until end of turn. Investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
@@ -664,15 +536,9 @@
       "cardNumber": "232",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["B", "G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Swamp, Mountain, or Forest card, put it onto the battlefield tapped, then shuffle.\nCycling {B}{R}{G} ({B}{R}{G}, Discard this card: Draw a card.)",
@@ -694,14 +560,9 @@
       "cardNumber": "322",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Artifact",
-        "Land"
-      ],
+      "types": ["Artifact", "Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {B}.",
@@ -723,18 +584,10 @@
       "cardNumber": "208",
       "manaCost": "{2}{R}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Drone"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Drone"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen you cast this spell, create two 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice this token: Add {C}.\"\nReach\nWhenever you sacrifice another Eldrazi, put a +1/+1 counter on this creature.",
       "layout": "normal",

@@ -10,7 +10,7 @@ import type {
   ChooseCombatDamageAssignmentOutput,
 } from "@/protocol";
 
-function parseCombatNumber(value?: string): number {
+function parseCombatNumber(value?: string | null): number {
   if (!value) return 0;
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;

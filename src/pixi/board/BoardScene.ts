@@ -1,5 +1,5 @@
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import {
   CardSprite,
   setCardSpriteTheme,
@@ -61,6 +61,8 @@ import type {
 export interface BoardPlayerSpec {
   playerId: string;
   isLocal: boolean;
+  playmat?: string;
+  playmatSettings?: PlaymatSettings;
 }
 
 interface RegionRecord {
@@ -197,6 +199,8 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.setZone(zone, orientation);
         existing.region.setCardScale(cardScale);
+        existing.region.setPlaymatSettings(spec.playmatSettings);
+        existing.region.setPlaymat(spec.playmat);
         continue;
       }
       const region = new BoardRegion(
@@ -206,6 +210,8 @@ export class BoardScene {
         cardScale,
         { orientation },
       );
+      region.setPlaymatSettings(spec.playmatSettings);
+      region.setPlaymat(spec.playmat);
       region.container.zIndex = spec.isLocal ? 100 : 50;
       region.setAutoSort(this.autoSort);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
@@ -288,7 +294,7 @@ export class BoardScene {
     return this.localPlayerId ? (this.regions.get(this.localPlayerId)?.zone ?? null) : null;
   }
 
-  updateBattlefield(playerId: string, cards: GameCard[]): void {
+  updateBattlefield(playerId: string, cards: CardDto[]): void {
     this.regions.get(playerId)?.region.updateBattlefield({ cards } as BattlefieldState);
   }
 

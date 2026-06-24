@@ -13,19 +13,11 @@
       "set": "m21",
       "cardNumber": "84",
       "manaCost": "{5}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Whale"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Whale"],
       "supertypes": [],
       "text": "Creatures your opponents control get -1/-0.\n{1}{U}, Discard this card: Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
       "layout": "normal",
@@ -48,18 +40,10 @@
       "cardNumber": "253",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "G"
-      ],
+      "colorIdentity": ["B", "G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp",
-        "Forest"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp", "Forest"],
       "supertypes": [],
       "text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -79,19 +63,11 @@
       "set": "c20",
       "cardNumber": "109",
       "manaCost": "{2}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Sphinx"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Sphinx"],
       "supertypes": [],
       "text": "Flying\nWhenever you cycle or discard another card, scry 1.\nCycling {U} ({U}, Discard this card: Draw a card.)",
       "layout": "normal",
@@ -114,18 +90,10 @@
       "cardNumber": "132",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest", "Island"],
       "supertypes": [],
       "text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -146,17 +114,11 @@
       "cardNumber": "271",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
       "layout": "normal",
       "uris": {
@@ -175,22 +137,11 @@
       "set": "neo",
       "cardNumber": "216",
       "manaCost": "{4}{G}{G}{U}",
-      "colors": [
-        "G",
-        "U"
-      ],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colors": ["G", "U"],
+      "colorIdentity": ["G", "U"],
       "cmc": 7,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "Turtle"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Turtle"],
       "supertypes": [],
       "text": "Flying, ward {2}\nChannel — {2}{G}, Discard this card: Return target card from your graveyard to your hand.\nChannel — {1}{U}, Discard this card: Return target creature to its owner's hand.",
       "layout": "normal",
@@ -212,22 +163,11 @@
       "set": "mom",
       "cardNumber": "227",
       "manaCost": "{1}{U}{B}",
-      "colors": [
-        "B",
-        "U"
-      ],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colors": ["B", "U"],
+      "colorIdentity": ["B", "U"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Faerie",
-        "Rogue"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Faerie", "Rogue"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, you may pay {X}. When you do, you may cast target instant or sorcery card with mana value X from a graveyard without paying its mana cost. If that spell would be put into a graveyard, exile it instead.",
       "layout": "normal",
@@ -250,14 +190,9 @@
       "cardNumber": "309",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}.",
@@ -279,18 +214,10 @@
       "cardNumber": "262",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest", "Island"],
       "supertypes": [],
       "text": "({T}: Add {G} or {U}.)\nThis land enters tapped.\nWhen this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
       "layout": "normal",
@@ -311,18 +238,10 @@
       "cardNumber": "271",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "G"
-      ],
+      "colorIdentity": ["B", "G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp",
-        "Forest"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp", "Forest"],
       "supertypes": [],
       "text": "({T}: Add {B} or {G}.)\nThis land enters tapped.\nWhen this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
       "layout": "normal",
@@ -345,9 +264,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.",
@@ -368,16 +285,10 @@
       "set": "mh3",
       "cardNumber": "62",
       "manaCost": "{1}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "You may sacrifice a nontoken blue creature rather than pay this spell's mana cost.\nCounter target spell.",
@@ -398,20 +309,11 @@
       "set": "mh3",
       "cardNumber": "250",
       "manaCost": "{3}{G}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "When this creature enters, you may sacrifice another creature. If you do, you gain X life and draw X cards, where X is that creature's power.",
       "layout": "modal_dfc",
@@ -433,16 +335,10 @@
       "set": "mh3",
       "cardNumber": "241",
       "manaCost": "{1}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target spell or nonland permanent an opponent controls to its owner's hand.",
@@ -464,19 +360,11 @@
       "cardNumber": "95",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {G}.)",
       "layout": "normal",
       "uris": {
@@ -505,19 +393,11 @@
       "cardNumber": "86",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {U}.)",
       "layout": "normal",
       "uris": {
@@ -537,19 +417,11 @@
       "cardNumber": "89",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -569,13 +441,9 @@
       "cardNumber": "261p",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain or a Forest.\n{T}: Add {U}.\n{U}, {T}: The next spell you cast this turn can't be countered.",
@@ -597,18 +465,10 @@
       "cardNumber": "261",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colorIdentity": ["B", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {U} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -628,22 +488,11 @@
       "set": "ecl",
       "cardNumber": "212",
       "manaCost": "{4}{U/B}{U/B}",
-      "colors": [
-        "B",
-        "U"
-      ],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colors": ["B", "U"],
+      "colorIdentity": ["B", "U"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental",
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental", "Incarnation"],
       "supertypes": [],
       "text": "When this creature enters, if {U}{U} was spent to cast it, return up to one other target nonland permanent to its owner's hand.\nWhen this creature enters, if {B}{B} was spent to cast it, target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nEvoke {U/B}{U/B}",
       "layout": "normal",
@@ -666,18 +515,10 @@
       "cardNumber": "20",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colorIdentity": ["B", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {U} or {B}.)\nThis land enters tapped.\nWhen this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
       "layout": "normal",
@@ -700,9 +541,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Island card, put it onto the battlefield, then shuffle.",
@@ -723,20 +562,11 @@
       "set": "mh2",
       "cardNumber": "67",
       "manaCost": "{2}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental",
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental", "Incarnation"],
       "supertypes": [],
       "text": "Flash\nFlying\nWhen this creature enters, choose up to one target creature spell or planeswalker spell. Its owner puts it on their choice of the top or bottom of their library.\nEvoke—Exile a blue card from your hand.",
       "layout": "normal",
@@ -758,23 +588,11 @@
       "set": "mh2",
       "cardNumber": "292",
       "manaCost": "{1}{G}{U}",
-      "colors": [
-        "G",
-        "U"
-      ],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colors": ["G", "U"],
+      "colorIdentity": ["G", "U"],
       "cmc": 3,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Rogue"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Human", "Rogue"],
       "supertypes": [],
       "text": "Cascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)",
       "layout": "normal",
@@ -796,21 +614,11 @@
       "set": "dsk",
       "cardNumber": "113",
       "manaCost": "{3}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "Avatar",
-        "Horror"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Avatar", "Horror"],
       "supertypes": [],
       "text": "Impending 5—{1}{B} (If you cast this spell for its impending cost, it enters with five time counters and isn't a creature until the last is removed. At the beginning of your end step, remove a time counter from it.)\nWhenever this permanent enters or attacks, mill four cards, then you may return a non-Avatar creature card or a planeswalker card from your graveyard to your hand.",
       "layout": "normal",
@@ -832,16 +640,10 @@
       "set": "tle",
       "cardNumber": "13",
       "manaCost": "{1}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.\nCounter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
@@ -862,20 +664,11 @@
       "set": "ecc",
       "cardNumber": "51",
       "manaCost": "{1}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental",
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental", "Incarnation"],
       "supertypes": [],
       "text": "Flash\nReach\nWhen this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order.\nEvoke—Exile a green card from your hand.",
       "layout": "normal",
@@ -897,22 +690,11 @@
       "set": "ecl",
       "cardNumber": "252",
       "manaCost": "{3}{G/U}{G/U}",
-      "colors": [
-        "G",
-        "U"
-      ],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colors": ["G", "U"],
+      "colorIdentity": ["G", "U"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental",
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental", "Incarnation"],
       "supertypes": [],
       "text": "When this creature enters, if {G}{G} was spent to cast it, exile target artifact or enchantment an opponent controls.\nWhen this creature enters, if {U}{U} was spent to cast it, draw two cards, then discard a card.\nEvoke {G/U}{G/U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
       "layout": "normal",
@@ -934,16 +716,10 @@
       "set": "tsr",
       "cardNumber": "121",
       "manaCost": "",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Suspend 3—{2}{B}{B}\nEach player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield.",
@@ -964,19 +740,11 @@
       "set": "dmr",
       "cardNumber": "102",
       "manaCost": "{3}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Wraith"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Wraith"],
       "supertypes": [],
       "text": "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nCycling—Pay 2 life. (Pay 2 life, Discard this card: Draw a card.)",
       "layout": "normal",
@@ -998,19 +766,11 @@
       "set": "ltr",
       "cardNumber": "169",
       "manaCost": "{5}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Treefolk"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Treefolk"],
       "supertypes": [],
       "text": "Reach\nWhen this creature enters, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nForestcycling {1} ({1}, Discard this card: Search your library for a Forest card, reveal it, put it into your hand, then shuffle.)",
       "layout": "normal",
@@ -1041,19 +801,11 @@
       "set": "ltr",
       "cardNumber": "111",
       "manaCost": "{5}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Troll"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Troll"],
       "supertypes": [],
       "text": "This creature can't be blocked except by three or more creatures.\nSwampcycling {1} ({1}, Discard this card: Search your library for a Swamp card, reveal it, put it into your hand, then shuffle.)",
       "layout": "normal",
@@ -1075,20 +827,11 @@
       "set": "ecl",
       "cardNumber": "176",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
       "supertypes": [],
       "text": "When this creature enters, you may discard a card. If you do, search your library for a creature card, reveal it, put it into your hand, then shuffle.\n{1}, {T}: Untap another target permanent.",
       "layout": "normal",

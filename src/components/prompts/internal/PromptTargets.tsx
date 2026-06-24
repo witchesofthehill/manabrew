@@ -8,7 +8,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { getInitials } from "@/components/game/game.utils";
 import { useResolveDeckCard } from "./usePromptSourceCard";
-import type { GameView, GameCard } from "@/types/manabrew";
+import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { TargetRef } from "@/protocol";
 
 const SEAT_KEYS = ["self", "opponent1", "opponent2", "opponent3"] as const;
@@ -75,7 +75,7 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
           TARGET_TILE,
         )}
       >
-        Player
+        PlayerDto
       </span>
     );
   }
@@ -116,9 +116,12 @@ function PromptTargetPlayer({ playerId }: { playerId: string }) {
   );
 }
 
-function findCardName(gameView: GameView | null | undefined, cardId: string): string | undefined {
+function findCardName(
+  gameView: GameViewDto | null | undefined,
+  cardId: string,
+): string | undefined {
   if (!gameView) return undefined;
-  const zones: GameCard[] = [
+  const zones: CardDto[] = [
     ...gameView.battlefield,
     ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
   ];

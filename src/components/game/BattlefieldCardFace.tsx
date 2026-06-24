@@ -1,4 +1,4 @@
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ManaLetter } from "@/themes/gameTheme";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/useTheme";
@@ -9,6 +9,7 @@ import {
   withAlpha,
 } from "@/themes/gameTheme";
 import { ManaSymbols } from "@/components/game/ManaSymbols";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { isCreature, isLethalDamage } from "@/components/game/game.utils";
 import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
@@ -16,7 +17,9 @@ import { battlefieldKeywords } from "@/lib/battlefieldKeywords";
 export type BattlefieldCardFaceVariant = "frame" | "art";
 
 interface BattlefieldCardFaceProps {
-  card: GameCard;
+  card: CardDto;
+  /** Color identity for the frame tint — `colorIdentity` from the card's deck/Scryfall repr. */
+  colorIdentity?: string[];
   artCrop?: string;
   variant: BattlefieldCardFaceVariant;
   width?: number;
@@ -24,15 +27,13 @@ interface BattlefieldCardFaceProps {
 
 const WUBRG: ManaLetter[] = ["W", "U", "B", "R", "G"];
 
-function cardColors(card: GameCard): ManaLetter[] {
-  const ids = (card.colorIdentity ?? []).filter((c): c is ManaLetter =>
-    WUBRG.includes(c as ManaLetter),
-  );
-  return ids;
+function cardColors(colorIdentity: string[] | undefined): ManaLetter[] {
+  return (colorIdentity ?? []).filter((c): c is ManaLetter => WUBRG.includes(c as ManaLetter));
 }
 
 export function BattlefieldCardFace({
   card,
+  colorIdentity,
   artCrop,
   variant,
   width = 70,
@@ -41,7 +42,7 @@ export function BattlefieldCardFace({
   const u = width / 70;
   const height = width * (98 / 70);
 
-  const colors = cardColors(card);
+  const colors = cardColors(colorIdentity);
   const colorless = colors.length === 0;
   const rawTint = colorless ? theme.mana.C : theme.mana[colors[0]];
   const rawTintB = colors.length > 1 ? theme.mana[colors[1]] : rawTint;
@@ -193,7 +194,7 @@ export function BattlefieldCardFace({
         }}
       >
         {artCrop && (
-          <img
+          <ScryfallImg
             src={artCrop}
             alt={card.name}
             className="absolute inset-0 w-full h-full object-cover"
@@ -299,7 +300,7 @@ export function BattlefieldCardFace({
 
       <div className="relative flex-1 overflow-hidden" style={{ background: theme.canvas.shadow }}>
         {artCrop && (
-          <img
+          <ScryfallImg
             src={artCrop}
             alt={card.name}
             className="absolute inset-0 w-full h-full object-cover"

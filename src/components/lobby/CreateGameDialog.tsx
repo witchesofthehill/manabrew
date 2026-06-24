@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useDeckStore } from "@/stores/useDeckStore";
-import type { Deck, DeckCard } from "@/types/manabrew";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import { GAME_FORMATS, validateDeckSections, type GameFormat } from "@/lib/formats";
 import { FormatBadge } from "@/components/game/FormatBadge";
 import { DeckSelectionCard } from "./DeckSelectionCard";

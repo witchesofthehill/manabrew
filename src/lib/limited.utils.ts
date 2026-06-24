@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import type { DraftCard } from "@/types/limited";
-import type { Deck, DeckCard } from "@/types/manabrew";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { frontFaceName, parseTypeLine } from "@/lib/scryfall.utils";
 import { cardKey, peekCard, useCard, useScryfallStore } from "@/stores/useScryfallStore";

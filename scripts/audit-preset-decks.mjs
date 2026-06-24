@@ -126,9 +126,7 @@ async function lookupByName(name) {
   // Skip cards with no set code at all — nothing to validate.
   const all = collectIdentifiers(decks);
   const withSet = all.filter((id) => id.set);
-  log(
-    `Total card entries: ${all.length} (${all.length - withSet.length} have no set, will skip).`,
-  );
+  log(`Total card entries: ${all.length} (${all.length - withSet.length} have no set, will skip).`);
   log(`Unique (name, set) pairs to verify: ${withSet.length}`);
 
   // Scryfall's /collection rejects set codes outside 3–6 chars with

@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { StackObject } from "@/types/manabrew";
+import type { StackObjectDto } from "@/protocol/game";
 import type { PromptActionType } from "./game.types";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 
 interface StackSectionProps {
-  stack: StackObject[];
+  stack: StackObjectDto[];
   promptType?: PromptActionType;
   onOpenStack: () => void;
 }

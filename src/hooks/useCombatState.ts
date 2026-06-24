@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import type { PromptOutput } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
@@ -176,7 +176,7 @@ export function useCombatState({
     }
   }
 
-  function handleBattlefieldClick(card: GameCard) {
+  function handleBattlefieldClick(card: CardDto) {
     if (!currentPrompt) return;
 
     if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === card.id)) {
@@ -264,7 +264,7 @@ export function useCombatState({
     setPendingBlocker((prev) => (prev === blockerId ? null : prev));
   }
 
-  function handleAttackerClick(card: GameCard) {
+  function handleAttackerClick(card: CardDto) {
     // Blocker-first: a blocker is armed, so this attacker click completes the
     // assignment instead of selecting the attacker.
     if (pendingBlocker) {

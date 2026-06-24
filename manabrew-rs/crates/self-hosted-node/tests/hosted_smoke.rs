@@ -170,6 +170,7 @@ async fn play_game(
                     .map_err(|e| e.to_string())?,
                 commander_name: None,
                 wants_empty_priority_prompts: false,
+                avatar: None,
             },
         )
         .await?;

@@ -43,7 +43,7 @@ import init, {
   limited_import_cube,
   limited_drop_session,
 } from "../wasm/wasm";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 
 // ============================================================================
 // Types

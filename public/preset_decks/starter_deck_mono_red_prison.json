@@ -16,9 +16,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "When you play another land, sacrifice this land.\n{T}: Add {C}{C}.",
@@ -42,9 +40,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}. This land deals 2 damage to you.",
@@ -65,20 +61,11 @@
       "set": "tsr",
       "cardNumber": "175",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Wizard"],
       "supertypes": [],
       "text": "Nonbasic lands are Mountains.",
       "layout": "normal",
@@ -103,9 +90,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever a player casts a spell, if no colored mana was spent to cast it, counter that spell.",
@@ -140,19 +125,11 @@
       "set": "neo",
       "cardNumber": "141",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Saga"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Saga"],
       "supertypes": [],
       "text": "(As this Saga enters and after your draw step, add a lore counter.)\nI — Create a 2/2 red Goblin Shaman creature token with \"Whenever this token attacks, create a Treasure token.\"\nII — You may discard up to two cards. If you do, draw that many cards.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
       "layout": "transform",
@@ -192,13 +169,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "Indestructible\nWhen The One Ring enters, if you cast it, you gain protection from everything until your next turn.\nAt the beginning of your upkeep, you lose 1 life for each burden counter on The One Ring.\n{T}: Put a burden counter on The One Ring, then draw a card for each burden counter on The One Ring.",
       "layout": "normal",
       "uris": {
@@ -226,20 +199,11 @@
       "set": "lcc",
       "cardNumber": "86",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Goblin",
-        "Pirate"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Goblin", "Pirate"],
       "supertypes": [],
       "text": "Menace, haste\nBoast — Sacrifice another creature or artifact: This creature deals damage equal to 2 plus the sacrificed permanent's mana value to any target. (Activate only if this creature attacked this turn and only once each turn.)",
       "layout": "normal",
@@ -261,16 +225,10 @@
       "set": "mh3",
       "cardNumber": "248",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. Creatures without flying can't block this turn.",
@@ -291,19 +249,11 @@
       "set": "m3c",
       "cardNumber": "111",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Lhurgoyf"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Lhurgoyf"],
       "supertypes": [],
       "text": "Pyrogoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.\nWhenever this creature or another Lhurgoyf creature you control enters, that creature deals damage equal to its power to any target.",
       "layout": "normal",
@@ -328,9 +278,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact enters with X charge counters on it.\nWhenever a player casts a spell with mana value equal to the number of charge counters on this artifact, counter that spell.",
@@ -354,9 +302,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
@@ -378,13 +324,9 @@
       "cardNumber": "265",
       "manaCost": "{0}",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {R}.",
@@ -417,9 +359,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -443,9 +383,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "As long as this artifact is untapped, each spell that would cost less than three mana to cast costs three mana to cast. (Additional mana in the cost may be paid with any color of mana or colorless mana. For example, a spell that would cost {1}{B} to cast costs {2}{B} to cast instead.)",
@@ -469,9 +407,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever a player casts a spell, if no mana was spent to cast it, counter that spell.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
@@ -495,15 +431,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Karn"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Karn"],
+      "supertypes": ["Legendary"],
       "text": "Activated abilities of artifacts your opponents control can't be activated.\n+1: Until your next turn, up to one target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.\n−2: You may reveal an artifact card you own from outside the game or choose a face-up artifact card you own in exile. Put that card into your hand.",
       "layout": "normal",
       "uris": {
@@ -522,20 +452,11 @@
       "set": "plst",
       "cardNumber": "PLC-122",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Ape",
-        "Spirit"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Ape", "Spirit"],
       "supertypes": [],
       "text": "Exile this card from your hand: Add {R}.",
       "layout": "normal",
@@ -557,20 +478,11 @@
       "set": "ecl",
       "cardNumber": "145",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Goblin",
-        "Sorcerer"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Goblin", "Sorcerer"],
       "supertypes": [],
       "text": "This spell can't be countered.\nWard—Pay 2 life.\nSpells you control can't be countered.\nOther creatures you control have \"Ward—Pay 2 life.\"",
       "layout": "normal",
@@ -593,19 +505,11 @@
       "cardNumber": "90",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {

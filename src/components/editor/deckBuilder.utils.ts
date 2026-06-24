@@ -1,4 +1,4 @@
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import { computeCmc, isLand } from "@/lib/mana";
 export { scryfallToDeckCard } from "@/lib/scryfall.utils";
 

@@ -17,16 +17,16 @@ BasePalette (~30 raw hues per preset)
 
 ## Where colors live
 
-| File | Role |
-|---|---|
-| `src/themes/gameTheme.ts` | `GameThemeColors` interface, `GameThemeColorKey` union, `GameThemeColorMap`, resolution logic, CSS flattening, color utilities. Source of truth for the schema. |
-| `src/themes/buildGameColors.ts` | `BasePalette` interface, `buildGameColors()` — maps ~30 raw hues to ~80 typed tokens. |
-| `src/themes/default.ts` | Default palette + preset (the fallback for every token). |
-| `src/themes/<name>.ts` | Per-preset palette overrides (nord, dracula, catppuccin, …). 12 presets total. |
-| `src/themes/presets.ts` | `ThemePreset` interface and registry. |
-| `src/hooks/useTheme.ts` | `useTheme()` (React), `getTheme()` (imperative — for Pixi), CSS var injection. |
-| `src/index.css` | The `@theme` block mapping CSS vars to Tailwind utilities — **auto-generated**. |
-| `scripts/generate-theme-css.mjs` | Regenerates the `@theme` block. Run with `--write` after schema changes. |
+| File                             | Role                                                                                                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/themes/gameTheme.ts`        | `GameThemeColors` interface, `GameThemeColorKey` union, `GameThemeColorMap`, resolution logic, CSS flattening, color utilities. Source of truth for the schema. |
+| `src/themes/buildGameColors.ts`  | `BasePalette` interface, `buildGameColors()` — maps ~30 raw hues to ~80 typed tokens.                                                                           |
+| `src/themes/default.ts`          | Default palette + preset (the fallback for every token).                                                                                                        |
+| `src/themes/<name>.ts`           | Per-preset palette overrides (nord, dracula, catppuccin, …). 12 presets total.                                                                                  |
+| `src/themes/presets.ts`          | `ThemePreset` interface and registry.                                                                                                                           |
+| `src/hooks/useTheme.ts`          | `useTheme()` (React), `getTheme()` (imperative — for Pixi), CSS var injection.                                                                                  |
+| `src/index.css`                  | The `@theme` block mapping CSS vars to Tailwind utilities — **auto-generated**.                                                                                 |
+| `scripts/generate-theme-css.mjs` | Regenerates the `@theme` block. Run with `--write` after schema changes.                                                                                        |
 
 ## Type safety
 
@@ -63,7 +63,7 @@ If you find yourself about to type a hex literal, stop and add a semantic theme 
 
 ## Canonical constants
 
-| Constant | Location | Use |
-|---|---|---|
-| `MANA_LETTERS` | `src/themes/gameTheme.ts` | `["W","U","B","R","G","C"]` — never re-declare |
+| Constant            | Location                           | Use                                               |
+| ------------------- | ---------------------------------- | ------------------------------------------------- |
+| `MANA_LETTERS`      | `src/themes/gameTheme.ts`          | `["W","U","B","R","G","C"]` — never re-declare    |
 | `ANY_COLOR_LETTERS` | `src/components/game/manaUtils.ts` | `["W","U","B","R","G"]` — WUBRG without colorless |

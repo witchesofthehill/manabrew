@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Deck, DeckCard } from "@/types/manabrew";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import { deriveTokens } from "@/lib/decks";
 import { peekAllArchivedTokens, prefetchTokenArchive } from "@/stores/useScryfallStore";
 

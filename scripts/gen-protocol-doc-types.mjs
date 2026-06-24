@@ -4,7 +4,7 @@
 //
 // Run: node scripts/gen-protocol-doc-types.mjs   (after `yarn gen:protocol`)
 import { readFileSync, readdirSync, writeFileSync, mkdirSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, sep as SEP } from "node:path";
 import { fileURLToPath } from "node:url";
 import prettier from "prettier";
 
@@ -28,8 +28,17 @@ function walk(dir, ext) {
 // name -> raw TS type body, across all generated bindings.
 const tsBody = {};
 for (const f of walk(TS_DIR, ".ts")) {
-  for (const m of readFileSync(f, "utf8").matchAll(/export type (\w+) = ([^;]*);/g)) {
-    tsBody[m[1]] = m[2].trim();
+  const src = readFileSync(f, "utf8");
+  for (const m of src.matchAll(/export type (\w+) = /g)) {
+    let depth = 0;
+    let i = m.index + m[0].length;
+    for (; i < src.length; i++) {
+      const ch = src[i];
+      if (ch === "{" || ch === "(" || ch === "[") depth++;
+      else if (ch === "}" || ch === ")" || ch === "]") depth--;
+      else if (ch === ";" && depth === 0) break;
+    }
+    tsBody[m[1]] = src.slice(m.index + m[0].length, i).trim();
   }
 }
 const known = new Set(Object.keys(tsBody));
@@ -48,6 +57,7 @@ const bracketDelta = (l) => {
   return d;
 };
 const rustText = {};
+const definedIn = {};
 for (const f of walk(RUST_DIR, ".rs")) {
   const lines = readFileSync(f, "utf8").split("\n");
   let attrs = [];
@@ -77,6 +87,7 @@ for (const f of walk(RUST_DIR, ".rs")) {
         if (started && depth === 0) break;
       }
       rustText[m[1]] = [...attrs.filter((a) => !isNoise(a)), ...body].join("\n");
+      definedIn[m[1]] = f;
       attrs = [];
       i = end;
       continue;
@@ -117,15 +128,29 @@ async function fmtTs(name, body) {
 
 // Named protocol types referenced inside a type body (comments stripped).
 function rawRefs(name, body) {
-  const found = new Set(body.replace(/\/\*[\s\S]*?\*\//g, "").match(/\b[A-Z][A-Za-z0-9]*\b/g) ?? []);
+  const found = new Set(
+    body.replace(/\/\*[\s\S]*?\*\//g, "").match(/\b[A-Z][A-Za-z0-9]*\b/g) ?? [],
+  );
   return [...found].filter((t) => t !== name && known.has(t));
 }
 
+// A type's documentation home is where it's *defined*. `game/` is the in-game
+// state snapshot graph, `deck_dto.rs` the deck-exchange shape — each documented
+// on its own page. `definedUnder` lists every type from a source file that
+// ts-rs also exported (so it has a TS body to render).
+const definedUnder = (frag) =>
+  Object.keys(definedIn)
+    .filter((n) => definedIn[n].includes(frag) && tsBody[n])
+    .sort();
+
+const STATE = definedUnder(`${SEP}game${SEP}`);
+const DECK = definedUnder("deck_dto.rs").filter((t) => !STATE.includes(t));
+
 // The "shared" supporting types are derived, not hand-listed: the transitive
 // closure of every type the prompt *arguments* (the *Input types) reference,
-// minus the prompt messages themselves. Adding a prompt that references a new
-// DTO grows this automatically; a response-only type (e.g. ManaSourceAction)
-// stays off it.
+// minus the prompt messages and anything already homed on a page of its own
+// (game state, deck). Adding a prompt that references a new DTO grows this
+// automatically; a response-only type (e.g. ManaSourceAction) stays off it.
 const SHARED = (() => {
   const out = new Set();
   const queue = Object.keys(tsBody)
@@ -137,12 +162,14 @@ const SHARED = (() => {
     out.add(t);
     queue.push(...rawRefs(t, tsBody[t]));
   }
-  return [...out].sort();
+  return [...out].filter((t) => !STATE.includes(t) && !DECK.includes(t)).sort();
 })();
+
+const DOCUMENTED = new Set([...SHARED, ...STATE, ...DECK]);
 
 function refsOf(name, body) {
   return rawRefs(name, body)
-    .filter((t) => SHARED.includes(t))
+    .filter((t) => DOCUMENTED.has(t))
     .sort();
 }
 
@@ -163,11 +190,25 @@ for (const name of Object.keys(tsBody)) {
   await emit(name);
 }
 for (const name of SHARED) await emit(name);
+for (const name of STATE) await emit(name);
+for (const name of DECK) await emit(name);
 
 const sortKeys = (o) =>
-  Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
+  Object.fromEntries(
+    Object.keys(o)
+      .sort()
+      .map((k) => [k, o[k]]),
+  );
 
 mkdirSync(dirname(OUT), { recursive: true });
-const json = JSON.stringify({ prompts: sortKeys(prompts), shared: SHARED, types: sortKeys(types) });
+const json = JSON.stringify({
+  prompts: sortKeys(prompts),
+  shared: SHARED,
+  state: STATE,
+  deck: DECK,
+  types: sortKeys(types),
+});
 writeFileSync(OUT, await prettier.format(json, { parser: "json", filepath: OUT }));
-console.log(`wrote ${Object.keys(types).length} types (${Object.keys(prompts).length} prompts) -> ${OUT}`);
+console.log(
+  `wrote ${Object.keys(types).length} types (${Object.keys(prompts).length} prompts, ${STATE.length} state, ${DECK.length} deck) -> ${OUT}`,
+);

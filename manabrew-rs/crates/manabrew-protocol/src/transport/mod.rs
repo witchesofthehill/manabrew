@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::display::DisplayEvent;
+use crate::game::GameViewDto;
 use crate::prompts::PromptInput;
-use crate::values::GameViewDto;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]

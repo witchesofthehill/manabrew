@@ -16,9 +16,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 6,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this artifact enters, draw three cards.\n{T}: Add three mana of any one color.\nWhenever one or more creatures an opponent controls attack you and aren't blocked, that player draws three cards and gains control of this artifact. Untap it.",
@@ -38,21 +36,11 @@
       "set": "plst",
       "cardNumber": "NPH-42",
       "manaCost": "{3}{U/P}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Phyrexian",
-        "Shapeshifter"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Phyrexian", "Shapeshifter"],
       "supertypes": [],
       "text": "({U/P} can be paid with either {U} or 2 life.)\nYou may have this creature enter as a copy of any artifact or creature on the battlefield, except it's an artifact in addition to its other types.",
       "layout": "normal",
@@ -76,9 +64,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}{C}. Spend this mana only to cast artifact spells.",
@@ -102,9 +88,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}. This land deals 2 damage to you.",
@@ -125,16 +109,10 @@
       "set": "dmr",
       "cardNumber": "418",
       "manaCost": "{3}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 5,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost.\nCounter target spell.",
@@ -158,13 +136,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "Indestructible\nWhen The One Ring enters, if you cast it, you gain protection from everything until your next turn.\nAt the beginning of your upkeep, you lose 1 life for each burden counter on The One Ring.\n{T}: Put a burden counter on The One Ring, then draw a card for each burden counter on The One Ring.",
       "layout": "normal",
       "uris": {
@@ -192,16 +166,10 @@
       "set": "mh3",
       "cardNumber": "241",
       "manaCost": "{1}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target spell or nonland permanent an opponent controls to its owner's hand.",
@@ -222,16 +190,10 @@
       "set": "mb2",
       "cardNumber": "33",
       "manaCost": "{3}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return any number of target nonland, nontoken permanents you control to their owners' hands. Draw a card for each card returned to your hand this way.",
@@ -269,9 +231,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Untap another target artifact.\n{3}, {T}: Target creature can't be blocked this turn.",
@@ -295,13 +255,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "Metalcraft — {T}: Add one mana of any color. Activate only if you control three or more artifacts.",
       "layout": "normal",
       "uris": {
@@ -330,17 +286,11 @@
       "cardNumber": "330",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {U} for each artifact you control.",
       "layout": "normal",
       "uris": {
@@ -362,9 +312,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact doesn't untap during your untap step.\nAt the beginning of your upkeep, you may pay {4}. If you do, untap this artifact.\nAt the beginning of your draw step, if this artifact is tapped, it deals 1 damage to you.\n{T}: Add {C}{C}{C}.",
@@ -385,16 +333,10 @@
       "set": "2ed",
       "cardNumber": "48",
       "manaCost": "{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target player draws three cards.",
@@ -418,9 +360,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
@@ -442,13 +382,9 @@
       "cardNumber": "262",
       "manaCost": "{0}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {G}.",
@@ -479,13 +415,9 @@
       "cardNumber": "266",
       "manaCost": "{0}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {U}.",
@@ -516,13 +448,9 @@
       "cardNumber": "264",
       "manaCost": "{0}",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {W}.",
@@ -553,13 +481,9 @@
       "cardNumber": "263",
       "manaCost": "{0}",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {B}.",
@@ -590,13 +514,9 @@
       "cardNumber": "265",
       "manaCost": "{0}",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {R}.",
@@ -626,16 +546,10 @@
       "set": "2ed",
       "cardNumber": "84",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Take an extra turn after this one.",
@@ -659,9 +573,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact enters tapped.\nThis artifact doesn't untap during your untap step.\nIf you would begin your turn while this artifact is tapped, you may skip that turn instead. If you do, untap this artifact.\n{T}: Take an extra turn after this one.",
@@ -685,14 +597,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Enchantment",
-        "Land"
-      ],
-      "subtypes": [
-        "Urza's",
-        "Saga"
-      ],
+      "types": ["Enchantment", "Land"],
+      "subtypes": ["Urza's", "Saga"],
       "supertypes": [],
       "text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — This Saga gains \"{T}: Add {C}.\"\nII — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.'\"\nIII — Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle.",
       "layout": "saga",
@@ -724,9 +630,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -750,13 +654,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Golem"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Golem"],
       "supertypes": [],
       "text": "Nonartifact spells cost {1} more to cast.",
       "layout": "normal",
@@ -781,9 +680,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "As long as this artifact is untapped, each spell that would cost less than three mana to cast costs three mana to cast. (Additional mana in the cost may be paid with any color of mana or colorless mana. For example, a spell that would cost {1}{B} to cast costs {2}{B} to cast instead.)",
@@ -807,9 +704,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever a player casts a spell, if no mana was spent to cast it, counter that spell.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
@@ -833,15 +728,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Karn"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Karn"],
+      "supertypes": ["Legendary"],
       "text": "Activated abilities of artifacts your opponents control can't be activated.\n+1: Until your next turn, up to one target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.\n−2: You may reveal an artifact card you own from outside the game or choose a face-up artifact card you own in exile. Put that card into your hand.",
       "layout": "normal",
       "uris": {
@@ -860,16 +749,10 @@
       "set": "mb2",
       "cardNumber": "176",
       "manaCost": "{2}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice an artifact.\nSearch your library for an artifact card, put that card onto the battlefield, then shuffle.",
@@ -893,9 +776,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact doesn't untap during your untap step.\n{T}: Add {C}{C}{C}.\n{4}: Untap this artifact.",
@@ -919,15 +800,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Tezzeret"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Tezzeret"],
+      "supertypes": ["Legendary"],
       "text": "Whenever an artifact you control enters, put a loyalty counter on Tezzeret.\n0: Untap target artifact or creature. If it's an artifact creature, put a +1/+1 counter on it.\n−3: Search your library for an artifact card with mana value 1 or less, reveal it, put it into your hand, then shuffle.\n−7: You get an emblem with \"At the beginning of combat on your turn, put three +1/+1 counters on target artifact you control. If it's not a creature, it becomes a 0/0 Robot artifact creature.\"",
       "layout": "normal",
       "uris": {
@@ -958,12 +833,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Gate"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Gate"],
       "supertypes": [],
       "text": "When this land enters, up to one target creature phases out.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}: Put this card from your hand onto the battlefield.",
       "layout": "normal",

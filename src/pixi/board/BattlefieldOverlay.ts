@@ -6,7 +6,7 @@ import {
   type FederatedPointerEvent,
   type Texture,
 } from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { BattlefieldState } from "../types";
 import { hexToNum } from "../colorUtils";
 import {
@@ -59,7 +59,7 @@ export class BattlefieldOverlay {
 
   /** Resolve a battlefield card tap to the right action (tap land / untap /
    *  open mana picker / select), mirroring the overlay button behaviour. */
-  handleCardTap(card: GameCard): void {
+  handleCardTap(card: CardDto): void {
     const state = this.host.getLastState();
     if (!state) {
       this.host.getCallbacks().onClickCard?.(card);
@@ -155,7 +155,7 @@ export class BattlefieldOverlay {
 
   private drawManaGrid(
     overlay: Container,
-    card: GameCard,
+    card: CardDto,
     state: BattlefieldState,
     abilities: ExpandedManaAbilityInfo[],
   ): void {
@@ -256,7 +256,7 @@ export class BattlefieldOverlay {
 
   private drawSingleButton(
     overlay: Container,
-    card: GameCard,
+    card: CardDto,
     state: BattlefieldState,
     kind: ActionKind,
   ): void {
@@ -399,7 +399,7 @@ export class BattlefieldOverlay {
     return sprite;
   }
 
-  private dispatchAction(card: GameCard, state: BattlefieldState, kind: ActionKind): void {
+  private dispatchAction(card: CardDto, state: BattlefieldState, kind: ActionKind): void {
     if (kind.isTappable) {
       const batch = this.selectedBatch(state.tappableLandIds, card.id);
       if (batch.length > 1) this.host.getCallbacks().onTapLands?.(batch);

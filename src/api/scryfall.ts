@@ -8,6 +8,8 @@ import {
   type ScryfallSet,
 } from "@/types/scryfall";
 import { platformFetch } from "@/lib/platformFetch";
+import { getPlatformType } from "@/platform";
+import { loadScryfallImage } from "@/lib/scryfallImageSource";
 import {
   enqueueCardLookup,
   matchesIdentifier,
@@ -209,25 +211,16 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
   return out;
 }
 
-export function fetchImageElement(url: string): Promise<HTMLImageElement> {
+export async function fetchImageElement(url: string): Promise<HTMLImageElement> {
+  const onDesktop = getPlatformType() === "tauri";
+  const src = onDesktop ? await loadScryfallImage(url) : url;
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!onDesktop) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
-    img.src = scryfallCorsImageUrl(url);
+    img.src = src;
   });
-}
-
-function scryfallCorsImageUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    if (!["cards.scryfall.io", "backs.scryfall.io"].includes(parsed.hostname)) return url;
-    parsed.searchParams.set("manabrew_cors", "1");
-    return parsed.toString();
-  } catch {
-    return url;
-  }
 }
 
 export function normalizeManaCode(value: string): ManaCode | null {

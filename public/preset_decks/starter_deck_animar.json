@@ -13,26 +13,12 @@
       "set": "2x2",
       "cardNumber": "171",
       "manaCost": "{G}{U}{R}",
-      "colors": [
-        "G",
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "G",
-        "R",
-        "U"
-      ],
+      "colors": ["G", "R", "U"],
+      "colorIdentity": ["G", "R", "U"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental"],
+      "supertypes": ["Legendary"],
       "text": "Protection from white and from black\nWhenever you cast a creature spell, put a +1/+1 counter on Animar.\nCreature spells you cast cost {1} less to cast for each +1/+1 counter on Animar.",
       "layout": "normal",
       "power": "1",
@@ -53,16 +39,10 @@
       "set": "eld",
       "cardNumber": "172",
       "manaCost": "{4}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 5,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one —\n• Draw cards equal to the greatest power among non-Human creatures you control.\n• Non-Human creatures you control get +3/+3 until end of turn.",
@@ -97,16 +77,10 @@
       "set": "cm2",
       "cardNumber": "138",
       "manaCost": "{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 1,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead.",
@@ -127,16 +101,10 @@
       "set": "c19",
       "cardNumber": "183",
       "manaCost": "{3}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Tempting offer — Search your library for a land card and put it onto the battlefield. Each opponent may search their library for a land card and put it onto the battlefield. For each opponent who searches a library this way, search your library for a land card and put it onto the battlefield. Then each player who searched a library this way shuffles.",
@@ -160,13 +128,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Urza's",
-        "Tower"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Urza's", "Tower"],
       "supertypes": [],
       "text": "{T}: Add {C}. If you control an Urza's Mine and an Urza's Power-Plant, add {C}{C}{C} instead.",
       "layout": "normal",
@@ -203,16 +166,10 @@
       "set": "roe",
       "cardNumber": "176",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of your upkeep, you may create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\"",
@@ -243,18 +200,10 @@
       "cardNumber": "259",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain",
-        "Forest"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain", "Forest"],
       "supertypes": [],
       "text": "({T}: Add {R} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -277,13 +226,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 7,
-      "types": [
-        "Kindred",
-        "Sorcery"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Kindred", "Sorcery"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Each player sacrifices all permanents they control that are one or more colors.",
       "layout": "normal",
@@ -306,15 +250,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 10,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, draw four cards.\nAnnihilator 4 (Whenever this creature attacks, defending player sacrifices four permanents of their choice.)\nWhen Kozilek is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.",
       "layout": "normal",
       "power": "12",
@@ -338,15 +276,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 11,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, destroy target permanent.\nIndestructible\nAnnihilator 4 (Whenever this creature attacks, defending player sacrifices four permanents of their choice.)\nWhen Ulamog is put into a graveyard from anywhere, its owner shuffles their graveyard into their library.",
       "layout": "normal",
       "power": "10",
@@ -367,16 +299,10 @@
       "set": "prna",
       "cardNumber": "130p",
       "manaCost": "{3}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever a nontoken creature you control enters, if it doesn't have the same name as another creature you control or a creature card in your graveyard, draw a card.",
@@ -398,18 +324,10 @@
       "cardNumber": "257",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Mountain"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Mountain"],
       "supertypes": [],
       "text": "({T}: Add {U} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -432,12 +350,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "When you cast this spell, you may search your library for a colorless creature card with mana value 7 or greater, reveal it, then shuffle and put that card on top.\nThe first creature spell you cast each turn costs {2} less to cast.",
       "layout": "normal",
@@ -460,16 +374,10 @@
       "cardNumber": "57",
       "manaCost": "{5}{U}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen this creature enters, create two 1/1 colorless Eldrazi Scion creature tokens. They have \"Sacrifice this token: Add {C}.\"\nSacrifice an Eldrazi Scion: Tap target creature.",
       "layout": "normal",
@@ -501,13 +409,9 @@
       "cardNumber": "167",
       "manaCost": "{3}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nAt the beginning of your upkeep, create a 1/1 colorless Eldrazi Scion creature token. It has \"Sacrifice this token: Add {C}.\"\n{1}{G}, Sacrifice this enchantment: Search your library for an Eldrazi card, reveal it, put it into your hand, then shuffle.",
@@ -538,18 +442,10 @@
       "cardNumber": "205",
       "manaCost": "{1}{U}{R}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Drone"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Drone"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nColorless spells you cast cost {1} less to cast.",
       "layout": "normal",
@@ -574,12 +470,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "When you cast this spell, target opponent exiles the top four cards of their library, then you may put any number of land cards that player owns from exile onto the battlefield under your control.",
       "layout": "normal",
@@ -604,15 +496,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 10,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, exile two target permanents.\nIndestructible\nWhenever Ulamog attacks, defending player exiles the top twenty cards of their library.",
       "layout": "normal",
       "power": "10",
@@ -633,19 +519,11 @@
       "set": "scg",
       "cardNumber": "117",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Enchant creature\nEnchanted creature gets +1/+1 and has trample.\nWhen a creature with mana value 6 or greater enters, you may return this card from your graveyard to the battlefield attached to that creature.",
       "layout": "normal",
@@ -668,9 +546,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -700,16 +576,10 @@
       "set": "c20",
       "cardNumber": "35",
       "manaCost": "{2}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
@@ -730,19 +600,11 @@
       "set": "c20",
       "cardNumber": "180",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
-      "subtypes": [
-        "Arcane"
-      ],
+      "types": ["Sorcery"],
+      "subtypes": ["Arcane"],
       "supertypes": [],
       "text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
       "layout": "normal",
@@ -763,14 +625,9 @@
       "cardNumber": "310",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This land deals 1 damage to you.",
@@ -794,9 +651,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -817,16 +672,10 @@
       "set": "c20",
       "cardNumber": "128",
       "manaCost": "{2}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Each player discards their hand, then draws cards equal to the greatest number of cards a player discarded this way.",
@@ -848,14 +697,9 @@
       "cardNumber": "322",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {G} or {U}. This land deals 1 damage to you.",
@@ -879,9 +723,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {C}{C}. Spend this mana only to cast colorless Eldrazi spells or activate abilities of colorless Eldrazi.",
@@ -905,15 +747,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 8,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Ugin"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Ugin"],
+      "supertypes": ["Legendary"],
       "text": "+2: Ugin deals 3 damage to any target.\n−X: Exile each permanent with mana value X or less that's one or more colors.\n−10: You gain 7 life, draw seven cards, then put up to seven permanent cards from your hand onto the battlefield.",
       "layout": "normal",
       "uris": {
@@ -935,15 +771,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 7,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Karn"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Karn"],
+      "supertypes": ["Legendary"],
       "text": "+4: Target player exiles a card from their hand.\n−3: Exile target permanent.\n−14: Restart the game, leaving in exile all non-Aura permanent cards exiled with Karn. Then put those cards onto the battlefield under your control.",
       "layout": "normal",
       "uris": {
@@ -963,14 +793,9 @@
       "cardNumber": "313",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{U/R}, {T}: Add {U}{U}, {U}{R}, or {R}{R}.",
@@ -991,16 +816,10 @@
       "set": "2xm",
       "cardNumber": "47",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Return target nonland permanent you don't control to its owner's hand.\nOverload {6}{U} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
@@ -1022,14 +841,9 @@
       "cardNumber": "317",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{R/G}, {T}: Add {R}{R}, {R}{G}, or {G}{G}.",
@@ -1051,14 +865,9 @@
       "cardNumber": "318",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{G/U}, {T}: Add {G}{G}, {G}{U}, or {U}{U}.",
@@ -1082,13 +891,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Urza's",
-        "Power-Plant"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Urza's", "Power-Plant"],
       "supertypes": [],
       "text": "{T}: Add {C}. If you control an Urza's Mine and an Urza's Tower, add {C}{C} instead.",
       "layout": "normal",
@@ -1128,13 +932,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Urza's",
-        "Mine"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Urza's", "Mine"],
       "supertypes": [],
       "text": "{T}: Add {C}. If you control an Urza's Power-Plant and an Urza's Tower, add {C}{C} instead.",
       "layout": "normal",
@@ -1171,20 +970,10 @@
       "set": "ktk",
       "cardNumber": "207",
       "manaCost": "{G}{U}{R}",
-      "colors": [
-        "G",
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "G",
-        "R",
-        "U"
-      ],
+      "colors": ["G", "R", "U"],
+      "colorIdentity": ["G", "R", "U"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Creatures you control have haste.\nWhenever a creature you control with power 4 or greater enters, you may draw a card.",
@@ -1208,9 +997,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}. ({C} represents colorless mana.)\n{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast a spell with devoid.",
@@ -1234,15 +1021,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 10,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, if you have fewer than seven cards in hand, draw cards equal to the difference.\nMenace\nDiscard a card with mana value X: Counter target spell with mana value X.",
       "layout": "normal",
       "power": "12",
@@ -1266,12 +1047,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "({C} represents colorless mana.)\nWhen this creature dies, reveal the top card of your library. You may put that card onto the battlefield if it's a permanent card with mana value 3 or less. Otherwise, put that card into your hand.",
       "layout": "normal",
@@ -1296,12 +1073,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "({C} represents colorless mana.)\nTrample, haste\nWhenever this creature becomes the target of a spell an opponent controls, counter that spell unless its controller discards a card.",
       "layout": "normal",
@@ -1326,12 +1099,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "({C} represents colorless mana.)\nWhen this creature enters, target opponent reveals their hand. You choose a nonland card from it and exile that card.\nWhen this creature leaves the battlefield, target opponent draws a card.",
       "layout": "normal",
@@ -1354,13 +1123,9 @@
       "cardNumber": "49",
       "manaCost": "{1}{U}{U}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nCounter target spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
@@ -1382,18 +1147,10 @@
       "cardNumber": "150",
       "manaCost": "{1}{G}{U}",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Drone"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Drone"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nFlash (You may cast this spell any time you could cast an instant.)\nWhen this creature enters, another target creature you control gains hexproof until end of turn.",
       "layout": "normal",
@@ -1416,16 +1173,10 @@
       "cardNumber": "126",
       "manaCost": "{6}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen you cast this spell, exile target artifact, enchantment, or land.\nReach\n{2}{C}, Sacrifice a land: Return this card from your graveyard to your hand. ({C} represents colorless mana.)",
       "layout": "normal",
@@ -1448,14 +1199,9 @@
       "cardNumber": "305",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R"
-      ],
+      "colorIdentity": ["G", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {R} or {G}. This land deals 1 damage to you.",
@@ -1479,12 +1225,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
       "layout": "normal",
@@ -1507,9 +1249,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
@@ -1533,9 +1273,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 4,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}{C}.",
@@ -1556,16 +1294,10 @@
       "set": "znr",
       "cardNumber": "76",
       "manaCost": "{4}{U}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Draw cards equal to the number of cards in your hand plus one. You have no maximum hand size for the rest of the game.",
@@ -1586,16 +1318,10 @@
       "set": "znr",
       "cardNumber": "161",
       "manaCost": "{X}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Shatterskull Smashing deals X damage divided as you choose among up to two target creatures and/or planeswalkers. If X is 6 or more, Shatterskull Smashing deals twice X damage divided as you choose among them instead.",
@@ -1619,13 +1345,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 5,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "Colorless creatures you control get +2/+2.\nWhenever you tap a permanent for {C}, add an additional {C}.\nWhenever you cast a colorless spell, you gain 2 life.",
       "layout": "normal",
       "uris": {
@@ -1644,16 +1366,10 @@
       "set": "znr",
       "cardNumber": "215",
       "manaCost": "{4}{G}{G}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Look at the top seven cards of your library. You may put a creature card from among them onto the battlefield. If that card has mana value 3 or less, it enters with three additional +1/+1 counters on it. Put the rest on the bottom of your library in a random order.",
@@ -1674,16 +1390,10 @@
       "set": "cmr",
       "cardNumber": "424",
       "manaCost": "{2}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
@@ -1707,9 +1417,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
@@ -1731,18 +1439,10 @@
       "cardNumber": "132",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest", "Island"],
       "supertypes": [],
       "text": "({T}: Add {G} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -1762,16 +1462,10 @@
       "set": "afc",
       "cardNumber": "164",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Search your library for a Forest card, put that card onto the battlefield, then shuffle.",
@@ -1792,16 +1486,10 @@
       "set": "neo",
       "cardNumber": "61",
       "manaCost": "{X}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, you may exile any number of blue cards from your hand. This spell costs {2} less to cast for each card exiled this way.\nUp to X target creatures phase out. (While they're phased out, they're treated as though they don't exist. Each one phases in before its controller untaps during their next untap step.)",
@@ -1822,16 +1510,10 @@
       "set": "clb",
       "cardNumber": "81",
       "manaCost": "{3}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 5,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "As this enchantment enters, choose a creature type.\nWhenever a creature you control of the chosen type enters or attacks, draw a card.",
@@ -1852,20 +1534,12 @@
       "set": "mom",
       "cardNumber": "198",
       "manaCost": "{1}{G}",
-      "colors": [
-        "G"
-      ],
-      "colorIdentity": [
-        "G"
-      ],
+      "colors": ["G"],
+      "colorIdentity": ["G"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "If one or more +1/+1 counters would be put on an artifact or creature you control, that many plus one +1/+1 counters are put on it instead.\n{1}{G}, {T}: Put a +1/+1 counter on target artifact or creature you control. Activate only as a sorcery.\nCycling {2} ({2}, Discard this card: Draw a card.)",
       "layout": "normal",
       "uris": {
@@ -1887,13 +1561,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Drone"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Drone"],
       "supertypes": [],
       "text": "Colorless spells you cast with mana value 7 or greater cost {1} less to cast.\nOther colorless creatures you control get +1/+1.",
       "layout": "normal",
@@ -1918,15 +1587,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 12,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, gain control of all creatures target player controls.\nFlying, protection from spells and from permanents that were cast this turn\nWhen Emrakul leaves the battlefield, sacrifice all creatures you control.\nMadness—Pay six {C}.",
       "layout": "normal",
       "power": "12",
@@ -1950,9 +1613,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "Imprint — When this land enters, you may exile a colorless card with mana value 7 or greater from your hand.\n{T}: Add {C}. If a card is exiled with this land, add {C}{C} instead.\n{T}: Return the exiled card to its owner's hand.",
@@ -1974,17 +1635,10 @@
       "cardNumber": "13",
       "manaCost": "{7}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Elemental"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Elemental"],
       "supertypes": [],
       "text": "When you cast this spell, draw two cards.\nFlying\nAnnihilator 1 (Whenever this creature attacks, defending player sacrifices a permanent of their choice.)\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
       "layout": "normal",
@@ -2007,13 +1661,9 @@
       "cardNumber": "65",
       "manaCost": "{2}{U}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhenever you cast a creature spell with mana value 4, 5, or 6, create two 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice this token: Add {C}.\"\nWhenever you cast a creature spell with mana value 7 or greater, draw three cards.",
@@ -2046,13 +1696,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 6,
-      "types": [
-        "Kindred",
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Kindred", "Enchantment"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "If a triggered ability of a colorless spell you control or another colorless permanent you control triggers, that ability triggers an additional time.\nWhenever you cast a colorless spell, copy it. You may choose new targets for the copy. (A copy of a permanent spell becomes a token.)",
       "layout": "normal",
@@ -2075,15 +1720,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 10,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, target opponent exiles the top half of their library, rounded up.\nWard—Sacrifice two permanents.\nUlamog enters with a number of +1/+1 counters on it equal to the greatest mana value among cards in exile.\nUlamog has annihilator X, where X is the number of +1/+1 counters on it.",
       "layout": "normal",
       "power": "7",
@@ -2105,16 +1744,10 @@
       "cardNumber": "57",
       "manaCost": "{6}{R}",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen you cast this spell, for each opponent, gain control of up to one target creature that player controls until end of turn. Untap those creatures. They gain trample, haste, and annihilator 1 until end of turn.\nTrample, haste, annihilator 1 (Whenever this creature attacks, defending player sacrifices a permanent of their choice.)",
       "layout": "normal",
@@ -2139,15 +1772,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 9,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "When you cast this spell, up to two target players each manifest two cards from their hands. For each card manifested this way, you draw a card. (To manifest a card, put it onto the battlefield face down as a 2/2 creature. Turn it face up any time for its mana cost if it's a creature card.)\nOther colorless creatures you control get +3/+2.",
       "layout": "normal",
       "power": "9",
@@ -2178,17 +1805,10 @@
       "cardNumber": "253",
       "manaCost": "{5}{G/U}{G/U}",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen you cast this spell, if {C} was spent to cast it, create two 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice this token: Add {C}.\"",
       "layout": "modal_dfc",
@@ -2220,13 +1840,9 @@
       "cardNumber": "165",
       "manaCost": "{3}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen this enchantment enters, create two 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice this token: Add {C}.\"\nEldrazi you control have \"{T}: Add one mana of any color.\"\nWhenever you cast a creature spell with mana value 7 or greater, you gain 4 life.",
@@ -2257,17 +1873,10 @@
       "cardNumber": "170",
       "manaCost": "{3}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Fungus"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Fungus"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nKicker {1}{C} (You may pay an additional {1}{C} as you cast this spell.)\nWhen you cast this spell, search your library for a land card, put it onto the battlefield, then shuffle.\nWhen you cast this spell, if it was kicked, exile target land.",
       "layout": "normal",
@@ -2292,13 +1901,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Drone"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Drone"],
       "supertypes": [],
       "text": "Whenever you cast a colorless spell, create a 0/1 colorless Eldrazi Spawn creature token with \"Sacrifice this token: Add {C}.\"\nWhenever another colorless creature you control enters, this creature deals 1 damage to each opponent.",
       "layout": "normal",
@@ -2330,18 +1934,10 @@
       "cardNumber": "17",
       "manaCost": "{1}{C}",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Wizard"],
       "supertypes": [],
       "text": "Kicker {G} and/or {1}{U}\nWhen you cast this spell, if it was kicked with its {G} kicker, exile target artifact or enchantment an opponent controls.\nWhen you cast this spell, if it was kicked with its {1}{U} kicker, return target creature an opponent controls to its owner's hand.",
       "layout": "normal",
@@ -2364,13 +1960,9 @@
       "cardNumber": "76",
       "manaCost": "{2}{U}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nReturn target nonland permanent you don't control to its owner's hand.\nWhenever you cast a colorless spell with mana value 7 or greater, you may exile this card from your graveyard. When you do, return each nonland permanent you don't control to its owner's hand.",
@@ -2392,16 +1984,10 @@
       "cardNumber": "173",
       "manaCost": "{4}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nReach\nLandfall — Whenever a land you control enters, look at the top card of your library. If it's a creature card, you may reveal it and put it into your hand. If you don't put the card into your hand, you may put it into your graveyard.",
       "layout": "normal",
@@ -2424,15 +2010,9 @@
       "cardNumber": "217",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["G", "R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Forest, Island, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{U}{R} ({G}{U}{R}, Discard this card: Draw a card.)",
@@ -2454,18 +2034,10 @@
       "cardNumber": "204",
       "manaCost": "{1}{G}{U}",
       "colors": [],
-      "colorIdentity": [
-        "G",
-        "U"
-      ],
+      "colorIdentity": ["G", "U"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Turtle"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Turtle"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\n{T}: Add {C}{C}.\n{3}{C}, {T}: Draw a card.",
       "layout": "normal",
@@ -2490,13 +2062,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Kindred",
-        "Instant"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Kindred", "Instant"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "Target creature you control gains protection from each color until end of turn.\nOverload {4}{C} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
       "layout": "normal",
@@ -2519,12 +2086,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
       "supertypes": [],
       "text": "At the beginning of your end step, return up to one target Eldrazi creature card from your graveyard to your hand. Create two 1/1 colorless Eldrazi Scion creature tokens with \"Sacrifice this token: Add {C}.\"",
       "layout": "normal",
@@ -2556,17 +2119,10 @@
       "cardNumber": "46",
       "manaCost": "{6}{U}",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 7,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Serpent"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Serpent"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nWhen you cast this spell, for each opponent, choose a creature that player controls. Create a token that's a copy of one of those creatures, except its power is equal to the total power of those creatures, its toughness is equal to the total toughness of those creatures, and it's a colorless Eldrazi creature.",
       "layout": "normal",
@@ -2598,17 +2154,10 @@
       "cardNumber": "63",
       "manaCost": "{2}{G}",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi",
-        "Drone"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi", "Drone"],
       "supertypes": [],
       "text": "Devoid (This card has no color.)\nMyriad\nWhen this creature leaves the battlefield, create a 0/1 colorless Eldrazi Spawn creature token with \"Sacrifice this token: Add {C}.\"",
       "layout": "normal",
@@ -2640,19 +2189,11 @@
       "cardNumber": "382",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "G"
-      ],
+      "colorIdentity": ["G"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Forest"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Forest"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {G}.)",
       "layout": "normal",
       "uris": {
@@ -2681,19 +2222,11 @@
       "cardNumber": "376",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {U}.)",
       "layout": "normal",
       "uris": {
@@ -2713,19 +2246,11 @@
       "cardNumber": "380",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -2744,16 +2269,10 @@
       "set": "otp",
       "cardNumber": "11",
       "manaCost": "{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
@@ -2777,15 +2296,9 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 13,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Eldrazi"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Eldrazi"],
+      "supertypes": ["Legendary"],
       "text": "This spell costs {1} less to cast for each card type among cards in your graveyard.\nWhen you cast this spell, you gain control of target opponent during that player's next turn. After that turn, that player takes an extra turn.\nFlying, trample, protection from instants",
       "layout": "normal",
       "power": "13",

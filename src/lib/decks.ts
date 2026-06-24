@@ -1,11 +1,12 @@
-import type { Deck, DeckCard, GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import { peekArchivedToken } from "@/stores/useScryfallStore";
 
 function normalizeTokenName(name: string): string {
   return name.toLowerCase().replace(/\s+token$/i, "");
 }
 
-export function asDeckCard(deck: Deck | undefined, gameCard: GameCard): DeckCard {
+export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard {
   const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(
     (c) =>

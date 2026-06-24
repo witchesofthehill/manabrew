@@ -13,27 +13,12 @@
       "set": "moc",
       "cardNumber": "4",
       "manaCost": "{3}{U}{R}{W}",
-      "colors": [
-        "R",
-        "U",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "U",
-        "W"
-      ],
+      "colors": ["R", "U", "W"],
+      "colorIdentity": ["R", "U", "W"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Angel",
-        "Ally"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Angel", "Ally"],
+      "supertypes": ["Legendary"],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nFlying, vigilance, haste\nWhenever you cast another spell that has convoke, scry 2, then draw a card.",
       "layout": "normal",
       "power": "5",
@@ -71,9 +56,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
@@ -97,9 +80,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {C}.\nWhenever this land or another land you control enters, if you control seven or more lands with different names, create a 2/2 black Zombie creature token.",
@@ -130,14 +111,9 @@
       "cardNumber": "176",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {R}{W}.",
@@ -159,15 +135,9 @@
       "cardNumber": "73",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["R", "U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {U}, {R}, or {W}.",
@@ -191,12 +161,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
-      "subtypes": [
-        "Equipment"
-      ],
+      "types": ["Artifact"],
+      "subtypes": ["Equipment"],
       "supertypes": [],
       "text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
       "layout": "normal",
@@ -216,16 +182,10 @@
       "set": "prna",
       "cardNumber": "22p",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
@@ -255,16 +215,10 @@
       "set": "grn",
       "cardNumber": "10",
       "manaCost": "{3}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "If one or more creature tokens would be created under your control, that many 4/4 white Angel creature tokens with flying and vigilance are created instead.",
@@ -295,18 +249,10 @@
       "cardNumber": "254",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain",
-        "Plains"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain", "Plains"],
       "supertypes": [],
       "text": "({T}: Add {R} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -326,20 +272,11 @@
       "set": "grn",
       "cardNumber": "30",
       "manaCost": "{4}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elephant",
-        "Cleric"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elephant", "Cleric"],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this creature enters, put a +1/+1 counter on each creature that convoked it.",
       "layout": "normal",
@@ -361,24 +298,12 @@
       "set": "hou",
       "cardNumber": "139",
       "manaCost": "{4}{U}{R}",
-      "colors": [
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colors": ["R", "U"],
+      "colorIdentity": ["R", "U"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "God"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["God"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever you draw a card, create a 1/1 blue and red Insect creature token with flying and haste.\n{2}{U}{R}: Draw a card, then discard a card.\nWhen The Locust God dies, return it to its owner's hand at the beginning of the next end step.",
       "layout": "normal",
       "power": "4",
@@ -409,14 +334,9 @@
       "cardNumber": "223",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {U}{R}.",
@@ -438,19 +358,11 @@
       "cardNumber": "265",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -469,16 +381,10 @@
       "set": "m15",
       "cardNumber": "164",
       "manaCost": "{2}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nStoke the Flames deals 4 damage to any target.",
@@ -500,14 +406,9 @@
       "cardNumber": "225",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {W} or {U}.",
@@ -528,16 +429,10 @@
       "set": "ddf",
       "cardNumber": "22",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Exile target creature. Its controller gains life equal to its power.",
@@ -559,20 +454,11 @@
       "cardNumber": "154",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic",
-        "Snow"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic", "Snow"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -592,18 +478,10 @@
       "cardNumber": "241",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains", "Island"],
       "supertypes": [],
       "text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -624,18 +502,10 @@
       "cardNumber": "247",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Mountain"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Mountain"],
       "supertypes": [],
       "text": "({T}: Add {U} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -655,27 +525,12 @@
       "set": "pm20",
       "cardNumber": "212p",
       "manaCost": "{1}{U}{R}{W}",
-      "colors": [
-        "R",
-        "U",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "U",
-        "W"
-      ],
+      "colors": ["R", "U", "W"],
+      "colorIdentity": ["R", "U", "W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Bird",
-        "Wizard"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Bird", "Wizard"],
+      "supertypes": ["Legendary"],
       "text": "Flying\nWhenever you cast a noncreature spell, create a 1/1 white Spirit creature token with flying.\nSacrifice a Spirit: Add {R}.",
       "layout": "normal",
       "power": "3",
@@ -706,14 +561,9 @@
       "cardNumber": "253p",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {U} or {R}.",
@@ -735,20 +585,10 @@
       "cardNumber": "251p",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["R", "U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Mountain",
-        "Plains"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Mountain", "Plains"],
       "supertypes": [],
       "text": "({T}: Add {U}, {R}, or {W}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)",
       "layout": "normal",
@@ -768,20 +608,11 @@
       "set": "mor",
       "cardNumber": "25",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Merfolk",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Merfolk", "Wizard"],
       "supertypes": [],
       "text": "Whenever this creature becomes tapped, you may create a 1/1 blue Merfolk Wizard creature token.",
       "layout": "normal",
@@ -816,16 +647,10 @@
       "set": "dtk",
       "cardNumber": "140",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
@@ -846,16 +671,10 @@
       "set": "dtk",
       "cardNumber": "36",
       "manaCost": "{X}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Create X 1/1 white Warrior creature tokens.",
@@ -886,14 +705,9 @@
       "cardNumber": "196",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{1}, {T}: Add {W}{U}.",
@@ -915,14 +729,9 @@
       "cardNumber": "239",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.",
@@ -946,9 +755,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}{C}.",
@@ -969,22 +776,12 @@
       "set": "ths",
       "cardNumber": "9",
       "manaCost": "{4}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 6,
-      "types": [
-        "Planeswalker"
-      ],
-      "subtypes": [
-        "Elspeth"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Planeswalker"],
+      "subtypes": ["Elspeth"],
+      "supertypes": ["Legendary"],
       "text": "+1: Create three 1/1 white Soldier creature tokens.\n−3: Destroy all creatures with power 4 or greater.\n−7: You get an emblem with \"Creatures you control get +2/+2 and have flying.\"",
       "layout": "normal",
       "uris": {
@@ -1016,23 +813,12 @@
       "set": "ths",
       "cardNumber": "135",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "God"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["God"],
+      "supertypes": ["Legendary"],
       "text": "Indestructible\nAs long as your devotion to red is less than five, Purphoros isn't a creature.\nWhenever another creature you control enters, Purphoros deals 2 damage to each opponent.\n{2}{R}: Creatures you control get +1/+0 until end of turn.",
       "layout": "normal",
       "power": "6",
@@ -1053,20 +839,11 @@
       "set": "cmr",
       "cardNumber": "27",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Soldier"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Soldier"],
       "supertypes": [],
       "text": "At the beginning of each opponent's end step, if that player controls more creatures than you, create a 1/1 white Soldier creature token.\nAt the beginning of each opponent's end step, if that player controls more lands than you, you may search your library for a basic Plains card, put it onto the battlefield tapped, then shuffle.",
       "layout": "normal",
@@ -1098,14 +875,9 @@
       "cardNumber": "358",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {U} or {R}.",
@@ -1127,14 +899,9 @@
       "cardNumber": "356",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {R} or {W}.",
@@ -1155,16 +922,10 @@
       "set": "znr",
       "cardNumber": "12",
       "manaCost": "{4}{W}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Create two 4/4 white Angel Warrior creature tokens with flying. Non-Angel creatures you control gain indestructible until your next turn.",
@@ -1194,16 +955,10 @@
       "set": "znr",
       "cardNumber": "161",
       "manaCost": "{X}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Shatterskull Smashing deals X damage divided as you choose among up to two target creatures and/or planeswalkers. If X is 6 or more, Shatterskull Smashing deals twice X damage divided as you choose among them instead.",
@@ -1227,9 +982,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -1250,16 +1003,10 @@
       "set": "cmr",
       "cardNumber": "3",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Creatures you control gain flying, vigilance, and double strike until end of turn.\n• Creatures you control gain lifelink, indestructible, and protection from each color until end of turn.",
@@ -1281,20 +1028,11 @@
       "cardNumber": "279",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island"
-      ],
-      "supertypes": [
-        "Basic",
-        "Snow"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island"],
+      "supertypes": ["Basic", "Snow"],
       "text": "({T}: Add {U}.)",
       "layout": "normal",
       "uris": {
@@ -1314,20 +1052,11 @@
       "cardNumber": "276",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic",
-        "Snow"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic", "Snow"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {
@@ -1347,14 +1076,9 @@
       "cardNumber": "281",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {W} or {U}.",
@@ -1375,23 +1099,12 @@
       "set": "mid",
       "cardNumber": "1",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Knight"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Knight"],
+      "supertypes": ["Legendary"],
       "text": "Vigilance\nAdeline's power is equal to the number of creatures you control.\nWhenever you attack, for each opponent, create a 1/1 white Human creature token that's tapped and attacking that player or a planeswalker they control.",
       "layout": "normal",
       "power": "*",
@@ -1424,9 +1137,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color that a land an opponent controls could produce.",
@@ -1448,14 +1159,9 @@
       "cardNumber": "284",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {U} or {R}.",
@@ -1477,14 +1183,9 @@
       "cardNumber": "185",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {W} or {U}.",
@@ -1506,17 +1207,11 @@
       "cardNumber": "271",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
       "layout": "normal",
       "uris": {
@@ -1549,19 +1244,11 @@
       "set": "nec",
       "cardNumber": "40",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Spirit"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Spirit"],
       "supertypes": [],
       "text": "Flying\nUntap all creatures you control during each other player's untap step.",
       "layout": "normal",
@@ -1583,16 +1270,10 @@
       "set": "nec",
       "cardNumber": "84",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.",
@@ -1623,14 +1304,9 @@
       "cardNumber": "360",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you have two or more opponents.\n{T}: Add {W} or {U}.",
@@ -1651,16 +1327,10 @@
       "set": "snc",
       "cardNumber": "15",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{W}, {T}, Untap a tapped creature you control: Create a 1/1 green and white Citizen creature token.\n{W}{W}, {T}, Untap two tapped creatures you control: Draw a card.\n{W}{W}{W}{W}{W}, {T}, Untap fifteen tapped creatures you control: You win the game.",
@@ -1690,20 +1360,11 @@
       "set": "snc",
       "cardNumber": "29",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Wizard"],
       "supertypes": [],
       "text": "Alliance — Whenever another creature you control enters, scry 1. If this is the second time this ability has resolved this turn, draw a card instead.",
       "layout": "normal",
@@ -1725,23 +1386,12 @@
       "set": "ncc",
       "cardNumber": "86",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Druid"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Druid"],
+      "supertypes": ["Legendary"],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nAt the beginning of each end step, if you created a token this turn, draw a card.",
       "layout": "normal",
       "power": "3",
@@ -1762,16 +1412,10 @@
       "set": "ncc",
       "cardNumber": "16",
       "manaCost": "{X}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Create X 1/1 green and white Citizen creature tokens. Creatures you control gain indestructible until end of turn.",
@@ -1801,18 +1445,10 @@
       "set": "ncc",
       "cardNumber": "178",
       "manaCost": "{1}{R}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this enchantment enters, create two 1/1 green and white Citizen creature tokens.\nTap three untapped creatures you control: Create a Treasure token.",
@@ -1846,16 +1482,10 @@
       "set": "psnc",
       "cardNumber": "24p",
       "manaCost": "{4}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 5,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Hideaway 5 (When this enchantment enters, look at the top five cards of your library, exile one face down, then put the rest on the bottom in a random order.)\nWhenever you attack with one or more creatures, create that many 1/1 green and white Citizen creature tokens. Then if you control ten or more creatures, you may play the exiled card without paying its mana cost.",
@@ -1886,14 +1516,9 @@
       "cardNumber": "876",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {U} or {R}. This artifact deals 1 damage to you.",
@@ -1915,13 +1540,9 @@
       "cardNumber": "883",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Mountain.\n{T}: Add {R}.\n{1}{R}{R}, {T}: Creatures you control get +1/+0 until end of turn.",
@@ -1943,17 +1564,11 @@
       "cardNumber": "899",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
-      "supertypes": [
-        "Legendary"
-      ],
+      "supertypes": ["Legendary"],
       "text": "{T}: Add {C}.\n{1}{R}, {T}: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.",
       "layout": "normal",
       "uris": {
@@ -1981,20 +1596,11 @@
       "set": "2x2",
       "cardNumber": "21",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Monk"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Monk"],
       "supertypes": [],
       "text": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\nWhenever you cast a noncreature spell, create a 1/1 white Monk creature token with prowess.",
       "layout": "normal",
@@ -2029,20 +1635,10 @@
       "set": "2x2",
       "cardNumber": "231",
       "manaCost": "{U}{R}{W}",
-      "colors": [
-        "R",
-        "U",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "U",
-        "W"
-      ],
+      "colors": ["R", "U", "W"],
+      "colorIdentity": ["R", "U", "W"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever you cast a noncreature spell, creatures you control get +1/+1 until end of turn. Untap those creatures.\nWhenever you cast a noncreature spell, you may draw a card. If you do, discard a card.",
@@ -2063,17 +1659,10 @@
       "set": "dmu",
       "cardNumber": "62",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U", "W"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Kicker {W} (You may pay an additional {W} as you cast this spell.)\nIf this spell was kicked, create a 1/1 white Soldier creature token.\nCounter target spell unless its controller pays {1} for each creature you control.",
@@ -2104,18 +1693,10 @@
       "cardNumber": "225",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains", "Island"],
       "supertypes": [],
       "text": "({T}: Add {W} or {U}.)\nThis land enters tapped unless you control two or more basic lands.",
       "layout": "normal",
@@ -2135,20 +1716,11 @@
       "set": "dmu",
       "cardNumber": "430",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Soldier"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Soldier"],
       "supertypes": [],
       "text": "Flash (You may cast this spell any time you could cast an instant.)\nWhen this creature enters, create a 1/1 white Soldier creature token.",
       "layout": "normal",
@@ -2179,16 +1751,10 @@
       "set": "bro",
       "cardNumber": "30",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Whenever one or more creatures you control with mana value 3 or less enter, draw a card. This ability triggers only once each turn.",
@@ -2209,22 +1775,11 @@
       "set": "bro",
       "cardNumber": "223",
       "manaCost": "{U}{R}",
-      "colors": [
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colors": ["R", "U"],
+      "colorIdentity": ["R", "U"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Monk"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Monk"],
       "supertypes": [],
       "text": "Whenever you cast a noncreature spell, create a 1/1 colorless Soldier artifact creature token.",
       "layout": "normal",
@@ -2258,9 +1813,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add one mana of any color in your commander's color identity.",
@@ -2290,16 +1843,10 @@
       "set": "scd",
       "cardNumber": "18",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nExile target attacking or blocking creature.",
@@ -2321,14 +1868,9 @@
       "cardNumber": "258",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colorIdentity": ["R", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control an Island or a Mountain.\n{T}: Add {U} or {R}.",
@@ -2349,16 +1891,10 @@
       "set": "one",
       "cardNumber": "34",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\"\nCorrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink.",
@@ -2392,16 +1928,10 @@
       "set": "one",
       "cardNumber": "38",
       "manaCost": "{X}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "You gain X life. Create X 1/1 colorless Phyrexian Mite artifact creature tokens with toxic 1 and \"This token can't block.\" If X is 5 or more, destroy all other creatures. (Players dealt combat damage by a creature with toxic 1 also get a poison counter.)",
@@ -2435,23 +1965,12 @@
       "set": "one",
       "cardNumber": "23",
       "manaCost": "{2}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Phyrexian",
-        "Horror"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Phyrexian", "Horror"],
+      "supertypes": ["Legendary"],
       "text": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n{1}{W/P}{W/P}, Sacrifice two other artifacts and/or creatures: Put an indestructible counter on Mondrak. ({W/P} can be paid with either {W} or 2 life.)",
       "layout": "normal",
       "power": "4",
@@ -2472,24 +1991,12 @@
       "set": "onc",
       "cardNumber": "3",
       "manaCost": "{3}{R}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Phoenix"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Phoenix"],
+      "supertypes": ["Legendary"],
       "text": "Flying, lifelink, haste\nWhenever Otharri attacks, you get an experience counter. Then create a 2/2 red Rebel creature token that's tapped and attacking for each experience counter you have.\n{2}{R}{W}, Tap an untapped Rebel you control: Return this card from your graveyard to the battlefield tapped.",
       "layout": "normal",
       "power": "3",
@@ -2523,16 +2030,10 @@
       "set": "onc",
       "cardNumber": "5",
       "manaCost": "{2}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nAny number of target nonland permanents you control phase out. (Treat them and anything attached to them as though they don't exist until your next turn.)",
@@ -2553,16 +2054,10 @@
       "set": "onc",
       "cardNumber": "10",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this artifact enters, create a 1/1 white Spirit creature token with flying.\nWhenever you create one or more creature tokens, put a story counter on this artifact.\n{W}, {T}, Remove a story counter from this artifact: Draw a card.",
@@ -2592,16 +2087,10 @@
       "set": "onc",
       "cardNumber": "60",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Strive — This spell costs {1}{W} more to cast for each target beyond the first.\nChoose any number of target opponents. Create X 1/1 white Human Soldier creature tokens, where X is the number of creatures those opponents control.",
@@ -2632,13 +2121,9 @@
       "cardNumber": "149",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control a Plains.\n{T}: Add {W}.\n{2}{W}{W}, {T}: Create a 1/1 white Human creature token.",
@@ -2668,20 +2153,11 @@
       "set": "onc",
       "cardNumber": "102",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Artificer"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Artificer"],
       "supertypes": [],
       "text": "Haste\nLieutenant — At the beginning of combat on your turn, if you control your commander, create a 1/1 colorless Thopter artifact creature token with flying. That token gains haste until end of turn.",
       "layout": "normal",
@@ -2712,16 +2188,10 @@
       "set": "onc",
       "cardNumber": "75",
       "manaCost": "{4}{W}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 7,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nDestroy all nontoken creatures.",
@@ -2743,14 +2213,9 @@
       "cardNumber": "143",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {C}.\n{T}: Add {R} or {W}. This artifact deals 1 damage to you.",
@@ -2772,14 +2237,9 @@
       "cardNumber": "173",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {R} or {W}.",
@@ -2800,16 +2260,10 @@
       "set": "mom",
       "cardNumber": "83",
       "manaCost": "{X}{U}{U}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nDraw X cards.",
@@ -2830,20 +2284,11 @@
       "set": "mom",
       "cardNumber": "326",
       "manaCost": "{6}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 8,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental",
-        "Fractal"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental", "Fractal"],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWard {3}\nWhen this creature enters, look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in a random order.",
       "layout": "normal",
@@ -2865,16 +2310,10 @@
       "set": "mom",
       "cardNumber": "46",
       "manaCost": "{4}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 6,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nChoose one or both —\n• Counter target spell.\n• Draw two cards, then discard a card.",
@@ -2895,22 +2334,11 @@
       "set": "mom",
       "cardNumber": "243",
       "manaCost": "{3}{U}{R}",
-      "colors": [
-        "R",
-        "U"
-      ],
-      "colorIdentity": [
-        "R",
-        "U"
-      ],
+      "colors": ["R", "U"],
+      "colorIdentity": ["R", "U"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Shaman"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Shaman"],
       "supertypes": [],
       "text": "When this creature enters, create two 1/1 blue and red Elemental creature tokens.\nWhenever you cast a spell that has convoke, this creature deals 1 damage to each opponent and each battle they protect.",
       "layout": "normal",
@@ -2941,19 +2369,11 @@
       "set": "mom",
       "cardNumber": "63",
       "manaCost": "{2}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 3,
-      "types": [
-        "Battle"
-      ],
-      "subtypes": [
-        "Siege"
-      ],
+      "types": ["Battle"],
+      "subtypes": ["Siege"],
       "supertypes": [],
       "text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, create two 1/1 blue Kraken creature tokens with trample.",
       "layout": "transform",
@@ -2982,16 +2402,10 @@
       "set": "mom",
       "cardNumber": "363",
       "manaCost": "{5}{R}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 8,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nIf a source you control would deal damage to a permanent or player, it deals triple that damage instead.",
@@ -3012,20 +2426,11 @@
       "set": "mom",
       "cardNumber": "86",
       "manaCost": "{2}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Siren",
-        "Pirate"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Siren", "Pirate"],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nFlying, vigilance\nWhen this creature enters, put a flying counter on each creature that convoked it.",
       "layout": "normal",
@@ -3047,16 +2452,10 @@
       "set": "mom",
       "cardNumber": "66",
       "manaCost": "{3}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nDraw two cards.",
@@ -3077,16 +2476,10 @@
       "set": "moc",
       "cardNumber": "20",
       "manaCost": "{2}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact enters tapped.\n{T}: Add {W}.\n{T}: The next spell you cast this turn has convoke.",
@@ -3107,27 +2500,12 @@
       "set": "moc",
       "cardNumber": "9",
       "manaCost": "{U}{R}{W}",
-      "colors": [
-        "R",
-        "U",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "U",
-        "W"
-      ],
+      "colors": ["R", "U", "W"],
+      "colorIdentity": ["R", "U", "W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Spirit",
-        "Human"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Spirit", "Human"],
+      "supertypes": ["Legendary"],
       "text": "Whenever Saint Traft and Rem Karolus becomes tapped, create a 1/1 red Human creature token if this is the first time this ability has resolved this turn. If it's the second time, create a 1/1 blue Spirit creature token with flying. If it's the third time, create a 4/4 white Angel creature token with flying.\nWhenever you cast a spell that has convoke, untap Saint Traft and Rem Karolus.",
       "layout": "normal",
       "power": "3",
@@ -3165,22 +2543,11 @@
       "set": "moc",
       "cardNumber": "44",
       "manaCost": "{X}{1}{R}{W}",
-      "colors": [
-        "R",
-        "W"
-      ],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colors": ["R", "W"],
+      "colorIdentity": ["R", "W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Wizard"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Wizard"],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this creature enters, create X 1/1 red Elemental creature tokens with \"Whenever this token becomes tapped, it deals 1 damage to target player.\"",
       "layout": "normal",
@@ -3211,21 +2578,11 @@
       "set": "moc",
       "cardNumber": "41",
       "manaCost": "{4}{W}{U}",
-      "colors": [
-        "U",
-        "W"
-      ],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colors": ["U", "W"],
+      "colorIdentity": ["U", "W"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Spirit"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Spirit"],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nFlying, vigilance\nWhenever this creature attacks, the next spell you cast this turn has convoke.",
       "layout": "normal",
@@ -3261,16 +2618,10 @@
       "set": "pgrn",
       "cardNumber": "6",
       "manaCost": "{3}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.",
@@ -3292,14 +2643,9 @@
       "cardNumber": "266s",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R",
-        "W"
-      ],
+      "colorIdentity": ["R", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or more other lands.\n{T}: Add {R} or {W}.",
@@ -3321,19 +2667,11 @@
       "cardNumber": "29",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U"
-      ],
+      "colorIdentity": ["U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {U}.)",
       "layout": "normal",
       "uris": {
@@ -3353,19 +2691,11 @@
       "cardNumber": "261",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {

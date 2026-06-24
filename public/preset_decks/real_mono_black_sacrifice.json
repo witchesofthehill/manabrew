@@ -14,19 +14,11 @@
       "cardNumber": "266",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -45,19 +37,11 @@
       "set": "mh1",
       "cardNumber": "81",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Zombie"],
       "supertypes": [],
       "text": "This creature can't block.\nSacrifice a creature: Put a +1/+1 counter on this creature.",
       "layout": "normal",
@@ -79,19 +63,11 @@
       "set": "mm3",
       "cardNumber": "78",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Insect"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Insect"],
       "supertypes": [],
       "text": "Whenever a player sacrifices a creature, you may put a +1/+1 counter on this creature.",
       "layout": "normal",
@@ -113,19 +89,11 @@
       "set": "mh2",
       "cardNumber": "95",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Zombie"],
       "supertypes": [],
       "text": "When this creature dies, create X tapped 1/1 green Squirrel creature tokens, where X is this creature's power.",
       "layout": "normal",
@@ -156,19 +124,11 @@
       "set": "afr",
       "cardNumber": "119",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Zombie"],
       "supertypes": [],
       "text": "When this creature dies, choose one —\n• Target creature an opponent controls gets -1/-1 until end of turn.\n• Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
       "layout": "normal",
@@ -199,20 +159,11 @@
       "set": "fdn",
       "cardNumber": "64",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Warlock"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warlock"],
       "supertypes": [],
       "text": "When this creature dies, create a 1/1 black and green Insect creature token with flying.",
       "layout": "normal",
@@ -243,19 +194,11 @@
       "set": "ddp",
       "cardNumber": "46",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Vampire"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Vampire"],
       "supertypes": [],
       "text": "Sacrifice a creature: This creature gets +2/+2 until end of turn.",
       "layout": "normal",
@@ -277,19 +220,11 @@
       "set": "eoe",
       "cardNumber": "112",
       "manaCost": "{4}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Horror"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Horror"],
       "supertypes": [],
       "text": "When this creature enters, until end of turn, another target creature you control gets +2/+0 and gains \"When this creature dies, return it to the battlefield tapped under its owner's control.\"\nWarp {1}{B} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)",
       "layout": "normal",
@@ -311,19 +246,11 @@
       "set": "ltr",
       "cardNumber": "111",
       "manaCost": "{5}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Troll"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Troll"],
       "supertypes": [],
       "text": "This creature can't be blocked except by three or more creatures.\nSwampcycling {1} ({1}, Discard this card: Search your library for a Swamp card, reveal it, put it into your hand, then shuffle.)",
       "layout": "normal",
@@ -345,16 +272,10 @@
       "set": "inr",
       "cardNumber": "137",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.",
@@ -375,16 +296,10 @@
       "set": "cmm",
       "cardNumber": "188",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Until end of turn, target creature gets +2/+0 and gains \"When this creature dies, return it to the battlefield tapped under its owner's control.\"",
@@ -405,16 +320,10 @@
       "set": "a25",
       "cardNumber": "82",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Add {B}{B}{B}.",
@@ -435,16 +344,10 @@
       "set": "jmp",
       "cardNumber": "230",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Each player puts a creature card from their graveyard onto the battlefield.",
@@ -465,16 +368,10 @@
       "set": "avr",
       "cardNumber": "100",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target player loses X life and you gain X life, where X is the greatest power among creatures you control.",
@@ -495,16 +392,10 @@
       "set": "shm",
       "cardNumber": "76",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice a creature.\nRite of Consumption deals damage equal to the sacrificed creature's power to target player or planeswalker. You gain life equal to the damage dealt this way.",

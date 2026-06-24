@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { useCard } from "@/stores/useScryfallStore";
 import { cn } from "@/lib/utils";
 import { scryfallToSampleGameCard } from "@/lib/sampleGameCard";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import {
   BattlefieldCardFace,
   type BattlefieldCardFaceVariant,
@@ -21,7 +22,7 @@ const VARIANT_LABELS: Record<GalleryVariant, string> = {
 interface Spec {
   name: string;
   label: string;
-  overrides?: Partial<GameCard>;
+  overrides?: Partial<CardDto>;
 }
 
 const SPECS: Spec[] = [
@@ -79,7 +80,7 @@ function GalleryRow({
   return (
     <div className="flex items-start gap-2">
       {variant === "realistic" ? (
-        <img
+        <ScryfallImg
           src={entry.uris.normal}
           alt={card.name}
           style={size}
@@ -88,13 +89,14 @@ function GalleryRow({
       ) : (
         <BattlefieldCardFace
           card={card}
+          colorIdentity={entry.info.color_identity}
           artCrop={entry.uris.art_crop}
           variant={variant}
           width={width}
         />
       )}
       {showReal && variant !== "realistic" && (
-        <img
+        <ScryfallImg
           src={entry.uris.normal}
           alt={card.name}
           style={size}

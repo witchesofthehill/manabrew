@@ -77,6 +77,32 @@ The node authenticates to the relay with the relay's server key. Set it via
   </TabItem>
 </Tabs>
 
+## Native Forge engine (GraalVM)
+
+The `forge` backend above spawns one Forge **process** per game (it ships a JRE
+and the harness jar). As an alternative, Forge can be compiled ahead-of-time with
+[GraalVM `native-image`](https://www.graalvm.org/latest/reference-manual/native-image/)
+into a shared library that the node links and calls **in-process** — no JVM and
+no jar subprocess.
+
+Build the library (needs GraalVM for JDK 21 — see the
+[native build README](https://github.com/witchesofthehill/manabrew/blob/main/forge-harness/native/README.md)),
+then run the node with the `graal-forge` feature instead of `java-forge`:
+
+```bash
+yarn build:harness
+./forge-harness/build-native.sh
+
+SELF_HOSTED_NODE_ROOM_NAME=my-room \
+SELF_HOSTED_NODE_SERVER_KEY=<your-server-key> \
+SELF_HOSTED_NODE_ENGINE_BACKEND=forge \
+SELF_HOSTED_NODE_RELAY_URL=wss://relay.manabrew.app \
+cargo run --release -p self-hosted-node --features graal-forge
+```
+
+`native-image` cannot cross-compile, so build the library on each platform you
+intend to run the node on.
+
 ## Configuration
 
 All settings are environment variables:

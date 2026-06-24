@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import { usePreferencesStore, type CardPreviewMode } from "@/stores/usePreferencesStore";
 
 /** Check whether the required modifier key is held for the given preview mode. */
@@ -31,7 +31,7 @@ export interface HoverOptions {
  * Handles delay, modifier keys, sticky states, and grace periods.
  */
 export function useCardPreview(dismissDeps: unknown[] = []) {
-  const [hoveredCard, setHoveredCard] = useState<GameCard | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<CardDto | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const [placement, setPlacement] = useState<"auto" | "top-center" | "pinned">("auto");
@@ -63,7 +63,7 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
   }, []);
 
   const handleMouseEnter = useCallback(
-    (card: GameCard, e?: React.MouseEvent, options: HoverOptions = {}) => {
+    (card: CardDto, e?: React.MouseEvent, options: HoverOptions = {}) => {
       // console.log("handleMouseEnter", card.name, { buttons: e?.buttons, mode: cardPreviewMode });
       // Never schedule hover preview while the mouse button is held (e.g. drag).
       if (e && e.buttons !== 0) {
@@ -165,7 +165,7 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
     }
   }, [hoveredCard]);
 
-  const showSticky = useCallback((card: GameCard, x?: number, y?: number, anchor?: HTMLElement) => {
+  const showSticky = useCallback((card: CardDto, x?: number, y?: number, anchor?: HTMLElement) => {
     if (hoverTimerRef.current) {
       clearTimeout(hoverTimerRef.current);
       hoverTimerRef.current = null;

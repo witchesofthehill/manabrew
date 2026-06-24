@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -181,7 +182,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
         <Label>{slotLabel}</Label>
         <div className="flex items-center gap-3 rounded-md border border-border bg-card p-2">
           {pick.imageUrl && (
-            <img
+            <ScryfallImg
               src={pick.imageUrl}
               alt=""
               className="h-12 w-9 rounded-sm object-cover"
@@ -247,7 +248,7 @@ function CommanderSlot({ slotLabel, query, pick, onQueryChange, onPick }: Comman
                   }
                 >
                   {imageUrl && (
-                    <img
+                    <ScryfallImg
                       src={imageUrl}
                       alt=""
                       className="size-8 rounded-sm object-cover"

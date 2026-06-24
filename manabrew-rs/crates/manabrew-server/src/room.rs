@@ -16,6 +16,7 @@ pub struct RoomSlot {
     pub selected_deck: Option<Deck>,
     pub selected_commander_name: Option<String>,
     pub wants_empty_priority_prompts: bool,
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +75,7 @@ impl Room {
                     selected_deck: None,
                     selected_commander_name: None,
                     wants_empty_priority_prompts: false,
+                    avatar: None,
                 }],
                 vec![],
             )
@@ -165,6 +167,7 @@ impl Room {
             selected_deck: None,
             selected_commander_name: None,
             wants_empty_priority_prompts: false,
+            avatar: None,
         });
         Ok(())
     }
@@ -241,12 +244,14 @@ impl Room {
         deck: Deck,
         commander_name: Option<String>,
         wants_empty_priority_prompts: bool,
+        avatar: Option<String>,
     ) -> Result<(), String> {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.selected_deck_name = Some(deck_name);
             slot.selected_deck = Some(deck);
             slot.selected_commander_name = commander_name;
             slot.wants_empty_priority_prompts = wants_empty_priority_prompts;
+            slot.avatar = avatar;
             slot.ready = false;
             Ok(())
         } else {
@@ -275,6 +280,7 @@ impl Room {
                     deck,
                     commander_name: p.selected_commander_name.clone(),
                     wants_empty_priority_prompts: p.wants_empty_priority_prompts,
+                    avatar: p.avatar.clone(),
                 })
             })
             .collect()

@@ -5,10 +5,20 @@ edition = "2021"
 
 [features]
 java-forge = []
+graal-forge = []
+
+[lib]
+name = "self_hosted_node"
+path = "src/lib.rs"
 
 [[bin]]
 name = "self-hosted-node"
 path = "src/main.rs"
+
+[[example]]
+name = "graal_smoke"
+path = "examples/graal_smoke.rs"
+required-features = ["graal-forge"]
 
 [dependencies]
 manabrew-agent-interface = { path = "../manabrew-agent-interface" }

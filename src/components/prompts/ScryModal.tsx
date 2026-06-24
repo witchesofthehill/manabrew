@@ -23,7 +23,7 @@ import { useGameStore } from "@/stores/useGameStore";
 import { cn } from "@/lib/utils";
 import { PromptPresentation } from "./internal/PromptPresentation";
 import type { PromptProps } from "./internal/promptProps";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ScryInput, ScryOutput, ScryDestination } from "@/protocol";
 
 const POOL = "pool";
@@ -52,7 +52,7 @@ function DraggableCard({
   className,
 }: {
   id: string;
-  card: GameCard;
+  card: CardDto;
   disabled?: boolean;
   className?: string;
 }) {
@@ -125,7 +125,7 @@ function Zone({
   id: string;
   destination: ScryDestination;
   ids: string[];
-  cardsById: Map<string, GameCard>;
+  cardsById: Map<string, CardDto>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -181,7 +181,7 @@ function PoolRow({
 }: {
   id: string;
   ids: string[];
-  cardsById: Map<string, GameCard>;
+  cardsById: Map<string, CardDto>;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -202,10 +202,10 @@ function PoolRow({
 
 export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>) {
   const { presentation, zones } = input;
-  const cards = input.cards as GameCard[];
+  const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
   const gameView = useGameStore((s) => s.gameView);
-  const sourceCard = useMemo<GameCard | undefined>(() => {
+  const sourceCard = useMemo<CardDto | undefined>(() => {
     const id = presentation.sourceCardId;
     if (!id || !gameView) return undefined;
     const visible = [
@@ -215,7 +215,7 @@ export function ScryModal({ input, respond }: PromptProps<ScryInput, ScryOutput>
     const gc = visible.find((c) => c.id === id);
     if (gc) return gc;
     const stackObj = gameView.stack.find((s) => s.sourceId === id);
-    return stackObj ? (stackObjectToCardStub(stackObj) as GameCard) : undefined;
+    return stackObj ? (stackObjectToCardStub(stackObj) as CardDto) : undefined;
   }, [presentation.sourceCardId, gameView]);
   const zoneIds = useMemo(() => zones.map((_, i) => `z${i}`), [zones]);
 

@@ -18,10 +18,12 @@ import { applyPrompt } from "./gameStore.constants";
 import { DEFAULT_STARTING_LIFE, useServerStore } from "./useServerStore";
 import type { GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
-import type { GameCard, Deck, DeckCard, GameView } from "@/types/manabrew";
+import type { CardDto, GameViewDto } from "@/protocol/game";
+import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
 export type { GameConfig, GameState, DisplayEvent, DeferredSnapshot } from "./gameStore.types";
@@ -32,21 +34,26 @@ function isManualTabletopApi(
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
 }
 
-function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): GameCard {
+function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardDto {
   return {
+    ...GAME_CARD_DEFAULTS,
     ...card,
     id: `manual-card-${crypto.randomUUID()}`,
     controllerId: playerId,
     ownerId: playerId,
     zoneId,
     tapped: false,
+    power: card.power ?? null,
+    toughness: card.toughness ?? null,
+    keywords: card.keywords ?? [],
+    isDoubleFaced: card.isDoubleFaced ?? false,
   };
 }
 
 function seedManualDeck(
-  gameView: GameView,
+  gameView: GameViewDto,
   deck: Deck,
-): { gameView: GameView; libraries: Record<string, GameCard[]> } {
+): { gameView: GameViewDto; libraries: Record<string, CardDto[]> } {
   const playerId = gameView.players[0]?.id ?? "player-0";
   const openingHandSize = Math.min(7, deck.cards.length);
   const hand = deck.cards
@@ -111,6 +118,7 @@ async function initializeGame({
   ) {
     set({
       isGameActive: true,
+      fatalError: null,
       gameView: null,
       currentPrompt: null,
       gameLog: [],
@@ -160,6 +168,7 @@ async function initializeGame({
 
   set({
     isGameActive: true,
+    fatalError: null,
     gameView: null,
     currentPrompt: null,
     gameLog: [],
@@ -192,6 +201,7 @@ export const useGameStore = create<GameState>()(
       snapshots: [],
       isGameActive: false,
       debugInfo: "",
+      fatalError: null,
       isPrefetchingCards: false,
       deferredQueue: [],
       isFlashing: false,
@@ -264,7 +274,7 @@ export const useGameStore = create<GameState>()(
         });
       },
 
-      startManualRoomClient: async (localPlayerSlot: string, initialGameView?: GameView) => {
+      startManualRoomClient: async (localPlayerSlot: string, initialGameView?: GameViewDto) => {
         selectGameRuntime("manual-tabletop");
         const runtime = getSelectedGameRuntime();
         if (!isManualTabletopApi(runtime)) {

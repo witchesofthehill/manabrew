@@ -56,7 +56,7 @@ import {
 } from "@/lib/limited.utils";
 import { cn } from "@/lib/utils";
 import type { DraftCard } from "@/types/limited";
-import type { Deck, DeckFormatId } from "@/types/manabrew";
+import type { Deck, DeckFormat } from "@/protocol/deck";
 
 type GroupMode = "rarity" | "name" | "cmc" | "color";
 
@@ -107,7 +107,7 @@ export interface LimitedDeckBuilderProps {
   initialSideboard?: DraftCard[];
   targetMainSize?: number;
   defaultDeckName?: string;
-  format?: DeckFormatId;
+  format?: DeckFormat;
   requireCompleteToSave?: boolean;
   onChange?: (deck: { main: DraftCard[]; sideboard: DraftCard[] }) => void;
   confirmLabel?: string;

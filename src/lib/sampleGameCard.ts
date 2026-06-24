@@ -1,5 +1,6 @@
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ScryfallCard } from "@/types/scryfall";
+import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 
 const SUPERTYPES = new Set(["Legendary", "Basic", "Snow", "World", "Ongoing", "Token"]);
 
@@ -15,31 +16,29 @@ function parseTypeLine(line: string) {
 // Not for live game state — defaults are static.
 export function scryfallToSampleGameCard(
   sc: ScryfallCard,
-  overrides: Partial<GameCard> = {},
-): GameCard {
+  overrides: Partial<CardDto> = {},
+): CardDto {
   const { supertypes, types, subtypes } = parseTypeLine(
     sc.type_line ?? sc.card_faces?.[0]?.type_line ?? "",
   );
   return {
+    ...GAME_CARD_DEFAULTS,
     id: sc.id,
     name: sc.name,
     setCode: "",
     cardNumber: "",
     color: (sc.colors ?? []).join(""),
-    colorIdentity: sc.color_identity ?? [],
     manaCost: sc.mana_cost ?? sc.card_faces?.[0]?.mana_cost ?? "",
     cmc: sc.cmc,
     types,
     subtypes,
     supertypes,
     keywords: sc.keywords ?? [],
-    power: sc.power,
-    toughness: sc.toughness,
+    power: sc.power ?? null,
+    toughness: sc.toughness ?? null,
     text: sc.oracle_text ?? "",
-    layout: sc.layout,
     basePower: sc.power != null ? parseInt(sc.power, 10) : undefined,
     baseToughness: sc.toughness != null ? parseInt(sc.toughness, 10) : undefined,
-    isPlayable: true,
     controllerId: "p1",
     ownerId: "p1",
     zoneId: "battlefield",

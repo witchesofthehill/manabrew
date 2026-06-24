@@ -7,7 +7,7 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 import type { GameFormat } from "@/types/server";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
 /**

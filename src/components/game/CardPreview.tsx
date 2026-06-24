@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { Loader2, RotateCw } from "lucide-react";
-import type { DeckCard, GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import type { DeckCard } from "@/protocol/deck";
 import { CounterDisplay } from "@/components/game/CounterBadge";
 import { PtBadge } from "@/components/game/PtBadge";
 import { GameIcon } from "@/components/game/GameIcon";
@@ -24,7 +25,7 @@ import { useCardFaces } from "@/hooks/useCardFaces";
 import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface CardPreviewProps {
-  card: GameCard;
+  card: CardDto;
   mouseX: number;
   mouseY: number;
   anchorRect?: DOMRect | null;
@@ -45,7 +46,7 @@ const { w: CARD_W, h: CARD_H } = FLASH_CARD_SIZE;
 const ACTIONS_PANEL_W = 220;
 const MAX_PREVIEW_KEYWORDS = 8;
 
-function CardDetailOverlay({ card, horizontal }: { card: GameCard; horizontal: boolean }) {
+function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: boolean }) {
   const themeColors = useTheme().gameTheme;
   const creature = isCreature(card);
   const lethal = isLethalDamage(card);
@@ -259,7 +260,7 @@ export function CardPreview({
   const ringColor = themeColors.cardRing;
   const deck = useGameStore((s) => s.gameDecks[card.ownerId]);
   // `asDeckCard` handles a missing deck and always returns `uris` (real or `{}`);
-  // casting the raw GameCard instead left `uris` undefined → crash on index.
+  // casting the raw CardDto instead left `uris` undefined → crash on index.
   const deckCard: DeckCard = asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const cardFaces = useCardFaces({
@@ -322,7 +323,7 @@ export function CardPreview({
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
   const horizontal = isHorizontalCard({
-    layout: card.layout,
+    layout: deckCard.layout,
     types: card.types,
   });
   const cardWidth = horizontal ? CARD_H : CARD_W;

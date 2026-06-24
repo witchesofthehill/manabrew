@@ -29,7 +29,7 @@ import type {
 import { SERVER_ERROR_CODE } from "@/types/server";
 import type { RoomRelayEnvelope, StateEnvelope } from "@/types/server";
 import type { Prompt, PromptOutput } from "@/protocol";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import { expandPresetDeckDefinitions, type PresetDeckDefinition } from "@/lib/presetDecks";
 
 /** Flip to true to surface the noisy transport/multiplayer wire logs. */
@@ -803,7 +803,10 @@ class WebServerApi implements IServerApi {
     this.send({ type: "ListPlayers" });
   }
 
-  async createRoom(params: CreateRoomParams): Promise<void> {
+  async createRoom(params: CreateRoomParams): Promise<string | null> {
+    if (params.engine === "Forge") {
+      throw new Error("Forge engine is not supported on the web");
+    }
     this.send({
       type: "CreateRoom",
       room_name: params.roomName,
@@ -814,7 +817,13 @@ class WebServerApi implements IServerApi {
       draft_config: params.draftConfig ?? null,
       sealed_config: params.sealedConfig ?? null,
       reconnect_timeout_s: params.reconnectTimeoutS ?? null,
+      password: params.password ?? null,
     });
+    return null;
+  }
+
+  async stopRoom(): Promise<void> {
+    // No embedded room host on web — the relay owns room lifecycle.
   }
 
   async joinRoom(params: JoinRoomParams): Promise<void> {
@@ -841,6 +850,7 @@ class WebServerApi implements IServerApi {
       deck: params.deck,
       commander_name: params.commanderName,
       wants_empty_priority_prompts: params.wantsEmptyPriorityPrompts ?? false,
+      avatar: params.avatar ?? null,
     });
   }
 
@@ -988,6 +998,9 @@ class WebServerApi implements IServerApi {
           return;
         case "snapshot":
           this.eventBus.emit("game:snapshot", envelope.entry);
+          return;
+        case "fatal":
+          this.eventBus.emit("game:fatal", { message: envelope.message });
           return;
       }
     }

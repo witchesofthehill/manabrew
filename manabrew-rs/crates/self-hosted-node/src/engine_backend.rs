@@ -33,7 +33,8 @@ impl EngineBackendKind {
 
     pub fn is_supported(self) -> bool {
         matches!(self, Self::Manabrew)
-            || (matches!(self, Self::Forge) && cfg!(feature = "java-forge"))
+            || (matches!(self, Self::Forge)
+                && (cfg!(feature = "java-forge") || cfg!(feature = "graal-forge")))
     }
 
     pub fn label(self) -> &'static str {

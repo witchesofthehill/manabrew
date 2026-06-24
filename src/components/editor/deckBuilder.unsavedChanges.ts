@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDeckStore } from "@/stores/useDeckStore";
-import type { Deck } from "@/types/manabrew";
+import type { EditorDeck } from "@/types/manabrew";
 
 let _hasUnsavedChanges = false;
 const _listeners = new Set<() => void>();
@@ -18,7 +18,7 @@ export function setLastSavedSnapshotRef(snapshot: string | null) {
   _lastSavedSnapshotRef = snapshot;
 }
 
-export function buildDeckSnapshot(deck: Deck): string {
+export function buildDeckSnapshot(deck: EditorDeck): string {
   return JSON.stringify({
     format: deck.format,
     cards: deck.cards,
@@ -37,6 +37,8 @@ export function buildDeckSnapshot(deck: Deck): string {
     cardTags: deck.cardTags ?? {},
     coverCardName: deck.coverCardName,
     coverCardFace: deck.coverCardFace,
+    playmat: deck.playmat,
+    playmatSettings: deck.playmatSettings,
     stackPositions: deck.stackPositions,
   });
 }

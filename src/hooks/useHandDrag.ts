@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 
 interface UseHandDragOptions {
   battlefieldContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -14,13 +14,12 @@ export function useHandDrag({
   onCastSpell,
   dismissHover,
 }: UseHandDragOptions) {
-  const [draggingHandCard, setDraggingHandCard] = useState<GameCard | null>(null);
+  const [draggingHandCard, setDraggingHandCard] = useState<CardDto | null>(null);
   const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 });
   const [isOverBattlefield, setIsOverBattlefield] = useState(false);
   const isOverBattlefieldRef = useRef(false);
 
-  function startHandCardDrag(card: GameCard, e: React.MouseEvent) {
-    if (!card.isPlayable) return;
+  function startHandCardDrag(card: CardDto, e: React.MouseEvent) {
     dismissHover();
     // Don't enter drag state yet — the card should stay in the hand until
     // the user has actually dragged past the dead-zone. Otherwise a simple

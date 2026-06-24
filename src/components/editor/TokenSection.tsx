@@ -2,7 +2,7 @@ import type { MouseEvent } from "react";
 import { Palette, X } from "lucide-react";
 import { CARD_WIDTH_MAP } from "./deckBuilder.utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 
 export interface TokenSectionProps {
   tokens: DeckCard[];

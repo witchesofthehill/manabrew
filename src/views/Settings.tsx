@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
+import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
@@ -362,6 +364,20 @@ export default function Settings() {
   const DEFAULT_GAME_THEME_COLOR_MAP = getDefaultGameThemeColorMap();
 
   const zoneOrder = prefs.zonePanelOrder;
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  async function onAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      prefs.setCustomAvatar(await normalizeToWebp(file, AVATAR_IMAGE_BUDGET));
+    } catch (err) {
+      toast.error(
+        err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as an avatar",
+      );
+    }
+  }
 
   function setZoneSlot(index: number, value: ZonePanelItem) {
     const next = [...zoneOrder] as ZonePanelItem[];
@@ -568,6 +584,51 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Preferences</h2>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Player Avatar</Label>
+              <div className="flex items-center gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted">
+                  {prefs.customAvatar ? (
+                    <img
+                      src={prefs.customAvatar}
+                      alt="Your avatar"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">None</span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onAvatarPick}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    {prefs.customAvatar ? "Replace" : "Upload"}
+                  </Button>
+                  {prefs.customAvatar && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => prefs.setCustomAvatar(undefined)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Shown on your player panel and to opponents when a game starts.
+              </p>
+            </div>
+
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Battlefield Zone Column Order</Label>
               <div className="grid grid-cols-3 gap-2">

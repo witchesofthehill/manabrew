@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ScryfallImg } from "@/components/ScryfallImg";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 
 const PREVIEW_W = 240;
 const PREVIEW_H = 336;

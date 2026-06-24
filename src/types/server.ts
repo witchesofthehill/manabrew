@@ -1,4 +1,4 @@
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import type { Prompt, PromptOutput, StateUpdate } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
 
@@ -79,6 +79,7 @@ export interface PlayerDeckInfo {
   deck: Deck;
   commander_name?: string;
   wants_empty_priority_prompts?: boolean;
+  avatar?: string;
 }
 
 export interface PlayerInfo {
@@ -167,6 +168,7 @@ export type StateEnvelope =
   | { kind: "response"; fromPlayer: string; action: PromptOutput }
   | { kind: "log"; fromPlayer: string; entry: unknown }
   | { kind: "snapshot"; fromPlayer: string; entry: unknown }
+  | { kind: "fatal"; message: string }
   | RoomRelayEnvelope;
 
 export interface RoomMessagePayload<TPayload = unknown> {

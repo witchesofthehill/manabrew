@@ -19,13 +19,13 @@ import { cn } from "@/lib/utils";
 import { arm as armGauntletReturn } from "@/lib/gauntletReturn";
 import type { DraftCard, GauntletMatchDecks } from "@/types/limited";
 import { resolveDeckCards } from "@/lib/limited.utils";
-import type { Deck, DeckFormatId } from "@/types/manabrew";
+import type { Deck, DeckFormat } from "@/protocol/deck";
 
 async function buildGauntletDeck(
   name: string,
   main: DraftCard[],
   sideboard: DraftCard[],
-  format: DeckFormatId,
+  format: DeckFormat,
 ): Promise<Deck> {
   const [resolvedMain, resolvedSide] = await Promise.all([
     resolveDeckCards(main),

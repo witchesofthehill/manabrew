@@ -1,0 +1,37 @@
+---
+title: Deck
+description: The deck shape exchanged with the engine when a game is set up.
+---
+
+import ProtocolType from "../../../components/ProtocolType.astro";
+
+A `Deck` is the list a player brings to a game. The engine reads the parts it
+needs to build the game — `cards`, `sideboard`, `commanders`, and the
+supplementary decks (`attractions`, `contraptions`, `schemes`, `planes`) — and
+round-trips the rest unchanged: the remaining fields are client-side state
+(stack positions, tags, cover art) the engine doesn't model but preserves so the
+wire shape stays identical.
+
+Each block below is generated from the same source as the engine bindings
+(`ts-rs` for TypeScript, the `manabrew-protocol` crate for Rust).
+
+## Deck
+
+The whole deck — its identity, the maindeck and sideboard, the supplementary
+zones, and the preserved client-side metadata.
+
+<ProtocolType type="Deck" />
+
+## DeckCard
+
+One entry in a deck. Identity (`id`, `name`, `setCode`, `cardNumber`, `foil`) and
+a rules summary are flattened in alongside the UI-only `uris`, so a `DeckCard` is
+a single flat object on the wire.
+
+<ProtocolType type="DeckCard" />
+
+## DeckLabel
+
+A user-defined label attached to a deck.
+
+<ProtocolType type="DeckLabel" />

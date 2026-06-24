@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
+import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { BoardCanvas } from "@/pixi/BoardCanvas";
 import type { PhaseStripState } from "@/pixi/PhaseStripLayer";
 import { useGameDevStore } from "@/stores/useGameDevStore";
@@ -41,22 +42,22 @@ const LANDS: CardSpec[] = [
 
 let seq = 0;
 
-function makeCard(spec: CardSpec): GameCard {
+function makeCard(spec: CardSpec): CardDto {
   seq += 1;
   return {
+    ...GAME_CARD_DEFAULTS,
     id: `pg-${seq}`,
     name: spec.name,
     setCode: "",
     cardNumber: "",
     color: spec.color,
-    colorIdentity: spec.color ? [spec.color] : [],
     manaCost: "",
     cmc: 0,
     types: spec.types,
     subtypes: spec.subtypes ?? [],
     supertypes: spec.supertypes ?? [],
-    power: spec.power,
-    toughness: spec.toughness,
+    power: spec.power ?? null,
+    toughness: spec.toughness ?? null,
     basePower: spec.power != null ? parseInt(spec.power, 10) : undefined,
     baseToughness: spec.toughness != null ? parseInt(spec.toughness, 10) : undefined,
     text: "Dev playground card.",
@@ -79,12 +80,12 @@ const PHASE_STRIP_STUB: PhaseStripState = {
 };
 
 export function BoardPlayground() {
-  const [cards, setCards] = useState<GameCard[]>([]);
+  const [cards, setCards] = useState<CardDto[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
   const preview = useCardPreview([cards]);
 
-  const update = (id: string | null, fn: (c: GameCard) => GameCard) => {
+  const update = (id: string | null, fn: (c: CardDto) => CardDto) => {
     if (!id) return;
     setCards((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
   };

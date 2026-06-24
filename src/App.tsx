@@ -29,9 +29,6 @@ function ThemeApplicator({ children }: { children: React.ReactNode }) {
 
 function PlatformRuntimeChecks() {
   useEffect(() => {
-    if (getPlatformType() !== "web") return;
-    // The companion runs without the engine, so its lack of isolation isn't an
-    // error worth surfacing — only warn when the engine actually matters.
     if (window.location.pathname.startsWith("/companion")) return;
 
     const isolated = window.crossOriginIsolated;
@@ -39,20 +36,23 @@ function PlatformRuntimeChecks() {
 
     if (!isolated || !hasSharedArrayBuffer) {
       console.error(
-        "[WebRuntime] Browser deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail.",
+        "[Runtime] Deployment is missing cross-origin isolation. SharedArrayBuffer game flow will fail.",
         {
+          platform: getPlatformType(),
           crossOriginIsolated: isolated,
           hasSharedArrayBuffer,
         },
       );
       toast.error(
-        "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path.",
+        getPlatformType() === "tauri"
+          ? "This desktop build is missing required isolation headers (COOP/COEP). The game engine cannot start."
+          : "Web deployment is missing required isolation headers. Ask infra to enable COOP/COEP through the Twingate/SSO path.",
         { duration: 12000 },
       );
       return;
     }
 
-    console.info("[WebRuntime] Cross-origin isolation is enabled.");
+    console.info("[Runtime] Cross-origin isolation is enabled.");
   }, []);
 
   return null;

@@ -10,6 +10,8 @@ pub struct PlayerDeckInfo {
     pub commander_name: Option<String>,
     #[serde(default)]
     pub wants_empty_priority_prompts: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,6 +72,8 @@ pub enum ClientMessage {
         commander_name: Option<String>,
         #[serde(default)]
         wants_empty_priority_prompts: bool,
+        #[serde(default)]
+        avatar: Option<String>,
     },
 
     SetFormat {

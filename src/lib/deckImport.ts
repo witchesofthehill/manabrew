@@ -8,11 +8,11 @@ import {
 } from "./archidekt";
 import { fetchMoxfieldDeck, fetchMoxfieldResult, parseMoxfieldUrl } from "./moxfield";
 import { BASIC_LAND_NAMES } from "./formats";
-import type { DeckFormatId } from "@/types/manabrew";
+import type { DeckFormat } from "@/protocol/deck";
 
 export type DeckSource = "archidekt" | "moxfield";
 
-export function inferImportedFormat(cardNames: string[]): DeckFormatId {
+export function inferImportedFormat(cardNames: string[]): DeckFormat {
   if (cardNames.length < 90) return "standard";
   const counts = new Map<string, number>();
   for (const name of cardNames) {

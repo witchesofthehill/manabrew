@@ -13,7 +13,7 @@ import { normalizeSnapshotPayload } from "@/types/gameSnapshot";
 import { applyDisplay, applyPrompt, applyState } from "@/stores/gameStore.constants";
 import type { Prompt, StateUpdate } from "@/protocol";
 import type { DisplayEvent } from "@/protocol/display";
-import type { GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
 import type { AuthResultPayload, RoomMessagePayload } from "@/types/server";
 
 type SelfHostedNodeRoomPayload = {
@@ -88,7 +88,7 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<StateUpdate>("game:state", (payload) => {
           if (!payload?.gameView) return;
-          applyState(payload.gameView as GameView, "Event", setState, getState);
+          applyState(payload.gameView as GameViewDto, "Event", setState, getState);
         }),
       );
 
@@ -96,6 +96,15 @@ export function useGameEventListeners() {
         platform.events.on<DisplayEvent>("game:display", (payload) => {
           if (!payload?.kind) return;
           applyDisplay(payload, "Event", setState, getState);
+        }),
+      );
+
+      unsubscribers.push(
+        platform.events.on<{ message: string }>("game:fatal", (payload) => {
+          setState({
+            fatalError: payload?.message || "The game failed to start.",
+            isPrefetchingCards: false,
+          });
         }),
       );
 
@@ -137,7 +146,7 @@ export function useGameEventListeners() {
       unsubscribers.push(
         platform.events.on<{ state: StateUpdate }>("game:remote_state", (payload) => {
           if (!payload.state?.gameView) return;
-          applyState(payload.state.gameView as GameView, "Remote", setState, getState);
+          applyState(payload.state.gameView as GameViewDto, "Remote", setState, getState);
         }),
       );
 

@@ -25,10 +25,7 @@ const ROOT = resolve(__dirname, "..");
 //    (avoids needing tsx/ts-node to import TypeScript at script time)
 // ---------------------------------------------------------------------------
 
-const buildSrc = readFileSync(
-  resolve(ROOT, "src/themes/buildGameColors.ts"),
-  "utf-8",
-);
+const buildSrc = readFileSync(resolve(ROOT, "src/themes/buildGameColors.ts"), "utf-8");
 
 // Match all string keys in the return object: "activeAction.priority", "mana.W", etc.
 const keyRegex = /^\s*"([a-zA-Z]+(?:\.[a-zA-Z0-9]+)*)"\s*:/gm;
@@ -49,9 +46,7 @@ if (keys.length === 0) {
 // ---------------------------------------------------------------------------
 
 function camelToKebab(s) {
-  return s.replace(/[A-Z]/g, (ch, i) =>
-    i === 0 ? ch.toLowerCase() : `-${ch.toLowerCase()}`,
-  );
+  return s.replace(/[A-Z]/g, (ch, i) => (i === 0 ? ch.toLowerCase() : `-${ch.toLowerCase()}`));
 }
 
 function dotPathToCssVar(dotPath) {

@@ -22,12 +22,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
 import { PromptPresentation } from "./internal/PromptPresentation";
 import type { PromptProps } from "./internal/promptProps";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ReorderCardsInput, ReorderCardsOutput } from "@/protocol";
 
 const CARD_W = "w-[84px]";
 
-function SortableCard({ id, card }: { id: string; card: GameCard }) {
+function SortableCard({ id, card }: { id: string; card: CardDto }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   });
@@ -53,7 +53,7 @@ export function ReorderCardsModal({
   respond,
 }: PromptProps<ReorderCardsInput, ReorderCardsOutput>) {
   const { presentation, targetLabel, topOfDeck } = input;
-  const cards = input.cards as GameCard[];
+  const cards = input.cards as CardDto[];
   const cardsById = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
   const [order, setOrder] = useState<string[] | null>(null);
   const ids = order ?? cards.map((c) => c.id);

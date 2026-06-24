@@ -7,7 +7,7 @@ import Game from "./Game";
 import { getPlatform } from "@/platform";
 import { isLiveEngineGameRouteState } from "@/game/engineGameLaunch";
 import { isHostedEngineAvailable } from "@/config/webRuntimeConfig";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
 
 interface PendingAiStart {

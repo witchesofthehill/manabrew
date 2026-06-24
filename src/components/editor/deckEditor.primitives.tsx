@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { FoilBadge } from "@/components/limited/FoilBadge";
 import { ScryfallImg } from "@/components/ScryfallImg";
 import type { OverlayAction } from "./deckEditor.utils";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 export type { OverlayAction } from "./deckEditor.utils";
 
 // ─── Card Count Badge ────────────────────────────────────────────────────────

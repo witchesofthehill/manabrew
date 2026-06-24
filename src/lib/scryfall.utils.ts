@@ -1,4 +1,4 @@
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import type { ScryfallCard } from "@/types/scryfall";
 import { getScryfallManaCost } from "@/api/scryfall";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";

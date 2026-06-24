@@ -14,14 +14,9 @@
       "cardNumber": "250",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {B} or {R}.",
@@ -43,14 +38,9 @@
       "cardNumber": "267",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {B} or {R}.\n{4}, {T}, Sacrifice this land: Draw a card.",
@@ -72,16 +62,10 @@
       "cardNumber": "350",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Gate"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Gate"],
       "supertypes": [],
       "text": "This land enters tapped.\nAs this land enters, choose a color other than red.\n{T}: Add {R} or one mana of the chosen color.",
       "layout": "normal",
@@ -104,9 +88,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
@@ -128,18 +110,10 @@
       "cardNumber": "278",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp",
-        "Mountain"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp", "Mountain"],
       "supertypes": [],
       "text": "({T}: Add {B} or {R}.)\nThis land enters tapped.",
       "layout": "normal",
@@ -160,17 +134,10 @@
       "cardNumber": "259",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Desert"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Desert"],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {B} or {R}.",
       "layout": "normal",
@@ -191,19 +158,11 @@
       "cardNumber": "269",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Mountain"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Mountain"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {R}.)",
       "layout": "normal",
       "uris": {
@@ -223,14 +182,9 @@
       "cardNumber": "181",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {B} or {R}.\n{4}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
@@ -252,14 +206,9 @@
       "cardNumber": "161",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colorIdentity": ["B", "R"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {B}{R}.",
@@ -281,19 +230,11 @@
       "cardNumber": "266",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -326,16 +267,10 @@
       "set": "clb",
       "cardNumber": "112",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Until end of turn, target creature gets +1/+0 and gains indestructible. (Damage and effects that say \"destroy\" don't destroy it.)",
@@ -356,16 +291,10 @@
       "set": "6ed",
       "cardNumber": "128",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature that was dealt damage this turn. It can't be regenerated.",
@@ -386,16 +315,10 @@
       "set": "jvc",
       "cardNumber": "50",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Sacrifice this enchantment: It deals 2 damage to any target.",
@@ -416,16 +339,10 @@
       "set": "m21",
       "cardNumber": "159",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Shock deals 2 damage to any target.",
@@ -446,16 +363,10 @@
       "set": "som",
       "cardNumber": "80",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Target creature gets +1/+0 and gains infect until end of turn. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
@@ -485,20 +396,11 @@
       "set": "ddt",
       "cardNumber": "55",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Kindred",
-        "Instant"
-      ],
-      "subtypes": [
-        "Goblin"
-      ],
+      "types": ["Kindred", "Instant"],
+      "subtypes": ["Goblin"],
       "supertypes": [],
       "text": "Tarfire deals 2 damage to any target.",
       "layout": "normal",
@@ -521,13 +423,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 1,
-      "types": [
-        "Artifact",
-        "Creature"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Artifact", "Creature"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)",
       "layout": "normal",
@@ -549,16 +446,10 @@
       "set": "tle",
       "cardNumber": "288",
       "manaCost": "{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 1,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Zuko's Offense deals 2 damage to any target.",
@@ -579,20 +470,11 @@
       "set": "mm2",
       "cardNumber": "105",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Kindred",
-        "Instant"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Kindred", "Instant"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\nUp to two target creatures each get +2/+0 and gain all creature types until end of turn.",
       "layout": "normal",
@@ -613,13 +495,9 @@
       "cardNumber": "305",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact enters tapped.\n{T}: Add {B}.",
@@ -640,16 +518,10 @@
       "set": "plc",
       "cardNumber": "68",
       "manaCost": "{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "When you cast this spell, any player may pay 5 life. If a player does, counter Dash Hopes.\nCounter target spell.",
@@ -670,16 +542,10 @@
       "set": "mkm",
       "cardNumber": "122",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice an artifact or discard a card.\nDraw two cards.",
@@ -701,13 +567,9 @@
       "cardNumber": "313",
       "manaCost": "{2}",
       "colors": [],
-      "colorIdentity": [
-        "R"
-      ],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "This artifact enters tapped.\n{T}: Add {R}.",
@@ -728,16 +590,10 @@
       "set": "iko",
       "cardNumber": "116",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Fire Prophecy deals 3 damage to target creature. You may put a card from your hand on the bottom of your library. If you do, draw a card.",
@@ -758,19 +614,11 @@
       "set": "ddg",
       "cardNumber": "51",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\n{R}: This creature gets +1/+0 until end of turn. Activate no more than twice each turn.",
       "layout": "normal",
@@ -792,19 +640,11 @@
       "set": "tdm",
       "cardNumber": "107",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Aura"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Aura"],
       "supertypes": [],
       "text": "Flash\nEnchant creature\nWhen this Aura enters, enchanted creature gains first strike until end of turn.\nEnchanted creature gets +2/+0.",
       "layout": "normal",
@@ -824,16 +664,10 @@
       "set": "uds",
       "cardNumber": "81",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Flame Jet deals 3 damage to target player or planeswalker.\nCycling {2} ({2}, Discard this card: Draw a card.)",
@@ -854,20 +688,11 @@
       "set": "jmp",
       "cardNumber": "22",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Shaman"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Shaman"],
       "supertypes": [],
       "text": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
       "layout": "normal",
@@ -889,16 +714,10 @@
       "set": "jmp",
       "cardNumber": "346",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Magma Jet deals 2 damage to any target. Scry 2.",
@@ -919,16 +738,10 @@
       "set": "inr",
       "cardNumber": "126",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target tapped creature.\nMadness {1}{B} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
@@ -949,20 +762,11 @@
       "set": "ecl",
       "cardNumber": "113",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Kindred",
-        "Instant"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Kindred", "Instant"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\nTarget creature gets +3/-3 and loses all creature types until end of turn.",
       "layout": "normal",
@@ -982,16 +786,10 @@
       "set": "mor",
       "cardNumber": "73",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose a creature type. Target creature gets -1/-1 until end of turn for each permanent of the chosen type you control.",
@@ -1012,16 +810,10 @@
       "set": "fdn",
       "cardNumber": "545",
       "manaCost": "{1}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Scorching Dragonfire deals 3 damage to target creature or planeswalker. If that creature or planeswalker would die this turn, exile it instead.",
@@ -1042,18 +834,10 @@
       "set": "ecc",
       "cardNumber": "134",
       "manaCost": "{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature. It can't be regenerated.",
@@ -1074,16 +858,10 @@
       "set": "dmr",
       "cardNumber": "103",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target nonartifact, nonblack creature. It can't be regenerated.",
@@ -1107,9 +885,7 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "Untap this artifact during each other player's untap step.\n{T}: Add one mana of any color.",
@@ -1130,18 +906,10 @@
       "set": "a25",
       "cardNumber": "198",
       "manaCost": "{1}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Blightning deals 3 damage to target player or planeswalker. That player or that planeswalker's controller discards two cards.",
@@ -1162,16 +930,10 @@
       "set": "vma",
       "cardNumber": "109",
       "manaCost": "{1}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target non-Swamp land. If that land was nonbasic, Choking Sands deals 2 damage to the land's controller.",
@@ -1192,20 +954,11 @@
       "set": "akh",
       "cardNumber": "85",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Zombie",
-        "Minotaur"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Zombie", "Minotaur"],
       "supertypes": [],
       "text": "Menace (This creature can't be blocked except by two or more creatures.)",
       "layout": "normal",
@@ -1227,16 +980,10 @@
       "set": "tpr",
       "cardNumber": "92",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target nonblack creature. It can't be regenerated.",
@@ -1257,19 +1004,11 @@
       "set": "ths",
       "cardNumber": "87",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur"],
       "supertypes": [],
       "text": "",
       "layout": "normal",
@@ -1291,20 +1030,11 @@
       "set": "rtr",
       "cardNumber": "98",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Goblin",
-        "Shaman"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Goblin", "Shaman"],
       "supertypes": [],
       "text": "Whenever you cast an instant or sorcery spell, this creature deals 2 damage to each opponent.",
       "layout": "normal",
@@ -1326,16 +1056,10 @@
       "set": "stx",
       "cardNumber": "106",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "This spell can't be countered. (This includes by the ward ability.)\nHeated Debate deals 4 damage to target creature or planeswalker.",
@@ -1356,19 +1080,11 @@
       "set": "me3",
       "cardNumber": "102",
       "manaCost": "{1}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur"],
       "supertypes": [],
       "text": "",
       "layout": "normal",
@@ -1390,20 +1106,11 @@
       "set": "jmp",
       "cardNumber": "349",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Berserker"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Berserker"],
       "supertypes": [],
       "text": "Haste\nWhen this creature enters, it gets +2/+0 until end of turn.",
       "layout": "normal",
@@ -1425,20 +1132,11 @@
       "set": "por",
       "cardNumber": "140",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "",
       "layout": "normal",
@@ -1460,16 +1158,10 @@
       "set": "mm3",
       "cardNumber": "103",
       "manaCost": "{1}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target land. If that land was nonbasic, Molten Rain deals 2 damage to the land's controller.",
@@ -1490,19 +1182,11 @@
       "set": "mor",
       "cardNumber": "67",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\n{B}: This creature gains deathtouch until end of turn. (Any amount of damage it deals to a creature is enough to destroy that creature.)",
       "layout": "normal",
@@ -1524,20 +1208,11 @@
       "set": "ecl",
       "cardNumber": "109",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elf",
-        "Warlock"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elf", "Warlock"],
       "supertypes": [],
       "text": "Whenever this creature attacks, you draw a card and lose 1 life.",
       "layout": "normal",
@@ -1559,16 +1234,10 @@
       "set": "dsk",
       "cardNumber": "110",
       "manaCost": "{1}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature.",
@@ -1589,25 +1258,12 @@
       "set": "akh",
       "cardNumber": "203",
       "manaCost": "{1}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
+      "supertypes": ["Legendary"],
       "text": "First strike\nOther Minotaurs you control have first strike.\nAs long as you have one or fewer cards in hand, Minotaurs you control get +2/+0.\nWhenever Neheb deals combat damage to a player, each player discards a card.",
       "layout": "normal",
       "power": "2",
@@ -1628,20 +1284,11 @@
       "set": "jou",
       "cardNumber": "105",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "",
       "layout": "normal",
@@ -1663,16 +1310,10 @@
       "set": "thb",
       "cardNumber": "111",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one —\n• Target opponent sacrifices a creature of their choice.\n• Target opponent sacrifices an enchantment of their choice.",
@@ -1693,20 +1334,11 @@
       "set": "zen",
       "cardNumber": "145",
       "manaCost": "{1}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "Whenever this creature deals damage to an opponent, sacrifice a land.",
       "layout": "normal",
@@ -1728,20 +1360,11 @@
       "set": "tsr",
       "cardNumber": "190",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Ape",
-        "Spirit"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Ape", "Spirit"],
       "supertypes": [],
       "text": "Exile this card from your hand: Add {R}.",
       "layout": "normal",
@@ -1763,20 +1386,11 @@
       "set": "mh1",
       "cardNumber": "147",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Berserker"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Berserker"],
       "supertypes": [],
       "text": "As long as you've drawn two or more cards this turn, this creature has double strike.",
       "layout": "normal",
@@ -1798,22 +1412,12 @@
       "set": "clb",
       "cardNumber": "200",
       "manaCost": "{2}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 3,
-      "types": [
-        "Enchantment"
-      ],
-      "subtypes": [
-        "Background"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Enchantment"],
+      "subtypes": ["Background"],
+      "supertypes": ["Legendary"],
       "text": "Commander creatures you own have \"At the beginning of your upkeep, exile the top card of your library. This creature gets +X/+0 until end of turn, where X is that card's mana value. You may play that card this turn.\"",
       "layout": "normal",
       "uris": {
@@ -1832,18 +1436,10 @@
       "set": "arb",
       "cardNumber": "48",
       "manaCost": "{1}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 3,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "You may pay {1} and return a basic land you control to its owner's hand rather than pay this spell's mana cost.\nThis artifact enters tapped.\n{T}: Add {B} or {R}.",
@@ -1864,19 +1460,11 @@
       "set": "mh1",
       "cardNumber": "114",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\nDeathtouch",
       "layout": "normal",
@@ -1898,16 +1486,10 @@
       "set": "one",
       "cardNumber": "116",
       "manaCost": "{2}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 3,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Each opponent sacrifices a creature or planeswalker of their choice and gets a poison counter.",
@@ -1937,19 +1519,11 @@
       "set": "10e",
       "cardNumber": "187",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur"],
       "supertypes": [],
       "text": "First strike (This creature deals combat damage before creatures without first strike.)",
       "layout": "normal",
@@ -1971,20 +1545,11 @@
       "set": "9ed",
       "cardNumber": "172",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Shaman"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Shaman"],
       "supertypes": [],
       "text": "{R}, {T}: This creature deals 1 damage to any target.",
       "layout": "normal",
@@ -2006,20 +1571,11 @@
       "set": "jmp",
       "cardNumber": "301",
       "manaCost": "{2}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "",
       "layout": "normal",
@@ -2041,20 +1597,11 @@
       "set": "m14",
       "cardNumber": "131",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "",
       "layout": "normal",
@@ -2076,20 +1623,11 @@
       "set": "akh",
       "cardNumber": "130",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "You may exert this creature as it attacks. When you do, it gets +1/+1 and gains menace until end of turn. (An exerted creature won't untap during your next untap step. A creature with menace can't be blocked except by two or more creatures.)",
       "layout": "normal",
@@ -2111,20 +1649,11 @@
       "set": "e01",
       "cardNumber": "49",
       "manaCost": "{2}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Warrior"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Warrior"],
       "supertypes": [],
       "text": "Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)",
       "layout": "normal",
@@ -2146,19 +1675,11 @@
       "set": "m20",
       "cardNumber": "331",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur"],
       "supertypes": [],
       "text": "Haste (This creature can attack and {T} as soon as it comes under your control.)",
       "layout": "normal",
@@ -2180,16 +1701,10 @@
       "set": "6ed",
       "cardNumber": "149",
       "manaCost": "{2}{B}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 4,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment.\n{B}: This enchantment deals 1 damage to each creature and each player.",
@@ -2210,20 +1725,11 @@
       "set": "6ed",
       "cardNumber": "210",
       "manaCost": "{2}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur",
-        "Berserker"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur", "Berserker"],
       "supertypes": [],
       "text": "Haste",
       "layout": "normal",
@@ -2245,18 +1751,10 @@
       "set": "mh2",
       "cardNumber": "215",
       "manaCost": "{2}{B}{R}",
-      "colors": [
-        "B",
-        "R"
-      ],
-      "colorIdentity": [
-        "B",
-        "R"
-      ],
+      "colors": ["B", "R"],
+      "colorIdentity": ["B", "R"],
       "cmc": 4,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature.\nMadness {B}{R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
@@ -2277,19 +1775,11 @@
       "set": "mma",
       "cardNumber": "139",
       "manaCost": "{3}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Shapeshifter"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Shapeshifter"],
       "supertypes": [],
       "text": "Changeling (This card is every creature type.)\n{R}: This creature gains first strike until end of turn.",
       "layout": "normal",
@@ -2311,19 +1801,11 @@
       "set": "pcy",
       "cardNumber": "108",
       "manaCost": "{2}{R}{R}",
-      "colors": [
-        "R"
-      ],
-      "colorIdentity": [
-        "R"
-      ],
+      "colors": ["R"],
+      "colorIdentity": ["R"],
       "cmc": 4,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Minotaur"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Minotaur"],
       "supertypes": [],
       "text": "First strike\n{2}: This creature loses first strike until end of turn. Any player may activate this ability.",
       "layout": "normal",
@@ -2345,19 +1827,11 @@
       "set": "bok",
       "cardNumber": "63",
       "manaCost": "{4}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Arcane"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Arcane"],
       "supertypes": [],
       "text": "As an additional cost to cast this spell, sacrifice a creature.\nTarget creature gets -X/-X until end of turn, where X is the sacrificed creature's power.",
       "layout": "normal",
@@ -2377,16 +1851,10 @@
       "set": "blb",
       "cardNumber": "93",
       "manaCost": "{4}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 5,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one —\n• Exile target creature.\n• Target opponent exiles an enchantment they control.",
@@ -2410,12 +1878,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 5,
-      "types": [
-        "Instant"
-      ],
-      "subtypes": [
-        "Lesson"
-      ],
+      "types": ["Instant"],
+      "subtypes": ["Lesson"],
       "supertypes": [],
       "text": "Exile target artifact, creature, or enchantment. Its controller creates a Clue token. (It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
       "layout": "normal",

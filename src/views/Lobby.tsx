@@ -26,7 +26,8 @@ import type {
   ServerErrorCode,
   ServerErrorPayload,
 } from "@/types/server";
-import type { Deck, GameView } from "@/types/manabrew";
+import type { GameViewDto } from "@/protocol/game";
+import type { Deck } from "@/protocol/deck";
 import {
   MANUAL_TABLETOP_RELAY_PROTOCOL,
   createRoomRelayEnvelope,
@@ -75,7 +76,7 @@ interface ManualTabletopLaunchPayload {
   hostPlayer: string;
   playerOrder: string[];
   startingLife: number;
-  initialGameView: GameView;
+  initialGameView: GameViewDto;
 }
 
 interface SelectedAiDeck {
@@ -107,6 +108,7 @@ export default function Lobby() {
     playerId,
     rooms,
     currentRoom,
+    roomPassword,
     players,
     gameStarted,
     playerOrder,
@@ -573,6 +575,7 @@ export default function Lobby() {
           <TablesList
             rooms={rooms}
             currentRoom={currentRoom}
+            roomPassword={roomPassword}
             username={username}
             onNewGame={() => setCreateRoomOpen(true)}
             onRefresh={refreshLobbyData}

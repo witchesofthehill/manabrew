@@ -6,7 +6,7 @@ use manabrew_engine::ids::{CardId, PlayerId};
 use manabrew_engine::mana::ManaPool;
 use manabrew_engine::spellability::SpellAbility;
 
-pub use manabrew_protocol::values::*;
+pub use manabrew_protocol::game::*;
 
 use crate::ids_codec::{card_id_str, player_id_str, stack_id_str};
 

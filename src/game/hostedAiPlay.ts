@@ -5,7 +5,8 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
 import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
-import type { Deck } from "@/types/manabrew";
+import type {} from "@/protocol/game";
+import type { Deck } from "@/protocol/deck";
 
 const HOSTED_AI_TIMEOUT_MS = 20_000;
 
@@ -45,6 +46,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     deck: request.playerDeck,
     commanderName: request.commanderName,
     wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
+    avatar: usePreferencesStore.getState().customAvatar,
   });
   await platform.server.setReady({ ready: true });
 

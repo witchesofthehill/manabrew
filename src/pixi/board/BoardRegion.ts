@@ -1,5 +1,5 @@
 import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
 import {
@@ -63,6 +63,7 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
+import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 
 type Point = ScreenPos;
 
@@ -72,15 +73,15 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 
-/** Keyed by the card object. The engine mints fresh `GameCard` objects per state
+/** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
  *  same objects (resize, blockers, combat staging) hit the cache. */
-const stackKeyCache = new WeakMap<GameCard, string>();
+const stackKeyCache = new WeakMap<CardDto, string>();
 
 /** Derived from the whole engine DTO rather than a hand-picked field list, so
  *  every property the engine reports splits the stack automatically. Only `id`
  *  (always unique) is excluded. */
-function stackIdentityKey(c: GameCard): string {
+function stackIdentityKey(c: CardDto): string {
   const cached = stackKeyCache.get(c);
   if (cached !== undefined) return cached;
   const key = JSON.stringify(c, (k, value) => (k === "id" ? undefined : value));
@@ -99,6 +100,7 @@ export class BoardRegion {
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
   private emptyText: Text;
@@ -141,6 +143,9 @@ export class BoardRegion {
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
     this.container.addChild(this.backgroundGfx);
+
+    this.playmat.container.zIndex = -9;
+    this.container.addChild(this.playmat.container);
 
     // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
@@ -262,7 +267,7 @@ export class BoardRegion {
     this.combatDim = active;
   }
 
-  private isCombatant(card: GameCard): boolean {
+  private isCombatant(card: CardDto): boolean {
     if (card.isAttacking) return true;
     const s = this.combatStaging;
     return !!s && (s.attackerIds.has(card.id) || s.blockerIds.has(card.id));
@@ -396,11 +401,11 @@ export class BoardRegion {
 
   updateBattlefield(state: BattlefieldState): void {
     if (this.host.isDestroyed() || !state || !Array.isArray(state.cards)) return;
-    const prevCards = new Map<string, GameCard>();
+    const prevCards = new Map<string, CardDto>();
     for (const c of this.lastState?.cards ?? []) prevCards.set(c.id, c);
     const isFirstState = this.lastState === null;
     this.lastState = state;
-    const cardMap = new Map<string, GameCard>(state.cards.map((c) => [c.id, c]));
+    const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
 
     for (const childId of this.nameGroupChildren) {
@@ -468,7 +473,7 @@ export class BoardRegion {
       const childIds = effectiveChildren.get(card.id) ?? [];
       const attachments = childIds
         .map((id) => cardMap.get(id))
-        .filter((c): c is GameCard => c !== undefined);
+        .filter((c): c is CardDto => c !== undefined);
       const visibleSteps = Math.min(attachments.length, STACK_MAX_SLIDE_CARDS - 1);
       const totalOffset = visibleSteps * ATTACH_OFFSET_Y;
       const topLeftY = center.y - (CARD_H * this.cardScale) / 2;
@@ -579,11 +584,11 @@ export class BoardRegion {
     return dividerY + gap - COMBAT_STAGE_SELF_EXTRA_PX;
   }
 
-  private applyNameGrouping(topLevel: GameCard[]): void {
+  private applyNameGrouping(topLevel: CardDto[]): void {
     this.stackCounts.clear();
     if (topLevel.length < 2) return;
 
-    const isStackable = (c: GameCard): boolean =>
+    const isStackable = (c: CardDto): boolean =>
       !c.isAttacking &&
       !this.combatStaging?.blockerIds.has(c.id) &&
       !c.attachedTo &&
@@ -593,7 +598,7 @@ export class BoardRegion {
       (!c.attachmentIds || c.attachmentIds.length === 0) &&
       !this.userPlacedCards.has(c.id);
 
-    const byIdentity = new Map<string, GameCard[]>();
+    const byIdentity = new Map<string, CardDto[]>();
     for (const c of topLevel) {
       if (!isStackable(c)) continue;
       const key = stackIdentityKey(c);
@@ -614,9 +619,9 @@ export class BoardRegion {
     }
   }
 
-  private applyOverflowStacking(topLevelCandidates: GameCard[]): void {
+  private applyOverflowStacking(topLevelCandidates: CardDto[]): void {
     if (topLevelCandidates.length === 0) return;
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     let freeCellCount = 0;
     for (const cell of grid.cells) {
@@ -673,14 +678,14 @@ export class BoardRegion {
     }
   }
 
-  private computeBattlefieldGrid(cards: GameCard[]): Map<string, Point> {
+  private computeBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
     const positions = new Map<string, Point>();
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     this.gridInfo = grid;
 
     const occupied = new Set<string>();
-    const unplaced: GameCard[] = [];
+    const unplaced: CardDto[] = [];
 
     for (const c of cards) {
       const slot = this.autoSort ? undefined : this.userSlots.get(c.id);
@@ -752,7 +757,7 @@ export class BoardRegion {
     }
 
     type CardCategory = "creature" | "land" | "other";
-    const classify = (c: GameCard): CardCategory => {
+    const classify = (c: CardDto): CardCategory => {
       if (c.types.includes("Creature")) return "creature";
       if (c.types.includes("Land")) return "land";
       return "other";
@@ -820,7 +825,7 @@ export class BoardRegion {
   }
 
   private findFirstFreeBattlefieldSlot(): Point {
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const grid =
       this.gridInfo ?? computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
     const occupied = new Set<string>();
@@ -867,7 +872,7 @@ export class BoardRegion {
   }
 
   private placeBattlefieldCard(
-    card: GameCard,
+    card: CardDto,
     centerX: number,
     centerY: number,
     zIndex: number,
@@ -895,7 +900,7 @@ export class BoardRegion {
     this.host.rebuildOverlay(entry, state);
   }
 
-  private ensureBattlefieldEntry(card: GameCard): void {
+  private ensureBattlefieldEntry(card: CardDto): void {
     if (this.entries.has(card.id)) return;
     const sprite = new CardSprite(card);
     this.host.wireSprite(sprite);
@@ -960,6 +965,17 @@ export class BoardRegion {
     return { ...zone, height: Math.max(0, zone.height - reserve) };
   }
 
+  private playArea(): PlayZoneRect {
+    const z = this.usableZone();
+    const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    return {
+      x: z.x + pad,
+      y: z.y + pad,
+      width: Math.max(1, z.width - pad * 2),
+      height: Math.max(1, z.height - pad * 2),
+    };
+  }
+
   redrawBackground(): void {
     this.drawBackground();
     this.layoutEmptyText();
@@ -973,6 +989,16 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
+    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
+  }
+
+  setPlaymat(url: string | undefined): void {
+    this.playmat.setImage(url);
+    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
+  }
+
+  setPlaymatSettings(settings: PlaymatSettings | undefined): void {
+    this.playmat.setSettings(settings);
   }
 
   private layoutEmptyText(): void {
@@ -1009,7 +1035,7 @@ export class BoardRegion {
     }
   }
 
-  private playEntranceFx(entry: SpriteEntry, card: GameCard): void {
+  private playEntranceFx(entry: SpriteEntry, card: CardDto): void {
     if (!animationsEnabled()) return;
     if (!card.types?.some((t) => t.toLowerCase() === "creature")) return;
     const footX = entry.targetX;
@@ -1211,12 +1237,7 @@ export class BoardRegion {
   }
 
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(
-      this.usableZone(),
-      0,
-      this.collectLocalBlockers(),
-      this.cardScale,
-    );
+    const grid = computeGridLayout(this.playArea(), 0, this.collectLocalBlockers(), this.cardScale);
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
@@ -1245,7 +1266,7 @@ export class BoardRegion {
   drawDropField(): void {
     // Instants/sorceries go to the stack, not a cell — no drop slot to capture.
     this.lastDropCell = null;
-    const zone = this.usableZone();
+    const zone = this.playArea();
     const color = hexToNum(this.host.getTheme().gameTheme.arrow.friendlyTarget);
     const pad = GAP * 2;
     const gfx = this.gridSkeletonGfx;
@@ -1263,7 +1284,9 @@ export class BoardRegion {
   }
 
   destroy(): void {
+    this.playmat.destroy();
     this.effects.destroy();
+    this.container.destroy({ children: true });
     this.entries.clear();
   }
 }

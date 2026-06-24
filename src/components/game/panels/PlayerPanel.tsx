@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { GameCard, Player } from "@/types/manabrew";
+import type { CardDto, PlayerDto } from "@/protocol/game";
 import { cn } from "@/lib/utils";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaPool as ManaPoolDisplay } from "./ManaPool";
@@ -15,10 +15,11 @@ import { RING_ABILITIES } from "../game.constants";
 import type { PlayerSeat } from "../game.types";
 
 interface PlayerPanelProps {
-  player: Player;
+  player: PlayerDto;
   isOpponent: boolean;
   /** Seat identifier used to pick the per-player theme colour. */
   seat: PlayerSeat;
+  avatarUrl?: string;
   className?: string;
   /** `bottom` = avatar anchored at the bottom of the cluster (local player); zones row sits on top. `top` = opponent mirror. */
   /** Retained for backwards compat with existing callers but no longer
@@ -42,13 +43,14 @@ interface PlayerPanelProps {
   isFlashing?: boolean;
   isMonarch?: boolean;
   hasInitiative?: boolean;
-  commanders?: GameCard[];
-  graveyard?: GameCard[];
-  exile?: GameCard[];
+  commanders?: CardDto[];
+  commandPlayableIds?: string[];
+  graveyard?: CardDto[];
+  exile?: CardDto[];
   onOpenCommandZone?: () => void;
   onCastCommander?: (cardId: string) => void;
-  onCommanderDragStart?: (card: GameCard, e: React.MouseEvent) => void;
-  onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
+  onCommanderDragStart?: (card: CardDto, e: React.MouseEvent) => void;
+  onHoverCard?: (card: CardDto | null, e?: React.MouseEvent) => void;
   onOpenLibrary?: () => void;
   onOpenGraveyard?: () => void;
   onOpenExile?: () => void;
@@ -64,6 +66,7 @@ export function PlayerPanel({
   player,
   isOpponent,
   seat,
+  avatarUrl,
   className,
   verticalAlign: _verticalAlign = "bottom",
   zoneOrientation = "horizontal",
@@ -78,6 +81,7 @@ export function PlayerPanel({
   isMonarch,
   hasInitiative,
   commanders,
+  commandPlayableIds,
   graveyard,
   exile,
   onOpenCommandZone,
@@ -133,7 +137,7 @@ export function PlayerPanel({
 
   // Effective player view — dev overrides flow into PlayerAvatar (life)
   // + ManaPoolDisplay (handCount) without mutating the upstream object.
-  const effectivePlayer: Player = {
+  const effectivePlayer: PlayerDto = {
     ...player,
     life: effectiveLife,
     poison: effectivePoison,
@@ -142,7 +146,7 @@ export function PlayerPanel({
 
   // NOT IMPLEMENTED: experience counters and ticket counters are not
   // tracked on the engine `PlayerState` yet, so no badge exists for
-  // them. Add a field to `PlayerState` + `PlayerDto` + `Player` (TS)
+  // them. Add a field to `PlayerState` + `PlayerDto` + `PlayerDto` (TS)
   // and drop a branch below to surface them as badges.
   //
   // Hand is the only badge that orbits the avatar — the rest move to a
@@ -262,6 +266,7 @@ export function PlayerPanel({
         player={effectivePlayer}
         badges={orbitBadges}
         seatColor={seatColor}
+        avatarUrl={avatarUrl}
         isActiveTurn={isActiveTurn}
         isPriorityPlayer={isPriorityPlayer}
         isTargetable={isTargetable}
@@ -295,6 +300,7 @@ export function PlayerPanel({
       hasTargetInExile={hasTargetInExile}
       targetHostile={targetHostile}
       commanders={commanders}
+      commandPlayableIds={commandPlayableIds}
       onOpenCommandZone={onOpenCommandZone}
       onCastCommander={onCastCommander}
       onCommanderDragStart={onCommanderDragStart}

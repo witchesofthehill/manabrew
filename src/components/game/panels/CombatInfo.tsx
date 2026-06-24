@@ -1,5 +1,5 @@
 import { CombatSummarySection } from "../CombatSummarySection";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { PromptActionType, CombatAssignment } from "../game.types";
 
 interface CombatInfoProps {
@@ -8,7 +8,7 @@ interface CombatInfoProps {
   pendingAttackers: string[];
   blockAssignments: CombatAssignment[];
   resolveCardName: (cardId: string) => string;
-  resolveCard: (cardId: string) => GameCard | undefined;
+  resolveCard: (cardId: string) => CardDto | undefined;
 }
 
 export function CombatInfo({

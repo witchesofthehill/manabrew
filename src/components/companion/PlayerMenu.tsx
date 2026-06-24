@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { manaSymbolUrl } from "@/api/scryfall";
+import { ScryfallImg } from "@/components/ScryfallImg";
 import { useCompanionStore } from "@/stores/useCompanionStore";
 import {
   COMPANION_ACCENT_COLORS,
@@ -110,7 +111,7 @@ export function PlayerMenu({ player, onPickCommander }: PlayerMenuProps) {
               className="grid size-7 place-items-center rounded-md hover:bg-accent"
               aria-label={`Add ${color} mana`}
             >
-              <img src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />
+              <ScryfallImg src={manaSymbolUrl(color)} alt="" className="size-4" draggable={false} />
             </button>
           ))}
         </div>

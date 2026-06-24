@@ -10,7 +10,7 @@ import { DieFaceStatic } from "./DieFaceStatic";
 import { buildPlayerColorMap, resolvePlayerColor, type PlayerSeatInfo } from "./playerColor";
 import type { DiceRollSpec } from "./types";
 import type { DiceRollEntry } from "@/protocol";
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 
 /** Must match the `--animate-dice-roll` duration in `src/index.css`. */
 const ANIMATION_DURATION_MS = 2000;

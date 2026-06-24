@@ -3,7 +3,7 @@
 //! the engine. Engine-coupled DTOs (prompts, `StateEnvelope`) stay there.
 pub mod deck_dto;
 pub mod display;
+pub mod game;
 pub mod prompts;
 pub mod protocol;
 pub mod transport;
-pub mod values;

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Deck } from "@/types/manabrew";
+import type { Deck } from "@/protocol/deck";
 import { findMyCombos, type SpellbookCombo } from "@/api/commanderSpellbook";
 import { fetchGameChangers, normalizeCardName } from "@/lib/gameChangers";
 import { assessBracket, type BracketAssessment } from "@/lib/brackets";

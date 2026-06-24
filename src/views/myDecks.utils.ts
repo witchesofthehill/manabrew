@@ -1,4 +1,4 @@
-import type { DeckCard } from "@/types/manabrew";
+import type { DeckCard } from "@/protocol/deck";
 import type { SavedDeck } from "@/stores/useDeckStore";
 import { getDeckColors } from "@/components/deck/deckDisplay.utils";
 export { type CardGroup, groupCards } from "@/components/editor/deckBuilder.utils";

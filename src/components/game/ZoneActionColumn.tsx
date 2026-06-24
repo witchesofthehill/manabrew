@@ -6,14 +6,14 @@ import { useTheme } from "@/hooks/useTheme";
 import { LibraryZoneTile } from "@/components/game/zones";
 import { CommandZoneTile } from "@/components/game/panels/CommandZoneTile";
 import { Card as CardComponent } from "@/components/game/Card";
-import type { GameCard } from "@/types/manabrew";
+import type { CardDto } from "@/protocol/game";
 import type { ZonePanelItem } from "@/stores/usePreferencesStore";
 
 export interface ZoneActionColumnProps {
   libraryCount: number;
   // Last element is the top card, rendered as the tile's art.
-  graveyard?: GameCard[];
-  exile?: GameCard[];
+  graveyard?: CardDto[];
+  exile?: CardDto[];
   order?: ZonePanelItem[];
   onOpenLibrary?: () => void;
   onOpenGraveyard?: () => void;
@@ -23,11 +23,12 @@ export interface ZoneActionColumnProps {
   hasTargetInGraveyard?: boolean;
   hasTargetInExile?: boolean;
   targetHostile?: boolean;
-  commanders?: GameCard[];
+  commanders?: CardDto[];
+  commandPlayableIds?: string[];
   onOpenCommandZone?: () => void;
   onCastCommander?: (cardId: string) => void;
-  onCommanderDragStart?: (card: GameCard, e: React.MouseEvent) => void;
-  onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
+  onCommanderDragStart?: (card: CardDto, e: React.MouseEvent) => void;
+  onHoverCard?: (card: CardDto | null, e?: React.MouseEvent) => void;
   orientation?: "vertical" | "horizontal";
   // Horizontal-only: wrap the tiles into this many columns. Overrides `wrap`.
   columns?: number;
@@ -52,9 +53,9 @@ function ZoneCardTile({
   count: number;
   label: string;
   title: string;
-  topCard?: GameCard;
+  topCard?: CardDto;
   onClick?: () => void;
-  onHoverCard?: (card: GameCard | null, e?: React.MouseEvent) => void;
+  onHoverCard?: (card: CardDto | null, e?: React.MouseEvent) => void;
   highlighted?: boolean;
   highlightColor: string;
   fontSizes: GameFontSizes;
@@ -148,6 +149,7 @@ export function ZoneActionColumn({
   hasTargetInExile,
   targetHostile,
   commanders,
+  commandPlayableIds,
   onOpenCommandZone,
   onCastCommander,
   onCommanderDragStart,
@@ -218,6 +220,7 @@ export function ZoneActionColumn({
       {showCommandZone && (
         <CommandZoneTile
           commanders={commanders!}
+          commandPlayableIds={commandPlayableIds}
           onCastCommander={onCastCommander}
           onStartDrag={onCommanderDragStart}
           onOpenZone={onOpenCommandZone}

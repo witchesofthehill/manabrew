@@ -14,14 +14,9 @@
       "cardNumber": "245",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {W} or {B}.",
@@ -42,20 +37,11 @@
       "set": "otj",
       "cardNumber": "20",
       "manaCost": "{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 1,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Faerie",
-        "Rogue"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Faerie", "Rogue"],
       "supertypes": [],
       "text": "Flying\nWhen this creature enters, return up to one target non-Faerie, nonland permanent you control to its owner's hand. If a permanent was returned this way, put a +1/+1 counter on this creature.",
       "layout": "normal",
@@ -77,21 +63,11 @@
       "set": "dsk",
       "cardNumber": "51",
       "manaCost": "{2}{U}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 4,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "Cat",
-        "Glimmer"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Cat", "Glimmer"],
       "supertypes": [],
       "text": "Flash\nWhenever a creature you control deals combat damage to a player, draw a card.\nWhen Enduring Curiosity dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)",
       "layout": "normal",
@@ -113,19 +89,11 @@
       "set": "tdm",
       "cardNumber": "29",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Kirin"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Kirin"],
       "supertypes": [],
       "text": "Flash\nFlying\nWhen this creature enters, return up to one other target nonland permanent you control to its owner's hand. If it was a token, draw a card.",
       "layout": "normal",
@@ -148,18 +116,10 @@
       "cardNumber": "128",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {W} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -179,20 +139,11 @@
       "set": "mid",
       "cardNumber": "10",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Soldier"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Soldier"],
       "supertypes": [],
       "text": "Flash\n{1}, Sacrifice this creature: Destroy target artifact or enchantment.",
       "layout": "normal",
@@ -214,16 +165,10 @@
       "set": "lci",
       "cardNumber": "14",
       "manaCost": "{1}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 2,
-      "types": [
-        "Instant"
-      ],
+      "types": ["Instant"],
       "subtypes": [],
       "supertypes": [],
       "text": "Destroy target creature, enchantment, or planeswalker. Its controller creates two Map tokens. (They're artifacts with \"{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.\")",
@@ -254,14 +199,9 @@
       "cardNumber": "282",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colorIdentity": ["B", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {U} or {B}.\n{2}{U}{B}: Until end of turn, this land becomes a 4/4 blue and black Shark creature with deathtouch. It's still a land.\nWhenever this land attacks, target player mills four cards.",
@@ -282,16 +222,10 @@
       "set": "dsk",
       "cardNumber": "304",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Sorcery"
-      ],
+      "types": ["Sorcery"],
       "subtypes": [],
       "supertypes": [],
       "text": "Choose one —\n• Destroy all tapped creatures.\n• Destroy all untapped creatures.",
@@ -312,16 +246,10 @@
       "set": "dft",
       "cardNumber": "88",
       "manaCost": "{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 1,
-      "types": [
-        "Artifact"
-      ],
+      "types": ["Artifact"],
       "subtypes": [],
       "supertypes": [],
       "text": "When this artifact enters, target creature an opponent controls gets -2/-2 until end of turn.\n{2}{B}, {T}, Sacrifice this artifact: Surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
@@ -343,14 +271,9 @@
       "cardNumber": "280",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "This land enters tapped.\n{T}: Add {W} or {U}.\n{1}{W}{U}: Until end of turn, this land becomes a 2/3 white and blue Bird creature with flying. It's still a land.\nWhenever this land attacks, create a Map token.",
@@ -381,19 +304,11 @@
       "cardNumber": "81",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "W"
-      ],
+      "colorIdentity": ["W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {W}.)",
       "layout": "normal",
       "uris": {
@@ -413,19 +328,11 @@
       "cardNumber": "89",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B"
-      ],
+      "colorIdentity": ["B"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Swamp"
-      ],
-      "supertypes": [
-        "Basic"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Swamp"],
+      "supertypes": ["Basic"],
       "text": "({T}: Add {B}.)",
       "layout": "normal",
       "uris": {
@@ -445,14 +352,9 @@
       "cardNumber": "250",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colorIdentity": ["B", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {B}.\n{T}: Add {W}. Activate only if you control a Plains or a Swamp.",
@@ -473,22 +375,11 @@
       "set": "ecl",
       "cardNumber": "222",
       "manaCost": "{4}{W/B}{W/B}",
-      "colors": [
-        "B",
-        "W"
-      ],
-      "colorIdentity": [
-        "B",
-        "W"
-      ],
+      "colors": ["B", "W"],
+      "colorIdentity": ["B", "W"],
       "cmc": 6,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Elemental",
-        "Incarnation"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Elemental", "Incarnation"],
       "supertypes": [],
       "text": "When this creature enters, if {W}{W} was spent to cast it, return target creature card with mana value 3 or less from your graveyard to the battlefield.\nWhen this creature enters, if {B}{B} was spent to cast it, put three -1/-1 counters on up to one target creature.\nEvoke {W/B}{W/B}",
       "layout": "normal",
@@ -510,16 +401,10 @@
       "set": "dsk",
       "cardNumber": "111",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Flash\nWhen this enchantment enters, target creature an opponent controls gets -3/-3 until end of turn.\nCreatures your opponents control can be the targets of spells and abilities as though they didn't have hexproof. Ward abilities of those creatures don't trigger.",
@@ -540,21 +425,11 @@
       "set": "dsk",
       "cardNumber": "6",
       "manaCost": "{1}{W}{W}",
-      "colors": [
-        "W"
-      ],
-      "colorIdentity": [
-        "W"
-      ],
+      "colors": ["W"],
+      "colorIdentity": ["W"],
       "cmc": 3,
-      "types": [
-        "Enchantment",
-        "Creature"
-      ],
-      "subtypes": [
-        "Sheep",
-        "Glimmer"
-      ],
+      "types": ["Enchantment", "Creature"],
+      "subtypes": ["Sheep", "Glimmer"],
       "supertypes": [],
       "text": "Lifelink\nWhenever one or more other creatures you control with power 2 or less enter, draw a card. This ability triggers only once each turn.\nWhen Enduring Innocence dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)",
       "layout": "normal",
@@ -577,14 +452,9 @@
       "cardNumber": "259",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
+      "types": ["Land"],
       "subtypes": [],
       "supertypes": [],
       "text": "{T}: Add {W}.\n{T}: Add {U}. Activate only if you control a Plains or an Island.",
@@ -605,19 +475,11 @@
       "set": "dsk",
       "cardNumber": "59",
       "manaCost": "{1}{U}",
-      "colors": [
-        "U"
-      ],
-      "colorIdentity": [
-        "U"
-      ],
+      "colors": ["U"],
+      "colorIdentity": ["U"],
       "cmc": 2,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Merfolk"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Merfolk"],
       "supertypes": [],
       "text": "Flash\nVigilance\nWhen this creature enters, tap target creature an opponent controls and put a stun counter on it.\n{1}{U}, {T}: Shuffle this creature and target creature with a stun counter on it into their owners' libraries.",
       "layout": "normal",
@@ -639,16 +501,10 @@
       "set": "dft",
       "cardNumber": "97",
       "manaCost": "{1}{B}",
-      "colors": [
-        "B"
-      ],
-      "colorIdentity": [
-        "B"
-      ],
+      "colors": ["B"],
+      "colorIdentity": ["B"],
       "cmc": 2,
-      "types": [
-        "Enchantment"
-      ],
+      "types": ["Enchantment"],
       "subtypes": [],
       "supertypes": [],
       "text": "Start your engines! (If you have no speed, it starts at 1. It increases once on each of your turns when an opponent loses life. Max speed is 4.)\nWhen this enchantment enters, each opponent sacrifices a creature or Vehicle of their choice. Each opponent who can't discards a card.\n{2}, Sacrifice this enchantment: You gain life equal to your speed.",
@@ -681,12 +537,8 @@
       "colors": [],
       "colorIdentity": [],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Town"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Town"],
       "supertypes": [],
       "text": "This land enters tapped unless it's your first, second, or third turn of the game.\n{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color.",
       "layout": "normal",
@@ -707,18 +559,10 @@
       "cardNumber": "261",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "B",
-        "U"
-      ],
+      "colorIdentity": ["B", "U"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Island",
-        "Swamp"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Island", "Swamp"],
       "supertypes": [],
       "text": "({T}: Add {U} or {B}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -739,18 +583,10 @@
       "cardNumber": "265",
       "manaCost": "",
       "colors": [],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colorIdentity": ["U", "W"],
       "cmc": 0,
-      "types": [
-        "Land"
-      ],
-      "subtypes": [
-        "Plains",
-        "Island"
-      ],
+      "types": ["Land"],
+      "subtypes": ["Plains", "Island"],
       "supertypes": [],
       "text": "({T}: Add {W} or {U}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
       "layout": "normal",
@@ -770,26 +606,12 @@
       "set": "tla",
       "cardNumber": "204",
       "manaCost": "{1}{W}{U}",
-      "colors": [
-        "U",
-        "W"
-      ],
-      "colorIdentity": [
-        "U",
-        "W"
-      ],
+      "colors": ["U", "W"],
+      "colorIdentity": ["U", "W"],
       "cmc": 3,
-      "types": [
-        "Creature"
-      ],
-      "subtypes": [
-        "Human",
-        "Avatar",
-        "Ally"
-      ],
-      "supertypes": [
-        "Legendary"
-      ],
+      "types": ["Creature"],
+      "subtypes": ["Human", "Avatar", "Ally"],
+      "supertypes": ["Legendary"],
       "text": "Flash\nFlying\nWhen Aang enters, airbend up to one other target creature or spell. (Exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)\nWaterbend {8}: Transform Aang.",
       "layout": "transform",
       "power": "2",

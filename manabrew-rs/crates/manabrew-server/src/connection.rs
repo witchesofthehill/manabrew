@@ -744,6 +744,7 @@ fn handle_client_message(
             deck,
             commander_name,
             wants_empty_priority_prompts,
+            avatar,
         } => {
             info!(
                 "[lobby] '{}' selected deck '{}' ({} cards)",
@@ -758,6 +759,7 @@ fn handle_client_message(
                 deck,
                 commander_name,
                 wants_empty_priority_prompts,
+                avatar,
             ) {
                 Ok(room_id) => {
                     if let Some(room) = state.rooms.get(&room_id) {

@@ -3,12 +3,12 @@ import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore"
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { AvailableAction } from "@/protocol/prompts/common";
 import { passOutput } from "@/components/prompts/internal/playerActions";
-import type { GameView } from "@/types/manabrew";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
+import type { GameViewDto } from "@/protocol/game";
 
 interface UsePromptEffectsOptions {
   currentPrompt: Prompt | null;
-  gameView: GameView | null;
+  gameView: GameViewDto | null;
   isWaitingForResponse: boolean;
   respond: (output: PromptOutput["output"]) => void;
   myPlayerId: string;
@@ -36,7 +36,7 @@ const ACTIVE_COMBAT_PRIORITY_STEPS = new Set([
 const MANDATORY_COMBAT_STOPS = new Set(["declare_blockers"]);
 const SMART_COMBAT_SOFT_STEPS = new Set(["declare_attackers", "declare_blockers"]);
 
-function hasActiveCombatAfterAttackers(gameView: GameView): boolean {
+function hasActiveCombatAfterAttackers(gameView: GameViewDto): boolean {
   return (
     ACTIVE_COMBAT_PRIORITY_STEPS.has(gameView.step) &&
     gameView.battlefield.some((card) => card.isAttacking === true)
@@ -59,12 +59,12 @@ function hasSmartRelevantAction(actions: AvailableAction[]): boolean {
   );
 }
 
-function topStackObject(gameView: GameView) {
+function topStackObject(gameView: GameViewDto) {
   return gameView.stack[gameView.stack.length - 1] ?? null;
 }
 
 function hasTargetedManaSourceAction(
-  gameView: GameView,
+  gameView: GameViewDto,
   actions: AvailableAction[],
   myPlayerId: string,
 ): boolean {
@@ -87,7 +87,7 @@ function hasTargetedManaSourceAction(
   );
 }
 
-function isSmartSoftWindow(gameView: GameView, myPlayerId: string): boolean {
+function isSmartSoftWindow(gameView: GameViewDto, myPlayerId: string): boolean {
   const top = topStackObject(gameView);
   if (top) return top.controllerId !== myPlayerId;
   if (
@@ -99,7 +99,7 @@ function isSmartSoftWindow(gameView: GameView, myPlayerId: string): boolean {
   return SMART_COMBAT_SOFT_STEPS.has(gameView.step) || gameView.step === "end";
 }
 
-function promptKey(currentPrompt: Prompt, gameView: GameView): string {
+function promptKey(currentPrompt: Prompt, gameView: GameViewDto): string {
   const id = (currentPrompt as { promptId?: unknown }).promptId;
   if (id !== undefined && id !== null) return `${gameView.gameId}:${String(id)}`;
   return [
@@ -118,7 +118,7 @@ interface SmartHardStop {
 }
 
 function getSmartHardStop(
-  gameView: GameView,
+  gameView: GameViewDto,
   myPlayerId: string,
   smartSelfStops: Set<string>,
   smartOpponentStops: Map<string, Set<string>>,
@@ -138,7 +138,7 @@ type AutoPassPlan =
 
 interface AutoPassInputs {
   currentPrompt: Prompt;
-  gameView: GameView;
+  gameView: GameViewDto;
   passUntilTurn: number | null;
   passUntilPhase: string | null;
   turn: number;
@@ -214,7 +214,7 @@ function planForIdlePhaseSkip(inputs: AutoPassInputs): AutoPassPlan {
 
 function computeAutoPassPlan(
   currentPrompt: Prompt | null,
-  gameView: GameView | null,
+  gameView: GameViewDto | null,
   isWaitingForResponse: boolean,
   passUntilTurn: number | null,
   passUntilPhase: string | null,
@@ -241,7 +241,7 @@ function computeAutoPassPlan(
 
 function computeSmartAutoPassPlan(
   currentPrompt: Prompt | null,
-  gameView: GameView | null,
+  gameView: GameViewDto | null,
   isWaitingForResponse: boolean,
   fullControlPriority: boolean,
   hardStopPromptKeys: Set<string>,

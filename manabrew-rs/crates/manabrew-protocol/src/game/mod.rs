@@ -5,7 +5,7 @@ use ts_rs::TS;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct GameViewDto {
     pub game_id: String,
     pub turn: u32,
@@ -52,7 +52,7 @@ impl GameViewDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct CombatAssignmentDto {
     pub blocker_id: String,
     pub attacker_id: String,
@@ -60,7 +60,7 @@ pub struct CombatAssignmentDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct PlayerDto {
     pub id: String,
     pub name: String,
@@ -72,7 +72,9 @@ pub struct PlayerDto {
     pub exile: Vec<CardDto>,
     pub command_zone: Vec<CardDto>,
     pub library_count: usize,
+    #[ts(type = "Record<string, number>")]
     pub mana_pool: HashMap<String, i32>,
+    #[ts(type = "Record<string, number>")]
     pub commander_damage: HashMap<String, i32>,
     pub energy_counters: i32,
     pub radiation_counters: i32,
@@ -83,7 +85,7 @@ pub struct PlayerDto {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct CardDto {
     pub id: String,
     pub name: String,
@@ -116,6 +118,7 @@ pub struct CardDto {
     #[ts(optional)]
     pub attacking_player_id: Option<String>,
     pub keywords: Vec<String>,
+    #[ts(type = "Record<string, number>")]
     pub counters: HashMap<String, i32>,
     pub damage: i32,
     pub summoning_sick: bool,
@@ -161,7 +164,7 @@ pub struct CardDto {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,
@@ -177,7 +180,7 @@ pub struct StackObjectDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub struct StackTargetDto {
     pub kind: StackTargetKindDto,
     pub id: String,
@@ -189,7 +192,7 @@ pub struct StackTargetDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub enum StackTargetKindDto {
     Card,
     Player,
@@ -200,7 +203,7 @@ pub enum StackTargetKindDto {
     Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS, strum_macros::Display,
 )]
 #[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "values/index.ts")]
+#[ts(export, export_to = "game/index.ts")]
 pub enum TargetingIntent {
     #[default]
     Damage,
@@ -253,4 +256,34 @@ impl TargetingIntent {
                 | TargetingIntent::Hostile
         )
     }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "game/index.ts")]
+pub struct PlaymatSettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub opacity: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub texture: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub border_width: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub border_color: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub fit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub offset_x: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub offset_y: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub color: Option<String>,
 }

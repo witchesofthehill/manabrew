@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0](https://github.com/witchesofthehill/manabrew/compare/v0.4.0...v0.5.0) (2026-06-24)
+
+
+### Features
+
+* **tauri:** Self hosted node with forge bundled ([#264](https://github.com/witchesofthehill/manabrew/issues/264)) ([fe68645](https://github.com/witchesofthehill/manabrew/commit/fe6864595ce092c7cfa04246ea0e2cd1e6f43dab))
+* **ui:** add custom default playmat in settings ([#269](https://github.com/witchesofthehill/manabrew/issues/269)) ([10f512f](https://github.com/witchesofthehill/manabrew/commit/10f512f235c4836c01fe51d208d764152200cf6f))
+* **ui:** custom playmats and player avatars ([#263](https://github.com/witchesofthehill/manabrew/issues/263)) ([aa522eb](https://github.com/witchesofthehill/manabrew/commit/aa522eb9e8b7dc92fcdd43a60b1640b18516ee8a))
+* **ui:** show app version and update check in about ([#268](https://github.com/witchesofthehill/manabrew/issues/268)) ([b82d6a2](https://github.com/witchesofthehill/manabrew/commit/b82d6a2581b4ab5f17ce673343024cd958dd772a))
+* **ui:** warn about manabrew engine in offline engine modal ([#261](https://github.com/witchesofthehill/manabrew/issues/261)) ([8462186](https://github.com/witchesofthehill/manabrew/commit/84621865b41b54e79ee22deb1f6c24d413e42021))
+* **website:** add blog with launch and technical posts ([#265](https://github.com/witchesofthehill/manabrew/issues/265)) ([c8dc41d](https://github.com/witchesofthehill/manabrew/commit/c8dc41d1b3b37b5d022281651c18c022197d4b44))
+
+
+### Fixes
+
+* **build:** build website docker stage with yarn ([#267](https://github.com/witchesofthehill/manabrew/issues/267)) ([7140e5b](https://github.com/witchesofthehill/manabrew/commit/7140e5bc8020eedd254a82bd337022bddd8538dc))
+* **docker:** generate harness protocol classes ([#257](https://github.com/witchesofthehill/manabrew/issues/257)) ([44e4d1b](https://github.com/witchesofthehill/manabrew/commit/44e4d1bba49a951efe0769dca581792c5b93c50f))
+* **forge:** wistfulness not triggering ETB ([#250](https://github.com/witchesofthehill/manabrew/issues/250)) ([7be2953](https://github.com/witchesofthehill/manabrew/commit/7be2953e32c8f2fa59e05988bec51feda322f068))
+* **ui:** pixi lifecycle/leak cleanup + dependency security bumps ([#246](https://github.com/witchesofthehill/manabrew/issues/246)) ([09ac213](https://github.com/witchesofthehill/manabrew/commit/09ac2139d737f86c81f0c4c5556785490732b8d1))
+
 ## [0.4.0](https://github.com/witchesofthehill/manabrew/compare/v0.3.0...v0.4.0) (2026-06-20)
 
 ### ⚠ BREAKING CHANGES

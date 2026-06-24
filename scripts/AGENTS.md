@@ -41,6 +41,7 @@ Never use `--no-verify` to bypass the commit-msg or pre-commit hooks. If a hook 
 
 ## Conventions
 
+- **`harness.mjs` stages only rules/card-data `res/` dirs, not Forge's GUI tree.** The staged Tauri runtime is an allow-list (`stagedResDirs`): `editions`, `formats`, `lists`, `tokenscripts`, `draft`, `effects`, `cube`, `defaults`, `blockdata`, `setlookup`, `ai`, `sealed` — plus `cardsfolder` via the separate zip step. GUI/mode assets the headless Forge engine never reads (`adventure`, `languages`, `quest`, `skins`, `music`, `conquest`, `deckgendecks`, `geneticaidecks`, `puzzle`, `sound`, `fonts`) are intentionally dropped — this is ~290 MB of the bundle. If a new format/command needs another `res/` subdir at runtime, add it to `stagedResDirs`; don't reach for a blanket copy.
 - **New scripts must be runnable via `yarn`.** Add the entry to `package.json`'s `scripts` so CI and humans use the same surface.
 - **Don't hardcode absolute paths.** Resolve from the repo root via `process.cwd()` or the script's own location.
 - **JDK 18–21 for harness work; newer JDKs (e.g. 26) fail to compile Forge.** Set `JAVA_HOME` explicitly — `/usr/libexec/java_home -v 21` on macOS (or a zulu-18 path). After a `forge` submodule bump, run `mvn -pl forge-harness -am clean package -DskipTests` once: `yarn build:harness`/`ensure:harness` are incremental and will otherwise reuse stale classes compiled against the old Forge. `cargo run` never rebuilds the harness.

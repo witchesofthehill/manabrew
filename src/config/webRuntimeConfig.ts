@@ -1,3 +1,5 @@
+import { KNOWN_RELAYS } from "@/config/knownRelays";
+
 export interface ServerConnectionDefaults {
   host: string;
   port: number;
@@ -12,34 +14,15 @@ export function isHostedEngineAvailable(): boolean {
 }
 
 export function getServerConnectionDefaults(): ServerConnectionDefaults {
-  // Relay endpoint is baked at build time (VITE_RELAY_*); falls back to the
-  // current host / localhost for `yarn dev`.
+  const relay = KNOWN_RELAYS[0];
   return {
-    host: stringOrDefault(import.meta.env.VITE_RELAY_HOST, defaultServerHost()),
-    port: numberOrDefault(import.meta.env.VITE_RELAY_PORT, 9443),
+    host: relay.host,
+    port: relay.port,
     username: "",
-    password: stringOrDefault(import.meta.env.VITE_RELAY_PASSWORD, "forge"),
+    password: relay.password,
   };
 }
 
 export function getHostedAiServerConnectionDefaults(): ServerConnectionDefaults {
   return getServerConnectionDefaults();
-}
-
-function defaultServerHost(): string {
-  if (typeof window === "undefined") return "localhost";
-  return window.location.hostname || "localhost";
-}
-
-function stringOrDefault(value: unknown, fallback: string): string {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
-
-function numberOrDefault(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return fallback;
 }

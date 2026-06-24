@@ -172,6 +172,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
       {
         name: STORAGE_KEYS.PREFERENCES,
+        version: 1,
         merge: (persistedState, currentState) => ({
           ...currentState,
           ...pickPersistedPreferences(persistedState),

@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "fs";
 import { fileURLToPath } from "url";
-import { join, relative } from "path";
+import { join, relative, sep } from "path";
 
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const root = join(scriptsDir, "..");
@@ -29,6 +29,21 @@ const runtimeHarnessJar = join(runtimeDir, "forge-harness.jar");
 const runtimeStamp = join(runtimeDir, ".stage-stamp");
 const sourceResDir = join(forgeRoot, "forge-gui", "res");
 const sourceCardsfolderDir = join(sourceResDir, "cardsfolder");
+
+const stagedResDirs = new Set([
+  "editions",
+  "formats",
+  "lists",
+  "tokenscripts",
+  "draft",
+  "effects",
+  "cube",
+  "defaults",
+  "blockdata",
+  "setlookup",
+  "ai",
+  "sealed",
+]);
 
 const sourceDirs = [
   join(forgeRoot, "forge-core", "src"),
@@ -232,14 +247,6 @@ function rebuild() {
   console.log("harness: rebuild complete");
 }
 
-function isInsidePath(path, ancestor) {
-  const rel = relative(ancestor, path);
-  return (
-    rel === "" ||
-    (!rel.startsWith("..") && rel !== ".." && !rel.startsWith("/") && !rel.match(/^[A-Za-z]:/))
-  );
-}
-
 function latestMtimeMs(dir, predicate) {
   let latest = 0;
   for (const filePath of walkFiles(dir, predicate)) {
@@ -298,8 +305,13 @@ function stageRuntime({ force = false } = {}) {
 
   cpSync(sourceResDir, runtimeResDir, {
     recursive: true,
-    filter: (sourcePath) =>
-      sourcePath === sourceResDir || !isInsidePath(sourcePath, sourceCardsfolderDir),
+    filter: (sourcePath) => {
+      if (sourcePath === sourceResDir) {
+        return true;
+      }
+      const [top] = relative(sourceResDir, sourcePath).split(sep);
+      return stagedResDirs.has(top);
+    },
   });
 
   mkdirSync(runtimeCardsfolderDir, { recursive: true });

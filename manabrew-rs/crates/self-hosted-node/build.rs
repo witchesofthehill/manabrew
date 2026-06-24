@@ -41,6 +41,7 @@ fn main() {
             }
             Ok("macos") => {
                 println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
+                println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources");
                 println!("cargo:rerun-if-changed={lib_dir}/libforgeharness.dylib");
             }
             _ => {

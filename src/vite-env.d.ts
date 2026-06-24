@@ -1,10 +1,6 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_RELAY_HOST?: string;
-  readonly VITE_RELAY_PORT?: string;
-  readonly VITE_RELAY_PASSWORD?: string;
-  readonly VITE_MANAGED_RELAY?: string;
   readonly VITE_SCRYFALL_SYMBOL_BASE?: string;
   readonly VITE_HOSTED_AI_ENABLED?: string;
 }

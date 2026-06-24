@@ -483,6 +483,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Grants the app's own IPC commands to the main window — both the local origin (dev / Windows tauri.localhost) and the http://localhost asset-server remote origin used on macOS/Linux. Keep in sync with the generate_handler! list in lib.rs: a command missing here fails on every origin once this manifest exists.",
+          "type": "string",
+          "const": "allow-app-commands",
+          "markdownDescription": "Grants the app's own IPC commands to the main window — both the local origin (dev / Windows tauri.localhost) and the http://localhost asset-server remote origin used on macOS/Linux. Keep in sync with the generate_handler! list in lib.rs: a command missing here fails on every origin once this manifest exists."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

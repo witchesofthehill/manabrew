@@ -90,6 +90,9 @@ CONFIG_ARG=""
 if [ -f "$OUT/forgeharness.dylib" ]; then
   cp "$OUT/forgeharness.dylib" "$OUT/libforgeharness.dylib"
   install_name_tool -id "@rpath/libforgeharness.dylib" "$OUT/libforgeharness.dylib"
+  # arm64 macOS refuses to load unsigned dylibs; ad-hoc sign so the bundled
+  # .app can dlopen it even when the build is otherwise unsigned.
+  codesign --force --sign - "$OUT/libforgeharness.dylib"
 elif [ -f "$OUT/forgeharness.so" ]; then
   cp "$OUT/forgeharness.so" "$OUT/libforgeharness.so"
 fi

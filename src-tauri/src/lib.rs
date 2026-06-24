@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
+mod asset_server;
 mod card_db;
 mod commands;
 mod forge_room;
@@ -57,6 +58,14 @@ pub fn run() {
                     }
                 }
             }
+
+            let url = asset_server::main_window_url(app.handle());
+            tauri::WebviewWindowBuilder::new(app, "main", url)
+                .title("Manabrew")
+                .inner_size(1400.0, 900.0)
+                .resizable(true)
+                .maximized(true)
+                .build()?;
 
             Ok(())
         })

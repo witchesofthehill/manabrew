@@ -28,6 +28,7 @@ forge-carddb = { path = "../manabrew-rs/crates/forge-carddb" }
 forge-cardset-archive = { path = "../manabrew-rs/crates/forge-cardset-archive" }
 memmap2 = "0.9"
 rand = "0.8"
+tiny_http = "0.12"
 tokio = { version = "1", features = ["rt", "sync", "macros", "time"] }
 manabrew-agent-interface = { path = "../manabrew-rs/crates/manabrew-agent-interface" }
 forge-limited = { path = "../manabrew-rs/crates/forge-limited" }

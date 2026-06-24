@@ -207,11 +207,9 @@ async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> 
 /**
  * Fetch the preset-deck index, then every deck file in parallel.
  *
- * Same physical files the Tauri shell bundles (`public/preset_decks/*.json`)
- * — vite serves the directory at `/preset_decks/`. The index is a list of
- * deck ids (filename stems); each `<id>.json` is the same shape the Rust
- * `preset_decks.rs` loader expects, so the DTO ends up byte-identical to the
- * Tauri command's output.
+ * `public/preset_decks/` ships in the frontend bundle (vite serves it at
+ * `/preset_decks/`) on both web and desktop. This worker fetch is the single
+ * source on every platform — there is no native preset command.
  */
 async function loadPresetDecks(): Promise<PresetDeck[]> {
   const indexResponse = await fetch("/preset_decks/index.json");

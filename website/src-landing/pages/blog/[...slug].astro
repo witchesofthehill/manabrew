@@ -68,6 +68,7 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
 
     <hr />
     <p class="back"><a href="/blog/">← All posts</a></p>
+    <p class="brewed">brewed with love by witches of the hill!</p>
   </article>
 </BlogLayout>
 
@@ -175,5 +176,13 @@ const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
 
   .back a:hover {
     color: var(--primary);
+  }
+
+  .brewed {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--muted-foreground);
   }
 </style>

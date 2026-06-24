@@ -8,6 +8,7 @@ installPixiPatches();
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import {
   computeBoardLayout,
+  COLLAPSED_OPPONENT_WIDTH_PX,
   type BoardArrangement,
   type RegionOrientation,
 } from "./board/boardLayout";
@@ -78,6 +79,10 @@ interface BoardCanvasProps {
   selfHeightFraction?: number;
   /** Per-opponent column width fractions; equal split when omitted. */
   opponentFractions?: number[];
+  /** When set, opponents use the accordion width policy: the column at this
+   *  index (opponent order) expands, the rest collapse to a fixed banner width.
+   *  `null` = even split. Omit entirely to keep `opponentFractions`. */
+  accordionFocusedIndex?: number | null;
   /** Px the hand fan reserves at the bottom of the self region — subtracted from
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
@@ -112,6 +117,7 @@ export function BoardCanvas({
   arrangement,
   selfHeightFraction,
   opponentFractions,
+  accordionFocusedIndex,
   selfBottomReserve,
   callbacks,
   externalBlockers,
@@ -278,6 +284,10 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
+    const accordion =
+      accordionFocusedIndex !== undefined
+        ? { focusedIndex: accordionFocusedIndex, collapsedWidthPx: COLLAPSED_OPPONENT_WIDTH_PX }
+        : undefined;
     const layout = computeBoardLayout(
       w,
       h,
@@ -285,6 +295,7 @@ export function BoardCanvas({
       arrangement,
       selfHeightFraction,
       opponentFractions,
+      accordion,
     );
     // Subtract the hand-fan reserve before picking the scale so ~3 rows stay
     // visible in every region.
@@ -308,6 +319,7 @@ export function BoardCanvas({
     fraction,
     selfHeightFraction,
     opponentFractionsKey,
+    accordionFocusedIndex,
     selfBottomReserve,
   ]);
 

@@ -12,6 +12,13 @@ export const featureFlags = {
    * arrangement toggle is hidden, so the layout is unreachable.
    */
   wraparoundBoardLayout: false,
+  /**
+   * Multiplayer battlefield accordion: opponents share the top row as columns
+   * that resize horizontally — one expanded (the active player on their turn,
+   * or whichever opponent the local player hovers), the rest collapsed to a
+   * fixed-width banner. While `false`, opponents keep the equal-split widths.
+   */
+  multiplayerAccordion: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

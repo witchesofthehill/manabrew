@@ -40,6 +40,18 @@ export const STRIP_BAND_PX = 56;
  *  player's center column — where most interaction happens — stays wide. */
 export const PERIMETER_SIDE_FRACTION = 0.15;
 
+/** Width, in px, of a collapsed opponent column in the multiplayer accordion
+ *  layout — just enough for a minimal banner. Tweak freely. */
+export const COLLAPSED_OPPONENT_WIDTH_PX = 96;
+
+/** One opponent expanded, the rest collapsed: the accordion focus state. */
+export interface AccordionState {
+  /** Index (in opponent order) of the expanded column, or `null` for an even
+   *  split (e.g. on the local player's turn with nobody hovered/casting). */
+  focusedIndex: number | null;
+  collapsedWidthPx: number;
+}
+
 export function computeBoardLayout(
   width: number,
   height: number,
@@ -47,6 +59,7 @@ export function computeBoardLayout(
   arrangement: BoardArrangement = "row",
   selfHeightFraction: number = SELF_HEIGHT_FRACTION,
   opponentFractions?: number[],
+  accordion?: AccordionState,
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const band = Math.min(STRIP_BAND_PX, Math.max(0, height - 2));
@@ -73,27 +86,46 @@ export function computeBoardLayout(
     };
   }
 
-  // Column widths default to equal; an explicit per-opponent fraction set
-  // (from the resize grips) overrides, normalized + floored so a column
-  // can't collapse.
-  let fractions: number[];
-  if (opponentFractions && opponentFractions.length === count) {
-    const floored = opponentFractions.map((f) => Math.max(0.1, f));
-    const sum = floored.reduce((a, b) => a + b, 0);
-    fractions = floored.map((f) => f / sum);
-  } else {
-    fractions = Array.from({ length: count }, () => 1 / count);
-  }
-
   const opponents: OpponentRegion[] = [];
-  let acc = 0;
-  for (let i = 0; i < count; i++) {
-    const x = Math.round(acc * width);
-    acc += fractions[i]!;
-    opponents.push({
-      rect: { x, y: 0, width: Math.round(acc * width) - x, height: topHeight },
-      orientation: "top",
-    });
+
+  if (accordion) {
+    // Tiled accordion: the focused column expands to `L - (n-1)·x`, the rest
+    // collapse to `x`. With no focus (or no room) they split evenly.
+    const x = accordion.collapsedWidthPx;
+    const focus = accordion.focusedIndex;
+    const hasFocus = focus !== null && focus >= 0 && focus < count && width >= x * count;
+    let acc = 0;
+    for (let i = 0; i < count; i++) {
+      const w = !hasFocus ? width / count : i === focus ? width - x * (count - 1) : x;
+      const px = Math.round(acc);
+      acc += w;
+      opponents.push({
+        rect: { x: px, y: 0, width: Math.round(acc) - px, height: topHeight },
+        orientation: "top",
+      });
+    }
+  } else {
+    // Column widths default to equal; an explicit per-opponent fraction set
+    // (from the resize grips) overrides, normalized + floored so a column can't
+    // collapse.
+    let fractions: number[];
+    if (opponentFractions && opponentFractions.length === count) {
+      const floored = opponentFractions.map((f) => Math.max(0.1, f));
+      const sum = floored.reduce((a, b) => a + b, 0);
+      fractions = floored.map((f) => f / sum);
+    } else {
+      fractions = Array.from({ length: count }, () => 1 / count);
+    }
+    const widths = fractions.map((f) => f * width);
+    let acc = 0;
+    for (let i = 0; i < count; i++) {
+      const x = Math.round(acc);
+      acc += widths[i]!;
+      opponents.push({
+        rect: { x, y: 0, width: Math.round(acc) - x, height: topHeight },
+        orientation: "top",
+      });
+    }
   }
 
   return {

@@ -5,7 +5,6 @@ import type { BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
-import { SELF_HEIGHT_FRACTION, STRIP_BAND_PX } from "@/pixi/board/boardLayout";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
@@ -17,7 +16,9 @@ import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } f
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { PlayerPanel } from "@/components/game/panels";
-import { OPPONENT_SEATS } from "@/components/game/game.types";
+import { OPPONENT_SEATS, type PlayerSeat } from "@/components/game/game.types";
+import { useTheme } from "@/hooks/useTheme";
+import { withAlpha } from "@/themes/gameTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
@@ -465,28 +466,47 @@ export function GameBoard({
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
-  const [unifiedSplit, setUnifiedSplit] = useState(SELF_HEIGHT_FRACTION);
-
-  const onUnifiedGripDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const el = boardRef.current;
-    if (!el) return;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    const onMove = (ev: PointerEvent) => {
-      const rect = el.getBoundingClientRect();
-      const selfFrac = (rect.height - (ev.clientY - rect.top)) / rect.height;
-      setUnifiedSplit(Math.max(0.2, Math.min(0.8, selfFrac)));
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, []);
-
   const [opponentSplits, setOpponentSplits] = useState<number[]>([]);
   const opponentFractions = opponentSplits.length === opponents.length ? opponentSplits : undefined;
+
+  // Multiplayer accordion: expand the active player's column (null = even split
+  // on our own turn). Hover overrides arrive in a later phase. A manual column
+  // resize (opponentFractions set via the grips) takes over and disables it.
+  const accordionEnabled = isFeatureEnabled("multiplayerAccordion");
+  const accordionFocusedIndex = useMemo(() => {
+    if (!accordionEnabled || opponentFractions) return undefined;
+    const idx = opponents.findIndex((op) => op.id === activePlayerId);
+    return idx >= 0 ? idx : null;
+  }, [accordionEnabled, opponentFractions, opponents, activePlayerId]);
+  const playerColors = useTheme().gameTheme.playerColors;
+
+  // Dev overlay: each player's actual region rect tinted in its seat color. The
+  // columns tile the row exactly (collapsed = 96px, expanded = L − (n−1)·96), so
+  // the overlays must not overlap — a collapsed column shows its pure colour.
+  const accordionDebugRegions = useMemo(() => {
+    if (!accordionEnabled || !unifiedLayout) return [];
+    const regions: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      seat: PlayerSeat;
+    }[] = [];
+    if (unifiedLayout.self) {
+      const s = unifiedLayout.self;
+      regions.push({ left: s.x, top: s.y, width: s.width, height: s.height, seat: "self" });
+    }
+    unifiedLayout.opponents.forEach((o, i) => {
+      regions.push({
+        left: o.rect.x,
+        top: o.rect.y,
+        width: o.rect.width,
+        height: o.rect.height,
+        seat: OPPONENT_SEATS[i] ?? "opponent1",
+      });
+    });
+    return regions;
+  }, [accordionEnabled, unifiedLayout]);
 
   const onOpponentGripDown = useCallback(
     (boundary: number) => (e: React.PointerEvent) => {
@@ -780,8 +800,8 @@ export function GameBoard({
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
           arrangement={boardArrangement}
-          selfHeightFraction={unifiedSplit}
           opponentFractions={opponentFractions}
+          accordionFocusedIndex={accordionFocusedIndex}
           callbacks={pixiCallbacks}
           externalBlockers={pixiExternalBlockers}
           handInsets={handInsets}
@@ -795,6 +815,20 @@ export function GameBoard({
         />
       </div>
       {selfPanel}
+      {accordionDebugRegions.map((r, i) => (
+        <div
+          key={`accordion-region-debug-${i}`}
+          className="pointer-events-none absolute z-20"
+          style={{
+            left: r.left,
+            top: r.top,
+            width: r.width,
+            height: r.height,
+            backgroundColor: withAlpha(playerColors[r.seat], 0.18),
+            outline: `1px solid ${withAlpha(playerColors[r.seat], 0.6)}`,
+          }}
+        />
+      ))}
       {unifiedLayout?.opponents.map(({ playerId, rect, orientation }, i) => {
         const op = opponents.find((o) => o.id === playerId);
         if (!op) return null;
@@ -878,23 +912,6 @@ export function GameBoard({
             <div className="w-[3px] h-16 rounded-full bg-white/25 group-hover:bg-white/50" />
           </div>
         ))}
-      {unifiedLayout?.self && (
-        <div
-          className="absolute z-50 w-10 cursor-row-resize flex items-center justify-center group"
-          style={{
-            left: unifiedLayout.self.x + 4,
-            top: unifiedLayout.dividerY - STRIP_BAND_PX / 2,
-            height: STRIP_BAND_PX,
-          }}
-          onPointerDown={onUnifiedGripDown}
-        >
-          <div className="flex flex-col items-center gap-[3px]">
-            <div className="w-4 h-[2px] rounded-full bg-white/25 group-hover:bg-white/50" />
-            <div className="w-6 h-[2px] rounded-full bg-white/35 group-hover:bg-white/60" />
-            <div className="w-4 h-[2px] rounded-full bg-white/25 group-hover:bg-white/50" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

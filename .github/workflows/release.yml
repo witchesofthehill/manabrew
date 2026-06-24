@@ -31,6 +31,7 @@ jobs:
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
+      pr_branch: ${{ steps.rp.outputs.pr && fromJSON(steps.rp.outputs.pr).headBranchName || '' }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: rp
@@ -55,3 +56,37 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: gh workflow run release-artifacts.yml --ref "$TAG"
+
+  # release-please bumps the crate version in src-tauri/Cargo.toml but cannot
+  # update the workspace Cargo.lock, so the lockfile's `manabrew` entry goes
+  # stale and the next `cargo` run dirties the tree. main is protected, so the
+  # fix rides along inside the release PR: re-sync Cargo.lock on that branch
+  # (pushed with GITHUB_TOKEN, which does not retrigger workflows) so it merges
+  # with the version bump. release-please force-pushes its branch each run, so
+  # this re-applies every time it refreshes the PR.
+  sync-lockfile:
+    name: Sync Cargo.lock in the release PR
+    needs: release-please
+    if: needs.release-please.outputs.pr_branch != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.pr_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Re-sync Cargo.lock with the bumped versions
+        run: cargo metadata --format-version 1 >/dev/null
+      - name: Commit the lockfile if it changed
+        env:
+          BRANCH: ${{ needs.release-please.outputs.pr_branch }}
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "Cargo.lock already in sync."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "chore: sync Cargo.lock"
+          git push origin "HEAD:$BRANCH"

@@ -8,6 +8,8 @@
     "tauri": "tauri",
     "dev": "tauri dev",
     "dev:relay": "cargo run --release -p manabrew-server",
+    "dev:forge": "yarn build:harness && ./forge-harness/build-native.sh && yarn ensure:wasm && tauri dev --features forge-room",
+    "dev:forge:win": "yarn build:harness && pwsh -File ./forge-harness/build-native.ps1 && yarn ensure:wasm && tauri dev --features forge-room",
     "build": "tauri build",
     "web": "yarn gen:protocol && node scripts/ensure-wasm.mjs && vite",
     "ensure:wasm": "node scripts/ensure-wasm.mjs",

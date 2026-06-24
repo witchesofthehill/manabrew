@@ -5,9 +5,11 @@
 #   PS> Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 #   PS> .\scripts\setup-windows-runner.ps1
 #
-# Installs: Chocolatey, Git, Node LTS, Yarn, NSIS, jq, WebView2 runtime,
-# Visual Studio 2022 Build Tools (C++ workload + Win11 SDK), Rust (MSVC),
-# and the Tauri CLI.
+# Installs: Chocolatey, Git, Node LTS, Yarn, NSIS, jq, Maven, PowerShell 7
+# (pwsh), WebView2 runtime, GraalVM for JDK 21 (java + native-image), Visual
+# Studio 2022 Build Tools (C++ workload + Win11 SDK), Rust (MSVC), the Tauri CLI
+# and wasm-pack. GraalVM + Maven + the C++ toolchain are what the forge-room
+# native engine (libforgeharness) needs; pwsh runs build-native.ps1.
 #
 # Idempotent: each step skips work already done. Safe to re-run.
 #
@@ -46,6 +48,14 @@ function Add-ToSystemPath($dir) {
     } else {
         Write-Host "Already on system PATH: $dir"
     }
+}
+
+function Set-MachineEnv($name, $value) {
+    # Persist to HKLM so the runner service account sees it, and update the
+    # current session so later steps in this script can use it immediately.
+    [Environment]::SetEnvironmentVariable($name, $value, "Machine")
+    Set-Item -Path "Env:$name" -Value $value
+    Write-Host "Set $name = $value (Machine)"
 }
 
 function Grant-LogOnAsServiceRight {
@@ -159,18 +169,52 @@ if (Has-Command choco) {
 }
 
 # --- 3. Core tools via Chocolatey ----------------------------------------
-Section "Core tools (git, node, yarn, nsis, jq)"
+Section "Core tools (git, node, yarn, nsis, jq, maven, powershell 7)"
 $packages = @(
     "git",
     "nodejs-lts",
     "yarn",
     "nsis",
-    "jq"
+    "jq",
+    "maven",
+    "powershell-core"
 )
 foreach ($pkg in $packages) {
     Write-Host "-> $pkg"
     choco install -y --no-progress $pkg
 }
+Refresh-Path
+
+# --- 3b. GraalVM for JDK 21 (java + native-image) ------------------------
+# native-image builds the forge-room native lib (libforgeharness); the harness
+# Maven build runs on this JDK too. Pinned to match build-native.sh's default.
+# Maven and javac resolve their JDK from JAVA_HOME, so point it at GraalVM.
+Section "GraalVM for JDK 21 (java + native-image)"
+$graalVersion = "21.0.2"
+$graalRoot    = "C:\graalvm"
+$existingHome = [Environment]::GetEnvironmentVariable("GRAALVM_HOME", "Machine")
+if ($existingHome -and (Test-Path (Join-Path $existingHome "bin\native-image.cmd"))) {
+    Write-Host "GraalVM already installed at: $existingHome"
+    $graalHome = $existingHome
+} else {
+    $zip = "$env:TEMP\graalvm-ce-$graalVersion.zip"
+    $url = "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-$graalVersion/graalvm-community-jdk-${graalVersion}_windows-x64_bin.zip"
+    Write-Host "Downloading $url ..."
+    Invoke-WebRequest -Uri $url -OutFile $zip
+    if (Test-Path $graalRoot) { Remove-Item -Recurse -Force $graalRoot }
+    New-Item -ItemType Directory -Force -Path $graalRoot | Out-Null
+    Write-Host "Extracting to $graalRoot ..."
+    Expand-Archive -Path $zip -DestinationPath $graalRoot -Force
+    Remove-Item $zip -ErrorAction SilentlyContinue
+    $graalHome = (Get-ChildItem -Path $graalRoot -Directory |
+        Where-Object { Test-Path (Join-Path $_.FullName "bin\native-image.cmd") } |
+        Select-Object -First 1).FullName
+    if (-not $graalHome) { throw "GraalVM extracted but bin\native-image.cmd not found under $graalRoot" }
+    Write-Host "Installed at: $graalHome"
+}
+Set-MachineEnv "GRAALVM_HOME" $graalHome
+Set-MachineEnv "JAVA_HOME"    $graalHome
+Add-ToSystemPath (Join-Path $graalHome "bin")
 Refresh-Path
 
 # WebView2 Runtime ships preinstalled on Windows 10 (20H1+) and Windows 11,
@@ -382,6 +426,10 @@ Try-Version rustc
 Try-Version cargo
 Try-Version wasm-pack
 Try-Version jq
+Try-Version pwsh
+Try-Version java "-version"
+Try-Version mvn
+if (Has-Command native-image) { "native-image found at $((Get-Command native-image).Source)" } else { "native-image NOT FOUND (check GRAALVM_HOME\bin on PATH)" }
 if (Has-Command link)     { "link.exe   found at $((Get-Command link).Source)" }      else { "link.exe   NOT FOUND (ensure dev shell is active OR use ilammy/msvc-dev-cmd in CI)" }
 if (Has-Command makensis) { "makensis   found at $((Get-Command makensis).Source)" }  else { "makensis   NOT FOUND" }
 $wasm32Installed = ((& rustup target list --installed) -split "`n") -contains 'wasm32-unknown-unknown'

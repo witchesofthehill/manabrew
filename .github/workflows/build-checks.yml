@@ -318,3 +318,71 @@ jobs:
 
       - name: Build tauri crate with forge-room feature
         run: cargo build --release -p manabrew --features forge-room
+
+  # ── TEMPORARY: Windows leg of the forge-room native build ──────────
+  # Mirrors forge-room-graalvm on windows-latest to confirm build-native.ps1 +
+  # the Windows link path compile. Remove once the Windows native build is
+  # proven and shipping via release-artifacts.yml.
+  forge-room-graalvm-windows:
+    name: GraalVM + forge-room build (Windows)
+    runs-on: windows-latest
+    needs: changes
+    if: needs.changes.outputs.run_forge_room == 'true'
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: forge-room
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: forge-room
+          submodules: recursive
+          clean: true
+
+      - name: Set up MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Yarn
+        run: npm install --global yarn
+
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: forge-room
+
+      - run: yarn
+
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn build:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        run: ./forge-harness/build-native.ps1
+        shell: pwsh
+
+      # `cargo build` of the tauri crate runs `generate_context!`, which embeds
+      # `frontendDist` (../dist). Stub it so the link test doesn't drag in the
+      # full wasm + vite frontend build.
+      - name: Stub frontend dist for tauri context macro
+        shell: bash
+        run: |
+          mkdir -p dist
+          printf '<!doctype html><title>ci</title>' > dist/index.html
+
+      - name: Build tauri crate with forge-room feature
+        run: cargo build --release -p manabrew --features forge-room

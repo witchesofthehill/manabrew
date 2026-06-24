@@ -13,6 +13,8 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
+declare const __APP_VERSION__: string;
+
 // `unplugin-icons` with `compiler: 'raw'` exports the plain SVG string
 // as the default import for any `~icons/<set>/<name>` module. Declare
 // this here instead of pulling in `unplugin-icons/types/react`, which

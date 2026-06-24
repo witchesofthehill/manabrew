@@ -2,6 +2,7 @@ import { BookOpen, Globe } from "lucide-react";
 import { OnboardingGuide } from "@/components/OnboardingGuide";
 import { DiscordCallout } from "@/components/DiscordCallout";
 import { LinkCallout } from "@/components/LinkCallout";
+import { VersionInfo } from "@/components/VersionInfo";
 import { DOCS_URL, WEBSITE_URL } from "@/lib/constants";
 
 export function AboutContent() {
@@ -23,6 +24,7 @@ export function AboutContent() {
           description="Guides, formats, and self-hosting at docs.manabrew.app."
         />
       </div>
+      <VersionInfo />
     </div>
   );
 }

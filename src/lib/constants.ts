@@ -12,9 +12,16 @@ export const ROUTES = {
 // ─── External Links ──────────────────────────────────────────────────────────
 
 export const GITHUB_REPO_URL = "https://github.com/witchesofthehill/manabrew";
+export const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases`;
+export const GITHUB_LATEST_RELEASE_API =
+  "https://api.github.com/repos/witchesofthehill/manabrew/releases/latest";
 export const DISCORD_INVITE_URL = "https://discord.gg/NqrKpbhtcd";
 export const WEBSITE_URL = "https://manabrew.app";
 export const DOCS_URL = "https://docs.manabrew.app";
+
+// ─── App Version ─────────────────────────────────────────────────────────────
+
+export const APP_VERSION = __APP_VERSION__;
 
 // ─── Storage Keys ────────────────────────────────────────────────────────────
 

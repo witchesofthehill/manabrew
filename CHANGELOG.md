@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.2](https://github.com/witchesofthehill/manabrew/compare/v0.5.1...v0.5.2) (2026-06-24)
+
+
+### Fixes
+
+* add more config to graal native-image ([#279](https://github.com/witchesofthehill/manabrew/issues/279)) ([8cc2df3](https://github.com/witchesofthehill/manabrew/commit/8cc2df3dc3f4d5d51fb3b7c47c673ec5a1307f7c))
+* **ci:** bump Cargo.lock via release-please config ([#275](https://github.com/witchesofthehill/manabrew/issues/275)) ([a8d50ca](https://github.com/witchesofthehill/manabrew/commit/a8d50ca05d34cab6d8a9760e04b8fc34a36bc383))
+
 ## [0.5.1](https://github.com/witchesofthehill/manabrew/compare/v0.5.0...v0.5.1) (2026-06-24)
 
 

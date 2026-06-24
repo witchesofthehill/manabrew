@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/witchesofthehill/manabrew/compare/v0.5.0...v0.5.1) (2026-06-24)
+
+
+### Fixes
+
+* **build:** copy release-please manifest into web build context ([#270](https://github.com/witchesofthehill/manabrew/issues/270)) ([88db1c5](https://github.com/witchesofthehill/manabrew/commit/88db1c592c75370f5274680ba028e7ec7bb7dc84))
+* bundle binary on macos and windows ([#273](https://github.com/witchesofthehill/manabrew/issues/273)) ([9e007a4](https://github.com/witchesofthehill/manabrew/commit/9e007a448bbc13d66b14c4874ababbea3e84776b))
+
 ## [0.5.0](https://github.com/witchesofthehill/manabrew/compare/v0.4.0...v0.5.0) (2026-06-24)
 
 

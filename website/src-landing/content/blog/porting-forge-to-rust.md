@@ -6,25 +6,15 @@ author: "The Manabrew team"
 audience: developers
 ---
 
-Manabrew is an open-source Magic: The Gathering client with two engines behind it. One is the real
-[Forge](https://github.com/Card-Forge/forge), the long-running open-source Java engine, running
-server-side, which gives complete games today. The other is our own engine: a Rust port of Forge
-that runs client-side, in the browser via WebAssembly and on desktop via Tauri. The port is the
-long-term project, and we keep it faithful to Forge by differential testing: running the same game in
-both engines and comparing them. That's tractable because the engine it has to match is running right
-next to it.
+Manabrew is an open-source Magic: The Gathering client with two engines behind it. One is
+[Forge](https://github.com/Card-Forge/forge), the long-running open-source Java engine, running server-side, which gives complete games today. The other is our own engine: a Rust port of Forge that runs client-side, via WebAssembly. The port is the long-term project, and we keep it faithful to Forge by differential testing: running the same game in
+both engines and comparing them. That's tractable because the engine it has to match is running right next to it.
 
-This post is about how the port stays correct, which is the part most likely to matter if you want to
-work on it.
+This post is about how the port stays correct, which is the part most likely to matter if you want to work on it.
 
 ## The problem with porting a rules engine
 
-Magic has thirty years of rules, and the hard part is how they interact, not the individual cards.
-What does a replacement effect do to the event a trigger was watching? Which continuous effect wins a
-layer conflict? When you port an engine that large, one mistake keeps coming up: a card misbehaves,
-and the quickest fix is a special case on that card. Four lines, the test goes green, you move on. Do
-that often enough and you no longer have a rules engine. You have a pile of per-card patches that
-pass the games you happened to try and break on the ones you didn't.
+Magic has thirty years of rules, and the hard part is how they interact, not the individual cards. What does a replacement effect do to the event a trigger was watching? Which continuous effect wins a layer conflict? When you port an engine that large, one mistake keeps coming up: a card misbehaves, and the quickest fix is a special case on that card. Four lines, the test goes green, you move on. Do that often enough and you no longer have a rules engine. You have a pile of per-card patches that pass the games you happened to try and break on the ones you didn't.
 
 So we don't allow that fix. A divergence on one card is a symptom; the bug is almost always a missing
 general rule. Forge is the reference for what that rule is.
@@ -33,16 +23,14 @@ general rule. Forge is the reference for what that rule is.
 
 The mechanism is simple. You give it two decks, a seed, and a deterministic agent that makes the same
 choices every time, so the only variable is the engine. It plays the game once in Rust and once in
-Java Forge, walks both traces, and stops at the first point where they disagree. It reports where
-they parted: the phase, the active player, the field that differs, the Rust value, and the Java
-value.
+Forge, walks both traces, and stops at the first point where they disagree. It reports where they parted: the phase, the active player, the field that differs, the Rust value, and the Java value.
 
 That report is the whole signal. Java says the attacker has power 4, Rust says 3, so now you go find
 out why. The harness has no opinion on the cause, only on where the two engines split.
 
 Two honest limits. It's a tool you run while fixing something, not a dashboard in CI; engine work
 tends to start from a failing parity run. And the Rust port's card coverage is still partial, with no
-percentage worth quoting, which is why the real Forge engine runs server-side in the meantime. Games
+percentage worth quoting, which is why the Forge engine runs server-side in the meantime. Games
 are complete while the port grows into them.
 
 ## What fixing a bug looks like
@@ -91,11 +79,11 @@ change.
 Manabrew is in public alpha. You can play today at <https://play.manabrew.app>, and the code is at
 <https://github.com/witchesofthehill/manabrew>.
 
-The engine is a derivative work of Forge and is licensed AGPL-3.0-or-later. For something played over
+The engine is a derivative work of [Forge](https://github.com/Card-Forge/forge) and is licensed AGPL-3.0-or-later. For something played over
 a network and meant to be self-hostable, the AGPL is a deliberate choice: it stops a hosted fork from
 closing the source.
 
 If you want to contribute, the most useful work is small, well-scoped parity fixes, along with
-reproducible issue reports, documentation, and UI fixes. The contributing guide covers the setup and
+reproducible issue reports, documentation, and UI fixes. The [contributing guide](https://docs.manabrew.app/contributing/) covers the setup and
 the conventions, and the [Discord](https://discord.gg/NqrKpbhtcd) is a good place to ask where a
 given divergence probably lives before you go digging.

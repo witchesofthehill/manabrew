@@ -5,7 +5,7 @@ use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use crate::config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
+use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -28,6 +28,10 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+
+// Embedded at compile time so packaged builds (and any run outside the source
+// tree) don't depend on a `workspace_root()` path baked from the build machine.
+const TYPE_LISTS: &str = include_str!("../../../../forge/forge-gui/res/lists/TypeLists.txt");
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsWrite = SplitSink<WsStream, Message>;
@@ -191,7 +195,7 @@ pub async fn cli_entry() {
 pub type RoomCancel = Arc<tokio::sync::Notify>;
 
 fn ensure_engine_ready(config: &Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    load_type_registry()?;
+    load_type_registry();
     if config.engine_enabled
         && config.backend.is_supported()
         && matches!(config.backend, EngineBackendKind::Forge)
@@ -386,16 +390,8 @@ fn stop_bot(bot_state: &SharedBotState) {
     }
 }
 
-fn load_type_registry() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let type_lists_path = workspace_root()
-        .join("forge")
-        .join("forge-gui")
-        .join("res")
-        .join("lists")
-        .join("TypeLists.txt");
-    let contents = std::fs::read_to_string(&type_lists_path)?;
-    TypeRegistry::load(&contents);
-    Ok(())
+fn load_type_registry() {
+    TypeRegistry::load(TYPE_LISTS);
 }
 
 async fn wait_for_host_room(

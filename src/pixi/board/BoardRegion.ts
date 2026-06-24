@@ -69,6 +69,7 @@ type Point = ScreenPos;
 
 interface BoardRegionOptions {
   orientation: RegionOrientation;
+  feltWidth?: number;
 }
 
 const ENTRANCE_LAND_PX = 8;
@@ -97,9 +98,13 @@ export class BoardRegion {
   /** Canvas-aligned for top/bottom; a swapped-dimension rect at the origin for
    *  the rotated left/right sides. */
   private zone!: PlayZoneRect;
+  /** Accordion overlap: felt/banner width when narrower than `zone`. Cards
+   *  still use the full `zone`, so they never reflow as this changes. */
+  private feltWidth: number | null = null;
   private cardScale: number;
 
   private backgroundGfx: Graphics;
+  private clipGfx: Graphics;
   private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
@@ -133,12 +138,18 @@ export class BoardRegion {
     this.cardScale = cardScale;
     this.orientation = options.orientation;
     this.mirrored = options.orientation !== "bottom";
+    this.feltWidth = options.feltWidth ?? null;
 
     this.container = new Container();
     this.container.label = "boardRegion";
     this.container.sortableChildren = true;
     parent.addChild(this.container);
     this.applyOrientation(zone);
+
+    this.clipGfx = new Graphics();
+    this.clipGfx.label = "regionClip";
+    this.container.addChild(this.clipGfx);
+    this.updateClip();
 
     this.backgroundGfx = new Graphics();
     this.backgroundGfx.zIndex = -10;
@@ -173,13 +184,36 @@ export class BoardRegion {
     this.backgroundGfx.on("pointerdown", onDown);
   }
 
-  setZone(zone: PlayZoneRect, orientation: RegionOrientation): void {
+  setZone(zone: PlayZoneRect, orientation: RegionOrientation, feltWidth?: number): void {
     this.orientation = orientation;
     this.mirrored = orientation !== "bottom";
+    this.feltWidth = feltWidth ?? null;
     this.applyOrientation(zone);
+    this.updateClip();
     this.drawBackground();
     this.layoutEmptyText();
     if (this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  /** A collapsed field is clipped to its banner so its full-width cards (still
+   *  laid out at fixed slots) don't bleed through the focused field on top.
+   *  Horizontal only — the strip is tall so combat staging isn't cut. */
+  private updateClip(): void {
+    const collapse =
+      this.feltWidth !== null &&
+      this.feltWidth < this.zone.width &&
+      this.orientation !== "left" &&
+      this.orientation !== "right";
+    if (!collapse) {
+      this.container.mask = null;
+      this.clipGfx.clear();
+      return;
+    }
+    const OVERSCAN = 100000;
+    this.clipGfx.clear();
+    this.clipGfx.rect(this.zone.x, -OVERSCAN, this.feltWidth!, OVERSCAN * 2);
+    this.clipGfx.fill({ color: 0xffffff });
+    this.container.mask = this.clipGfx;
   }
 
   /** Top/bottom keep canvas coords (identity transform); left/right rotate 90°
@@ -965,6 +999,14 @@ export class BoardRegion {
     return { ...zone, height: Math.max(0, zone.height - reserve) };
   }
 
+  /** The visible felt/banner — `usableZone` clamped to `feltWidth`. Cards lay
+   *  out over the full `usableZone`; only the felt shrinks/grows. */
+  private feltZone(): PlayZoneRect {
+    const z = this.usableZone();
+    if (this.feltWidth === null) return z;
+    return { ...z, width: Math.min(z.width, this.feltWidth) };
+  }
+
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
     const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
@@ -982,19 +1024,19 @@ export class BoardRegion {
   }
 
   private drawBackground(): void {
-    const felt = this.usableZone();
+    const felt = this.feltZone();
     this.backgroundGfx.clear();
     this.backgroundGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
     this.backgroundGfx.fill({
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
-    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
+    this.playmat.layout(this.feltZone(), { dropActive: this.dropActive });
   }
 
   setPlaymat(url: string | undefined): void {
     this.playmat.setImage(url);
-    this.playmat.layout(this.usableZone(), { dropActive: this.dropActive });
+    this.playmat.layout(this.feltZone(), { dropActive: this.dropActive });
   }
 
   setPlaymatSettings(settings: PlaymatSettings | undefined): void {
@@ -1002,7 +1044,7 @@ export class BoardRegion {
   }
 
   private layoutEmptyText(): void {
-    const felt = this.usableZone();
+    const felt = this.feltZone();
     this.emptyText.scale.set(1);
     const maxWidth = felt.width - 16;
     if (maxWidth > 0 && this.emptyText.width > maxWidth) {

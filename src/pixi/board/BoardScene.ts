@@ -190,14 +190,20 @@ export class BoardScene {
     let oppIndex = 0;
 
     for (const spec of players) {
+      const oppI = spec.isLocal ? -1 : oppIndex;
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
+      // Accordion overlap: focused opponent on top (expands over the rest); the
+      // others sit lower by distance so each peeks past its nearer neighbour.
+      const focus = layout.focusedOpponentIndex ?? null;
+      const zIndex = spec.isLocal ? 100 : focus !== null ? 50 - Math.abs(oppI - focus) : 50;
       seen.add(spec.playerId);
       const existing = this.regions.get(spec.playerId);
       if (existing) {
         existing.zone = zone;
-        existing.region.setZone(zone, orientation);
+        existing.region.container.zIndex = zIndex;
+        existing.region.setZone(zone, orientation, opp?.feltWidth);
         existing.region.setCardScale(cardScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
         existing.region.setPlaymat(spec.playmat);
@@ -208,11 +214,11 @@ export class BoardScene {
         this.root,
         zone,
         cardScale,
-        { orientation },
+        { orientation, feltWidth: opp?.feltWidth },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setPlaymat(spec.playmat);
-      region.container.zIndex = spec.isLocal ? 100 : 50;
+      region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {

@@ -14,6 +14,10 @@ export type RegionOrientation = "bottom" | "top" | "left" | "right";
 export interface OpponentRegion {
   rect: PlayZoneRect;
   orientation: RegionOrientation;
+  /** Accordion overlap: the visible felt width (banner when collapsed, full
+   *  when focused). Cards still lay out across the full `rect`, so they never
+   *  reflow — only the felt grows/shrinks. Absent → felt fills `rect`. */
+  feltWidth?: number;
 }
 
 /**
@@ -26,6 +30,9 @@ export interface BoardLayout {
   opponents: OpponentRegion[];
   /** Vertical center of the strip band — where the phase strip is drawn. */
   dividerY: number;
+  /** Accordion overlap: index of the opponent lifted on top (expanded over the
+   *  rest). `null` outside the accordion / with no focus. */
+  focusedOpponentIndex?: number | null;
 }
 
 /** Fraction of the usable height (canvas minus strip band) given to the
@@ -89,19 +96,19 @@ export function computeBoardLayout(
   const opponents: OpponentRegion[] = [];
 
   if (accordion) {
-    // Tiled accordion: the focused column expands to `L - (n-1)·x`, the rest
-    // collapse to `x`. With no focus (or no room) they split evenly.
+    // Overlap accordion: every field is the SAME full (expanded) width, at a
+    // fixed slot `x` apart, so its cards never reflow as focus changes. Only the
+    // visible felt width changes (banner `x` when collapsed, full when focused)
+    // and the focused field is lifted on top (scene z-order), expanding over the
+    // rest, which stay put underneath as banners.
     const x = accordion.collapsedWidthPx;
     const focus = accordion.focusedIndex;
-    const hasFocus = focus !== null && focus >= 0 && focus < count && width >= x * count;
-    let acc = 0;
+    const full = Math.round(Math.min(width, Math.max(x, width - (count - 1) * x)));
     for (let i = 0; i < count; i++) {
-      const w = !hasFocus ? width / count : i === focus ? width - x * (count - 1) : x;
-      const px = Math.round(acc);
-      acc += w;
       opponents.push({
-        rect: { x: px, y: 0, width: Math.round(acc) - px, height: topHeight },
+        rect: { x: Math.round(i * x), y: 0, width: full, height: topHeight },
         orientation: "top",
+        feltWidth: focus === i ? full : x,
       });
     }
   } else {
@@ -132,5 +139,6 @@ export function computeBoardLayout(
     self: { x: 0, y: topHeight + band, width, height: selfHeight },
     opponents,
     dividerY,
+    focusedOpponentIndex: accordion ? accordion.focusedIndex : null,
   };
 }

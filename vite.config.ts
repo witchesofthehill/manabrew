@@ -55,6 +55,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/spellbook-api/, ""),
       },
+      "/scryfall-card-images": {
+        target: "https://cards.scryfall.io",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/scryfall-card-images/, ""),
+      },
+      "/scryfall-back-images": {
+        target: "https://backs.scryfall.io",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/scryfall-back-images/, ""),
+      },
       "/scryfall-symbols": {
         target: "https://svgs.scryfall.io",
         changeOrigin: true,

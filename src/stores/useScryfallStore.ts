@@ -11,7 +11,11 @@ import {
   getRulings,
 } from "@/api/scryfall";
 import { getPlatformType } from "@/platform";
-import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import {
+  loadScryfallImage,
+  resolveScryfallImageUrl,
+  shouldUseAnonymousImage,
+} from "@/lib/scryfallImageSource";
 import type {
   ScryfallCard,
   ScryfallImageUris,
@@ -407,7 +411,9 @@ export const useScryfallStore = create<ScryfallState>()(
             void loadScryfallImage(uris.normal).catch(() => {});
           } else {
             const img = new Image();
-            img.src = uris.normal;
+            const src = resolveScryfallImageUrl(uris.normal);
+            if (shouldUseAnonymousImage(src)) img.crossOrigin = "anonymous";
+            img.src = src;
           }
         }
       },

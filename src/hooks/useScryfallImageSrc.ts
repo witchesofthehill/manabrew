@@ -4,6 +4,7 @@ import {
   isScryfallImageUrl,
   loadScryfallImage,
   peekScryfallImage,
+  resolveScryfallImageUrl,
 } from "@/lib/scryfallImageSource";
 
 export function useScryfallImageSrc(url: string | undefined): string | undefined {
@@ -21,5 +22,5 @@ export function useScryfallImageSrc(url: string | undefined): string | undefined
       active = false;
     };
   }, [url, eligible]);
-  return eligible ? peekScryfallImage(url!) : url;
+  return eligible ? peekScryfallImage(url!) : url ? resolveScryfallImageUrl(url) : url;
 }

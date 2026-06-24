@@ -6,9 +6,35 @@ const SCRYFALL_IMAGE_HOSTS = new Set([
   "svgs.scryfall.io",
 ]);
 
+const DEV_IMAGE_PROXIES: Record<string, string> = {
+  "cards.scryfall.io": "/scryfall-card-images",
+  "backs.scryfall.io": "/scryfall-back-images",
+  "svgs.scryfall.io": "/scryfall-symbols",
+};
+
 export function isScryfallImageUrl(url: string): boolean {
   try {
     return SCRYFALL_IMAGE_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function resolveScryfallImageUrl(url: string): string {
+  if (!import.meta.env.DEV) return url;
+  try {
+    const parsed = new URL(url);
+    const prefix = DEV_IMAGE_PROXIES[parsed.hostname];
+    return prefix ? `${prefix}${parsed.pathname}${parsed.search}` : url;
+  } catch {
+    return url;
+  }
+}
+
+export function shouldUseAnonymousImage(url: string | undefined): boolean {
+  if (!url || typeof window === "undefined") return false;
+  try {
+    return new URL(url, window.location.href).origin !== window.location.origin;
   } catch {
     return false;
   }

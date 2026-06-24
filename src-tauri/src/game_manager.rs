@@ -223,7 +223,7 @@ impl GameManager {
         if commander_names.len() != num_players {
             return Err("Commander list count must match player count".into());
         }
-        if !priority_preferences.is_empty() && priority_preferences.len() != num_players {
+        if priority_preferences.len() != num_players {
             return Err("Priority preference count must match player count".into());
         }
         if deck_lists.iter().any(|deck| deck.is_empty()) {
@@ -295,11 +295,7 @@ impl GameManager {
         let player_name_strs = player_names.clone();
         let selected_deck_lists = deck_lists.clone();
         let selected_commander_names = commander_names.clone();
-        let selected_priority_preferences = if priority_preferences.is_empty() {
-            vec![false; num_players]
-        } else {
-            priority_preferences.clone()
-        };
+        let selected_priority_preferences = priority_preferences.clone();
         let abort_signal = Arc::new(AtomicBool::new(false));
         let abort_signal_for_thread = abort_signal.clone();
         let handle = thread::Builder::new()

@@ -65,6 +65,8 @@ pub fn run_game(
     let prepared_players = vec![human, opponent];
 
     let p0 = PlayerId(0);
+    // The human seat owns the channels passed in from the command layer, so
+    // its agent is built up front and handed to the factory via this slot.
     let mut human_agent = PromptAgent::new(
         p0,
         game_id.clone(),
@@ -153,12 +155,8 @@ pub fn run_multiplayer_game(
             engine_snapshot_tx,
         ),
     );
-    engine_agent.set_wants_empty_priority_prompts(
-        priority_preferences
-            .get(engine_player_index)
-            .copied()
-            .unwrap_or(false),
-    );
+    engine_agent.set_wants_empty_priority_prompts(priority_preferences[engine_player_index]);
+    // Option so the agent_factory can move it out on its one local call.
     let mut engine_agent_slot: Option<Box<dyn PlayerAgent>> = Some(Box::new(engine_agent));
     let mut remote_rx_map: HashMap<usize, mpsc::Receiver<PromptOutput>> =
         remote_response_rxs.into_iter().collect();
@@ -198,9 +196,7 @@ pub fn run_multiplayer_game(
                     game_id_for_agents.clone(),
                     TauriTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), resp_rx),
                 );
-                agent.set_wants_empty_priority_prompts(
-                    priority_preferences.get(i).copied().unwrap_or(false),
-                );
+                agent.set_wants_empty_priority_prompts(priority_preferences[i]);
                 Box::new(agent)
             }
         },

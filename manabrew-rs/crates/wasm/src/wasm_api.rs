@@ -284,7 +284,12 @@ pub fn run_multiplayer_game(
             .map_err(|e| JsError::new(&format!("Failed to parse config: {e}")))?
     };
     let starting_life = config.starting_life;
-    let priority_empty_prompts = config.priority_empty_prompts.clone();
+    if config.priority_empty_prompts.len() != num_players {
+        return Err(JsError::new(
+            "priority_empty_prompts length must match decks length",
+        ));
+    }
+    let priority_empty_prompts = config.priority_empty_prompts;
 
     let local_sab: SharedArrayBuffer = local_buffer
         .dyn_into()
@@ -376,12 +381,7 @@ pub fn run_multiplayer_game(
                 WasmTransport::new_relay(sab)
             };
             let mut agent = PromptAgent::new(pid, game_id_for_agents.clone(), transport);
-            agent.set_wants_empty_priority_prompts(
-                priority_empty_prompts
-                    .get(pid.index())
-                    .copied()
-                    .unwrap_or(false),
-            );
+            agent.set_wants_empty_priority_prompts(priority_empty_prompts[pid.index()]);
             Box::new(agent)
         },
     );

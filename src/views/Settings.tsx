@@ -675,23 +675,23 @@ export default function Settings() {
               <Label>Experimental smart priority</Label>
               <div className="flex items-center gap-2">
                 <Button
-                  variant={!prefs.experimentalSmartPriority ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setExperimentalSmartPriority(false)}
-                >
-                  Off
-                </Button>
-                <Button
                   variant={prefs.experimentalSmartPriority ? "default" : "outline"}
                   size="sm"
                   onClick={() => prefs.setExperimentalSmartPriority(true)}
                 >
                   On
                 </Button>
+                <Button
+                  variant={!prefs.experimentalSmartPriority ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => prefs.setExperimentalSmartPriority(false)}
+                >
+                  Off
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Uses Arena-style priority prompts, hidden soft stops, one-shot phase stops, and the
-                in-game Full Control toggle.
+                Avoid priority prompts when no actions are available. Experimental: this may
+                sometimes pass priority even when you have an available action.
               </p>
             </div>
 

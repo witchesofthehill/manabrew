@@ -369,6 +369,23 @@ Before opening a PR, read [CONTRIBUTING.md](./CONTRIBUTING.md). In short:
 - run `yarn lint:all` before asking for review;
 - do not bundle card images or secrets.
 
+### On-demand CI commands
+
+Maintainers (and anyone with write access) can drive CI from a pull-request
+comment. Post one of these as a comment on the PR:
+
+| Comment                              | Effect                                                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `/build mac` _(or `/build macos`)_   | Build the macOS `.dmg` from the PR branch                                                              |
+| `/build windows` _(or `/build win`)_ | Build the Windows `.exe` / `.msi` from the PR branch                                                   |
+| `/build all` _(or `/build both`)_    | Build both installers                                                                                  |
+| `/rerun <workflow>`                  | Re-run the latest run of a workflow on the PR branch — e.g. `/rerun regression`, `/rerun build-checks` |
+
+Put the command on the **first line** of the comment, on its own. The bot reacts
+👀 when it picks the command up and replies with a link to the run. Commands are
+ignored for anyone without write access and for PRs opened from forks. Built
+installers are uploaded to the Actions run (30-day retention).
+
 ### AI-Assisted Development
 
 This repository welcomes the use of AI assistance for mechanical porting, parity

@@ -259,11 +259,19 @@ export const useServerStore = create<ServerState>()(
       async setDeckSelection(deckName, deck, commanderName) {
         const platform = getPlatform();
         if (!platform.server) return;
+        const prefs = usePreferencesStore.getState();
+        const deckHasPlaymat = !!deck.playmat || !!deck.playmatSettings?.color;
         await platform.server.setDeckSelection({
           deckName,
-          deck,
+          deck: deckHasPlaymat
+            ? deck
+            : {
+                ...deck,
+                playmat: prefs.defaultPlaymat,
+                playmatSettings: prefs.defaultPlaymatSettings,
+              },
           commanderName: commanderName ?? null,
-          avatar: usePreferencesStore.getState().customAvatar,
+          avatar: prefs.customAvatar,
         });
       },
 

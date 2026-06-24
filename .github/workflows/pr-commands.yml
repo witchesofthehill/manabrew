@@ -24,28 +24,25 @@ permissions:
   issues: write
   contents: read
 
+concurrency:
+  group: pr-commands-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   command:
     if: >-
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/') &&
+      (startsWith(github.event.comment.body, '/build') || startsWith(github.event.comment.body, '/rerun')) &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-latest
     steps:
-      - name: Acknowledge the comment
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api -X POST \
-            "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
-            -f content=eyes >/dev/null
-
       - name: Parse command
         id: parse
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          cmd=$(printf '%s' "$COMMENT_BODY" | head -n1 | tr '[:upper:]' '[:lower:]' | xargs)
+          cmd=$(printf '%s' "$COMMENT_BODY" | head -n1 | tr '[:upper:]' '[:lower:]' \
+                  | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
           action=""
           workflow=""
           inputs=""
@@ -73,6 +70,15 @@ jobs:
             echo "inputs=$inputs"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Acknowledge the comment
+        if: steps.parse.outputs.match == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X POST \
+            "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content=eyes >/dev/null
+
       - name: Resolve PR branch
         id: pr
         if: steps.parse.outputs.match == 'true'
@@ -84,12 +90,12 @@ jobs:
           if [ "$(jq -r .isCrossRepository <<<"$data")" = "true" ]; then
             gh pr comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" \
               --body "⚠️ On-demand CI commands are not available for fork PRs."
-            exit 1
+            exit 0
           fi
           echo "branch=$(jq -r .headRefName <<<"$data")" >> "$GITHUB_OUTPUT"
 
       - name: Run command
-        if: steps.parse.outputs.match == 'true'
+        if: steps.parse.outputs.match == 'true' && steps.pr.outputs.branch != ''
         env:
           # A fine-grained PAT (actions:write) makes a workflow_dispatch reliably
           # spawn a run; the default GITHUB_TOKEN is used as a fallback.
@@ -114,9 +120,13 @@ jobs:
                 --body "❌ No recent run of \`$WORKFLOW\` found on \`$BRANCH\` to re-run."
               exit 1
             fi
-            gh run rerun "$run_id" --repo "$REPO"
+            if ! gh run rerun "$run_id" --repo "$REPO"; then
+              gh pr comment "$ISSUE" --repo "$REPO" \
+                --body "❌ Could not re-run the latest \`$WORKFLOW\` run — it may still be in progress."
+              exit 1
+            fi
             gh pr comment "$ISSUE" --repo "$REPO" \
-              --body "🔁 Re-running \`$WORKFLOW\` on \`$BRANCH\`. [View runs]($ACTIONS_URL/$WORKFLOW)"
+              --body "🔁 Re-running the latest \`$WORKFLOW\` run on \`$BRANCH\`. [View runs]($ACTIONS_URL/$WORKFLOW)"
           fi
           gh api -X POST \
             "repos/$REPO/issues/comments/${{ github.event.comment.id }}/reactions" \

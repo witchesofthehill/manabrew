@@ -381,9 +381,10 @@ comment. Post one of these as a comment on the PR:
 | `/build all` _(or `/build both`)_    | Build both installers                                                                                  |
 | `/rerun <workflow>`                  | Re-run the latest run of a workflow on the PR branch — e.g. `/rerun regression`, `/rerun build-checks` |
 
-The bot reacts 👀 when it picks the command up and replies with a link to the
-run. Commands are ignored for anyone without write access and for PRs opened
-from forks. Built installers are uploaded to the Actions run (30-day retention).
+Put the command on the **first line** of the comment, on its own. The bot reacts
+👀 when it picks the command up and replies with a link to the run. Commands are
+ignored for anyone without write access and for PRs opened from forks. Built
+installers are uploaded to the Actions run (30-day retention).
 
 ### AI-Assisted Development
 

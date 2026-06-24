@@ -17,36 +17,22 @@ NATIVE_IMAGE="$GRAALVM_HOME/bin/native-image"
 JAR="$HARNESS_DIR/target/forge-harness-jar-with-dependencies.jar"
 SRC="$HARNESS_DIR/native/forge/harness/ffi/ForgeNative.java"
 CLASSES="$HARNESS_DIR/native/classes"
-CFG="$HARNESS_DIR/native/native-image-config"
+# Tracked snapshot of the non-forge reachability metadata (library/JDK reflection,
+# resources, JNI, serialization) captured once with the tracing agent. The agent
+# run is gone — gen-config below owns the entire forge.* closed world generatively,
+# so nothing depends on a sample game anymore. To refresh the JDK/library slice
+# after a dependency bump, re-run the agent by hand and diff the result in.
+CFG="$HARNESS_DIR/native/frozen-config"
 OUT="$HARNESS_DIR/native/build"
 LANGS="$REPO_ROOT/forge/forge-gui/res/languages"
 
 [ -x "$NATIVE_IMAGE" ] || { echo "native-image not found at $NATIVE_IMAGE"; exit 1; }
 [ -f "$JAR" ] || { echo "fat jar missing — run: yarn build:harness"; exit 1; }
 
-# Capture native-image reachability metadata (reflect/resource/jni/serialization)
-# by running a sample game under the tracing agent. Cached after the first run;
-# delete native/native-image-config to force a fresh capture (e.g. after a Forge
-# bump). gen-config (below) covers the by-name class families comprehensively;
-# this captures everything else the agent observes.
-if [ ! -d "$CFG" ]; then
-  echo "==> capturing native-image metadata via tracing agent (sample game)"
-  mkdir -p "$CFG"
-  ( cd "$REPO_ROOT" && "$GRAALVM_HOME/bin/java" \
-      -agentlib:native-image-agent=config-output-dir="$CFG" \
-      -Djava.awt.headless=true \
-      -jar "$JAR" --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 8 \
-      >/dev/null 2>&1 )
-fi
-
 echo "==> compiling ForgeNative with GraalVM javac"
 rm -rf "$CLASSES"; mkdir -p "$CLASSES"
 "$JAVAC" -cp "$JAR" -d "$CLASSES" "$SRC"
 
-# A tracing run only captures the subset a single game touches. Register the
-# whole closed sets from the jar so any card / any prompt works:
-#  - forge.game.{trigger,replacement,...}: instantiated reflectively by name
-#    (TriggerType/ReplacementType/ApiType/CostType) → need constructors.
 #  - forge.harness.{protocol,host}: Gson DTOs (prompts/actions) serialized and
 #    deserialized reflectively → need fields (the "type" discriminator is a field).
 echo "==> generating reflect-config for reflectively-accessed classes"
@@ -55,12 +41,13 @@ rm -rf "$GEN"; mkdir -p "$GEN"
 JAR_BIN="$GRAALVM_HOME/bin/jar"
 {
   "$JAR_BIN" --list --file "$JAR" \
-    | grep -E '^forge/game/(trigger|replacement|ability/effects|ability/ai|staticability|cost)/[^/]*\.class$' \
-    | grep -v '\$' | sed 's#\.class$##; s#/#.#g' \
+    | grep -E '^forge/.*\.class$' \
+    | grep -vE '^forge/harness/(protocol|host)/' \
+    | sed 's#\.class$##; s#/#.#g' \
     | sed 's/$/\t"allDeclaredConstructors":true/'
   "$JAR_BIN" --list --file "$JAR" \
-    | grep -E '^forge/harness/(protocol|host)/[^/]*\.class$' \
-    | grep -v '\$' | sed 's#\.class$##; s#/#.#g' \
+    | grep -E '^forge/harness/(protocol|host)/[^/]+\.class$' \
+    | sed 's#\.class$##; s#/#.#g' \
     | sed 's/$/\t"allDeclaredFields":true,"allDeclaredConstructors":true,"allDeclaredMethods":true/'
 } | sort -u \
   | awk -F'\t' 'BEGIN{print "["} {if(NR>1)printf ",\n"; printf "  {\"name\":\"%s\",%s}", $1, $2} END{print "\n]"}' \

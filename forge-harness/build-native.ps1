@@ -16,7 +16,6 @@ if (-not $env:GRAALVM_HOME) {
 }
 $GraalHome = $env:GRAALVM_HOME
 
-$Java = Join-Path $GraalHome 'bin\java.exe'
 $Javac = Join-Path $GraalHome 'bin\javac.exe'
 $NativeImage = Join-Path $GraalHome 'bin\native-image.cmd'
 $JarBin = Join-Path $GraalHome 'bin\jar.exe'
@@ -24,7 +23,7 @@ $JarBin = Join-Path $GraalHome 'bin\jar.exe'
 $Jar = Join-Path $HarnessDir 'target\forge-harness-jar-with-dependencies.jar'
 $Src = Join-Path $HarnessDir 'native\forge\harness\ffi\ForgeNative.java'
 $Classes = Join-Path $HarnessDir 'native\classes'
-$Cfg = Join-Path $HarnessDir 'native\native-image-config'
+$Cfg = Join-Path $HarnessDir 'native\frozen-config'
 $Out = Join-Path $HarnessDir 'native\build'
 $Langs = Join-Path $RepoRoot 'forge\forge-gui\res\languages'
 $Extra = Join-Path $HarnessDir 'native\extra-config'
@@ -33,34 +32,27 @@ $Gen = Join-Path $HarnessDir 'native\gen-config'
 if (-not (Test-Path $NativeImage)) { throw "native-image not found at $NativeImage" }
 if (-not (Test-Path $Jar)) { throw "fat jar missing — run: yarn build:harness" }
 
-# Capture native-image reachability metadata (reflect/resource/jni/serialization)
-# by running a sample game under the tracing agent. Cached after the first run;
-# delete native/native-image-config to force a fresh capture (e.g. after a Forge
-# bump). gen-config (below) covers the by-name class families comprehensively;
-# this captures everything else the agent observes.
-if (-not (Test-Path $Cfg)) {
-    Write-Host "==> capturing native-image metadata via tracing agent (sample game)"
-    New-Item -ItemType Directory -Force -Path $Cfg | Out-Null
-    Push-Location $RepoRoot
-    try {
-        & $Java "-agentlib:native-image-agent=config-output-dir=$Cfg" `
-            "-Djava.awt.headless=true" `
-            -jar $Jar --deck1 red_burn --deck2 green_stompy --seed 42 --max-turns 8 `
-            *> $null
-    } finally {
-        Pop-Location
-    }
-}
+# $Cfg is a tracked snapshot of the non-forge reachability metadata (library/JDK
+# reflection, resources, JNI, serialization) captured once with the tracing agent.
+# The agent run is gone — gen-config below owns the entire forge.* closed world
+# generatively, so nothing depends on a sample game anymore. To refresh the
+# JDK/library slice after a dependency bump, re-run the agent by hand and diff it in.
 
 Write-Host "==> compiling ForgeNative with GraalVM javac"
 if (Test-Path $Classes) { Remove-Item -Recurse -Force $Classes }
 New-Item -ItemType Directory -Force -Path $Classes | Out-Null
 & $Javac -cp $Jar -d $Classes $Src
 
-# A tracing run only captures the subset a single game touches. Register the
-# whole closed sets from the jar so any card / any prompt works:
-#  - forge.game.{trigger,replacement,...}: instantiated reflectively by name
-#    (TriggerType/ReplacementType/ApiType/CostType) → need constructors.
+# A tracing run only captures the subset a single game touches, and a hand-listed
+# set of packages will eventually forget a reflectively-instantiated family (it
+# already silently dropped forge.ai.ability and forge.game.keyword). Instead
+# register constructors for EVERY forge.* class in the jar — every top-level and
+# nested class, no curated list — so every reflective factory (SpellApiToAi,
+# TriggerType, ReplacementType, ApiType, Keyword, CostType) resolves, now and
+# after any Forge bump. Nested classes ($) are deliberately kept: the goal is
+# that nothing in the forge closed world can be missing.
+#  - forge.* (minus forge.harness): instantiated reflectively by name → need
+#    constructors.
 #  - forge.harness.{protocol,host}: Gson DTOs (prompts/actions) serialized and
 #    deserialized reflectively → need fields (the "type" discriminator is a field).
 Write-Host "==> generating reflect-config for reflectively-accessed classes"
@@ -68,20 +60,19 @@ if (Test-Path $Gen) { Remove-Item -Recurse -Force $Gen }
 New-Item -ItemType Directory -Force -Path $Gen | Out-Null
 
 $entries = & $JarBin --list --file $Jar
-$rxGame = '^forge/game/(trigger|replacement|ability/effects|ability/ai|staticability|cost)/[^/]*\.class$'
-$rxHarness = '^forge/harness/(protocol|host)/[^/]*\.class$'
-$gameMeta = '"allDeclaredConstructors":true'
+$rxForge = '^forge/.*\.class$'
+$rxHarness = '^forge/harness/(protocol|host)/[^/]+\.class$'
+$forgeMeta = '"allDeclaredConstructors":true'
 $harnessMeta = '"allDeclaredFields":true,"allDeclaredConstructors":true,"allDeclaredMethods":true'
 
 $rows = [System.Collections.Generic.SortedSet[string]]::new()
 foreach ($entry in $entries) {
-    if ($entry -match '\$') { continue }
-    if ($entry -match $rxGame) {
-        $name = ($entry -replace '\.class$', '') -replace '/', '.'
-        [void]$rows.Add("$name`t$gameMeta")
-    } elseif ($entry -match $rxHarness) {
+    if ($entry -match $rxHarness) {
         $name = ($entry -replace '\.class$', '') -replace '/', '.'
         [void]$rows.Add("$name`t$harnessMeta")
+    } elseif ($entry -match $rxForge -and $entry -notmatch '^forge/harness/(protocol|host)/') {
+        $name = ($entry -replace '\.class$', '') -replace '/', '.'
+        [void]$rows.Add("$name`t$forgeMeta")
     }
 }
 

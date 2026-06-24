@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "fs";
 import { fileURLToPath } from "url";
-import { join, relative, sep } from "path";
+import { join, relative } from "path";
 
 const scriptsDir = fileURLToPath(new URL(".", import.meta.url));
 const root = join(scriptsDir, "..");
@@ -303,16 +303,13 @@ function stageRuntime({ force = false } = {}) {
   mkdirSync(runtimeDir, { recursive: true });
   copyFileSync(jarPath, runtimeHarnessJar);
 
-  cpSync(sourceResDir, runtimeResDir, {
-    recursive: true,
-    filter: (sourcePath) => {
-      if (sourcePath === sourceResDir) {
-        return true;
-      }
-      const [top] = relative(sourceResDir, sourcePath).split(sep);
-      return stagedResDirs.has(top);
-    },
-  });
+  mkdirSync(runtimeResDir, { recursive: true });
+  for (const dir of stagedResDirs) {
+    const src = join(sourceResDir, dir);
+    if (existsSync(src)) {
+      cpSync(src, join(runtimeResDir, dir), { recursive: true });
+    }
+  }
 
   mkdirSync(runtimeCardsfolderDir, { recursive: true });
   const zipPath = join(runtimeCardsfolderDir, "cardsfolder.zip");

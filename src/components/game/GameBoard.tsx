@@ -545,6 +545,8 @@ export function GameBoard({
       hostileTargeting,
     });
     const myDeck = gameDecks[me.id];
+    // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
+    // resolved here too; multiplayer decks already carry it from the relay.
     const myDeckHasPlaymat = !!myDeck?.playmat || !!myDeck?.playmatSettings?.color;
     return [
       {

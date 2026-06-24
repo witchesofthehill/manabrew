@@ -430,12 +430,10 @@ export function GameBoard({
   const pixiPhaseStrip = useMemo((): import("@/pixi/PhaseStripLayer").PhaseStripState => {
     const oppEnabled = new Map<string, Set<string>>();
     for (const op of opponents) {
-      oppEnabled.set(
-        op.id,
-        experimentalSmartPriority
-          ? (smartOpponentStopsMap.get(op.id) ?? new Set<string>())
-          : (opponentStopsMap.get(op.id) ?? new Set(["end"])),
-      );
+      const stops = experimentalSmartPriority
+        ? (smartOpponentStopsMap.get(op.id) ?? new Set<string>())
+        : (opponentStopsMap.get(op.id) ?? new Set(["end"]));
+      oppEnabled.set(op.id, stops);
     }
     return {
       currentStep: step,
@@ -446,7 +444,6 @@ export function GameBoard({
       opponentEnabledPhases: oppEnabled,
       opponents: opponents.map((op, i) => ({ id: op.id, index: i })),
       isInteractive: true,
-      smartPriority: experimentalSmartPriority,
     };
   }, [
     step,

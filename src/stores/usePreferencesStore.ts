@@ -3,6 +3,7 @@ import { persist, devtools } from "zustand/middleware";
 import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
 import type { BoardArrangement } from "@/pixi/board/boardLayout";
+import type { PlaymatSettings } from "@/protocol/game";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
 export type CardPreviewMode = "hover" | "shift" | "alt" | "ctrl";
@@ -26,6 +27,11 @@ interface PreferencesState {
 
   customAvatar?: string;
   setCustomAvatar: (dataUrl: string | undefined) => void;
+
+  defaultPlaymat?: string;
+  defaultPlaymatSettings?: PlaymatSettings;
+  setDefaultPlaymat: (dataUrl: string | undefined) => void;
+  setDefaultPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
 
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
@@ -73,6 +79,8 @@ const PERSISTED_PREFERENCE_KEYS = [
   "serverUsername",
   "serverPassword",
   "customAvatar",
+  "defaultPlaymat",
+  "defaultPlaymatSettings",
   "zonePanelOrder",
   "boardArrangement",
   "battlefieldAutoSort",
@@ -127,6 +135,11 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           customAvatar: undefined,
           setCustomAvatar: (customAvatar) => set({ customAvatar }),
+
+          defaultPlaymat: undefined,
+          defaultPlaymatSettings: undefined,
+          setDefaultPlaymat: (defaultPlaymat) => set({ defaultPlaymat }),
+          setDefaultPlaymatSettings: (defaultPlaymatSettings) => set({ defaultPlaymatSettings }),
 
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),

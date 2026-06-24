@@ -4,7 +4,6 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ImagePlus, Trash2 } from "lucide-react";
-import { useDeckStore } from "@/stores/useDeckStore";
 import {
   DEFAULT_PLAYMAT_SETTINGS,
   clampBorderColor,
@@ -17,12 +16,23 @@ import type { PlaymatSettings } from "@/protocol/game";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
-export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
-  const playmat = useDeckStore((s) => s.currentDeck.playmat);
-  const storedSettings = useDeckStore((s) => s.currentDeck.playmatSettings);
-  const setPlaymat = useDeckStore((s) => s.setPlaymat);
-  const setPlaymatSettings = useDeckStore((s) => s.setPlaymatSettings);
+interface PlaymatEditorModalProps {
+  onClose: () => void;
+  title?: string;
+  playmat: string | undefined;
+  storedSettings: PlaymatSettings | undefined;
+  setPlaymat: (dataUrl: string | undefined) => void;
+  setPlaymatSettings: (settings: PlaymatSettings | undefined) => void;
+}
 
+export function PlaymatEditorModal({
+  onClose,
+  title = "Customize Playmat",
+  playmat,
+  storedSettings,
+  setPlaymat,
+  setPlaymatSettings,
+}: PlaymatEditorModalProps) {
   const [settings, setSettings] = useState<Required<PlaymatSettings>>({
     ...DEFAULT_PLAYMAT_SETTINGS,
     ...(storedSettings ?? {}),
@@ -70,7 +80,7 @@ export function PlaymatEditorModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={onClose} maxWidth="max-w-2xl">
-      <Modal.Header>Customize Playmat</Modal.Header>
+      <Modal.Header>{title}</Modal.Header>
       <Modal.Body>
         <div className="space-y-4">
           <div className="flex flex-col items-center gap-1">

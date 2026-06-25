@@ -165,7 +165,6 @@ export function BoardPlayground() {
           hand={{ cards: [] }}
           arrowSpecs={[]}
           phaseStrip={PHASE_STRIP_STUB}
-          arrangement="row"
           callbacks={{
             onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
             onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),

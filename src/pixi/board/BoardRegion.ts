@@ -69,7 +69,8 @@ type Point = ScreenPos;
 
 interface BoardRegionOptions {
   orientation: RegionOrientation;
-  feltWidth?: number;
+  clipX?: number;
+  clipWidth?: number;
 }
 
 const ENTRANCE_LAND_PX = 8;
@@ -93,14 +94,10 @@ function stackIdentityKey(c: CardDto): string {
 export class BoardRegion {
   readonly container: Container;
   private host: RegionHost;
-  private orientation: RegionOrientation;
   private mirrored: boolean;
-  /** Canvas-aligned for top/bottom; a swapped-dimension rect at the origin for
-   *  the rotated left/right sides. */
   private zone!: PlayZoneRect;
-  /** Accordion overlap: felt/banner width when narrower than `zone`. Cards
-   *  still use the full `zone`, so they never reflow as this changes. */
-  private feltWidth: number | null = null;
+  private clipX: number | null = null;
+  private clipWidth: number | null = null;
   private cardScale: number;
 
   private backgroundGfx: Graphics;
@@ -136,9 +133,9 @@ export class BoardRegion {
   ) {
     this.host = host;
     this.cardScale = cardScale;
-    this.orientation = options.orientation;
     this.mirrored = options.orientation !== "bottom";
-    this.feltWidth = options.feltWidth ?? null;
+    this.clipX = options.clipX ?? null;
+    this.clipWidth = options.clipWidth ?? null;
 
     this.container = new Container();
     this.container.label = "boardRegion";
@@ -184,83 +181,62 @@ export class BoardRegion {
     this.backgroundGfx.on("pointerdown", onDown);
   }
 
-  setZone(zone: PlayZoneRect, orientation: RegionOrientation, feltWidth?: number): void {
-    this.orientation = orientation;
+  setZone(
+    zone: PlayZoneRect,
+    orientation: RegionOrientation,
+    clipX?: number,
+    clipWidth?: number,
+  ): void {
+    const prev = this.zone;
+    const zoneChanged =
+      !prev ||
+      prev.x !== zone.x ||
+      prev.y !== zone.y ||
+      prev.width !== zone.width ||
+      prev.height !== zone.height;
     this.mirrored = orientation !== "bottom";
-    this.feltWidth = feltWidth ?? null;
+    this.clipX = clipX ?? null;
+    this.clipWidth = clipWidth ?? null;
     this.applyOrientation(zone);
     this.updateClip();
     this.drawBackground();
     this.layoutEmptyText();
-    if (this.lastState) this.updateBattlefield(this.lastState);
+    // Card positions depend only on the FIXED zone + scale + blockers — never on
+    // the clip. A delimiter-only change must NOT relayout, or cards would move.
+    if (zoneChanged && this.lastState) this.updateBattlefield(this.lastState);
   }
 
-  /** A collapsed field is clipped to its banner so its full-width cards (still
-   *  laid out at fixed slots) don't bleed through the focused field on top.
-   *  Horizontal only — the strip is tall so combat staging isn't cut. */
   private updateClip(): void {
-    const collapse =
-      this.feltWidth !== null &&
-      this.feltWidth < this.zone.width &&
-      this.orientation !== "left" &&
-      this.orientation !== "right";
-    if (!collapse) {
+    if (this.clipWidth === null) {
       this.container.mask = null;
       this.clipGfx.clear();
       return;
     }
     const OVERSCAN = 100000;
     this.clipGfx.clear();
-    this.clipGfx.rect(this.zone.x, -OVERSCAN, this.feltWidth!, OVERSCAN * 2);
+    this.clipGfx.rect(this.clipX ?? this.zone.x, -OVERSCAN, this.clipWidth, OVERSCAN * 2);
     this.clipGfx.fill({ color: 0xffffff });
     this.container.mask = this.clipGfx;
   }
 
-  /** Top/bottom keep canvas coords (identity transform); left/right rotate 90°
-   *  and swap the layout dimensions so the grid runs along the column. */
   private applyOrientation(screenRect: PlayZoneRect): void {
-    const c = this.container;
-    if (this.orientation === "left") {
-      this.zone = { x: 0, y: 0, width: screenRect.height, height: screenRect.width };
-      c.rotation = -Math.PI / 2;
-      c.position.set(screenRect.x, screenRect.y + screenRect.height);
-    } else if (this.orientation === "right") {
-      this.zone = { x: 0, y: 0, width: screenRect.height, height: screenRect.width };
-      c.rotation = Math.PI / 2;
-      c.position.set(screenRect.x + screenRect.width, screenRect.y);
-    } else {
-      this.zone = screenRect;
-      c.rotation = 0;
-      c.position.set(0, 0);
-    }
+    this.zone = screenRect;
+    this.container.rotation = 0;
+    this.container.position.set(0, 0);
   }
 
   private localToCanvas(x: number, y: number): ScreenPos {
-    const c = this.container;
-    const cos = Math.cos(c.rotation);
-    const sin = Math.sin(c.rotation);
-    return { x: c.position.x + x * cos - y * sin, y: c.position.y + x * sin + y * cos };
+    return { x: this.container.position.x + x, y: this.container.position.y + y };
   }
 
   private canvasToLocal(x: number, y: number): ScreenPos {
-    const c = this.container;
-    const cos = Math.cos(c.rotation);
-    const sin = Math.sin(c.rotation);
-    const dx = x - c.position.x;
-    const dy = y - c.position.y;
-    return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos };
+    return { x: x - this.container.position.x, y: y - this.container.position.y };
   }
 
   private collectLocalBlockers(): BlockingRect[] {
     return this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
-      const p2 = this.canvasToLocal(r.x + r.width, r.y + r.height);
-      return {
-        x: Math.min(p1.x, p2.x),
-        y: Math.min(p1.y, p2.y),
-        width: Math.abs(p2.x - p1.x),
-        height: Math.abs(p2.y - p1.y),
-      };
+      return { x: p1.x, y: p1.y, width: r.width, height: r.height };
     });
   }
 
@@ -569,7 +545,6 @@ export class BoardRegion {
   }
 
   private applyAttackLunge(state: BattlefieldState): void {
-    if (this.orientation === "left" || this.orientation === "right") return;
     const staged = this.combatStaging?.attackerIds;
     const frontY = this.frontEdgeY();
     for (const card of state.cards) {
@@ -584,9 +559,6 @@ export class BoardRegion {
   private applyCombatStaging(): void {
     const staging = this.combatStaging;
     if (!staging) return;
-    // The front-edge / lane math is vertical, so the rotated side regions keep
-    // their resting layout during combat.
-    if (this.orientation === "left" || this.orientation === "right") return;
     const frontY = this.frontEdgeY();
     const fanStep = CARD_W * this.cardScale * COMBAT_STAGE_FAN_FRAC;
 
@@ -999,12 +971,11 @@ export class BoardRegion {
     return { ...zone, height: Math.max(0, zone.height - reserve) };
   }
 
-  /** The visible felt/banner — `usableZone` clamped to `feltWidth`. Cards lay
-   *  out over the full `usableZone`; only the felt shrinks/grows. */
+  /** The felt fills the FIXED `usableZone` — it is drawn once over the full play
+   *  area and the delimiter mask (`updateClip`) clips it, so the felt and
+   *  playmat never move when a delimiter is dragged. */
   private feltZone(): PlayZoneRect {
-    const z = this.usableZone();
-    if (this.feltWidth === null) return z;
-    return { ...z, width: Math.min(z.width, this.feltWidth) };
+    return this.usableZone();
   }
 
   private playArea(): PlayZoneRect {

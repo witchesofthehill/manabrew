@@ -20,7 +20,7 @@ const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 function useBattlefieldAspect(): number {
   const vScale = useHandScale();
   return useMemo(() => {
-    const layout = computeBoardLayout(window.innerWidth, window.innerHeight, 1, "row");
+    const layout = computeBoardLayout(window.innerWidth, window.innerHeight, 1);
     const handReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
     const feltHeight = Math.max(1, layout.self.height - handReserve);
     return layout.self.width / feltHeight;

@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
 import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
-import type { BoardArrangement } from "@/pixi/board/boardLayout";
 import type { PlaymatSettings } from "@/protocol/game";
 
 export type ZonePanelItem = "library" | "graveyard" | "exile";
@@ -35,10 +34,6 @@ interface PreferencesState {
 
   zonePanelOrder: ZonePanelItem[];
   setZonePanelOrder: (order: ZonePanelItem[]) => void;
-
-  // Only changes the 4-player layout.
-  boardArrangement: BoardArrangement;
-  setBoardArrangement: (arrangement: BoardArrangement) => void;
 
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
@@ -82,7 +77,6 @@ const PERSISTED_PREFERENCE_KEYS = [
   "defaultPlaymat",
   "defaultPlaymatSettings",
   "zonePanelOrder",
-  "boardArrangement",
   "battlefieldAutoSort",
   "battlefieldCardScale",
   "battlefieldCardStyle",
@@ -144,8 +138,6 @@ export const usePreferencesStore = create<PreferencesState>()(
           zonePanelOrder: ["library", "graveyard", "exile"],
           setZonePanelOrder: (zonePanelOrder) => set({ zonePanelOrder }),
 
-          boardArrangement: "row",
-          setBoardArrangement: (boardArrangement) => set({ boardArrangement }),
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
 

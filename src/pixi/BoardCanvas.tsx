@@ -6,12 +6,7 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
-import {
-  computeBoardLayout,
-  COLLAPSED_OPPONENT_WIDTH_PX,
-  type BoardArrangement,
-  type RegionOrientation,
-} from "./board/boardLayout";
+import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
 import { battlefieldScaleForFraction } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
@@ -60,7 +55,13 @@ export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
   /** Y of the center band where the phase strip is centered. */
   dividerY: number;
-  opponents: { playerId: string; rect: PlayZoneRect; orientation: RegionOrientation }[];
+  opponents: {
+    playerId: string;
+    rect: PlayZoneRect;
+    orientation: RegionOrientation;
+    clipX: number;
+    clipWidth: number;
+  }[];
 }
 
 interface BoardCanvasProps {
@@ -73,16 +74,10 @@ interface BoardCanvasProps {
   combatBlocks?: { blockerId: string; attackerId: string }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
-  arrangement: BoardArrangement;
   /** Fraction of usable height for the local player's bottom region; defaults to
    *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
-  /** Per-opponent column width fractions; equal split when omitted. */
-  opponentFractions?: number[];
-  /** When set, opponents use the accordion width policy: the column at this
-   *  index (opponent order) expands, the rest collapse to a fixed banner width.
-   *  `null` = even split. Omit entirely to keep `opponentFractions`. */
-  accordionFocusedIndex?: number | null;
+  delimiters?: number[];
   /** Px the hand fan reserves at the bottom of the self region — subtracted from
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
@@ -114,10 +109,8 @@ export function BoardCanvas({
   combatBlocks,
   phaseStrip,
   phaseStripCallbacks,
-  arrangement,
   selfHeightFraction,
-  opponentFractions,
-  accordionFocusedIndex,
+  delimiters,
   selfBottomReserve,
   callbacks,
   externalBlockers,
@@ -275,7 +268,7 @@ export function BoardCanvas({
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
   // Stable content key so `reconfigure`'s identity doesn't churn when the parent
   // re-creates this array prop.
-  const opponentFractionsKey = (opponentFractions ?? []).join(",");
+  const delimitersKey = (delimiters ?? []).join(",");
 
   const reconfigure = useCallback(() => {
     const app = appRef.current;
@@ -284,19 +277,7 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const accordion =
-      accordionFocusedIndex !== undefined
-        ? { focusedIndex: accordionFocusedIndex, collapsedWidthPx: COLLAPSED_OPPONENT_WIDTH_PX }
-        : undefined;
-    const layout = computeBoardLayout(
-      w,
-      h,
-      opponentCount,
-      arrangement,
-      selfHeightFraction,
-      opponentFractions,
-      accordion,
-    );
+    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction, delimiters);
     // Subtract the hand-fan reserve before picking the scale so ~3 rows stay
     // visible in every region.
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
@@ -310,18 +291,12 @@ export function BoardCanvas({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,
         orientation: layout.opponents[i]?.orientation ?? "top",
+        clipX: layout.opponents[i]?.clipX ?? 0,
+        clipWidth: layout.opponents[i]?.clipWidth ?? layout.self.width,
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    playersKey,
-    arrangement,
-    fraction,
-    selfHeightFraction,
-    opponentFractionsKey,
-    accordionFocusedIndex,
-    selfBottomReserve,
-  ]);
+  }, [playersKey, fraction, selfHeightFraction, delimitersKey, selfBottomReserve]);
 
   useEffect(() => {
     reconfigure();

@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import type { BoardTargetBuckets } from "@/lib/boardTargets";
@@ -9,6 +9,7 @@ import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BlockingRect } from "@/pixi/board/types";
 import { PLAYMAT_PADDING } from "@/pixi/board/PlaymatLayer";
+import { COLLAPSED_OPPONENT_WIDTH_PX } from "@/pixi/board/boardLayout";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -16,7 +17,7 @@ import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } f
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { PlayerPanel } from "@/components/game/panels";
-import { OPPONENT_SEATS, type PlayerSeat } from "@/components/game/game.types";
+import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
@@ -38,8 +39,6 @@ function promptOf<TType extends PromptType>(
 
 const SELF_PANEL_SCALE = 0.85;
 const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
-const ACTION_CLUSTER_RESERVE_PX = 360;
-const HAND_MIN_WIDTH_PX = 820;
 
 interface GameBoardProps {
   me: PlayerDto;
@@ -460,75 +459,56 @@ export function GameBoard({
 
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const boardArrangementPref = usePreferencesStore((s) => s.boardArrangement);
   const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
-  const boardArrangement = isFeatureEnabled("wraparoundBoardLayout") ? boardArrangementPref : "row";
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
-  const [opponentSplits, setOpponentSplits] = useState<number[]>([]);
-  const opponentFractions = opponentSplits.length === opponents.length ? opponentSplits : undefined;
-
-  // Multiplayer accordion: expand the active player's column (null = even split
-  // on our own turn). Hover overrides arrive in a later phase. A manual column
-  // resize (opponentFractions set via the grips) takes over and disables it.
-  const accordionEnabled = isFeatureEnabled("multiplayerAccordion");
-  const accordionFocusedIndex = useMemo(() => {
-    if (!accordionEnabled || opponentFractions) return undefined;
-    const idx = opponents.findIndex((op) => op.id === activePlayerId);
-    return idx >= 0 ? idx : null;
-  }, [accordionEnabled, opponentFractions, opponents, activePlayerId]);
   const playerColors = useTheme().gameTheme.playerColors;
 
-  // Dev overlay: each player's actual region rect tinted in its seat color. The
-  // columns tile the row exactly (collapsed = 96px, expanded = L − (n−1)·96), so
-  // the overlays must not overlap — a collapsed column shows its pure colour.
-  const accordionDebugRegions = useMemo(() => {
-    if (!accordionEnabled || !unifiedLayout) return [];
-    const regions: {
-      left: number;
-      top: number;
-      width: number;
-      height: number;
-      seat: PlayerSeat;
-    }[] = [];
-    if (unifiedLayout.self) {
-      const s = unifiedLayout.self;
-      regions.push({ left: s.x, top: s.y, width: s.width, height: s.height, seat: "self" });
+  const [delimiters, setDelimiters] = useState<number[]>([]);
+  const delimitersProp = delimiters.length === opponents.length - 1 ? delimiters : undefined;
+
+  const boardWidthPx = unifiedLayout?.self?.width ?? 0;
+  const opponentIdsKey = opponents.map((o) => o.id).join(",");
+  useEffect(() => {
+    const n = opponents.length;
+    if (n <= 1 || boardWidthPx <= 0) return;
+    const idx = opponents.findIndex((op) => op.id === activePlayerId);
+    if (idx < 0) return;
+    const banner = COLLAPSED_OPPONENT_WIDTH_PX / boardWidthPx;
+    const focused = Math.max(banner, 1 - (n - 1) * banner);
+    const cuts: number[] = [];
+    let acc = 0;
+    for (let i = 0; i < n - 1; i++) {
+      acc += i === idx ? focused : banner;
+      cuts.push(acc);
     }
-    unifiedLayout.opponents.forEach((o, i) => {
-      regions.push({
-        left: o.rect.x,
-        top: o.rect.y,
-        width: o.rect.width,
-        height: o.rect.height,
-        seat: OPPONENT_SEATS[i] ?? "opponent1",
-      });
-    });
-    return regions;
-  }, [accordionEnabled, unifiedLayout]);
+    setDelimiters(cuts);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePlayerId, opponentIdsKey, boardWidthPx]);
 
   const onOpponentGripDown = useCallback(
-    (boundary: number) => (e: React.PointerEvent) => {
+    (index: number) => (e: React.PointerEvent) => {
       e.preventDefault();
       const el = boardRef.current;
       if (!el) return;
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      const count = opponents.length;
-      const start =
-        opponentSplits.length === count
-          ? [...opponentSplits]
-          : Array.from({ length: count }, () => 1 / count);
-      const pairSum = start[boundary]! + start[boundary + 1]!;
-      const before = start.slice(0, boundary).reduce((a, b) => a + b, 0);
+      const cutCount = opponents.length - 1;
       const onMove = (ev: PointerEvent) => {
         const rect = el.getBoundingClientRect();
+        if (!rect.width) return;
+        const minGap = COLLAPSED_OPPONENT_WIDTH_PX / rect.width;
         const x = (ev.clientX - rect.left) / rect.width;
-        const left = Math.max(0.1, Math.min(pairSum - 0.1, x - before));
-        const next = [...start];
-        next[boundary] = left;
-        next[boundary + 1] = pairSum - left;
-        setOpponentSplits(next);
+        setDelimiters((prev) => {
+          const cuts =
+            prev.length === cutCount
+              ? [...prev]
+              : Array.from({ length: cutCount }, (_, i) => (i + 1) / (cutCount + 1));
+          const lo = (index === 0 ? 0 : cuts[index - 1]!) + minGap;
+          const hi = (index === cutCount - 1 ? 1 : cuts[index + 1]!) - minGap;
+          cuts[index] = Math.max(lo, Math.min(hi, x));
+          return cuts;
+        });
       };
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
@@ -537,7 +517,7 @@ export function GameBoard({
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
     },
-    [opponents.length, opponentSplits],
+    [opponents.length],
   );
 
   const gameDecks = useGameStore((s) => s.gameDecks);
@@ -605,29 +585,6 @@ export function GameBoard({
     CLUSTER_MIN_WIDTH_PX,
     selfHalfWidthPx - handWidth / 2 - CLUSTER_GAP_FROM_HAND_PX - 8,
   );
-  const selfIsSplit = boardArrangement === "perimeter";
-  const selfRect = unifiedLayout?.self;
-  const selfSplit = useMemo(() => {
-    const off = { left: 0, right: 0, grid: false };
-    if (boardArrangement !== "perimeter") return off;
-    const sx = unifiedLayout?.self?.x ?? 0;
-    const sw = unifiedLayout?.self?.width ?? 0;
-    if (sw === 0) return off;
-    const left = 130;
-    const tileStride = (72 + 10) * SELF_PANEL_SCALE;
-    const zoneTileCount = 3 + ((myCommandZone?.length ?? 0) > 0 ? 1 : 0);
-    const rowWidth = zoneTileCount * tileStride;
-    const rightForWidth = (w: number) => Math.max(0, ACTION_CLUSTER_RESERVE_PX + w - sx);
-    const handIfRow = sw - left - rightForWidth(rowWidth);
-    const grid = handIfRow < HAND_MIN_WIDTH_PX;
-    const zonesWidth = grid ? Math.min(zoneTileCount, 2) * tileStride : rowWidth;
-    return { left, right: Math.round(rightForWidth(zonesWidth)), grid };
-  }, [boardArrangement, myCommandZone?.length, unifiedLayout?.self?.x, unifiedLayout?.self?.width]);
-  const handInsets = useMemo(
-    () => ({ left: selfSplit.left, right: selfSplit.right }),
-    [selfSplit.left, selfSplit.right],
-  );
-
   const panelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const setPanelEl = useCallback((key: string, el: HTMLDivElement | null) => {
     if (el) panelElsRef.current.set(key, el);
@@ -663,32 +620,17 @@ export function GameBoard({
     myCommandZone?.length,
     graveyard.length,
     exile.length,
-    boardArrangement,
-    selfSplit.grid,
     promptType,
   ]);
-  const splitBoardWidth = selfRect ? 2 * selfRect.x + selfRect.width : 0;
-  const splitPanelWidth = Math.max(
-    CLUSTER_MIN_WIDTH_PX,
-    splitBoardWidth - ACTION_CLUSTER_RESERVE_PX - (selfRect ? selfRect.x + 8 : 0),
-  );
   const selfPanel = (
     <div
       ref={(el) => setPanelEl("self", el)}
       className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
-      style={
-        selfIsSplit && selfRect
-          ? {
-              left: selfRect.x + 8,
-              width: splitPanelWidth / SELF_PANEL_SCALE,
-              transform: `scale(${SELF_PANEL_SCALE})`,
-            }
-          : {
-              left: selfPanelLeftPx,
-              maxWidth: `calc(${clusterMaxWidthPx}px / ${SELF_PANEL_SCALE})`,
-              transform: `scale(${SELF_PANEL_SCALE})`,
-            }
-      }
+      style={{
+        left: selfPanelLeftPx,
+        maxWidth: `calc(${clusterMaxWidthPx}px / ${SELF_PANEL_SCALE})`,
+        transform: `scale(${SELF_PANEL_SCALE})`,
+      }}
     >
       <PlayerPanel
         player={me}
@@ -696,8 +638,6 @@ export function GameBoard({
         seat="self"
         avatarUrl={avatarByPlayerId.get(me.id)}
         verticalAlign="bottom"
-        split={selfIsSplit}
-        zonesGrid={selfSplit.grid}
         isActiveTurn={activePlayerId === me.id}
         isPriorityPlayer={priorityPlayerId === me.id && activePlayerId !== me.id}
         isTargetable={playerIsTargetable(me.id)}
@@ -799,12 +739,9 @@ export function GameBoard({
           combatBlocks={combatAssignmentsAll}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
-          arrangement={boardArrangement}
-          opponentFractions={opponentFractions}
-          accordionFocusedIndex={accordionFocusedIndex}
+          delimiters={delimitersProp}
           callbacks={pixiCallbacks}
           externalBlockers={pixiExternalBlockers}
-          handInsets={handInsets}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}
           selfBottomReserve={selfBottomReserve}
@@ -815,46 +752,37 @@ export function GameBoard({
         />
       </div>
       {selfPanel}
-      {accordionDebugRegions.map((r, i) => (
-        <div
-          key={`accordion-region-debug-${i}`}
-          className="pointer-events-none absolute z-20"
-          style={{
-            left: r.left,
-            top: r.top,
-            width: r.width,
-            height: r.height,
-            backgroundColor: withAlpha(playerColors[r.seat], 0.18),
-            outline: `1px solid ${withAlpha(playerColors[r.seat], 0.6)}`,
-          }}
-        />
-      ))}
-      {unifiedLayout?.opponents.map(({ playerId, rect, orientation }, i) => {
+      {isFeatureEnabled("debugBattlegroundRects") &&
+        unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
+          const seat = OPPONENT_SEATS[i] ?? "opponent1";
+          return (
+            <div
+              key={`bg-rect-${playerId}`}
+              className="pointer-events-none absolute z-20"
+              style={{
+                left: rect.x,
+                top: rect.y,
+                width: rect.width,
+                height: rect.height,
+                backgroundColor: withAlpha(playerColors[seat], 0.2),
+                outline: `2px solid ${withAlpha(playerColors[seat], 0.55)}`,
+              }}
+            />
+          );
+        })}
+      {unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
         const op = opponents.find((o) => o.id === playerId);
         if (!op) return null;
         const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
-        const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
-        const panelStyle: React.CSSProperties =
-          orientation === "left"
-            ? {
-                left: rect.x + 8 + pad,
-                top: rect.y + rect.height / 2,
-                transform: `translateY(-50%) ${scale}`,
-                transformOrigin: "left center",
-              }
-            : orientation === "right"
-              ? {
-                  left: rect.x + rect.width - 8 - pad,
-                  top: rect.y + rect.height / 2,
-                  transform: `translate(-100%, -50%) ${scale}`,
-                  transformOrigin: "right center",
-                }
-              : {
-                  left: rect.x + 8 + pad,
-                  top: rect.y + 8 + pad,
-                  transform: scale,
-                  transformOrigin: "top left",
-                };
+        const colW = rect.width / opponents.length;
+        const homeX = i * colW;
+        const pad = Math.min(colW, rect.height) * PLAYMAT_PADDING;
+        const panelStyle: React.CSSProperties = {
+          left: homeX + 8 + pad,
+          top: rect.y + 8 + pad,
+          transform: scale,
+          transformOrigin: "top left",
+        };
         return (
           <div
             key={playerId}
@@ -868,9 +796,7 @@ export function GameBoard({
               seat={OPPONENT_SEATS[i] ?? "opponent1"}
               avatarUrl={avatarByPlayerId.get(op.id)}
               verticalAlign="top"
-              zoneOrientation={
-                orientation === "left" || orientation === "right" ? "vertical" : "horizontal"
-              }
+              zoneOrientation="horizontal"
               isActiveTurn={activePlayerId === op.id}
               isPriorityPlayer={priorityPlayerId === op.id && activePlayerId !== op.id}
               isTargetable={playerIsTargetable(op.id)}
@@ -898,16 +824,13 @@ export function GameBoard({
       <div className="absolute inset-0 z-40 pointer-events-none">
         <BoardArrowsCanvas sceneRef={sceneRef} />
       </div>
-      {boardArrangement === "row" &&
-        unifiedLayout &&
-        unifiedLayout.opponents.slice(1).map(({ playerId, rect }) => (
+      {unifiedLayout &&
+        unifiedLayout.opponents.slice(0, -1).map(({ playerId, rect, clipX, clipWidth }, i) => (
           <div
             key={`oppgrip-${playerId}`}
             className="absolute z-50 w-3 cursor-col-resize flex items-center justify-center group"
-            style={{ left: rect.x - 6, top: 0, height: rect.height }}
-            onPointerDown={onOpponentGripDown(
-              unifiedLayout.opponents.findIndex((o) => o.playerId === playerId) - 1,
-            )}
+            style={{ left: clipX + clipWidth - 6, top: 0, height: rect.height }}
+            onPointerDown={onOpponentGripDown(i)}
           >
             <div className="w-[3px] h-16 rounded-full bg-white/25 group-hover:bg-white/50" />
           </div>

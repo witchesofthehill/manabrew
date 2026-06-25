@@ -100,7 +100,6 @@ export class BoardScene {
   private dragHandler: DragHandler;
   private phaseStrip: PhaseStripLayer;
   private stripBackgroundGfx: Graphics;
-  private regionDividerGfx: Graphics;
   private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
@@ -144,11 +143,6 @@ export class BoardScene {
     this.stripBackgroundGfx.eventMode = "none";
     this.stripBackgroundGfx.zIndex = 5;
     this.root.addChild(this.stripBackgroundGfx);
-
-    this.regionDividerGfx = new Graphics();
-    this.regionDividerGfx.eventMode = "none";
-    this.regionDividerGfx.zIndex = 6000;
-    this.root.addChild(this.regionDividerGfx);
 
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
@@ -194,16 +188,16 @@ export class BoardScene {
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
-      // Accordion overlap: focused opponent on top (expands over the rest); the
-      // others sit lower by distance so each peeks past its nearer neighbour.
-      const focus = layout.focusedOpponentIndex ?? null;
-      const zIndex = spec.isLocal ? 100 : focus !== null ? 50 - Math.abs(oppI - focus) : 50;
+      // The clip windows tile the canvas (no overlap), so z-order is cosmetic;
+      // keep the widest (focused) opponent on top.
+      const focus = layout.focusedOpponentIndex;
+      const zIndex = spec.isLocal ? 100 : 50 - Math.abs(oppI - focus);
       seen.add(spec.playerId);
       const existing = this.regions.get(spec.playerId);
       if (existing) {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
-        existing.region.setZone(zone, orientation, opp?.feltWidth);
+        existing.region.setZone(zone, orientation, opp?.clipX, opp?.clipWidth);
         existing.region.setCardScale(cardScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
         existing.region.setPlaymat(spec.playmat);
@@ -214,7 +208,7 @@ export class BoardScene {
         this.root,
         zone,
         cardScale,
-        { orientation, feltWidth: opp?.feltWidth },
+        { orientation, clipX: opp?.clipX, clipWidth: opp?.clipWidth },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setPlaymat(spec.playmat);
@@ -266,22 +260,6 @@ export class BoardScene {
     this.phaseStrip.container.y = layout.dividerY - STRIP_BAND_PX / 2;
     this.phaseStrip.resize(layout.self.width, STRIP_BAND_PX);
     this.drawStripBackground(layout);
-    this.drawRegionDividers(layout);
-  }
-
-  private drawRegionDividers(layout: BoardLayout): void {
-    const g = this.regionDividerGfx;
-    g.clear();
-    const hasSides = layout.opponents.some(
-      (o) => o.orientation === "left" || o.orientation === "right",
-    );
-    if (!hasSides) return;
-    const h = this.app.renderer.height;
-    for (const x of [layout.self.x, layout.self.x + layout.self.width]) {
-      g.moveTo(x, 0);
-      g.lineTo(x, h);
-    }
-    g.stroke({ color: hexToNum(this.theme.gameTheme.canvas.neutral), width: 2, alpha: 0.12 });
   }
 
   private drawStripBackground(layout: BoardLayout): void {
@@ -500,7 +478,6 @@ export class BoardScene {
     this.phaseStrip.setTheme(theme);
     if (this.lastLayout) {
       this.drawStripBackground(this.lastLayout);
-      this.drawRegionDividers(this.lastLayout);
     }
     for (const rec of this.regions.values()) rec.region.redrawTheme();
   }

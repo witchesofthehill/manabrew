@@ -1,24 +1,13 @@
 /**
- * Single source of truth for compile-time feature flags. Flip a value to
- * `true` to enable a feature; ship it `false` to keep it dark. Do not scatter
- * feature gates anywhere else — add the flag here and read it via
- * `isFeatureEnabled`.
+ * Single source of truth for compile-time feature flags. Add a boolean here
+ * (default `false` to ship a feature dark) and read it via `isFeatureEnabled`.
+ * Do not scatter feature gates anywhere else.
  */
 export const featureFlags = {
-  /**
-   * Wrap-around ("perimeter") 4-player battlefield layout: opponents seated on
-   * the left/top/right with rotated side seats and a split self cluster. While
-   * `false`, the board is locked to the `row` arrangement and the Settings
-   * arrangement toggle is hidden, so the layout is unreachable.
-   */
-  wraparoundBoardLayout: false,
-  /**
-   * Multiplayer battlefield accordion: opponents share the top row as columns
-   * that resize horizontally — one expanded (the active player on their turn,
-   * or whichever opponent the local player hovers), the rest collapsed to a
-   * fixed-width banner. While `false`, opponents keep the equal-split widths.
-   */
-  multiplayerAccordion: false,
+  /** Tint each multiplayer battleground's full computed rectangle in the player's
+   *  colour, to inspect the staggered field layout (overlap shows as mixed
+   *  colours). Debug aid only — does not affect play. */
+  debugBattlegroundRects: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

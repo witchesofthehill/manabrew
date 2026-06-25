@@ -415,20 +415,28 @@ function DraggableCardGrid({
       )}
     >
       <CardThumbnail card={card} />
-      <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="w-4/5 gap-1"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoreInfo();
-          }}
-        >
-          <Info className="h-3 w-3" />
-          More Info
-        </Button>
-      </div>
+      {onPick ? (
+        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-overlay/55 opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+          <span className="rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground shadow">
+            Choose art
+          </span>
+        </div>
+      ) : (
+        <div className="absolute inset-0 bg-overlay/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 rounded-lg pointer-events-none group-hover:pointer-events-auto">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="w-4/5 gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoreInfo();
+            }}
+          >
+            <Info className="h-3 w-3" />
+            More Info
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -490,18 +498,24 @@ function DraggableCardRow({
 
       {card.manaCost && <ManaSymbols cost={card.manaCost} size="sm" className="shrink-0" />}
 
-      <Button
-        size="sm"
-        variant="ghost"
-        className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto"
-        onClick={(e) => {
-          e.stopPropagation();
-          onMoreInfo();
-        }}
-      >
-        <Info className="h-3 w-3" />
-        Info
-      </Button>
+      {onPick ? (
+        <span className="text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100 shrink-0">
+          Choose art
+        </span>
+      ) : (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pointer-events-none group-hover:pointer-events-auto"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoreInfo();
+          }}
+        >
+          <Info className="h-3 w-3" />
+          Info
+        </Button>
+      )}
     </div>
   );
 }

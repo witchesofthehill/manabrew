@@ -7,6 +7,9 @@ import { ImagePlus, Info, Search, Trash2 } from "lucide-react";
 import {
   DEFAULT_PLAYMAT_SETTINGS,
   PLAYMAT_ZOOM_MAX,
+  PLAYMAT_BLUR_MAX,
+  PLAYMAT_BRIGHTNESS_MIN,
+  PLAYMAT_BRIGHTNESS_MAX,
   clampBorderColor,
   clampPlaymatColor,
 } from "@/pixi/board/PlaymatLayer";
@@ -250,6 +253,26 @@ export function PlaymatEditorModal({
                 current={Math.round(settings.texture * 100)}
                 onChange={(v) => update({ texture: v / 100 })}
               />
+              {playmat && (
+                <SliderControl
+                  label="Blur"
+                  value={`${Math.round(settings.blur)}px`}
+                  min={0}
+                  max={PLAYMAT_BLUR_MAX}
+                  current={Math.round(settings.blur)}
+                  onChange={(v) => update({ blur: v })}
+                />
+              )}
+              {playmat && (
+                <SliderControl
+                  label="Brightness"
+                  value={`${Math.round(settings.brightness * 100)}%`}
+                  min={Math.round(PLAYMAT_BRIGHTNESS_MIN * 100)}
+                  max={Math.round(PLAYMAT_BRIGHTNESS_MAX * 100)}
+                  current={Math.round(settings.brightness * 100)}
+                  onChange={(v) => update({ brightness: v / 100 })}
+                />
+              )}
               <SliderControl
                 label="Border width"
                 value={`${settings.borderWidth}px`}

@@ -1,7 +1,7 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { partitionBoardTargets } from "@/lib/boardTargets";
+import { partitionBoardTargets, validCardIdsInCards } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
@@ -913,7 +913,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       closeZoneViewer();
       return;
     }
-    openZoneViewer({ ...vz, clickableCardIds: boardTargets.zone.validCardIds });
+    const clickableCardIds = validCardIdsInCards(boardTargets.zone.validCardIds, vz.cards);
+    if (clickableCardIds.length === 0) {
+      closeZoneViewer();
+      return;
+    }
+    openZoneViewer({ ...vz, clickableCardIds });
   }, [boardTargets, openZoneViewer, closeZoneViewer]);
 
   // Generic sticky-viewer close: a viewer bound to a prompt type stays open

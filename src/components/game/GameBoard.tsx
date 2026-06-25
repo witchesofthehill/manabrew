@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
-import type { BoardTargetBuckets } from "@/lib/boardTargets";
+import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
@@ -254,11 +254,13 @@ export function GameBoard({
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);
   const hostileTargeting = boardTargetsPrompt?.input.hostile ?? false;
-  const targetZoneCardIds = (zone: string): string[] =>
-    boardTargets?.zone?.zone === zone ? boardTargets.zone.validCardIds : [];
-  const commandTargetIds = targetZoneCardIds("Command");
-  const graveyardTargetIds = targetZoneCardIds("Graveyard");
-  const exileTargetIds = targetZoneCardIds("Exile");
+  const targetZoneCardIds = (zone: string, cards?: CardDto[]): string[] =>
+    boardTargets?.zone?.zone === zone
+      ? validCardIdsInCards(boardTargets.zone.validCardIds, cards)
+      : [];
+  const commandTargetIds = targetZoneCardIds("Command", myCommandZone);
+  const graveyardTargetIds = targetZoneCardIds("Graveyard", graveyard);
+  const exileTargetIds = targetZoneCardIds("Exile", exile);
   const commandPlayableIds = myCommandZone
     ?.filter((card) => playableIds.has(card.id))
     .map((card) => card.id);
@@ -798,6 +800,9 @@ export function GameBoard({
       {unifiedLayout?.opponents.map(({ playerId, rect, orientation }, i) => {
         const op = opponents.find((o) => o.id === playerId);
         if (!op) return null;
+        const opCommandTargetIds = targetZoneCardIds("Command", op.commandZone);
+        const opGraveyardTargetIds = targetZoneCardIds("Graveyard", op.graveyard);
+        const opExileTargetIds = targetZoneCardIds("Exile", op.exile);
         const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
         const pad = Math.min(rect.width, rect.height) * PLAYMAT_PADDING;
         const panelStyle: React.CSSProperties =
@@ -850,12 +855,51 @@ export function GameBoard({
               exile={op.exile}
               onOpenCommandZone={
                 (op.commandZone?.length ?? 0) > 0
-                  ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
+                  ? () => {
+                      if (isTargetingPrompt && opCommandTargetIds.length > 0) {
+                        onOpenZone(
+                          `${op.name}'s Command Zone`,
+                          op.commandZone!,
+                          onTargetFromZone,
+                          opCommandTargetIds,
+                          hostileTargeting,
+                        );
+                        return;
+                      }
+                      onOpenZone(`${op.name}'s Command Zone`, op.commandZone!);
+                    }
                   : undefined
               }
-              onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
-              onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
+              onOpenGraveyard={() => {
+                if (isTargetingPrompt && opGraveyardTargetIds.length > 0) {
+                  onOpenZone(
+                    `${op.name}'s Graveyard`,
+                    op.graveyard,
+                    onTargetFromZone,
+                    opGraveyardTargetIds,
+                    hostileTargeting,
+                  );
+                  return;
+                }
+                onOpenZone(`${op.name}'s Graveyard`, op.graveyard);
+              }}
+              onOpenExile={() => {
+                if (isTargetingPrompt && opExileTargetIds.length > 0) {
+                  onOpenZone(
+                    `${op.name}'s Exile`,
+                    op.exile,
+                    onTargetFromZone,
+                    opExileTargetIds,
+                    hostileTargeting,
+                  );
+                  return;
+                }
+                onOpenZone(`${op.name}'s Exile`, op.exile);
+              }}
               onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
+              hasTargetInGraveyard={isTargetingPrompt && opGraveyardTargetIds.length > 0}
+              hasTargetInExile={isTargetingPrompt && opExileTargetIds.length > 0}
+              targetHostile={hostileTargeting}
               zonePanelOrder={zonePanelOrder}
             />
           </div>

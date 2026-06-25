@@ -3,14 +3,16 @@ import { toast } from "sonner";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ImagePlus, Info, Trash2 } from "lucide-react";
 import {
   DEFAULT_PLAYMAT_SETTINGS,
+  PLAYMAT_ZOOM_MAX,
   clampBorderColor,
   clampPlaymatColor,
 } from "@/pixi/board/PlaymatLayer";
 import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { usePlaymatPreview } from "./usePlaymatPreview";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { PlaymatSettings } from "@/protocol/game";
 
@@ -59,10 +61,11 @@ export function PlaymatEditorModal({
     });
   }
 
-  const { canvasRef, previewWidth, previewHeight, onPointerDown } = usePlaymatPreview({
+  const { canvasRef, previewWidth, previewHeight, onPointerDown, onWheel } = usePlaymatPreview({
     playmat,
     settings,
     onOffsetChange: (offset) => update(offset),
+    onZoomChange: (zoom) => update({ zoom }),
   });
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -87,6 +90,7 @@ export function PlaymatEditorModal({
             <canvas
               ref={canvasRef}
               onPointerDown={onPointerDown}
+              onWheel={onWheel}
               style={{ width: previewWidth, height: previewHeight }}
               className={cn(
                 "max-w-full touch-none rounded-md border",
@@ -94,12 +98,31 @@ export function PlaymatEditorModal({
               )}
             />
             {settings.fit === "cover" && (
-              <p className="text-xs text-muted-foreground">Drag the image to reposition</p>
+              <p className="text-xs text-muted-foreground">Drag to reposition · scroll to zoom</p>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Image placement</Label>
+            <div className="flex items-center gap-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Image placement</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Playmat image tips"
+                  >
+                    <Info className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  The playmat fills a wide, landscape area (roughly 5:2). For a crisp result use a
+                  landscape image at least ~1600px wide — up to 4096px on the long edge and
+                  3&nbsp;MB are kept. Use <strong>Cover</strong>, then drag and scroll to zoom and
+                  frame it.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
               {(["cover", "fit", "stretch"] as const).map((mode) => (
                 <button
@@ -120,6 +143,16 @@ export function PlaymatEditorModal({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            {settings.fit === "cover" && (
+              <SliderControl
+                label="Zoom"
+                value={`${Math.round(settings.zoom * 100)}%`}
+                min={100}
+                max={Math.round(PLAYMAT_ZOOM_MAX * 100)}
+                current={Math.round(settings.zoom * 100)}
+                onChange={(v) => update({ zoom: v / 100 })}
+              />
+            )}
             <SliderControl
               label="Opacity"
               value={`${Math.round(settings.opacity * 100)}%`}

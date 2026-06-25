@@ -7,7 +7,7 @@ import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { safeDestroy } from "@/pixi/board/pixiHelpers";
 import { useTheme } from "@/hooks/useTheme";
 import { useHandScale } from "@/hooks/useHandScale";
-import { PlaymatLayer } from "@/pixi/board/PlaymatLayer";
+import { PlaymatLayer, clampPlaymatZoom } from "@/pixi/board/PlaymatLayer";
 import { computeBoardLayout } from "@/pixi/board/boardLayout";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
@@ -31,9 +31,15 @@ interface PlaymatPreviewArgs {
   playmat: string | undefined;
   settings: Required<PlaymatSettings>;
   onOffsetChange: (offset: { offsetX: number; offsetY: number }) => void;
+  onZoomChange: (zoom: number) => void;
 }
 
-export function usePlaymatPreview({ playmat, settings, onOffsetChange }: PlaymatPreviewArgs) {
+export function usePlaymatPreview({
+  playmat,
+  settings,
+  onOffsetChange,
+  onZoomChange,
+}: PlaymatPreviewArgs) {
   const theme = useTheme();
   const aspect = useBattlefieldAspect();
   const previewHeight = Math.round(PREVIEW_WIDTH / aspect);
@@ -164,7 +170,8 @@ export function usePlaymatPreview({ playmat, settings, onOffsetChange }: Playmat
     };
     const move = (ev: PointerEvent) => {
       const { w: nw, h: nh } = naturalRef.current;
-      const scale = Math.max(PREVIEW_WIDTH / nw, previewHeight / nh);
+      const scale =
+        Math.max(PREVIEW_WIDTH / nw, previewHeight / nh) * clampPlaymatZoom(settings.zoom);
       const overflowX = nw * scale - PREVIEW_WIDTH;
       const overflowY = nh * scale - previewHeight;
       const dx = ((ev.clientX - start.sx) * PREVIEW_WIDTH) / start.rectW;
@@ -182,5 +189,12 @@ export function usePlaymatPreview({ playmat, settings, onOffsetChange }: Playmat
     window.addEventListener("pointerup", up);
   }
 
-  return { canvasRef, previewWidth: PREVIEW_WIDTH, previewHeight, onPointerDown };
+  function onWheel(e: React.WheelEvent<HTMLCanvasElement>) {
+    if (settings.fit !== "cover") return;
+    e.preventDefault();
+    const step = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+    onZoomChange(clampPlaymatZoom(settings.zoom * step));
+  }
+
+  return { canvasRef, previewWidth: PREVIEW_WIDTH, previewHeight, onPointerDown, onWheel };
 }

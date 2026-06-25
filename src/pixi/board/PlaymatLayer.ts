@@ -13,8 +13,15 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   fit: "cover",
   offsetX: 0.5,
   offsetY: 0.5,
+  zoom: 1,
   color: "",
 };
+
+/** Bounds for the playmat zoom (uniform resize) in `cover` fit. */
+export const PLAYMAT_ZOOM_MIN = 1;
+export const PLAYMAT_ZOOM_MAX = 4;
+export const clampPlaymatZoom = (z: number): number =>
+  Math.max(PLAYMAT_ZOOM_MIN, Math.min(PLAYMAT_ZOOM_MAX, Number.isFinite(z) ? z : 1));
 
 const PLAYMAT_DROP_DIM = 0.29;
 export const PLAYMAT_PADDING = 0.04;
@@ -256,7 +263,7 @@ export class PlaymatLayer {
       this.image.x = cx;
       this.image.y = cy;
     } else {
-      const scale = Math.max(sx, sy);
+      const scale = Math.max(sx, sy) * clampPlaymatZoom(this.settings.zoom);
       this.image.scale.set(scale);
       const ox = clamp01(this.settings.offsetX);
       const oy = clamp01(this.settings.offsetY);

@@ -69,8 +69,6 @@ type Point = ScreenPos;
 
 interface BoardRegionOptions {
   orientation: RegionOrientation;
-  clipX?: number;
-  clipWidth?: number;
 }
 
 const ENTRANCE_LAND_PX = 8;
@@ -105,7 +103,6 @@ export class BoardRegion {
   private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
-  private emptyText: Text;
 
   private entries = new Map<string, SpriteEntry>();
   private gridInfo: GridLayoutInfo | null = null;
@@ -134,8 +131,6 @@ export class BoardRegion {
     this.host = host;
     this.cardScale = cardScale;
     this.mirrored = options.orientation !== "bottom";
-    this.clipX = options.clipX ?? null;
-    this.clipWidth = options.clipWidth ?? null;
 
     this.container = new Container();
     this.container.label = "boardRegion";
@@ -165,12 +160,6 @@ export class BoardRegion {
     this.gridSkeletonGfx.zIndex = Z_GRID_SKELETON;
     this.container.addChild(this.gridSkeletonGfx);
 
-    this.emptyText = new Text({ text: "No permanents", style: EMPTY_LABEL_STYLE });
-    this.emptyText.anchor.set(0.5);
-    this.emptyText.visible = false;
-    this.emptyText.zIndex = 0;
-    this.container.addChild(this.emptyText);
-
     this.drawBackground();
   }
 
@@ -181,12 +170,7 @@ export class BoardRegion {
     this.backgroundGfx.on("pointerdown", onDown);
   }
 
-  setZone(
-    zone: PlayZoneRect,
-    orientation: RegionOrientation,
-    clipX?: number,
-    clipWidth?: number,
-  ): void {
+  setZone(zone: PlayZoneRect, orientation: RegionOrientation): void {
     const prev = this.zone;
     const zoneChanged =
       !prev ||
@@ -195,15 +179,21 @@ export class BoardRegion {
       prev.width !== zone.width ||
       prev.height !== zone.height;
     this.mirrored = orientation !== "bottom";
-    this.clipX = clipX ?? null;
-    this.clipWidth = clipWidth ?? null;
     this.applyOrientation(zone);
     this.updateClip();
     this.drawBackground();
-    this.layoutEmptyText();
     // Card positions depend only on the FIXED zone + scale + blockers — never on
-    // the clip. A delimiter-only change must NOT relayout, or cards would move.
+    // the clip. A zone-only change relayouts; the clip is set separately.
     if (zoneChanged && this.lastState) this.updateBattlefield(this.lastState);
+  }
+
+  /** Set the visible clip band (mask only — never relayouts cards). `BoardScene`
+   *  owns and eases the delimiters, calling this each frame. Null = no clip. */
+  setClip(clipX: number | null, clipWidth: number | null): void {
+    if (this.clipX === clipX && this.clipWidth === clipWidth) return;
+    this.clipX = clipX;
+    this.clipWidth = clipWidth;
+    this.updateClip();
   }
 
   private updateClip(): void {
@@ -541,7 +531,6 @@ export class BoardRegion {
         }
       }
     }
-    this.emptyText.visible = state.cards.length === 0;
   }
 
   private applyAttackLunge(state: BattlefieldState): void {
@@ -962,13 +951,14 @@ export class BoardRegion {
   }
 
   /** The zone with its bottom trimmed so it clears the hand fan (local player
-   *  only). Drives the felt, the empty label, and the card grid, so there are
-   *  never grid cells at the hand's row level. */
+   *  only) and its top trimmed so the first card row clears the player bar
+   *  (opponents). Drives the felt, the empty label, and the card grid. */
   private usableZone(): PlayZoneRect {
     const zone = this.zone;
-    const reserve = this.host.getHandReserveBottom();
-    if (reserve <= 0) return zone;
-    return { ...zone, height: Math.max(0, zone.height - reserve) };
+    const bottom = this.host.getHandReserveBottom();
+    const top = this.host.getTopReserve();
+    if (bottom <= 0 && top <= 0) return zone;
+    return { ...zone, y: zone.y + top, height: Math.max(0, zone.height - top - bottom) };
   }
 
   /** The felt fills the FIXED `usableZone` — it is drawn once over the full play
@@ -991,7 +981,6 @@ export class BoardRegion {
 
   redrawBackground(): void {
     this.drawBackground();
-    this.layoutEmptyText();
   }
 
   private drawBackground(): void {
@@ -1012,17 +1001,6 @@ export class BoardRegion {
 
   setPlaymatSettings(settings: PlaymatSettings | undefined): void {
     this.playmat.setSettings(settings);
-  }
-
-  private layoutEmptyText(): void {
-    const felt = this.feltZone();
-    this.emptyText.scale.set(1);
-    const maxWidth = felt.width - 16;
-    if (maxWidth > 0 && this.emptyText.width > maxWidth) {
-      this.emptyText.scale.set(maxWidth / this.emptyText.width);
-    }
-    this.emptyText.x = felt.x + felt.width / 2;
-    this.emptyText.y = felt.y + felt.height / 2;
   }
 
   private zoneCenterX(): number {

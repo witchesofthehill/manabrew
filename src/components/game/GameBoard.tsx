@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import type { BoardTargetBuckets } from "@/lib/boardTargets";
@@ -7,9 +7,9 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
+import type { PlayerBarSpec, PlayerZoneSpec } from "@/pixi/board/PlayerBarLayer";
 import type { BlockingRect } from "@/pixi/board/types";
 import { PLAYMAT_PADDING } from "@/pixi/board/PlaymatLayer";
-import { COLLAPSED_OPPONENT_WIDTH_PX } from "@/pixi/board/boardLayout";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
@@ -407,6 +407,9 @@ export function GameBoard({
       onAssignBlock,
       onUnassignBlock,
       onBlockDragChange: setDragBlockerId,
+      onHoverOpponent: (playerId) => {
+        hoveredOpponentRef.current = playerId;
+      },
     }),
     [
       promptType,
@@ -460,65 +463,24 @@ export function GameBoard({
   const boardRef = useRef<HTMLDivElement>(null);
 
   const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
+  const pixiPlayerBar = usePreferencesStore((s) => s.pixiPlayerBar);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
-  const playerColors = useTheme().gameTheme.playerColors;
+  const gameTheme = useTheme().gameTheme;
+  const playerColors = gameTheme.playerColors;
 
-  const [delimiters, setDelimiters] = useState<number[]>([]);
-  const delimitersProp = delimiters.length === opponents.length - 1 ? delimiters : undefined;
-
-  const boardWidthPx = unifiedLayout?.self?.width ?? 0;
-  const opponentIdsKey = opponents.map((o) => o.id).join(",");
-  useEffect(() => {
-    const n = opponents.length;
-    if (n <= 1 || boardWidthPx <= 0) return;
-    const idx = opponents.findIndex((op) => op.id === activePlayerId);
-    if (idx < 0) return;
-    const banner = COLLAPSED_OPPONENT_WIDTH_PX / boardWidthPx;
-    const focused = Math.max(banner, 1 - (n - 1) * banner);
-    const cuts: number[] = [];
-    let acc = 0;
-    for (let i = 0; i < n - 1; i++) {
-      acc += i === idx ? focused : banner;
-      cuts.push(acc);
-    }
-    setDelimiters(cuts);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePlayerId, opponentIdsKey, boardWidthPx]);
-
-  const onOpponentGripDown = useCallback(
-    (index: number) => (e: React.PointerEvent) => {
-      e.preventDefault();
-      const el = boardRef.current;
-      if (!el) return;
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      const cutCount = opponents.length - 1;
-      const onMove = (ev: PointerEvent) => {
-        const rect = el.getBoundingClientRect();
-        if (!rect.width) return;
-        const minGap = COLLAPSED_OPPONENT_WIDTH_PX / rect.width;
-        const x = (ev.clientX - rect.left) / rect.width;
-        setDelimiters((prev) => {
-          const cuts =
-            prev.length === cutCount
-              ? [...prev]
-              : Array.from({ length: cutCount }, (_, i) => (i + 1) / (cutCount + 1));
-          const lo = (index === 0 ? 0 : cuts[index - 1]!) + minGap;
-          const hi = (index === cutCount - 1 ? 1 : cuts[index + 1]!) - minGap;
-          cuts[index] = Math.max(lo, Math.min(hi, x));
-          return cuts;
-        });
-      };
-      const onUp = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-      };
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-    },
-    [opponents.length],
+  // The opponent whose field auto-expands on their turn, or null (our turn → even
+  // split). The scene owns + eases the delimiters, draws the grips, and applies
+  // the clip — React just sets this target.
+  const focusedOpponentId = useMemo(
+    () => (opponents.some((op) => op.id === activePlayerId) ? activePlayerId : null),
+    [opponents, activePlayerId],
   );
+
+  // Which opponent's battleground the mouse is over (from the scene's hover
+  // detection). Stashed for later use.
+  const hoveredOpponentRef = useRef<string | null>(null);
 
   const gameDecks = useGameStore((s) => s.gameDecks);
   const myAvatar = usePreferencesStore((s) => s.customAvatar);
@@ -535,6 +497,124 @@ export function GameBoard({
     }
     return map;
   }, [myAvatar, playerDecks, me.id, opponents]);
+
+  // Thin Pixi player bars (behind the `pixiPlayerBar` toggle): self bottom-left,
+  // opponents across the top of their fields. When on, the React panels below
+  // are hidden.
+  const playerBarSpecs = useMemo<PlayerBarSpec[]>(() => {
+    const active = gameTheme.activeAction.active;
+    const targetColor = hostileTargeting
+      ? gameTheme.arrow.hostileTarget
+      : gameTheme.arrow.friendlyTarget;
+
+    const zone = (
+      key: string,
+      label: string,
+      cards: CardDto[],
+      onOpen: () => void,
+      highlightColor?: string,
+    ): PlayerZoneSpec => ({ key, label, count: cards.length, onOpen, highlightColor });
+
+    const selfZones: PlayerZoneSpec[] = [];
+    if ((myCommandZone?.length ?? 0) > 0) {
+      selfZones.push(
+        zone(
+          "cmd",
+          "CMD",
+          myCommandZone!,
+          () => onOpenZone("Your Command Zone", myCommandZone!),
+          (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
+        ),
+      );
+    }
+    const gyPlayable =
+      (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
+      !!delveAvailable;
+    const exPlayable = promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id));
+    selfZones.push(
+      zone(
+        "gy",
+        "GY",
+        graveyard,
+        () => onOpenZone("Your Graveyard", graveyard),
+        isTargetingPrompt && graveyardTargetIds.length > 0
+          ? targetColor
+          : gyPlayable
+            ? active
+            : undefined,
+      ),
+      zone(
+        "ex",
+        "EX",
+        exile,
+        () => onOpenZone("Your Exile", exile),
+        isTargetingPrompt && exileTargetIds.length > 0
+          ? targetColor
+          : exPlayable
+            ? active
+            : undefined,
+      ),
+    );
+
+    return [
+      {
+        playerId: me.id,
+        name: me.name,
+        life: me.life,
+        color: playerColors.self,
+        avatarUrl: avatarByPlayerId.get(me.id),
+        isBot: me.isHuman === false,
+        zones: selfZones,
+        isActiveTurn: activePlayerId === me.id,
+        isTargetable: playerIsTargetable(me.id),
+      },
+      ...opponents.map((op, i) => {
+        const oppZones: PlayerZoneSpec[] = [];
+        if ((op.commandZone?.length ?? 0) > 0) {
+          oppZones.push(
+            zone("cmd", "CMD", op.commandZone!, () =>
+              onOpenZone(`${op.name}'s Command Zone`, op.commandZone!),
+            ),
+          );
+        }
+        oppZones.push(
+          zone("gy", "GY", op.graveyard, () => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)),
+          zone("ex", "EX", op.exile, () => onOpenZone(`${op.name}'s Exile`, op.exile)),
+        );
+        return {
+          playerId: op.id,
+          name: op.name,
+          life: op.life,
+          color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
+          avatarUrl: avatarByPlayerId.get(op.id),
+          isBot: op.isHuman === false,
+          zones: oppZones,
+          isActiveTurn: activePlayerId === op.id,
+          isTargetable: playerIsTargetable(op.id),
+        };
+      }),
+    ];
+  }, [
+    me,
+    opponents,
+    playerColors,
+    gameTheme,
+    avatarByPlayerId,
+    activePlayerId,
+    playerIsTargetable,
+    myCommandZone,
+    commandPlayableIds,
+    graveyard,
+    exile,
+    playableIds,
+    promptType,
+    delveAvailable,
+    isTargetingPrompt,
+    hostileTargeting,
+    graveyardTargetIds,
+    exileTargetIds,
+    onOpenZone,
+  ]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const oppState = (cards: CardDto[]): BattlefieldState => ({
@@ -556,12 +636,13 @@ export function GameBoard({
         playmat: myDeckHasPlaymat ? myDeck?.playmat : defaultPlaymat,
         playmatSettings: myDeckHasPlaymat ? myDeck?.playmatSettings : defaultPlaymatSettings,
       },
-      ...opponents.map((op) => ({
+      ...opponents.map((op, i) => ({
         playerId: op.id,
         isLocal: false,
         state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
         playmat: gameDecks[op.id]?.playmat,
         playmatSettings: gameDecks[op.id]?.playmatSettings,
+        color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
       })),
     ];
   }, [
@@ -577,6 +658,7 @@ export function GameBoard({
     gameDecks,
     defaultPlaymat,
     defaultPlaymatSettings,
+    playerColors,
   ]);
 
   const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;
@@ -739,7 +821,9 @@ export function GameBoard({
           combatBlocks={combatAssignmentsAll}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
-          delimiters={delimitersProp}
+          focusedOpponentId={focusedOpponentId}
+          playerBars={playerBarSpecs}
+          showPlayerBars={pixiPlayerBar}
           callbacks={pixiCallbacks}
           externalBlockers={pixiExternalBlockers}
           isDropActive={isOverBattlefield}
@@ -751,7 +835,7 @@ export function GameBoard({
           onLayout={setUnifiedLayout}
         />
       </div>
-      {selfPanel}
+      {!pixiPlayerBar && selfPanel}
       {isFeatureEnabled("debugBattlegroundRects") &&
         unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
           const seat = OPPONENT_SEATS[i] ?? "opponent1";
@@ -770,71 +854,61 @@ export function GameBoard({
             />
           );
         })}
-      {unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
-        const op = opponents.find((o) => o.id === playerId);
-        if (!op) return null;
-        const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
-        const colW = rect.width / opponents.length;
-        const homeX = i * colW;
-        const pad = Math.min(colW, rect.height) * PLAYMAT_PADDING;
-        const panelStyle: React.CSSProperties = {
-          left: homeX + 8 + pad,
-          top: rect.y + 8 + pad,
-          transform: scale,
-          transformOrigin: "top left",
-        };
-        return (
-          <div
-            key={playerId}
-            ref={(el) => setPanelEl(playerId, el)}
-            className="absolute z-30"
-            style={panelStyle}
-          >
-            <PlayerPanel
-              player={op}
-              isOpponent
-              seat={OPPONENT_SEATS[i] ?? "opponent1"}
-              avatarUrl={avatarByPlayerId.get(op.id)}
-              verticalAlign="top"
-              zoneOrientation="horizontal"
-              isActiveTurn={activePlayerId === op.id}
-              isPriorityPlayer={priorityPlayerId === op.id && activePlayerId !== op.id}
-              isTargetable={playerIsTargetable(op.id)}
-              isSelectedTarget={selectedAttackDefenderId === op.id}
-              onTarget={() => onTargetPlayer(op.id)}
-              isFlashing={turnFlashPlayerId === op.id}
-              isMonarch={monarchId === op.id}
-              hasInitiative={initiativeHolderId === op.id}
-              commanders={op.commandZone}
-              graveyard={op.graveyard}
-              exile={op.exile}
-              onOpenCommandZone={
-                (op.commandZone?.length ?? 0) > 0
-                  ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
-                  : undefined
-              }
-              onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
-              onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
-              onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
-              zonePanelOrder={zonePanelOrder}
-            />
-          </div>
-        );
-      })}
+      {!pixiPlayerBar &&
+        unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
+          const op = opponents.find((o) => o.id === playerId);
+          if (!op) return null;
+          const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
+          const colW = rect.width / opponents.length;
+          const homeX = i * colW;
+          const pad = Math.min(colW, rect.height) * PLAYMAT_PADDING;
+          const panelStyle: React.CSSProperties = {
+            left: homeX + 8 + pad,
+            top: rect.y + 8 + pad,
+            transform: scale,
+            transformOrigin: "top left",
+          };
+          return (
+            <div
+              key={playerId}
+              ref={(el) => setPanelEl(playerId, el)}
+              className="absolute z-30"
+              style={panelStyle}
+            >
+              <PlayerPanel
+                player={op}
+                isOpponent
+                seat={OPPONENT_SEATS[i] ?? "opponent1"}
+                avatarUrl={avatarByPlayerId.get(op.id)}
+                verticalAlign="top"
+                zoneOrientation="horizontal"
+                isActiveTurn={activePlayerId === op.id}
+                isPriorityPlayer={priorityPlayerId === op.id && activePlayerId !== op.id}
+                isTargetable={playerIsTargetable(op.id)}
+                isSelectedTarget={selectedAttackDefenderId === op.id}
+                onTarget={() => onTargetPlayer(op.id)}
+                isFlashing={turnFlashPlayerId === op.id}
+                isMonarch={monarchId === op.id}
+                hasInitiative={initiativeHolderId === op.id}
+                commanders={op.commandZone}
+                graveyard={op.graveyard}
+                exile={op.exile}
+                onOpenCommandZone={
+                  (op.commandZone?.length ?? 0) > 0
+                    ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
+                    : undefined
+                }
+                onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
+                onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
+                onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
+                zonePanelOrder={zonePanelOrder}
+              />
+            </div>
+          );
+        })}
       <div className="absolute inset-0 z-40 pointer-events-none">
         <BoardArrowsCanvas sceneRef={sceneRef} />
       </div>
-      {unifiedLayout &&
-        unifiedLayout.opponents.slice(0, -1).map(({ playerId, rect, clipX, clipWidth }, i) => (
-          <div
-            key={`oppgrip-${playerId}`}
-            className="absolute z-50 w-3 cursor-col-resize flex items-center justify-center group"
-            style={{ left: clipX + clipWidth - 6, top: 0, height: rect.height }}
-            onPointerDown={onOpponentGripDown(i)}
-          >
-            <div className="w-[3px] h-16 rounded-full bg-white/25 group-hover:bg-white/50" />
-          </div>
-        ))}
     </div>
   );
 }

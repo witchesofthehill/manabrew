@@ -11,7 +11,7 @@ import {
   getRulings,
 } from "@/api/scryfall";
 import { getPlatformType } from "@/platform";
-import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { loadScryfallImage, clearScryfallImageCache } from "@/lib/scryfallImageSource";
 import type {
   ScryfallCard,
   ScryfallImageUris,
@@ -64,6 +64,7 @@ interface ScryfallState {
   getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
+  clearImageCaches: () => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
 
   prefetchSet: (setCode: string) => Promise<void>;
@@ -446,6 +447,12 @@ export const useScryfallStore = create<ScryfallState>()(
             }
           }
         });
+      },
+      clearImageCaches: () => {
+        for (const tex of textureCache.values()) tex.destroy(true);
+        textureCache.clear();
+        pendingTexturePromises.clear();
+        clearScryfallImageCache();
       },
       init: async () => {
         const sets = await fetchSets();

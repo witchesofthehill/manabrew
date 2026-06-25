@@ -76,6 +76,8 @@ export interface GameCanvasCallbacks {
   onClickCard_Hand?: (card: CardDto) => void;
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
+  /** Fires when the mouse enters/leaves an opponent's battleground (null off-field). */
+  onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
   onTapLandAbility?: (actionId: string) => void;

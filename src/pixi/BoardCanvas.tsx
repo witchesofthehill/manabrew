@@ -7,6 +7,7 @@ installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
+import type { PlayerBarSpec } from "./board/PlayerBarLayer";
 import { battlefieldScaleForFraction } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
@@ -47,6 +48,8 @@ export interface BoardCanvasRegion {
   state: BattlefieldState;
   playmat?: string;
   playmatSettings?: PlaymatSettings;
+  /** Seat colour (hex) for the hover highlight. */
+  color?: string;
 }
 
 /** Canvas-local px == CSS px, so the parent can anchor React panels to each
@@ -59,8 +62,6 @@ export interface BoardCanvasLayout {
     playerId: string;
     rect: PlayZoneRect;
     orientation: RegionOrientation;
-    clipX: number;
-    clipWidth: number;
   }[];
 }
 
@@ -77,7 +78,14 @@ interface BoardCanvasProps {
   /** Fraction of usable height for the local player's bottom region; defaults to
    *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
-  delimiters?: number[];
+  /** The opponent whose field auto-expands (their turn), or `null` for an even
+   *  split (our turn). The scene owns + eases the delimiters; this sets the
+   *  target. */
+  focusedOpponentId?: string | null;
+  /** Thin Pixi player bars over each opponent's field. `showPlayerBars` toggles
+   *  them; `playerBars` carries the per-opponent name/life/colour/state. */
+  playerBars?: PlayerBarSpec[];
+  showPlayerBars?: boolean;
   /** Px the hand fan reserves at the bottom of the self region — subtracted from
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
@@ -110,7 +118,9 @@ export function BoardCanvas({
   phaseStrip,
   phaseStripCallbacks,
   selfHeightFraction,
-  delimiters,
+  focusedOpponentId,
+  playerBars,
+  showPlayerBars,
   selfBottomReserve,
   callbacks,
   externalBlockers,
@@ -201,6 +211,7 @@ export function BoardCanvas({
       onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
       onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
+      onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
       onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
@@ -258,17 +269,15 @@ export function BoardCanvas({
     isLocal: r.isLocal,
     playmat: r.playmat,
     playmatSettings: r.playmatSettings,
+    color: r.color,
   }));
   const playersKey = players
     .map(
       (p) =>
-        `${p.playerId}:${p.isLocal ? 1 : 0}:${p.playmat ? 1 : 0}:${JSON.stringify(p.playmatSettings ?? {})}`,
+        `${p.playerId}:${p.isLocal ? 1 : 0}:${p.playmat ? 1 : 0}:${p.color ?? ""}:${JSON.stringify(p.playmatSettings ?? {})}`,
     )
     .join(",");
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
-  // Stable content key so `reconfigure`'s identity doesn't churn when the parent
-  // re-creates this array prop.
-  const delimitersKey = (delimiters ?? []).join(",");
 
   const reconfigure = useCallback(() => {
     const app = appRef.current;
@@ -277,7 +286,7 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction, delimiters);
+    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction);
     // Subtract the hand-fan reserve before picking the scale so ~3 rows stay
     // visible in every region.
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
@@ -291,12 +300,10 @@ export function BoardCanvas({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,
         orientation: layout.opponents[i]?.orientation ?? "top",
-        clipX: layout.opponents[i]?.clipX ?? 0,
-        clipWidth: layout.opponents[i]?.clipWidth ?? layout.self.width,
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, fraction, selfHeightFraction, delimitersKey, selfBottomReserve]);
+  }, [playersKey, fraction, selfHeightFraction, selfBottomReserve]);
 
   useEffect(() => {
     reconfigure();
@@ -336,6 +343,14 @@ export function BoardCanvas({
       scene.updateRegionState(r.playerId, r.state);
     }
   }, [scene, regions]);
+
+  useEffect(() => {
+    scene?.setOpponentFocus(focusedOpponentId ?? null);
+  }, [scene, focusedOpponentId]);
+
+  useEffect(() => {
+    scene?.setPlayerBars(playerBars ?? [], showPlayerBars ?? false);
+  }, [scene, playerBars, showPlayerBars]);
 
   useEffect(() => {
     scene?.updateHand(hand);

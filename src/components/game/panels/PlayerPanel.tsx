@@ -380,6 +380,7 @@ export function PlayerPanel({
     </div>
   );
 
+  return null;
   // Split: avatar + mana hug the far left, zone tiles hug the far right, so
   // the centered hand fan sits in the gap between them.
   if (split) {

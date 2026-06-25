@@ -114,6 +114,9 @@ export interface RegionHost {
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
   getHandReserveBottom(): number;
+  /** Px to trim off the top of this region's grid so the first card row clears
+   *  the Pixi player bar (opponents when the bar is on; 0 otherwise). */
+  getTopReserve(): number;
   /** Spawn a rising/fading number at a canvas-space point (combat damage). */
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   isDestroyed(): boolean;

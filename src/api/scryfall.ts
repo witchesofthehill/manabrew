@@ -8,7 +8,6 @@ import {
   type ScryfallSet,
 } from "@/types/scryfall";
 import { platformFetch } from "@/lib/platformFetch";
-import { getPlatformType } from "@/platform";
 import { loadScryfallImage } from "@/lib/scryfallImageSource";
 import {
   enqueueCardLookup,
@@ -212,11 +211,9 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
 }
 
 export async function fetchImageElement(url: string): Promise<HTMLImageElement> {
-  const onDesktop = getPlatformType() === "tauri";
-  const src = onDesktop ? await loadScryfallImage(url) : url;
+  const src = await loadScryfallImage(url);
   return new Promise((resolve, reject) => {
     const img = new Image();
-    if (!onDesktop) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
     img.src = src;

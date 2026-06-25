@@ -38,6 +38,9 @@ interface PreferencesState {
   battlefieldAutoSort: boolean;
   setBattlefieldAutoSort: (value: boolean) => void;
 
+  pixiPlayerBar: boolean;
+  setPixiPlayerBar: (value: boolean) => void;
+
   battlefieldCardScale: number;
   setBattlefieldCardScale: (fraction: number) => void;
 
@@ -78,6 +81,7 @@ const PERSISTED_PREFERENCE_KEYS = [
   "defaultPlaymatSettings",
   "zonePanelOrder",
   "battlefieldAutoSort",
+  "pixiPlayerBar",
   "battlefieldCardScale",
   "battlefieldCardStyle",
   "inGameAnimations",
@@ -140,6 +144,9 @@ export const usePreferencesStore = create<PreferencesState>()(
 
           battlefieldAutoSort: false,
           setBattlefieldAutoSort: (battlefieldAutoSort) => set({ battlefieldAutoSort }),
+
+          pixiPlayerBar: false,
+          setPixiPlayerBar: (pixiPlayerBar) => set({ pixiPlayerBar }),
 
           battlefieldCardScale: 0.5,
           setBattlefieldCardScale: (battlefieldCardScale) =>

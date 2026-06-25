@@ -381,31 +381,36 @@ function DraggableCardGrid({
   card,
   onMoreInfo,
   standalone,
+  onPick,
   onHover,
   onLeave,
 }: {
   card: DeckCard;
   onMoreInfo: () => void;
   standalone?: boolean;
+  onPick?: () => void;
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const dragDisabled = standalone || !!onPick;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `search-${card.id}`,
     data: { card },
-    disabled: standalone,
+    disabled: dragDisabled,
   });
 
   return (
     <div
-      ref={standalone ? undefined : setNodeRef}
-      {...(standalone ? {} : { ...listeners, ...attributes })}
+      ref={dragDisabled ? undefined : setNodeRef}
+      {...(dragDisabled ? {} : { ...listeners, ...attributes })}
+      onClick={onPick}
       onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
       onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
       onMouseLeave={onLeave}
       className={cn(
         "relative group",
-        !standalone && "cursor-grab active:cursor-grabbing",
+        onPick && "cursor-pointer",
+        !dragDisabled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
       )}
     >
@@ -434,33 +439,38 @@ function DraggableCardRow({
   card,
   onMoreInfo,
   standalone,
+  onPick,
   onHover,
   onLeave,
 }: {
   card: DeckCard;
   onMoreInfo: () => void;
   standalone?: boolean;
+  onPick?: () => void;
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const dragDisabled = standalone || !!onPick;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `search-${card.id}`,
     data: { card },
-    disabled: standalone,
+    disabled: dragDisabled,
   });
 
   const typeStr = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
 
   return (
     <div
-      ref={standalone ? undefined : setNodeRef}
-      {...(standalone ? {} : { ...listeners, ...attributes })}
+      ref={dragDisabled ? undefined : setNodeRef}
+      {...(dragDisabled ? {} : { ...listeners, ...attributes })}
+      onClick={onPick}
       onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
       onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
       onMouseLeave={onLeave}
       className={cn(
         "flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 group border-b border-border/30 last:border-0",
-        !standalone && "cursor-grab active:cursor-grabbing",
+        onPick && "cursor-pointer",
+        !dragDisabled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
       )}
     >
@@ -506,9 +516,18 @@ interface CardSearchProps {
   previewSlot?: HTMLElement | null;
   /** Bump to focus the search box (used by the deck editor's `/` shortcut). */
   focusSignal?: number;
+  /** Pick mode: when set, clicking a card calls this instead of drag-to-add
+   *  (used by the playmat editor to choose a card image). Drag is disabled. */
+  onPickCard?: (card: DeckCard) => void;
 }
 
-export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: CardSearchProps) {
+export function CardSearch({
+  standalone,
+  onClose,
+  previewSlot,
+  focusSignal,
+  onPickCard,
+}: CardSearchProps) {
   const preview = useCardPreview();
   const [text, setText] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
@@ -1053,6 +1072,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                     card={card}
                     onMoreInfo={() => setDetailCard(rawCards[i])}
                     standalone={standalone}
+                    onPick={onPickCard ? () => onPickCard(card) : undefined}
                     onHover={(c, e) =>
                       preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
                     }
@@ -1069,6 +1089,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
                   card={card}
                   onMoreInfo={() => setDetailCard(rawCards[i])}
                   standalone={standalone}
+                  onPick={onPickCard ? () => onPickCard(card) : undefined}
                   onHover={(c, e) =>
                     preview.handleMouseEnter(c as unknown as CardDto, e, { useDelay: true })
                   }

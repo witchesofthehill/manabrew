@@ -7,7 +7,8 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import type { PlayerBarSpec, PlayerZoneSpec } from "@/pixi/board/PlayerBarLayer";
+import type { PlayerBarSpec } from "@/pixi/board/PlayerBarLayer";
+import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
 import { PLAYMAT_PADDING } from "@/pixi/board/PlaymatLayer";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -501,62 +502,8 @@ export function GameBoard({
   // Thin Pixi player bars (behind the `pixiPlayerBar` toggle): self bottom-left,
   // opponents across the top of their fields. When on, the React panels below
   // are hidden.
-  const playerBarSpecs = useMemo<PlayerBarSpec[]>(() => {
-    const active = gameTheme.activeAction.active;
-    const targetColor = hostileTargeting
-      ? gameTheme.arrow.hostileTarget
-      : gameTheme.arrow.friendlyTarget;
-
-    const zone = (
-      key: string,
-      label: string,
-      cards: CardDto[],
-      onOpen: () => void,
-      highlightColor?: string,
-    ): PlayerZoneSpec => ({ key, label, count: cards.length, onOpen, highlightColor });
-
-    const selfZones: PlayerZoneSpec[] = [];
-    if ((myCommandZone?.length ?? 0) > 0) {
-      selfZones.push(
-        zone(
-          "cmd",
-          "CMD",
-          myCommandZone!,
-          () => onOpenZone("Your Command Zone", myCommandZone!),
-          (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
-        ),
-      );
-    }
-    const gyPlayable =
-      (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
-      !!delveAvailable;
-    const exPlayable = promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id));
-    selfZones.push(
-      zone(
-        "gy",
-        "GY",
-        graveyard,
-        () => onOpenZone("Your Graveyard", graveyard),
-        isTargetingPrompt && graveyardTargetIds.length > 0
-          ? targetColor
-          : gyPlayable
-            ? active
-            : undefined,
-      ),
-      zone(
-        "ex",
-        "EX",
-        exile,
-        () => onOpenZone("Your Exile", exile),
-        isTargetingPrompt && exileTargetIds.length > 0
-          ? targetColor
-          : exPlayable
-            ? active
-            : undefined,
-      ),
-    );
-
-    return [
+  const playerBarSpecs = useMemo<PlayerBarSpec[]>(
+    () => [
       {
         playerId: me.id,
         name: me.name,
@@ -564,44 +511,113 @@ export function GameBoard({
         color: playerColors.self,
         avatarUrl: avatarByPlayerId.get(me.id),
         isBot: me.isHuman === false,
-        zones: selfZones,
         isActiveTurn: activePlayerId === me.id,
         isTargetable: playerIsTargetable(me.id),
       },
-      ...opponents.map((op, i) => {
-        const oppZones: PlayerZoneSpec[] = [];
-        if ((op.commandZone?.length ?? 0) > 0) {
-          oppZones.push(
-            zone("cmd", "CMD", op.commandZone!, () =>
-              onOpenZone(`${op.name}'s Command Zone`, op.commandZone!),
-            ),
-          );
-        }
-        oppZones.push(
-          zone("gy", "GY", op.graveyard, () => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)),
-          zone("ex", "EX", op.exile, () => onOpenZone(`${op.name}'s Exile`, op.exile)),
-        );
-        return {
-          playerId: op.id,
-          name: op.name,
-          life: op.life,
-          color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
-          avatarUrl: avatarByPlayerId.get(op.id),
-          isBot: op.isHuman === false,
-          zones: oppZones,
-          isActiveTurn: activePlayerId === op.id,
-          isTargetable: playerIsTargetable(op.id),
-        };
-      }),
+      ...opponents.map((op, i) => ({
+        playerId: op.id,
+        name: op.name,
+        life: op.life,
+        color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
+        avatarUrl: avatarByPlayerId.get(op.id),
+        isBot: op.isHuman === false,
+        isActiveTurn: activePlayerId === op.id,
+        isTargetable: playerIsTargetable(op.id),
+      })),
+    ],
+    [me, opponents, playerColors, avatarByPlayerId, activePlayerId, playerIsTargetable],
+  );
+
+  // On-grid zone tiles (deck / graveyard / exile / command) per player — same
+  // data + open/highlight behaviour as the panel, rendered on the battlefield.
+  const zoneTilesByPlayer = useMemo<Record<string, ZoneTileSpec[]>>(() => {
+    const active = gameTheme.activeAction.active;
+    const targetColor = hostileTargeting
+      ? gameTheme.arrow.hostileTarget
+      : gameTheme.arrow.friendlyTarget;
+    const top = (cards: CardDto[]) => (cards.length > 0 ? cards[cards.length - 1] : undefined);
+
+    const gyPlayable =
+      (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
+      !!delveAvailable;
+    const exPlayable = promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id));
+
+    const self: ZoneTileSpec[] = [
+      { key: "lib", label: "Lib", count: me.libraryCount, back: true },
+      {
+        key: "gy",
+        label: "GY",
+        count: graveyard.length,
+        topCard: top(graveyard),
+        onOpen: () => onOpenZone("Your Graveyard", graveyard),
+        highlightColor:
+          isTargetingPrompt && graveyardTargetIds.length > 0
+            ? targetColor
+            : gyPlayable
+              ? active
+              : undefined,
+      },
+      {
+        key: "ex",
+        label: "EX",
+        count: exile.length,
+        topCard: top(exile),
+        onOpen: () => onOpenZone("Your Exile", exile),
+        highlightColor:
+          isTargetingPrompt && exileTargetIds.length > 0
+            ? targetColor
+            : exPlayable
+              ? active
+              : undefined,
+      },
     ];
+    if ((myCommandZone?.length ?? 0) > 0) {
+      self.push({
+        key: "cmd",
+        label: "CMD",
+        count: myCommandZone!.length,
+        topCard: top(myCommandZone!),
+        onOpen: () => onOpenZone("Your Command Zone", myCommandZone!),
+        highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
+      });
+    }
+
+    const byPlayer: Record<string, ZoneTileSpec[]> = { [me.id]: self };
+    for (const op of opponents) {
+      const tiles: ZoneTileSpec[] = [
+        { key: "lib", label: "Lib", count: op.libraryCount, back: true },
+        {
+          key: "gy",
+          label: "GY",
+          count: op.graveyard.length,
+          topCard: top(op.graveyard),
+          onOpen: () => onOpenZone(`${op.name}'s Graveyard`, op.graveyard),
+        },
+        {
+          key: "ex",
+          label: "EX",
+          count: op.exile.length,
+          topCard: top(op.exile),
+          onOpen: () => onOpenZone(`${op.name}'s Exile`, op.exile),
+        },
+      ];
+      if ((op.commandZone?.length ?? 0) > 0) {
+        tiles.push({
+          key: "cmd",
+          label: "CMD",
+          count: op.commandZone.length,
+          topCard: top(op.commandZone),
+          onOpen: () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone),
+        });
+      }
+      byPlayer[op.id] = tiles;
+    }
+    return byPlayer;
   }, [
-    me,
+    me.id,
+    me.libraryCount,
     opponents,
-    playerColors,
     gameTheme,
-    avatarByPlayerId,
-    activePlayerId,
-    playerIsTargetable,
     myCommandZone,
     commandPlayableIds,
     graveyard,
@@ -824,6 +840,7 @@ export function GameBoard({
           focusedOpponentId={focusedOpponentId}
           playerBars={playerBarSpecs}
           showPlayerBars={pixiPlayerBar}
+          zoneTiles={zoneTilesByPlayer}
           callbacks={pixiCallbacks}
           externalBlockers={pixiExternalBlockers}
           isDropActive={isOverBattlefield}

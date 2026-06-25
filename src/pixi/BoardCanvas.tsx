@@ -7,7 +7,12 @@ installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
-import type { PlayerBarSpec } from "./board/PlayerBarLayer";
+import {
+  type PlayerBarSpec,
+  PLAYER_BAR_HEIGHT_PX,
+  PLAYER_BAR_TOP_MARGIN_PX,
+} from "./board/PlayerBarLayer";
+import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldScaleForFraction } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
@@ -86,6 +91,8 @@ interface BoardCanvasProps {
    *  them; `playerBars` carries the per-opponent name/life/colour/state. */
   playerBars?: PlayerBarSpec[];
   showPlayerBars?: boolean;
+  /** On-grid zone tiles (deck/graveyard/exile/command) per player id. */
+  zoneTiles?: Record<string, ZoneTileSpec[]>;
   /** Px the hand fan reserves at the bottom of the self region — subtracted from
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
@@ -121,6 +128,7 @@ export function BoardCanvas({
   focusedOpponentId,
   playerBars,
   showPlayerBars,
+  zoneTiles,
   selfBottomReserve,
   callbacks,
   externalBlockers,
@@ -287,10 +295,15 @@ export function BoardCanvas({
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
     const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction);
-    // Subtract the hand-fan reserve before picking the scale so ~3 rows stay
-    // visible in every region.
+    // Subtract each region's reserved bands before picking the scale so ~3 rows
+    // stay visible in every region: the hand fan for self, the player bar (when
+    // shown) for opponents — otherwise the opponent grid loses a row to the bar.
+    const oppTopReserve = showPlayerBars ? PLAYER_BAR_HEIGHT_PX + PLAYER_BAR_TOP_MARGIN_PX * 2 : 0;
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    const minHeight = Math.min(selfUsable, ...layout.opponents.map((o) => o.rect.height));
+    const minHeight = Math.min(
+      selfUsable,
+      ...layout.opponents.map((o) => Math.max(1, o.rect.height - oppTopReserve)),
+    );
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
     s.configure(players, layout, cardScale);
     onLayoutRef.current?.({
@@ -303,7 +316,7 @@ export function BoardCanvas({
       })),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playersKey, fraction, selfHeightFraction, selfBottomReserve]);
+  }, [playersKey, fraction, selfHeightFraction, selfBottomReserve, showPlayerBars]);
 
   useEffect(() => {
     reconfigure();
@@ -351,6 +364,10 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setPlayerBars(playerBars ?? [], showPlayerBars ?? false);
   }, [scene, playerBars, showPlayerBars]);
+
+  useEffect(() => {
+    scene?.setZoneTiles(zoneTiles ?? {});
+  }, [scene, zoneTiles]);
 
   useEffect(() => {
     scene?.updateHand(hand);

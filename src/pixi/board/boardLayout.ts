@@ -50,17 +50,18 @@ export function computeBoardLayout(
   const dividerY = topHeight + band / 2;
 
   // Each opponent field's `rect` is the FIXED play area — grid and card positions
-  // are computed from it and never move. Every field is `L - n·x` wide (canvas
-  // minus one un-collapsible banner per field) and the fields are staggered by a
-  // constant step so the `n` of them span the whole canvas. The visible clip band
-  // per field (the delimiters) is owned and eased by `BoardScene`.
-  const fieldWidth = Math.max(1, width - count * COLLAPSED_OPPONENT_WIDTH_PX);
-  const step = count > 1 ? (width - fieldWidth) / (count - 1) : 0;
-
+  // are computed from it and never move. Field `i` starts at `i` collapsed-banner
+  // widths from the left and extends to the canvas right edge, so its rect equals
+  // its maximally-expanded clip band (every field left of it collapsed to a
+  // banner). Because a delimiter can never push field `i`'s band-left below
+  // `i · COLLAPSED` (the grip clamp uses that as `minGap`), the band is always a
+  // subset of the rect — the felt/grid/cards align with the field's visible left
+  // edge when expanded, never leaving a gap. The clip band is eased by `BoardScene`.
   const opponents: OpponentRegion[] = [];
   for (let i = 0; i < count; i++) {
+    const x = i * COLLAPSED_OPPONENT_WIDTH_PX;
     opponents.push({
-      rect: { x: Math.round(i * step), y: 0, width: fieldWidth, height: topHeight },
+      rect: { x, y: 0, width: Math.max(1, width - x), height: topHeight },
       orientation: "top",
     });
   }

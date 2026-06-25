@@ -76,11 +76,16 @@ export const battlefieldScaleForFraction = (usableH: number, fraction: number): 
  */
 const CELL_BREATHING_FRAC = 0.12;
 
+/** Small left inset for left-aligned grids so cards/zones don't kiss the
+ *  battleground's left border. */
+const LEFT_ALIGN_PAD_PX = 6;
+
 export const computeGridLayout = (
   zone: PlayZoneRect,
   leftReserved: number,
   blockers: GridBlocker[],
   cardScale: number,
+  leftAlign = false,
 ): GridLayoutInfo => {
   const cardW = CARD_W * cardScale;
   const cardH = CARD_H * cardScale;
@@ -95,9 +100,10 @@ export const computeGridLayout = (
   const usableW = Math.max(cardW, zone.width - leftPad);
   const usableH = Math.max(cardH, zone.height);
   let cols = Math.max(1, Math.floor((usableW + GAP) / cellW));
-  // Force odd column count so there's always a true center column,
-  // keeping the first card aligned with the board's visual center.
-  if (cols > 1 && cols % 2 === 0) cols -= 1;
+  // Force odd column count so there's always a true center column, keeping the
+  // first card aligned with the board's visual center. Left-aligned grids have
+  // no center to preserve, so they keep every column.
+  if (!leftAlign && cols > 1 && cols % 2 === 0) cols -= 1;
   const rows = Math.max(1, Math.floor((usableH + GAP) / cellH));
 
   const gridH = rows * cellH - GAP;
@@ -106,8 +112,12 @@ export const computeGridLayout = (
   // is (cols-1)/2 since cols is always odd.
   const zoneCenterX = zone.x + zone.width / 2;
   const midCol = (cols - 1) / 2;
-  // Card center for midCol: originX + midCol * cellW + cardW/2 = zoneCenterX
-  const originX = zoneCenterX - midCol * cellW - cardW / 2;
+  // Card center for midCol: originX + midCol * cellW + cardW/2 = zoneCenterX.
+  // Left-aligned grids (on-grid zone tiles) instead start flush at the play
+  // area's left edge so the zones hug the battleground border.
+  const originX = leftAlign
+    ? zone.x + leftPad + LEFT_ALIGN_PAD_PX
+    : zoneCenterX - midCol * cellW - cardW / 2;
   const topMargin = Math.max(0, (usableH - gridH) / 2);
   const originY = zone.y + topMargin;
 

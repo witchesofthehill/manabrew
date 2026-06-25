@@ -1,11 +1,13 @@
 import {
   Application,
   Container,
+  FillGradient,
   Graphics,
   Rectangle,
   Text,
   type FederatedPointerEvent,
 } from "pixi.js";
+import { withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import {
   CardSprite,
@@ -50,6 +52,7 @@ import type {
   ScreenPos,
 } from "../types";
 import { BoardRegion } from "./BoardRegion";
+import type { ZoneTileSpec } from "./BoardZoneTiles";
 import {
   PlayerBarLayer,
   PLAYER_BAR_HEIGHT_PX,
@@ -95,11 +98,26 @@ export interface BoardPlayerSpec {
 const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
 const GRIP_HIT_WIDTH_PX = 16;
-const GRIP_BAR_WIDTH_PX = 4;
-/** Battleground outline: each opponent's clip band is stroked in their seat
- *  colour so the fields read as distinct rectangles. */
-const FIELD_BORDER_WIDTH_PX = 2;
-const FIELD_BORDER_ALPHA = 0.5;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
+ * fade beside it share ONE colour and ONE peak opacity, so the fog merges
+ * seamlessly into the bar.
+ *   - color       bar + fog colour, any hex string (e.g. "#000000", "#1b1030").
+ *   - alpha       opacity of the bar AND the fog at its darkest (right at the
+ *                 divider). The fog is always this dark next to the divider, no
+ *                 matter how collapsed the field is.
+ *   - fadeWidthPx how far the fog leaks into a fully-collapsed field. Scales
+ *                 DOWN with expansion (0 once a field is fully expanded), so it
+ *                 controls the spread only — never the darkness at the divider.
+ *   - barWidthPx  thickness of the divider bar.
+ * ───────────────────────────────────────────────────────────────────────── */
+const DIVIDER = {
+  color: "#000000",
+  alpha: 1,
+  fadeWidthPx: 26,
+  barWidthPx: 4,
+} as const;
 
 /** `count - 1` evenly-spaced delimiter positions (fractions of width). */
 function evenDelimiters(count: number): number[] {
@@ -166,7 +184,6 @@ export class BoardScene {
   private boardWidth = 0;
   private topHeight = 0;
   private opponentIds: string[] = [];
-  private opponentColors = new Map<string, number>();
   private delimCurrent: number[] = [];
   private delimTarget: number[] = [];
   private focusPlayerId: string | null = null;
@@ -174,7 +191,9 @@ export class BoardScene {
   private hoveredOpponentId: string | null = null;
   private gripLayer: Container;
   private gripHandles: Graphics[] = [];
-  private framesGfx: Graphics;
+  private fogGfx: Graphics;
+  private fogGradRight: FillGradient | null = null;
+  private fogGradLeft: FillGradient | null = null;
   private highlightGfx: Graphics;
   private playerBars: PlayerBarLayer;
   private barsEnabled = false;
@@ -203,12 +222,12 @@ export class BoardScene {
     this.stripBackgroundGfx.zIndex = 5;
     this.root.addChild(this.stripBackgroundGfx);
 
-    // Field outlines sit above the regions; the hover highlight above that;
-    // the grip handles on top.
-    this.framesGfx = new Graphics();
-    this.framesGfx.eventMode = "none";
-    this.framesGfx.zIndex = 5400;
-    this.root.addChild(this.framesGfx);
+    // Delimiter fog veils the field content (cards/zones) but sits BELOW the
+    // player bars, so a collapsed field's avatar stays clear of the fog.
+    this.fogGfx = new Graphics();
+    this.fogGfx.eventMode = "none";
+    this.fogGfx.zIndex = 5550;
+    this.root.addChild(this.fogGfx);
 
     this.highlightGfx = new Graphics();
     this.highlightGfx.eventMode = "none";
@@ -305,9 +324,6 @@ export class BoardScene {
       oppIds.length === this.opponentIds.length &&
       oppIds.every((id, i) => id === this.opponentIds[i]);
     this.opponentIds = oppIds;
-    this.opponentColors = new Map(
-      players.filter((p) => !p.isLocal && p.color).map((p) => [p.playerId, hexToNum(p.color!)]),
-    );
     if (!sameOpponents || this.delimCurrent.length !== oppIds.length - 1) {
       this.delimCurrent = evenDelimiters(oppIds.length);
       this.rebuildGripHandles();
@@ -413,9 +429,13 @@ export class BoardScene {
         );
       }
     }
-    this.drawFrames();
+    this.drawDelimiterFog();
     this.layoutGripHandles();
     this.drawHoverHighlight();
+  }
+
+  setZoneTiles(byPlayer: Record<string, ZoneTileSpec[]>): void {
+    for (const [id, rec] of this.regions) rec.region.setZoneTiles(byPlayer[id] ?? []);
   }
 
   private layoutSelfBar(): void {
@@ -452,22 +472,67 @@ export class BoardScene {
     this.applyDelimiters();
   }
 
-  /** Outline each opponent's clip band in its seat colour so the battlegrounds
-   *  read as distinct rectangles. */
-  private drawFrames(): void {
-    const g = this.framesGfx;
+  /** Bleed a fog-of-war fade from each delimiter into its adjacent fields. The
+   *  intensity tracks how far each field is from FULLY expanded (a linear ratio
+   *  of its width between collapsed and max), so the fog eases smoothly in and
+   *  out as a field opens/closes and vanishes entirely once a field is focused. */
+  private drawDelimiterFog(): void {
+    const g = this.fogGfx;
     g.clear();
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     if (n <= 1 || W <= 0) return;
-    const neutral = hexToNum(this.theme.gameTheme.canvas.neutral);
-    for (let i = 0; i < n; i++) {
-      const left = Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
-      const right = Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
-      const color = this.opponentColors.get(this.opponentIds[i]!) ?? neutral;
-      g.roundRect(left, 0, Math.max(0, right - left), this.topHeight, TABLE_RADIUS);
-      g.stroke({ color, width: FIELD_BORDER_WIDTH_PX, alpha: FIELD_BORDER_ALPHA });
+    // Reach the middle horizontal line; the phase strip (drawn on top) hides the
+    // end so it tucks under the phase bar.
+    const h = this.topHeight + STRIP_BAND_PX / 2;
+    const C = COLLAPSED_OPPONENT_WIDTH_PX;
+    const leftEdge = (i: number) => Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
+    const rightEdge = (i: number) => Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
+    const widthOf = (i: number) => rightEdge(i) - leftEdge(i);
+
+    // 1 when the field is collapsed to a banner, 0 when fully expanded.
+    const span = W - n * C;
+    const fogOf = (i: number) =>
+      span <= 0 ? 0 : Math.min(1, Math.max(0, 1 - (widthOf(i) - C) / span));
+
+    const grad = this.fogGradients();
+    // Both gradients hit full DIVIDER.alpha at the divider, so the two sides meet
+    // there at the same darkness — no seam — and match the bar. Intensity scales
+    // only the leak width, never the peak.
+    for (let d = 0; d < n - 1; d++) {
+      const x = Math.round(this.delimCurrent[d]! * W);
+      const wL = DIVIDER.fadeWidthPx * fogOf(d);
+      const wR = DIVIDER.fadeWidthPx * fogOf(d + 1);
+      if (wR >= 1) g.rect(x, 0, wR, h).fill(grad.right);
+      if (wL >= 1) g.rect(x - wL, 0, wL, h).fill(grad.left);
     }
+  }
+
+  /** Horizontal gradients (divider colour, full `DIVIDER.alpha` at the divider →
+   *  clear into the field), built once and reused. The `local` texture space maps
+   *  each gradient to its own rect, so one pair works at any position/width. */
+  private fogGradients(): { left: FillGradient; right: FillGradient } {
+    if (!this.fogGradRight || !this.fogGradLeft) {
+      const solid = withAlpha(DIVIDER.color, DIVIDER.alpha);
+      const clear = withAlpha(DIVIDER.color, 0);
+      const linear = (stops: { offset: number; color: string }[]) =>
+        new FillGradient({
+          type: "linear",
+          start: { x: 0, y: 0 },
+          end: { x: 1, y: 0 },
+          textureSpace: "local",
+          colorStops: stops,
+        });
+      this.fogGradRight = linear([
+        { offset: 0, color: solid },
+        { offset: 1, color: clear },
+      ]);
+      this.fogGradLeft = linear([
+        { offset: 0, color: clear },
+        { offset: 1, color: solid },
+      ]);
+    }
+    return { left: this.fogGradLeft, right: this.fogGradRight };
   }
 
   private rebuildGripHandles(): void {
@@ -492,15 +557,16 @@ export class BoardScene {
 
   private layoutGripHandles(): void {
     const W = this.boardWidth;
-    const h = this.topHeight;
+    // Reach the middle horizontal line and tuck under the phase bar.
+    const h = this.topHeight + STRIP_BAND_PX / 2;
+    const color = hexToNum(DIVIDER.color);
     for (let i = 0; i < this.gripHandles.length; i++) {
       const handle = this.gripHandles[i]!;
       handle.position.set((this.delimCurrent[i] ?? (i + 1) / (this.gripHandles.length + 1)) * W, 0);
       handle.hitArea = new Rectangle(-GRIP_HIT_WIDTH_PX / 2, 0, GRIP_HIT_WIDTH_PX, h);
       handle.clear();
-      // Full-height divider bar — the visible shared edge between the two fields.
-      handle.roundRect(-GRIP_BAR_WIDTH_PX / 2, 0, GRIP_BAR_WIDTH_PX, h, GRIP_BAR_WIDTH_PX / 2);
-      handle.fill({ color: 0xffffff, alpha: 0.45 });
+      handle.roundRect(-DIVIDER.barWidthPx / 2, 0, DIVIDER.barWidthPx, h, DIVIDER.barWidthPx / 2);
+      handle.fill({ color, alpha: DIVIDER.alpha });
     }
   }
 
@@ -542,18 +608,8 @@ export class BoardScene {
   }
 
   private drawHoverHighlight(): void {
-    const g = this.highlightGfx;
-    g.clear();
-    const id = this.hoveredOpponentId;
-    const i = id ? this.opponentIds.indexOf(id) : -1;
-    if (i < 0 || this.boardWidth <= 0) return;
-    const W = this.boardWidth;
-    const left = Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
-    const right = Math.round((i === this.opponentIds.length - 1 ? 1 : this.delimCurrent[i]!) * W);
-    const color = this.opponentColors.get(id!) ?? hexToNum(this.theme.gameTheme.cardRing);
-    g.roundRect(left, 0, Math.max(0, right - left), this.topHeight, TABLE_RADIUS);
-    g.fill({ color, alpha: 0.12 });
-    g.stroke({ color, width: 2, alpha: 0.7 });
+    // Hover still drives focus, but no coloured field tint is drawn.
+    this.highlightGfx.clear();
   }
 
   private setupLocalControllers(region: BoardRegion): void {
@@ -794,6 +850,7 @@ export class BoardScene {
   setTheme(theme: Theme): void {
     if (this.destroyed) return;
     this.theme = theme;
+    this.fogGradRight = this.fogGradLeft = null;
     setCardSpriteTheme(theme);
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);

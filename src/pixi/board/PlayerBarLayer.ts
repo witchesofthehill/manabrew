@@ -1,72 +1,29 @@
-import {
-  Assets,
-  Container,
-  Graphics,
-  Rectangle,
-  Sprite,
-  Text,
-  Texture,
-  type FederatedPointerEvent,
-  type TextStyle,
-} from "pixi.js";
+import { Assets, Container, Graphics, Sprite, Text, Texture, type TextStyle } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { darken } from "@/themes/gameTheme";
 import { hexToNum } from "../colorUtils";
 import { gameIconTexture } from "../gameIconCache";
 import { TABLE_RADIUS } from "../constants";
 
-/** Game-icon shown inside the avatar circle for bot players. */
 const BOT_ICON_NAME = "robot-antennas";
-
-/** Height, in px, of the opponent horizontal player bar. */
-export const PLAYER_BAR_HEIGHT_PX = 44;
-/** The self bar is taller (more space at the bottom) → a bigger avatar. */
+export const PLAYER_BAR_HEIGHT_PX = 34;
 export const SELF_PLAYER_BAR_HEIGHT_PX = 60;
-/** Gap above the opponent bar so it doesn't touch the screen edge. */
 export const PLAYER_BAR_TOP_MARGIN_PX = 8;
-/** Gap left and right of the bar within its field band. */
 export const PLAYER_BAR_SIDE_MARGIN_PX = 10;
-/** A bar never grows past this — a focused field is much wider than its bar. */
-export const PLAYER_BAR_MAX_WIDTH_PX = 360;
-/** Height of the collapsed column ("sphere") form. */
+export const PLAYER_BAR_MAX_WIDTH_PX = 240;
 export const PLAYER_BAR_COLUMN_HEIGHT_PX = 124;
 const BAR_PAD_PX = 4;
 const GAP_PX = 6;
-const CHIP_RADIUS = 6;
-
-/** Glyph per zone tile, keyed by `PlayerZoneSpec.key`. */
-const ZONE_ICONS: Record<string, string> = { cmd: "♛", gy: "✝", ex: "☼", lib: "▤" };
-
-/** A zone tile (graveyard / exile / command) shown on the expanded bar. */
-export interface PlayerZoneSpec {
-  key: string;
-  label: string;
-  count: number;
-  /** Set when the tile should pulse/outline (playable or targetable); the colour
-   *  is the highlight. Undefined = no highlight. */
-  highlightColor?: string;
-  onOpen?: () => void;
-}
 
 export interface PlayerBarSpec {
   playerId: string;
   name: string;
   life: number;
-  /** Seat colour (hex) used for the accent border. */
   color: string;
   avatarUrl?: string;
   isBot: boolean;
-  zones: PlayerZoneSpec[];
   isActiveTurn: boolean;
   isTargetable: boolean;
-}
-
-interface ZoneChip {
-  container: Container;
-  bg: Graphics;
-  text: Text;
-  spec: PlayerZoneSpec;
-  hovered: boolean;
 }
 
 interface Bar {
@@ -83,8 +40,6 @@ interface Bar {
   isBot: boolean;
   heart: Text;
   life: Text;
-  chipRow: Container;
-  chips: ZoneChip[];
   spec: PlayerBarSpec;
   width: number;
   height: number;
@@ -119,7 +74,6 @@ export class PlayerBarLayer {
       const bar = this.bars.get(spec.playerId) ?? this.createBar(spec);
       bar.spec = spec;
       this.updateAvatar(bar, spec.avatarUrl);
-      this.rebuildChips(bar);
       this.redraw(bar);
     }
     for (const [id, bar] of [...this.bars]) {
@@ -181,47 +135,6 @@ export class PlayerBarLayer {
       .catch(() => {});
   }
 
-  private rebuildChips(bar: Bar): void {
-    const want = bar.spec.zones;
-    // Only rebuild the chip set when the zone identities change; otherwise keep
-    // the sprites (cheap) and just refresh content in redraw.
-    const sameSet =
-      bar.chips.length === want.length && bar.chips.every((c, i) => c.spec.key === want[i]!.key);
-    if (!sameSet) {
-      for (const chip of bar.chips) {
-        bar.chipRow.removeChild(chip.container);
-        chip.container.destroy({ children: true });
-      }
-      bar.chips = want.map((spec) => this.createChip(bar, spec));
-      for (const chip of bar.chips) bar.chipRow.addChild(chip.container);
-    }
-    bar.chips.forEach((chip, i) => (chip.spec = want[i]!));
-  }
-
-  private createChip(bar: Bar, spec: PlayerZoneSpec): ZoneChip {
-    const container = new Container();
-    container.eventMode = "static";
-    container.cursor = "pointer";
-    container.on("pointertap", (e: FederatedPointerEvent) => {
-      e.stopPropagation();
-      chip.spec.onOpen?.();
-    });
-    container.on("pointerover", () => {
-      chip.hovered = true;
-      this.redraw(bar);
-    });
-    container.on("pointerout", () => {
-      chip.hovered = false;
-      this.redraw(bar);
-    });
-    const bg = new Graphics();
-    const text = new Text({ text: "", style: this.textStyle(12) });
-    text.anchor.set(0.5);
-    container.addChild(bg, text);
-    const chip: ZoneChip = { container, bg, text, spec, hovered: false };
-    return chip;
-  }
-
   private createBar(spec: PlayerBarSpec): Bar {
     const container = new Container();
 
@@ -241,8 +154,7 @@ export class PlayerBarLayer {
     initial.anchor.set(0.5);
     const heart = new Text({ text: "♥", style: this.heartStyle() });
     const life = new Text({ text: String(spec.life), style: this.textStyle() });
-    const chipRow = new Container();
-    container.addChild(bg, avatar, bot, initial, avatarHit, heart, life, chipRow);
+    container.addChild(bg, avatar, bot, initial, avatarHit, heart, life);
     this.container.addChild(container);
 
     const bar: Bar = {
@@ -257,8 +169,6 @@ export class PlayerBarLayer {
       isBot: spec.isBot,
       heart,
       life,
-      chipRow,
-      chips: [],
       spec,
       width: 0,
       height: 0,
@@ -333,7 +243,7 @@ export class PlayerBarLayer {
   }
 
   private redraw(bar: Bar): void {
-    const { bg, heart, life, chipRow, spec, width, height, column } = bar;
+    const { bg, heart, life, spec, width, height, column } = bar;
     if (width <= 0 || height <= 0) return;
     const gt = this.theme.gameTheme;
     const accent = spec.isActiveTurn ? hexToNum(gt.activeAction.active) : hexToNum(spec.color);
@@ -344,8 +254,7 @@ export class PlayerBarLayer {
     life.style = this.textStyle(column ? 14 : 16);
 
     if (column) {
-      // Collapsed field → avatar "sphere" + ♥life below; no chips.
-      chipRow.visible = false;
+      // Collapsed field → avatar "sphere" + ♥life below.
       const diameter = Math.max(8, Math.min(width - BAR_PAD_PX * 2, height - 28));
       const cx = width / 2;
       const cy = BAR_PAD_PX + 2 + diameter / 2;
@@ -362,7 +271,6 @@ export class PlayerBarLayer {
     // Expanded field → solid bar (no border) with the avatar as a circular cap
     // at the left edge: the panel bg begins at the circle's centre, so the
     // circle's left half overhangs the bar.
-    chipRow.visible = true;
     const avatarD = height;
     const avatarCx = avatarD / 2;
     bg.roundRect(avatarCx, 0, Math.max(0, width - avatarCx), height, TABLE_RADIUS);
@@ -373,33 +281,6 @@ export class PlayerBarLayer {
     life.anchor.set(0, 0.5);
     heart.position.set(avatarCx + avatarD / 2 + GAP_PX, height / 2);
     life.position.set(heart.x + heart.width + 3, height / 2);
-
-    // Zone chips: icon + count, laid right to left from the right edge.
-    let cursor = width - BAR_PAD_PX - GAP_PX;
-    const chipH = height - BAR_PAD_PX * 2 - 6;
-    for (let i = bar.chips.length - 1; i >= 0; i--) {
-      const chip = bar.chips[i]!;
-      const icon = ZONE_ICONS[chip.spec.key] ?? chip.spec.label;
-      const hl = chip.spec.highlightColor;
-      chip.text.text = `${icon} ${chip.spec.count}`;
-      // No chip border — highlight is shown by tinting the text; the rounded
-      // rect only appears on hover.
-      chip.text.style = {
-        ...this.textStyle(12),
-        fill: hl ? hexToNum(hl) : hexToNum(gt.textOnTinted),
-      };
-      const chipW = Math.ceil(chip.text.width) + 12;
-      cursor -= chipW;
-      chip.container.position.set(cursor, BAR_PAD_PX + 3);
-      chip.bg.clear();
-      if (chip.hovered) {
-        chip.bg.roundRect(0, 0, chipW, chipH, CHIP_RADIUS);
-        chip.bg.fill({ color: hexToNum(gt.canvas.neutral), alpha: 0.28 });
-      }
-      chip.container.hitArea = new Rectangle(0, 0, chipW, chipH);
-      chip.text.position.set(chipW / 2, chipH / 2);
-      cursor -= GAP_PX;
-    }
   }
 
   destroy(): void {

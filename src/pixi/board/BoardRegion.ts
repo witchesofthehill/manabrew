@@ -1,6 +1,7 @@
-import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
+import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
 import {
   cellAt,
@@ -12,8 +13,8 @@ import {
   type GridLayoutInfo,
 } from "../GridLayout";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { isFeatureEnabled } from "@/featureFlags";
 import { hexToNum } from "../colorUtils";
-import { EMPTY_LABEL_STYLE } from "../textStyles";
 import { lerp, safeDestroy } from "./pixiHelpers";
 import { EffectsLayer } from "../effects/EffectsLayer";
 import { playStomp } from "../effects/stomp";
@@ -103,6 +104,10 @@ export class BoardRegion {
   private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
+  private debugGridGfx: Graphics;
+  private zoneTiles: BoardZoneTiles;
+  private zoneTileKeys: string[] = [];
+  private zoneSlots = new Map<string, { col: number; row: number }>();
 
   private entries = new Map<string, SpriteEntry>();
   private gridInfo: GridLayoutInfo | null = null;
@@ -160,7 +165,110 @@ export class BoardRegion {
     this.gridSkeletonGfx.zIndex = Z_GRID_SKELETON;
     this.container.addChild(this.gridSkeletonGfx);
 
+    this.debugGridGfx = new Graphics();
+    this.debugGridGfx.eventMode = "none";
+    this.debugGridGfx.zIndex = Z_GRID_SKELETON;
+    this.container.addChild(this.debugGridGfx);
+
+    this.zoneTiles = new BoardZoneTiles(this.host.getTheme(), {
+      onDragMove: (cx, cy) => this.drawDropGrid(cx, cy),
+      onDrop: (key, cx, cy) => this.onZoneTileMoved(key, cx, cy),
+      onDragEnd: () => this.hideGridSkeleton(),
+    });
+    this.zoneTiles.container.zIndex = 30;
+    this.zoneTiles.setDraggable(!this.mirrored);
+    this.container.addChild(this.zoneTiles.container);
+
     this.drawBackground();
+  }
+
+  /** The deck/graveyard/exile/command tiles for this player. `BoardScene` feeds
+   *  the per-player specs; they occupy grid cells (bottom-left by default). */
+  setZoneTiles(specs: ZoneTileSpec[]): void {
+    this.zoneTileKeys = specs.map((s) => s.key);
+    this.zoneTiles.setSpecs(specs);
+    if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
+  }
+
+  private freshGrid(): GridLayoutInfo {
+    return computeGridLayout(
+      this.playArea(),
+      0,
+      this.collectLocalBlockers(),
+      this.cardScale,
+      this.zoneTileKeys.length > 0,
+    );
+  }
+
+  /** Assign each zone tile a grid cell (persisted slot, else the next free cell
+   *  scanning from the player's near edge — bottom-left for the local player,
+   *  top-left for mirrored opponents), reserve those cells in `occupied` so
+   *  cards avoid them, and push the pixel placements to the tile layer. */
+  private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
+    const placements = new Map<string, { x: number; y: number }>();
+    const taken = new Set<string>();
+    const isFree = (cell: GridCell | null): cell is GridCell =>
+      !!cell &&
+      !cell.blocked &&
+      !taken.has(cellKey(cell.col, cell.row)) &&
+      !occupied.has(cellKey(cell.col, cell.row));
+
+    const rowOrder = this.mirrored
+      ? Array.from({ length: grid.rows }, (_, r) => r)
+      : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
+    const nextDefaultCell = (): GridCell | null => {
+      for (const row of rowOrder) {
+        for (let col = 0; col < grid.cols; col++) {
+          const cell = cellAt(grid, col, row);
+          if (isFree(cell)) return cell;
+        }
+      }
+      return null;
+    };
+
+    for (const key of this.zoneTileKeys) {
+      const slot = this.zoneSlots.get(key);
+      let cell = slot ? cellAt(grid, slot.col, slot.row) : null;
+      if (!isFree(cell)) cell = nextDefaultCell();
+      if (!cell) continue;
+      this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+      taken.add(cellKey(cell.col, cell.row));
+      occupied.add(cellKey(cell.col, cell.row));
+      placements.set(key, { x: cell.x, y: cell.y });
+    }
+    this.zoneTiles.setGeometry(CARD_W * this.cardScale, CARD_H * this.cardScale, placements);
+    this.drawDebugGrid(grid);
+  }
+
+  private drawDebugGrid(grid: GridLayoutInfo): void {
+    const gfx = this.debugGridGfx;
+    gfx.clear();
+    if (!isFeatureEnabled("debugShowGrid")) {
+      gfx.visible = false;
+      return;
+    }
+    const gt = this.host.getTheme().gameTheme;
+    for (const cell of grid.cells) {
+      if (cell.blocked) gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
+    }
+    gfx.stroke({ color: hexToNum(gt.pt.lethal), width: 1, alpha: 0.3 });
+    for (const cell of grid.cells) {
+      if (!cell.blocked) gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
+    }
+    gfx.stroke({ color: hexToNum(gt.canvas.neutral), width: 1, alpha: 0.35 });
+    gfx.visible = true;
+  }
+
+  private onZoneTileMoved(key: string, centerX: number, centerY: number): void {
+    const grid = this.gridInfo;
+    if (!grid) return;
+    const cell = cellFromPoint(grid, centerX, centerY);
+    if (cell && !cell.blocked) this.zoneSlots.set(key, { col: cell.col, row: cell.row });
+    // Re-place tiles (snapping the drop, or reverting an invalid one) and relayout
+    // cards to avoid the new cells.
+    if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
   /** Card sprites sit above and stop propagation, so this fires only on empty
@@ -179,11 +287,13 @@ export class BoardRegion {
       prev.width !== zone.width ||
       prev.height !== zone.height;
     this.mirrored = orientation !== "bottom";
+    this.zoneTiles.setDraggable(!this.mirrored);
     this.applyOrientation(zone);
     this.updateClip();
     this.drawBackground();
     // Card positions depend only on the FIXED zone + scale + blockers — never on
-    // the clip. A zone-only change relayouts; the clip is set separately.
+    // the clip. A zone-only change relayouts (which re-places the tiles); the
+    // clip is set separately.
     if (zoneChanged && this.lastState) this.updateBattlefield(this.lastState);
   }
 
@@ -234,6 +344,7 @@ export class BoardRegion {
     if (!Number.isFinite(scale) || scale <= 0 || scale === this.cardScale) return;
     this.cardScale = scale;
     if (this.lastState) this.updateBattlefield(this.lastState);
+    else this.placeZoneTiles(this.freshGrid(), new Set());
   }
 
   getCardScale(): number {
@@ -617,7 +728,13 @@ export class BoardRegion {
   private applyOverflowStacking(topLevelCandidates: CardDto[]): void {
     if (topLevelCandidates.length === 0) return;
     const zone = this.playArea();
-    const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
+    const grid = computeGridLayout(
+      zone,
+      0,
+      this.collectLocalBlockers(),
+      this.cardScale,
+      this.zoneTileKeys.length > 0,
+    );
     let freeCellCount = 0;
     for (const cell of grid.cells) {
       if (!cell.blocked) freeCellCount++;
@@ -676,10 +793,18 @@ export class BoardRegion {
   private computeBattlefieldGrid(cards: CardDto[]): Map<string, Point> {
     const positions = new Map<string, Point>();
     const zone = this.playArea();
-    const grid = computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
+    const grid = computeGridLayout(
+      zone,
+      0,
+      this.collectLocalBlockers(),
+      this.cardScale,
+      this.zoneTileKeys.length > 0,
+    );
     this.gridInfo = grid;
 
     const occupied = new Set<string>();
+    // Reserve the zone tiles' cells first so cards lay out around them.
+    this.placeZoneTiles(grid, occupied);
     const unplaced: CardDto[] = [];
 
     for (const c of cards) {
@@ -822,7 +947,14 @@ export class BoardRegion {
   private findFirstFreeBattlefieldSlot(): Point {
     const zone = this.playArea();
     const grid =
-      this.gridInfo ?? computeGridLayout(zone, 0, this.collectLocalBlockers(), this.cardScale);
+      this.gridInfo ??
+      computeGridLayout(
+        zone,
+        0,
+        this.collectLocalBlockers(),
+        this.cardScale,
+        this.zoneTileKeys.length > 0,
+      );
     const occupied = new Set<string>();
     for (const pos of this.gridTargets.values()) {
       const cell = cellFromPoint(grid, pos.x, pos.y);
@@ -1013,6 +1145,7 @@ export class BoardRegion {
 
   redrawTheme(): void {
     this.drawBackground();
+    this.zoneTiles.setTheme(this.host.getTheme());
   }
 
   restyleCards(): void {
@@ -1228,7 +1361,13 @@ export class BoardRegion {
   }
 
   drawDropGrid(localX: number, localY: number): void {
-    const grid = computeGridLayout(this.playArea(), 0, this.collectLocalBlockers(), this.cardScale);
+    const grid = computeGridLayout(
+      this.playArea(),
+      0,
+      this.collectLocalBlockers(),
+      this.cardScale,
+      this.zoneTileKeys.length > 0,
+    );
     const color = hexToNum(this.host.getTheme().gameTheme.activeAction.active);
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
@@ -1277,6 +1416,7 @@ export class BoardRegion {
   destroy(): void {
     this.playmat.destroy();
     this.effects.destroy();
+    this.zoneTiles.destroy();
     this.container.destroy({ children: true });
     this.entries.clear();
   }

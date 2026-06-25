@@ -8,6 +8,9 @@ export const featureFlags = {
    *  colour, to inspect the staggered field layout (overlap shows as mixed
    *  colours). Debug aid only — does not affect play. */
   debugBattlegroundRects: false,
+  /** Draw every field's battlefield grid cells (free + blocked) so the on-grid
+   *  layout and snapping can be inspected. Debug aid only — does not affect play. */
+  debugShowGrid: true,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

@@ -14,16 +14,15 @@ import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
 import type { PlaymatSettings } from "@/protocol/game";
 
-export const PREVIEW_WIDTH = 560;
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
-function useBattlefieldAspect(): number {
+function useBattlefieldMetrics(): { aspect: number; feltWidth: number } {
   const vScale = useHandScale();
   return useMemo(() => {
     const layout = computeBoardLayout(window.innerWidth, window.innerHeight, 1, "row");
     const handReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
     const feltHeight = Math.max(1, layout.self.height - handReserve);
-    return layout.self.width / feltHeight;
+    return { aspect: layout.self.width / feltHeight, feltWidth: layout.self.width };
   }, [vScale]);
 }
 
@@ -32,6 +31,7 @@ interface PlaymatPreviewArgs {
   settings: Required<PlaymatSettings>;
   onOffsetChange: (offset: { offsetX: number; offsetY: number }) => void;
   onZoomChange: (zoom: number) => void;
+  showSampleCards: boolean;
 }
 
 export function usePlaymatPreview({
@@ -39,10 +39,25 @@ export function usePlaymatPreview({
   settings,
   onOffsetChange,
   onZoomChange,
+  showSampleCards,
 }: PlaymatPreviewArgs) {
   const theme = useTheme();
-  const aspect = useBattlefieldAspect();
-  const previewHeight = Math.round(PREVIEW_WIDTH / aspect);
+  const { aspect, feltWidth } = useBattlefieldMetrics();
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const previewWidth = Math.max(1, Math.round(containerWidth || feltWidth * 0.5));
+  const previewHeight = Math.round(previewWidth / aspect);
+
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) setContainerWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const sampleA = useCard({ name: "Serra Angel" });
   const sampleB = useCard({ name: "Tarmogoyf" });
@@ -82,7 +97,7 @@ export function usePlaymatPreview({
       try {
         await app.init({
           canvas,
-          width: PREVIEW_WIDTH,
+          width: previewWidth,
           height: previewHeight,
           backgroundColor: hexToNum(theme.gameTheme.canvas.background),
           antialias: true,
@@ -120,26 +135,23 @@ export function usePlaymatPreview({
     const felt = feltRef.current;
     const app = appRef.current;
     if (!layer || !felt || !app) return;
-    app.renderer.resize(PREVIEW_WIDTH, previewHeight);
+    app.renderer.resize(previewWidth, previewHeight);
     felt.clear();
-    felt.roundRect(0, 0, PREVIEW_WIDTH, previewHeight, TABLE_RADIUS);
+    felt.roundRect(0, 0, previewWidth, previewHeight, TABLE_RADIUS);
     felt.fill({ color: hexToNum(theme.gameTheme.canvas.background), alpha: BG_ALPHA_IDLE });
     layer.setImage(playmat);
     layer.setSettings(settings);
-    layer.layout(
-      { x: 0, y: 0, width: PREVIEW_WIDTH, height: previewHeight },
-      { dropActive: false },
-    );
-  }, [ready, playmat, settings, previewHeight, theme.gameTheme.canvas.background]);
+    layer.layout({ x: 0, y: 0, width: previewWidth, height: previewHeight }, { dropActive: false });
+  }, [ready, playmat, settings, previewWidth, previewHeight, theme.gameTheme.canvas.background]);
 
   useEffect(() => {
     const app = appRef.current;
-    if (!ready || !app || previewCards.length === 0) return;
+    if (!ready || !app || previewCards.length === 0 || !showSampleCards) return;
     const scale = (previewHeight * 0.62) / CARD_H;
     const cardW = CARD_W * scale;
     const gap = cardW * 0.16;
     const total = previewCards.length * cardW + (previewCards.length - 1) * gap;
-    let x = (PREVIEW_WIDTH - total) / 2 + cardW / 2;
+    let x = (previewWidth - total) / 2 + cardW / 2;
     const cy = previewHeight * 0.56;
     const sprites = previewCards.map((card) => {
       const sprite = new CardSprite(card);
@@ -155,7 +167,7 @@ export function usePlaymatPreview({
     return () => {
       for (const sprite of sprites) safeDestroy(sprite);
     };
-  }, [ready, previewCards, previewHeight]);
+  }, [ready, previewCards, previewWidth, previewHeight, showSampleCards]);
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     if (settings.fit !== "cover") return;
@@ -165,16 +177,16 @@ export function usePlaymatPreview({
       sy: e.clientY,
       ox: settings.offsetX,
       oy: settings.offsetY,
-      rectW: rect.width || PREVIEW_WIDTH,
+      rectW: rect.width || previewWidth,
       rectH: rect.height || previewHeight,
     };
     const move = (ev: PointerEvent) => {
       const { w: nw, h: nh } = naturalRef.current;
       const scale =
-        Math.max(PREVIEW_WIDTH / nw, previewHeight / nh) * clampPlaymatZoom(settings.zoom);
-      const overflowX = nw * scale - PREVIEW_WIDTH;
+        Math.max(previewWidth / nw, previewHeight / nh) * clampPlaymatZoom(settings.zoom);
+      const overflowX = nw * scale - previewWidth;
       const overflowY = nh * scale - previewHeight;
-      const dx = ((ev.clientX - start.sx) * PREVIEW_WIDTH) / start.rectW;
+      const dx = ((ev.clientX - start.sx) * previewWidth) / start.rectW;
       const dy = ((ev.clientY - start.sy) * previewHeight) / start.rectH;
       onOffsetChange({
         offsetX: overflowX > 0 ? clamp01(start.ox - dx / overflowX) : start.ox,
@@ -196,5 +208,5 @@ export function usePlaymatPreview({
     onZoomChange(clampPlaymatZoom(settings.zoom * step));
   }
 
-  return { canvasRef, previewWidth: PREVIEW_WIDTH, previewHeight, onPointerDown, onWheel };
+  return { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown, onWheel };
 }

@@ -4,7 +4,7 @@ import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ImagePlus, Info, RotateCcw, Search, Trash2 } from "lucide-react";
+import { Crop, ImagePlus, Info, RectangleVertical, RotateCcw, Search, Trash2 } from "lucide-react";
 import {
   DEFAULT_PLAYMAT_SETTINGS,
   PLAYMAT_ZOOM_MAX,
@@ -99,14 +99,13 @@ export function PlaymatEditorModal({
     setPlaymatSettings(undefined);
   }
 
-  const { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown, onWheel } =
-    usePlaymatPreview({
-      playmat,
-      settings,
-      onOffsetChange: (offset) => update(offset),
-      onZoomChange: (zoom) => update({ zoom }),
-      showSampleCards,
-    });
+  const { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown } = usePlaymatPreview({
+    playmat,
+    settings,
+    onOffsetChange: (offset) => update(offset),
+    onZoomChange: (zoom) => update({ zoom }),
+    showSampleCards,
+  });
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -179,7 +178,6 @@ export function PlaymatEditorModal({
               <canvas
                 ref={canvasRef}
                 onPointerDown={onPointerDown}
-                onWheel={onWheel}
                 style={{ width: previewWidth, height: previewHeight }}
                 className={cn(
                   "max-w-full touch-none rounded-md border",
@@ -229,6 +227,31 @@ export function PlaymatEditorModal({
                   Card art
                 </Button>
               </div>
+              {lastPrint && (
+                <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
+                  {(
+                    [
+                      ["full", "Full card", RectangleVertical],
+                      ["crop", "Art crop", Crop],
+                    ] as const
+                  ).map(([mode, label, Icon]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => void applyCardArt(lastPrint, mode)}
+                      className={cn(
+                        "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                        artMode === mode
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="size-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {PLAYMAT_PRESETS.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {PLAYMAT_PRESETS.map((p) => (
@@ -275,33 +298,6 @@ export function PlaymatEditorModal({
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                {lastPrint && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">Card art</Label>
-                    <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
-                      {(
-                        [
-                          ["full", "Full card"],
-                          ["crop", "Art crop"],
-                        ] as const
-                      ).map(([mode, label]) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          onClick={() => void applyCardArt(lastPrint, mode)}
-                          className={cn(
-                            "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                            artMode === mode
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-muted-foreground">Placement</Label>
                   <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">

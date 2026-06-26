@@ -18,7 +18,7 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   opacity: 0.62,
   texture: 0.5,
   borderWidth: 2,
-  borderColor: "#000000",
+  borderColor: "#27272a",
   fit: "cover",
   offsetX: 0.5,
   offsetY: 0.5,

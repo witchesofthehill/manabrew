@@ -75,6 +75,7 @@ export function usePlaymatPreview({
   const layerRef = useRef<PlaymatLayer | null>(null);
   const feltRef = useRef<Graphics | null>(null);
   const naturalRef = useRef<{ w: number; h: number }>({ w: 1, h: 1 });
+  const wheelStateRef = useRef({ fit: settings.fit, zoom: settings.zoom, onZoomChange });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -201,12 +202,22 @@ export function usePlaymatPreview({
     window.addEventListener("pointerup", up);
   }
 
-  function onWheel(e: React.WheelEvent<HTMLCanvasElement>) {
-    if (settings.fit !== "cover") return;
-    e.preventDefault();
-    const step = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-    onZoomChange(clampPlaymatZoom(settings.zoom * step));
-  }
+  // Native non-passive listener so preventDefault actually stops the scroll
+  // from bubbling to a scrollable modal; React's onWheel is passive.
+  wheelStateRef.current = { fit: settings.fit, zoom: settings.zoom, onZoomChange };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: WheelEvent) => {
+      const { fit, zoom, onZoomChange } = wheelStateRef.current;
+      if (fit !== "cover") return;
+      e.preventDefault();
+      const step = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      onZoomChange(clampPlaymatZoom(zoom * step));
+    };
+    canvas.addEventListener("wheel", handler, { passive: false });
+    return () => canvas.removeEventListener("wheel", handler);
+  }, []);
 
-  return { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown, onWheel };
+  return { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown };
 }

@@ -1,10 +1,22 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Crop, ImagePlus, Info, RectangleVertical, RotateCcw, Search, Trash2 } from "lucide-react";
+import {
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  Crop,
+  ImagePlus,
+  Info,
+  Loader2,
+  RectangleVertical,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
 import {
   DEFAULT_PLAYMAT_SETTINGS,
   PLAYMAT_ZOOM_MAX,
@@ -81,6 +93,8 @@ export function PlaymatEditorModal({
   }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showSampleCards, setShowSampleCards] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   function update(patch: Partial<PlaymatSettings>) {
     setSettings((prev) => {
@@ -99,7 +113,7 @@ export function PlaymatEditorModal({
     setPlaymatSettings(undefined);
   }
 
-  const { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown } = usePlaymatPreview({
+  const { canvasRef, previewRef, previewWidth, previewHeight } = usePlaymatPreview({
     playmat,
     settings,
     onOffsetChange: (offset) => update(offset),
@@ -107,19 +121,46 @@ export function PlaymatEditorModal({
     showSampleCards,
   });
 
-  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  async function setPlaymatFromBlob(blob: Blob) {
+    setBusy(true);
     try {
-      setPlaymat(await normalizeToWebp(file, PLAYMAT_IMAGE_BUDGET));
+      setPlaymat(await normalizeToWebp(blob, PLAYMAT_IMAGE_BUDGET));
       setLastPrint(null);
     } catch (err) {
       toast.error(
         err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as a playmat",
       );
+    } finally {
+      setBusy(false);
     }
   }
+
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) void setPlaymatFromBlob(file);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragActive(false);
+    const file = [...e.dataTransfer.files].find((f) => f.type.startsWith("image/"));
+    if (file) void setPlaymatFromBlob(file);
+  }
+
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith("image/"));
+      const file = item?.getAsFile();
+      if (file) {
+        e.preventDefault();
+        void setPlaymatFromBlob(file);
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [pickCardName, setPickCardName] = useState<string | null>(null);
@@ -137,6 +178,7 @@ export function PlaymatEditorModal({
       toast.error("That card has no art image.");
       return;
     }
+    setBusy(true);
     try {
       const res = await platformFetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -152,10 +194,13 @@ export function PlaymatEditorModal({
       });
     } catch {
       toast.error("Couldn't load that card image.");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function applyPreset(url: string) {
+    setBusy(true);
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -165,6 +210,8 @@ export function PlaymatEditorModal({
       update({ fit: "cover" });
     } catch {
       toast.error("Couldn't load that preset.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -174,18 +221,40 @@ export function PlaymatEditorModal({
         <Modal.Header>{title}</Modal.Header>
         <Modal.Body>
           <div className="space-y-4">
-            <div ref={previewRef} className="flex flex-col items-center gap-1">
-              <canvas
-                ref={canvasRef}
-                onPointerDown={onPointerDown}
-                style={{ width: previewWidth, height: previewHeight }}
-                className={cn(
-                  "max-w-full touch-none rounded-md border",
-                  settings.fit === "cover" && "cursor-grab active:cursor-grabbing",
+            <div
+              ref={previewRef}
+              onDrop={onDrop}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              className="flex flex-col items-center gap-1"
+            >
+              <div className="relative">
+                <canvas
+                  ref={canvasRef}
+                  style={{ width: previewWidth, height: previewHeight }}
+                  className={cn(
+                    "max-w-full touch-none rounded-md border",
+                    settings.fit === "cover" && "cursor-grab active:cursor-grabbing",
+                  )}
+                />
+                {busy && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-overlay/40">
+                    <Loader2 className="size-7 animate-spin text-primary-foreground" />
+                  </div>
                 )}
-              />
+                {dragActive && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-sm font-medium text-primary-foreground">
+                    Drop image to use as playmat
+                  </div>
+                )}
+              </div>
               {settings.fit === "cover" && (
-                <p className="text-xs text-muted-foreground">Drag to reposition · scroll to zoom</p>
+                <p className="text-xs text-muted-foreground">
+                  Drag to reposition · scroll or pinch to zoom · drop or paste an image
+                </p>
               )}
               <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox
@@ -318,6 +387,38 @@ export function PlaymatEditorModal({
                     ))}
                   </div>
                 </div>
+                {settings.fit === "cover" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Vertical framing
+                    </Label>
+                    <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
+                      {(
+                        [
+                          ["Top", 0, AlignVerticalJustifyStart],
+                          ["Center", 0.5, AlignVerticalJustifyCenter],
+                          ["Bottom", 1, AlignVerticalJustifyEnd],
+                        ] as const
+                      ).map(([label, oy, Icon]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          title={label}
+                          aria-label={label}
+                          onClick={() => update({ offsetY: oy })}
+                          className={cn(
+                            "flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
+                            Math.abs(settings.offsetY - oy) < 0.001
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          <Icon className="size-4" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2">
                   {settings.fit === "cover" && (
                     <SliderControl

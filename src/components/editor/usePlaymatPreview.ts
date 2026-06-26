@@ -75,7 +75,16 @@ export function usePlaymatPreview({
   const layerRef = useRef<PlaymatLayer | null>(null);
   const feltRef = useRef<Graphics | null>(null);
   const naturalRef = useRef<{ w: number; h: number }>({ w: 1, h: 1 });
-  const wheelStateRef = useRef({ fit: settings.fit, zoom: settings.zoom, onZoomChange });
+  const gestureRef = useRef({
+    fit: settings.fit,
+    offsetX: settings.offsetX,
+    offsetY: settings.offsetY,
+    zoom: settings.zoom,
+    previewWidth,
+    previewHeight,
+    onOffsetChange,
+    onZoomChange,
+  });
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -170,54 +179,108 @@ export function usePlaymatPreview({
     };
   }, [ready, previewCards, previewWidth, previewHeight, showSampleCards]);
 
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (settings.fit !== "cover") return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const start = {
-      sx: e.clientX,
-      sy: e.clientY,
-      ox: settings.offsetX,
-      oy: settings.offsetY,
-      rectW: rect.width || previewWidth,
-      rectH: rect.height || previewHeight,
+  gestureRef.current = {
+    fit: settings.fit,
+    offsetX: settings.offsetX,
+    offsetY: settings.offsetY,
+    zoom: settings.zoom,
+    previewWidth,
+    previewHeight,
+    onOffsetChange,
+    onZoomChange,
+  };
+
+  // Native pointer listeners: single-pointer drag to reposition, two-finger
+  // pinch to zoom. Reads live state via gestureRef so it binds only once.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const pointers = new Map<number, { x: number; y: number }>();
+    let drag: {
+      sx: number;
+      sy: number;
+      ox: number;
+      oy: number;
+      rectW: number;
+      rectH: number;
+    } | null = null;
+    let pinch: { dist: number; zoom: number } | null = null;
+
+    const onDown = (e: PointerEvent) => {
+      const g = gestureRef.current;
+      if (g.fit !== "cover") return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        const rect = canvas.getBoundingClientRect();
+        drag = {
+          sx: e.clientX,
+          sy: e.clientY,
+          ox: g.offsetX,
+          oy: g.offsetY,
+          rectW: rect.width || g.previewWidth,
+          rectH: rect.height || g.previewHeight,
+        };
+        pinch = null;
+      } else if (pointers.size === 2) {
+        drag = null;
+        const [a, b] = [...pointers.values()];
+        pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: g.zoom };
+      }
     };
-    const move = (ev: PointerEvent) => {
-      const { w: nw, h: nh } = naturalRef.current;
-      const scale =
-        Math.max(previewWidth / nw, previewHeight / nh) * clampPlaymatZoom(settings.zoom);
-      const overflowX = nw * scale - previewWidth;
-      const overflowY = nh * scale - previewHeight;
-      const dx = ((ev.clientX - start.sx) * previewWidth) / start.rectW;
-      const dy = ((ev.clientY - start.sy) * previewHeight) / start.rectH;
-      onOffsetChange({
-        offsetX: overflowX > 0 ? clamp01(start.ox - dx / overflowX) : start.ox,
-        offsetY: overflowY > 0 ? clamp01(start.oy - dy / overflowY) : start.oy,
-      });
+    const onMove = (e: PointerEvent) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const g = gestureRef.current;
+      if (pinch && pointers.size >= 2) {
+        const [a, b] = [...pointers.values()];
+        const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        g.onZoomChange(clampPlaymatZoom(pinch.zoom * (dist / pinch.dist)));
+      } else if (drag) {
+        const { w: nw, h: nh } = naturalRef.current;
+        const scale =
+          Math.max(g.previewWidth / nw, g.previewHeight / nh) * clampPlaymatZoom(g.zoom);
+        const overflowX = nw * scale - g.previewWidth;
+        const overflowY = nh * scale - g.previewHeight;
+        const dx = ((e.clientX - drag.sx) * g.previewWidth) / drag.rectW;
+        const dy = ((e.clientY - drag.sy) * g.previewHeight) / drag.rectH;
+        g.onOffsetChange({
+          offsetX: overflowX > 0 ? clamp01(drag.ox - dx / overflowX) : drag.ox,
+          offsetY: overflowY > 0 ? clamp01(drag.oy - dy / overflowY) : drag.oy,
+        });
+      }
     };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
+    const onUp = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinch = null;
+      if (pointers.size === 0) drag = null;
     };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  }
+    canvas.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      canvas.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, []);
 
   // Native non-passive listener so preventDefault actually stops the scroll
   // from bubbling to a scrollable modal; React's onWheel is passive.
-  wheelStateRef.current = { fit: settings.fit, zoom: settings.zoom, onZoomChange };
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const handler = (e: WheelEvent) => {
-      const { fit, zoom, onZoomChange } = wheelStateRef.current;
-      if (fit !== "cover") return;
+      const g = gestureRef.current;
+      if (g.fit !== "cover") return;
       e.preventDefault();
       const step = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-      onZoomChange(clampPlaymatZoom(zoom * step));
+      g.onZoomChange(clampPlaymatZoom(g.zoom * step));
     };
     canvas.addEventListener("wheel", handler, { passive: false });
     return () => canvas.removeEventListener("wheel", handler);
   }, []);
 
-  return { canvasRef, previewRef, previewWidth, previewHeight, onPointerDown };
+  return { canvasRef, previewRef, previewWidth, previewHeight };
 }

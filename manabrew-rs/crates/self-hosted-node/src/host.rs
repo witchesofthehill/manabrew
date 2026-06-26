@@ -5,7 +5,7 @@ use std::sync::{mpsc as std_mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use crate::config::{workspace_root, Config, DeckSelection, SelfPlayConfig};
+use crate::config::{Config, DeckSelection, SelfPlayConfig};
 use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, HostedGameOver};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
@@ -14,8 +14,8 @@ use manabrew_agent_interface::deck_dto::Deck;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
-    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, ServerMessage,
-    StateEnvelope,
+    ClientMessage, EngineKind, GameFormat, PlayerDeckInfo, PlayerSeatConfig, RoomInfo, RoomStatus,
+    ServerMessage, StateEnvelope,
 };
 use manabrew_engine::game::TypeRegistry;
 use serde::Deserialize;
@@ -28,6 +28,10 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+
+// Embedded at compile time so packaged builds (and any run outside the source
+// tree) don't depend on a `workspace_root()` path baked from the build machine.
+const TYPE_LISTS: &str = include_str!("../../../../forge/forge-gui/res/lists/TypeLists.txt");
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 type WsWrite = SplitSink<WsStream, Message>;
@@ -191,7 +195,7 @@ pub async fn cli_entry() {
 pub type RoomCancel = Arc<tokio::sync::Notify>;
 
 fn ensure_engine_ready(config: &Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    load_type_registry()?;
+    load_type_registry();
     if config.engine_enabled
         && config.backend.is_supported()
         && matches!(config.backend, EngineBackendKind::Forge)
@@ -386,16 +390,8 @@ fn stop_bot(bot_state: &SharedBotState) {
     }
 }
 
-fn load_type_registry() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let type_lists_path = workspace_root()
-        .join("forge")
-        .join("forge-gui")
-        .join("res")
-        .join("lists")
-        .join("TypeLists.txt");
-    let contents = std::fs::read_to_string(&type_lists_path)?;
-    TypeRegistry::load(&contents);
-    Ok(())
+fn load_type_registry() {
+    TypeRegistry::load(TYPE_LISTS);
 }
 
 async fn wait_for_host_room(
@@ -435,7 +431,6 @@ async fn seat_client(
             deck_name: deck.name.clone(),
             deck: deck.deck.clone(),
             commander_name: deck.commander_name.clone(),
-            wants_empty_priority_prompts: false,
             avatar: None,
         })
         .await?;
@@ -562,6 +557,7 @@ async fn handle_server_message(
             room_id,
             player_order,
             player_decks,
+            player_seat_configs,
             starting_life,
         } => {
             info!(room_id, ?player_order, observer = %client.username, "game started");
@@ -571,6 +567,7 @@ async fn handle_server_message(
                 outbound_tx,
                 player_order,
                 player_decks,
+                player_seat_configs,
                 starting_life,
                 bot_usernames,
             );
@@ -727,6 +724,7 @@ fn maybe_start_hosted_engine(
     outbound_tx: &tokio_mpsc::UnboundedSender<ClientMessage>,
     player_order: Vec<String>,
     player_decks: Vec<PlayerDeckInfo>,
+    player_seat_configs: Vec<PlayerSeatConfig>,
     starting_life: i32,
     bot_usernames: &HashSet<String>,
 ) {
@@ -796,7 +794,6 @@ fn maybe_start_hosted_engine(
         .collect();
     let mut ordered_decks = Vec::with_capacity(num_players);
     let mut commander_names = Vec::with_capacity(num_players);
-    let mut priority_preferences = Vec::with_capacity(num_players);
     let mut ai_player_indices = Vec::new();
     for (index, username) in player_order.iter().enumerate() {
         let Some(deck) = deck_map.remove(username) else {
@@ -806,7 +803,6 @@ fn maybe_start_hosted_engine(
         if config.forge_ai && bot_usernames.contains(username) {
             ai_player_indices.push(index);
         }
-        priority_preferences.push(deck.wants_empty_priority_prompts);
         ordered_decks.push(deck.deck);
         commander_names.push(deck.commander_name);
     }
@@ -852,7 +848,7 @@ fn maybe_start_hosted_engine(
                         commander_names,
                         local_player_index,
                         starting_life,
-                        priority_preferences,
+                        player_seat_configs,
                         remote_prompt_tx,
                         remote_response_rxs,
                         game_over_tx,

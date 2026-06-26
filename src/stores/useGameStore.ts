@@ -20,7 +20,7 @@ import type { GameState } from "./gameStore.types";
 import type { Prompt, PromptOutput } from "@/protocol";
 import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
-import type { EngineKind } from "@/types/server";
+import type { EngineKind, PlayerSeatConfig } from "@/types/server";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
@@ -32,6 +32,15 @@ function isManualTabletopApi(
   runtime: GameRuntime,
 ): runtime is GameRuntime & { api: ManualTabletopApi } {
   return runtime.capabilities.manualTabletop && "applyManualAction" in runtime.api;
+}
+
+function localPlayerSeatConfigs(): PlayerSeatConfig[] {
+  return [
+    {
+      username: "You",
+      wants_empty_priority_prompts: usePreferencesStore.getState().experimentalSmartPriority,
+    },
+  ];
 }
 
 function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardDto {
@@ -156,7 +165,7 @@ async function initializeGame({
       enginePlayerIndex: hosted.enginePlayerIndex,
       localIsHost: false,
       startingLife: hosted.startingLife,
-      priorityPreferences: hosted.playerOrder.map(() => false),
+      playerSeatConfigs: hosted.playerSeatConfigs,
     });
     set({ debugInfo: "Hosted Forge game started.", isPrefetchingCards: false });
     return;
@@ -187,7 +196,7 @@ async function initializeGame({
     startingLife,
     commanderName: commanderName ?? null,
     opponentDeck: opponentDeck ?? null,
-    wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
+    playerSeatConfigs: localPlayerSeatConfigs(),
   });
   set({ debugInfo: `Game started: ${result}.` });
 }
@@ -322,7 +331,7 @@ export const useGameStore = create<GameState>()(
         enginePlayerIndex,
         localIsHost,
         startingLife,
-        priorityPreferences,
+        playerSeatConfigs,
       ) => {
         // Guard against re-entry — a second start while one is already in
         // flight would tear down the first session's response channels in
@@ -376,7 +385,7 @@ export const useGameStore = create<GameState>()(
             enginePlayerIndex,
             localIsHost,
             startingLife,
-            priorityPreferences,
+            playerSeatConfigs,
           });
           set({ debugInfo: "Multiplayer game started.", isPrefetchingCards: false });
         } catch (e) {

@@ -23,6 +23,8 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
   const isReadOnly = useDeckStore((s) => s.isReadOnly);
   const setDeckName = useDeckStore((s) => s.setDeckName);
   const setDeckFormat = useDeckStore((s) => s.setDeckFormat);
+  const setPlaymat = useDeckStore((s) => s.setPlaymat);
+  const setPlaymatSettings = useDeckStore((s) => s.setPlaymatSettings);
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(currentDeck.name);
@@ -101,7 +103,15 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
         </div>
       )}
 
-      {editorOpen && <PlaymatEditorModal onClose={() => setEditorOpen(false)} />}
+      {editorOpen && (
+        <PlaymatEditorModal
+          onClose={() => setEditorOpen(false)}
+          playmat={playmat}
+          storedSettings={currentDeck.playmatSettings}
+          setPlaymat={setPlaymat}
+          setPlaymatSettings={setPlaymatSettings}
+        />
+      )}
 
       <div className={cn("relative flex flex-col gap-1.5 px-5 pb-4", onBack ? "pt-16" : "pt-10")}>
         <div className="flex flex-wrap items-center gap-1.5">

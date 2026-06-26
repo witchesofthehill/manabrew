@@ -39,7 +39,8 @@ COPY tree-sitter-forge-card-script/ ./tree-sitter-forge-card-script/
 COPY scripts/ ./scripts/
 COPY src/ ./src/
 COPY public/ ./public/
-COPY index.html tsconfig*.json vite.config.ts ./
+# .release-please-manifest.json is read by vite.config.ts to stamp the app version.
+COPY index.html tsconfig*.json vite.config.ts .release-please-manifest.json ./
 # These four dirs feed the rkyv cardset archive build — keep in sync with the
 # source list in `scripts/build-wasm.mjs`. Omitting `editions`/`blockdata` is
 # silent: the archive builder emits an empty editions vec for a missing dir, so
@@ -85,14 +86,14 @@ FROM node:20-slim AS website
 # The site imports assets and theme data via relative paths that escape
 # website/ (../images, ../public, ../src) — keep the same directory layout here.
 WORKDIR /repo/website
-COPY website/package.json website/package-lock.json ./
-RUN npm ci
+COPY website/package.json website/yarn.lock ./
+RUN corepack enable && yarn install --frozen-lockfile
 COPY images/ /repo/images/
 COPY public/manabrew_brewery_1.png /repo/public/manabrew_brewery_1.png
 COPY src/themes/ /repo/src/themes/
 COPY src/assets/manaBrew.png /repo/src/assets/manaBrew.png
 COPY website/ ./
-RUN npm run build
+RUN yarn build
 
 # --- Runtime: Caddy serves the built dist directly, reverse-proxies the
 # relay + parity hostnames, and terminates Let's Encrypt TLS for all

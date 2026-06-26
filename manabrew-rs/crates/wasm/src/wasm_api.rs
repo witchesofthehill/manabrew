@@ -1,4 +1,5 @@
 use manabrew_agent_interface::deck_dto::Deck as WireDeck;
+use manabrew_agent_interface::protocol::PlayerSeatConfig;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -11,9 +12,7 @@ pub struct GameConfig {
     #[serde(default)]
     pub commander_name: Option<String>,
     #[serde(default)]
-    pub wants_empty_priority_prompts: bool,
-    #[serde(default)]
-    pub priority_empty_prompts: Vec<bool>,
+    pub player_seat_configs: Vec<PlayerSeatConfig>,
 }
 
 fn default_starting_life() -> i32 {
@@ -25,10 +24,25 @@ impl Default for GameConfig {
         Self {
             starting_life: 20,
             commander_name: None,
-            wants_empty_priority_prompts: false,
-            priority_empty_prompts: Vec::new(),
+            player_seat_configs: Vec::new(),
         }
     }
+}
+
+fn wants_empty_priority_prompts(
+    configs: &[PlayerSeatConfig],
+    player_names: &[String],
+    index: usize,
+) -> bool {
+    player_names
+        .get(index)
+        .and_then(|name| {
+            configs
+                .iter()
+                .find(|config| config.username.as_str() == name.as_str())
+        })
+        .map(|config| config.wants_empty_priority_prompts)
+        .unwrap_or(false)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -168,6 +182,8 @@ pub fn run_interactive_game(
             .map_err(|e| JsError::new(&format!("Failed to parse config: {}", e)))?
     };
     let starting_life = config.starting_life;
+    let commander_name = config.commander_name.clone();
+    let player_seat_configs = config.player_seat_configs;
 
     let local_sab: SharedArrayBuffer = shared_buffer
         .dyn_into()
@@ -177,10 +193,11 @@ pub fn run_interactive_game(
     // through the shared host runtime so deck zoning, token setup, and the
     // final game-over prompt match the multiplayer + Tauri paths exactly —
     // single-player no longer dumps every card straight into the library.
+    let player_names = vec!["You".to_string(), "AI Opponent".to_string()];
     let prepared_players = prepare_players(
-        &["You".to_string(), "AI Opponent".to_string()],
+        &player_names,
         &[human_deck, ai_deck],
-        &[config.commander_name.clone(), None],
+        &[commander_name, None],
         card_db,
         starting_life,
     );
@@ -207,7 +224,11 @@ pub fn run_interactive_game(
                     game_id_for_agents.clone(),
                     WasmTransport::new(&local_sab),
                 );
-                agent.set_wants_empty_priority_prompts(config.wants_empty_priority_prompts);
+                agent.set_wants_empty_priority_prompts(wants_empty_priority_prompts(
+                    &player_seat_configs,
+                    &player_names,
+                    pid.index(),
+                ));
                 Box::new(agent)
             } else {
                 Box::new(PromptAgent::new(
@@ -284,12 +305,7 @@ pub fn run_multiplayer_game(
             .map_err(|e| JsError::new(&format!("Failed to parse config: {e}")))?
     };
     let starting_life = config.starting_life;
-    if config.priority_empty_prompts.len() != num_players {
-        return Err(JsError::new(
-            "priority_empty_prompts length must match decks length",
-        ));
-    }
-    let priority_empty_prompts = config.priority_empty_prompts;
+    let player_seat_configs = config.player_seat_configs;
 
     let local_sab: SharedArrayBuffer = local_buffer
         .dyn_into()
@@ -381,7 +397,11 @@ pub fn run_multiplayer_game(
                 WasmTransport::new_relay(sab)
             };
             let mut agent = PromptAgent::new(pid, game_id_for_agents.clone(), transport);
-            agent.set_wants_empty_priority_prompts(priority_empty_prompts[pid.index()]);
+            agent.set_wants_empty_priority_prompts(wants_empty_priority_prompts(
+                &player_seat_configs,
+                &player_names,
+                pid.index(),
+            ));
             Box::new(agent)
         },
     );

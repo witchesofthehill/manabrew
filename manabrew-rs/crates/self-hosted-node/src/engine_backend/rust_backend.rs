@@ -7,6 +7,7 @@ use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 use manabrew_agent_interface::agent_impl::PromptAgent;
 use manabrew_agent_interface::deck_dto::Deck;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+use manabrew_agent_interface::protocol::PlayerSeatConfig;
 
 use crate::config::DeckSelection;
 use forge_carddb::CardDatabase;
@@ -32,7 +33,7 @@ pub fn run_hosted_engine_game(
     commander_names: Vec<Option<String>>,
     local_player_index: Option<usize>,
     starting_life: i32,
-    priority_preferences: Vec<bool>,
+    player_seat_configs: Vec<PlayerSeatConfig>,
     remote_prompt_tx: std_mpsc::Sender<(usize, AgentMessage)>,
     remote_response_rxs: Vec<(usize, std_mpsc::Receiver<PromptOutput>)>,
     game_over_tx: std_mpsc::Sender<HostedGameOver>,
@@ -54,7 +55,11 @@ pub fn run_hosted_engine_game(
             game_id.clone(),
             BotResponder::default(),
         );
-        agent.set_wants_empty_priority_prompts(false);
+        agent.set_wants_empty_priority_prompts(wants_empty_priority_prompts(
+            &player_seat_configs,
+            &player_names,
+            player_index,
+        ));
         Box::new(agent) as Box<dyn PlayerAgent>
     });
     let mut remote_rx_map: HashMap<usize, std_mpsc::Receiver<PromptOutput>> =
@@ -85,7 +90,11 @@ pub fn run_hosted_engine_game(
                     game_id_for_agents.clone(),
                     NodeTransport::new_relay(i, remote_prompt_tx_for_agents.clone(), response_rx),
                 );
-                agent.set_wants_empty_priority_prompts(priority_preferences[i]);
+                agent.set_wants_empty_priority_prompts(wants_empty_priority_prompts(
+                    &player_seat_configs,
+                    &player_names,
+                    i,
+                ));
                 Box::new(agent)
             }
         },
@@ -97,6 +106,22 @@ pub fn run_hosted_engine_game(
         messages: Vec::new(),
     });
     Ok(())
+}
+
+fn wants_empty_priority_prompts(
+    configs: &[PlayerSeatConfig],
+    player_names: &[String],
+    index: usize,
+) -> bool {
+    player_names
+        .get(index)
+        .and_then(|name| {
+            configs
+                .iter()
+                .find(|config| config.username.as_str() == name.as_str())
+        })
+        .map(|config| config.wants_empty_priority_prompts)
+        .unwrap_or(false)
 }
 
 pub fn run_self_play(

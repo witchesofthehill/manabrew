@@ -18,6 +18,7 @@ import type {
   JoinRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
+  SetPlayerSeatConfigParams,
   StartServerGameParams,
   SetFormatParams,
   SetMaxPlayersParams,
@@ -87,6 +88,9 @@ class TauriServerApi implements IServerApi {
   }
   setDeckSelection(params: SetDeckSelectionParams): Promise<void> {
     return this.inner.setDeckSelection(params);
+  }
+  setPlayerSeatConfig(params: SetPlayerSeatConfigParams): Promise<void> {
+    return this.inner.setPlayerSeatConfig(params);
   }
   setFormat(params: SetFormatParams): Promise<void> {
     return this.inner.setFormat(params);

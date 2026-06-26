@@ -8,10 +8,15 @@ pub struct PlayerDeckInfo {
     pub deck: Deck,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commander_name: Option<String>,
-    #[serde(default)]
-    pub wants_empty_priority_prompts: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerSeatConfig {
+    pub username: String,
+    #[serde(default)]
+    pub wants_empty_priority_prompts: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,9 +76,12 @@ pub enum ClientMessage {
         deck: Deck,
         commander_name: Option<String>,
         #[serde(default)]
-        wants_empty_priority_prompts: bool,
-        #[serde(default)]
         avatar: Option<String>,
+    },
+
+    SetPlayerSeatConfig {
+        #[serde(default)]
+        wants_empty_priority_prompts: bool,
     },
 
     SetFormat {
@@ -157,6 +165,8 @@ pub enum ServerMessage {
         room_id: String,
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
+        #[serde(default)]
+        player_seat_configs: Vec<PlayerSeatConfig>,
         starting_life: i32,
     },
 

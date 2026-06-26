@@ -1,0 +1,42 @@
+{
+  "types": [
+    {
+      "name": "forge.deck.io.Archetype"
+    },
+    {
+      "name": "forge.item.PaperCard"
+    },
+    {
+      "name": "forge.item.PaperCard$PaperCardFlags"
+    },
+    {
+      "name": "java.lang.Boolean"
+    },
+    {
+      "name": "java.lang.Double"
+    },
+    {
+      "name": "java.lang.Integer"
+    },
+    {
+      "name": "java.lang.Number"
+    },
+    {
+      "name": "java.util.AbstractMap$SimpleEntry"
+    },
+    {
+      "name": "java.util.ArrayList"
+    },
+    {
+      "name": "java.util.HashMap"
+    },
+    {
+      "name": "org.apache.commons.lang3.tuple.ImmutablePair"
+    },
+    {
+      "name": "org.apache.commons.lang3.tuple.Pair"
+    }
+  ],
+  "lambdaCapturingTypes": [],
+  "proxies": []
+}

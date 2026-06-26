@@ -1,4 +1,4 @@
-import type { PlayerDeckInfo, RoomInfo } from "@/types/server";
+import type { PlayerDeckInfo, PlayerSeatConfig, RoomInfo } from "@/types/server";
 
 // Router state survives page reloads, but a game launch must not: the engine
 // (and the room it belonged to) died with the page. Route state is therefore
@@ -11,6 +11,7 @@ export interface EngineGameRouteState {
   bootId: string;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
+  playerSeatConfigs: PlayerSeatConfig[];
   isHost: boolean;
   startingLife: number;
   myPlayerSlot: string;
@@ -36,6 +37,7 @@ export function buildEngineGameRouteState(
   room: RoomInfo | null,
   playerOrder: string[],
   playerDecks: PlayerDeckInfo[],
+  playerSeatConfigs: PlayerSeatConfig[],
   startingLife: number,
 ): { state: EngineGameRouteState; error?: never } | { state?: never; error: string } {
   if (
@@ -57,6 +59,7 @@ export function buildEngineGameRouteState(
       bootId: PAGE_LOAD_ID,
       playerOrder,
       playerDecks,
+      playerSeatConfigs,
       isHost: room?.host === username,
       startingLife,
       myPlayerSlot: `player-${myIndex}`,

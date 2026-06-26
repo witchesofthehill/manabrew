@@ -1,10 +1,6 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_RELAY_HOST?: string;
-  readonly VITE_RELAY_PORT?: string;
-  readonly VITE_RELAY_PASSWORD?: string;
-  readonly VITE_MANAGED_RELAY?: string;
   readonly VITE_SCRYFALL_SYMBOL_BASE?: string;
   readonly VITE_HOSTED_AI_ENABLED?: string;
 }
@@ -12,6 +8,8 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare const __APP_VERSION__: string;
 
 // `unplugin-icons` with `compiler: 'raw'` exports the plain SVG string
 // as the default import for any `~icons/<set>/<name>` module. Declare

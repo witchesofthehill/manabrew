@@ -15,6 +15,7 @@ import type {
   DraftConfig,
   SealedConfig,
   PlayerDeckInfo,
+  PlayerSeatConfig,
   AuthResultPayload,
   RoomListPayload,
   PlayerListPayload,
@@ -56,6 +57,7 @@ interface ServerState {
   gameStarted: boolean;
   playerOrder: string[];
   playerDecks: PlayerDeckInfo[];
+  playerSeatConfigs: PlayerSeatConfig[];
   startingLife: number;
 
   connect(host: string, port: number, username: string, password: string): Promise<void>;
@@ -76,6 +78,7 @@ interface ServerState {
   leaveRoom(): Promise<void>;
   setReady(ready: boolean): Promise<void>;
   setDeckSelection(deckName: string, deck: Deck, commanderName?: string): Promise<void>;
+  setPlayerSeatConfig(wantsEmptyPriorityPrompts: boolean): Promise<void>;
   setFormat(format: GameFormat): Promise<void>;
   setMaxPlayers(maxPlayers: number): Promise<void>;
   startGame(format?: GameFormat): Promise<void>;
@@ -121,6 +124,7 @@ export const useServerStore = create<ServerState>()(
       gameStarted: false,
       playerOrder: [],
       playerDecks: [],
+      playerSeatConfigs: [],
       startingLife: DEFAULT_STARTING_LIFE,
 
       async connect(host, port, username, password) {
@@ -149,6 +153,7 @@ export const useServerStore = create<ServerState>()(
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
+          playerSeatConfigs: [],
           startingLife: DEFAULT_STARTING_LIFE,
           rooms: [],
           players: [],
@@ -229,6 +234,7 @@ export const useServerStore = create<ServerState>()(
           gameStarted: false,
           playerOrder: [],
           playerDecks: [],
+          playerSeatConfigs: [],
           startingLife: DEFAULT_STARTING_LIFE,
         });
         const platform = getPlatform();
@@ -253,19 +259,40 @@ export const useServerStore = create<ServerState>()(
       async setReady(ready) {
         const platform = getPlatform();
         if (!platform.server) return;
+        if (ready) {
+          await platform.server.setPlayerSeatConfig({
+            wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
+          });
+        }
         await platform.server.setReady({ ready });
       },
 
       async setDeckSelection(deckName, deck, commanderName) {
         const platform = getPlatform();
         if (!platform.server) return;
+        const prefs = usePreferencesStore.getState();
+        const deckHasPlaymat = !!deck.playmat || !!deck.playmatSettings?.color;
         await platform.server.setDeckSelection({
           deckName,
-          deck,
+          deck: deckHasPlaymat
+            ? deck
+            : {
+                ...deck,
+                playmat: prefs.defaultPlaymat,
+                playmatSettings: prefs.defaultPlaymatSettings,
+              },
           commanderName: commanderName ?? null,
-          wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
-          avatar: usePreferencesStore.getState().customAvatar,
+          avatar: prefs.customAvatar,
         });
+        await platform.server.setPlayerSeatConfig({
+          wantsEmptyPriorityPrompts: prefs.experimentalSmartPriority,
+        });
+      },
+
+      async setPlayerSeatConfig(wantsEmptyPriorityPrompts) {
+        const platform = getPlatform();
+        if (!platform.server) return;
+        await platform.server.setPlayerSeatConfig({ wantsEmptyPriorityPrompts });
       },
 
       async setFormat(format) {
@@ -399,6 +426,7 @@ export const useServerStore = create<ServerState>()(
               gameStarted: true,
               playerOrder: payload.player_order,
               playerDecks: payload.player_decks,
+              playerSeatConfigs: payload.player_seat_configs,
               startingLife: payload.starting_life,
             });
           }),
@@ -418,6 +446,7 @@ export const useServerStore = create<ServerState>()(
                 gameStarted: false,
                 playerOrder: [],
                 playerDecks: [],
+                playerSeatConfigs: [],
                 startingLife: DEFAULT_STARTING_LIFE,
               });
               void get().listRooms();
@@ -443,6 +472,7 @@ export const useServerStore = create<ServerState>()(
                 gameStarted: false,
                 playerOrder: [],
                 playerDecks: [],
+                playerSeatConfigs: [],
                 startingLife: DEFAULT_STARTING_LIFE,
                 rooms: [],
                 players: [],

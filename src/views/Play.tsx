@@ -50,7 +50,8 @@ export default function Play() {
     if (!mpState?.multiplayer || multiplayerStarted.current) return;
     multiplayerStarted.current = true;
 
-    const { playerOrder, playerDecks, isHost, startingLife, myPlayerSlot } = mpState;
+    const { playerOrder, playerDecks, playerSeatConfigs, isHost, startingLife, myPlayerSlot } =
+      mpState;
     const engineIndex = parseInt(myPlayerSlot.replace("player-", ""), 10);
     if (Number.isNaN(engineIndex) || engineIndex < 0) return;
     const decksByPlayer = playerOrder.flatMap((playerName) => {
@@ -61,10 +62,6 @@ export default function Play() {
       const selected = (playerDecks ?? []).find((entry) => entry.username === playerName);
       return selected?.commander_name ?? null;
     });
-    const priorityPreferencesByPlayer = playerOrder.map((playerName) => {
-      const selected = (playerDecks ?? []).find((entry) => entry.username === playerName);
-      return selected?.wants_empty_priority_prompts === true;
-    });
     if (decksByPlayer.length !== playerOrder.length) return;
     setMultiplayerState(true, isHost, myPlayerSlot);
     startMultiplayerGame(
@@ -74,7 +71,7 @@ export default function Play() {
       engineIndex,
       isHost,
       startingLife,
-      priorityPreferencesByPlayer,
+      playerSeatConfigs,
     );
   }, [mpState, setMultiplayerState, startMultiplayerGame]);
 

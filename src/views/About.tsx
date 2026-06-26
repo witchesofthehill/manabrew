@@ -1,5 +1,6 @@
 import { AboutContent } from "@/components/AboutContent";
 import { BreweryBackdrop } from "@/components/BreweryBackdrop";
+import { VersionInfo } from "@/components/VersionInfo";
 
 export default function About() {
   return (
@@ -14,6 +15,7 @@ export default function About() {
             </p>
           </header>
           <AboutContent />
+          <VersionInfo />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomPlayerInfo, RoomStatus,
-    SealedConfig,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, PlayerSeatConfig, RoomInfo,
+    RoomPlayerInfo, RoomStatus, SealedConfig,
 };
 use crate::replay::GameReplayCache;
 use manabrew_protocol::deck_dto::Deck;
@@ -243,16 +243,27 @@ impl Room {
         deck_name: String,
         deck: Deck,
         commander_name: Option<String>,
-        wants_empty_priority_prompts: bool,
         avatar: Option<String>,
     ) -> Result<(), String> {
         if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
             slot.selected_deck_name = Some(deck_name);
             slot.selected_deck = Some(deck);
             slot.selected_commander_name = commander_name;
-            slot.wants_empty_priority_prompts = wants_empty_priority_prompts;
             slot.avatar = avatar;
             slot.ready = false;
+            Ok(())
+        } else {
+            Err("Player not in room".into())
+        }
+    }
+
+    pub fn set_player_seat_config(
+        &mut self,
+        player_id: &str,
+        wants_empty_priority_prompts: bool,
+    ) -> Result<(), String> {
+        if let Some(slot) = self.players.iter_mut().find(|p| p.player_id == player_id) {
+            slot.wants_empty_priority_prompts = wants_empty_priority_prompts;
             Ok(())
         } else {
             Err("Player not in room".into())
@@ -279,9 +290,18 @@ impl Room {
                         .unwrap_or_else(|| "Unknown Deck".to_string()),
                     deck,
                     commander_name: p.selected_commander_name.clone(),
-                    wants_empty_priority_prompts: p.wants_empty_priority_prompts,
                     avatar: p.avatar.clone(),
                 })
+            })
+            .collect()
+    }
+
+    pub fn player_seat_configs(&self) -> Vec<PlayerSeatConfig> {
+        self.players
+            .iter()
+            .map(|p| PlayerSeatConfig {
+                username: p.username.clone(),
+                wants_empty_priority_prompts: p.wants_empty_priority_prompts,
             })
             .collect()
     }

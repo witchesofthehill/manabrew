@@ -1,0 +1,134 @@
+---
+import { getCollection } from "astro:content";
+import BlogLayout from "../../layouts/BlogLayout.astro";
+
+const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime(),
+);
+
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const audienceLabel = { players: "For players", developers: "For developers" };
+
+const DESCRIPTION =
+  "Updates and technical writeups from Manabrew, an open-source Magic: The Gathering client and Rust rules engine that runs in the browser.";
+---
+
+<BlogLayout title="Blog" description={DESCRIPTION}>
+  <section class="head">
+    <p class="kicker">Blog</p>
+    <h1>Manabrew blog</h1>
+    <p class="lede">
+      Updates, release notes, and technical writeups from the project.
+    </p>
+  </section>
+
+  <ul class="posts">
+    {
+      posts.map((post) => (
+        <li>
+          <a href={`/blog/${post.id}/`}>
+            <span class="tag">{audienceLabel[post.data.audience]}</span>
+            <h2>{post.data.title}</h2>
+            <p class="desc">{post.data.description}</p>
+            <time datetime={post.data.pubDate.toISOString()}>
+              {dateFmt.format(post.data.pubDate)}
+            </time>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</BlogLayout>
+
+<style>
+  .head {
+    width: min(48rem, 100%);
+    margin-inline: auto;
+    padding: clamp(2.5rem, 7vh, 4.5rem) clamp(1rem, 4vw, 3rem) 1rem;
+  }
+
+  .kicker {
+    margin: 0 0 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    line-height: 1.05;
+  }
+
+  .lede {
+    max-width: 34rem;
+    margin: 0.9rem 0 0;
+    color: var(--muted-foreground);
+    font-size: clamp(1.02rem, 2.4vw, 1.18rem);
+  }
+
+  .posts {
+    list-style: none;
+    width: min(48rem, 100%);
+    margin: 0 auto;
+    padding: 1rem clamp(1rem, 4vw, 3rem) clamp(3rem, 8vh, 5rem);
+    display: grid;
+    gap: 1rem;
+  }
+
+  .posts a {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: linear-gradient(160deg, var(--card), var(--accent));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.4rem 1.5rem;
+    transition:
+      transform 140ms ease,
+      border-color 140ms ease;
+  }
+
+  .posts a:hover {
+    transform: translateY(-2px);
+    border-color: var(--ring);
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  .posts h2 {
+    margin: 0.4rem 0 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+    line-height: 1.15;
+  }
+
+  .desc {
+    margin: 0 0 0.8rem;
+    color: var(--muted-foreground);
+  }
+
+  time {
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+</style>

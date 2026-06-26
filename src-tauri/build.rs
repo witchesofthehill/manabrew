@@ -22,6 +22,9 @@ fn emit_forge_native_rpath() {
             .to_string()
     });
     println!("cargo:rustc-link-arg=-Wl,-rpath,{lib_dir}");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources");
+    }
     println!("cargo:rerun-if-env-changed=FORGE_NATIVE_LIB_DIR");
 }
 

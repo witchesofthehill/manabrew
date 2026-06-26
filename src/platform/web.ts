@@ -21,6 +21,7 @@ import type {
   JoinRoomParams,
   SetReadyParams,
   SetDeckSelectionParams,
+  SetPlayerSeatConfigParams,
   StartServerGameParams,
   SetFormatParams,
   SetMaxPlayersParams,
@@ -425,7 +426,7 @@ class WebGameApi implements IGameApi {
       startingLife: params.startingLife,
       commanderName: params.commanderName,
       opponentDeck: params.opponentDeck,
-      wantsEmptyPriorityPrompts: params.wantsEmptyPriorityPrompts,
+      playerSeatConfigs: params.playerSeatConfigs,
     });
   }
 
@@ -443,7 +444,7 @@ class WebGameApi implements IGameApi {
         playerNames: params.playerNames,
         enginePlayerIndex: params.enginePlayerIndex,
         startingLife: params.startingLife,
-        priorityPreferences: params.priorityPreferences,
+        playerSeatConfigs: params.playerSeatConfigs,
       });
     }
     // Non-host: prompts arrive via game:remote_prompt WebSocket events.
@@ -849,8 +850,14 @@ class WebServerApi implements IServerApi {
       deck_name: params.deckName,
       deck: params.deck,
       commander_name: params.commanderName,
-      wants_empty_priority_prompts: params.wantsEmptyPriorityPrompts ?? false,
       avatar: params.avatar ?? null,
+    });
+  }
+
+  async setPlayerSeatConfig(params: SetPlayerSeatConfigParams): Promise<void> {
+    this.send({
+      type: "SetPlayerSeatConfig",
+      wants_empty_priority_prompts: params.wantsEmptyPriorityPrompts,
     });
   }
 
@@ -1038,6 +1045,7 @@ class WebServerApi implements IServerApi {
           room_id: msg.room_id,
           player_order: msg.player_order,
           player_decks: msg.player_decks,
+          player_seat_configs: msg.player_seat_configs ?? [],
           starting_life: msg.starting_life,
         },
       ],

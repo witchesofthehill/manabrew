@@ -9,7 +9,10 @@ export interface NormalizeImageOptions {
 }
 
 export const AVATAR_IMAGE_BUDGET: NormalizeImageOptions = { maxPx: 512, maxBytes: 256 * 1024 };
-export const PLAYMAT_IMAGE_BUDGET: NormalizeImageOptions = { maxPx: 1024, maxBytes: 512 * 1024 };
+export const PLAYMAT_IMAGE_BUDGET: NormalizeImageOptions = {
+  maxPx: 4096,
+  maxBytes: 3 * 1024 * 1024,
+};
 
 export class ImageTooLargeError extends Error {
   constructor(maxBytes: number) {

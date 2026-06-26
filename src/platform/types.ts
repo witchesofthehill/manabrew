@@ -10,6 +10,7 @@ import type {
   DraftConfig,
   EngineKind,
   GameFormat,
+  PlayerSeatConfig,
   RoomRelayEnvelope,
   SealedConfig,
 } from "@/types/server";
@@ -25,7 +26,7 @@ export interface StartGameParams {
   startingLife: number;
   commanderName: string | null;
   opponentDeck: Deck | null;
-  wantsEmptyPriorityPrompts: boolean;
+  playerSeatConfigs: PlayerSeatConfig[];
 }
 
 export interface StartMultiplayerGameParams {
@@ -35,7 +36,7 @@ export interface StartMultiplayerGameParams {
   enginePlayerIndex: number;
   localIsHost: boolean;
   startingLife: number;
-  priorityPreferences: boolean[];
+  playerSeatConfigs: PlayerSeatConfig[];
 }
 
 export interface RespondParams {
@@ -84,8 +85,11 @@ export interface SetDeckSelectionParams {
   deckName: string;
   deck: Deck;
   commanderName: string | null;
-  wantsEmptyPriorityPrompts?: boolean;
   avatar?: string;
+}
+
+export interface SetPlayerSeatConfigParams {
+  wantsEmptyPriorityPrompts: boolean;
 }
 
 export interface StartServerGameParams {
@@ -156,6 +160,7 @@ export interface IServerApi {
   leaveRoom(): Promise<void>;
   setReady(params: SetReadyParams): Promise<void>;
   setDeckSelection(params: SetDeckSelectionParams): Promise<void>;
+  setPlayerSeatConfig(params: SetPlayerSeatConfigParams): Promise<void>;
   setFormat(params: SetFormatParams): Promise<void>;
   setMaxPlayers(params: SetMaxPlayersParams): Promise<void>;
   startGame(params?: StartServerGameParams): Promise<void>;

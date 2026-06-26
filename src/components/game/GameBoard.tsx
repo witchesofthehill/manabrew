@@ -548,6 +548,8 @@ export function GameBoard({
 
   const gameDecks = useGameStore((s) => s.gameDecks);
   const myAvatar = usePreferencesStore((s) => s.customAvatar);
+  const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymat);
+  const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
   const playerDecks = useServerStore((s) => s.playerDecks);
 
   const avatarByPlayerId = useMemo(() => {
@@ -568,13 +570,17 @@ export function GameBoard({
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
     });
+    const myDeck = gameDecks[me.id];
+    // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
+    // resolved here too; multiplayer decks already carry it from the relay.
+    const myDeckHasPlaymat = !!myDeck?.playmat || !!myDeck?.playmatSettings?.color;
     return [
       {
         playerId: me.id,
         isLocal: true,
         state: pixiBattlefield,
-        playmat: gameDecks[me.id]?.playmat,
-        playmatSettings: gameDecks[me.id]?.playmatSettings,
+        playmat: myDeckHasPlaymat ? myDeck?.playmat : defaultPlaymat,
+        playmatSettings: myDeckHasPlaymat ? myDeck?.playmatSettings : defaultPlaymatSettings,
       },
       ...opponents.map((op) => ({
         playerId: op.id,
@@ -595,6 +601,8 @@ export function GameBoard({
     selectableBattlefieldCardIds,
     hostileTargeting,
     gameDecks,
+    defaultPlaymat,
+    defaultPlaymatSettings,
   ]);
 
   const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;

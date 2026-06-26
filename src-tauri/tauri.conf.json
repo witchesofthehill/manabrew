@@ -1,6 +1,6 @@
 {
   "productName": "Manabrew",
-  "version": "0.4.0",
+  "version": "0.5.2",
   "identifier": "com.manabrew.app",
   "build": {
     "frontendDist": "../dist",
@@ -9,15 +9,7 @@
     "beforeBuildCommand": "yarn tauri:before-build"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Manabrew",
-        "width": 1400,
-        "height": 900,
-        "resizable": true,
-        "maximized": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null,
       "headers": {

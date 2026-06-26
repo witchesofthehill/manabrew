@@ -44,6 +44,7 @@ import init, {
   limited_drop_session,
 } from "../wasm/wasm";
 import type { Deck } from "@/protocol/deck";
+import type { PlayerSeatConfig } from "@/types/server";
 
 // ============================================================================
 // Types
@@ -207,11 +208,9 @@ async function loadCardDataOnce({ silent }: { silent: boolean }): Promise<void> 
 /**
  * Fetch the preset-deck index, then every deck file in parallel.
  *
- * Same physical files the Tauri shell bundles (`public/preset_decks/*.json`)
- * — vite serves the directory at `/preset_decks/`. The index is a list of
- * deck ids (filename stems); each `<id>.json` is the same shape the Rust
- * `preset_decks.rs` loader expects, so the DTO ends up byte-identical to the
- * Tauri command's output.
+ * `public/preset_decks/` ships in the frontend bundle (vite serves it at
+ * `/preset_decks/`) on both web and desktop. This worker fetch is the single
+ * source on every platform — there is no native preset command.
  */
 async function loadPresetDecks(): Promise<PresetDeck[]> {
   const indexResponse = await fetch("/preset_decks/index.json");
@@ -354,7 +353,7 @@ function runInteractiveGame(requestId: string, args?: Record<string, unknown>): 
   const config = {
     starting_life: (args?.startingLife as number) || 20,
     commander_name: args?.commanderName as string | undefined,
-    wants_empty_priority_prompts: args?.wantsEmptyPriorityPrompts === true,
+    player_seat_configs: (args?.playerSeatConfigs as PlayerSeatConfig[] | undefined) ?? [],
   };
 
   console.log(
@@ -406,7 +405,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
   const playerNames = (args?.playerNames as string[]) ?? decks.map((_, i) => `player-${i}`);
   const localPlayerIndex = (args?.enginePlayerIndex as number) ?? 0;
   const startingLife = (args?.startingLife as number) || 20;
-  const priorityPreferences = (args?.priorityPreferences as boolean[] | undefined) ?? [];
+  const playerSeatConfigs = (args?.playerSeatConfigs as PlayerSeatConfig[] | undefined) ?? [];
 
   if (decks.length < 2) {
     postError(requestId, "start_multiplayer_game requires at least two decks");
@@ -426,7 +425,7 @@ function runMultiplayerHostGame(requestId: string, args?: Record<string, unknown
   }
   const config = {
     starting_life: startingLife,
-    priority_empty_prompts: priorityPreferences,
+    player_seat_configs: playerSeatConfigs,
   };
 
   console.log(

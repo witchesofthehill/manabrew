@@ -1,0 +1,188 @@
+---
+import type { ImageMetadata } from "astro";
+import { Image } from "astro:assets";
+import { getCollection, render } from "astro:content";
+import BlogLayout from "../../layouts/BlogLayout.astro";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("blog", ({ data }) => !data.draft);
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+
+const heroes = import.meta.glob<{ default: ImageMetadata }>(
+  "../../../../images/screenshots/*.webp",
+);
+const heroEntry = post.data.hero
+  ? heroes[`../../../../images/screenshots/${post.data.hero}`]
+  : undefined;
+const hero = heroEntry ? (await heroEntry()).default : undefined;
+
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+const audienceLabel = { players: "For players", developers: "For developers" };
+const ogImage = hero ? new URL(hero.src, Astro.site).toString() : undefined;
+---
+
+<BlogLayout
+  title={post.data.title}
+  description={post.data.description}
+  article={true}
+  pubDate={post.data.pubDate}
+  author={post.data.author}
+  ogImage={ogImage}
+>
+  <article>
+    <header class="post-head">
+      <p class="meta">
+        <span class="tag">{audienceLabel[post.data.audience]}</span>
+        <time datetime={post.data.pubDate.toISOString()}>
+          {dateFmt.format(post.data.pubDate)}
+        </time>
+      </p>
+      <h1>{post.data.title}</h1>
+    </header>
+
+    {
+      hero && (
+        <figure class="hero">
+          <Image
+            src={hero}
+            alt={post.data.heroAlt ?? ""}
+            widths={[640, 1080, 1600]}
+            sizes="(max-width: 800px) 100vw, 760px"
+            loading="eager"
+          />
+        </figure>
+      )
+    }
+
+    <div class="prose">
+      <Content />
+    </div>
+
+    <hr />
+    <p class="back"><a href="/blog/">← All posts</a></p>
+    <p class="brewed">brewed with love by witches of the hill!</p>
+  </article>
+</BlogLayout>
+
+<style>
+  article {
+    width: min(44rem, 100%);
+    margin-inline: auto;
+    padding: clamp(2rem, 6vh, 3.5rem) clamp(1rem, 4vw, 2rem) 1rem;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin: 0 0 0.6rem;
+  }
+
+  .tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--primary);
+  }
+
+  .meta time {
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5.5vw, 3.2rem);
+    line-height: 1.08;
+  }
+
+  .hero {
+    margin: 1.8rem 0 0;
+  }
+
+  .hero :global(img) {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .prose {
+    margin-top: 2rem;
+  }
+
+  .prose :global(h2) {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
+    color: var(--primary);
+    margin: 2.2rem 0 0.6rem;
+    line-height: 1.2;
+  }
+
+  .prose :global(p) {
+    margin: 0 0 1.1rem;
+  }
+
+  .prose :global(ul) {
+    margin: 0 0 1.2rem;
+    padding-left: 1.3rem;
+  }
+
+  .prose :global(li) {
+    margin: 0 0 0.5rem;
+  }
+
+  .prose :global(a) {
+    color: var(--primary);
+  }
+
+  .prose :global(strong) {
+    color: var(--foreground);
+  }
+
+  .prose :global(code) {
+    font-size: 0.92em;
+    background: var(--accent);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2.5rem 0 1.2rem;
+  }
+
+  .back a {
+    color: var(--muted-foreground);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+
+  .back a:hover {
+    color: var(--primary);
+  }
+
+  .brewed {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--muted-foreground);
+  }
+</style>

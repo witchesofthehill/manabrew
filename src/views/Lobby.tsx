@@ -113,6 +113,7 @@ export default function Lobby() {
     gameStarted,
     playerOrder,
     playerDecks,
+    playerSeatConfigs,
     startingLife,
     connect,
     listRooms,
@@ -120,6 +121,7 @@ export default function Lobby() {
     joinRoom,
     leaveRoom,
     setDeckSelection,
+    setPlayerSeatConfig,
     setReady,
     setFormat,
     setMaxPlayers,
@@ -127,6 +129,10 @@ export default function Lobby() {
   } = useServerStore();
   const prefs = usePreferencesStore();
   const myUsername = username ?? prefs.serverUsername ?? null;
+  const currentRoomId = currentRoom?.room_id ?? null;
+  const currentRoomStatus = currentRoom?.status ?? null;
+  const isSeatedInCurrentRoom =
+    !!username && !!currentRoom?.players.some((player) => player.username === username);
   const connectionState: ConnectionState = connected
     ? "connected"
     : connecting
@@ -187,6 +193,20 @@ export default function Lobby() {
   }, [connected, listRooms, listPlayers]);
 
   useEffect(() => {
+    if (!connected || currentRoomStatus !== "Lobby" || !currentRoomId || !isSeatedInCurrentRoom) {
+      return;
+    }
+    void setPlayerSeatConfig(prefs.experimentalSmartPriority).catch(() => {});
+  }, [
+    connected,
+    currentRoomId,
+    currentRoomStatus,
+    isSeatedInCurrentRoom,
+    prefs.experimentalSmartPriority,
+    setPlayerSeatConfig,
+  ]);
+
+  useEffect(() => {
     if (!gameStarted || playerOrder.length === 0) return;
     if (currentRoom?.format === "Draft") {
       useServerStore.setState({ gameStarted: false });
@@ -214,6 +234,7 @@ export default function Lobby() {
       currentRoom,
       playerOrder,
       playerDecks,
+      playerSeatConfigs,
       startingLife,
     );
     if (launch.error) {
@@ -222,7 +243,16 @@ export default function Lobby() {
     }
     useServerStore.setState({ gameStarted: false });
     navigate("/play", { state: launch.state });
-  }, [gameStarted, currentRoom, navigate, playerDecks, playerOrder, startingLife, username]);
+  }, [
+    gameStarted,
+    currentRoom,
+    navigate,
+    playerDecks,
+    playerOrder,
+    playerSeatConfigs,
+    startingLife,
+    username,
+  ]);
 
   useEffect(() => {
     const unsubscribe = getPlatform().events.on<RoomMessagePayload>(

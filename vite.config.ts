@@ -1,4 +1,5 @@
 import path from "path";
+import { readFileSync } from "fs";
 import { defineConfig } from "vite";
 import type { Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -6,6 +7,16 @@ import tailwindcss from "@tailwindcss/vite";
 import Icons from "unplugin-icons/vite";
 
 const host = process.env.TAURI_DEV_HOST;
+
+// release-please's authoritative version. It bumps this manifest plus the
+// extra-files (package.json, src-tauri/tauri.conf.json, Cargo.toml) in the
+// same release commit, then tags vX.Y.Z — so the manifest always matches the
+// shipped release tag, even if package.json is hand-edited out of sync.
+const appVersion = (
+  JSON.parse(readFileSync(path.resolve(__dirname, ".release-please-manifest.json"), "utf-8")) as {
+    ".": string;
+  }
+)["."];
 
 const COEP = process.env.TAURI_ENV_PLATFORM ? "require-corp" : "credentialless";
 
@@ -37,6 +48,9 @@ export default defineConfig({
     },
   },
   clearScreen: false,
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   server: {
     port: 1420,
     strictPort: true,

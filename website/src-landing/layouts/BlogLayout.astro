@@ -1,0 +1,205 @@
+---
+import { Image } from "astro:assets";
+import "@fontsource/cormorant-garamond/600.css";
+import "@fontsource/cormorant-garamond/700.css";
+import "@fontsource/alegreya-sans/400.css";
+import "@fontsource/alegreya-sans/500.css";
+import "@fontsource/alegreya-sans/700.css";
+import preset from "../../src/theme";
+import logo from "../../../src/assets/manaBrew.png";
+import brewery from "../../../public/manabrew_brewery_1.png";
+
+interface Props {
+  title: string;
+  description: string;
+  article?: boolean;
+  pubDate?: Date;
+  author?: string;
+  ogImage?: string;
+}
+
+const { title, description, article = false, pubDate, author, ogImage } = Astro.props;
+
+const GITHUB = "https://github.com/witchesofthehill/manabrew";
+const DISCORD = "https://discord.gg/NqrKpbhtcd";
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const social = ogImage ?? new URL(brewery.src, Astro.site).toString();
+const pageTitle = `${title} · Manabrew`;
+
+const t = preset.dark;
+
+const jsonLd = article
+  ? {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: title,
+      description,
+      url: canonical.toString(),
+      datePublished: pubDate?.toISOString(),
+      author: { "@type": "Organization", name: author ?? "Manabrew" },
+      image: social,
+      publisher: {
+        "@type": "Organization",
+        name: "Manabrew",
+        url: "https://manabrew.app/",
+      },
+    }
+  : null;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical.toString()} />
+    <meta property="og:type" content={article ? "article" : "website"} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={social} />
+    <meta property="og:url" content={canonical.toString()} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={social} />
+    {pubDate && <meta property="article:published_time" content={pubDate.toISOString()} />}
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+  </head>
+  <body>
+    <header class="nav">
+      <a class="wordmark" href="/">
+        <Image src={logo} alt="Manabrew" width={64} height={64} />
+      </a>
+      <nav>
+        <a href="/blog/">Blog</a>
+        <a href="https://docs.manabrew.app/">Docs</a>
+        <a href={DISCORD}>Discord</a>
+        <a href={GITHUB}>GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer>
+      <p>
+        Manabrew is unofficial fan software, not affiliated with, endorsed by, or
+        sponsored by Wizards of the Coast LLC or the Forge project. Magic: The
+        Gathering and related marks are property of Wizards of the Coast LLC.
+        Card images are not shipped by this project.
+      </p>
+      <p class="foot-links">
+        <a href="/blog/">Blog</a> · <a href={GITHUB}>GitHub</a> ·
+        <a href={DISCORD}>Discord</a> ·
+        <a href="https://docs.manabrew.app/">Documentation</a> ·
+        <a href={`${GITHUB}/blob/main/LICENSE.md`}>AGPL-3.0-or-later</a>
+      </p>
+    </footer>
+  </body>
+</html>
+
+<style
+  define:vars={{
+    background: t.background,
+    card: t.card,
+    accent: t.accent,
+    border: t.border,
+    foreground: t.foreground,
+    "muted-foreground": t["muted-foreground"],
+    primary: t.primary,
+    "primary-foreground": t["primary-foreground"],
+    ring: t.ring,
+  }}
+>
+  :root {
+    --font-display: "Cormorant Garamond", georgia, serif;
+    --font-body: "Alegreya Sans", system-ui, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  a {
+    color: var(--primary);
+  }
+
+  main {
+    flex: 1 0 auto;
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 1.1rem clamp(1rem, 4vw, 3rem);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .wordmark {
+    display: flex;
+    align-items: center;
+  }
+
+  .wordmark img {
+    height: 3rem;
+    width: auto;
+  }
+
+  .nav nav {
+    display: flex;
+    gap: clamp(0.9rem, 3vw, 1.8rem);
+  }
+
+  .nav nav a {
+    color: var(--foreground);
+    text-decoration: none;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+  }
+
+  .nav nav a:hover {
+    color: var(--primary);
+  }
+
+  footer {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding: 2rem clamp(1rem, 4vw, 3rem) 2.6rem;
+    text-align: center;
+  }
+
+  footer p {
+    max-width: 46rem;
+    margin: 0 auto 1rem;
+    font-size: 0.85rem;
+    color: var(--muted-foreground);
+  }
+
+  .foot-links a {
+    color: var(--foreground);
+  }
+</style>

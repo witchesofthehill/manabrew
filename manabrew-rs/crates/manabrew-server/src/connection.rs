@@ -743,7 +743,6 @@ fn handle_client_message(
             deck_name,
             deck,
             commander_name,
-            wants_empty_priority_prompts,
             avatar,
         } => {
             info!(
@@ -758,7 +757,6 @@ fn handle_client_message(
                 deck_name,
                 deck,
                 commander_name,
-                wants_empty_priority_prompts,
                 avatar,
             ) {
                 Ok(room_id) => {
@@ -774,6 +772,35 @@ fn handle_client_message(
                 }
                 Err(e) => {
                     warn!("[lobby] '{}' set deck failed: {}", username, e);
+                    send_msg(
+                        sender,
+                        &ServerMessage::Error {
+                            code: e.code().into(),
+                            message: e.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
+        ClientMessage::SetPlayerSeatConfig {
+            wants_empty_priority_prompts,
+        } => {
+            match lobby::set_player_seat_config_sync(state, player_id, wants_empty_priority_prompts)
+            {
+                Ok(room_id) => {
+                    if let Some(room) = state.rooms.get(&room_id) {
+                        broadcast_to_room(
+                            state,
+                            &room_id,
+                            &ServerMessage::RoomUpdate {
+                                room: room.to_room_info(),
+                            },
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("[lobby] '{}' set seat config failed: {}", username, e);
                     send_msg(
                         sender,
                         &ServerMessage::Error {
@@ -862,6 +889,7 @@ fn handle_client_message(
                             room_id: started.room_id.clone(),
                             player_order: started.player_order,
                             player_decks: started.player_decks,
+                            player_seat_configs: started.player_seat_configs,
                             starting_life: started.starting_life,
                         },
                     );
@@ -909,6 +937,7 @@ fn handle_client_message(
                     room_id: rid.clone(),
                     player_order: replay.player_order.clone(),
                     player_decks: replay.player_decks.clone(),
+                    player_seat_configs: replay.player_seat_configs.clone(),
                     starting_life: replay.starting_life,
                 }];
                 if let Some(state_env) = replay.last_state.clone() {
@@ -1064,6 +1093,7 @@ fn client_msg_type(msg: &ClientMessage) -> &'static str {
         ClientMessage::LeaveRoom => "LeaveRoom",
         ClientMessage::SetReady { .. } => "SetReady",
         ClientMessage::SetDeckSelection { .. } => "SetDeckSelection",
+        ClientMessage::SetPlayerSeatConfig { .. } => "SetPlayerSeatConfig",
         ClientMessage::SetFormat { .. } => "SetFormat",
         ClientMessage::SetMaxPlayers { .. } => "SetMaxPlayers",
         ClientMessage::StartGame { .. } => "StartGame",

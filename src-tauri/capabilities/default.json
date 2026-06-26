@@ -3,10 +3,19 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
+  "remote": {
+    "urls": [
+      "http://localhost:9527",
+      "http://localhost:9527/",
+      "http://localhost:9527/*",
+      "http://localhost:9527/**"
+    ]
+  },
   "permissions": [
     "core:default",
     "opener:default",
     "core:event:default",
+    "allow-app-commands",
     {
       "identifier": "http:default",
       "allow": [

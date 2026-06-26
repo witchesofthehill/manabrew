@@ -3,7 +3,7 @@ import { getHostedAiServerConnectionDefaults } from "@/config/webRuntimeConfig";
 import { createRoomRelayEnvelope, SELF_HOSTED_NODE_RELAY_PROTOCOL } from "@/game/roomRelay";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useServerStore } from "@/stores/useServerStore";
-import type { GameFormat, GameStartedPayload, RoomInfo } from "@/types/server";
+import type { GameFormat, GameStartedPayload, PlayerSeatConfig, RoomInfo } from "@/types/server";
 import type { RoomListPayload } from "@/types/server";
 import type {} from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
@@ -23,6 +23,7 @@ export interface HostedAiGameLaunch {
   commanderNames: Array<string | null>;
   enginePlayerIndex: number;
   startingLife: number;
+  playerSeatConfigs: PlayerSeatConfig[];
 }
 
 export async function startHostedAiGame(request: HostedAiGameRequest): Promise<HostedAiGameLaunch> {
@@ -45,8 +46,10 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     deckName: request.playerDeck.name || "Player Deck",
     deck: request.playerDeck,
     commanderName: request.commanderName,
-    wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
     avatar: usePreferencesStore.getState().customAvatar,
+  });
+  await platform.server.setPlayerSeatConfig({
+    wantsEmptyPriorityPrompts: usePreferencesStore.getState().experimentalSmartPriority,
   });
   await platform.server.setReady({ ready: true });
 
@@ -95,6 +98,7 @@ export async function startHostedAiGame(request: HostedAiGameRequest): Promise<H
     }),
     enginePlayerIndex,
     startingLife: payload.starting_life,
+    playerSeatConfigs: payload.player_seat_configs,
   };
 }
 

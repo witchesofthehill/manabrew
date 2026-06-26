@@ -30,6 +30,21 @@ const runtimeStamp = join(runtimeDir, ".stage-stamp");
 const sourceResDir = join(forgeRoot, "forge-gui", "res");
 const sourceCardsfolderDir = join(sourceResDir, "cardsfolder");
 
+const stagedResDirs = new Set([
+  "editions",
+  "formats",
+  "lists",
+  "tokenscripts",
+  "draft",
+  "effects",
+  "cube",
+  "defaults",
+  "blockdata",
+  "setlookup",
+  "ai",
+  "sealed",
+]);
+
 const sourceDirs = [
   join(forgeRoot, "forge-core", "src"),
   join(forgeRoot, "forge-game", "src"),
@@ -232,14 +247,6 @@ function rebuild() {
   console.log("harness: rebuild complete");
 }
 
-function isInsidePath(path, ancestor) {
-  const rel = relative(ancestor, path);
-  return (
-    rel === "" ||
-    (!rel.startsWith("..") && rel !== ".." && !rel.startsWith("/") && !rel.match(/^[A-Za-z]:/))
-  );
-}
-
 function latestMtimeMs(dir, predicate) {
   let latest = 0;
   for (const filePath of walkFiles(dir, predicate)) {
@@ -296,11 +303,13 @@ function stageRuntime({ force = false } = {}) {
   mkdirSync(runtimeDir, { recursive: true });
   copyFileSync(jarPath, runtimeHarnessJar);
 
-  cpSync(sourceResDir, runtimeResDir, {
-    recursive: true,
-    filter: (sourcePath) =>
-      sourcePath === sourceResDir || !isInsidePath(sourcePath, sourceCardsfolderDir),
-  });
+  mkdirSync(runtimeResDir, { recursive: true });
+  for (const dir of stagedResDirs) {
+    const src = join(sourceResDir, dir);
+    if (existsSync(src)) {
+      cpSync(src, join(runtimeResDir, dir), { recursive: true });
+    }
+  }
 
   mkdirSync(runtimeCardsfolderDir, { recursive: true });
   const zipPath = join(runtimeCardsfolderDir, "cardsfolder.zip");

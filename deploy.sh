@@ -127,7 +127,7 @@ while IFS= read -r file; do
             CARDDATA_CHANGED=true ;;
     esac
     case "$file" in
-        src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|package-lock.json|vite.config.ts|tsconfig*.json|index.html|website/*)
+        src/*|public/*|scripts/build-wasm.mjs|scripts/ensure-wasm.mjs|package.json|yarn.lock|vite.config.ts|tsconfig*.json|index.html|website/*)
             WEB_CHANGED=true ;;
         manabrew-rs/crates/wasm/*)
             WEB_CHANGED=true ;;

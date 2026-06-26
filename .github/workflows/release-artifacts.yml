@@ -116,6 +116,14 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -131,8 +139,14 @@ jobs:
       - name: Build WASM + bundle cards
         run: yarn build:wasm
 
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn build:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        run: ./forge-harness/build-native.sh
+
       - name: Tauri build (macOS)
-        run: yarn tauri -- build
+        run: yarn tauri -- build --features forge-room
 
       - name: Upload .dmg
         uses: actions/upload-artifact@v4
@@ -302,6 +316,14 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Set up GraalVM (JDK 21)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "21"
+          distribution: "graalvm-community"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: "maven"
+
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -317,8 +339,15 @@ jobs:
       - name: Build WASM + bundle cards
         run: yarn build:wasm
 
+      - name: Build Forge harness jar (Maven, GraalVM JDK 21)
+        run: yarn build:harness
+
+      - name: Build native Forge library (GraalVM native-image)
+        run: ./forge-harness/build-native.ps1
+        shell: pwsh
+
       - name: Tauri build (Windows)
-        run: yarn tauri -- build
+        run: yarn tauri -- build --features forge-room
 
       - name: Upload .exe
         uses: actions/upload-artifact@v4

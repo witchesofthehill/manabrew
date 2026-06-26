@@ -4,7 +4,7 @@ import type { GameViewDto } from "@/protocol/game";
 import type { Deck } from "@/protocol/deck";
 import type { GameLogEntry } from "@/types/gameLog";
 import type { GameSnapshotEntry } from "@/types/gameSnapshot";
-import type { EngineKind } from "@/types/server";
+import type { EngineKind, PlayerSeatConfig } from "@/types/server";
 
 export type { DisplayEvent };
 
@@ -75,7 +75,7 @@ export interface GameState {
     enginePlayerIndex: number,
     localIsHost: boolean,
     startingLife: number,
-    priorityPreferences: boolean[],
+    playerSeatConfigs: PlayerSeatConfig[],
   ) => Promise<void>;
   respond: (output: PromptOutput["output"]) => Promise<void>;
   concede: () => Promise<void>;

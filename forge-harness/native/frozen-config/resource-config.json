@@ -1,0 +1,45 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\QMETA-INF/services/java.lang.System$LoggerFinder\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.time.zone.ZoneRulesProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/java.util.spi.ResourceBundleControlProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/javax.xml.parsers.DocumentBuilderFactory\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.tinylog.configuration.ConfigurationLoader\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.tinylog.provider.LoggingProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.tinylog.writers.Writer\\E"
+      },
+      {
+        "pattern": "\\Qtinylog-dev.properties\\E"
+      },
+      {
+        "pattern": "\\Qtinylog-test.properties\\E"
+      },
+      {
+        "pattern": "\\Qtinylog.properties\\E"
+      },
+      {
+        "pattern": "java.base:\\Qjdk/internal/icu/impl/data/icudt72b/nfkc.nrm\\E"
+      }
+    ]
+  },
+  "bundles": [
+    {
+      "name": "en-US",
+      "locales": [""]
+    }
+  ]
+}

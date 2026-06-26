@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
+import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
 import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
@@ -16,17 +17,19 @@ import { useBattlefieldCardScale } from "@/hooks/useBattlefieldCardScale";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useTheme as useColorMode } from "next-themes";
 import { Navigate } from "react-router-dom";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Server } from "lucide-react";
+import { KNOWN_RELAYS, type KnownRelay } from "@/config/knownRelays";
 import { cn } from "@/lib/utils";
-
-/**
- * Production builds set VITE_MANAGED_RELAY=1; the relay host/port/password
- * are baked into the bundle and shouldn't be editable. Username stays
- * configurable because each player still picks their own handle.
- */
-const MANAGED_RELAY = !!import.meta.env.VITE_MANAGED_RELAY;
 
 /** Human-readable labels for theme color keys */
 /**
@@ -365,6 +368,8 @@ export default function Settings() {
 
   const zoneOrder = prefs.zonePanelOrder;
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [playmatEditorOpen, setPlaymatEditorOpen] = useState(false);
+  const hasDefaultPlaymat = !!prefs.defaultPlaymat || !!prefs.defaultPlaymatSettings?.color;
 
   async function onAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -426,6 +431,20 @@ export default function Settings() {
 
     if (username) {
       await server.connect(host, Number(port), username, password);
+    }
+  }
+
+  async function applyKnownRelay(relay: KnownRelay) {
+    setHost(relay.host);
+    setPort(String(relay.port));
+    setPassword(relay.password);
+    prefs.setServerHost(relay.host);
+    prefs.setServerPort(relay.port);
+    prefs.setServerPassword(relay.password);
+
+    await server.disconnect();
+    if (username) {
+      await server.connect(relay.host, relay.port, username, relay.password);
     }
   }
 
@@ -511,29 +530,25 @@ export default function Settings() {
           <h2 className="text-lg font-semibold">Server</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {!MANAGED_RELAY && (
-              <>
-                <div className="space-y-1">
-                  <Label htmlFor="server-host">Host</Label>
-                  <Input
-                    id="server-host"
-                    value={host}
-                    onChange={(e) => setHost(e.target.value)}
-                    placeholder="localhost"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="server-port">Port</Label>
-                  <Input
-                    id="server-port"
-                    type="number"
-                    value={port}
-                    onChange={(e) => setPort(e.target.value)}
-                    placeholder="9443"
-                  />
-                </div>
-              </>
-            )}
+            <div className="space-y-1">
+              <Label htmlFor="server-host">Host</Label>
+              <Input
+                id="server-host"
+                value={host}
+                onChange={(e) => setHost(e.target.value)}
+                placeholder="localhost"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="server-port">Port</Label>
+              <Input
+                id="server-port"
+                type="number"
+                value={port}
+                onChange={(e) => setPort(e.target.value)}
+                placeholder="9443"
+              />
+            </div>
             <div className="space-y-1">
               <Label htmlFor="server-username">Username</Label>
               <Input
@@ -543,23 +558,43 @@ export default function Settings() {
                 placeholder="Player1"
               />
             </div>
-            {!MANAGED_RELAY && (
-              <div className="space-y-1">
-                <Label htmlFor="server-password">Password</Label>
-                <Input
-                  id="server-password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="forge"
-                />
-              </div>
-            )}
+            <div className="space-y-1">
+              <Label htmlFor="server-password">Password</Label>
+              <Input
+                id="server-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="forge"
+              />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button onClick={handleSave} disabled={!hasChanges && !server.error}>
               Save & Reconnect
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Server className="h-4 w-4" />
+                  Configure known servers
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuLabel>Known servers</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {KNOWN_RELAYS.map((relay) => (
+                  <DropdownMenuItem key={relay.name} onSelect={() => void applyKnownRelay(relay)}>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{relay.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {relay.host}:{relay.port}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {server.connected && (
               <span className="text-xs text-success flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-success" />
@@ -572,9 +607,8 @@ export default function Settings() {
             {server.error && <span className="text-xs text-destructive">{server.error}</span>}
           </div>
           <p className="text-xs text-muted-foreground">
-            {MANAGED_RELAY
-              ? "Relay host, port and credentials are managed by this deployment. Only your username is configurable here."
-              : "Server connection settings. Saving will disconnect and reconnect with the new credentials."}
+            Server connection settings. Saving will disconnect and reconnect with the new
+            credentials.
           </p>
         </section>
       )}
@@ -626,6 +660,49 @@ export default function Settings() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Shown on your player panel and to opponents when a game starts.
+              </p>
+            </div>
+
+            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
+              <Label>Default Playmat</Label>
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                  {prefs.defaultPlaymat ? (
+                    <img
+                      src={prefs.defaultPlaymat}
+                      alt="Your default playmat"
+                      className="size-full object-cover"
+                    />
+                  ) : prefs.defaultPlaymatSettings?.color ? (
+                    <span
+                      className="size-full"
+                      style={{ backgroundColor: prefs.defaultPlaymatSettings.color }}
+                      aria-hidden
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">None</span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setPlaymatEditorOpen(true)}>
+                    {hasDefaultPlaymat ? "Customize" : "Set playmat"}
+                  </Button>
+                  {hasDefaultPlaymat && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        prefs.setDefaultPlaymat(undefined);
+                        prefs.setDefaultPlaymatSettings(undefined);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Used in games when the deck you&apos;re playing has no custom playmat of its own.
               </p>
             </div>
 
@@ -928,6 +1005,16 @@ export default function Settings() {
             </div>
           </div>
           {/* end preferences grid */}
+          {playmatEditorOpen && (
+            <PlaymatEditorModal
+              onClose={() => setPlaymatEditorOpen(false)}
+              title="Default Playmat"
+              playmat={prefs.defaultPlaymat}
+              storedSettings={prefs.defaultPlaymatSettings}
+              setPlaymat={prefs.setDefaultPlaymat}
+              setPlaymatSettings={prefs.setDefaultPlaymatSettings}
+            />
+          )}
         </section>
       )}
 

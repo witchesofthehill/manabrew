@@ -78,8 +78,12 @@ export interface PlayerDeckInfo {
   deck_name: string;
   deck: Deck;
   commander_name?: string;
-  wants_empty_priority_prompts?: boolean;
   avatar?: string;
+}
+
+export interface PlayerSeatConfig {
+  username: string;
+  wants_empty_priority_prompts?: boolean;
 }
 
 export interface PlayerInfo {
@@ -136,6 +140,7 @@ export interface GameStartedPayload {
   room_id: string;
   player_order: string[];
   player_decks: PlayerDeckInfo[];
+  player_seat_configs: PlayerSeatConfig[];
   starting_life: number;
 }
 

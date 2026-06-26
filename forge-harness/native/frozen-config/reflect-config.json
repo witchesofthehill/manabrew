@@ -1,0 +1,1474 @@
+[
+  {
+    "name": "com.google.common.util.concurrent.AbstractFuture",
+    "fields": [{ "name": "listeners" }, { "name": "value" }, { "name": "waiters" }]
+  },
+  {
+    "name": "com.google.common.util.concurrent.AbstractFuture$Waiter",
+    "fields": [{ "name": "next" }, { "name": "thread" }]
+  },
+  {
+    "name": "com.sun.org.apache.xerces.internal.jaxp.DocumentBuilderFactoryImpl",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.Game",
+    "fields": [{ "name": "maxId" }]
+  },
+  {
+    "name": "forge.game.GameLogFormatter",
+    "queryAllDeclaredMethods": true,
+    "methods": [{ "name": "recieve", "parameterTypes": ["forge.game.event.GameEvent"] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AbandonEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ActivateAbilityEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AddPhaseEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AddTurnEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AdvanceCrankEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AirbendEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AlterAttributeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AmassEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AnimateAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AnimateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AscendEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AssembleContraptionEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AssignGroupEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.AttachEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BalanceEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BecomeMonarchEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BecomesBlockedEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BidLifeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BlankLineEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BlightEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BlockEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BondEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.BranchEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CamouflageEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeCombatantsEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeSpeedEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeTargetsEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeTextEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeXEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeZoneAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeZoneEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChangeZoneResolveEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChaosEnsuesEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CharmEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseCardEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseCardNameEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseColorEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseDirectionEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseEvenOddEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseGenericEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseNumberEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChoosePlayerEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseSectorEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseSourceEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ChooseTypeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ClaimThePrizeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ClashEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ClassLevelUpEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CleanUpEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CloakEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CloneEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ConniveEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ControlExchangeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ControlExchangeVariantEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ControlGainEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ControlGainVariantEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ControlPlayerEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ControlSpellEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CopyPermanentEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CopySpellAbilityEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CounterEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersMoveEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersMultiplyEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersProliferateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersPutAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersPutEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersPutOrRemoveEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersRemoveAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.CountersRemoveEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DamageAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DamageDealEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DamageEachEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DamagePreventEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DamageResolveEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DayTimeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DebuffEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DelayedTriggerEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DestroyAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DestroyEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DetainEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DigEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DigMultipleEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DigUntilEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DiscardEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DiscoverEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DraftEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DrainManaEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.DrawEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.EarthbendEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.EffectEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.EncodeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.EndCombatPhaseEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.EndTurnEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.EndureEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ExploreEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.FightEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.FlipCoinEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.FlipOntoBattlefieldEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.FogEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.GameDrawEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.GameLossEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.GameWinEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.GoadEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.HauntEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.HealDamageEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.HeistEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ImmediateTriggerEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.IncubateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.IntensifyEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.InternalRadiationEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.InvestigateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LearnEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LifeExchangeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LifeExchangeVariantEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LifeGainEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LifeLoseEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LifeSetEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LookAtEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.LosePerpetualEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.MakeCardEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ManaEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ManaReflectedEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ManifestDreadEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ManifestEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.MeldEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.MillEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.MultiplePilesEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.MustBlockEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.MutateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.OpenAttractionEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.OwnershipGainEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PeekAndRevealEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PermanentCreatureEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PermanentNoncreatureEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PhasesEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PlaneswalkEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PlayEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PlayLandVariantEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PoisonEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PowerExchangeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ProtectAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ProtectEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PumpAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.PumpEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RadiationEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RearrangeTopOfLibraryEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RegenerateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RegenerationEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RemoveFromCombatEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RemoveFromGameEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RemoveFromMatchEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReorderZoneEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RepeatEachEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RepeatEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReplaceCounterEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReplaceDamageEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReplaceEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReplaceManaEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReplaceSplitDamageEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReplaceTokenEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RestartGameEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RevealEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RevealHandEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ReverseTurnOrderEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RingTemptsYouEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RollDiceEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RollPlanarDiceEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.RunChaosEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SacrificeAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SacrificeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ScryEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SeekEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SetInMotionEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SetStateEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ShuffleEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SkipPhaseEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SkipTurnEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.StoreSVarEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SubgameEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SurveilEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.SwitchBlockEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TakeInitiativeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TapAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TapEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TapOrUntapAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TapOrUntapEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TextBoxExchangeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TimeTravelEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TokenEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.TwoPilesEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.UnattachEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.UnlockDoorEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.UntapAllEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.UntapEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.VentureEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.VillainousChoiceEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.VoteEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.ability.effects.ZoneExchangeEffect",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.cost.IndividualCostPaymentInstance"
+  },
+  {
+    "name": "forge.game.event.IGameEventVisitor",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "forge.game.event.IGameEventVisitor$Base",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "forge.game.keyword.Equip",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.keyword.SimpleKeyword",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.keyword.Trample",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "forge.game.replacement.ReplacementEffect",
+    "fields": [{ "name": "maxId" }]
+  },
+  {
+    "name": "forge.game.spellability.SpellAbility",
+    "fields": [{ "name": "maxId" }]
+  },
+  {
+    "name": "forge.game.spellability.SpellAbilityStackInstance",
+    "fields": [{ "name": "maxId" }]
+  },
+  {
+    "name": "forge.game.staticability.StaticAbility",
+    "fields": [{ "name": "maxId" }]
+  },
+  {
+    "name": "forge.game.trigger.Trigger",
+    "fields": [{ "name": "maxId" }]
+  },
+  {
+    "name": "forge.game.trigger.TriggerAbandoned",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAbilityResolves",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAbilityTriggered",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAdapt",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAlways",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttached",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttackerBlocked",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttackerBlockedByCreature",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttackerBlockedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttackerUnblocked",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttackerUnblockedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttackersDeclared",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerAttacks",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomeMonarch",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomeMonstrous",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomeRenowned",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomesCrewed",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomesPlotted",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomesSaddled",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomesTarget",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBecomesTargetOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBlockersDeclared",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerBlocks",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCaseSolved",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerChampioned",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerChangesController",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerChangesZone",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerChangesZoneAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerChaosEnsues",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerClaimPrize",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerClashed",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerClassLevelGained",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCollectEvidence",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCommitCrime",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCompletedDungeon",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerConjureAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerConnives",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterAdded",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterAddedAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterAddedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterPlayerAddedAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterRemoved",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterRemovedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCounterTypeAddedAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCountered",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCrankContraption",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCrewedSaddled",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerCycled",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDamageAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDamageDealtOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDamageDone",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDamageDoneOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDamageDoneOnceByController",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDamagePreventedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDayTimeChanges",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDestroyed",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDevoured",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDiscarded",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDiscardedAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDiscover",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerDrawn",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerElementalbend",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerEnlisted",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerEnteredRoom",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerEvolved",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerExcessDamage",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerExcessDamageAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerExerted",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerExiled",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerExploited",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerExplores",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerFight",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerFightOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerFlippedCoin",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerForage",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerForetell",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerFullyUnlock",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerGiveGift",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerHandler",
+    "fields": [{ "name": "activeTriggers" }, { "name": "waitingTriggers" }]
+  },
+  {
+    "name": "forge.game.trigger.TriggerImmediate",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerInvestigated",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerLandPlayed",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerLifeGained",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerLifeLost",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerLifeLostAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerLosesGame",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerManaAdded",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerManaExpend",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerManifestDread",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerMentored",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerMilled",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerMilledAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerMilledOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerMutates",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerNewGame",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPayCumulativeUpkeep",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPayEcho",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPayLife",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPhase",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPhaseIn",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPhaseOut",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPhaseOutAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPlanarDice",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPlaneswalkedFrom",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerPlaneswalkedTo",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerProliferate",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerRingTemptsYou",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerRolledDie",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerRolledDieOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSacrificed",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSacrificedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerScry",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSearchedLibrary",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSeekAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSetInMotion",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerShuffled",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSpecializes",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerSpellAbilityCastOrCopy",
+    "queryAllDeclaredConstructors": true,
+    "methods": [
+      { "name": "<init>", "parameterTypes": ["java.util.Map", "forge.game.card.Card", "boolean"] }
+    ]
+  },
+  {
+    "name": "forge.game.trigger.TriggerSurveil",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTakesInitiative",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTapAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTaps",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTapsForMana",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTokenCreated",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTokenCreatedOnce",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTrains",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTransformed",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTurnBegin",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerTurnFaceUp",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerUnattached",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerUnlockDoor",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerUntapAll",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerUntaps",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerVisitAttraction",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.game.trigger.TriggerVote",
+    "queryAllDeclaredConstructors": true
+  },
+  {
+    "name": "forge.harness.Main$2",
+    "queryAllDeclaredMethods": true,
+    "methods": [
+      { "name": "onPriority", "parameterTypes": ["forge.game.event.GameEventPlayerPriority"] },
+      { "name": "onTurnPhase", "parameterTypes": ["forge.game.event.GameEventTurnPhase"] }
+    ]
+  },
+  {
+    "name": "java.lang.Class",
+    "methods": [
+      { "name": "getRecordComponents", "parameterTypes": [] },
+      { "name": "isRecord", "parameterTypes": [] }
+    ]
+  },
+  {
+    "name": "java.lang.Object",
+    "queryAllDeclaredMethods": true
+  },
+  {
+    "name": "java.lang.ProcessHandle",
+    "methods": [{ "name": "current", "parameterTypes": [] }]
+  },
+  {
+    "name": "java.lang.reflect.RecordComponent",
+    "methods": [
+      { "name": "getName", "parameterTypes": [] },
+      { "name": "getType", "parameterTypes": [] }
+    ]
+  },
+  {
+    "name": "java.sql.Date"
+  },
+  {
+    "name": "java.util.ArrayList",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "java.util.ImmutableCollections$List12",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "java.util.ImmutableCollections$ListN",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "java.util.LinkedHashMap",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "java.util.TreeMap",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "java.util.concurrent.atomic.AtomicBoolean",
+    "fields": [{ "name": "value" }]
+  },
+  {
+    "name": "org.tinylog.configuration.PropertiesConfigurationLoader",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "org.tinylog.core.TinylogLoggingProvider",
+    "methods": [{ "name": "<init>", "parameterTypes": [] }]
+  },
+  {
+    "name": "org.tinylog.writers.ConsoleWriter",
+    "methods": [{ "name": "<init>", "parameterTypes": ["java.util.Map"] }]
+  },
+  {
+    "name": "sun.misc.Unsafe",
+    "allDeclaredFields": true
+  }
+]

@@ -77,6 +77,7 @@ export function useGameSessionResume() {
       server.currentRoom,
       server.playerOrder,
       server.playerDecks,
+      server.playerSeatConfigs,
       server.startingLife,
     );
     useServerStore.setState({ gameStarted: false });

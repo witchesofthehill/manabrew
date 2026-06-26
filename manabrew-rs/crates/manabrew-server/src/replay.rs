@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::protocol::PlayerDeckInfo;
+use crate::protocol::{PlayerDeckInfo, PlayerSeatConfig};
 use crate::room::RoomSlot;
 
 #[derive(Debug, Default)]
 pub struct GameReplayCache {
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
+    pub player_seat_configs: Vec<PlayerSeatConfig>,
     pub starting_life: i32,
     pub last_state: Option<Value>,
     pub pending_prompts: HashMap<String, Value>,
@@ -19,11 +20,13 @@ impl GameReplayCache {
     pub fn new(
         player_order: Vec<String>,
         player_decks: Vec<PlayerDeckInfo>,
+        player_seat_configs: Vec<PlayerSeatConfig>,
         starting_life: i32,
     ) -> Self {
         GameReplayCache {
             player_order,
             player_decks,
+            player_seat_configs,
             starting_life,
             ..Default::default()
         }

@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use crate::error::ServerError;
 use crate::protocol::{
-    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, RoomInfo, RoomStatus, SealedConfig,
+    DraftConfig, EngineKind, GameFormat, PlayerDeckInfo, PlayerSeatConfig, RoomInfo, RoomStatus,
+    SealedConfig,
 };
 use crate::replay::GameReplayCache;
 use crate::room::Room;
@@ -272,7 +273,6 @@ pub fn set_deck_selection_sync(
     deck_name: String,
     mut deck: Deck,
     commander_name: Option<String>,
-    wants_empty_priority_prompts: bool,
     avatar: Option<String>,
 ) -> Result<String, ServerError> {
     let room_id = {
@@ -299,15 +299,38 @@ pub fn set_deck_selection_sync(
             return Err(ServerError::GameAlreadyStarted);
         }
 
-        room.set_deck_selection(
-            player_id,
-            deck_name,
-            deck,
-            commander_name,
-            wants_empty_priority_prompts,
-            avatar,
-        )
-        .map_err(|_| ServerError::NotInRoom)?;
+        room.set_deck_selection(player_id, deck_name, deck, commander_name, avatar)
+            .map_err(|_| ServerError::NotInRoom)?;
+    }
+
+    Ok(room_id)
+}
+
+pub fn set_player_seat_config_sync(
+    state: &Arc<ServerState>,
+    player_id: &str,
+    wants_empty_priority_prompts: bool,
+) -> Result<String, ServerError> {
+    let room_id = {
+        state
+            .players
+            .get(player_id)
+            .and_then(|p| p.room_id.clone())
+            .ok_or(ServerError::NotInRoom)?
+    };
+
+    {
+        let mut room = state
+            .rooms
+            .get_mut(&room_id)
+            .ok_or_else(|| ServerError::RoomNotFound(room_id.clone()))?;
+
+        if room.status != RoomStatus::Lobby {
+            return Err(ServerError::GameAlreadyStarted);
+        }
+
+        room.set_player_seat_config(player_id, wants_empty_priority_prompts)
+            .map_err(|_| ServerError::NotInRoom)?;
     }
 
     Ok(room_id)
@@ -317,6 +340,7 @@ pub struct StartedGame {
     pub room_id: String,
     pub player_order: Vec<String>,
     pub player_decks: Vec<PlayerDeckInfo>,
+    pub player_seat_configs: Vec<PlayerSeatConfig>,
     pub starting_life: i32,
     pub room_info: RoomInfo,
 }
@@ -406,7 +430,7 @@ pub fn start_game_sync(
             .ok_or(ServerError::NotInRoom)?
     };
 
-    let (player_order, player_decks, starting_life, room_info) = {
+    let (player_order, player_decks, player_seat_configs, starting_life, room_info) = {
         let mut room = state
             .rooms
             .get_mut(&room_id)
@@ -457,14 +481,17 @@ pub fn start_game_sync(
         };
         let player_order = room.player_usernames();
         let player_decks = room.player_decks();
+        let player_seat_configs = room.player_seat_configs();
         room.replay = Some(GameReplayCache::new(
             player_order.clone(),
             player_decks.clone(),
+            player_seat_configs.clone(),
             starting_life,
         ));
         (
             player_order,
             player_decks,
+            player_seat_configs,
             starting_life,
             room.to_room_info(),
         )
@@ -474,6 +501,7 @@ pub fn start_game_sync(
         room_id,
         player_order,
         player_decks,
+        player_seat_configs,
         starting_life,
         room_info,
     })

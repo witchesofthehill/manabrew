@@ -11,6 +11,8 @@ import { PromptActionController } from "@/components/prompts/PromptActionControl
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
 
+const ACTION_CLUSTER_TOP_MARGIN_PX = 12;
+
 export function MainActionOverlay({
   promptType,
   isWaitingForResponse,
@@ -56,9 +58,14 @@ export function MainActionOverlay({
   mulliganPutBackCount,
   mulliganSelectedCount,
   onMulliganPutBackConfirm,
+  selfRegionHeight,
 }: MainActionOverlayProps) {
   if (promptType === "gameOver") return null;
   const buttonLayout = "modern" as const;
+  const maxHeight =
+    selfRegionHeight != null
+      ? selfRegionHeight - ACTION_CLUSTER_TOP_MARGIN_PX
+      : undefined;
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
   const passToPhaseShort =
     currentPhaseIndex >= 0
@@ -67,13 +74,13 @@ export function MainActionOverlay({
 
   return (
     <>
-      {/* Bottom offset matches the PlayerPanel mana-row footprint
-          (h-7 + gap-y-1 + bottom-2 = ~40px) so the PASS cluster sits
-          at the same vertical line as the avatar / library / graveyard
-          row on the left. */}
       <div
         data-action-cluster
-        className="absolute bottom-10 right-12 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col items-end gap-0"
+        className="absolute bottom-0 right-12 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col items-end justify-end gap-0 bg-primary/60"
+        style={{
+          maxHeight,
+          overflow: maxHeight != null ? "hidden" : undefined,
+        }}
       >
         {/* Prompt / action area */}
         <section className="w-full flex flex-col gap-3">

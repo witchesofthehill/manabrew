@@ -54,15 +54,15 @@ import type {
 import { BoardRegion } from "./BoardRegion";
 import type { ZoneTileSpec } from "./BoardZoneTiles";
 import {
-  PlayerBarLayer,
-  PLAYER_BAR_HEIGHT_PX,
-  SELF_PLAYER_BAR_HEIGHT_PX,
-  PLAYER_BAR_TOP_MARGIN_PX,
-  PLAYER_BAR_SIDE_MARGIN_PX,
-  PLAYER_BAR_MAX_WIDTH_PX,
-  PLAYER_BAR_COLUMN_HEIGHT_PX,
-  type PlayerBarSpec,
-} from "./PlayerBarLayer";
+  PlayerHudLayer,
+  PLAYER_HUD_HEIGHT_PX as PLAYER_BAR_HEIGHT_PX,
+  SELF_PLAYER_HUD_HEIGHT_PX as SELF_PLAYER_BAR_HEIGHT_PX,
+  PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
+  PLAYER_HUD_SIDE_MARGIN_PX as PLAYER_BAR_SIDE_MARGIN_PX,
+  PLAYER_HUD_MAX_WIDTH_PX as PLAYER_BAR_MAX_WIDTH_PX,
+  PLAYER_HUD_COLUMN_HEIGHT_PX as PLAYER_BAR_COLUMN_HEIGHT_PX,
+} from "@/pixi/hud/PlayerHudLayer";
+import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
@@ -203,7 +203,7 @@ export class BoardScene {
   private fogGradRight: FillGradient | null = null;
   private fogGradLeft: FillGradient | null = null;
   private highlightGfx: Graphics;
-  private playerBars: PlayerBarLayer;
+  private playerBars: PlayerHudLayer;
   private barsEnabled = false;
 
   private cursorViewportX = 0;
@@ -242,7 +242,7 @@ export class BoardScene {
     this.highlightGfx.zIndex = 5500;
     this.root.addChild(this.highlightGfx);
 
-    this.playerBars = new PlayerBarLayer(this.theme, (id) => this.callbacks.onTargetPlayer?.(id));
+    this.playerBars = new PlayerHudLayer(this.theme, (id) => this.callbacks.onTargetPlayer?.(id));
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;
     this.root.addChild(this.playerBars.container);

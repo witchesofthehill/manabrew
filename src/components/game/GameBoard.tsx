@@ -7,17 +7,17 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import type { PlayerBarSpec } from "@/pixi/board/PlayerBarLayer";
+import type { PlayerHudSpec } from "@/pixi/hud/playerHud.types";
+import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
-import { PLAYMAT_PADDING } from "@/pixi/board/PlaymatLayer";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
+import { useGameDevStore } from "@/stores/useGameDevStore";
 import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
-import { PlayerPanel } from "@/components/game/panels";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
@@ -25,7 +25,6 @@ import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { GAP } from "@/pixi/constants";
-import { computeBaseLayout, HAND_FAN_PARAMS } from "@/pixi/HandLayout";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 
@@ -37,9 +36,6 @@ function promptOf<TType extends PromptType>(
     ? (prompt as Extract<Prompt, { input: { type: TType } }>)
     : null;
 }
-
-const SELF_PANEL_SCALE = 0.85;
-const UNIFIED_OPPONENT_PANEL_SCALE = 0.72;
 
 interface GameBoardProps {
   me: PlayerDto;
@@ -155,7 +151,6 @@ export function GameBoard({
   pendingBlocker,
   damageOrder,
   damageOrderBlockerIds,
-  selectedAttackDefenderId,
   blockAssignments,
   combatAssignments,
   arrowSpecs,
@@ -163,8 +158,6 @@ export function GameBoard({
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
-  turnFlashPlayerId,
-  zonePanelOrder,
   isOverBattlefield,
   draggingCardId,
   draggingIsPermanent,
@@ -186,7 +179,6 @@ export function GameBoard({
   onTargetFromZone,
   delveAvailable,
   onOpenDelveZone,
-  onCastSpell,
   onTapLand,
   onTapLands,
   onTapLandAbility,
@@ -204,25 +196,8 @@ export function GameBoard({
 
   const vScale = useHandScale();
 
-  const handWidth = useMemo(() => {
-    if (myHand.length === 0) return 0;
-    const cardW = Math.round(HAND_CARD_BASE.cardW * vScale);
-    const layout = computeBaseLayout(
-      myHand.length,
-      cardW,
-      Math.round(HAND_FAN_PARAMS.maxSpread * vScale),
-      Math.round(HAND_FAN_PARAMS.minSpread * vScale),
-      Math.round(HAND_FAN_PARAMS.spreadWidth * vScale),
-    );
-    if (layout.length === 0) return 0;
-    const xs = layout.map((slot) => slot.x);
-    return Math.max(...xs) - Math.min(...xs) + cardW;
-  }, [myHand.length, vScale]);
-
   const selfBottomReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
 
-  const CLUSTER_GAP_FROM_HAND_PX = 12;
-  const CLUSTER_MIN_WIDTH_PX = 120;
   const isTargetingPrompt = promptType === "chooseBoardTargets";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");
   const chooseAttackersPrompt = promptOf(currentPrompt, "chooseAttackers");
@@ -432,6 +407,7 @@ export function GameBoard({
       onAssignBlock,
       onUnassignBlock,
       onTargetPlayer,
+      setDragBlockerId,
     ],
   );
 
@@ -466,7 +442,6 @@ export function GameBoard({
   const boardRef = useRef<HTMLDivElement>(null);
 
   const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
-  const pixiPlayerBar = usePreferencesStore((s) => s.pixiPlayerBar);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
   const localSceneRef = useRef<BoardScene | null>(null);
   const sceneRef = boardSceneRef ?? localSceneRef;
@@ -501,34 +476,61 @@ export function GameBoard({
     return map;
   }, [myAvatar, playerDecks, me.id, opponents]);
 
-  // Thin Pixi player bars (behind the `pixiPlayerBar` toggle): self bottom-left,
-  // opponents across the top of their fields. When on, the React panels below
-  // are hidden.
-  const playerBarSpecs = useMemo<PlayerBarSpec[]>(
-    () => [
-      {
-        playerId: me.id,
-        name: me.name,
-        life: me.life,
-        color: playerColors.self,
-        avatarUrl: avatarByPlayerId.get(me.id),
-        isBot: me.isHuman === false,
-        isActiveTurn: activePlayerId === me.id,
-        isTargetable: playerIsTargetable(me.id),
-      },
-      ...opponents.map((op, i) => ({
-        playerId: op.id,
-        name: op.name,
-        life: op.life,
-        color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
-        avatarUrl: avatarByPlayerId.get(op.id),
-        isBot: op.isHuman === false,
-        isActiveTurn: activePlayerId === op.id,
-        isTargetable: playerIsTargetable(op.id),
-      })),
-    ],
-    [me, opponents, playerColors, avatarByPlayerId, activePlayerId, playerIsTargetable],
-  );
+  // Pixi player HUD capsules: self bottom-left, opponents across the top of
+  // their fields. Carries the life, mana pool, and active player/game badges.
+  const devOverrides = useGameDevStore((s) => s.playerOverrides);
+  const playerBarSpecs = useMemo<PlayerHudSpec[]>(() => {
+    const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
+      const dev = isSelf ? devOverrides : null;
+      const realCmdDmg = Object.values(player.commanderDamage ?? {}).reduce((a, b) => a + b, 0);
+      const badges = buildPlayerHudBadges(
+        {
+          isMonarch: dev?.forceMonarch ? true : monarchId === player.id,
+          hasInitiative: dev?.forceInitiative ? true : initiativeHolderId === player.id,
+          poison: dev?.poison ?? player.poison,
+          energy: dev?.energy ?? player.energyCounters,
+          radiation: dev?.radiation ?? player.radiationCounters,
+          cmdDamage: dev?.cmdDamage ?? realCmdDmg,
+          cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
+          ringLevel: dev?.ringLevel ?? player.ringLevel,
+          speed: dev?.speed ?? player.speed,
+          handCount: dev?.handCount ?? player.hand.length,
+        },
+        gameTheme.badges,
+      );
+      return {
+        playerId: player.id,
+        name: player.name,
+        life: dev?.life ?? player.life,
+        color,
+        avatarUrl: avatarByPlayerId.get(player.id),
+        isBot: player.isHuman === false,
+        isActiveTurn: activePlayerId === player.id,
+        isPriorityPlayer: priorityPlayerId === player.id && activePlayerId !== player.id,
+        isTargetable: playerIsTargetable(player.id),
+        manaPool: player.manaPool,
+        badges,
+      };
+    };
+    return [
+      toSpec(me, playerColors.self, true),
+      ...opponents.map((op, i) =>
+        toSpec(op, playerColors[OPPONENT_SEATS[i] ?? "opponent1"], false),
+      ),
+    ];
+  }, [
+    me,
+    opponents,
+    playerColors,
+    avatarByPlayerId,
+    activePlayerId,
+    priorityPlayerId,
+    playerIsTargetable,
+    monarchId,
+    initiativeHolderId,
+    gameTheme.badges,
+    devOverrides,
+  ]);
 
   // Shared open-handlers for the local player's command / graveyard / exile
   // zones. Used by BOTH the on-grid Pixi tiles and the React panel so the
@@ -770,96 +772,26 @@ export function GameBoard({
     playerColors,
   ]);
 
-  const selfPanelLeftPx = (unifiedLayout?.self?.x ?? 0) + 8;
-  const selfHalfWidthPx = (unifiedLayout?.self?.width ?? 0) / 2;
-  const clusterMaxWidthPx = Math.max(
-    CLUSTER_MIN_WIDTH_PX,
-    selfHalfWidthPx - handWidth / 2 - CLUSTER_GAP_FROM_HAND_PX - 8,
-  );
-  const panelElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const setPanelEl = useCallback((key: string, el: HTMLDivElement | null) => {
-    if (el) panelElsRef.current.set(key, el);
-    else panelElsRef.current.delete(key);
-  }, []);
+  // Keep battlefield cards from laying out under the local action-button
+  // cluster. (Player panels no longer reserve space — the Pixi HUD sits in the
+  // playmat's own margin.)
   const lastPanelBlockersRef = useRef<string>("");
   useLayoutEffect(() => {
     const board = boardRef.current;
     const scene = sceneRef.current;
     if (!board || !scene) return;
     const b = board.getBoundingClientRect();
-    const toRect = (el: Element): BlockingRect => {
-      const r = el.getBoundingClientRect();
-      return { x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height };
-    };
-    const next: Record<string, BlockingRect[]> = {};
-    for (const [key, el] of panelElsRef.current) {
-      const id = key === "self" ? me.id : key;
-      const sections = el.querySelectorAll<HTMLElement>("[data-panel-section]");
-      next[id] = sections.length > 0 ? [...sections].map(toRect) : [toRect(el)];
-    }
     const actionEl = document.querySelector<HTMLElement>("[data-action-cluster]");
-    if (actionEl) (next[me.id] ??= []).push(toRect(actionEl));
+    const next: Record<string, BlockingRect[]> = {};
+    if (actionEl) {
+      const r = actionEl.getBoundingClientRect();
+      next[me.id] = [{ x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height }];
+    }
     const json = JSON.stringify(next);
     if (json === lastPanelBlockersRef.current) return;
     lastPanelBlockersRef.current = json;
     scene.setPlayerBlockers(new Map(Object.entries(next)));
-  }, [
-    sceneRef,
-    me.id,
-    unifiedLayout,
-    opponents,
-    myCommandZone?.length,
-    graveyard.length,
-    exile.length,
-    promptType,
-  ]);
-  const selfPanel = (
-    <div
-      ref={(el) => setPanelEl("self", el)}
-      className="absolute bottom-2 z-30 pointer-events-none origin-bottom-left"
-      style={{
-        left: selfPanelLeftPx,
-        maxWidth: `calc(${clusterMaxWidthPx}px / ${SELF_PANEL_SCALE})`,
-        transform: `scale(${SELF_PANEL_SCALE})`,
-      }}
-    >
-      <PlayerPanel
-        player={me}
-        isOpponent={false}
-        seat="self"
-        avatarUrl={avatarByPlayerId.get(me.id)}
-        verticalAlign="bottom"
-        isActiveTurn={activePlayerId === me.id}
-        isPriorityPlayer={priorityPlayerId === me.id && activePlayerId !== me.id}
-        isTargetable={playerIsTargetable(me.id)}
-        onTarget={() => onTargetPlayer(me.id)}
-        isFlashing={turnFlashPlayerId === me.id}
-        isMonarch={monarchId === me.id}
-        hasInitiative={initiativeHolderId === me.id}
-        commanders={myCommandZone}
-        commandPlayableIds={commandPlayableIds}
-        graveyard={graveyard}
-        exile={exile}
-        onCastCommander={onCastSpell}
-        onCommanderDragStart={onHandCardDragStart}
-        onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
-        onOpenCommandZone={openCommandZone}
-        onOpenGraveyard={openGraveyard}
-        onOpenExile={openExile}
-        hasPlayableInGraveyard={
-          (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
-          !!delveAvailable
-        }
-        hasPlayableInExile={
-          promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id))
-        }
-        hasTargetInGraveyard={isTargetingPrompt && graveyardTargetIds.length > 0}
-        hasTargetInExile={isTargetingPrompt && exileTargetIds.length > 0}
-        targetHostile={hostileTargeting}
-        zonePanelOrder={zonePanelOrder}
-      />
-    </div>
-  );
+  }, [sceneRef, me.id, unifiedLayout, promptType]);
 
   return (
     <div
@@ -879,7 +811,7 @@ export function GameBoard({
           phaseStripCallbacks={pixiPhaseStripCallbacks}
           focusedOpponentId={focusedOpponentId}
           playerBars={playerBarSpecs}
-          showPlayerBars={pixiPlayerBar}
+          showPlayerBars
           zoneTiles={zoneTilesByPlayer}
           callbacks={pixiCallbacks}
           externalBlockers={pixiExternalBlockers}
@@ -892,7 +824,6 @@ export function GameBoard({
           onLayout={setUnifiedLayout}
         />
       </div>
-      {!pixiPlayerBar && selfPanel}
       {isFeatureEnabled("debugBattlegroundRects") &&
         unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
           const seat = OPPONENT_SEATS[i] ?? "opponent1";
@@ -909,58 +840,6 @@ export function GameBoard({
                 outline: `2px solid ${withAlpha(playerColors[seat], 0.55)}`,
               }}
             />
-          );
-        })}
-      {!pixiPlayerBar &&
-        unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
-          const op = opponents.find((o) => o.id === playerId);
-          if (!op) return null;
-          const scale = `scale(${UNIFIED_OPPONENT_PANEL_SCALE})`;
-          const colW = rect.width / opponents.length;
-          const homeX = i * colW;
-          const pad = Math.min(colW, rect.height) * PLAYMAT_PADDING;
-          const panelStyle: React.CSSProperties = {
-            left: homeX + 8 + pad,
-            top: rect.y + 8 + pad,
-            transform: scale,
-            transformOrigin: "top left",
-          };
-          return (
-            <div
-              key={playerId}
-              ref={(el) => setPanelEl(playerId, el)}
-              className="absolute z-30"
-              style={panelStyle}
-            >
-              <PlayerPanel
-                player={op}
-                isOpponent
-                seat={OPPONENT_SEATS[i] ?? "opponent1"}
-                avatarUrl={avatarByPlayerId.get(op.id)}
-                verticalAlign="top"
-                zoneOrientation="horizontal"
-                isActiveTurn={activePlayerId === op.id}
-                isPriorityPlayer={priorityPlayerId === op.id && activePlayerId !== op.id}
-                isTargetable={playerIsTargetable(op.id)}
-                isSelectedTarget={selectedAttackDefenderId === op.id}
-                onTarget={() => onTargetPlayer(op.id)}
-                isFlashing={turnFlashPlayerId === op.id}
-                isMonarch={monarchId === op.id}
-                hasInitiative={initiativeHolderId === op.id}
-                commanders={op.commandZone}
-                graveyard={op.graveyard}
-                exile={op.exile}
-                onOpenCommandZone={
-                  (op.commandZone?.length ?? 0) > 0
-                    ? () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone!)
-                    : undefined
-                }
-                onOpenGraveyard={() => onOpenZone(`${op.name}'s Graveyard`, op.graveyard)}
-                onOpenExile={() => onOpenZone(`${op.name}'s Exile`, op.exile)}
-                onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
-                zonePanelOrder={zonePanelOrder}
-              />
-            </div>
           );
         })}
       <div className="absolute inset-0 z-40 pointer-events-none">

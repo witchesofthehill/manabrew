@@ -19,7 +19,7 @@ const NUMERIC_BUMP_BASE = 0;
 /** Dev helper surface that forces every player badge so the operator
  *  can inspect visuals without a live game. Injected into the "Dev" tab
  *  of `RightActionPanel`; overrides flow through `useGameDevStore` and
- *  are picked up by `PlayerPanel` for the local player only. */
+ *  are folded into the local player's Pixi HUD spec in `GameBoard`. */
 export function PlayerBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.playerOverrides);
   const setOverride = useGameDevStore((s) => s.setPlayerOverride);

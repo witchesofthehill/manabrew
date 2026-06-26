@@ -862,30 +862,6 @@ export default function Settings() {
             </div>
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-              <Label>Opponent Player Bar</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={!prefs.pixiPlayerBar ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setPixiPlayerBar(false)}
-                >
-                  Panel
-                </Button>
-                <Button
-                  variant={prefs.pixiPlayerBar ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => prefs.setPixiPlayerBar(true)}
-                >
-                  Bar (experimental)
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                "Bar" replaces each opponent's panel with a thin bar across the top of their
-                battleground; the cards lay out below it.
-              </p>
-            </div>
-
-            <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <Label>Battlefield Card Style</Label>
               <div className="flex items-start gap-4">
                 <div className="flex-1 space-y-2">

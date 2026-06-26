@@ -102,6 +102,7 @@ export const Z_SELECTION_BADGE = 9500;
 export const Z_HAND_ACTIONS_MENU = 200;
 
 export const BG_ALPHA_IDLE = 0.4;
+export const STRIP_TURN_ALPHA = 0.85;
 export const BG_ALPHA_DROP = 0.15;
 export const DROP_STROKE_ALPHA = 0.8;
 export const DROP_TINT_ALPHA = 0.06;

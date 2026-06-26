@@ -411,6 +411,7 @@ export function GameBoard({
       onHoverOpponent: (playerId) => {
         hoveredOpponentRef.current = playerId;
       },
+      onTargetPlayer,
     }),
     [
       promptType,
@@ -430,6 +431,7 @@ export function GameBoard({
       onAttackerClick,
       onAssignBlock,
       onUnassignBlock,
+      onTargetPlayer,
     ],
   );
 
@@ -528,6 +530,94 @@ export function GameBoard({
     [me, opponents, playerColors, avatarByPlayerId, activePlayerId, playerIsTargetable],
   );
 
+  // Shared open-handlers for the local player's command / graveyard / exile
+  // zones. Used by BOTH the on-grid Pixi tiles and the React panel so the
+  // cast-vs-target-vs-open branching can't drift between them.
+  const openCommandZone = useCallback(() => {
+    if (!myCommandZone || myCommandZone.length === 0) return;
+    if (isTargetingPrompt && commandTargetIds.length > 0) {
+      onOpenZone(
+        "Your Command Zone",
+        myCommandZone,
+        onTargetFromZone,
+        commandTargetIds,
+        hostileTargeting,
+      );
+      return;
+    }
+    if ((commandPlayableIds?.length ?? 0) > 0 && promptType === "chooseAction") {
+      onOpenZoneAndCast("Your Command Zone", myCommandZone, (_cardId) => {}, commandPlayableIds);
+    } else {
+      onOpenZone("Your Command Zone", myCommandZone);
+    }
+  }, [
+    myCommandZone,
+    isTargetingPrompt,
+    commandTargetIds,
+    onOpenZone,
+    onTargetFromZone,
+    hostileTargeting,
+    commandPlayableIds,
+    promptType,
+    onOpenZoneAndCast,
+  ]);
+
+  const openGraveyard = useCallback(() => {
+    if (delveAvailable && onOpenDelveZone) {
+      onOpenDelveZone();
+      return;
+    }
+    if (isTargetingPrompt && graveyardTargetIds.length > 0) {
+      onOpenZone(
+        "Your Graveyard",
+        graveyard,
+        onTargetFromZone,
+        graveyardTargetIds,
+        hostileTargeting,
+      );
+      return;
+    }
+    if (graveyardPlayableIds.length > 0 && promptType === "chooseAction") {
+      onOpenZoneAndCast("Your Graveyard", graveyard, (_cardId) => {}, graveyardPlayableIds);
+    } else {
+      onOpenZone("Your Graveyard", graveyard);
+    }
+  }, [
+    delveAvailable,
+    onOpenDelveZone,
+    isTargetingPrompt,
+    graveyardTargetIds,
+    onOpenZone,
+    graveyard,
+    onTargetFromZone,
+    hostileTargeting,
+    graveyardPlayableIds,
+    promptType,
+    onOpenZoneAndCast,
+  ]);
+
+  const openExile = useCallback(() => {
+    if (isTargetingPrompt && exileTargetIds.length > 0) {
+      onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds, hostileTargeting);
+      return;
+    }
+    if (exilePlayableIds.length > 0 && promptType === "chooseAction") {
+      onOpenZoneAndCast("Your Exile", exile, (_cardId) => {}, exilePlayableIds);
+    } else {
+      onOpenZone("Your Exile", exile);
+    }
+  }, [
+    isTargetingPrompt,
+    exileTargetIds,
+    onOpenZone,
+    exile,
+    onTargetFromZone,
+    hostileTargeting,
+    exilePlayableIds,
+    promptType,
+    onOpenZoneAndCast,
+  ]);
+
   // On-grid zone tiles (deck / graveyard / exile / command) per player — same
   // data + open/highlight behaviour as the panel, rendered on the battlefield.
   const zoneTilesByPlayer = useMemo<Record<string, ZoneTileSpec[]>>(() => {
@@ -549,7 +639,7 @@ export function GameBoard({
         label: "GY",
         count: graveyard.length,
         topCard: top(graveyard),
-        onOpen: () => onOpenZone("Your Graveyard", graveyard),
+        onOpen: openGraveyard,
         highlightColor:
           isTargetingPrompt && graveyardTargetIds.length > 0
             ? targetColor
@@ -562,7 +652,7 @@ export function GameBoard({
         label: "EX",
         count: exile.length,
         topCard: top(exile),
-        onOpen: () => onOpenZone("Your Exile", exile),
+        onOpen: openExile,
         highlightColor:
           isTargetingPrompt && exileTargetIds.length > 0
             ? targetColor
@@ -577,7 +667,7 @@ export function GameBoard({
         label: "CMD",
         count: myCommandZone!.length,
         topCard: top(myCommandZone!),
-        onOpen: () => onOpenZone("Your Command Zone", myCommandZone!),
+        onOpen: openCommandZone,
         highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
       });
     }
@@ -630,6 +720,9 @@ export function GameBoard({
     graveyardTargetIds,
     exileTargetIds,
     onOpenZone,
+    openCommandZone,
+    openGraveyard,
+    openExile,
   ]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
@@ -750,62 +843,9 @@ export function GameBoard({
         onCastCommander={onCastSpell}
         onCommanderDragStart={onHandCardDragStart}
         onHoverCard={(card, e) => onHoverCard(card, e, { useAnchor: true })}
-        onOpenCommandZone={() => {
-          if ((myCommandZone?.length ?? 0) > 0) {
-            if (isTargetingPrompt && commandTargetIds.length > 0) {
-              onOpenZone(
-                "Your Command Zone",
-                myCommandZone!,
-                onTargetFromZone,
-                commandTargetIds,
-                hostileTargeting,
-              );
-              return;
-            }
-            if ((commandPlayableIds?.length ?? 0) > 0 && promptType === "chooseAction") {
-              onOpenZoneAndCast(
-                "Your Command Zone",
-                myCommandZone!,
-                (_cardId) => {},
-                commandPlayableIds,
-              );
-            } else {
-              onOpenZone("Your Command Zone", myCommandZone!);
-            }
-          }
-        }}
-        onOpenGraveyard={() => {
-          if (delveAvailable && onOpenDelveZone) {
-            onOpenDelveZone();
-            return;
-          }
-          if (isTargetingPrompt && graveyardTargetIds.length > 0) {
-            onOpenZone(
-              "Your Graveyard",
-              graveyard,
-              onTargetFromZone,
-              graveyardTargetIds,
-              hostileTargeting,
-            );
-            return;
-          }
-          if (graveyardPlayableIds.length > 0 && promptType === "chooseAction") {
-            onOpenZoneAndCast("Your Graveyard", graveyard, (_cardId) => {}, graveyardPlayableIds);
-          } else {
-            onOpenZone("Your Graveyard", graveyard);
-          }
-        }}
-        onOpenExile={() => {
-          if (isTargetingPrompt && exileTargetIds.length > 0) {
-            onOpenZone("Your Exile", exile, onTargetFromZone, exileTargetIds, hostileTargeting);
-            return;
-          }
-          if (exilePlayableIds.length > 0 && promptType === "chooseAction") {
-            onOpenZoneAndCast("Your Exile", exile, (_cardId) => {}, exilePlayableIds);
-          } else {
-            onOpenZone("Your Exile", exile);
-          }
-        }}
+        onOpenCommandZone={openCommandZone}
+        onOpenGraveyard={openGraveyard}
+        onOpenExile={openExile}
         hasPlayableInGraveyard={
           (promptType === "chooseAction" && graveyard.some((c) => playableIds.has(c.id))) ||
           !!delveAvailable

@@ -149,7 +149,10 @@ export class PlayerBarLayer {
     const avatarHit = new Graphics();
     avatarHit.eventMode = "static";
     avatarHit.cursor = "pointer";
-    avatarHit.on("pointertap", () => this.onTarget(spec.playerId));
+    avatarHit.on("pointertap", () => {
+      const current = this.bars.get(spec.playerId);
+      if (current?.spec.isTargetable) this.onTarget(spec.playerId);
+    });
     const initial = new Text({ text: "", style: this.textStyle() });
     initial.anchor.set(0.5);
     const heart = new Text({ text: "♥", style: this.heartStyle() });
@@ -185,12 +188,11 @@ export class PlayerBarLayer {
     const r = diameter / 2;
     bg.circle(cx, cy, r);
     bg.fill({ color: hexToNum(darken(gt.canvas.background, 0.35)), alpha: 1 });
-    // The avatar ring is the only border kept — it doubles as the active-turn cue.
-    bg.stroke({
-      color: accent,
-      width: spec.isActiveTurn ? 2.5 : 1,
-      alpha: spec.isActiveTurn ? 0.95 : 0.5,
-    });
+    // The avatar ring is the only border kept — it doubles as the active-turn
+    // cue (seat colour) or, when a player target is pending, the target ring.
+    const ringWidth = spec.isTargetable ? 2 : spec.isActiveTurn ? 2.5 : 1;
+    const ringAlpha = spec.isTargetable ? 0.9 : spec.isActiveTurn ? 0.95 : 0.5;
+    bg.stroke({ color: accent, width: ringWidth, alpha: ringAlpha });
 
     // Inside the circle, in priority: the avatar photo → a bot icon → the first
     // letter of the name. All centred on (cx, cy).
@@ -240,13 +242,18 @@ export class PlayerBarLayer {
     avatarHit.clear();
     avatarHit.circle(cx, cy, r);
     avatarHit.fill({ color: 0xffffff, alpha: 0.001 });
+    avatarHit.cursor = spec.isTargetable ? "pointer" : "default";
   }
 
   private redraw(bar: Bar): void {
     const { bg, heart, life, spec, width, height, column } = bar;
     if (width <= 0 || height <= 0) return;
     const gt = this.theme.gameTheme;
-    const accent = spec.isActiveTurn ? hexToNum(gt.activeAction.active) : hexToNum(spec.color);
+    // Targetable takes the ring (matches the React PlayerAvatar); otherwise the
+    // active-turn ring is the seat colour (never the amber "playable" token).
+    const accent = spec.isTargetable
+      ? hexToNum(gt.promptAction.attackAction)
+      : hexToNum(spec.color);
     bg.clear();
     heart.text = "♥";
     heart.style = this.heartStyle(column ? 15 : 17);

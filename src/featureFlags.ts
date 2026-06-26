@@ -10,7 +10,7 @@ export const featureFlags = {
   debugBattlegroundRects: false,
   /** Draw every field's battlefield grid cells (free + blocked) so the on-grid
    *  layout and snapping can be inspected. Debug aid only — does not affect play. */
-  debugShowGrid: true,
+  debugShowGrid: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

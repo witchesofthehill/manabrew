@@ -15,7 +15,7 @@ import {
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldScaleForFraction } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
-import { getTheme } from "@/hooks/useTheme";
+import { getTheme, useTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
 import {

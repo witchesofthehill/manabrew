@@ -8,6 +8,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
 import { applyIcon, getIconColor } from "./panelIcons";
+import { STRIP_TURN_ALPHA } from "./constants";
 
 /** Display cells. "combat" is a merged cell that represents all combat sub-phases. */
 interface PhaseSpec {
@@ -386,20 +387,36 @@ export class PhaseStripLayer {
       rx += CELL_W + CELL_GAP;
     }
 
+    // Determine the active player's color (divider line + active cell).
+    const pc = t.playerColors;
+    const selfColor = hexToNum(pc.self);
+    const oppColors = [hexToNum(pc.opponent1), hexToNum(pc.opponent2), hexToNum(pc.opponent3)];
+
+    // Only update the displayed active player on non-cleanup phases
+    // so the color doesn't flip early during cleanup.
+    if (state.currentStep !== "cleanup") {
+      this.displayActivePlayerId = state.activePlayerId;
+    }
+    const displayActive = this.displayActivePlayerId ?? state.activePlayerId;
+
+    const isMeActive = displayActive === state.myPlayerId;
+    const activeOppIdx = state.opponents.findIndex((o) => o.id === displayActive);
+    const turnColor = isMeActive
+      ? selfColor
+      : activeOppIdx >= 0
+        ? oppColors[activeOppIdx]!
+        : hexToNum(t.textMuted);
+
     // Divider line — only the edges outside all cells
     const lineY = this.canvasHeight / 2;
     const stripLeft = cellPositions[0]! - CELL_GAP;
     const stripRight = rx;
     this.lineGfx.clear();
-    // Left segment
     this.lineGfx.moveTo(0, lineY);
     this.lineGfx.lineTo(stripLeft, lineY);
-    const lineColor = hexToNum(t.canvas.neutral);
-    this.lineGfx.stroke({ color: lineColor, width: 2, alpha: 0.12 });
-    // Right segment
     this.lineGfx.moveTo(stripRight, lineY);
     this.lineGfx.lineTo(this.canvasWidth, lineY);
-    this.lineGfx.stroke({ color: lineColor, width: 2, alpha: 0.12 });
+    this.lineGfx.stroke({ color: turnColor, width: 2, alpha: STRIP_TURN_ALPHA });
 
     // Strip hover hit area — covers cells + indicator rows
     const hoverPad = INDICATOR_SIZE + INDICATOR_MARGIN + 6;
@@ -417,26 +434,6 @@ export class PhaseStripLayer {
       stepChanged = true;
     }
     this.prevStep = state.currentStep;
-
-    // Determine the active player's color for the bar tint
-    const pc = t.playerColors;
-    const selfColor = hexToNum(pc.self);
-    const oppColors = [hexToNum(pc.opponent1), hexToNum(pc.opponent2), hexToNum(pc.opponent3)];
-
-    // Only update the displayed active player on non-cleanup phases
-    // so the bar color doesn't flip early during cleanup.
-    if (state.currentStep !== "cleanup") {
-      this.displayActivePlayerId = state.activePlayerId;
-    }
-    const displayActive = this.displayActivePlayerId ?? state.activePlayerId;
-
-    const isMeActive = displayActive === state.myPlayerId;
-    const activeOppIdx = state.opponents.findIndex((o) => o.id === displayActive);
-    const turnColor = isMeActive
-      ? selfColor
-      : activeOppIdx >= 0
-        ? oppColors[activeOppIdx]!
-        : hexToNum(t.textMuted);
 
     const count = this.cells.length;
     for (let i = 0; i < count; i++) {

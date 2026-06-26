@@ -1394,7 +1394,9 @@ export default function Game({ exitTo }: GameProps = {}) {
               title,
               cards,
               (cardId) => {
-                handleCastSpell(cardId);
+                const card = cards.find((c) => c.id === cardId);
+                if (card) handleHandCardAction(card);
+                else handleCastSpell(cardId);
                 onClickCard(cardId);
               },
               clickableCardIds,

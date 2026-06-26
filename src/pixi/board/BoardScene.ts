@@ -7,7 +7,7 @@ import {
   Text,
   type FederatedPointerEvent,
 } from "pixi.js";
-import { withAlpha } from "@/themes/gameTheme";
+import { darken, withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
 import {
   CardSprite,
@@ -102,8 +102,11 @@ const GRIP_HIT_WIDTH_PX = 16;
 /* ─────────────────────────────────────────────────────────────────────────
  * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
  * fade beside it share ONE colour and ONE peak opacity, so the fog merges
- * seamlessly into the bar.
- *   - color       bar + fog colour, any hex string (e.g. "#000000", "#1b1030").
+ * seamlessly into the bar. The colour is a gently darkened canvas background
+ * (see `dividerColor()` / `DIVIDER.darken`) — the field felt is already
+ * canvas-background-coloured, so a same-colour separator is invisible against
+ * it; the darken is the minimum distinct shade that reads as a seam without
+ * going near-black. Tune `DIVIDER.darken` up for a clearer line, down softer.
  *   - alpha       opacity of the bar AND the fog at its darkest (right at the
  *                 divider). The fog is always this dark next to the divider, no
  *                 matter how collapsed the field is.
@@ -112,10 +115,15 @@ const GRIP_HIT_WIDTH_PX = 16;
  *                 controls the spread only — never the darkness at the divider.
  *   - barWidthPx  thickness of the divider bar.
  * ───────────────────────────────────────────────────────────────────────── */
+
 const DIVIDER = {
-  color: "#000000",
+  /** How much to darken the canvas background for the bar + fog. The field felt
+   *  is already canvas-background-coloured, so a same-colour separator is
+   *  invisible against it — this is the minimum distinct shade that still
+   *  reads. Tune up for a clearer seam, down for a softer one. */
+  darken: 0.2,
   alpha: 1,
-  fadeWidthPx: 26,
+  fadeWidthPx: 0,
   barWidthPx: 4,
 } as const;
 
@@ -476,6 +484,14 @@ export class BoardScene {
    *  intensity tracks how far each field is from FULLY expanded (a linear ratio
    *  of its width between collapsed and max), so the fog eases smoothly in and
    *  out as a field opens/closes and vanishes entirely once a field is focused. */
+  /** The divider + fog colour: a gently darkened canvas background. The field
+   *  felt is canvas-background-coloured, so a same-colour fog is invisible
+   *  against it; a mild darken (`DIVIDER.darken`) is the minimum distinct shade
+   *  that still reads as a seam without going near-black. */
+  private dividerColor(): string {
+    return darken(this.theme.gameTheme.canvas.background, DIVIDER.darken);
+  }
+
   private drawDelimiterFog(): void {
     const g = this.fogGfx;
     g.clear();
@@ -513,8 +529,9 @@ export class BoardScene {
    *  each gradient to its own rect, so one pair works at any position/width. */
   private fogGradients(): { left: FillGradient; right: FillGradient } {
     if (!this.fogGradRight || !this.fogGradLeft) {
-      const solid = withAlpha(DIVIDER.color, DIVIDER.alpha);
-      const clear = withAlpha(DIVIDER.color, 0);
+      const color = this.dividerColor();
+      const solid = withAlpha(color, DIVIDER.alpha);
+      const clear = withAlpha(color, 0);
       const linear = (stops: { offset: number; color: string }[]) =>
         new FillGradient({
           type: "linear",
@@ -559,7 +576,7 @@ export class BoardScene {
     const W = this.boardWidth;
     // Reach the middle horizontal line and tuck under the phase bar.
     const h = this.topHeight + STRIP_BAND_PX / 2;
-    const color = hexToNum(DIVIDER.color);
+    const color = hexToNum(this.dividerColor());
     for (let i = 0; i < this.gripHandles.length; i++) {
       const handle = this.gripHandles[i]!;
       handle.position.set((this.delimCurrent[i] ?? (i + 1) / (this.gripHandles.length + 1)) * W, 0);

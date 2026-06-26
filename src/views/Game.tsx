@@ -1527,7 +1527,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               mulliganPutBackCount={mulliganPutBack.count}
               mulliganSelectedCount={mulliganPutBack.selected.size}
               onMulliganPutBackConfirm={mulliganPutBack.confirm}
-              selfRegionHeight={boardLayout?.self?.height}
+              selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
             />
           ),
           boardSurfaceEl,

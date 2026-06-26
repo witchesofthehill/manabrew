@@ -101,5 +101,5 @@ export interface MainActionOverlayProps {
   mulliganPutBackCount?: number;
   mulliganSelectedCount?: number;
   onMulliganPutBackConfirm?: () => void;
-  selfRegionHeight?: number;
+  selfClusterMaxHeight?: number;
 }

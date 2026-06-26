@@ -63,6 +63,10 @@ export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
   /** Y of the center band where the phase strip is centered. */
   dividerY: number;
+  /** Px from the canvas bottom up to the local player's playmat bottom edge
+   *  (= hand-fan top). The action cluster is hard-capped to this so it can never
+   *  render over the playmat. Mirrors `BoardScene.handReserveBottom`. */
+  selfClusterMaxHeight: number;
   opponents: {
     playerId: string;
     rect: PlayZoneRect;
@@ -148,6 +152,9 @@ export function BoardCanvas({
   const sceneRef = useRef<BoardScene | null>(null);
   const callbacksRef = useRef(callbacks);
   const onLayoutRef = useRef(onLayout);
+  const reserveRef = useRef(0);
+  const latestLayoutRef = useRef<BoardCanvasLayout | null>(null);
+  const selfBottomReserveRef = useRef(selfBottomReserve ?? 0);
 
   const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
@@ -178,6 +185,9 @@ export function BoardCanvas({
   useEffect(() => {
     onLayoutRef.current = onLayout;
   }, [onLayout]);
+  useEffect(() => {
+    selfBottomReserveRef.current = selfBottomReserve ?? 0;
+  }, [selfBottomReserve]);
 
   const initApp = useCallback(async () => {
     if (!canvasRef.current || appRef.current) return;
@@ -244,6 +254,14 @@ export function BoardCanvas({
 
     const parent = canvasRef.current.parentElement;
     if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
+    newScene.setOnHandReserveChange((px) => {
+      reserveRef.current = px;
+      const base = latestLayoutRef.current;
+      if (!base) return;
+      const updated = { ...base, selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current) };
+      latestLayoutRef.current = updated;
+      onLayoutRef.current?.(updated);
+    });
     setScene(newScene);
   }, [cancelHandHoverClear]);
 
@@ -306,15 +324,18 @@ export function BoardCanvas({
     );
     const cardScale = battlefieldScaleForFraction(minHeight, fraction);
     s.configure(players, layout, cardScale);
-    onLayoutRef.current?.({
+    const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,
+      selfClusterMaxHeight: Math.max(reserveRef.current, selfBottomReserve ?? 0),
       opponents: opponentIds.map((id, i) => ({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,
         orientation: layout.opponents[i]?.orientation ?? "top",
       })),
-    });
+    };
+    latestLayoutRef.current = next;
+    onLayoutRef.current?.(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playersKey, fraction, selfHeightFraction, selfBottomReserve, showPlayerBars]);
 

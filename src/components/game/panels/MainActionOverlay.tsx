@@ -11,8 +11,6 @@ import { PromptActionController } from "@/components/prompts/PromptActionControl
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
 
-const ACTION_CLUSTER_TOP_MARGIN_PX = 12;
-
 export function MainActionOverlay({
   promptType,
   isWaitingForResponse,
@@ -58,14 +56,11 @@ export function MainActionOverlay({
   mulliganPutBackCount,
   mulliganSelectedCount,
   onMulliganPutBackConfirm,
-  selfRegionHeight,
+  selfClusterMaxHeight,
 }: MainActionOverlayProps) {
-  if (promptType === "gameOver") return null;
+  if (promptType === "gameOver" || !selfClusterMaxHeight || selfClusterMaxHeight <= 0) return null;
   const buttonLayout = "modern" as const;
-  const maxHeight =
-    selfRegionHeight != null
-      ? selfRegionHeight - ACTION_CLUSTER_TOP_MARGIN_PX
-      : undefined;
+  const maxHeight = selfClusterMaxHeight;
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
   const passToPhaseShort =
     currentPhaseIndex >= 0
@@ -73,80 +68,78 @@ export function MainActionOverlay({
       : "NEXT";
 
   return (
-    <>
-      <div
-        data-action-cluster
-        className="absolute bottom-0 right-12 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col items-end justify-end gap-0 bg-primary/60"
-        style={{
-          maxHeight,
-          overflow: maxHeight != null ? "hidden" : undefined,
-        }}
-      >
-        {/* Prompt / action area */}
-        <section className="w-full flex flex-col gap-3">
-          <CombatInfo
+    <div
+      data-action-cluster
+      className="absolute bottom-3 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-row items-end justify-end gap-0 bg-primary/60"
+      style={{
+        maxHeight,
+        overflow: "hidden",
+      }}
+    >
+      {/* Prompt / action area */}
+      <section className="w-full flex flex-col gap-3">
+        <CombatInfo
+          promptType={promptType}
+          attackerIds={attackerIds}
+          pendingAttackers={pendingAttackers}
+          blockAssignments={blockAssignments}
+          resolveCardName={resolveCardName}
+          resolveCard={resolveCard}
+        />
+        <div
+          className="flex flex-col items-center w-full [&_button]:mx-0"
+          onKeyDownCapture={(e) => {
+            if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <PromptActionController
             promptType={promptType}
-            attackerIds={attackerIds}
+            isWaitingForResponse={isWaitingForResponse}
+            isAutoPassing={isAutoPassing}
+            isPassingUntilEot={isPassingUntilEot}
+            isMyTurn={isMyTurn}
+            passToPhaseShort={passToPhaseShort}
+            availableAttackerIds={availableAttackerIds}
             pendingAttackers={pendingAttackers}
+            onPassPriority={onPassPriority}
+            onPassUntilEot={onPassUntilEot}
+            selectedAttackDefenderId={selectedAttackDefenderId}
+            selectedAttackDefenderLabel={selectedAttackDefenderLabel}
+            multipleAttackDefenders={multipleAttackDefenders}
+            onDeclareAttackers={onDeclareAttackers}
+            onBeginAttackTargetPick={onBeginAttackTargetPick}
+            pendingAttacker={pendingAttacker}
+            pendingBlocker={pendingBlocker}
+            blockError={blockError}
+            blockRequirementError={blockRequirementError}
             blockAssignments={blockAssignments}
-            resolveCardName={resolveCardName}
-            resolveCard={resolveCard}
+            onDeclareBlockers={onDeclareBlockers}
+            damageOrderCount={damageOrderCount}
+            damageOrderTotal={damageOrderTotal}
+            onConfirmDamageOrder={onConfirmDamageOrder}
+            onUndoDamageOrder={onUndoDamageOrder}
+            onDefaultDamageOrder={onDefaultDamageOrder}
+            onOpenStack={onOpenStack}
+            targetCompletionLabel={targetCompletionLabel}
+            onCompleteTargets={onCompleteTargets}
+            buttonLayout={buttonLayout}
+            payManaCostInfo={payManaCostInfo}
+            onPayManaCost={onPayManaCost}
+            onAutoManaCost={onAutoManaCost}
+            onCancelManaCost={onCancelManaCost}
+            mulliganCount={mulliganCount}
+            onMulliganKeep={onMulliganKeep}
+            onMulliganDraw={onMulliganDraw}
+            mulliganPutBackCount={mulliganPutBackCount}
+            mulliganSelectedCount={mulliganSelectedCount}
+            onMulliganPutBackConfirm={onMulliganPutBackConfirm}
           />
-          <div
-            className="flex flex-col items-center w-full [&_button]:mx-0"
-            onKeyDownCapture={(e) => {
-              if (e.code === "Space" && e.target instanceof HTMLButtonElement) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <PromptActionController
-              promptType={promptType}
-              isWaitingForResponse={isWaitingForResponse}
-              isAutoPassing={isAutoPassing}
-              isPassingUntilEot={isPassingUntilEot}
-              isMyTurn={isMyTurn}
-              passToPhaseShort={passToPhaseShort}
-              availableAttackerIds={availableAttackerIds}
-              pendingAttackers={pendingAttackers}
-              onPassPriority={onPassPriority}
-              onPassUntilEot={onPassUntilEot}
-              selectedAttackDefenderId={selectedAttackDefenderId}
-              selectedAttackDefenderLabel={selectedAttackDefenderLabel}
-              multipleAttackDefenders={multipleAttackDefenders}
-              onDeclareAttackers={onDeclareAttackers}
-              onBeginAttackTargetPick={onBeginAttackTargetPick}
-              pendingAttacker={pendingAttacker}
-              pendingBlocker={pendingBlocker}
-              blockError={blockError}
-              blockRequirementError={blockRequirementError}
-              blockAssignments={blockAssignments}
-              onDeclareBlockers={onDeclareBlockers}
-              damageOrderCount={damageOrderCount}
-              damageOrderTotal={damageOrderTotal}
-              onConfirmDamageOrder={onConfirmDamageOrder}
-              onUndoDamageOrder={onUndoDamageOrder}
-              onDefaultDamageOrder={onDefaultDamageOrder}
-              onOpenStack={onOpenStack}
-              targetCompletionLabel={targetCompletionLabel}
-              onCompleteTargets={onCompleteTargets}
-              buttonLayout={buttonLayout}
-              payManaCostInfo={payManaCostInfo}
-              onPayManaCost={onPayManaCost}
-              onAutoManaCost={onAutoManaCost}
-              onCancelManaCost={onCancelManaCost}
-              mulliganCount={mulliganCount}
-              onMulliganKeep={onMulliganKeep}
-              onMulliganDraw={onMulliganDraw}
-              mulliganPutBackCount={mulliganPutBackCount}
-              mulliganSelectedCount={mulliganSelectedCount}
-              onMulliganPutBackConfirm={onMulliganPutBackConfirm}
-            />
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
-      <div className="absolute bottom-4 right-4 z-50">
+      <div className="z-50">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -178,6 +171,6 @@ export function MainActionOverlay({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </>
+    </div>
   );
 }

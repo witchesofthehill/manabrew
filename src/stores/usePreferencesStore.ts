@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, devtools } from "zustand/middleware";
-import { getServerConnectionDefaults } from "@/config/webRuntimeConfig";
+import { getServerConnectionDefaults, isManagedRelayConfigured } from "@/config/webRuntimeConfig";
 import { STORAGE_KEYS } from "@/lib/constants";
 import type { BoardArrangement } from "@/pixi/board/boardLayout";
 import type { PlaymatSettings } from "@/protocol/game";
@@ -107,6 +107,11 @@ function pickPersistedPreferences(persistedState: unknown): Partial<PreferencesS
   const next: Record<string, unknown> = {};
   for (const key of PERSISTED_PREFERENCE_KEYS) {
     if (key in persisted) next[key] = persisted[key];
+  }
+  if (isManagedRelayConfigured()) {
+    delete next.serverHost;
+    delete next.serverPort;
+    delete next.serverPassword;
   }
   // Treat a persisted empty username as "unset" so the auto-generated default
   // wins on rehydrate. Without this, users who once had the empty default

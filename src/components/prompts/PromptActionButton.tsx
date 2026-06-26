@@ -3,10 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getPromptActionButtonStyle, usePromptActionColors } from "./internal/promptActionTheme";
 
-export type PromptButtonLayout = "full" | "modern";
-
 interface PromptActionButtonProps {
-  layout: PromptButtonLayout;
   label: string;
   icon?: ReactNode;
   onClick?: () => void;

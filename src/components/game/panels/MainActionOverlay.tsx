@@ -1,15 +1,16 @@
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Settings } from "lucide-react";
 import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
+
+const PROMPT_TITLES: Partial<Record<string, string>> = {
+  chooseAttackers: "Declare Attackers",
+  chooseBlockers: "Declare Blockers",
+  chooseBoardTargets: "Choose Targets",
+  chooseDamageAssignmentOrder: "Damage Order",
+  mulligan: "Mulligan",
+  mulliganPutBack: "Mulligan",
+};
 
 export function MainActionOverlay({
   promptType,
@@ -40,10 +41,8 @@ export function MainActionOverlay({
   onOpenStack,
   targetCompletionLabel,
   onCompleteTargets,
-  onConcede,
   resolveCardName,
   resolveCard,
-  isMyPriority,
   isMyTurn,
   step,
   payManaCostInfo,
@@ -59,8 +58,9 @@ export function MainActionOverlay({
   selfClusterMaxHeight,
 }: MainActionOverlayProps) {
   if (promptType === "gameOver" || !selfClusterMaxHeight || selfClusterMaxHeight <= 0) return null;
-  const buttonLayout = "modern" as const;
   const maxHeight = selfClusterMaxHeight;
+  const title =
+    !isPassingUntilEot && !isAutoPassing && promptType ? (PROMPT_TITLES[promptType] ?? null) : null;
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
   const passToPhaseShort =
     currentPhaseIndex >= 0
@@ -70,14 +70,15 @@ export function MainActionOverlay({
   return (
     <div
       data-action-cluster
-      className="absolute bottom-3 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-row items-end justify-end gap-0 bg-primary/60"
-      style={{
-        maxHeight,
-        overflow: "hidden",
-      }}
+      className="absolute bottom-3 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col gap-0 overflow-hidden rounded-lg border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm"
+      style={{ maxHeight }}
     >
-      {/* Prompt / action area */}
-      <section className="w-full flex flex-col gap-3">
+      <section className="flex w-full flex-col gap-2 p-2">
+        {title && (
+          <span className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90">
+            {title}
+          </span>
+        )}
         <CombatInfo
           promptType={promptType}
           attackerIds={attackerIds}
@@ -124,7 +125,6 @@ export function MainActionOverlay({
             onOpenStack={onOpenStack}
             targetCompletionLabel={targetCompletionLabel}
             onCompleteTargets={onCompleteTargets}
-            buttonLayout={buttonLayout}
             payManaCostInfo={payManaCostInfo}
             onPayManaCost={onPayManaCost}
             onAutoManaCost={onAutoManaCost}
@@ -138,39 +138,6 @@ export function MainActionOverlay({
           />
         </div>
       </section>
-
-      <div className="z-50">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 bg-black/35 hover:bg-black/55 text-white"
-              title="Prompt options"
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              disabled={!isMyPriority}
-              className="text-destructive focus:text-destructive"
-              onSelect={(event) => {
-                event.preventDefault();
-                if (!isMyPriority) return;
-                onConcede();
-              }}
-              onClick={() => {
-                if (!isMyPriority) return;
-                onConcede();
-              }}
-              title={isMyPriority ? undefined : "Wait until you have priority to concede"}
-            >
-              Concede
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
     </div>
   );
 }

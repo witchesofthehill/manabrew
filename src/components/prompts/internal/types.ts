@@ -1,13 +1,10 @@
 import type { CombatAssignment } from "@/components/game/game.types";
-import type { PromptButtonLayout } from "@/components/prompts/PromptActionButton";
 
 export interface PromptActionLayoutProps {
-  buttonLayout: PromptButtonLayout;
   isWaitingForResponse: boolean;
 }
 
 export interface NoActionProps {
-  buttonLayout: PromptButtonLayout;
   label?: string;
 }
 
@@ -19,7 +16,6 @@ export interface ChooseAttackersProps extends PromptActionLayoutProps {
   availableAttackerIds: string[];
   pendingAttackers: string[];
   selectedDefenderId?: string | null;
-  selectedDefenderLabel?: string | null;
   /** When true, the engine reports more than one legal defender (multi-
    *  player game, planeswalkers, sieges). Attack/Attack-All defer the
    *  declaration and ask the user to click a target instead of committing

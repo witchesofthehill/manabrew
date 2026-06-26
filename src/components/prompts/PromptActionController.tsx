@@ -6,13 +6,11 @@ import { ChooseBlockers } from "./ChooseBlockers";
 import { ChooseDamageOrder } from "./ChooseDamageOrder";
 import { ChooseTargetSpell } from "./ChooseTargetSpell";
 import { PayManaCost } from "./PayManaCost";
-import { PromptRequired } from "./PromptRequired";
 import { NoAction } from "./NoAction";
 import { PromptLabel } from "./PromptLabel";
 import { Mulligan } from "./Mulligan";
 import { MulliganPutBack } from "./MulliganPutBack";
 import type { PromptType as PromptTypeValue } from "@/protocol";
-import type { PromptButtonLayout } from "./PromptActionButton";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useGameStore } from "@/stores/useGameStore";
@@ -55,7 +53,6 @@ interface PromptActionControllerProps {
   onPassPriority: () => void;
   onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
-  selectedAttackDefenderLabel?: string | null;
   multipleAttackDefenders: boolean;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
@@ -73,7 +70,6 @@ interface PromptActionControllerProps {
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
   onCompleteTargets?: (() => void) | null;
-  buttonLayout?: PromptButtonLayout;
   // Pay mana cost
   payManaCostInfo?: {
     cardName: string;
@@ -110,7 +106,6 @@ export function PromptActionController({
   onPassPriority,
   onPassUntilEot: _onPassUntilEot,
   selectedAttackDefenderId,
-  selectedAttackDefenderLabel,
   multipleAttackDefenders,
   onDeclareAttackers,
   onBeginAttackTargetPick,
@@ -128,7 +123,6 @@ export function PromptActionController({
   onOpenStack,
   targetCompletionLabel,
   onCompleteTargets,
-  buttonLayout = "full",
   payManaCostInfo,
   onPayManaCost,
   onAutoManaCost,
@@ -149,20 +143,14 @@ export function PromptActionController({
 
   const renderers: Record<PromptActionViewKey, () => ReactElement> = {
     chooseAction: () => (
-      <ChooseAction
-        buttonLayout={buttonLayout}
-        isWaitingForResponse={isWaitingForResponse}
-        onPassPriority={onPassPriority}
-      />
+      <ChooseAction isWaitingForResponse={isWaitingForResponse} onPassPriority={onPassPriority} />
     ),
     chooseAttackers: () => (
       <ChooseAttackers
-        buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         availableAttackerIds={availableAttackerIds}
         pendingAttackers={pendingAttackers}
         selectedDefenderId={selectedAttackDefenderId}
-        selectedDefenderLabel={selectedAttackDefenderLabel}
         multipleDefenders={multipleAttackDefenders}
         onPassPriority={onPassPriority}
         onDeclareAttackers={onDeclareAttackers}
@@ -171,7 +159,6 @@ export function PromptActionController({
     ),
     chooseBlockers: () => (
       <ChooseBlockers
-        buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         pendingAttacker={pendingAttacker}
         pendingBlocker={pendingBlocker}
@@ -184,7 +171,6 @@ export function PromptActionController({
     ),
     chooseDamageOrder: () => (
       <ChooseDamageOrder
-        buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         orderedCount={damageOrderCount}
         totalCount={damageOrderTotal}
@@ -195,7 +181,6 @@ export function PromptActionController({
     ),
     chooseTargetSpell: () => (
       <ChooseTargetSpell
-        buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         onOpenStack={onOpenStack}
         completionLabel={targetCompletionLabel ?? undefined}
@@ -204,7 +189,6 @@ export function PromptActionController({
     ),
     payManaCost: () => (
       <PayManaCost
-        buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         payManaCostInfo={payManaCostInfo}
         onPayManaCost={onPayManaCost}
@@ -214,16 +198,13 @@ export function PromptActionController({
     ),
     promptRequired: () => (
       <PromptRequired
-        buttonLayout={buttonLayout}
         isWaitingForResponse={isWaitingForResponse}
         hidden={promptModalHidden}
         onOpenPrompt={showPromptModal}
       />
     ),
-    passingUntilEot: () => (
-      <NoAction buttonLayout={buttonLayout} label={isMyTurn ? "End Turn" : "Pass Till End"} />
-    ),
-    autoPassing: () => <NoAction buttonLayout={buttonLayout} label="Auto Pass" />,
+    passingUntilEot: () => <NoAction label={isMyTurn ? "End Turn" : "Pass Till End"} />,
+    autoPassing: () => <NoAction label="Auto Pass" />,
     promptLabel: () => {
       const labels: Record<string, string> = {
         ["chooseBoardTargets"]: "Choose a target",
@@ -233,7 +214,6 @@ export function PromptActionController({
       };
       return (
         <PromptLabel
-          buttonLayout={buttonLayout}
           label={boardTargetLabel || (promptType && labels[promptType]) || "Waiting..."}
           isWaitingForResponse={isWaitingForResponse}
           completionLabel={targetCompletionLabel ?? undefined}
@@ -241,7 +221,7 @@ export function PromptActionController({
         />
       );
     },
-    noAction: () => <NoAction buttonLayout={buttonLayout} label="No Action" />,
+    noAction: () => <NoAction label="No Action" />,
     mulligan: () => (
       <Mulligan
         isWaitingForResponse={isWaitingForResponse}

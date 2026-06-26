@@ -13,9 +13,8 @@ import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
-import { FullscreenToggle } from "@/components/game/FullscreenToggle";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
-import { MainActionOverlay, RightActionPanel } from "@/components/game/panels";
+import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
 import { StackDisplay } from "@/components/game/panels/StackDisplay";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
@@ -1317,7 +1316,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         } as React.CSSProperties
       }
     >
-      <FullscreenToggle />
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
           boardSceneRef={boardSceneRef}
@@ -1456,79 +1454,92 @@ export default function Game({ exitTo }: GameProps = {}) {
       {boardSurfaceEl &&
         createPortal(
           !manualApi && (
-            <MainActionOverlay
-              promptType={promptType}
-              isWaitingForResponse={isWaitingForResponse}
-              isAutoPassing={isAutoPassing}
-              isPassingUntilEot={isPassingUntilEot}
-              availableAttackerIds={chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []}
-              pendingAttackers={pendingAttackers}
-              onPassPriority={unifiedPass}
-              onPassUntilEot={activatePassUntilEot}
-              selectedAttackDefenderId={attackDefenderId}
-              selectedAttackDefenderLabel={selectedAttackDefender?.label}
-              multipleAttackDefenders={multipleAttackDefenders}
-              onDeclareAttackers={(attackerIds, defenderId) =>
-                respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
-              }
-              onBeginAttackTargetPick={selectAllAttackersForPick}
-              pendingAttacker={pendingAttacker}
-              pendingBlocker={pendingBlocker}
-              blockError={blockError}
-              blockRequirementError={blockRequirementError}
-              attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
-              blockAssignments={blockAssignments}
-              onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
-              damageOrderCount={damageOrder.length}
-              damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
-              onConfirmDamageOrder={() =>
-                respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
-              }
-              onUndoDamageOrder={undoDamageOrder}
-              onDefaultDamageOrder={() =>
-                respond({
-                  type: "damageAssignmentOrderDecision",
-                  orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
-                })
-              }
-              onOpenStack={() => setSpellStackModalOpen(true)}
-              targetCompletionLabel={targetCompletion?.label}
-              onCompleteTargets={targetCompletion?.onComplete}
-              onConcede={concede}
-              resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
-              resolveCard={(cardId) => visibleCardsById.get(cardId)}
-              isMyPriority={gameView.priorityPlayerId === me.id}
-              turn={gameView.turn}
-              activePlayerName={
-                gameView.players.find((p) => p.id === gameView.activePlayerId)?.name ?? "Unknown"
-              }
-              isMyTurn={gameView.activePlayerId === me.id}
-              step={gameView.step}
-              payManaCostInfo={
-                payManaCostInput
-                  ? {
-                      cardName: payManaCostInput.cardName,
-                      manaCost: payManaCostInput.manaCost,
-                      description: payManaCostInput.description,
-                      manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
-                      canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-                      delveCount: delvedCardIds.length,
-                      delveAvailable: delveSourceIds.length > 0,
-                      onOpenDelve: openDelveZone,
-                    }
-                  : null
-              }
-              onPayManaCost={() => respond({ type: "pay", auto: false })}
-              onAutoManaCost={() => respond({ type: "pay", auto: true })}
-              onCancelManaCost={() => respond({ type: "cancel" })}
-              mulliganCount={mulliganInput?.mulliganCount ?? 0}
-              onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
-              onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
-              mulliganPutBackCount={mulliganPutBack.count}
-              mulliganSelectedCount={mulliganPutBack.selected.size}
-              onMulliganPutBackConfirm={mulliganPutBack.confirm}
-              selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
-            />
+            <>
+              <MainActionOverlay
+                promptType={promptType}
+                isWaitingForResponse={isWaitingForResponse}
+                isAutoPassing={isAutoPassing}
+                isPassingUntilEot={isPassingUntilEot}
+                availableAttackerIds={
+                  chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
+                }
+                pendingAttackers={pendingAttackers}
+                onPassPriority={unifiedPass}
+                onPassUntilEot={activatePassUntilEot}
+                selectedAttackDefenderId={attackDefenderId}
+                selectedAttackDefenderLabel={selectedAttackDefender?.label}
+                multipleAttackDefenders={multipleAttackDefenders}
+                onDeclareAttackers={(attackerIds, defenderId) =>
+                  respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
+                }
+                onBeginAttackTargetPick={selectAllAttackersForPick}
+                pendingAttacker={pendingAttacker}
+                pendingBlocker={pendingBlocker}
+                blockError={blockError}
+                blockRequirementError={blockRequirementError}
+                attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
+                blockAssignments={blockAssignments}
+                onDeclareBlockers={(assignments) =>
+                  respond({ type: "declareBlockers", assignments })
+                }
+                damageOrderCount={damageOrder.length}
+                damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
+                onConfirmDamageOrder={() =>
+                  respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+                }
+                onUndoDamageOrder={undoDamageOrder}
+                onDefaultDamageOrder={() =>
+                  respond({
+                    type: "damageAssignmentOrderDecision",
+                    orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+                  })
+                }
+                onOpenStack={() => setSpellStackModalOpen(true)}
+                targetCompletionLabel={targetCompletion?.label}
+                onCompleteTargets={targetCompletion?.onComplete}
+                resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
+                resolveCard={(cardId) => visibleCardsById.get(cardId)}
+                turn={gameView.turn}
+                activePlayerName={
+                  gameView.players.find((p) => p.id === gameView.activePlayerId)?.name ?? "Unknown"
+                }
+                isMyTurn={gameView.activePlayerId === me.id}
+                step={gameView.step}
+                payManaCostInfo={
+                  payManaCostInput
+                    ? {
+                        cardName: payManaCostInput.cardName,
+                        manaCost: payManaCostInput.manaCost,
+                        description: payManaCostInput.description,
+                        manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
+                        canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+                        delveCount: delvedCardIds.length,
+                        delveAvailable: delveSourceIds.length > 0,
+                        onOpenDelve: openDelveZone,
+                      }
+                    : null
+                }
+                onPayManaCost={() => respond({ type: "pay", auto: false })}
+                onAutoManaCost={() => respond({ type: "pay", auto: true })}
+                onCancelManaCost={() => respond({ type: "cancel" })}
+                mulliganCount={mulliganInput?.mulliganCount ?? 0}
+                onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
+                onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
+                mulliganPutBackCount={mulliganPutBack.count}
+                mulliganSelectedCount={mulliganPutBack.selected.size}
+                onMulliganPutBackConfirm={mulliganPutBack.confirm}
+                selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
+              />
+              {boardLayout?.dividerY != null && (
+                <MiddleBarDock
+                  top={boardLayout.dividerY}
+                  onConcede={concede}
+                  isMyPriority={gameView.priorityPlayerId === me.id}
+                  sidePanelCollapsed={isActionPanelCollapsed}
+                  onToggleSidePanel={toggleActionPanel}
+                />
+              )}
+            </>
           ),
           boardSurfaceEl,
         )}

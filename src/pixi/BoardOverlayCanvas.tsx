@@ -23,15 +23,6 @@ interface BoardOverlayCanvasProps {
   className?: string;
 }
 
-/**
- * Transparent overlay canvas drawn ABOVE the React panels (own Pixi app). It
- * hosts both the board's arrows (`ArrowLayer`, pulled from the live `BoardScene`
- * each tick) and the spell stack (`StackLayer`). The stack is the only
- * interactive piece: the canvas stays `pointer-events: none` except while the
- * cursor is over the pile, so clicks elsewhere pass through to the board below.
- * The stack layer also registers itself with `BoardScene` as the anchor
- * provider for stack-origin arrows and fly-from-stack seeds.
- */
 export function BoardOverlayCanvas({
   sceneRef,
   stackSpec,

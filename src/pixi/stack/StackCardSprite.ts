@@ -16,9 +16,6 @@ const HOVER_LIFT_PX = 2;
 const RING_RADIUS_FRAC = 0.05;
 const GLOW_PAD = 6;
 
-/** One card on the stack: a printed `CardSprite` face plus a seat-colour glow
- *  and casting / playable / target rings. Owns its own gsap tweens (enter pop,
- *  casting pulse, hover lift, position ease) — no Pixi-ticker wiring. */
 export class StackCardSprite {
   readonly container: Container;
   readonly sourceId: string;
@@ -106,10 +103,6 @@ export class StackCardSprite {
     if (ringChanged) this.redraw();
   }
 
-  /** Animate to a canvas-local centre. The pop plays on first placement;
-   *  `flashed` selects the brighter flash-in variant over the gentle enter.
-   *  `durationS`/`ease` override the move tween (collapse/expand use a fast,
-   *  decelerating slide). */
   place(
     x: number,
     y: number,

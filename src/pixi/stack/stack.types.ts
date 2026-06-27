@@ -32,11 +32,6 @@ export interface StackCallbacks {
   onToggleCollapsed: () => void;
 }
 
-/** The seam `BoardScene` reads instead of querying stack DOM nodes: arrow
- *  anchors (by stack-object id and by casting source id) and fly-from-stack
- *  seeds. `getBounds` is the pile's screen rect, used by the overlay canvas to
- *  gate pointer-events (the stack never reflows the board beneath it). All
- *  coordinates are canvas-local CSS pixels, shared with the board canvas. */
 export interface StackAnchorProvider {
   getAnchor(stackObjectId: string): ScreenPos | null;
   getCastingAnchor(sourceCardId: string): ScreenPos | null;

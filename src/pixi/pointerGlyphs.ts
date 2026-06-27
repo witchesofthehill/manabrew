@@ -1,4 +1,5 @@
 import { TargetingIntent } from "@/types/promptType";
+import { VORTEX_PATH } from "@/components/icons/VortexCircleIcon";
 
 // Game-Icons (https://game-icons.net/) glyphs imported through the
 // `unplugin-icons` Vite plugin (raw compiler → SVG string). Shared by the
@@ -8,7 +9,6 @@ import { TargetingIntent } from "@/types/promptType";
 import damageUrl from "~icons/game-icons/lightning-trio";
 import destroyUrl from "~icons/game-icons/broken-shield";
 import sacrificeUrl from "~icons/game-icons/sacrificial-dagger";
-import exileUrl from "~icons/game-icons/vortex";
 import bounceUrl from "~icons/game-icons/return-arrow";
 import millUrl from "~icons/game-icons/book-pile";
 import discardUrl from "~icons/game-icons/card-discard";
@@ -27,6 +27,10 @@ import fightUrl from "~icons/game-icons/crossed-swords";
 import hostileUrl from "~icons/game-icons/crosshair";
 import friendlyUrl from "~icons/game-icons/shield-reflect";
 import arrowCursorUrl from "~icons/game-icons/arrow-cursor";
+
+// Exile uses the game-icons "vortex" clipped to a circle (matching the scry
+// prompt and exile zone) rather than the raw square glyph — see `VortexCircleIcon`.
+const exileUrl = `<svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 512 512"><clipPath id="mb-exile-cursor-clip"><circle cx="256" cy="256" r="256"/></clipPath><path fill="currentColor" clip-path="url(#mb-exile-cursor-clip)" d="${VORTEX_PATH}"/></svg>`;
 
 /** Raw SVG source for hostile intents (coloured with `pointer.hostile`).
  *  Keep in sync with `intentIsHostile` in `src/types/promptType.ts`. */

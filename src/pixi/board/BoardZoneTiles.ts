@@ -10,6 +10,7 @@ import {
 import type { CardDto } from "@/protocol/game";
 import type { Theme } from "@/hooks/useTheme";
 import { hexToNum } from "../colorUtils";
+import { applyIcon } from "../panelIcons";
 import { CardSprite } from "../CardSprite";
 import { fetchImageElement } from "@/api/scryfall";
 import { CARD_W, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
@@ -44,6 +45,7 @@ interface Tile {
   face: CardSprite | null;
   back: Sprite | null;
   icon: Text;
+  iconSprite: Sprite;
   countText: Text;
 }
 
@@ -63,7 +65,11 @@ const DRAG_THRESHOLD_PX = 4;
 const DRAG_Z = 1000;
 
 /** Glyph per empty zone, keyed by `ZoneTileSpec.key`. */
-const ZONE_ICONS: Record<string, string> = { cmd: "♛", gy: "✝", ex: "☼", lib: "▦" };
+const ZONE_ICONS: Record<string, string> = { cmd: "♛", lib: "▦" };
+
+/** Zones drawn with a rasterised `panelIcons` SVG instead of a text glyph —
+ *  the same tombstone/vortex icons the scry prompt uses. */
+const ZONE_ICON_SVG: Record<string, string> = { gy: "graveyard", ex: "exile" };
 
 /** The deck/graveyard/exile/command tiles laid out as cards on the battlefield
  *  grid. `BoardRegion` resolves each tile's grid cell and hands the placements
@@ -132,6 +138,9 @@ export class BoardZoneTiles {
     const outline = new Graphics();
     const icon = new Text({ text: ZONE_ICONS[spec.key] ?? "", style: { fontSize: 24 } });
     icon.anchor.set(0.5);
+    const iconSprite = new Sprite(Texture.EMPTY);
+    iconSprite.anchor.set(0.5);
+    iconSprite.visible = false;
     const countText = new Text({
       text: "",
       style: {
@@ -142,9 +151,18 @@ export class BoardZoneTiles {
       },
     });
     countText.anchor.set(0.5);
-    container.addChild(outline, icon, countText);
+    container.addChild(outline, icon, iconSprite, countText);
     this.container.addChild(container);
-    const tile: Tile = { spec, container, outline, face: null, back: null, icon, countText };
+    const tile: Tile = {
+      spec,
+      container,
+      outline,
+      face: null,
+      back: null,
+      icon,
+      iconSprite,
+      countText,
+    };
 
     container.on("pointerdown", (e: FederatedPointerEvent) => {
       if (!this.draggable) return;
@@ -243,6 +261,7 @@ export class BoardZoneTiles {
 
       if (hasContent) {
         tile.icon.visible = false;
+        tile.iconSprite.visible = false;
         if (tile.back) {
           tile.back.visible = true;
           tile.back.width = cardW;
@@ -273,11 +292,29 @@ export class BoardZoneTiles {
         tile.countText.visible = false;
         const color = hl ?? neutral;
         this.dottedRoundRect(tile.outline, cardW, cardH, CARD_RADIUS, color, hl ? 0.9 : 0.45);
-        tile.icon.visible = true;
-        tile.icon.text = ZONE_ICONS[spec.key] ?? "";
-        tile.icon.style = { fontSize: Math.round(cardW * 0.42), fill: color };
-        tile.icon.alpha = hl ? 0.95 : 0.55;
-        tile.icon.position.set(cardW / 2, cardH / 2);
+        const svgKey = ZONE_ICON_SVG[spec.key];
+        if (svgKey) {
+          tile.icon.visible = false;
+          tile.iconSprite.visible = true;
+          const size = Math.round(cardW * 0.5);
+          applyIcon(
+            tile.iconSprite,
+            svgKey,
+            spec.highlightColor ?? gt.canvas.neutral,
+            64,
+            size,
+            size,
+          );
+          tile.iconSprite.alpha = hl ? 0.95 : 0.55;
+          tile.iconSprite.position.set(cardW / 2, cardH / 2);
+        } else {
+          tile.iconSprite.visible = false;
+          tile.icon.visible = true;
+          tile.icon.text = ZONE_ICONS[spec.key] ?? "";
+          tile.icon.style = { fontSize: Math.round(cardW * 0.42), fill: color };
+          tile.icon.alpha = hl ? 0.95 : 0.55;
+          tile.icon.position.set(cardW / 2, cardH / 2);
+        }
       }
     }
   }

@@ -1,5 +1,5 @@
 import { Ban, Check, WandSparkles } from "lucide-react";
-import { GiVortex } from "react-icons/gi";
+import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
 import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
@@ -62,7 +62,7 @@ export function PayManaCost({
         {payManaCostInfo?.delveAvailable && payManaCostInfo.onOpenDelve && (
           <PromptActionButton
             label="Delve"
-            icon={<GiVortex className="h-3.5 w-3.5" />}
+            icon={<VortexCircleIcon className="h-3.5 w-3.5" />}
             variant="outline"
             baseColor={promptActionColors.defenseAction}
             onClick={payManaCostInfo.onOpenDelve}

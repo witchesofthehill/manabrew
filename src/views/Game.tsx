@@ -15,7 +15,7 @@ import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
 import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
-import { StackDisplay } from "@/components/game/panels/StackDisplay";
+import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
@@ -132,43 +132,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   const boardSceneRef = useRef<BoardScene | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
-
-  const [stackBlockerRect, setStackBlockerRect] = useState<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
-  useEffect(() => {
-    let raf = 0;
-    let lastKey = "";
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const scene = boardSceneRef.current;
-      const panel = document.querySelector<HTMLElement>("[data-stack-panel]");
-      if (!scene || !panel) {
-        if (lastKey !== "") {
-          lastKey = "";
-          setStackBlockerRect(null);
-        }
-        return;
-      }
-      const canvasRect = scene.canvasElement.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
-      const rect = {
-        x: Math.round(panelRect.left - canvasRect.left),
-        y: Math.round(panelRect.top - canvasRect.top),
-        width: Math.round(panelRect.width),
-        height: Math.round(panelRect.height),
-      };
-      const key = `${rect.x},${rect.y},${rect.width},${rect.height}`;
-      if (key === lastKey) return;
-      lastKey = key;
-      setStackBlockerRect(rect);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
 
   const activePrompt = manualApi ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
@@ -820,6 +783,11 @@ export default function Game({ exitTo }: GameProps = {}) {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.repeat) return;
+      if ((e.metaKey || e.ctrlKey) && e.code === "KeyS") {
+        e.preventDefault();
+        useStackUIStore.getState().toggleCollapsed();
+        return;
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (manualApi) return;
       if (e.code === "Space") {
@@ -968,6 +936,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
+  const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
+  const stackCollapsed = useStackUIStore((s) => s.collapsed);
+  const toggleStackCollapsed = useStackUIStore((s) => s.toggleCollapsed);
   const activeAttackers = useMemo(
     () =>
       (gameView?.battlefield ?? [])
@@ -1286,6 +1257,34 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? { sourceCardId: casting.castingCardId, hostile: casting.arrowHostile }
       : null;
 
+  const stackValidTargetSet = new Set(boardTargets?.spellIds ?? []);
+  const stackTargetingActive = stackValidTargetSet.size > 0;
+  const stackSpec: StackSpec = {
+    cards: (gameView?.stack ?? []).map((obj, idx, arr) => {
+      const isValidTarget = stackTargetingActive && stackValidTargetSet.has(obj.id);
+      return {
+        id: obj.id,
+        sourceId: obj.sourceId,
+        card: resolveStackCard(obj),
+        controllerId: obj.controllerId,
+        isCasting: obj.isCasting,
+        isTopOfStack: idx === arr.length - 1,
+        seatColor: playerColorMap.get(obj.controllerId),
+        isValidTarget,
+        isDimmed: stackTargetingActive && !isValidTarget,
+      };
+    }),
+    flash:
+      shouldRenderStackFlashCard && activeFlashCard && activeFlash
+        ? {
+            token: `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`,
+            card: activeFlashCard,
+          }
+        : null,
+    showPreStackFlash: shouldShowPreStackFlash,
+    collapsed: stackCollapsed,
+  };
+
   return (
     <div
       ref={containerRef}
@@ -1313,7 +1312,14 @@ export default function Game({ exitTo }: GameProps = {}) {
           boardSceneRef={boardSceneRef}
           onLayoutChange={setBoardLayout}
           boardSurfaceRef={setBoardSurfaceEl}
-          pixiExternalBlockers={stackBlockerRect ? [stackBlockerRect] : []}
+          stackSpec={stackSpec}
+          onOpenStack={() => setSpellStackModalOpen(true)}
+          onTargetSpell={(spellId) => {
+            casting.wrappedTargetSpell(spellId);
+            setSpellStackModalOpen(false);
+          }}
+          onHoverStack={setHoveredStackObjectId}
+          onToggleStack={toggleStackCollapsed}
           handSelectionMode={mulliganPutBack.active}
           handSelectedIds={mulliganPutBack.selected}
           onHandCardToggle={mulliganPutBack.toggle}
@@ -1571,26 +1577,6 @@ export default function Game({ exitTo }: GameProps = {}) {
             </div>
           </div>
         )}
-
-      <StackDisplay
-        stack={gameView.stack}
-        resolveStackCard={resolveStackCard}
-        onOpenStack={() => setSpellStackModalOpen(true)}
-        flashCard={shouldRenderStackFlashCard ? activeFlashCard : null}
-        flashToken={
-          shouldRenderStackFlashCard
-            ? `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`
-            : null
-        }
-        showPreStackFlash={shouldShowPreStackFlash}
-        rightPanelCollapsed={isActionPanelCollapsed}
-        playerColorMap={playerColorMap}
-        validSpellIds={boardTargets?.spellIds ?? []}
-        onTargetSpell={(spellId) => {
-          casting.wrappedTargetSpell(spellId);
-          setSpellStackModalOpen(false);
-        }}
-      />
 
       <GameModals
         currentPrompt={activePrompt}

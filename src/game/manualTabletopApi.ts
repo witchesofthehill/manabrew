@@ -37,6 +37,8 @@ function createPlayer(
     hasCityBlessing: false,
     ringLevel: 0,
     speed: 0,
+    experienceCounters: 0,
+    ticketCounters: 0,
   };
 }
 

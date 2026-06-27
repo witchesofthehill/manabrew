@@ -81,6 +81,10 @@ pub struct PlayerDto {
     pub has_city_blessing: bool,
     pub ring_level: i32,
     pub speed: i32,
+    // Populated by the Java host extractor; the Rust engine doesn't track these
+    // yet (see manabrew-engine player/state.rs), so it serialises 0.
+    pub experience_counters: i32,
+    pub ticket_counters: i32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

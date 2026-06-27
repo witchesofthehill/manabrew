@@ -7,6 +7,8 @@ export interface PlayerHudBadgeFlags {
   poison: number;
   energy: number;
   radiation: number;
+  experience: number;
+  ticket: number;
   cityBlessing: boolean;
   ringLevel: number;
   speed: number;
@@ -60,6 +62,22 @@ export function buildPlayerHudBadges(
       color: badges.radiation,
       label: "Radiation Counters",
       count: f.radiation,
+    });
+  if (f.experience > 0)
+    out.push({
+      id: "experience",
+      icon: "star-medal",
+      color: badges.experience,
+      label: "Experience Counters",
+      count: f.experience,
+    });
+  if (f.ticket > 0)
+    out.push({
+      id: "ticket",
+      icon: "ticket",
+      color: badges.ticket,
+      label: "Ticket Counters",
+      count: f.ticket,
     });
   if (f.cityBlessing)
     out.push({

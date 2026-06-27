@@ -133,6 +133,8 @@ public final class InteractiveSnapshotExtractor {
         out.put("hasCityBlessing", player.hasBlessing());
         out.put("ringLevel", player.getNumRingTemptedYou());
         out.put("speed", player.getSpeed());
+        out.put("experienceCounters", player.getCounters(CounterEnumType.EXPERIENCE));
+        out.put("ticketCounters", player.getCounters(CounterEnumType.TICKET));
         return out;
     }
 

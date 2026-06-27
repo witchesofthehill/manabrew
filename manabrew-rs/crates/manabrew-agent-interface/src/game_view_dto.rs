@@ -469,6 +469,8 @@ impl GameViewDtoExt for GameViewDto {
                 has_city_blessing: ps.has_city_blessing,
                 ring_level: ps.ring_level,
                 speed: ps.speed,
+                experience_counters: 0,
+                ticket_counters: 0,
             });
         }
 

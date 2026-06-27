@@ -195,6 +195,8 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "badges.cityBlessing": p.amber,
     "badges.ring": "#c98510",
     "badges.speed": p.orange,
+    "badges.experience": p.violet,
+    "badges.ticket": p.teal,
 
     // ── Legality badge colours ──────────────────────────────────────────
     "legality.legal": p.green,

@@ -552,6 +552,8 @@ export function GameBoard({
             poison: dev?.poison ?? player.poison,
             energy: dev?.energy ?? player.energyCounters,
             radiation: dev?.radiation ?? player.radiationCounters,
+            experience: player.experienceCounters,
+            ticket: player.ticketCounters,
             cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
             ringLevel: dev?.ringLevel ?? player.ringLevel,
             speed: dev?.speed ?? player.speed,

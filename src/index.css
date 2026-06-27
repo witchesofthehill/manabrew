@@ -106,6 +106,8 @@
   --color-badges-city-blessing: var(--badges-city-blessing);
   --color-badges-ring: var(--badges-ring);
   --color-badges-speed: var(--badges-speed);
+  --color-badges-experience: var(--badges-experience);
+  --color-badges-ticket: var(--badges-ticket);
   --color-legality-legal: var(--legality-legal);
   --color-legality-banned: var(--legality-banned);
   --color-legality-restricted: var(--legality-restricted);

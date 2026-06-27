@@ -2,6 +2,12 @@ import type { MainActionOverlayProps } from "../game.types";
 import { PromptActionController } from "@/components/prompts/PromptActionController";
 import { CombatInfo } from "./CombatInfo";
 import { PHASES } from "../game.constants";
+import { useTheme } from "@/hooks/useTheme";
+import { withAlpha } from "@/themes/gameTheme";
+import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
+import { cn } from "@/lib/utils";
+
+const NO_ACTION_VIEWS: PromptActionViewKey[] = ["passingUntilEot", "autoPassing", "noAction"];
 
 const PROMPT_TITLES: Partial<Record<string, string>> = {
   chooseAttackers: "Declare Attackers",
@@ -57,8 +63,14 @@ export function MainActionOverlay({
   onMulliganPutBackConfirm,
   selfClusterMaxHeight,
 }: MainActionOverlayProps) {
+  const promptActionOverride = useGameDevStore((s) => s.promptActionOverride);
+  const themeColors = useTheme().gameTheme;
   if (promptType === "gameOver" || !selfClusterMaxHeight || selfClusterMaxHeight <= 0) return null;
-  const maxHeight = selfClusterMaxHeight;
+  const panelHeight = selfClusterMaxHeight;
+  const isNoActionView = promptActionOverride
+    ? NO_ACTION_VIEWS.includes(promptActionOverride)
+    : isPassingUntilEot || isAutoPassing || !promptType;
+  const hasAction = !isNoActionView;
   const title =
     !isPassingUntilEot && !isAutoPassing && promptType ? (PROMPT_TITLES[promptType] ?? null) : null;
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
@@ -66,14 +78,30 @@ export function MainActionOverlay({
     currentPhaseIndex >= 0
       ? (PHASES[(currentPhaseIndex + 1) % PHASES.length]?.short ?? "NEXT")
       : "NEXT";
+  const glow = themeColors.activeAction.priority;
 
   return (
     <div
       data-action-cluster
-      className="absolute bottom-3 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col gap-0 overflow-hidden rounded-lg border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm"
-      style={{ maxHeight }}
+      className={cn(
+        "absolute bottom-0 right-3 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col gap-0 overflow-hidden rounded-t-lg border border-b-0 border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
+        hasAction && "action-overlay-glow",
+      )}
+      style={
+        {
+          height: panelHeight,
+          ...(hasAction
+            ? {
+                "--action-glow-ring": withAlpha(glow, 0.75),
+                "--action-glow-soft": withAlpha(glow, 0.3),
+                "--action-glow-ring-strong": glow,
+                "--action-glow-soft-strong": withAlpha(glow, 0.6),
+              }
+            : {}),
+        } as React.CSSProperties
+      }
     >
-      <section className="flex w-full flex-col gap-2 p-2">
+      <section className="flex w-full flex-col gap-2 pt-2 px-2 pb-0 overflow-y-auto justify-center h-full">
         {title && (
           <span className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/90">
             {title}

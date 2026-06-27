@@ -32,23 +32,23 @@ export function ChooseBlockers({
       )}
       {hint && <p className="text-center text-[11px] italic text-muted-foreground">{hint}</p>}
       <div className="flex flex-row items-center justify-center gap-1.5">
-        <PromptActionButton
-          label="No Blockers"
-          icon={<Ban className="h-3.5 w-3.5" />}
-          variant="outline"
-          baseColor={promptActionColors.defenseAction}
-          onClick={onPassPriority}
-          disabled={isWaitingForResponse}
-        />
         {blockAssignments.length > 0 && (
           <PromptActionButton
-            label={`Block (${blockAssignments.length})`}
+            label={`Block ${blockAssignments.length}`}
             icon={<Shield className="h-3.5 w-3.5" />}
             baseColor={promptActionColors.defenseAction}
             onClick={() => onDeclareBlockers(blockAssignments)}
             disabled={isWaitingForResponse || !!blockRequirementError}
           />
         )}
+        <PromptActionButton
+          label="No Blocks"
+          icon={<Ban className="h-3.5 w-3.5" />}
+          variant="outline"
+          baseColor={promptActionColors.cancel}
+          onClick={onPassPriority}
+          disabled={isWaitingForResponse}
+        />
       </div>
     </div>
   );

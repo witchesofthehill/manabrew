@@ -692,6 +692,24 @@
   animation: reject-flash 400ms ease-out;
 }
 
+.action-overlay-glow {
+  animation: action-overlay-glow-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes action-overlay-glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px var(--action-glow-ring),
+      0 0 12px var(--action-glow-soft);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px var(--action-glow-ring-strong),
+      0 0 22px var(--action-glow-soft-strong);
+  }
+}
+
 @keyframes reject-flash {
   0% {
     box-shadow:

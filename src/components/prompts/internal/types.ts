@@ -4,10 +4,6 @@ export interface PromptActionLayoutProps {
   isWaitingForResponse: boolean;
 }
 
-export interface NoActionProps {
-  label?: string;
-}
-
 export interface ChooseActionProps extends PromptActionLayoutProps {
   onPassPriority: () => void;
 }

@@ -14,6 +14,7 @@ import type { PromptType as PromptTypeValue } from "@/protocol";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useGameUIStore } from "@/stores/useGameUIStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { PromptRequired } from "./PromptRequired";
 
 function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptActionViewKey {
   switch (promptType) {
@@ -99,7 +100,7 @@ export function PromptActionController({
   isWaitingForResponse,
   isAutoPassing,
   isPassingUntilEot,
-  isMyTurn,
+  isMyTurn: _isMyTurn,
   passToPhaseShort: _passToPhaseShort,
   availableAttackerIds,
   pendingAttackers,
@@ -203,8 +204,8 @@ export function PromptActionController({
         onOpenPrompt={showPromptModal}
       />
     ),
-    passingUntilEot: () => <NoAction label={isMyTurn ? "End Turn" : "Pass Till End"} />,
-    autoPassing: () => <NoAction label="Auto Pass" />,
+    passingUntilEot: () => <NoAction />,
+    autoPassing: () => <NoAction />,
     promptLabel: () => {
       const labels: Record<string, string> = {
         ["chooseBoardTargets"]: "Choose a target",
@@ -221,7 +222,7 @@ export function PromptActionController({
         />
       );
     },
-    noAction: () => <NoAction label="No Action" />,
+    noAction: () => <NoAction />,
     mulligan: () => (
       <Mulligan
         isWaitingForResponse={isWaitingForResponse}

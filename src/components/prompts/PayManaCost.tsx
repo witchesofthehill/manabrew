@@ -51,13 +51,6 @@ export function PayManaCost({
               />
             </p>
           )}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Mana pool:</span>
-            <ManaPool pool={payManaCostInfo.manaPool} />
-          </div>
-          <p className="min-h-[32px] text-[11px] text-muted-foreground/70">
-            Tap lands to generate mana, or let the engine finish payment.
-          </p>
         </>
       )}
       <div className={"flex flex-row flex-wrap items-center justify-center gap-3"}>

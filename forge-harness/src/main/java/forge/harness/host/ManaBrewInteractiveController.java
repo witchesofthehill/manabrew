@@ -74,6 +74,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
     private final HarnessCostPlumbing costPlumbing;
     private final AutoPay autoPay;
     private final HarnessPlayPlumbing playPlumbing;
+    private String passUntilPlayer;
     private String passUntilPhase;
     private boolean probingPayability;
     private boolean autoConfirmPayment;
@@ -133,10 +134,17 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
-        final String until = passUntilPhase;
-        passUntilPhase = null;
-        if (until != null && PriorityFastForward.shouldSkip(game, until)) {
-            return null;
+        // The pass-until declaration is HELD: it survives every priority window
+        // until the active player reaches the target (player, phase) slot. We
+        // clear it only on reaching the target (then prompt); a non-empty stack
+        // or active combat pauses skipping without clearing the declaration.
+        if (passUntilPhase != null) {
+            if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)) {
+                passUntilPlayer = null;
+                passUntilPhase = null;
+            } else if (PriorityFastForward.canSkip(game)) {
+                return null;
+            }
         }
         while (true) {
             final List<SpellAbility> all;
@@ -154,6 +162,7 @@ public final class ManaBrewInteractiveController extends PlayerController implem
                 undoManaSource(choice.untapCard());
                 continue;
             }
+            passUntilPlayer = choice.untilPlayer();
             passUntilPhase = choice.untilPhase();
             final SpellAbility selected = choice.action();
             if (selected != null && selected.isManaAbility() && selected.getManaPart() != null) {

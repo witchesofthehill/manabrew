@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { usePhaseStopStore, getNextStopPhase } from "@/stores/usePhaseStopStore";
-import type { Prompt, PromptOutput } from "@/protocol";
+import { usePhaseStopStore, getNextStop } from "@/stores/usePhaseStopStore";
+import type { Prompt, PromptOutput, PassUntil } from "@/protocol";
 import { passOutput } from "@/components/prompts/internal/playerActions";
 import type { GameViewDto } from "@/protocol/game";
 
@@ -10,7 +10,6 @@ interface UsePromptEffectsOptions {
   isWaitingForResponse: boolean;
   respond: (output: PromptOutput["output"]) => void;
   myPlayerId: string;
-  turn: number;
 }
 
 export function usePromptEffects({
@@ -19,11 +18,10 @@ export function usePromptEffects({
   isWaitingForResponse,
   respond,
   myPlayerId,
-  turn,
 }: UsePromptEffectsOptions) {
   const pass = useCallback(
-    (untilPhase: string | null) => {
-      const out = passOutput(currentPrompt, untilPhase);
+    (until: PassUntil | null) => {
+      const out = passOutput(currentPrompt, until);
       if (out) respond(out);
     },
     [currentPrompt, respond],
@@ -32,23 +30,23 @@ export function usePromptEffects({
     if (!currentPrompt || !gameView || isWaitingForResponse) return;
 
     const gv = gameView;
-    const hasStack = (gv.stack?.length ?? 0) > 0;
-
-    if (hasStack) {
+    if ((gv.stack?.length ?? 0) > 0) {
       pass(null);
       return;
     }
 
-    const isMyTurn = gv.activePlayerId === myPlayerId;
     const store = usePhaseStopStore.getState();
-    const stops = isMyTurn ? store.selfStops : store.getOpponentStops(gv.activePlayerId);
-
-    const nextStop = getNextStopPhase(gv.step, stops);
-
-    usePhaseStopStore.getState().setPassUntil(nextStop, turn);
+    const nextStop = getNextStop(
+      gv.players.map((p) => p.id),
+      gv.activePlayerId,
+      gv.step,
+      myPlayerId,
+      store.selfStops,
+      store.getOpponentStops,
+    );
 
     pass(nextStop);
-  }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId, turn]);
+  }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
 
   function activatePassUntilEot() {
     unifiedPass();

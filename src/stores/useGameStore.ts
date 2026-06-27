@@ -21,7 +21,6 @@ import type { Prompt, PromptOutput } from "@/protocol";
 import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
-import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
@@ -406,10 +405,6 @@ export const useGameStore = create<GameState>()(
           return;
         }
         try {
-          // Only explicit player actions (not passes) cancel auto-pass.
-          if (output.type !== "pass") {
-            usePhaseStopStore.getState().clearPassUntil();
-          }
           set({ isWaitingForResponse: true, debugInfo: `Responding: ${output.type}` });
           const { myPlayerSlot } = get();
           const runtime = getSelectedGameRuntime();

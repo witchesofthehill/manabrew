@@ -58,7 +58,7 @@ impl Responder for BotResponder {
         self.agent
             .decide(prompt)
             .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                until_phase: None,
+                until: None,
             }))
     }
 }

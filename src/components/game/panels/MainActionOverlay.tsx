@@ -25,6 +25,7 @@ const PROMPT_TITLES: Partial<Record<string, string>> = {
 export function MainActionOverlay({
   promptType,
   isWaitingForResponse,
+  isWaitingForOthers,
   availableAttackerIds,
   pendingAttackers,
   onPassPriority,
@@ -81,10 +82,12 @@ export function MainActionOverlay({
 
   const isNoActionView = promptActionOverride
     ? NO_ACTION_VIEWS.includes(promptActionOverride)
-    : !promptType;
+    : !promptType || isWaitingForOthers;
   const hasAction = !isNoActionView;
   const title = hasAction ? (PROMPT_TITLES[promptType ?? ""] ?? "Action Required") : null;
   const effectiveCollapsed = hasAction && collapsed;
+  const isRenderable =
+    promptType !== "gameOver" && !!selfClusterMaxHeight && selfClusterMaxHeight > 0;
 
   const applyHeight = useCallback(() => {
     const body = bodyRef.current;
@@ -110,9 +113,9 @@ export function MainActionOverlay({
     const ro = new ResizeObserver(applyHeight);
     ro.observe(content);
     return () => ro.disconnect();
-  }, [applyHeight]);
+  }, [applyHeight, isRenderable]);
 
-  if (promptType === "gameOver" || !selfClusterMaxHeight || selfClusterMaxHeight <= 0) return null;
+  if (!isRenderable) return null;
 
   const currentPhaseIndex = PHASES.findIndex((phase) => phase.id === step);
   const passToPhaseShort =
@@ -188,6 +191,7 @@ export function MainActionOverlay({
               <PromptActionController
                 promptType={promptType}
                 isWaitingForResponse={isWaitingForResponse}
+                isWaitingForOthers={isWaitingForOthers}
                 isMyTurn={isMyTurn}
                 passToPhaseShort={passToPhaseShort}
                 availableAttackerIds={availableAttackerIds}

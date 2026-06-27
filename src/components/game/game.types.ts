@@ -46,6 +46,7 @@ export interface RightActionPanelProps {
 export interface MainActionOverlayProps {
   promptType?: PromptActionType;
   isWaitingForResponse: boolean;
+  isWaitingForOthers: boolean;
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;

@@ -169,7 +169,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const activePrompt = manualApi || isWaitingForResponse ? null : currentPrompt;
+  const activePrompt = manualApi ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
   const chooseActionInput = activePrompt?.input.type === "chooseAction" ? activePrompt.input : null;
   const chooseAttackersInput =
@@ -707,7 +707,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       isWaitingForResponse,
       respond,
       myPlayerId: _earlyMyPlayerId,
-      turn: gameView?.turn ?? 0,
     });
 
   const unifiedPassRef = useRef(unifiedPass);
@@ -1451,6 +1450,7 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MainActionOverlay
                 promptType={promptType}
                 isWaitingForResponse={isWaitingForResponse}
+                isWaitingForOthers={isWaitingForResponse && gameView.priorityPlayerId !== me.id}
                 availableAttackerIds={
                   chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
                 }

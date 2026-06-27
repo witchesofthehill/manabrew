@@ -94,57 +94,38 @@ impl GameLoop {
             }
 
             // ── Fast-forward: skip prompt if player has a standing pass-until ──
-            // The declaration is consumed every time. The frontend re-sends it
-            // on the next prompt if still auto-passing. Prevents stale
-            // declarations from persisting across turns.
-            {
-                let pass_until = {
-                    let agent = agents[priority_player.index()].as_mut();
-                    let val = agent.get_pass_until_phase().map(|o| o.map(str::to_owned));
-                    agent.clear_pass_until();
-                    val
-                };
-                if let Some(until) = pass_until {
-                    let current_phase = game.turn.phase;
-                    // Never fast-forward through active combat phases after
-                    // attackers are declared. Empty combat may still honor
-                    // pass-until stops, including a declare-attackers stop.
-                    let has_declared_attackers = self.combat.has_attackers();
-                    let is_active_combat = has_declared_attackers
-                        && matches!(
-                            current_phase,
-                            forge_foundation::PhaseType::CombatDeclareAttackers
-                                | forge_foundation::PhaseType::CombatDeclareBlockers
-                                | forge_foundation::PhaseType::CombatFirstStrikeDamage
-                                | forge_foundation::PhaseType::CombatDamage
-                                | forge_foundation::PhaseType::CombatEnd
-                        );
-                    let should_skip = if is_active_combat {
-                        false
-                    } else if game.stack.is_empty() {
-                        match until.as_deref() {
-                            // None = atomic single pass, no fast-forward
-                            None => false,
-                            Some(step_str) => {
-                                match forge_foundation::PhaseType::from_step_string(step_str) {
-                                    Some(target) => current_phase.is_before(target),
-                                    None => false,
-                                }
-                            }
-                        }
-                    } else {
-                        false
-                    };
-
-                    if should_skip {
-                        self.log_priority_pass(game, priority_player);
-                        passed_count += 1;
-                        priority_player = game.next_player(priority_player);
-                        self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
-                            game.turn.priority_player = priority_player;
-                        });
-                        continue;
-                    }
+            // The declaration is HELD — read without clearing, so it survives
+            // every priority window until the active player reaches the target
+            // `(player, phase)` slot. A bare phase can't distinguish "my end"
+            // from "an opponent's end"; the target carries both. We clear it
+            // only when that slot is reached (here); meaningful actions (cast,
+            // attackers declared) clear it where they happen.
+            if let Some(target) = agents[priority_player.index()].get_pass_until() {
+                let current_phase = game.turn.phase;
+                let active = game.active_player();
+                // Never fast-forward through active combat phases after
+                // attackers are declared.
+                let has_declared_attackers = self.combat.has_attackers();
+                let is_active_combat = has_declared_attackers
+                    && matches!(
+                        current_phase,
+                        forge_foundation::PhaseType::CombatDeclareAttackers
+                            | forge_foundation::PhaseType::CombatDeclareBlockers
+                            | forge_foundation::PhaseType::CombatFirstStrikeDamage
+                            | forge_foundation::PhaseType::CombatDamage
+                            | forge_foundation::PhaseType::CombatEnd
+                    );
+                let reached = active == target.player && !current_phase.is_before(target.phase);
+                if reached {
+                    agents[priority_player.index()].clear_pass_until();
+                } else if !is_active_combat && game.stack.is_empty() {
+                    self.log_priority_pass(game, priority_player);
+                    passed_count += 1;
+                    priority_player = game.next_player(priority_player);
+                    self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                        game.turn.priority_player = priority_player;
+                    });
+                    continue;
                 }
             }
 
@@ -288,6 +269,7 @@ impl GameLoop {
                     });
                 }
                 MainPhaseAction::Play(play) => {
+                    agents[priority_player.index()].clear_pass_until();
                     let action_space = action_space
                         .as_ref()
                         .expect("play priority action requires action space");
@@ -685,6 +667,7 @@ impl GameLoop {
                     passed_count = 0;
                 }
                 MainPhaseAction::ActivateAbility(card_id, ability_idx) => {
+                    agents[priority_player.index()].clear_pass_until();
                     let action_space = action_space
                         .as_ref()
                         .expect("ability priority action requires action space");

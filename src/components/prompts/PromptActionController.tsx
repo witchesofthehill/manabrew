@@ -45,6 +45,7 @@ function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptAction
 interface PromptActionControllerProps {
   promptType?: PromptActionType;
   isWaitingForResponse: boolean;
+  isWaitingForOthers: boolean;
   isMyTurn: boolean;
   passToPhaseShort: string;
   availableAttackerIds: string[];
@@ -96,6 +97,7 @@ interface PromptActionControllerProps {
 export function PromptActionController({
   promptType,
   isWaitingForResponse,
+  isWaitingForOthers,
   isMyTurn: _isMyTurn,
   passToPhaseShort: _passToPhaseShort,
   availableAttackerIds,
@@ -236,7 +238,9 @@ export function PromptActionController({
     ),
   };
 
-  const runtimeViewKey: PromptActionViewKey = viewKeyForPrompt(promptType);
+  const runtimeViewKey: PromptActionViewKey = isWaitingForOthers
+    ? "noAction"
+    : viewKeyForPrompt(promptType);
 
   const rendered = renderers[promptActionOverride ?? runtimeViewKey]();
 

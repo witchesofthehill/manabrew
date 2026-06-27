@@ -81,6 +81,8 @@ pub struct PlayerDto {
     pub has_city_blessing: bool,
     pub ring_level: i32,
     pub speed: i32,
+    pub experience_counters: i32,
+    pub ticket_counters: i32,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

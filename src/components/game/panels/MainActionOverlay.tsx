@@ -67,10 +67,8 @@ export function MainActionOverlay({
 
   return (
     <>
-      {/* Bottom offset matches the PlayerPanel mana-row footprint
-          (h-7 + gap-y-1 + bottom-2 = ~40px) so the PASS cluster sits
-          at the same vertical line as the avatar / library / graveyard
-          row on the left. */}
+      {/* Bottom offset keeps the PASS cluster clear of the local player's
+          HUD capsule + hand fan along the bottom edge. */}
       <div
         data-action-cluster
         className="absolute bottom-10 right-12 z-40 w-[300px] max-w-[calc(100%-12px)] flex flex-col items-end gap-0"

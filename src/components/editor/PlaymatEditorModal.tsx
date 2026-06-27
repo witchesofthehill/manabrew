@@ -8,13 +8,10 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
-  Crop,
   ImagePlus,
   Info,
   Loader2,
-  RectangleVertical,
   RotateCcw,
-  Search,
   Trash2,
 } from "lucide-react";
 import {
@@ -28,17 +25,11 @@ import {
 } from "@/pixi/board/PlaymatLayer";
 import { normalizeToWebp, ImageTooLargeError, PLAYMAT_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { usePlaymatPreview } from "./usePlaymatPreview";
-import { CardSearch } from "./CardSearch";
-import { PrintPickerModal } from "./PrintPickerModal";
-import { platformFetch } from "@/lib/platformFetch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { PlaymatSettings } from "@/protocol/game";
-import type { ScryfallCard } from "@/types/scryfall";
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
-
-type ArtMode = "full" | "crop";
 
 /** Built-in playmat presets — any image dropped in `images/playmats/` shows up
  *  here automatically (resolved from the Vite project root). */
@@ -125,7 +116,6 @@ export function PlaymatEditorModal({
     setBusy(true);
     try {
       setPlaymat(await normalizeToWebp(blob, PLAYMAT_IMAGE_BUDGET));
-      setLastPrint(null);
     } catch (err) {
       toast.error(
         err instanceof ImageTooLargeError ? err.message : "Couldn't use that image as a playmat",
@@ -162,43 +152,6 @@ export function PlaymatEditorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [pickCardName, setPickCardName] = useState<string | null>(null);
-  const [lastPrint, setLastPrint] = useState<ScryfallCard | null>(null);
-  const [artMode, setArtMode] = useState<ArtMode>("full");
-
-  async function applyCardArt(print: ScryfallCard, mode: ArtMode) {
-    // full = portrait card (png is highest-res), framed to the art; crop = art_crop only.
-    const uris = print.image_uris ?? print.card_faces?.find((f) => f.image_uris)?.image_uris;
-    const url =
-      mode === "crop"
-        ? uris?.art_crop
-        : (uris?.png ?? uris?.large ?? uris?.normal ?? uris?.art_crop);
-    if (!url) {
-      toast.error("That card has no art image.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await platformFetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const fresh = print !== lastPrint;
-      setPlaymat(await normalizeToWebp(blob, PLAYMAT_IMAGE_BUDGET));
-      setLastPrint(print);
-      setArtMode(mode);
-      update({
-        fit: "cover",
-        offsetY: mode === "crop" ? 0.5 : 0.33,
-        ...(fresh ? { offsetX: 0.5, zoom: 1 } : {}),
-      });
-    } catch {
-      toast.error("Couldn't load that card image.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function applyPreset(url: string) {
     setBusy(true);
     try {
@@ -206,7 +159,6 @@ export function PlaymatEditorModal({
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       setPlaymat(await normalizeToWebp(blob, PLAYMAT_IMAGE_BUDGET));
-      setLastPrint(null);
       update({ fit: "cover" });
     } catch {
       toast.error("Couldn't load that preset.");
@@ -216,399 +168,331 @@ export function PlaymatEditorModal({
   }
 
   return (
-    <>
-      <Modal onClose={onClose} maxWidth="max-w-6xl">
-        <Modal.Header>{title}</Modal.Header>
-        <Modal.Body>
-          <div className="space-y-4">
-            <div
-              ref={previewRef}
-              onDrop={onDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              className="flex flex-col items-center gap-1"
-            >
-              <div className="relative">
-                <canvas
-                  ref={canvasRef}
-                  style={{ width: previewWidth, height: previewHeight }}
-                  className={cn(
-                    "max-w-full touch-none rounded-md border",
-                    settings.fit === "cover" && "cursor-grab active:cursor-grabbing",
-                  )}
-                />
-                {busy && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-overlay/40">
-                    <Loader2 className="size-7 animate-spin text-primary-foreground" />
-                  </div>
+    <Modal onClose={onClose} maxWidth="max-w-6xl">
+      <Modal.Header>{title}</Modal.Header>
+      <Modal.Body>
+        <div className="space-y-4">
+          <div
+            ref={previewRef}
+            onDrop={onDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={() => setDragActive(false)}
+            className="flex flex-col items-center gap-1"
+          >
+            <div className="relative">
+              <canvas
+                ref={canvasRef}
+                style={{ width: previewWidth, height: previewHeight }}
+                className={cn(
+                  "max-w-full touch-none rounded-md border",
+                  settings.fit === "cover" && "cursor-grab active:cursor-grabbing",
                 )}
-                {dragActive && (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-sm font-medium text-primary-foreground">
-                    Drop image to use as playmat
-                  </div>
-                )}
-              </div>
-              {settings.fit === "cover" && (
-                <p className="text-xs text-muted-foreground">
-                  Drag to reposition · scroll or pinch to zoom · drop or paste an image
-                </p>
-              )}
-              <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox
-                  checked={showSampleCards}
-                  onCheckedChange={(v) => setShowSampleCards(v === true)}
-                />
-                Show sample cards
-              </label>
-            </div>
-
-            <section className="space-y-2.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Background image
-              </Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPick}
               />
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <ImagePlus className="h-4 w-4" />
-                  {playmat ? "Replace image" : "Upload image"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="h-4 w-4" />
-                  Card art
-                </Button>
+              {busy && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-overlay/40">
+                  <Loader2 className="size-7 animate-spin text-primary-foreground" />
+                </div>
+              )}
+              {dragActive && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-overlay/50 text-sm font-medium text-primary-foreground">
+                  Drop image to use as playmat
+                </div>
+              )}
+            </div>
+            {settings.fit === "cover" && (
+              <p className="text-xs text-muted-foreground">
+                Drag to reposition · scroll or pinch to zoom · drop or paste an image
+              </p>
+            )}
+            <label className="mt-1 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox
+                checked={showSampleCards}
+                onCheckedChange={(v) => setShowSampleCards(v === true)}
+              />
+              Show sample cards
+            </label>
+          </div>
+
+          <section className="space-y-2.5">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Background image
+            </Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPick}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImagePlus className="h-4 w-4" />
+              {playmat ? "Replace image" : "Upload image"}
+            </Button>
+            {PLAYMAT_PRESETS.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {PLAYMAT_PRESETS.map((p) => (
+                  <button
+                    key={p.url}
+                    type="button"
+                    onClick={() => void applyPreset(p.url)}
+                    title={p.name}
+                    className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
+                  >
+                    <img
+                      src={p.url}
+                      alt={p.name}
+                      draggable={false}
+                      className="size-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
-              {lastPrint && (
+            )}
+          </section>
+
+          {playmat && (
+            <section className="space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Image
+                </Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label="Playmat image tips"
+                    >
+                      <Info className="size-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    The playmat fills a wide, landscape area (roughly 5:2). For a crisp result use a
+                    landscape image at least ~1600px wide — up to 4096px on the long edge and
+                    3&nbsp;MB are kept. Use <strong>Cover</strong>, then drag and scroll to zoom and
+                    frame it.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Placement</Label>
                 <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
-                  {(
-                    [
-                      ["full", "Full card", RectangleVertical],
-                      ["crop", "Art crop", Crop],
-                    ] as const
-                  ).map(([mode, label, Icon]) => (
+                  {(["cover", "fit", "stretch"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
-                      onClick={() => void applyCardArt(lastPrint, mode)}
+                      onClick={() => update({ fit: mode })}
                       className={cn(
-                        "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                        artMode === mode
+                        "flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                        settings.fit === mode
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      <Icon className="size-3.5" />
-                      {label}
+                      {mode}
                     </button>
                   ))}
                 </div>
-              )}
-              {PLAYMAT_PRESETS.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {PLAYMAT_PRESETS.map((p) => (
-                    <button
-                      key={p.url}
-                      type="button"
-                      onClick={() => void applyPreset(p.url)}
-                      title={p.name}
-                      className="h-12 w-[5.5rem] shrink-0 overflow-hidden rounded-md border transition-[transform,border-color] hover:scale-[1.04] hover:border-primary"
-                    >
-                      <img
-                        src={p.url}
-                        alt={p.name}
-                        draggable={false}
-                        className="size-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {playmat && (
-              <section className="space-y-2.5">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Image
-                  </Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label="Playmat image tips"
-                      >
-                        <Info className="size-3.5" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      The playmat fills a wide, landscape area (roughly 5:2). For a crisp result use
-                      a landscape image at least ~1600px wide — up to 4096px on the long edge and
-                      3&nbsp;MB are kept. Use <strong>Cover</strong>, then drag and scroll to zoom
-                      and frame it.
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
+              </div>
+              {settings.fit === "cover" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Placement</Label>
+                  <Label className="text-xs font-medium text-muted-foreground">
+                    Vertical framing
+                  </Label>
                   <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
-                    {(["cover", "fit", "stretch"] as const).map((mode) => (
+                    {(
+                      [
+                        ["Top", 0, AlignVerticalJustifyStart],
+                        ["Center", 0.5, AlignVerticalJustifyCenter],
+                        ["Bottom", 1, AlignVerticalJustifyEnd],
+                      ] as const
+                    ).map(([label, oy, Icon]) => (
                       <button
-                        key={mode}
+                        key={label}
                         type="button"
-                        onClick={() => update({ fit: mode })}
+                        title={label}
+                        aria-label={label}
+                        onClick={() => update({ offsetY: oy })}
                         className={cn(
-                          "flex-1 rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors",
-                          settings.fit === mode
+                          "flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
+                          Math.abs(settings.offsetY - oy) < 0.001
                             ? "bg-primary text-primary-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
                       >
-                        {mode}
+                        <Icon className="size-4" />
                       </button>
                     ))}
                   </div>
                 </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
                 {settings.fit === "cover" && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Vertical framing
-                    </Label>
-                    <div className="inline-flex w-full rounded-lg border bg-muted/40 p-1">
-                      {(
-                        [
-                          ["Top", 0, AlignVerticalJustifyStart],
-                          ["Center", 0.5, AlignVerticalJustifyCenter],
-                          ["Bottom", 1, AlignVerticalJustifyEnd],
-                        ] as const
-                      ).map(([label, oy, Icon]) => (
-                        <button
-                          key={label}
-                          type="button"
-                          title={label}
-                          aria-label={label}
-                          onClick={() => update({ offsetY: oy })}
-                          className={cn(
-                            "flex flex-1 items-center justify-center rounded-md px-3 py-1.5 transition-colors",
-                            Math.abs(settings.offsetY - oy) < 0.001
-                              ? "bg-primary text-primary-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          <Icon className="size-4" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <SliderControl
+                    label="Zoom"
+                    value={`${Math.round(settings.zoom * 100)}%`}
+                    min={100}
+                    max={Math.round(PLAYMAT_ZOOM_MAX * 100)}
+                    current={Math.round(settings.zoom * 100)}
+                    onChange={(v) => update({ zoom: v / 100 })}
+                  />
                 )}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {settings.fit === "cover" && (
-                    <SliderControl
-                      label="Zoom"
-                      value={`${Math.round(settings.zoom * 100)}%`}
-                      min={100}
-                      max={Math.round(PLAYMAT_ZOOM_MAX * 100)}
-                      current={Math.round(settings.zoom * 100)}
-                      onChange={(v) => update({ zoom: v / 100 })}
-                    />
-                  )}
-                  <SliderControl
-                    label="Opacity"
-                    value={`${Math.round(settings.opacity * 100)}%`}
-                    min={10}
-                    max={100}
-                    current={Math.round(settings.opacity * 100)}
-                    onChange={(v) => update({ opacity: v / 100 })}
-                  />
-                  <SliderControl
-                    label="Blur"
-                    value={`${Math.round(settings.blur)}px`}
-                    min={0}
-                    max={PLAYMAT_BLUR_MAX}
-                    current={Math.round(settings.blur)}
-                    onChange={(v) => update({ blur: v })}
-                  />
-                  <SliderControl
-                    label="Brightness"
-                    value={`${Math.round(settings.brightness * 100)}%`}
-                    min={Math.round(PLAYMAT_BRIGHTNESS_MIN * 100)}
-                    max={Math.round(PLAYMAT_BRIGHTNESS_MAX * 100)}
-                    current={Math.round(settings.brightness * 100)}
-                    onChange={(v) => update({ brightness: v / 100 })}
-                  />
-                </div>
-              </section>
-            )}
-
-            <section className="space-y-2.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Table
-              </Label>
-              <div className="grid gap-3 sm:grid-cols-2">
                 <SliderControl
-                  label="Cloth texture"
-                  value={`${Math.round(settings.texture * 100)}%`}
-                  min={0}
+                  label="Opacity"
+                  value={`${Math.round(settings.opacity * 100)}%`}
+                  min={10}
                   max={100}
-                  current={Math.round(settings.texture * 100)}
-                  onChange={(v) => update({ texture: v / 100 })}
+                  current={Math.round(settings.opacity * 100)}
+                  onChange={(v) => update({ opacity: v / 100 })}
                 />
-                <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                  <Label className="text-xs font-medium">Background color</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={settings.color || "#000000"}
-                      onChange={(e) => update({ color: clampPlaymatColor(e.target.value) })}
-                      className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
-                    />
-                    <input
-                      value={bgHex}
-                      placeholder="none"
-                      onChange={(e) => {
-                        setBgHex(e.target.value);
-                        if (HEX_RE.test(e.target.value))
-                          update({ color: clampPlaymatColor(e.target.value) });
-                      }}
-                      onBlur={() => setBgHex(settings.color)}
-                      spellCheck={false}
-                      autoComplete="off"
-                      className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
-                    />
-                    {settings.color && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 px-2"
-                        onClick={() => update({ color: "" })}
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="space-y-2.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Border
-              </Label>
-              <div className="grid gap-3 sm:grid-cols-2">
                 <SliderControl
-                  label="Width"
-                  value={`${settings.borderWidth}px`}
+                  label="Blur"
+                  value={`${Math.round(settings.blur)}px`}
                   min={0}
-                  max={40}
-                  current={settings.borderWidth}
-                  onChange={(v) => update({ borderWidth: v })}
+                  max={PLAYMAT_BLUR_MAX}
+                  current={Math.round(settings.blur)}
+                  onChange={(v) => update({ blur: v })}
                 />
-                <div className="space-y-2 rounded-lg border bg-card/40 p-3">
-                  <Label className="text-xs font-medium">Color</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={settings.borderColor}
-                      onChange={(e) => update({ borderColor: clampBorderColor(e.target.value) })}
-                      className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
-                    />
-                    <input
-                      value={borderHex}
-                      onChange={(e) => {
-                        setBorderHex(e.target.value);
-                        if (HEX_RE.test(e.target.value))
-                          update({ borderColor: clampBorderColor(e.target.value) });
-                      }}
-                      onBlur={() => setBorderHex(settings.borderColor)}
-                      spellCheck={false}
-                      autoComplete="off"
-                      className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
-                    />
-                  </div>
-                </div>
+                <SliderControl
+                  label="Brightness"
+                  value={`${Math.round(settings.brightness * 100)}%`}
+                  min={Math.round(PLAYMAT_BRIGHTNESS_MIN * 100)}
+                  max={Math.round(PLAYMAT_BRIGHTNESS_MAX * 100)}
+                  current={Math.round(settings.brightness * 100)}
+                  onChange={(v) => update({ brightness: v / 100 })}
+                />
               </div>
             </section>
-          </div>
-        </Modal.Body>
-        <Modal.Footer>
+          )}
+
+          <section className="space-y-2.5">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Table
+            </Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SliderControl
+                label="Cloth texture"
+                value={`${Math.round(settings.texture * 100)}%`}
+                min={0}
+                max={100}
+                current={Math.round(settings.texture * 100)}
+                onChange={(v) => update({ texture: v / 100 })}
+              />
+              <div className="space-y-2 rounded-lg border bg-card/40 p-3">
+                <Label className="text-xs font-medium">Background color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.color || "#000000"}
+                    onChange={(e) => update({ color: clampPlaymatColor(e.target.value) })}
+                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                  />
+                  <input
+                    value={bgHex}
+                    placeholder="none"
+                    onChange={(e) => {
+                      setBgHex(e.target.value);
+                      if (HEX_RE.test(e.target.value))
+                        update({ color: clampPlaymatColor(e.target.value) });
+                    }}
+                    onBlur={() => setBgHex(settings.color)}
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
+                  />
+                  {settings.color && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 px-2"
+                      onClick={() => update({ color: "" })}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-2.5">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Border
+            </Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SliderControl
+                label="Width"
+                value={`${settings.borderWidth}px`}
+                min={0}
+                max={40}
+                current={settings.borderWidth}
+                onChange={(v) => update({ borderWidth: v })}
+              />
+              <div className="space-y-2 rounded-lg border bg-card/40 p-3">
+                <Label className="text-xs font-medium">Color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings.borderColor}
+                    onChange={(e) => update({ borderColor: clampBorderColor(e.target.value) })}
+                    className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                  />
+                  <input
+                    value={borderHex}
+                    onChange={(e) => {
+                      setBorderHex(e.target.value);
+                      if (HEX_RE.test(e.target.value))
+                        update({ borderColor: clampBorderColor(e.target.value) });
+                    }}
+                    onBlur={() => setBorderHex(settings.borderColor)}
+                    spellCheck={false}
+                    autoComplete="off"
+                    className="h-8 min-w-0 flex-1 rounded border border-input bg-background px-2 font-mono text-xs uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={resetSettings}
+          disabled={isDefaultSettings}
+          title="Reset all adjustments to their defaults"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reset
+        </Button>
+        {(playmat || settings.color) && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={resetSettings}
-            disabled={isDefaultSettings}
-            title="Reset all adjustments to their defaults"
+            onClick={() => {
+              setPlaymat(undefined);
+              update({ color: "" });
+              onClose();
+            }}
           >
-            <RotateCcw className="h-4 w-4" />
-            Reset
+            <Trash2 className="h-4 w-4" />
+            Remove playmat
           </Button>
-          {(playmat || settings.color) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setPlaymat(undefined);
-                update({ color: "" });
-                onClose();
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Remove playmat
-            </Button>
-          )}
-          <Button size="sm" className="ml-auto" onClick={onClose}>
-            Done
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      {searchOpen && (
-        <Modal
-          onClose={() => setSearchOpen(false)}
-          maxWidth="max-w-5xl"
-          maxHeight="max-h-[85vh]"
-          backdropClassName="z-[9100]"
-        >
-          <Modal.Header onClose={() => setSearchOpen(false)}>Choose a card&apos;s art</Modal.Header>
-          <Modal.Body>
-            <div className="h-[68vh]">
-              <CardSearch
-                onPickCard={(card) => {
-                  setSearchOpen(false);
-                  setPickCardName(card.name);
-                }}
-              />
-            </div>
-          </Modal.Body>
-        </Modal>
-      )}
-      {pickCardName && (
-        <PrintPickerModal
-          cardName={pickCardName}
-          onClose={() => setPickCardName(null)}
-          onSelect={(print) => {
-            setPickCardName(null);
-            void applyCardArt(print, artMode);
-          }}
-        />
-      )}
-    </>
+        )}
+        <Button size="sm" className="ml-auto" onClick={onClose}>
+          Done
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
 }
 

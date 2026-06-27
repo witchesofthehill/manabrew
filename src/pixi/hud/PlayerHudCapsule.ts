@@ -24,6 +24,11 @@ interface BadgeChip {
   count: Text;
 }
 
+interface ContentItem {
+  w: number;
+  place: (x: number, y: number) => void;
+}
+
 /** A single player's HUD: a minimal pill with the avatar as a left-edge cap,
  *  the life total, the floating mana pool, and any active player/game badges.
  *  Collapses to an avatar "sphere" + life when its field is narrow. Owns its own
@@ -52,7 +57,6 @@ export class PlayerHudCapsule {
   private height = 0;
   private column = false;
   private avatarUrl: string | null = null;
-  private loggedUrl: string | undefined | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
   private pulse: gsap.core.Tween | null = null;
@@ -143,21 +147,12 @@ export class PlayerHudCapsule {
   }
 
   private updateAvatarTexture(url: string | undefined): void {
-    if (url !== this.loggedUrl) {
-      this.loggedUrl = url;
-      console.warn(
-        "[hud] avatar url for",
-        this.spec.name,
-        url ? `present (${url.length})` : "<none>",
-      );
-    }
     if (!url || url === this.avatarUrl) return;
     this.avatarUrl = url;
     loadAvatarTexture(url)
       .then((tex) => {
         if (this.avatarUrl !== url || this.container.destroyed) return;
         this.avatarTex = tex;
-        console.warn("[hud] avatar loaded for", this.spec.name, `${tex.width}x${tex.height}`);
         this.render();
       })
       .catch((err) => console.warn("[hud] avatar load failed", this.spec.name, err));
@@ -337,73 +332,112 @@ export class PlayerHudCapsule {
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
 
-    // Mana + badges, vertically centred on the avatar.
+    // Mana pips + badges flow to the right of the avatar and wrap into stacked
+    // rows once they'd exceed the panel's max width, so a player with many
+    // badges never bleeds into the hand. The row block is centred on the avatar.
     const gap = Math.max(5, Math.round(h * 0.14));
-    let x = avatarCx + avatarD / 2 + gap;
-    x = this.layoutMana(x, avatarCy, avatarD, gap);
-    this.layoutBadges(x, avatarCy, avatarD, gap);
+    const startX = avatarCx + avatarD / 2 + gap;
+    this.layoutContent(startX, avatarCy, avatarD, gap);
   }
 
-  private layoutMana(startX: number, cy: number, unit: number, gap: number): number {
+  private layoutContent(startX: number, cy: number, unit: number, gap: number): void {
     const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
+    const badges = this.spec.badges;
     this.ensurePips(present.length);
-    const size = Math.round(unit * 0.3);
+    this.ensureChips(badges.length);
     const countColor = hexToNum(this.theme.gameTheme.textMuted);
-    let x = startX;
-    for (let i = 0; i < present.length; i++) {
-      const letter = present[i]!;
+    const pipSize = Math.round(unit * 0.3);
+    const badgeSize = Math.round(unit * 0.4);
+
+    const makePip = (i: number, letter: string): ContentItem => {
       const pip = this.pips[i]!;
       const tex = this.manaTexture(letter);
-      pip.sprite.visible = true;
-      pip.count.visible = true;
       if (tex) pip.sprite.texture = tex;
-      pip.sprite.width = size;
-      pip.sprite.height = size;
-      pip.sprite.position.set(x, cy - size / 2);
+      pip.sprite.width = pipSize;
+      pip.sprite.height = pipSize;
       pip.count.style = this.textStyle(Math.round(unit * 0.27));
       pip.count.style.fill = countColor;
       pip.count.text = String(this.spec.manaPool[letter] ?? 0);
-      pip.count.position.set(x + size + 2, cy);
-      x += size + 2 + pip.count.width + gap * 0.7;
-    }
-    return present.length > 0 ? x : startX;
-  }
+      return {
+        w: pipSize + 2 + pip.count.width,
+        place: (x, y) => {
+          pip.sprite.visible = true;
+          pip.count.visible = true;
+          pip.sprite.position.set(x, y - pipSize / 2);
+          pip.count.position.set(x + pipSize + 2, y);
+        },
+      };
+    };
 
-  private layoutBadges(startX: number, cy: number, unit: number, gap: number): number {
-    const badges = this.spec.badges;
-    this.ensureChips(badges.length);
-    const size = Math.round(unit * 0.4);
-    const countColor = hexToNum(this.theme.gameTheme.textMuted);
-    let x = startX;
-    for (let i = 0; i < badges.length; i++) {
+    const makeBadge = (i: number): ContentItem => {
       const badge = badges[i]!;
       const chip = this.chips[i]!;
       const tex = this.iconTexture(badge.icon);
       const wasHidden = !chip.sprite.visible;
-      chip.sprite.visible = true;
       if (tex) chip.sprite.texture = tex;
       chip.sprite.tint = hexToNum(badge.color);
-      chip.sprite.width = size;
-      chip.sprite.height = size;
-      chip.sprite.position.set(x, cy - size / 2);
-      if (wasHidden && tex) {
-        gsap.killTweensOf(chip.sprite);
-        gsap.from(chip.sprite, { alpha: 0, duration: 0.25, ease: "power2.out" });
-      }
-      x += size + 1;
-      if (badge.count !== undefined) {
-        chip.count.visible = true;
+      chip.sprite.width = badgeSize;
+      chip.sprite.height = badgeSize;
+      const hasCount = badge.count !== undefined;
+      let w = badgeSize;
+      if (hasCount) {
         chip.count.style = this.textStyle(Math.round(unit * 0.3));
         chip.count.style.fill = countColor;
         chip.count.text = String(badge.count);
-        chip.count.position.set(x, cy);
-        x += chip.count.width + 2;
-      } else {
-        chip.count.visible = false;
+        w += 1 + chip.count.width;
       }
-      x += gap * 0.55;
+      return {
+        w,
+        place: (x, y) => {
+          chip.sprite.visible = true;
+          chip.sprite.position.set(x, y - badgeSize / 2);
+          if (wasHidden && tex) {
+            gsap.killTweensOf(chip.sprite);
+            gsap.from(chip.sprite, { alpha: 0, duration: 0.25, ease: "power2.out" });
+          }
+          if (hasCount) {
+            chip.count.visible = true;
+            chip.count.position.set(x + badgeSize + 1, y);
+          } else {
+            chip.count.visible = false;
+          }
+        },
+      };
+    };
+
+    // Top row: hand-size badge + the floating mana pool. Bottom row(s): every
+    // other badge, wrapping within the panel's max width.
+    const handIdx = badges.findIndex((b) => b.id === "hand");
+    const top: ContentItem[] = [];
+    if (handIdx >= 0) top.push(makeBadge(handIdx));
+    for (let i = 0; i < present.length; i++) top.push(makePip(i, present[i]!));
+    const bottom: ContentItem[] = [];
+    for (let i = 0; i < badges.length; i++) if (i !== handIdx) bottom.push(makeBadge(i));
+
+    const interGap = Math.max(4, Math.round(gap * 0.7));
+    const rowH = Math.round(unit * 0.52);
+    const maxX = Math.max(startX + badgeSize * 2, this.width - 6);
+    const placed: { item: ContentItem; x: number; row: number }[] = [];
+
+    let x = startX;
+    for (const it of top) {
+      placed.push({ item: it, x, row: 0 });
+      x += it.w + interGap;
     }
-    return badges.length > 0 ? x : startX;
+    let row = top.length > 0 ? 1 : 0;
+    x = startX;
+    for (const it of bottom) {
+      if (x > startX && x + it.w > maxX) {
+        row++;
+        x = startX;
+      }
+      placed.push({ item: it, x, row });
+      x += it.w + interGap;
+    }
+
+    const maxRow = placed.reduce((m, p) => Math.max(m, p.row), 0);
+    const blockTop = cy - ((maxRow + 1) * rowH) / 2;
+    for (const p of placed) p.item.place(p.x, blockTop + p.row * rowH + rowH / 2);
   }
 
   private applyLifeAnim(): void {

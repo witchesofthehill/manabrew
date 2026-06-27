@@ -552,8 +552,8 @@ export function GameBoard({
             poison: dev?.poison ?? player.poison,
             energy: dev?.energy ?? player.energyCounters,
             radiation: dev?.radiation ?? player.radiationCounters,
-            experience: player.experienceCounters,
-            ticket: player.ticketCounters,
+            experience: dev?.experience ?? player.experienceCounters,
+            ticket: dev?.ticket ?? player.ticketCounters,
             cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
             ringLevel: dev?.ringLevel ?? player.ringLevel,
             speed: dev?.speed ?? player.speed,
@@ -571,14 +571,17 @@ export function GameBoard({
         color,
         avatarUrl: avatarByPlayerId.get(player.id),
         isBot: player.isHuman === false,
-        isActiveTurn: activePlayerId === player.id,
-        isPriorityPlayer: priorityPlayerId === player.id && activePlayerId !== player.id,
-        isTargetable: playerIsTargetable(player.id),
-        isSelectedTarget: selectedAttackDefenderId === player.id,
-        isFlashing: turnFlashPlayerId === player.id,
-        isEliminated: concededSet.has(player.id),
-        isDisconnected:
-          !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
+        isActiveTurn: dev?.forceActiveTurn ? true : activePlayerId === player.id,
+        isPriorityPlayer: dev?.forcePriority
+          ? true
+          : priorityPlayerId === player.id && activePlayerId !== player.id,
+        isTargetable: dev?.forceTargetable ? true : playerIsTargetable(player.id),
+        isSelectedTarget: dev?.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
+        isFlashing: dev?.forceFlashing ? true : turnFlashPlayerId === player.id,
+        isEliminated: dev?.forceEliminated ? true : concededSet.has(player.id),
+        isDisconnected: dev?.forceDisconnected
+          ? true
+          : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
         manaPool: player.manaPool,
         badges,
       };

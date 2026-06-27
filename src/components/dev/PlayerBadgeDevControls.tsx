@@ -33,18 +33,9 @@ export function PlayerBadgeDevControls() {
     setOverride(key, next);
   };
 
-  const dirty =
-    overrides.forceMonarch !== DEFAULT_DEV_PLAYER_OVERRIDES.forceMonarch ||
-    overrides.forceInitiative !== DEFAULT_DEV_PLAYER_OVERRIDES.forceInitiative ||
-    overrides.forceCityBlessing !== DEFAULT_DEV_PLAYER_OVERRIDES.forceCityBlessing ||
-    overrides.poison != null ||
-    overrides.energy != null ||
-    overrides.radiation != null ||
-    overrides.ringLevel != null ||
-    overrides.speed != null ||
-    overrides.cmdDamage != null ||
-    overrides.life != null ||
-    overrides.handCount != null;
+  const dirty = (Object.keys(DEFAULT_DEV_PLAYER_OVERRIDES) as (keyof DevPlayerOverrides)[]).some(
+    (k) => overrides[k] !== DEFAULT_DEV_PLAYER_OVERRIDES[k],
+  );
 
   return (
     <div className="flex flex-col gap-2 mt-2 rounded-md border border-border/70 p-2">
@@ -80,6 +71,47 @@ export function PlayerBadgeDevControls() {
         />
       </div>
 
+      <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        States
+      </span>
+      <div className="grid grid-cols-2 gap-1.5">
+        <ToggleButton
+          label="Active turn"
+          active={overrides.forceActiveTurn}
+          onClick={() => toggleBool("forceActiveTurn")}
+        />
+        <ToggleButton
+          label="Priority"
+          active={overrides.forcePriority}
+          onClick={() => toggleBool("forcePriority")}
+        />
+        <ToggleButton
+          label="Targetable"
+          active={overrides.forceTargetable}
+          onClick={() => toggleBool("forceTargetable")}
+        />
+        <ToggleButton
+          label="Selected"
+          active={overrides.forceSelectedTarget}
+          onClick={() => toggleBool("forceSelectedTarget")}
+        />
+        <ToggleButton
+          label="Turn flash"
+          active={overrides.forceFlashing}
+          onClick={() => toggleBool("forceFlashing")}
+        />
+        <ToggleButton
+          label="Eliminated"
+          active={overrides.forceEliminated}
+          onClick={() => toggleBool("forceEliminated")}
+        />
+        <ToggleButton
+          label="Disconnected"
+          active={overrides.forceDisconnected}
+          onClick={() => toggleBool("forceDisconnected")}
+        />
+      </div>
+
       <BadgeCounter
         label="Poison"
         value={overrides.poison}
@@ -103,6 +135,18 @@ export function PlayerBadgeDevControls() {
         value={overrides.radiation}
         onChange={(v) => setOverride("radiation", v)}
         onBump={(d) => bumpNumeric("radiation", NUMERIC_BUMP_BASE, d)}
+      />
+      <BadgeCounter
+        label="Experience"
+        value={overrides.experience}
+        onChange={(v) => setOverride("experience", v)}
+        onBump={(d) => bumpNumeric("experience", NUMERIC_BUMP_BASE, d)}
+      />
+      <BadgeCounter
+        label="Ticket"
+        value={overrides.ticket}
+        onChange={(v) => setOverride("ticket", v)}
+        onBump={(d) => bumpNumeric("ticket", NUMERIC_BUMP_BASE, d)}
       />
       <BadgeCounter
         label="Ring"

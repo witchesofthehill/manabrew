@@ -21,7 +21,7 @@ import { RING_ABILITIES } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
-const OFFLINE_ICON_NAME = "unplugged";
+const OFFLINE_ICON_NAME = "aerial-signal";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
 const iconTextures = new Map<string, Texture>();
@@ -114,6 +114,8 @@ export class PlayerHudCapsule {
   private targetTween: gsap.core.Tween | null = null;
   private flashTween: gsap.core.Tween | null = null;
   private lifeTween: gsap.core.Tween | null = null;
+  private offlineTween: gsap.core.Tween | null = null;
+  private offlineActive = false;
   private prevFlashing = false;
   private prevBadgeIds = new Set<string>();
   private lifeFontSize = 15;
@@ -378,12 +380,19 @@ export class PlayerHudCapsule {
     }
     this.offline.visible = this.spec.isDisconnected && !this.spec.isEliminated;
     if (this.offline.visible) {
+      const ox = cx + r * 0.55;
+      const oy = cy - r * 0.55;
+      const chipR = diameter * 0.3;
+      this.bg.circle(ox, oy, chipR);
+      this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.95 });
+      this.bg.circle(ox, oy, chipR);
+      this.bg.stroke({ color: hexToNum(gt.promptAction.cancel), width: 1.5, alpha: 0.9 });
       const tex = this.iconTexture(OFFLINE_ICON_NAME);
       if (tex) this.offline.texture = tex;
       this.offline.tint = hexToNum(gt.promptAction.cancel);
-      this.offline.width = diameter * 0.38;
-      this.offline.height = diameter * 0.38;
-      this.offline.position.set(cx + r * 0.62, cy - r * 0.62);
+      this.offline.width = diameter * 0.42;
+      this.offline.height = diameter * 0.42;
+      this.offline.position.set(ox, oy);
     }
 
     this.avatarHit.clear();
@@ -433,6 +442,7 @@ export class PlayerHudCapsule {
     if (w <= 0 || h <= 0) return;
     this.life.text = String(this.spec.life);
     this.updateFilters();
+    this.applyOffline();
 
     this.bg.clear();
     if (this.column) {
@@ -446,6 +456,23 @@ export class PlayerHudCapsule {
     this.applyTargetable();
     this.applyFlash();
     this.checkBadgeSparkles();
+  }
+
+  private applyOffline(): void {
+    const on = this.spec.isDisconnected && !this.spec.isEliminated;
+    if (on === this.offlineActive) return;
+    this.offlineActive = on;
+    if (on) {
+      this.offlineTween = gsap.fromTo(
+        this.offline,
+        { alpha: 1 },
+        { alpha: 0.35, duration: 0.7, ease: "sine.inOut", repeat: -1, yoyo: true },
+      );
+    } else {
+      this.offlineTween?.kill();
+      this.offlineTween = null;
+      this.offline.alpha = 1;
+    }
   }
 
   private updateFilters(): void {
@@ -843,6 +870,7 @@ export class PlayerHudCapsule {
     this.targetTween?.kill();
     this.flashTween?.kill();
     this.lifeTween?.kill();
+    this.offlineTween?.kill();
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);

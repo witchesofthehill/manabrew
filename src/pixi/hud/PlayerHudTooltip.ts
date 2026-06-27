@@ -16,6 +16,8 @@ export class PlayerHudTooltip {
   private bg = new Graphics();
   private title: Text;
   private lines: Text[] = [];
+  private vw = 0;
+  private vh = 0;
 
   constructor(theme: Theme) {
     this.theme = theme;
@@ -28,6 +30,11 @@ export class PlayerHudTooltip {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
+  }
+
+  setViewport(width: number, height: number): void {
+    this.vw = width;
+    this.vh = height;
   }
 
   hide(): void {
@@ -72,8 +79,12 @@ export class PlayerHudTooltip {
     this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.3 });
 
     const gap = 6;
-    const x = cx - w / 2;
-    const yPos = below ? bottom + gap : top - gap - h;
+    let x = cx - w / 2;
+    if (this.vw > 0) x = Math.max(4, Math.min(x, this.vw - w - 4));
+    let yPos = below ? bottom + gap : top - gap - h;
+    // Flip if the preferred side would clip off the top/bottom edge.
+    if (!below && yPos < 4) yPos = bottom + gap;
+    else if (below && this.vh > 0 && yPos + h > this.vh - 4) yPos = top - gap - h;
     this.container.position.set(Math.round(x), Math.round(yPos));
     this.container.visible = true;
   }

@@ -7,7 +7,6 @@ export interface PlayerHudBadgeFlags {
   poison: number;
   energy: number;
   radiation: number;
-  cmdDamage: number;
   cityBlessing: boolean;
   ringLevel: number;
   speed: number;
@@ -53,14 +52,6 @@ export function buildPlayerHudBadges(
       color: badges.energy,
       label: "Energy Counters",
       count: f.energy,
-    });
-  if (f.cmdDamage > 0)
-    out.push({
-      id: "cmd-dmg",
-      icon: "crossed-swords",
-      color: badges.commanderDamage,
-      label: "Commander Damage Taken",
-      count: f.cmdDamage,
     });
   if (f.radiation > 0)
     out.push({

@@ -9,11 +9,14 @@ export interface PlayerHudBadge {
   color: string;
   label: string;
   count?: number;
+  /** Renders the count in the lethal colour (e.g. ≥21 commander damage). */
+  lethal?: boolean;
 }
 
 export interface PlayerHudSpec {
   playerId: string;
   name: string;
+  isSelf: boolean;
   life: number;
   color: string;
   avatarUrl?: string;
@@ -23,6 +26,8 @@ export interface PlayerHudSpec {
   isTargetable: boolean;
   isSelectedTarget: boolean;
   isFlashing: boolean;
+  isEliminated: boolean;
+  isDisconnected: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
 }

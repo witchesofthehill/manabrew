@@ -7,8 +7,9 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import type { PlayerHudSpec } from "@/pixi/hud/playerHud.types";
+import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
+import { PlayerSheetModal } from "@/components/game/panels/PlayerSheetModal";
 import type { ZoneTileSpec } from "@/pixi/board/BoardZoneTiles";
 import type { BlockingRect } from "@/pixi/board/types";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -70,6 +71,7 @@ interface GameBoardProps {
 
   monarchId?: string | null;
   initiativeHolderId?: string | null;
+  concededPlayerIds?: string[];
 
   turnFlashPlayerId: string | null;
 
@@ -159,6 +161,7 @@ export function GameBoard({
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
+  concededPlayerIds,
   turnFlashPlayerId,
   isOverBattlefield,
   draggingCardId,
@@ -208,6 +211,7 @@ export function GameBoard({
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
+  const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
 
   const attackingCardIdSet = useMemo(() => {
     const s = new Set<string>();
@@ -389,6 +393,7 @@ export function GameBoard({
         hoveredOpponentRef.current = playerId;
       },
       onTargetPlayer,
+      onShowPlayerSheet: setSheetPlayerId,
     }),
     [
       promptType,
@@ -410,6 +415,7 @@ export function GameBoard({
       onUnassignBlock,
       onTargetPlayer,
       setDragBlockerId,
+      setSheetPlayerId,
     ],
   );
 
@@ -481,28 +487,84 @@ export function GameBoard({
   // Pixi player HUD capsules: self bottom-left, opponents across the top of
   // their fields. Carries the life, mana pool, and active player/game badges.
   const devOverrides = useGameDevStore((s) => s.playerOverrides);
+  const currentRoom = useServerStore((s) => s.currentRoom);
   const playerBarSpecs = useMemo<PlayerHudSpec[]>(() => {
+    const allPlayers = [me, ...opponents];
+    const seatColorOf = (pid: string): string => {
+      if (pid === me.id) return playerColors.self;
+      const idx = opponents.findIndex((o) => o.id === pid);
+      return playerColors[OPPONENT_SEATS[idx] ?? "opponent1"];
+    };
+    const nameOf = (pid: string): string =>
+      allPlayers.find((p) => p.id === pid)?.name ?? "a player";
+    // Commander damage is keyed by the source commander's card id; resolve each
+    // to its owner so the badge can take that opponent's seat colour.
+    const cardOwner = new Map<string, string>();
+    const addCards = (cards?: CardDto[]) => cards?.forEach((c) => cardOwner.set(c.id, c.ownerId));
+    addCards(myPermanents);
+    for (const list of opponentPermanentsByPlayer.values()) addCards(list);
+    for (const p of allPlayers) {
+      addCards(p.commandZone);
+      addCards(p.graveyard);
+      addCards(p.exile);
+    }
+    const roomByName = new Map(currentRoom?.players.map((p) => [p.username, p]) ?? []);
+    const concededSet = new Set(concededPlayerIds ?? []);
+
+    const cmdDamageBadges = (player: PlayerDto, isSelf: boolean): PlayerHudBadge[] => {
+      const dev = isSelf ? devOverrides : null;
+      if (dev?.cmdDamage != null) {
+        return dev.cmdDamage > 0
+          ? [
+              {
+                id: "cmd-dev",
+                icon: "crossed-swords",
+                color: gameTheme.badges.commanderDamage,
+                label: "Commander Damage Taken",
+                count: dev.cmdDamage,
+                lethal: dev.cmdDamage >= 21,
+              },
+            ]
+          : [];
+      }
+      return Object.entries(player.commanderDamage ?? {})
+        .filter(([, dmg]) => dmg > 0)
+        .map(([cardId, dmg]) => {
+          const ownerId = cardOwner.get(cardId);
+          return {
+            id: `cmd-${cardId}`,
+            icon: "crossed-swords",
+            color: ownerId ? seatColorOf(ownerId) : gameTheme.badges.commanderDamage,
+            label: `Commander Damage from ${ownerId ? nameOf(ownerId) : "a commander"}`,
+            count: dmg,
+            lethal: dmg >= 21,
+          };
+        });
+    };
+
     const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
       const dev = isSelf ? devOverrides : null;
-      const realCmdDmg = Object.values(player.commanderDamage ?? {}).reduce((a, b) => a + b, 0);
-      const badges = buildPlayerHudBadges(
-        {
-          isMonarch: dev?.forceMonarch ? true : monarchId === player.id,
-          hasInitiative: dev?.forceInitiative ? true : initiativeHolderId === player.id,
-          poison: dev?.poison ?? player.poison,
-          energy: dev?.energy ?? player.energyCounters,
-          radiation: dev?.radiation ?? player.radiationCounters,
-          cmdDamage: dev?.cmdDamage ?? realCmdDmg,
-          cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
-          ringLevel: dev?.ringLevel ?? player.ringLevel,
-          speed: dev?.speed ?? player.speed,
-          handCount: dev?.handCount ?? player.hand.length,
-        },
-        gameTheme.badges,
-      );
+      const badges = [
+        ...buildPlayerHudBadges(
+          {
+            isMonarch: dev?.forceMonarch ? true : monarchId === player.id,
+            hasInitiative: dev?.forceInitiative ? true : initiativeHolderId === player.id,
+            poison: dev?.poison ?? player.poison,
+            energy: dev?.energy ?? player.energyCounters,
+            radiation: dev?.radiation ?? player.radiationCounters,
+            cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
+            ringLevel: dev?.ringLevel ?? player.ringLevel,
+            speed: dev?.speed ?? player.speed,
+            handCount: dev?.handCount ?? player.hand.length,
+          },
+          gameTheme.badges,
+        ),
+        ...cmdDamageBadges(player, isSelf),
+      ];
       return {
         playerId: player.id,
         name: player.name,
+        isSelf,
         life: dev?.life ?? player.life,
         color,
         avatarUrl: avatarByPlayerId.get(player.id),
@@ -512,6 +574,9 @@ export function GameBoard({
         isTargetable: playerIsTargetable(player.id),
         isSelectedTarget: selectedAttackDefenderId === player.id,
         isFlashing: turnFlashPlayerId === player.id,
+        isEliminated: concededSet.has(player.id),
+        isDisconnected:
+          !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
         manaPool: player.manaPool,
         badges,
       };
@@ -536,6 +601,10 @@ export function GameBoard({
     initiativeHolderId,
     gameTheme.badges,
     devOverrides,
+    currentRoom,
+    concededPlayerIds,
+    myPermanents,
+    opponentPermanentsByPlayer,
   ]);
 
   // Shared open-handlers for the local player's command / graveyard / exile
@@ -799,12 +868,36 @@ export function GameBoard({
     scene.setPlayerBlockers(new Map(Object.entries(next)));
   }, [sceneRef, me.id, unifiedLayout, promptType]);
 
+  const sheetSpec = sheetPlayerId
+    ? (playerBarSpecs.find((s) => s.playerId === sheetPlayerId) ?? null)
+    : null;
+
+  // Screen-reader mirror of the Pixi HUD (Pixi has no DOM accessibility).
+  const a11ySummary = useMemo(() => {
+    const active = playerBarSpecs.find((s) => s.isActiveTurn);
+    const players = playerBarSpecs
+      .map((s) => {
+        const tags = [
+          s.isEliminated ? "eliminated" : null,
+          s.isDisconnected ? "disconnected" : null,
+        ].filter(Boolean);
+        const who = s.isSelf ? "You" : s.name;
+        return `${who}: ${s.life} life${tags.length ? ` (${tags.join(", ")})` : ""}`;
+      })
+      .join(". ");
+    const turn = active ? `${active.isSelf ? "Your" : `${active.name}'s`} turn. ` : "";
+    return `${turn}${players}.`;
+  }, [playerBarSpecs]);
+
   return (
     <div
       ref={boardRef}
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
       <ReconnectBanner />
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {a11ySummary}
+      </div>
       <div ref={battlefieldContainerRef} className="absolute inset-0 z-10 overflow-hidden">
         <BoardCanvas
           regions={unifiedRegions}
@@ -851,6 +944,7 @@ export function GameBoard({
       <div className="absolute inset-0 z-40 pointer-events-none">
         <BoardArrowsCanvas sceneRef={sceneRef} />
       </div>
+      {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}
     </div>
   );
 }

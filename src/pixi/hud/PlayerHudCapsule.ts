@@ -1,4 +1,13 @@
-import { Container, Graphics, Matrix, Sprite, Text, Texture, TextStyle } from "pixi.js";
+import {
+  ColorMatrixFilter,
+  Container,
+  Graphics,
+  Matrix,
+  Sprite,
+  Text,
+  Texture,
+  TextStyle,
+} from "pixi.js";
 import gsap from "gsap";
 import type { Theme } from "@/hooks/useTheme";
 import { MANA_LETTERS } from "@/themes/gameTheme";
@@ -11,9 +20,31 @@ import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
 import { RING_ABILITIES } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";
+const SKULL_ICON_NAME = "skull-crossed-bones";
+const OFFLINE_ICON_NAME = "unplugged";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
 const iconTextures = new Map<string, Texture>();
+
+// Shared, immutable text styles keyed by (size, weight, fill). Pixi safely
+// shares one TextStyle across many Text objects, so this removes the per-render
+// allocation churn — callers must never mutate a returned style.
+const styleCache = new Map<string, TextStyle>();
+function cachedTextStyle(size: number, weight: TextStyle["fontWeight"], fill: number): TextStyle {
+  const key = `${size}|${weight}|${fill}`;
+  let s = styleCache.get(key);
+  if (!s) {
+    s = new TextStyle({
+      fontFamily: FONT,
+      fontSize: size,
+      fontWeight: weight,
+      fill,
+      dropShadow: { color: 0x000000, alpha: 0.55, blur: 3, distance: 1, angle: Math.PI / 2 },
+    });
+    styleCache.set(key, s);
+  }
+  return s;
+}
 
 export type HoverFn = (
   content: PlayerHudTooltipContent | null,
@@ -46,6 +77,7 @@ export class PlayerHudCapsule {
   readonly container: Container;
   private theme: Theme;
   private onTarget: () => void;
+  private onShowSheet: () => void;
   private onHover: HoverFn;
 
   private bg = new Graphics();
@@ -55,6 +87,8 @@ export class PlayerHudCapsule {
   private flashRing = new Graphics();
   private avatarTex: Texture | null = null;
   private bot = new Sprite();
+  private skull = new Sprite();
+  private offline = new Sprite();
   private initial: Text;
   private avatarHit = new Graphics();
   private heart: Text;
@@ -62,8 +96,10 @@ export class PlayerHudCapsule {
   private lifeFloat: Text;
   private manaLayer = new Container();
   private badgeLayer = new Container();
+  private sparkles = new Container();
   private pips: ManaPip[] = [];
   private chips: BadgeChip[] = [];
+  private greyscale = new ColorMatrixFilter();
 
   private spec: PlayerHudSpec;
   private width = 0;
@@ -77,30 +113,48 @@ export class PlayerHudCapsule {
   private targetableActive = false;
   private targetTween: gsap.core.Tween | null = null;
   private flashTween: gsap.core.Tween | null = null;
+  private lifeTween: gsap.core.Tween | null = null;
   private prevFlashing = false;
+  private prevBadgeIds = new Set<string>();
+  private lifeFontSize = 15;
+  private lastSig = "";
   private avatarCx = 0;
   private avatarCy = 0;
   private avatarDia = 0;
 
-  constructor(theme: Theme, spec: PlayerHudSpec, onTarget: () => void, onHover: HoverFn) {
+  constructor(
+    theme: Theme,
+    spec: PlayerHudSpec,
+    onTarget: () => void,
+    onShowSheet: () => void,
+    onHover: HoverFn,
+  ) {
     this.theme = theme;
     this.spec = spec;
     this.isBot = spec.isBot;
     this.onTarget = onTarget;
+    this.onShowSheet = onShowSheet;
     this.onHover = onHover;
 
     this.container = new Container();
     this.bot.anchor.set(0.5);
     this.bot.visible = false;
+    this.skull.anchor.set(0.5);
+    this.skull.visible = false;
+    this.offline.anchor.set(0.5);
+    this.offline.visible = false;
+    this.greyscale.desaturate();
     this.glow.eventMode = "none";
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
     this.flashRing.eventMode = "none";
+    this.sparkles.eventMode = "none";
 
     this.avatarHit.eventMode = "static";
     this.avatarHit.cursor = "pointer";
     this.avatarHit.on("pointertap", () => {
       if (this.spec.isTargetable) this.onTarget();
+      else this.onShowSheet();
     });
     this.avatarHit.on("pointerover", () => {
       const r = this.avatarDia / 2;
@@ -126,11 +180,14 @@ export class PlayerHudCapsule {
       this.flashRing,
       this.bot,
       this.initial,
+      this.skull,
+      this.offline,
       this.avatarHit,
       this.heart,
       this.life,
       this.manaLayer,
       this.badgeLayer,
+      this.sparkles,
       this.lifeFloat,
     );
   }
@@ -166,13 +223,35 @@ export class PlayerHudCapsule {
 
   setTheme(theme: Theme): void {
     this.theme = theme;
+    this.lastSig = "";
     this.render();
   }
 
   setSpec(spec: PlayerHudSpec): void {
+    const sig = PlayerHudCapsule.signature(spec);
     this.spec = spec;
     this.updateAvatarTexture(spec.avatarUrl);
+    if (sig === this.lastSig) return;
+    this.lastSig = sig;
     this.render();
+  }
+
+  private static signature(s: PlayerHudSpec): string {
+    return JSON.stringify([
+      s.life,
+      s.isActiveTurn,
+      s.isPriorityPlayer,
+      s.isTargetable,
+      s.isSelectedTarget,
+      s.isFlashing,
+      s.isEliminated,
+      s.isDisconnected,
+      s.color,
+      s.name,
+      s.isBot,
+      s.manaPool,
+      s.badges,
+    ]);
   }
 
   setRect(x: number, y: number, width: number, height: number, column: boolean): void {
@@ -185,23 +264,15 @@ export class PlayerHudCapsule {
   }
 
   private textStyle(size: number, weight: TextStyle["fontWeight"] = "700"): TextStyle {
-    return new TextStyle({
-      fontFamily: FONT,
-      fontSize: size,
-      fontWeight: weight,
-      fill: hexToNum(this.theme.gameTheme.textOnTinted),
-      dropShadow: { color: 0x000000, alpha: 0.55, blur: 3, distance: 1, angle: Math.PI / 2 },
-    });
+    return cachedTextStyle(size, weight, hexToNum(this.theme.gameTheme.textOnTinted));
   }
 
   private heartStyle(size: number): TextStyle {
-    return new TextStyle({
-      fontFamily: FONT,
-      fontSize: size,
-      fontWeight: "900",
-      fill: hexToNum(this.theme.gameTheme.life),
-      dropShadow: { color: 0x000000, alpha: 0.55, blur: 3, distance: 1, angle: Math.PI / 2 },
-    });
+    return cachedTextStyle(size, "900", hexToNum(this.theme.gameTheme.life));
+  }
+
+  private styled(size: number, weight: TextStyle["fontWeight"], fill: string): TextStyle {
+    return cachedTextStyle(size, weight, hexToNum(fill));
   }
 
   private updateAvatarTexture(url: string | undefined): void {
@@ -294,10 +365,31 @@ export class PlayerHudCapsule {
       this.initial.position.set(cx, cy);
     }
 
+    // Eliminated → skull over the avatar; disconnected → a small offline glyph
+    // pinned to the top-right.
+    this.skull.visible = this.spec.isEliminated;
+    if (this.spec.isEliminated) {
+      const tex = this.iconTexture(SKULL_ICON_NAME);
+      if (tex) this.skull.texture = tex;
+      this.skull.tint = hexToNum(gt.textOnTinted);
+      this.skull.width = diameter * 0.6;
+      this.skull.height = diameter * 0.6;
+      this.skull.position.set(cx, cy);
+    }
+    this.offline.visible = this.spec.isDisconnected && !this.spec.isEliminated;
+    if (this.offline.visible) {
+      const tex = this.iconTexture(OFFLINE_ICON_NAME);
+      if (tex) this.offline.texture = tex;
+      this.offline.tint = hexToNum(gt.promptAction.cancel);
+      this.offline.width = diameter * 0.38;
+      this.offline.height = diameter * 0.38;
+      this.offline.position.set(cx + r * 0.62, cy - r * 0.62);
+    }
+
     this.avatarHit.clear();
     this.avatarHit.circle(cx, cy, r);
     this.avatarHit.fill({ color: 0xffffff, alpha: 0.001 });
-    this.avatarHit.cursor = this.spec.isTargetable ? "pointer" : "default";
+    this.avatarHit.cursor = "pointer";
   }
 
   private ensurePips(n: number): void {
@@ -340,10 +432,12 @@ export class PlayerHudCapsule {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
     this.life.text = String(this.spec.life);
+    this.updateFilters();
 
     this.bg.clear();
     if (this.column) {
       this.renderColumn(w, h);
+      this.checkBadgeSparkles();
       return;
     }
     this.renderCapsule(h);
@@ -351,6 +445,60 @@ export class PlayerHudCapsule {
     this.applyPriority();
     this.applyTargetable();
     this.applyFlash();
+    this.checkBadgeSparkles();
+  }
+
+  private updateFilters(): void {
+    const eliminated = this.spec.isEliminated;
+    this.container.filters = eliminated ? [this.greyscale] : [];
+    const inactiveOpp =
+      !this.spec.isSelf &&
+      !this.spec.isActiveTurn &&
+      !this.spec.isPriorityPlayer &&
+      !this.spec.isTargetable;
+    this.container.alpha = eliminated
+      ? 0.5
+      : this.spec.isDisconnected
+        ? 0.6
+        : inactiveOpp
+          ? 0.78
+          : 1;
+  }
+
+  /** Burst a few sparkles when a "prestige" badge (monarch / initiative) is
+   *  newly acquired this render. */
+  private checkBadgeSparkles(): void {
+    const ids = new Set(this.spec.badges.map((b) => b.id));
+    for (const id of ["monarch", "initiative"]) {
+      if (ids.has(id) && !this.prevBadgeIds.has(id)) {
+        const badge = this.spec.badges.find((b) => b.id === id);
+        this.burstSparkles(badge?.color ?? this.theme.gameTheme.textOnTinted);
+      }
+    }
+    this.prevBadgeIds = ids;
+  }
+
+  private burstSparkles(color: string): void {
+    const n = 10;
+    const tint = hexToNum(color);
+    const r = this.avatarDia / 2;
+    for (let i = 0; i < n; i++) {
+      const dot = new Graphics();
+      dot.circle(0, 0, Math.max(1.5, this.avatarDia * 0.04));
+      dot.fill({ color: tint, alpha: 1 });
+      dot.position.set(this.avatarCx, this.avatarCy);
+      this.sparkles.addChild(dot);
+      const ang = (i / n) * Math.PI * 2 + i * 0.3;
+      const dist = r * (0.9 + (i % 3) * 0.25);
+      gsap.to(dot, {
+        x: this.avatarCx + Math.cos(ang) * dist,
+        y: this.avatarCy + Math.sin(ang) * dist,
+        alpha: 0,
+        duration: 0.7,
+        ease: "power2.out",
+        onComplete: () => dot.destroy(),
+      });
+    }
   }
 
   private renderColumn(w: number, h: number): void {
@@ -363,8 +511,9 @@ export class PlayerHudCapsule {
     this.targetTween = null;
     this.targetableActive = false;
     this.targetRing.visible = false;
-    this.heart.style = this.heartStyle(h * 0.12);
-    this.life.style = this.textStyle(h * 0.15, "800");
+    this.lifeFontSize = Math.round(h * 0.15);
+    this.heart.style = this.heartStyle(Math.round(h * 0.12));
+    this.life.style = this.textStyle(this.lifeFontSize, "800");
     const diameter = Math.max(8, Math.min(w - 8, h - 28));
     const cx = w / 2;
     const cy = 4 + diameter / 2;
@@ -392,8 +541,9 @@ export class PlayerHudCapsule {
     this.drawAvatar(avatarCx, avatarCy, avatarD);
 
     // Life pill straddling the avatar's bottom edge (MTGA-style).
+    this.lifeFontSize = Math.round(avatarD * 0.32);
     this.heart.style = this.heartStyle(Math.round(avatarD * 0.26));
-    this.life.style = this.textStyle(Math.round(avatarD * 0.32), "800");
+    this.life.style = this.textStyle(this.lifeFontSize, "800");
     const padX = Math.round(avatarD * 0.12);
     const pillH = Math.round(avatarD * 0.34);
     const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
@@ -419,7 +569,7 @@ export class PlayerHudCapsule {
     const badges = this.spec.badges;
     this.ensurePips(present.length);
     this.ensureChips(badges.length);
-    const countColor = hexToNum(this.theme.gameTheme.textMuted);
+    const gt = this.theme.gameTheme;
     const pipSize = Math.round(unit * 0.3);
     const badgeSize = Math.round(unit * 0.4);
 
@@ -429,8 +579,7 @@ export class PlayerHudCapsule {
       if (tex) pip.sprite.texture = tex;
       pip.sprite.width = pipSize;
       pip.sprite.height = pipSize;
-      pip.count.style = this.textStyle(Math.round(unit * 0.27));
-      pip.count.style.fill = countColor;
+      pip.count.style = this.styled(Math.round(unit * 0.27), "700", gt.textMuted);
       pip.count.text = String(this.spec.manaPool[letter] ?? 0);
       return {
         w: pipSize + 2 + pip.count.width,
@@ -456,8 +605,11 @@ export class PlayerHudCapsule {
       const hasCount = badge.count !== undefined;
       let w = badgeSize;
       if (hasCount) {
-        chip.count.style = this.textStyle(Math.round(unit * 0.3));
-        chip.count.style.fill = countColor;
+        chip.count.style = this.styled(
+          Math.round(unit * 0.3),
+          badge.lethal ? "800" : "700",
+          badge.lethal ? gt.pt.lethal : gt.textMuted,
+        );
         chip.count.text = String(badge.count);
         w += 1 + chip.count.width;
       }
@@ -521,17 +673,32 @@ export class PlayerHudCapsule {
       const gt = this.theme.gameTheme;
       const gained = next > this.renderedLife;
       const delta = next - this.renderedLife;
-      this.life.style.fill = hexToNum(gained ? gt.pt.buffed : gt.pt.lethal);
+      const flash = gained ? gt.pt.buffed : gt.pt.lethal;
+      // Odometer: roll the displayed number from the old value to the new one.
+      this.lifeTween?.kill();
+      const counter = { v: this.renderedLife };
+      this.lifeTween = gsap.to(counter, {
+        v: next,
+        duration: 0.5,
+        ease: "power1.out",
+        onUpdate: () => {
+          if (!this.life.destroyed) this.life.text = String(Math.round(counter.v));
+        },
+        onComplete: () => {
+          if (!this.life.destroyed) this.life.text = String(next);
+        },
+      });
+      this.life.style = this.styled(this.lifeFontSize, "800", flash);
       gsap.killTweensOf(this.life.scale);
       gsap.fromTo(
         this.life.scale,
         { x: 1.3, y: 1.3 },
         { x: 1, y: 1, duration: 0.45, ease: "back.out(2)" },
       );
-      gsap.delayedCall(0.5, () => {
-        if (!this.life.destroyed) this.life.style.fill = hexToNum(gt.textOnTinted);
+      gsap.delayedCall(0.55, () => {
+        if (!this.life.destroyed) this.life.style = this.textStyle(this.lifeFontSize, "800");
       });
-      this.floatLifeDelta(delta, gained ? gt.pt.buffed : gt.pt.lethal);
+      this.floatLifeDelta(delta, flash);
       if (!gained) this.washDamage();
     }
     this.renderedLife = next;
@@ -623,8 +790,7 @@ export class PlayerHudCapsule {
   private floatLifeDelta(delta: number, color: string): void {
     if (this.column) return;
     this.lifeFloat.text = delta > 0 ? `+${delta}` : String(delta);
-    this.lifeFloat.style = this.textStyle(Math.round(this.avatarDia * 0.42), "900");
-    this.lifeFloat.style.fill = hexToNum(color);
+    this.lifeFloat.style = this.styled(Math.round(this.avatarDia * 0.42), "900", color);
     this.lifeFloat.visible = true;
     gsap.killTweensOf(this.lifeFloat);
     gsap.fromTo(
@@ -676,11 +842,13 @@ export class PlayerHudCapsule {
     this.pulse?.kill();
     this.targetTween?.kill();
     this.flashTween?.kill();
+    this.lifeTween?.kill();
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);
     gsap.killTweensOf(this.damageWash);
     for (const chip of this.chips) gsap.killTweensOf(chip.sprite);
+    for (const dot of this.sparkles.children) gsap.killTweensOf(dot);
     this.onHover(null);
     this.container.destroy({ children: true });
   }

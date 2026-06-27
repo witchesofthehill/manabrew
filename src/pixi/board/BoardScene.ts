@@ -242,7 +242,11 @@ export class BoardScene {
     this.highlightGfx.zIndex = 5500;
     this.root.addChild(this.highlightGfx);
 
-    this.playerBars = new PlayerHudLayer(this.theme, (id) => this.callbacks.onTargetPlayer?.(id));
+    this.playerBars = new PlayerHudLayer(
+      this.theme,
+      (id) => this.callbacks.onTargetPlayer?.(id),
+      (id) => this.callbacks.onShowPlayerSheet?.(id),
+    );
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;
     this.root.addChild(this.playerBars.container);
@@ -881,6 +885,7 @@ export class BoardScene {
     if (this.destroyed) return;
     this.app.renderer.resize(width, height);
     this.dragHandler.setContainerSize(width, height);
+    this.playerBars.setViewport(width, height);
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {

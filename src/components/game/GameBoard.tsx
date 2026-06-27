@@ -159,6 +159,7 @@ export function GameBoard({
   playerIsTargetable,
   monarchId,
   initiativeHolderId,
+  turnFlashPlayerId,
   isOverBattlefield,
   draggingCardId,
   draggingIsPermanent,
@@ -510,6 +511,7 @@ export function GameBoard({
         isPriorityPlayer: priorityPlayerId === player.id && activePlayerId !== player.id,
         isTargetable: playerIsTargetable(player.id),
         isSelectedTarget: selectedAttackDefenderId === player.id,
+        isFlashing: turnFlashPlayerId === player.id,
         manaPool: player.manaPool,
         badges,
       };
@@ -529,6 +531,7 @@ export function GameBoard({
     priorityPlayerId,
     playerIsTargetable,
     selectedAttackDefenderId,
+    turnFlashPlayerId,
     monarchId,
     initiativeHolderId,
     gameTheme.badges,

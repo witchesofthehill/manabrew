@@ -22,28 +22,76 @@ export function buildPlayerHudBadges(
   badges: GameThemeColors["badges"],
 ): PlayerHudBadge[] {
   const out: PlayerHudBadge[] = [];
-  out.push({ id: "hand", icon: "card-pickup", color: badges.hand, count: f.handCount });
-  if (f.isMonarch) out.push({ id: "monarch", icon: "crown", color: badges.monarch });
+  out.push({
+    id: "hand",
+    icon: "card-pickup",
+    color: badges.hand,
+    label: "Cards in Hand",
+    count: f.handCount,
+  });
+  if (f.isMonarch)
+    out.push({ id: "monarch", icon: "crown", color: badges.monarch, label: "Monarch" });
   if (f.hasInitiative)
-    out.push({ id: "initiative", icon: "rolled-cloth", color: badges.initiative });
+    out.push({
+      id: "initiative",
+      icon: "rolled-cloth",
+      color: badges.initiative,
+      label: "Initiative",
+    });
   if (f.poison > 0)
-    out.push({ id: "poison", icon: "poison-bottle", color: badges.poison, count: f.poison });
+    out.push({
+      id: "poison",
+      icon: "poison-bottle",
+      color: badges.poison,
+      label: "Poison Counters",
+      count: f.poison,
+    });
   if (f.energy > 0)
-    out.push({ id: "energy", icon: "lightning-trio", color: badges.energy, count: f.energy });
+    out.push({
+      id: "energy",
+      icon: "lightning-trio",
+      color: badges.energy,
+      label: "Energy Counters",
+      count: f.energy,
+    });
   if (f.cmdDamage > 0)
     out.push({
       id: "cmd-dmg",
       icon: "crossed-swords",
       color: badges.commanderDamage,
+      label: "Commander Damage Taken",
       count: f.cmdDamage,
     });
   if (f.radiation > 0)
-    out.push({ id: "radiation", icon: "radioactive", color: badges.radiation, count: f.radiation });
+    out.push({
+      id: "radiation",
+      icon: "radioactive",
+      color: badges.radiation,
+      label: "Radiation Counters",
+      count: f.radiation,
+    });
   if (f.cityBlessing)
-    out.push({ id: "city-blessing", icon: "stone-tower", color: badges.cityBlessing });
+    out.push({
+      id: "city-blessing",
+      icon: "stone-tower",
+      color: badges.cityBlessing,
+      label: "City's Blessing",
+    });
   if (f.ringLevel > 0)
-    out.push({ id: "ring", icon: "ring", color: badges.ring, count: f.ringLevel });
+    out.push({
+      id: "ring",
+      icon: "ring",
+      color: badges.ring,
+      label: "The Ring tempts you",
+      count: f.ringLevel,
+    });
   if (f.speed > 0)
-    out.push({ id: "speed", icon: "speedometer", color: badges.speed, count: f.speed });
+    out.push({
+      id: "speed",
+      icon: "speedometer",
+      color: badges.speed,
+      label: "Speed",
+      count: f.speed,
+    });
   return out;
 }

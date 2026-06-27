@@ -1,7 +1,13 @@
+export interface PlayerHudTooltipContent {
+  title: string;
+  lines?: { text: string; active: boolean }[];
+}
+
 export interface PlayerHudBadge {
   id: string;
   icon: string;
   color: string;
+  label: string;
   count?: number;
 }
 
@@ -16,6 +22,7 @@ export interface PlayerHudSpec {
   isPriorityPlayer: boolean;
   isTargetable: boolean;
   isSelectedTarget: boolean;
+  isFlashing: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
 }

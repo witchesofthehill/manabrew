@@ -142,6 +142,9 @@ export class BoardScene {
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
+  private baseBg: Graphics;
+  private canvasW = 0;
+  private canvasH = 0;
   private destroyed = false;
   private perfFrames = 0;
   private perfTotalDelta = 0;
@@ -221,6 +224,15 @@ export class BoardScene {
     this.root.sortableChildren = true;
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
+
+    // Solid page-background base behind everything (the canvas itself is
+    // transparent). Gives the whole battlefield one consistent colour so the
+    // collapsed player panels — drawn in the same colour — blend in seamlessly
+    // instead of popping against the translucent felt.
+    this.baseBg = new Graphics();
+    this.baseBg.eventMode = "none";
+    this.baseBg.zIndex = -1000;
+    this.root.addChild(this.baseBg);
 
     this.dragHandler = new DragHandler();
 
@@ -867,6 +879,7 @@ export class BoardScene {
     setCardSpriteTheme(theme);
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
+    this.drawBaseBg();
     if (this.lastLayout) {
       this.drawStripBackground(this.lastLayout);
     }
@@ -878,6 +891,16 @@ export class BoardScene {
     this.app.renderer.resize(width, height);
     this.dragHandler.setContainerSize(width, height);
     this.playerBars.setViewport(width, height);
+    this.canvasW = width;
+    this.canvasH = height;
+    this.drawBaseBg();
+  }
+
+  private drawBaseBg(): void {
+    this.baseBg.clear();
+    if (this.canvasW <= 0 || this.canvasH <= 0) return;
+    this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
+    this.baseBg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {

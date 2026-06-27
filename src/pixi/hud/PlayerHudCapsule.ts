@@ -24,6 +24,15 @@ const SKULL_ICON_NAME = "skull-crossed-bones";
 const OFFLINE_ICON_NAME = "aerial-signal";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
+/** Avatar circle diameter — fixed so it's identical in the expanded capsule and
+ *  the collapsed column (the collapsed band caps it if narrower). */
+const AVATAR_DIAMETER = 56;
+
+/** Collapsed column's avatar top inset — keeps the avatar's field-y the same as
+ *  the expanded capsule (its container sits at `PLAYER_HUD_TOP_MARGIN_PX` (8) +
+ *  the capsule's 2px avatar pad), so the two states stay vertically aligned. */
+const COLUMN_AVATAR_TOP = 10;
+
 const iconTextures = new Map<string, Texture>();
 
 // Shared, immutable text styles keyed by (size, weight, fill). Pixi safely
@@ -82,6 +91,7 @@ export class PlayerHudCapsule {
   private onShowSheet: () => void;
   private onHover: HoverFn;
 
+  private columnBg = new Graphics();
   private bg = new Graphics();
   private glow = new Graphics();
   private damageWash = new Graphics();
@@ -118,6 +128,11 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
+  private columnBgActive = false;
+  private columnBgTween: gsap.core.Tween | null = null;
+  private columnBgFill = { v: 0 };
+  private columnBgW = 0;
+  private columnBgH = 0;
   private prevFlashing = false;
   private prevBadgeIds = new Set<string>();
   private lifeFontSize = 15;
@@ -148,6 +163,8 @@ export class PlayerHudCapsule {
     this.offline.anchor.set(0.5);
     this.offline.visible = false;
     this.greyscale.desaturate();
+    this.columnBg.eventMode = "none";
+    this.columnBg.visible = false;
     this.glow.eventMode = "none";
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
@@ -177,6 +194,7 @@ export class PlayerHudCapsule {
     this.lifeFloat.visible = false;
 
     this.container.addChild(
+      this.columnBg,
       this.glow,
       this.bg,
       this.damageWash,
@@ -448,6 +466,7 @@ export class PlayerHudCapsule {
     this.life.text = String(this.spec.life);
     this.updateFilters();
     this.applyOffline();
+    this.updateColumnBg();
 
     this.bg.clear();
     if (this.column) {
@@ -461,6 +480,53 @@ export class PlayerHudCapsule {
     this.applyTargetable();
     this.applyFlash();
     this.checkBadgeSparkles();
+  }
+
+  /** The collapsed column's solid page-background backing, animated like a
+   *  curtain: it slides DOWN from the top to cover when a field collapses, and
+   *  slides UP to reveal the cards/playmat when it expands — instead of snapping
+   *  on/off. The drawn height is a fraction (`columnBgFill`) of the band height,
+   *  anchored at the top. */
+  private updateColumnBg(): void {
+    if (this.column) {
+      this.columnBgW = this.width;
+      this.columnBgH = this.height;
+      this.columnBg.visible = true;
+      if (!this.columnBgActive) {
+        this.columnBgActive = true;
+        this.columnBgTween?.kill();
+        this.columnBgFill.v = 0;
+        this.columnBgTween = gsap.to(this.columnBgFill, {
+          v: 1,
+          duration: 0.05,
+          ease: "power2.out",
+          onUpdate: () => this.drawColumnBg(),
+        });
+      }
+      this.drawColumnBg();
+    } else if (this.columnBgActive) {
+      this.columnBgActive = false;
+      this.columnBgTween?.kill();
+      this.columnBgTween = gsap.to(this.columnBgFill, {
+        v: 0,
+        duration: 0.05,
+        ease: "power2.in",
+        onUpdate: () => this.drawColumnBg(),
+        onComplete: () => {
+          if (this.columnBg.destroyed) return;
+          this.columnBg.visible = false;
+          this.columnBg.clear();
+        },
+      });
+    }
+  }
+
+  private drawColumnBg(): void {
+    this.columnBg.clear();
+    const h = this.columnBgH * this.columnBgFill.v;
+    if (this.columnBgW <= 0 || h <= 0) return;
+    this.columnBg.rect(0, 0, this.columnBgW, h);
+    this.columnBg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
   }
 
   private applyOffline(): void {
@@ -482,7 +548,9 @@ export class PlayerHudCapsule {
 
   private updateFilters(): void {
     const eliminated = this.spec.isEliminated;
-    this.container.filters = eliminated ? [this.greyscale] : [];
+    // `null`, not `[]` — an empty filters array still routes the container
+    // through a filter render-pass in Pixi, which softens/blurs it.
+    this.container.filters = eliminated ? [this.greyscale] : null;
     // A collapsed panel has a solid opaque backing — never dim the container or
     // the felt would show through it. The greyscale (eliminated) filter still
     // applies. Dimming is only a de-emphasis cue for the expanded capsule.
@@ -555,16 +623,10 @@ export class PlayerHudCapsule {
     this.targetableActive = false;
     this.targetRing.visible = false;
 
-    // Solid page-background backing fills the whole collapsed band so the cards
-    // beneath it are occluded (the battlefield felt is inherited from this same
-    // page background, just translucent over the playmat).
-    this.bg.rect(0, 0, w, h);
-    this.bg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
-
     const pad = 5;
     const cx = w / 2;
-    const avatarD = Math.max(8, Math.min(w - pad * 2, Math.round(w * 0.86)));
-    const avatarCy = pad + avatarD / 2;
+    const avatarD = Math.max(8, Math.min(w - pad * 2, AVATAR_DIAMETER));
+    const avatarCy = COLUMN_AVATAR_TOP + avatarD / 2;
     this.avatarCx = cx;
     this.avatarCy = avatarCy;
     this.avatarDia = avatarD;
@@ -610,7 +672,7 @@ export class PlayerHudCapsule {
     this.manaLayer.visible = true;
     this.badgeLayer.visible = true;
 
-    const avatarD = Math.round(h * 0.84);
+    const avatarD = AVATAR_DIAMETER;
     const avatarCx = avatarD / 2 + 2;
     const avatarCy = avatarD / 2 + 2;
     this.avatarCx = avatarCx;
@@ -924,6 +986,7 @@ export class PlayerHudCapsule {
     this.flashTween?.kill();
     this.lifeTween?.kill();
     this.offlineTween?.kill();
+    this.columnBgTween?.kill();
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);

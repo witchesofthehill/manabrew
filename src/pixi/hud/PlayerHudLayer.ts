@@ -4,7 +4,7 @@ import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
 
-export const PLAYER_HUD_HEIGHT_PX = 48;
+export const PLAYER_HUD_HEIGHT_PX = 60;
 export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
 export const PLAYER_HUD_TOP_MARGIN_PX = 8;
 export const PLAYER_HUD_SIDE_MARGIN_PX = 10;

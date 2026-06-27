@@ -304,6 +304,8 @@ export class BoardRegion {
     this.clipX = clipX;
     this.clipWidth = clipWidth;
     this.updateClip();
+    // The playmat fits the visible band, so re-fit it as the band eases.
+    this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
   }
 
   private updateClip(): void {
@@ -1094,10 +1096,21 @@ export class BoardRegion {
   }
 
   /** The felt fills the FIXED `usableZone` — it is drawn once over the full play
-   *  area and the delimiter mask (`updateClip`) clips it, so the felt and
-   *  playmat never move when a delimiter is dragged. */
+   *  area and the delimiter mask (`updateClip`) clips it, so the felt and cards
+   *  never move when a delimiter is dragged. */
   private feltZone(): PlayZoneRect {
     return this.usableZone();
+  }
+
+  /** The currently-VISIBLE field rect (usable zone ∩ clip band). The playmat
+   *  fits this so it sits inside each field with equal padding on all sides,
+   *  rather than being anchored to the fixed (canvas-right-extending) rect. */
+  private bandZone(): PlayZoneRect {
+    const z = this.usableZone();
+    if (this.clipX === null || this.clipWidth === null) return z;
+    const left = Math.max(z.x, this.clipX);
+    const right = Math.min(z.x + z.width, this.clipX + this.clipWidth);
+    return { x: left, y: z.y, width: Math.max(1, right - left), height: z.height };
   }
 
   private playArea(): PlayZoneRect {
@@ -1123,12 +1136,12 @@ export class BoardRegion {
       color: hexToNum(this.host.getTheme().gameTheme.canvas.background),
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
-    this.playmat.layout(this.feltZone(), { dropActive: this.dropActive });
+    this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
   }
 
   setPlaymat(url: string | undefined): void {
     this.playmat.setImage(url);
-    this.playmat.layout(this.feltZone(), { dropActive: this.dropActive });
+    this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
   }
 
   setPlaymatSettings(settings: PlaymatSettings | undefined): void {

@@ -8,13 +8,6 @@ import forge.harness.common.SnapshotExtractor;
 
 final class PriorityFastForward {
     private PriorityFastForward() {}
-
-    /**
-     * The held `(player, phase)` target is reached when the active player IS
-     * that player and the current phase is at or past the target phase. A bare
-     * phase can't distinguish "my end" from "an opponent's end"; the target
-     * carries both. Reaching it clears the declaration and prompts.
-     */
     static boolean reachedTarget(final Game game, final String untilPlayer, final String untilPhase) {
         final PhaseType target = parseStep(untilPhase);
         if (target == null) {

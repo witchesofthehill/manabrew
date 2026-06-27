@@ -134,10 +134,6 @@ public final class ManaBrewInteractiveController extends PlayerController implem
 
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
-        // The pass-until declaration is HELD: it survives every priority window
-        // until the active player reaches the target (player, phase) slot. We
-        // clear it only on reaching the target (then prompt); a non-empty stack
-        // or active combat pauses skipping without clearing the declaration.
         if (passUntilPhase != null) {
             if (PriorityFastForward.reachedTarget(game, passUntilPlayer, passUntilPhase)) {
                 passUntilPlayer = null;

@@ -54,8 +54,6 @@ impl GameLoop {
                 game.turn.priority_player = priority_player;
             });
 
-            // Java parity: GameEventPlayerPriority is fired before
-            // checkStateBasedEffects() / addAllTriggeredAbilitiesToStack().
             if last_notified_priority != Some(priority_player) {
                 self.notify_priority_changed(game, agents, priority_player);
                 last_notified_priority = Some(priority_player);
@@ -64,21 +62,11 @@ impl GameLoop {
                 return;
             }
 
-            // Mirrors Java's checkStateBasedEffects():
-            //   do { checkStateEffects(); } while (addAllTriggeredAbilitiesToStack());
-            // SBA check may cause triggers (e.g. creature dies → death triggers),
-            // and processing triggers may cause more SBA (e.g. token creation
-            // causing legend rule). Loop until stable.
             loop {
                 let sba_changed = super::check_sba(game, &mut self.trigger_handler, agents);
                 if game.game_over {
                     return;
                 }
-                // Process pending triggers and put them on the stack.
-                // Mirrors Java's addAllTriggeredAbilitiesToStack() inside
-                // checkStateBasedEffects(). This must happen BEFORE the player
-                // gets to choose an action, so triggers are already on the stack
-                // when the player sees their options.
                 let stack_before = game.stack.len();
                 self.with_shared_state_mutation(game, agents, |this, game, agents| {
                     this.process_triggers(game, agents);
@@ -93,18 +81,9 @@ impl GameLoop {
                 return;
             }
 
-            // ── Fast-forward: skip prompt if player has a standing pass-until ──
-            // The declaration is HELD — read without clearing, so it survives
-            // every priority window until the active player reaches the target
-            // `(player, phase)` slot. A bare phase can't distinguish "my end"
-            // from "an opponent's end"; the target carries both. We clear it
-            // only when that slot is reached (here); meaningful actions (cast,
-            // attackers declared) clear it where they happen.
             if let Some(target) = agents[priority_player.index()].get_pass_until() {
                 let current_phase = game.turn.phase;
                 let active = game.active_player();
-                // Never fast-forward through active combat phases after
-                // attackers are declared.
                 let has_declared_attackers = self.combat.has_attackers();
                 let is_active_combat = has_declared_attackers
                     && matches!(
@@ -130,12 +109,6 @@ impl GameLoop {
             }
 
             let mut action_space = if self.provide_priority_action_space {
-                // Refresh continuous static effects before enumerating the
-                // action space. Otherwise granted keywords from statics
-                // (e.g. Ashling's `AddKeyword$ Evoke:4 | AffectedZone$ Hand`)
-                // may be stale when a new card just entered hand or the
-                // zone set changed, and the first playability check misses
-                // those grants.
                 crate::staticability::layer::apply_continuous_effects(game);
                 Some(self.action_space(game, priority_player, is_main_phase))
             } else {
@@ -170,12 +143,6 @@ impl GameLoop {
                     return;
                 }
                 let mut request_action_space = || {
-                    // Refresh continuous static effects before enumerating the
-                    // action space. Otherwise granted keywords from statics
-                    // (e.g. Ashling's `AddKeyword$ Evoke:4 | AffectedZone$ Hand`)
-                    // may be stale when a new card just entered hand or the
-                    // zone set changed, and the first playability check misses
-                    // those grants.
                     crate::staticability::layer::apply_continuous_effects(game);
                     self.action_space(game, priority_player, is_main_phase)
                 };
@@ -186,9 +153,6 @@ impl GameLoop {
                 )
             };
 
-            // Concede preempts any pending snapshot restore so an in-flight
-            // rewind can't block exit. Drop the conceder's pending request
-            // so the next iteration doesn't replay it via apply_pending_snapshot_restore.
             if action == PlayerAction::Concede {
                 let _ = agents[priority_player.index()].take_restore_request();
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {

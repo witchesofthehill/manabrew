@@ -503,8 +503,6 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             // sites discard it and concede re-enters at the next priority window.
             PromptOutput::ChooseAction(ChooseActionOutput::Concede) => EnginePlayerAction::Concede,
             PromptOutput::ChooseAction(ChooseActionOutput::Pass { until }) => {
-                // A `(player, phase)` target arms the held fast-forward; `None`
-                // is an atomic single pass and clears any standing declaration.
                 self.pass_until = until.and_then(|u| {
                     Some(manabrew_engine::agent::PassUntilTarget {
                         player: crate::ids_codec::parse_player_id(&u.player_id)?,

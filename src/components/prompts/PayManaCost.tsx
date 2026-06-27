@@ -1,7 +1,6 @@
 import { Ban, Check, WandSparkles } from "lucide-react";
 import { GiVortex } from "react-icons/gi";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
-import { ManaPool } from "@/components/game/panels/ManaPool";
 import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";

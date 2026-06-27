@@ -522,9 +522,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     targetablePlayerIds: boardTargets?.playerIds ?? [],
     engineHasBlocks: (gameView?.combatAssignments?.length ?? 0) > 0,
   });
-  const selectedAttackDefender = chooseAttackersInput?.attackTargets.find(
-    (target) => target.id === attackDefenderId,
-  );
   const blockRequirementError = useMemo<string | null>(() => {
     if (!blockRequirement) return null;
     const name =
@@ -1462,7 +1459,6 @@ export default function Game({ exitTo }: GameProps = {}) {
                 onPassPriority={unifiedPass}
                 onPassUntilEot={activatePassUntilEot}
                 selectedAttackDefenderId={attackDefenderId}
-                selectedAttackDefenderLabel={selectedAttackDefender?.label}
                 multipleAttackDefenders={multipleAttackDefenders}
                 onDeclareAttackers={(attackerIds, defenderId) =>
                   respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))

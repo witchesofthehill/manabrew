@@ -91,7 +91,6 @@ export class PlayerHudCapsule {
   private onShowSheet: () => void;
   private onHover: HoverFn;
 
-  private columnBg = new Graphics();
   private bg = new Graphics();
   private glow = new Graphics();
   private damageWash = new Graphics();
@@ -128,11 +127,6 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
-  private columnBgActive = false;
-  private columnBgTween: gsap.core.Tween | null = null;
-  private columnBgFill = { v: 0 };
-  private columnBgW = 0;
-  private columnBgH = 0;
   private prevFlashing = false;
   private prevBadgeIds = new Set<string>();
   private lifeFontSize = 15;
@@ -163,8 +157,6 @@ export class PlayerHudCapsule {
     this.offline.anchor.set(0.5);
     this.offline.visible = false;
     this.greyscale.desaturate();
-    this.columnBg.eventMode = "none";
-    this.columnBg.visible = false;
     this.glow.eventMode = "none";
     this.damageWash.eventMode = "none";
     this.targetRing.eventMode = "none";
@@ -194,7 +186,6 @@ export class PlayerHudCapsule {
     this.lifeFloat.visible = false;
 
     this.container.addChild(
-      this.columnBg,
       this.glow,
       this.bg,
       this.damageWash,
@@ -466,7 +457,6 @@ export class PlayerHudCapsule {
     this.life.text = String(this.spec.life);
     this.updateFilters();
     this.applyOffline();
-    this.updateColumnBg();
 
     this.bg.clear();
     if (this.column) {
@@ -480,53 +470,6 @@ export class PlayerHudCapsule {
     this.applyTargetable();
     this.applyFlash();
     this.checkBadgeSparkles();
-  }
-
-  /** The collapsed column's solid page-background backing, animated like a
-   *  curtain: it slides DOWN from the top to cover when a field collapses, and
-   *  slides UP to reveal the cards/playmat when it expands — instead of snapping
-   *  on/off. The drawn height is a fraction (`columnBgFill`) of the band height,
-   *  anchored at the top. */
-  private updateColumnBg(): void {
-    if (this.column) {
-      this.columnBgW = this.width;
-      this.columnBgH = this.height;
-      this.columnBg.visible = true;
-      if (!this.columnBgActive) {
-        this.columnBgActive = true;
-        this.columnBgTween?.kill();
-        this.columnBgFill.v = 0;
-        this.columnBgTween = gsap.to(this.columnBgFill, {
-          v: 1,
-          duration: 0.05,
-          ease: "power2.out",
-          onUpdate: () => this.drawColumnBg(),
-        });
-      }
-      this.drawColumnBg();
-    } else if (this.columnBgActive) {
-      this.columnBgActive = false;
-      this.columnBgTween?.kill();
-      this.columnBgTween = gsap.to(this.columnBgFill, {
-        v: 0,
-        duration: 0.05,
-        ease: "power2.in",
-        onUpdate: () => this.drawColumnBg(),
-        onComplete: () => {
-          if (this.columnBg.destroyed) return;
-          this.columnBg.visible = false;
-          this.columnBg.clear();
-        },
-      });
-    }
-  }
-
-  private drawColumnBg(): void {
-    this.columnBg.clear();
-    const h = this.columnBgH * this.columnBgFill.v;
-    if (this.columnBgW <= 0 || h <= 0) return;
-    this.columnBg.rect(0, 0, this.columnBgW, h);
-    this.columnBg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
   }
 
   private applyOffline(): void {
@@ -986,7 +929,6 @@ export class PlayerHudCapsule {
     this.flashTween?.kill();
     this.lifeTween?.kill();
     this.offlineTween?.kill();
-    this.columnBgTween?.kill();
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);

@@ -143,6 +143,7 @@ export class BoardScene {
   private theme: Theme;
   private root: Container;
   private baseBg: Graphics;
+  private collapseVeil: Graphics;
   private canvasW = 0;
   private canvasH = 0;
   private destroyed = false;
@@ -247,6 +248,15 @@ export class BoardScene {
     this.fogGfx.eventMode = "none";
     this.fogGfx.zIndex = 5550;
     this.root.addChild(this.fogGfx);
+
+    // Solid page-background veil over each opponent field, its opacity driven
+    // by how collapsed the field is (computed every frame in `applyDelimiters`,
+    // so it stays perfectly in sync with the delimiter ease). Sits above the
+    // cards but below the player panels, which render on top of it.
+    this.collapseVeil = new Graphics();
+    this.collapseVeil.eventMode = "none";
+    this.collapseVeil.zIndex = 5560;
+    this.root.addChild(this.collapseVeil);
 
     this.highlightGfx = new Graphics();
     this.highlightGfx.eventMode = "none";
@@ -423,6 +433,9 @@ export class BoardScene {
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     if (n <= 0 || W <= 0) return;
+    this.collapseVeil.clear();
+    const veilStart = COLLAPSED_OPPONENT_WIDTH_PX * 2;
+    const veilColor = hexToNum(this.theme.appTheme.background);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
       if (!rec) continue;
@@ -431,13 +444,22 @@ export class BoardScene {
       const bandW = Math.max(0, right - left);
       rec.region.setClip(left, bandW);
       if (this.barsEnabled) {
+        // Solid veil opacity ramps 0→1 as the band narrows from `veilStart` down
+        // to its collapsed width — fully in sync with the ease, no separate tween.
+        const frac = Math.max(
+          0,
+          Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
+        );
+        if (frac > 0.001) {
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight);
+          this.collapseVeil.fill({ color: veilColor, alpha: frac });
+        }
         // A field clipped down to (about) its banner width → collapsed column;
-        // otherwise a left-aligned bar capped at the max width. A top margin
-        // keeps it off the screen edge.
+        // otherwise a left-aligned bar capped at the max width.
         const column = bandW <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
-        // Collapsed → the panel fills the whole band and the field's full height,
-        // so its solid backing occludes the cards beneath. Expanded → a left-
-        // aligned bar at the fixed max width / capsule height.
+        // Collapsed → the panel fills the whole band and the field's full height
+        // (sitting on the `collapseVeil` that occludes the cards). Expanded → a
+        // left-aligned bar at the fixed max width / capsule height.
         const barW = column ? bandW : PLAYER_BAR_MAX_WIDTH_PX;
         const barH = column ? this.topHeight : PLAYER_BAR_HEIGHT_PX;
         const barX = column ? left : left + PLAYER_BAR_SIDE_MARGIN_PX;
@@ -884,6 +906,7 @@ export class BoardScene {
       this.drawStripBackground(this.lastLayout);
     }
     for (const rec of this.regions.values()) rec.region.redrawTheme();
+    this.applyDelimiters(); // repaint the collapse veil in the new theme colour
   }
 
   resize(width: number, height: number): void {

@@ -390,22 +390,23 @@ function DraggableCardGrid({
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const dragDisabled = !!standalone;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `search-${card.id}`,
     data: { card },
-    disabled: standalone,
+    disabled: dragDisabled,
   });
 
   return (
     <div
-      ref={standalone ? undefined : setNodeRef}
-      {...(standalone ? {} : { ...listeners, ...attributes })}
+      ref={dragDisabled ? undefined : setNodeRef}
+      {...(dragDisabled ? {} : { ...listeners, ...attributes })}
       onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
       onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
       onMouseLeave={onLeave}
       className={cn(
         "relative group",
-        !standalone && "cursor-grab active:cursor-grabbing",
+        !dragDisabled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
       )}
     >
@@ -443,24 +444,25 @@ function DraggableCardRow({
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const dragDisabled = !!standalone;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `search-${card.id}`,
     data: { card },
-    disabled: standalone,
+    disabled: dragDisabled,
   });
 
   const typeStr = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
 
   return (
     <div
-      ref={standalone ? undefined : setNodeRef}
-      {...(standalone ? {} : { ...listeners, ...attributes })}
+      ref={dragDisabled ? undefined : setNodeRef}
+      {...(dragDisabled ? {} : { ...listeners, ...attributes })}
       onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
       onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
       onMouseLeave={onLeave}
       className={cn(
         "flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 group border-b border-border/30 last:border-0",
-        !standalone && "cursor-grab active:cursor-grabbing",
+        !dragDisabled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
       )}
     >

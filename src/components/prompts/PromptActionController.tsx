@@ -45,8 +45,6 @@ function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptAction
 interface PromptActionControllerProps {
   promptType?: PromptActionType;
   isWaitingForResponse: boolean;
-  isAutoPassing: boolean;
-  isPassingUntilEot: boolean;
   isMyTurn: boolean;
   passToPhaseShort: string;
   availableAttackerIds: string[];
@@ -98,8 +96,6 @@ interface PromptActionControllerProps {
 export function PromptActionController({
   promptType,
   isWaitingForResponse,
-  isAutoPassing,
-  isPassingUntilEot,
   isMyTurn: _isMyTurn,
   passToPhaseShort: _passToPhaseShort,
   availableAttackerIds,
@@ -205,7 +201,6 @@ export function PromptActionController({
       />
     ),
     passingUntilEot: () => <NoAction />,
-    autoPassing: () => <NoAction />,
     promptLabel: () => {
       const labels: Record<string, string> = {
         ["chooseBoardTargets"]: "Choose a target",
@@ -241,11 +236,7 @@ export function PromptActionController({
     ),
   };
 
-  const runtimeViewKey: PromptActionViewKey = isPassingUntilEot
-    ? "passingUntilEot"
-    : isAutoPassing
-      ? "autoPassing"
-      : viewKeyForPrompt(promptType);
+  const runtimeViewKey: PromptActionViewKey = viewKeyForPrompt(promptType);
 
   const rendered = renderers[promptActionOverride ?? runtimeViewKey]();
 

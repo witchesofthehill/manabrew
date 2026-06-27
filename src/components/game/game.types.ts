@@ -46,8 +46,6 @@ export interface RightActionPanelProps {
 export interface MainActionOverlayProps {
   promptType?: PromptActionType;
   isWaitingForResponse: boolean;
-  isAutoPassing: boolean;
-  isPassingUntilEot: boolean;
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;
@@ -75,7 +73,6 @@ export interface MainActionOverlayProps {
   onConcede: () => void;
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
-  isMyPriority: boolean;
   turn: number;
   activePlayerName: string;
   isMyTurn: boolean;

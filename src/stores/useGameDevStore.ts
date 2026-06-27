@@ -14,7 +14,6 @@ export const PROMPT_ACTION_VIEW_KEYS = [
   "promptRequired",
   "promptLabel",
   "passingUntilEot",
-  "autoPassing",
   "noAction",
   "mulligan",
   "mulliganPutBack",

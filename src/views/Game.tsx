@@ -700,22 +700,15 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
-  const {
-    isAutoPassing,
-    isPassingUntilEot,
-    unifiedPass,
-    activatePassUntilEot,
-    spellStackModalOpen,
-    setSpellStackModalOpen,
-  } = usePromptEffects({
-    currentPrompt: activePrompt,
-    gameView,
-    isWaitingForResponse,
-    respond,
-    myPlayerId: _earlyMyPlayerId,
-    turn: gameView?.turn ?? 0,
-    stackLength: gameView?.stack?.length ?? 0,
-  });
+  const { unifiedPass, activatePassUntilEot, spellStackModalOpen, setSpellStackModalOpen } =
+    usePromptEffects({
+      currentPrompt: activePrompt,
+      gameView,
+      isWaitingForResponse,
+      respond,
+      myPlayerId: _earlyMyPlayerId,
+      turn: gameView?.turn ?? 0,
+    });
 
   const unifiedPassRef = useRef(unifiedPass);
   unifiedPassRef.current = unifiedPass;
@@ -1458,8 +1451,6 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MainActionOverlay
                 promptType={promptType}
                 isWaitingForResponse={isWaitingForResponse}
-                isAutoPassing={isAutoPassing}
-                isPassingUntilEot={isPassingUntilEot}
                 availableAttackerIds={
                   chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
                 }

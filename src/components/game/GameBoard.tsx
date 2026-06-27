@@ -217,6 +217,18 @@ export function GameBoard({
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
 
+  // On our turn, one opponent field stays expanded (sticky) instead of an even
+  // split: the last-active opponent by default, or whichever we last hovered.
+  // Remember the active opponent (adjust-state-during-render) so it stays
+  // expanded once the turn returns to us, until we hover a different board.
+  const isSelfTurn = !opponents.some((op) => op.id === activePlayerId);
+  const [stickyOpponentId, setStickyOpponentId] = useState<string | null>(null);
+  const [prevActivePlayerId, setPrevActivePlayerId] = useState(activePlayerId);
+  if (activePlayerId !== prevActivePlayerId) {
+    setPrevActivePlayerId(activePlayerId);
+    if (!isSelfTurn) setStickyOpponentId(activePlayerId);
+  }
+
   const attackingCardIdSet = useMemo(() => {
     const s = new Set<string>();
     for (const c of myPermanents) if (c.isAttacking) s.add(c.id);
@@ -395,6 +407,7 @@ export function GameBoard({
       onBlockDragChange: setDragBlockerId,
       onHoverOpponent: (playerId) => {
         hoveredOpponentRef.current = playerId;
+        if (playerId && isSelfTurn) setStickyOpponentId(playerId);
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
@@ -420,6 +433,8 @@ export function GameBoard({
       onTargetPlayer,
       setDragBlockerId,
       setSheetPlayerId,
+      setStickyOpponentId,
+      isSelfTurn,
     ],
   );
 
@@ -467,13 +482,17 @@ export function GameBoard({
   const gameTheme = useTheme().gameTheme;
   const playerColors = gameTheme.playerColors;
 
-  // The opponent whose field auto-expands on their turn, or null (our turn → even
-  // split). The scene owns + eases the delimiters, draws the grips, and applies
-  // the clip — React just sets this target.
-  const focusedOpponentId = useMemo(
-    () => (opponents.some((op) => op.id === activePlayerId) ? activePlayerId : null),
-    [opponents, activePlayerId],
-  );
+  // The opponent whose field auto-expands: the active one on their turn,
+  // otherwise the sticky one on ours (defaulting to the first opponent). The
+  // scene owns + eases the delimiters, draws the grips, and applies the clip —
+  // React just sets this target.
+  const focusedOpponentId = useMemo(() => {
+    if (!isSelfTurn) return activePlayerId;
+    if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
+      return stickyOpponentId;
+    }
+    return opponents[0]?.id ?? null;
+  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.

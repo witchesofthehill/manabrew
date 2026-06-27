@@ -4,12 +4,11 @@ import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
 
-export const PLAYER_HUD_HEIGHT_PX = 48;
+export const PLAYER_HUD_HEIGHT_PX = 60;
 export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
 export const PLAYER_HUD_TOP_MARGIN_PX = 8;
 export const PLAYER_HUD_SIDE_MARGIN_PX = 10;
 export const PLAYER_HUD_MAX_WIDTH_PX = 280;
-export const PLAYER_HUD_COLUMN_HEIGHT_PX = 124;
 
 // Above this y a capsule is a top-anchored opponent, so its tooltip drops below
 // the badge instead of rising above it (off the top edge).
@@ -22,6 +21,7 @@ export class PlayerHudLayer {
   private theme: Theme;
   private onTarget: (playerId: string) => void;
   private onShowSheet: (playerId: string) => void;
+  private onMenu: () => void;
   private capsules = new Map<string, PlayerHudCapsule>();
   private tooltip: PlayerHudTooltip;
 
@@ -29,10 +29,12 @@ export class PlayerHudLayer {
     theme: Theme,
     onTarget: (playerId: string) => void,
     onShowSheet: (playerId: string) => void,
+    onMenu: () => void,
   ) {
     this.theme = theme;
     this.onTarget = onTarget;
     this.onShowSheet = onShowSheet;
+    this.onMenu = onMenu;
     this.container = new Container();
     this.container.sortableChildren = true;
     this.tooltip = new PlayerHudTooltip(theme);
@@ -61,6 +63,7 @@ export class PlayerHudLayer {
           spec,
           () => this.onTarget(spec.playerId),
           () => this.onShowSheet(spec.playerId),
+          () => this.onMenu(),
           (content, cx, top, bottom) => {
             if (!content) this.tooltip.hide();
             else this.tooltip.show(content, cx!, top!, bottom!, top! < ANCHOR_BELOW_Y);

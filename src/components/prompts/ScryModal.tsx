@@ -13,8 +13,9 @@ import {
   type DropAnimation,
 } from "@dnd-kit/core";
 import { GoStack } from "react-icons/go";
-import { GiArrowDunk, GiCardPickup, GiTombstone, GiVortex } from "react-icons/gi";
+import { GiArrowDunk, GiCardPickup, GiTombstone } from "react-icons/gi";
 
+import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { Modal } from "@/components/game/modals/Modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/game/Card";
@@ -102,7 +103,7 @@ const DESTINATION_META: Record<ScryDestination, { label: string; verb: string; i
       verb: "To graveyard",
       icon: <GiTombstone className="h-11 w-11" />,
     },
-    exile: { label: "Exile", verb: "Exile", icon: <GiVortex className="h-11 w-11" /> },
+    exile: { label: "Exile", verb: "Exile", icon: <VortexCircleIcon className="h-11 w-11" /> },
     hand: { label: "Hand", verb: "To hand", icon: <GiCardPickup className="h-11 w-11" /> },
   };
 

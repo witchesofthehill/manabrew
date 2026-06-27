@@ -31,9 +31,9 @@ export const SELF_HEIGHT_FRACTION = 0.55;
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
 export const STRIP_BAND_PX = 56;
 
-/** Width, in px, of a collapsed opponent column — just enough for a minimal
- *  banner peeking out from under its neighbour. */
-export const COLLAPSED_OPPONENT_WIDTH_PX = 150;
+/** Width, in px, of a collapsed opponent column — just enough for the avatar
+ *  sphere + life banner peeking out from under its neighbour. */
+export const COLLAPSED_OPPONENT_WIDTH_PX = 80;
 
 export function computeBoardLayout(
   width: number,

@@ -61,7 +61,6 @@ import {
   PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
   PLAYER_HUD_SIDE_MARGIN_PX as PLAYER_BAR_SIDE_MARGIN_PX,
   PLAYER_HUD_MAX_WIDTH_PX as PLAYER_BAR_MAX_WIDTH_PX,
-  PLAYER_HUD_COLUMN_HEIGHT_PX as PLAYER_BAR_COLUMN_HEIGHT_PX,
 } from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
@@ -144,6 +143,10 @@ export class BoardScene {
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
+  private baseBg: Graphics;
+  private collapseVeil: Graphics;
+  private canvasW = 0;
+  private canvasH = 0;
   private destroyed = false;
   private perfFrames = 0;
   private perfTotalDelta = 0;
@@ -224,6 +227,15 @@ export class BoardScene {
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
 
+    // Solid page-background base behind everything (the canvas itself is
+    // transparent). Gives the whole battlefield one consistent colour so the
+    // collapsed player panels — drawn in the same colour — blend in seamlessly
+    // instead of popping against the translucent felt.
+    this.baseBg = new Graphics();
+    this.baseBg.eventMode = "none";
+    this.baseBg.zIndex = -1000;
+    this.root.addChild(this.baseBg);
+
     this.dragHandler = new DragHandler();
 
     this.stripBackgroundGfx = new Graphics();
@@ -238,6 +250,15 @@ export class BoardScene {
     this.fogGfx.zIndex = 5550;
     this.root.addChild(this.fogGfx);
 
+    // Solid page-background veil over each opponent field, its opacity driven
+    // by how collapsed the field is (computed every frame in `applyDelimiters`,
+    // so it stays perfectly in sync with the delimiter ease). Sits above the
+    // cards but below the player panels, which render on top of it.
+    this.collapseVeil = new Graphics();
+    this.collapseVeil.eventMode = "none";
+    this.collapseVeil.zIndex = 5560;
+    this.root.addChild(this.collapseVeil);
+
     this.highlightGfx = new Graphics();
     this.highlightGfx.eventMode = "none";
     this.highlightGfx.zIndex = 5500;
@@ -247,6 +268,7 @@ export class BoardScene {
       this.theme,
       (id) => this.callbacks.onTargetPlayer?.(id),
       (id) => this.callbacks.onShowPlayerSheet?.(id),
+      () => this.callbacks.onShowBoardMenu?.(),
     );
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;
@@ -412,6 +434,9 @@ export class BoardScene {
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     if (n <= 0 || W <= 0) return;
+    this.collapseVeil.clear();
+    const veilStart = COLLAPSED_OPPONENT_WIDTH_PX * 2;
+    const veilColor = hexToNum(this.theme.appTheme.background);
     for (let i = 0; i < n; i++) {
       const rec = this.regions.get(this.opponentIds[i]!);
       if (!rec) continue;
@@ -420,25 +445,27 @@ export class BoardScene {
       const bandW = Math.max(0, right - left);
       rec.region.setClip(left, bandW);
       if (this.barsEnabled) {
-        // A field clipped down to (about) its banner width → collapsed column;
-        // otherwise a left-aligned bar capped at the max width. A top margin
-        // keeps it off the screen edge.
-        const column = bandW <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
-        const avail = Math.max(0, bandW - PLAYER_BAR_SIDE_MARGIN_PX * 2);
-        // Expanded bar keeps a FIXED width and overflows a narrow field rather
-        // than resizing/reflowing its contents as the field eases.
-        const barW = column ? avail : PLAYER_BAR_MAX_WIDTH_PX;
-        const barH = column
-          ? Math.min(this.topHeight - PLAYER_BAR_TOP_MARGIN_PX, PLAYER_BAR_COLUMN_HEIGHT_PX)
-          : PLAYER_BAR_HEIGHT_PX;
-        this.playerBars.setRect(
-          this.opponentIds[i]!,
-          left + PLAYER_BAR_SIDE_MARGIN_PX,
-          PLAYER_BAR_TOP_MARGIN_PX,
-          barW,
-          barH,
-          column,
+        // Solid veil opacity ramps 0→1 as the band narrows from `veilStart` down
+        // to its collapsed width — fully in sync with the ease, no separate tween.
+        const frac = Math.max(
+          0,
+          Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
         );
+        if (frac > 0.001) {
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight);
+          this.collapseVeil.fill({ color: veilColor, alpha: frac });
+        }
+        // A field clipped down to (about) its banner width → collapsed column;
+        // otherwise a left-aligned bar capped at the max width.
+        const column = bandW <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
+        // Collapsed → the panel fills the whole band and the field's full height
+        // (sitting on the `collapseVeil` that occludes the cards). Expanded → a
+        // left-aligned bar at the fixed max width / capsule height.
+        const barW = column ? bandW : PLAYER_BAR_MAX_WIDTH_PX;
+        const barH = column ? this.topHeight : PLAYER_BAR_HEIGHT_PX;
+        const barX = column ? left : left + PLAYER_BAR_SIDE_MARGIN_PX;
+        const barY = column ? 0 : PLAYER_BAR_TOP_MARGIN_PX;
+        this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
       }
     }
     this.drawDelimiterFog();
@@ -872,10 +899,12 @@ export class BoardScene {
     setCardSpriteTheme(theme);
     this.phaseStrip.setTheme(theme);
     this.playerBars.setTheme(theme);
+    this.drawBaseBg();
     if (this.lastLayout) {
       this.drawStripBackground(this.lastLayout);
     }
     for (const rec of this.regions.values()) rec.region.redrawTheme();
+    this.applyDelimiters(); // repaint the collapse veil in the new theme colour
   }
 
   resize(width: number, height: number): void {
@@ -883,6 +912,16 @@ export class BoardScene {
     this.app.renderer.resize(width, height);
     this.dragHandler.setContainerSize(width, height);
     this.playerBars.setViewport(width, height);
+    this.canvasW = width;
+    this.canvasH = height;
+    this.drawBaseBg();
+  }
+
+  private drawBaseBg(): void {
+    this.baseBg.clear();
+    if (this.canvasW <= 0 || this.canvasH <= 0) return;
+    this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
+    this.baseBg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {

@@ -99,6 +99,7 @@ interface GameBoardProps {
   onAssignBlock: (blockerId: string, attackerId: string) => void;
   onUnassignBlock: (blockerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
+  onShowBoardMenu?: () => void;
   onOpenZone: (
     title: string,
     cards: CardDto[],
@@ -186,6 +187,7 @@ export function GameBoard({
   onAssignBlock,
   onUnassignBlock,
   onTargetPlayer,
+  onShowBoardMenu,
   onOpenZone,
   onOpenZoneAndCast,
   onTargetFromZone,
@@ -225,6 +227,18 @@ export function GameBoard({
   const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
+
+  // On our turn, one opponent field stays expanded (sticky) instead of an even
+  // split: the last-active opponent by default, or whichever we last hovered.
+  // Remember the active opponent (adjust-state-during-render) so it stays
+  // expanded once the turn returns to us, until we hover a different board.
+  const isSelfTurn = !opponents.some((op) => op.id === activePlayerId);
+  const [stickyOpponentId, setStickyOpponentId] = useState<string | null>(null);
+  const [prevActivePlayerId, setPrevActivePlayerId] = useState(activePlayerId);
+  if (activePlayerId !== prevActivePlayerId) {
+    setPrevActivePlayerId(activePlayerId);
+    if (!isSelfTurn) setStickyOpponentId(activePlayerId);
+  }
 
   const attackingCardIdSet = useMemo(() => {
     const s = new Set<string>();
@@ -404,9 +418,11 @@ export function GameBoard({
       onBlockDragChange: setDragBlockerId,
       onHoverOpponent: (playerId) => {
         hoveredOpponentRef.current = playerId;
+        if (playerId && isSelfTurn) setStickyOpponentId(playerId);
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
+      onShowBoardMenu,
     }),
     [
       promptType,
@@ -427,8 +443,11 @@ export function GameBoard({
       onAssignBlock,
       onUnassignBlock,
       onTargetPlayer,
+      onShowBoardMenu,
       setDragBlockerId,
       setSheetPlayerId,
+      setStickyOpponentId,
+      isSelfTurn,
     ],
   );
 
@@ -476,13 +495,17 @@ export function GameBoard({
   const gameTheme = useTheme().gameTheme;
   const playerColors = gameTheme.playerColors;
 
-  // The opponent whose field auto-expands on their turn, or null (our turn → even
-  // split). The scene owns + eases the delimiters, draws the grips, and applies
-  // the clip — React just sets this target.
-  const focusedOpponentId = useMemo(
-    () => (opponents.some((op) => op.id === activePlayerId) ? activePlayerId : null),
-    [opponents, activePlayerId],
-  );
+  // The opponent whose field auto-expands: the active one on their turn,
+  // otherwise the sticky one on ours (defaulting to the first opponent). The
+  // scene owns + eases the delimiters, draws the grips, and applies the clip —
+  // React just sets this target.
+  const focusedOpponentId = useMemo(() => {
+    if (!isSelfTurn) return activePlayerId;
+    if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
+      return stickyOpponentId;
+    }
+    return opponents[0]?.id ?? null;
+  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.
@@ -531,9 +554,12 @@ export function GameBoard({
     const roomByName = new Map(currentRoom?.players.map((p) => [p.username, p]) ?? []);
     const concededSet = new Set(concededPlayerIds ?? []);
 
-    const cmdDamageBadges = (player: PlayerDto, isSelf: boolean): PlayerHudBadge[] => {
-      const dev = isSelf ? devOverrides : null;
-      if (dev?.cmdDamage != null) {
+    // Dev overrides are applied to every player (not just self) so the dev
+    // panel can light up each state on all opponents at once. In production
+    // these are all empty/false, so this is a no-op.
+    const dev = devOverrides;
+    const cmdDamageBadges = (player: PlayerDto): PlayerHudBadge[] => {
+      if (dev.cmdDamage != null) {
         return dev.cmdDamage > 0
           ? [
               {
@@ -563,43 +589,42 @@ export function GameBoard({
     };
 
     const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
-      const dev = isSelf ? devOverrides : null;
       const badges = [
         ...buildPlayerHudBadges(
           {
-            isMonarch: dev?.forceMonarch ? true : monarchId === player.id,
-            hasInitiative: dev?.forceInitiative ? true : initiativeHolderId === player.id,
-            poison: dev?.poison ?? player.poison,
-            energy: dev?.energy ?? player.energyCounters,
-            radiation: dev?.radiation ?? player.radiationCounters,
-            experience: dev?.experience ?? player.experienceCounters,
-            ticket: dev?.ticket ?? player.ticketCounters,
-            cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
-            ringLevel: dev?.ringLevel ?? player.ringLevel,
-            speed: dev?.speed ?? player.speed,
-            handCount: dev?.handCount ?? player.hand.length,
+            isMonarch: dev.forceMonarch ? true : monarchId === player.id,
+            hasInitiative: dev.forceInitiative ? true : initiativeHolderId === player.id,
+            poison: dev.poison ?? player.poison,
+            energy: dev.energy ?? player.energyCounters,
+            radiation: dev.radiation ?? player.radiationCounters,
+            experience: dev.experience ?? player.experienceCounters,
+            ticket: dev.ticket ?? player.ticketCounters,
+            cityBlessing: dev.forceCityBlessing ? true : player.hasCityBlessing,
+            ringLevel: dev.ringLevel ?? player.ringLevel,
+            speed: dev.speed ?? player.speed,
+            handCount: dev.handCount ?? player.hand.length,
           },
           gameTheme.badges,
         ),
-        ...cmdDamageBadges(player, isSelf),
+        ...cmdDamageBadges(player),
       ];
       return {
         playerId: player.id,
         name: player.name,
         isSelf,
-        life: dev?.life ?? player.life,
+        life: dev.life ?? player.life,
         color,
         avatarUrl: avatarByPlayerId.get(player.id),
         isBot: player.isHuman === false,
-        isActiveTurn: dev?.forceActiveTurn ? true : activePlayerId === player.id,
-        isPriorityPlayer: dev?.forcePriority
+        isActiveTurn: dev.forceActiveTurn ? true : activePlayerId === player.id,
+        isPriorityPlayer: dev.forcePriority
           ? true
           : priorityPlayerId === player.id && activePlayerId !== player.id,
-        isTargetable: dev?.forceTargetable ? true : playerIsTargetable(player.id),
-        isSelectedTarget: dev?.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
-        isFlashing: dev?.forceFlashing ? true : turnFlashPlayerId === player.id,
-        isEliminated: dev?.forceEliminated ? true : concededSet.has(player.id),
-        isDisconnected: dev?.forceDisconnected
+        isTargetable: dev.forceTargetable ? true : playerIsTargetable(player.id),
+        isSelectedTarget: dev.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
+        isFlashing: dev.forceFlashing ? true : turnFlashPlayerId === player.id,
+        isEliminated: dev.forceEliminated ? true : concededSet.has(player.id),
+        isDisconnected: dev.forceDisconnected
           ? true
           : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
         manaPool: player.manaPool,

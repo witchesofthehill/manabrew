@@ -1,31 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
-import { Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Flag, Maximize2, Minimize2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getPlatformType } from "@/platform";
-import { cn } from "@/lib/utils";
 
 interface MiddleBarDockProps {
-  /** Canvas-CSS px Y of the center divider line (from BoardCanvasLayout). */
-  top: number;
+  /** Controlled open state — the trigger is the Pixi gear in the self panel. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onConcede: () => void;
   isMyPriority: boolean;
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
 }
 
-const DOCK_BUTTON_CLASS = cn(
-  "h-7 w-7 rounded-md border border-border/70 bg-card/95 text-muted-foreground backdrop-blur-sm",
-  "shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition hover:border-primary/60 hover:text-foreground hover:bg-accent/80",
-);
-
+/** Board menu opened by the self panel's Pixi gear — fullscreen, the dev/side
+ *  panel toggle, and concede. Controlled; the trigger is just a positioning
+ *  anchor near the gear. */
 export function MiddleBarDock({
-  top,
+  open,
+  onOpenChange,
   onConcede,
   isMyPriority,
   sidePanelCollapsed,
@@ -68,55 +67,37 @@ export function MiddleBarDock({
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
 
   return (
-    <div
-      className="absolute left-1.5 z-50 flex -translate-y-1/2 flex-row items-center gap-1.5"
-      style={{ top }}
-    >
-      <Button
-        size="icon"
-        variant="outline"
-        className={DOCK_BUTTON_CLASS}
-        onClick={onToggleSidePanel}
-        title={sidePanelCollapsed ? "Open right panel" : "Close right panel"}
-      >
-        <PanelIcon className="h-3.5 w-3.5" />
-      </Button>
-      {isWeb && (
-        <Button
-          size="icon"
-          variant="outline"
-          className={DOCK_BUTTON_CLASS}
-          onClick={toggleFullscreen}
-          title={isFullscreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}
-        >
-          <FullscreenIcon className="h-3.5 w-3.5" />
-        </Button>
-      )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="icon" variant="outline" className={DOCK_BUTTON_CLASS} title="Settings">
-            <Settings className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="left">
-          <DropdownMenuItem
-            disabled={!isMyPriority}
-            className="text-destructive focus:text-destructive"
-            onSelect={(event) => {
-              event.preventDefault();
-              if (!isMyPriority) return;
-              onConcede();
-            }}
-            onClick={() => {
-              if (!isMyPriority) return;
-              onConcede();
-            }}
-            title={isMyPriority ? undefined : "Wait until you have priority to concede"}
-          >
-            Concede
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
+      {/* The visible trigger is the Pixi gear in the self panel; this is just a
+          zero-size anchor near it for the menu to position against. */}
+      <DropdownMenuTrigger asChild>
+        <span aria-hidden className="pointer-events-none absolute bottom-14 left-6 h-0 w-0" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" side="top">
+        {isWeb && (
+          <DropdownMenuItem onSelect={() => toggleFullscreen()}>
+            <FullscreenIcon className="mr-2 h-4 w-4" />
+            {isFullscreen ? "Exit full screen" : "Full screen"}
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        )}
+        <DropdownMenuItem onSelect={() => onToggleSidePanel()}>
+          <PanelIcon className="mr-2 h-4 w-4" />
+          {sidePanelCollapsed ? "Show side panel" : "Hide side panel"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!isMyPriority}
+          className="text-destructive focus:text-destructive"
+          onSelect={(event) => {
+            event.preventDefault();
+            if (isMyPriority) onConcede();
+          }}
+          title={isMyPriority ? undefined : "Wait until you have priority to concede"}
+        >
+          <Flag className="mr-2 h-4 w-4" />
+          Concede
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

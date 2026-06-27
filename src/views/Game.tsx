@@ -132,6 +132,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSceneRef = useRef<BoardScene | null>(null);
   const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
+  const [boardMenuOpen, setBoardMenuOpen] = useState(false);
   const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
   const activePrompt = manualApi ? null : currentPrompt;
@@ -1389,6 +1390,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           onAssignBlock={assignBlockPair}
           onUnassignBlock={unassignBlock}
           onTargetPlayer={handleTargetPlayer}
+          onShowBoardMenu={() => setBoardMenuOpen(true)}
           onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
             if (manualApi) {
               openManualZone(title, cards);
@@ -1535,15 +1537,14 @@ export default function Game({ exitTo }: GameProps = {}) {
                 onMulliganPutBackConfirm={mulliganPutBack.confirm}
                 selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
               />
-              {boardLayout?.dividerY != null && (
-                <MiddleBarDock
-                  top={boardLayout.dividerY}
-                  onConcede={concede}
-                  isMyPriority={gameView.priorityPlayerId === me.id}
-                  sidePanelCollapsed={isActionPanelCollapsed}
-                  onToggleSidePanel={toggleActionPanel}
-                />
-              )}
+              <MiddleBarDock
+                open={boardMenuOpen}
+                onOpenChange={setBoardMenuOpen}
+                onConcede={concede}
+                isMyPriority={gameView.priorityPlayerId === me.id}
+                sidePanelCollapsed={isActionPanelCollapsed}
+                onToggleSidePanel={toggleActionPanel}
+              />
             </>
           ),
           boardSurfaceEl,

@@ -151,6 +151,7 @@ export function GameBoard({
   pendingBlocker,
   damageOrder,
   damageOrderBlockerIds,
+  selectedAttackDefenderId,
   blockAssignments,
   combatAssignments,
   arrowSpecs,
@@ -508,6 +509,7 @@ export function GameBoard({
         isActiveTurn: activePlayerId === player.id,
         isPriorityPlayer: priorityPlayerId === player.id && activePlayerId !== player.id,
         isTargetable: playerIsTargetable(player.id),
+        isSelectedTarget: selectedAttackDefenderId === player.id,
         manaPool: player.manaPool,
         badges,
       };
@@ -526,6 +528,7 @@ export function GameBoard({
     activePlayerId,
     priorityPlayerId,
     playerIsTargetable,
+    selectedAttackDefenderId,
     monarchId,
     initiativeHolderId,
     gameTheme.badges,

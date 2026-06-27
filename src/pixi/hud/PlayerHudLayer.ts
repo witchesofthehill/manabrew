@@ -3,8 +3,8 @@ import type { Theme } from "@/hooks/useTheme";
 import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import type { PlayerHudSpec } from "./playerHud.types";
 
-export const PLAYER_HUD_HEIGHT_PX = 34;
-export const SELF_PLAYER_HUD_HEIGHT_PX = 44;
+export const PLAYER_HUD_HEIGHT_PX = 48;
+export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
 export const PLAYER_HUD_TOP_MARGIN_PX = 8;
 export const PLAYER_HUD_SIDE_MARGIN_PX = 10;
 export const PLAYER_HUD_MAX_WIDTH_PX = 280;

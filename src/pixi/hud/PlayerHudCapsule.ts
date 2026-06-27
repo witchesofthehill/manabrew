@@ -1,10 +1,12 @@
-import { Assets, Container, Graphics, Sprite, Text, Texture, TextStyle } from "pixi.js";
+import { Container, Graphics, Matrix, Sprite, Text, Texture, TextStyle } from "pixi.js";
 import gsap from "gsap";
 import type { Theme } from "@/hooks/useTheme";
-import { darken, MANA_LETTERS } from "@/themes/gameTheme";
+import { MANA_LETTERS } from "@/themes/gameTheme";
+import { getInitials } from "@/components/game/game.utils";
 import { hexToNum } from "../colorUtils";
 import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
+import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec } from "./playerHud.types";
 
 const BOT_ICON_NAME = "robot-antennas";
@@ -22,10 +24,10 @@ interface BadgeChip {
   count: Text;
 }
 
-/** A single player's HUD: a compact capsule with the avatar as a left-edge cap,
+/** A single player's HUD: a minimal pill with the avatar as a left-edge cap,
  *  the life total, the floating mana pool, and any active player/game badges.
  *  Collapses to an avatar "sphere" + life when its field is narrow. Owns its own
- *  gsap tweens (life-change pop, priority pulse, badge fade-in). */
+ *  gsap tweens (life-change pop + floating delta, priority pulse, badge fade). */
 export class PlayerHudCapsule {
   readonly container: Container;
   private theme: Theme;
@@ -33,13 +35,13 @@ export class PlayerHudCapsule {
 
   private bg = new Graphics();
   private glow = new Graphics();
-  private avatar = new Sprite();
-  private avatarMask = new Graphics();
+  private avatarTex: Texture | null = null;
   private bot = new Sprite();
   private initial: Text;
   private avatarHit = new Graphics();
   private heart: Text;
   private life: Text;
+  private lifeFloat: Text;
   private manaLayer = new Container();
   private badgeLayer = new Container();
   private pips: ManaPip[] = [];
@@ -50,10 +52,14 @@ export class PlayerHudCapsule {
   private height = 0;
   private column = false;
   private avatarUrl: string | null = null;
+  private loggedUrl: string | undefined | null = null;
   private readonly isBot: boolean;
   private renderedLife: number | null = null;
   private pulse: gsap.core.Tween | null = null;
   private priorityActive = false;
+  private avatarCx = 0;
+  private avatarCy = 0;
+  private avatarDia = 0;
 
   constructor(theme: Theme, spec: PlayerHudSpec, onTarget: () => void) {
     this.theme = theme;
@@ -62,8 +68,6 @@ export class PlayerHudCapsule {
     this.onTarget = onTarget;
 
     this.container = new Container();
-    this.avatar.anchor.set(0.5);
-    this.avatar.visible = false;
     this.bot.anchor.set(0.5);
     this.bot.visible = false;
     this.glow.eventMode = "none";
@@ -76,16 +80,17 @@ export class PlayerHudCapsule {
 
     this.initial = new Text({ text: "", style: this.textStyle(16) });
     this.initial.anchor.set(0.5);
-    this.heart = new Text({ text: "♥", style: this.heartStyle(17) });
+    this.heart = new Text({ text: "♥", style: this.heartStyle(14) });
     this.heart.anchor.set(0, 0.5);
-    this.life = new Text({ text: String(spec.life), style: this.textStyle(16) });
+    this.life = new Text({ text: String(spec.life), style: this.textStyle(15) });
     this.life.anchor.set(0, 0.5);
+    this.lifeFloat = new Text({ text: "", style: this.textStyle(16) });
+    this.lifeFloat.anchor.set(0.5);
+    this.lifeFloat.visible = false;
 
     this.container.addChild(
       this.glow,
       this.bg,
-      this.avatar,
-      this.avatarMask,
       this.bot,
       this.initial,
       this.avatarHit,
@@ -93,6 +98,7 @@ export class PlayerHudCapsule {
       this.life,
       this.manaLayer,
       this.badgeLayer,
+      this.lifeFloat,
     );
   }
 
@@ -116,12 +122,13 @@ export class PlayerHudCapsule {
     this.render();
   }
 
-  private textStyle(size: number): TextStyle {
+  private textStyle(size: number, weight: TextStyle["fontWeight"] = "700"): TextStyle {
     return new TextStyle({
       fontFamily: FONT,
       fontSize: size,
-      fontWeight: "800",
+      fontWeight: weight,
       fill: hexToNum(this.theme.gameTheme.textOnTinted),
+      dropShadow: { color: 0x000000, alpha: 0.55, blur: 3, distance: 1, angle: Math.PI / 2 },
     });
   }
 
@@ -131,19 +138,29 @@ export class PlayerHudCapsule {
       fontSize: size,
       fontWeight: "900",
       fill: hexToNum(this.theme.gameTheme.life),
+      dropShadow: { color: 0x000000, alpha: 0.55, blur: 3, distance: 1, angle: Math.PI / 2 },
     });
   }
 
   private updateAvatarTexture(url: string | undefined): void {
+    if (url !== this.loggedUrl) {
+      this.loggedUrl = url;
+      console.warn(
+        "[hud] avatar url for",
+        this.spec.name,
+        url ? `present (${url.length})` : "<none>",
+      );
+    }
     if (!url || url === this.avatarUrl) return;
     this.avatarUrl = url;
-    Assets.load<Texture>(url)
+    loadAvatarTexture(url)
       .then((tex) => {
-        if (this.avatarUrl !== url || this.avatar.destroyed) return;
-        this.avatar.texture = tex;
+        if (this.avatarUrl !== url || this.container.destroyed) return;
+        this.avatarTex = tex;
+        console.warn("[hud] avatar loaded for", this.spec.name, `${tex.width}x${tex.height}`);
         this.render();
       })
-      .catch(() => {});
+      .catch((err) => console.warn("[hud] avatar load failed", this.spec.name, err));
   }
 
   private iconTexture(name: string): Texture | null {
@@ -169,47 +186,58 @@ export class PlayerHudCapsule {
     return null;
   }
 
-  private drawAvatar(cx: number, cy: number, diameter: number, accent: number): void {
+  private drawAvatar(cx: number, cy: number, diameter: number): void {
     const gt = this.theme.gameTheme;
     const r = diameter / 2;
-    this.bg.circle(cx, cy, r);
-    this.bg.fill({ color: hexToNum(darken(gt.canvas.background, 0.35)), alpha: 1 });
-    const ringWidth = this.spec.isTargetable ? 2 : this.spec.isActiveTurn ? 2.5 : 1;
-    const ringAlpha = this.spec.isTargetable ? 0.9 : this.spec.isActiveTurn ? 0.95 : 0.5;
-    this.bg.stroke({ color: accent, width: ringWidth, alpha: ringAlpha });
+    const hasImage = !!this.avatarTex;
 
-    const hasImage = !!this.avatarUrl && this.avatar.texture !== Texture.EMPTY;
+    this.bg.circle(cx, cy, r);
+    this.bg.fill({ color: hexToNum(gt.canvas.background), alpha: 0.95 });
+
+    if (hasImage) {
+      const tex = this.avatarTex!;
+      const tw = tex.width || diameter;
+      const th = tex.height || diameter;
+      const cover = diameter / Math.min(tw, th);
+      const m = new Matrix();
+      m.scale(cover, cover);
+      m.translate(cx - (tw * cover) / 2, cy - (th * cover) / 2);
+      this.bg.circle(cx, cy, r);
+      this.bg.fill({ texture: tex, matrix: m });
+    }
+
+    this.bg.circle(cx, cy, r - 0.5);
+    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+
+    const accent = this.spec.isSelectedTarget
+      ? { c: gt.promptAction.attackAction, w: 2.5, a: 1 }
+      : this.spec.isTargetable
+        ? { c: gt.promptAction.attackAction, w: 2, a: 0.9 }
+        : this.spec.isActiveTurn
+          ? { c: this.spec.color, w: 1.5, a: 0.95 }
+          : null;
+    if (accent) {
+      this.bg.circle(cx, cy, r - accent.w / 2);
+      this.bg.stroke({ color: hexToNum(accent.c), width: accent.w, alpha: accent.a });
+    }
+
     const showBot = !hasImage && this.isBot;
     const showInitial = !hasImage && !this.isBot;
-
-    this.avatar.visible = hasImage;
-    if (hasImage) {
-      this.avatar.position.set(cx, cy);
-      const tw = this.avatar.texture.width || diameter;
-      const th = this.avatar.texture.height || diameter;
-      this.avatar.scale.set(diameter / Math.min(tw, th));
-      this.avatarMask.clear();
-      this.avatarMask.circle(cx, cy, r);
-      this.avatarMask.fill({ color: 0xffffff });
-      this.avatar.mask = this.avatarMask;
-    } else {
-      this.avatar.mask = null;
-    }
 
     this.bot.visible = showBot;
     if (showBot) {
       const tex = this.iconTexture(BOT_ICON_NAME);
       if (tex) this.bot.texture = tex;
-      this.bot.tint = hexToNum(gt.textOnTinted);
-      this.bot.width = diameter * 0.62;
-      this.bot.height = diameter * 0.62;
+      this.bot.tint = hexToNum(gt.textMuted);
+      this.bot.width = diameter * 0.56;
+      this.bot.height = diameter * 0.56;
       this.bot.position.set(cx, cy);
     }
 
     this.initial.visible = showInitial;
     if (showInitial) {
-      this.initial.text = this.spec.name.trim()[0]?.toUpperCase() ?? "?";
-      this.initial.style = this.textStyle(Math.round(diameter * 0.5));
+      this.initial.text = getInitials(this.spec.name);
+      this.initial.style = this.textStyle(Math.round(diameter * 0.36), "800");
       this.initial.position.set(cx, cy);
     }
 
@@ -222,7 +250,7 @@ export class PlayerHudCapsule {
   private ensurePips(n: number): void {
     while (this.pips.length < n) {
       const sprite = new Sprite();
-      const count = new Text({ text: "", style: this.textStyle(12) });
+      const count = new Text({ text: "", style: this.textStyle(11) });
       count.anchor.set(0, 0.5);
       this.manaLayer.addChild(sprite, count);
       this.pips.push({ sprite, count });
@@ -236,7 +264,7 @@ export class PlayerHudCapsule {
   private ensureChips(n: number): void {
     while (this.chips.length < n) {
       const sprite = new Sprite();
-      const count = new Text({ text: "", style: this.textStyle(12) });
+      const count = new Text({ text: "", style: this.textStyle(11) });
       count.anchor.set(0, 0.5);
       this.badgeLayer.addChild(sprite, count);
       this.chips.push({ sprite, count });
@@ -250,67 +278,77 @@ export class PlayerHudCapsule {
   private render(): void {
     const { width: w, height: h } = this;
     if (w <= 0 || h <= 0) return;
-    const gt = this.theme.gameTheme;
-    const accent = this.spec.isTargetable
-      ? hexToNum(gt.promptAction.attackAction)
-      : hexToNum(this.spec.color);
-
-    this.bg.clear();
-    this.heart.style = this.heartStyle(this.column ? h * 0.13 : h * 0.4);
-    this.life.style = this.textStyle(this.column ? h * 0.16 : h * 0.5);
     this.life.text = String(this.spec.life);
 
+    this.bg.clear();
     if (this.column) {
-      this.renderColumn(w, h, accent);
+      this.renderColumn(w, h);
       return;
     }
-    this.renderCapsule(h, accent, gt);
+    this.renderCapsule(h);
     this.applyLifeAnim();
-    this.applyPriority(accent);
+    this.applyPriority();
   }
 
-  private renderColumn(w: number, h: number, accent: number): void {
+  private renderColumn(w: number, h: number): void {
     this.manaLayer.visible = false;
     this.badgeLayer.visible = false;
     this.glow.visible = false;
+    this.heart.style = this.heartStyle(h * 0.12);
+    this.life.style = this.textStyle(h * 0.15, "800");
     const diameter = Math.max(8, Math.min(w - 8, h - 28));
     const cx = w / 2;
     const cy = 4 + diameter / 2;
-    this.drawAvatar(cx, cy, diameter, accent);
+    this.avatarCx = cx;
+    this.avatarCy = cy;
+    this.avatarDia = diameter;
+    this.drawAvatar(cx, cy, diameter);
     const total = this.heart.width + 3 + this.life.width;
     const ly = cy + diameter / 2 + 4 + Math.max(this.heart.height, this.life.height) / 2;
     this.heart.position.set(cx - total / 2, ly);
     this.life.position.set(cx - total / 2 + this.heart.width + 3, ly);
   }
 
-  private renderCapsule(h: number, accent: number, gt: Theme["gameTheme"]): void {
+  private renderCapsule(h: number): void {
+    const gt = this.theme.gameTheme;
     this.manaLayer.visible = true;
     this.badgeLayer.visible = true;
-    const avatarD = h;
-    const avatarCx = avatarD / 2;
-    const cy = h / 2;
-    const gap = Math.max(5, Math.round(h * 0.16));
-    const pad = Math.max(6, Math.round(h * 0.22));
 
-    let x = avatarD + gap;
-    this.heart.position.set(x, cy);
-    x += this.heart.width + 3;
-    this.life.position.set(x, cy);
-    x += this.life.width + gap * 1.4;
+    const avatarD = Math.round(h * 0.84);
+    const avatarCx = avatarD / 2 + 2;
+    const avatarCy = avatarD / 2 + 2;
+    this.avatarCx = avatarCx;
+    this.avatarCy = avatarCy;
+    this.avatarDia = avatarD;
+    this.drawAvatar(avatarCx, avatarCy, avatarD);
 
-    x = this.layoutMana(x, cy, h, gap);
-    x = this.layoutBadges(x, cy, h, gap);
+    // Life pill straddling the avatar's bottom edge (MTGA-style).
+    this.heart.style = this.heartStyle(Math.round(avatarD * 0.26));
+    this.life.style = this.textStyle(Math.round(avatarD * 0.32), "800");
+    const padX = Math.round(avatarD * 0.12);
+    const pillH = Math.round(avatarD * 0.34);
+    const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
+    const pillLeft = avatarCx - pillW / 2;
+    const pillCy = avatarCy + avatarD / 2 - pillH * 0.3;
+    this.bg.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
+    this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.9 });
+    this.bg.roundRect(pillLeft + 0.5, pillCy - pillH / 2 + 0.5, pillW - 1, pillH - 1, pillH / 2);
+    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.heart.position.set(pillLeft + padX, pillCy);
+    this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
 
-    const right = x + pad;
-    this.bg.roundRect(avatarCx, 0, Math.max(avatarD, right - avatarCx), h, Math.round(h * 0.32));
-    this.bg.fill({ color: hexToNum(darken(gt.canvas.background, 0.45)), alpha: 0.92 });
-    this.drawAvatar(avatarCx, cy, avatarD, accent);
+    // Mana + badges, vertically centred on the avatar.
+    const gap = Math.max(5, Math.round(h * 0.14));
+    let x = avatarCx + avatarD / 2 + gap;
+    x = this.layoutMana(x, avatarCy, avatarD, gap);
+    this.layoutBadges(x, avatarCy, avatarD, gap);
   }
 
-  private layoutMana(startX: number, cy: number, h: number, gap: number): number {
+  private layoutMana(startX: number, cy: number, unit: number, gap: number): number {
     const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
     this.ensurePips(present.length);
-    const size = Math.round(h * 0.34);
+    const size = Math.round(unit * 0.3);
+    const countColor = hexToNum(this.theme.gameTheme.textMuted);
     let x = startX;
     for (let i = 0; i < present.length; i++) {
       const letter = present[i]!;
@@ -322,18 +360,20 @@ export class PlayerHudCapsule {
       pip.sprite.width = size;
       pip.sprite.height = size;
       pip.sprite.position.set(x, cy - size / 2);
-      pip.count.style = this.textStyle(Math.round(h * 0.3));
+      pip.count.style = this.textStyle(Math.round(unit * 0.27));
+      pip.count.style.fill = countColor;
       pip.count.text = String(this.spec.manaPool[letter] ?? 0);
       pip.count.position.set(x + size + 2, cy);
-      x += size + 2 + pip.count.width + gap;
+      x += size + 2 + pip.count.width + gap * 0.7;
     }
     return present.length > 0 ? x : startX;
   }
 
-  private layoutBadges(startX: number, cy: number, h: number, gap: number): number {
+  private layoutBadges(startX: number, cy: number, unit: number, gap: number): number {
     const badges = this.spec.badges;
     this.ensureChips(badges.length);
-    const size = Math.round(h * 0.46);
+    const size = Math.round(unit * 0.4);
+    const countColor = hexToNum(this.theme.gameTheme.textMuted);
     let x = startX;
     for (let i = 0; i < badges.length; i++) {
       const badge = badges[i]!;
@@ -350,18 +390,18 @@ export class PlayerHudCapsule {
         gsap.killTweensOf(chip.sprite);
         gsap.from(chip.sprite, { alpha: 0, duration: 0.25, ease: "power2.out" });
       }
-      x += size + 2;
+      x += size + 1;
       if (badge.count !== undefined) {
         chip.count.visible = true;
-        chip.count.style = this.textStyle(Math.round(h * 0.34));
-        chip.count.style.fill = hexToNum(badge.color);
+        chip.count.style = this.textStyle(Math.round(unit * 0.3));
+        chip.count.style.fill = countColor;
         chip.count.text = String(badge.count);
         chip.count.position.set(x, cy);
         x += chip.count.width + 2;
       } else {
         chip.count.visible = false;
       }
-      x += gap * 0.7;
+      x += gap * 0.55;
     }
     return badges.length > 0 ? x : startX;
   }
@@ -370,32 +410,56 @@ export class PlayerHudCapsule {
     const next = this.spec.life;
     if (this.renderedLife !== null && next !== this.renderedLife) {
       const gt = this.theme.gameTheme;
-      const flash = next > this.renderedLife ? gt.pt.buffed : gt.pt.lethal;
-      this.life.style.fill = hexToNum(flash);
+      const gained = next > this.renderedLife;
+      const delta = next - this.renderedLife;
+      this.life.style.fill = hexToNum(gained ? gt.pt.buffed : gt.pt.lethal);
       gsap.killTweensOf(this.life.scale);
       gsap.fromTo(
         this.life.scale,
-        { x: 1.35, y: 1.35 },
+        { x: 1.3, y: 1.3 },
         { x: 1, y: 1, duration: 0.45, ease: "back.out(2)" },
       );
       gsap.delayedCall(0.5, () => {
         if (!this.life.destroyed) this.life.style.fill = hexToNum(gt.textOnTinted);
       });
+      this.floatLifeDelta(delta, gained ? gt.pt.buffed : gt.pt.lethal);
     }
     this.renderedLife = next;
   }
 
-  private applyPriority(accent: number): void {
+  private floatLifeDelta(delta: number, color: string): void {
+    if (this.column) return;
+    this.lifeFloat.text = delta > 0 ? `+${delta}` : String(delta);
+    this.lifeFloat.style = this.textStyle(Math.round(this.avatarDia * 0.42), "900");
+    this.lifeFloat.style.fill = hexToNum(color);
+    this.lifeFloat.visible = true;
+    gsap.killTweensOf(this.lifeFloat);
+    gsap.fromTo(
+      this.lifeFloat,
+      { alpha: 1, x: this.avatarCx, y: this.avatarCy },
+      {
+        alpha: 0,
+        y: this.avatarCy - this.avatarDia * 0.7,
+        duration: 0.9,
+        ease: "power1.out",
+        onComplete: () => {
+          if (!this.lifeFloat.destroyed) this.lifeFloat.visible = false;
+        },
+      },
+    );
+  }
+
+  private applyPriority(): void {
     if (this.spec.isPriorityPlayer === this.priorityActive) {
-      if (this.priorityActive) this.drawGlow(accent);
+      if (this.priorityActive) this.drawGlow();
       return;
     }
     this.priorityActive = this.spec.isPriorityPlayer;
     if (this.priorityActive) {
-      this.drawGlow(accent);
+      this.drawGlow();
       this.glow.visible = true;
       this.pulse = gsap.to(this.glow, {
-        alpha: 0.55,
+        alpha: 0.5,
         duration: 0.85,
         ease: "sine.inOut",
         repeat: -1,
@@ -409,16 +473,16 @@ export class PlayerHudCapsule {
     }
   }
 
-  private drawGlow(accent: number): void {
-    const d = this.height;
+  private drawGlow(): void {
     this.glow.clear();
-    this.glow.circle(d / 2, d / 2, d * 0.62);
-    this.glow.fill({ color: accent, alpha: 0.25 });
+    this.glow.circle(this.avatarCx, this.avatarCy, this.avatarDia * 0.62);
+    this.glow.fill({ color: hexToNum(this.theme.gameTheme.activeAction.priority), alpha: 0.22 });
   }
 
   destroy(): void {
     this.pulse?.kill();
     gsap.killTweensOf(this.life.scale);
+    gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);
     for (const chip of this.chips) gsap.killTweensOf(chip.sprite);
     this.container.destroy({ children: true });

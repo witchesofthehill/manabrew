@@ -15,6 +15,7 @@ export interface PlayerHudSpec {
   isActiveTurn: boolean;
   isPriorityPlayer: boolean;
   isTargetable: boolean;
+  isSelectedTarget: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
 }

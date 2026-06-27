@@ -130,6 +130,8 @@ interface GameBoardProps {
   handSelectionMode?: boolean;
   handSelectedIds?: Set<string>;
   onHandCardToggle?: (cardId: string) => void;
+  onLayoutChange?: (layout: BoardCanvasLayout) => void;
+  boardSurfaceRef?: (el: HTMLDivElement | null) => void;
 }
 
 export function GameBoard({
@@ -195,6 +197,8 @@ export function GameBoard({
   handSelectionMode,
   handSelectedIds,
   onHandCardToggle,
+  onLayoutChange,
+  boardSurfaceRef,
 }: GameBoardProps) {
   const selfStops = usePhaseStopStore((s) => s.selfStops);
   const toggleSelfStop = usePhaseStopStore((s) => s.toggleSelfStop);
@@ -448,6 +452,13 @@ export function GameBoard({
   );
 
   const boardRef = useRef<HTMLDivElement>(null);
+  const setBoardRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      boardRef.current = el;
+      boardSurfaceRef?.(el);
+    },
+    [boardSurfaceRef],
+  );
 
   const battlefieldAutoSort = usePreferencesStore((s) => s.battlefieldAutoSort);
   const [unifiedLayout, setUnifiedLayout] = useState<BoardCanvasLayout | null>(null);
@@ -896,7 +907,7 @@ export function GameBoard({
 
   return (
     <div
-      ref={boardRef}
+      ref={setBoardRef}
       className="game-board-surface relative flex flex-col min-h-0 flex-1 overflow-hidden"
     >
       <ReconnectBanner />
@@ -925,7 +936,10 @@ export function GameBoard({
           sceneRef={sceneRef}
           getHandActions={getHandActions}
           onSelectHandAction={(_card, action) => onSelectHandAction?.(action)}
-          onLayout={setUnifiedLayout}
+          onLayout={(layout) => {
+            setUnifiedLayout(layout);
+            onLayoutChange?.(layout);
+          }}
         />
       </div>
       {isFeatureEnabled("debugBattlegroundRects") &&

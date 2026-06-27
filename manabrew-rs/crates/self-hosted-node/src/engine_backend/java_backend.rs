@@ -85,7 +85,7 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
-        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None });
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
@@ -1146,7 +1146,7 @@ fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
         PromptInput::ChooseAction(_) => {
             Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                until_phase: None,
+                until: None,
             }))
         }
         _ => None,
@@ -1260,7 +1260,7 @@ impl JavaScenario {
                             Ok(Some(action))
                         } else {
                             Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                                until_phase: None,
+                                until: None,
                             })))
                         }
                     }
@@ -1304,7 +1304,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })))
                         }
                     }
                     other => Err(format!(

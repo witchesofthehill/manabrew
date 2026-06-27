@@ -183,8 +183,8 @@ final class ManabrewProtocolAdapter {
                 return parseActionId(asString(output, "actionId"));
             case "pass":
                 flat.addProperty("kind", "pass");
-                if (output.has("untilPhase") && !output.get("untilPhase").isJsonNull()) {
-                    flat.addProperty("until", output.get("untilPhase").getAsString());
+                if (output.has("until") && output.get("until").isJsonObject()) {
+                    flat.add("until", output.getAsJsonObject("until"));
                 }
                 return flat;
             case "concede":

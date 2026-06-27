@@ -11,6 +11,14 @@ pub struct ChooseActionInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/chooseAction.ts")]
+pub struct PassUntil {
+    pub player_id: String,
+    pub phase: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -21,7 +29,7 @@ pub enum ChooseActionOutput {
     Pass {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        until_phase: Option<String>,
+        until: Option<PassUntil>,
     },
     Concede,
     RestoreSnapshot {

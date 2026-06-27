@@ -77,7 +77,7 @@ impl BotAgent for SimpleAi {
                 };
                 Some(PromptOutput::ChooseAction(
                     pick.map(|action_id| ChooseActionOutput::Act { action_id })
-                        .unwrap_or(ChooseActionOutput::Pass { until_phase: None }),
+                        .unwrap_or(ChooseActionOutput::Pass { until: None }),
                 ))
             }
             PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {

@@ -46,14 +46,12 @@ export interface RightActionPanelProps {
 export interface MainActionOverlayProps {
   promptType?: PromptActionType;
   isWaitingForResponse: boolean;
-  isAutoPassing: boolean;
-  isPassingUntilEot: boolean;
+  isWaitingForOthers: boolean;
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;
   onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
-  selectedAttackDefenderLabel?: string | null;
   multipleAttackDefenders: boolean;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
@@ -72,10 +70,8 @@ export interface MainActionOverlayProps {
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
   onCompleteTargets?: (() => void) | null;
-  onConcede: () => void;
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
-  isMyPriority: boolean;
   turn: number;
   activePlayerName: string;
   isMyTurn: boolean;
@@ -101,4 +97,5 @@ export interface MainActionOverlayProps {
   mulliganPutBackCount?: number;
   mulliganSelectedCount?: number;
   onMulliganPutBackConfirm?: () => void;
+  selfClusterMaxHeight?: number;
 }

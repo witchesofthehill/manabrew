@@ -88,9 +88,6 @@ export const CARD_BANNER_CONTAINER =
  *  stays comfortably narrower than the card width at every hover scale. */
 export const CARD_BANNER_TEXT = "text-[7px] font-bold px-1 py-[1px] rounded leading-none" as const;
 
-/** Attack confirm button */
-export const BUTTON_ATTACK = "flex items-center gap-1" as const;
-
 /** Block confirm button */
 export const BUTTON_CONFIRM_BLOCKS = "" as const;
 

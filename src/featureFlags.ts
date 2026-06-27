@@ -9,7 +9,7 @@ export const featureFlags = {
    *  colours). Debug aid only — does not affect play. */
   debugBattlegroundRects: false,
   /** Draw every field's battlefield grid cells (free + blocked) so the on-grid
-   *  layout and snapping can be inspected. Debug aid only — does not affect play. */
+   *  layout and snapping can be inspected. Debug aid only – does not affect play. */
   debugShowGrid: false,
 } as const;
 

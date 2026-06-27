@@ -23,7 +23,7 @@ pub mod reorder_cards;
 pub mod reveal;
 pub mod scry;
 
-pub use choose_action::{ChooseActionInput, ChooseActionOutput};
+pub use choose_action::{ChooseActionInput, ChooseActionOutput, PassUntil};
 pub use choose_attackers::{ChooseAttackersInput, ChooseAttackersOutput};
 pub use choose_blockers::{ChooseBlockersInput, ChooseBlockersOutput};
 pub use choose_board_targets::{ChooseBoardTargetsInput, ChooseBoardTargetsOutput};

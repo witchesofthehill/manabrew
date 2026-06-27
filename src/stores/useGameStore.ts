@@ -21,7 +21,6 @@ import type { Prompt, PromptOutput } from "@/protocol";
 import type { CardDto, GameViewDto } from "@/protocol/game";
 import type { Deck, DeckCard } from "@/protocol/deck";
 import type { EngineKind } from "@/types/server";
-import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import type { GameRuntime, ManualTabletopApi } from "@/game";
 
@@ -124,6 +123,7 @@ async function initializeGame({
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
+      relinquishedPriority: false,
       gameConfig: { formatId: selectedFormatId, startingLife },
       isPrefetchingCards: true,
       debugInfo: "Starting hosted Forge engine...",
@@ -173,6 +173,7 @@ async function initializeGame({
     deferredQueue: [],
     isFlashing: false,
     isWaitingForResponse: false,
+    relinquishedPriority: false,
     gameConfig: { formatId: selectedFormatId, startingLife },
     gameDecks,
     isPrefetchingCards: true,
@@ -202,6 +203,7 @@ export const useGameStore = create<GameState>()(
       deferredQueue: [],
       isFlashing: false,
       isWaitingForResponse: false,
+      relinquishedPriority: false,
       gameConfig: null,
       isMultiplayer: false,
       isHost: false,
@@ -356,6 +358,7 @@ export const useGameStore = create<GameState>()(
             deferredQueue: [],
             isFlashing: false,
             isWaitingForResponse: false,
+            relinquishedPriority: false,
             debugInfo: "Starting multiplayer game...",
             isPrefetchingCards: true,
             gameDecks,
@@ -405,17 +408,27 @@ export const useGameStore = create<GameState>()(
           console.warn(`[store] respond(${output.type}) ignored — already waiting for a response`);
           return;
         }
+        // A pass / empty combat declaration relinquishes priority: reflect
+        // "waiting for others" optimistically, before the engine state lags in.
+        const relinquishedPriority =
+          output.type === "pass" ||
+          ((output.type === "declareAttackers" || output.type === "declareBlockers") &&
+            output.assignments.length === 0);
         try {
-          // Only explicit player actions (not passes) cancel auto-pass.
-          if (output.type !== "pass") {
-            usePhaseStopStore.getState().clearPassUntil();
-          }
-          set({ isWaitingForResponse: true, debugInfo: `Responding: ${output.type}` });
+          set({
+            isWaitingForResponse: true,
+            relinquishedPriority,
+            debugInfo: `Responding: ${output.type}`,
+          });
           const { myPlayerSlot } = get();
           const runtime = getSelectedGameRuntime();
           await runtime.api.respond({ action, playerSlot: myPlayerSlot });
         } catch (e) {
-          set({ isWaitingForResponse: false, debugInfo: `Respond error: ${e}` });
+          set({
+            isWaitingForResponse: false,
+            relinquishedPriority: false,
+            debugInfo: `Respond error: ${e}`,
+          });
           console.error("Failed to respond:", e);
         }
       },
@@ -454,6 +467,7 @@ export const useGameStore = create<GameState>()(
           deferredQueue: [],
           isFlashing: false,
           isWaitingForResponse: false,
+          relinquishedPriority: false,
           isMultiplayer: false,
           isHost: false,
           myPlayerSlot: null,

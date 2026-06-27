@@ -186,7 +186,7 @@ impl WasmTransport {
                         js_sys::Atomics::store(&self.signal, 0, SIGNAL_IDLE).unwrap_or(0);
                         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
                         return PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                            until_phase: None,
+                            until: None,
                         });
                     }
                 }
@@ -202,7 +202,7 @@ impl WasmTransport {
         js_sys::Atomics::notify(&self.signal, 0).unwrap_or(0);
 
         serde_json::from_slice(&json_bytes).unwrap_or(PromptOutput::ChooseAction(
-            ChooseActionOutput::Pass { until_phase: None },
+            ChooseActionOutput::Pass { until: None },
         ))
     }
 }

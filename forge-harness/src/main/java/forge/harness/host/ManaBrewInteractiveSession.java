@@ -161,22 +161,29 @@ public final class ManaBrewInteractiveSession {
     static final class PriorityChoice {
         private final PriorityActionKind kind;
         private final SpellAbility action;
+        private final String untilPlayer;
         private final String untilPhase;
         private final Card untapCard;
         private final String color;
 
-        private PriorityChoice(final PriorityActionKind kind, final SpellAbility action, final String untilPhase) {
-            this(kind, action, untilPhase, null, null);
+        private PriorityChoice(
+                final PriorityActionKind kind,
+                final SpellAbility action,
+                final String untilPlayer,
+                final String untilPhase) {
+            this(kind, action, untilPlayer, untilPhase, null, null);
         }
 
         private PriorityChoice(
                 final PriorityActionKind kind,
                 final SpellAbility action,
+                final String untilPlayer,
                 final String untilPhase,
                 final Card untapCard,
                 final String color) {
             this.kind = kind;
             this.action = action;
+            this.untilPlayer = untilPlayer;
             this.untilPhase = untilPhase;
             this.untapCard = untapCard;
             this.color = color;
@@ -188,6 +195,10 @@ public final class ManaBrewInteractiveSession {
 
         SpellAbility action() {
             return action;
+        }
+
+        String untilPlayer() {
+            return untilPlayer;
         }
 
         String untilPhase() {
@@ -216,25 +227,29 @@ public final class ManaBrewInteractiveSession {
                 action = actions.take();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
-                return new PriorityChoice(PriorityActionKind.PASS, null, null);
+                return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
             }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(kind) || "pass_priority".equals(kind)) {
-                final String until = action.has("until") && !action.get("until").isJsonNull()
-                        ? action.get("until").getAsString()
+                final JsonObject until = action.has("until") && action.get("until").isJsonObject()
+                        ? action.getAsJsonObject("until")
                         : null;
-                return new PriorityChoice(PriorityActionKind.PASS, null, until);
+                final String untilPlayer = until != null && until.has("playerId")
+                        && !until.get("playerId").isJsonNull() ? until.get("playerId").getAsString() : null;
+                final String untilPhase = until != null && until.has("phase")
+                        && !until.get("phase").isJsonNull() ? until.get("phase").getAsString() : null;
+                return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase);
             }
             if ("untap_land".equals(kind)) {
                 final Card untapCard = resolveUntapCard(action, untappableCards);
-                return new PriorityChoice(PriorityActionKind.UNDO, null, null, untapCard, null);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null, null, untapCard, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("action index out of range: " + index);
                 }
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null);
             }
             if ("tap_land".equals(kind)) {
                 if (!action.has("manaAbilityIndex") || action.get("manaAbilityIndex").isJsonNull()) {
@@ -247,11 +262,11 @@ public final class ManaBrewInteractiveSession {
                 final String color = action.has("color") && !action.get("color").isJsonNull()
                         ? action.get("color").getAsString()
                         : null;
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, color);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, null, color);
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
-        return new PriorityChoice(PriorityActionKind.PASS, null, null);
+        return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
     }
 
     enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL, DELVE, UNDELVE }

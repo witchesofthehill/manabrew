@@ -3,18 +3,27 @@ package forge.harness.host;
 import forge.game.Game;
 import forge.game.combat.Combat;
 import forge.game.phase.PhaseType;
+import forge.game.player.Player;
+import forge.harness.common.SnapshotExtractor;
 
 final class PriorityFastForward {
     private PriorityFastForward() {}
-
-    static boolean shouldSkip(final Game game, final String untilPhase) {
-        if (untilPhase == null) {
-            return false;
-        }
+    static boolean reachedTarget(final Game game, final String untilPlayer, final String untilPhase) {
         final PhaseType target = parseStep(untilPhase);
         if (target == null) {
-            return false;
+            return true;
         }
+        final PhaseType current = game.getPhaseHandler().getPhase();
+        final Player active = game.getPhaseHandler().getPlayerTurn();
+        if (current == null || active == null) {
+            return true;
+        }
+        final String activeSlot = "player-" + SnapshotExtractor.playerIndex(game, active);
+        return activeSlot.equals(untilPlayer) && !current.isBefore(target);
+    }
+
+    /** Auto-pass (skip the prompt) only with an empty stack outside active combat. */
+    static boolean canSkip(final Game game) {
         final PhaseType current = game.getPhaseHandler().getPhase();
         if (current == null) {
             return false;
@@ -22,10 +31,7 @@ final class PriorityFastForward {
         if (isActiveCombat(game, current)) {
             return false;
         }
-        if (!game.getStack().isEmpty()) {
-            return false;
-        }
-        return current.isBefore(target);
+        return game.getStack().isEmpty();
     }
 
     private static boolean isActiveCombat(final Game game, final PhaseType current) {

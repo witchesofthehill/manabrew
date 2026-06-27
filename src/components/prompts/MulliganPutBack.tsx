@@ -29,6 +29,7 @@ export function MulliganPutBack({
         {selectedCount}/{count} to library bottom
       </p>
       <MulliganButton
+        className="w-full"
         color={colors.defenseAction}
         label="CONFIRM"
         icon={<Check className="h-3.5 w-3.5" />}

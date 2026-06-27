@@ -953,6 +953,12 @@ export class BoardScene {
     return Math.max(0, zone.y + zone.height - rect.y);
   }
 
+  private handReserveCb: ((px: number) => void) | null = null;
+  private lastEmittedHandReserve = -1;
+  setOnHandReserveChange(cb: ((px: number) => void) | null): void {
+    this.handReserveCb = cb;
+  }
+
   private localBlockers(): BlockingRect[] {
     const rects = [...this.externalBlockers];
     const handRect = this.hand?.getBlockerRect();
@@ -1261,6 +1267,11 @@ export class BoardScene {
     }
     this.animateFloaters();
     this.captureStackSeeds();
+    const handReserve = this.handReserveBottom();
+    if (this.handReserveCb && handReserve !== this.lastEmittedHandReserve) {
+      this.lastEmittedHandReserve = handReserve;
+      this.handReserveCb(handReserve);
+    }
     if (this.dropActive) {
       const local = this.localRegion();
       if (this.hand?.isDraggingPermanent()) {

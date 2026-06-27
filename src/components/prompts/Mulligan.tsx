@@ -1,8 +1,6 @@
 /**
  * Keep / Mulligan buttons rendered inside `MainActionOverlay` — the
  * same bottom-right slot that hosts Pass Priority during normal play.
- * The full-width buttons (`MulliganButton`) always show a visible
- * label so the two options are distinguishable without a hover tip.
  */
 import { Check, RotateCw } from "lucide-react";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
@@ -15,33 +13,23 @@ export interface MulliganProps {
   onMulligan: () => void;
 }
 
-export function Mulligan({
-  isWaitingForResponse,
-  mulliganCount,
-  onKeep,
-  onMulligan,
-}: MulliganProps) {
+export function Mulligan({ isWaitingForResponse, onKeep, onMulligan }: MulliganProps) {
   const colors = usePromptActionColors();
-  const subtitle =
-    mulliganCount === 0
-      ? "Opening hand"
-      : `Mulligan ${mulliganCount} · keep puts ${mulliganCount} back`;
 
   return (
-    <div className="flex w-3/5 flex-col gap-1.5">
-      <p className="text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {subtitle}
-      </p>
+    <div className="flex flex-row items-center justify-center gap-1.5">
       <MulliganButton
+        className="flex-1"
         color={colors.defenseAction}
-        label="KEEP"
+        label="Keep"
         icon={<Check className="h-3.5 w-3.5" />}
         onClick={onKeep}
         disabled={isWaitingForResponse}
       />
       <MulliganButton
+        className="flex-1"
         color={colors.cancel}
-        label="MULLIGAN"
+        label="Mulligan"
         icon={<RotateCw className="h-3.5 w-3.5" />}
         onClick={onMulligan}
         disabled={isWaitingForResponse}

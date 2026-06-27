@@ -52,6 +52,7 @@ function route(
   if (snapshot.prompt) {
     updates.currentPrompt = snapshot.prompt;
     updates.isWaitingForResponse = false;
+    updates.relinquishedPriority = false;
   }
   set(updates);
 }

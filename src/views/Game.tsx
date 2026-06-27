@@ -103,6 +103,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
+  const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
   const gameLog = useGameStore((s) => s.gameLog);
   const snapshots = useGameStore((s) => s.snapshots);
   const debugInfo = useGameStore((s) => s.debugInfo);
@@ -1450,7 +1451,10 @@ export default function Game({ exitTo }: GameProps = {}) {
               <MainActionOverlay
                 promptType={promptType}
                 isWaitingForResponse={isWaitingForResponse}
-                isWaitingForOthers={isWaitingForResponse && gameView.priorityPlayerId !== me.id}
+                isWaitingForOthers={
+                  relinquishedPriority ||
+                  (isWaitingForResponse && gameView.priorityPlayerId !== me.id)
+                }
                 availableAttackerIds={
                   chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
                 }

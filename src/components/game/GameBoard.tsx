@@ -521,6 +521,7 @@ export function GameBoard({
   );
 
   const gameDecks = useGameStore((s) => s.gameDecks);
+  const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
   const myAvatar = usePreferencesStore((s) => s.customAvatar);
   const defaultPlaymat = usePreferencesStore((s) => s.defaultPlaymat);
   const defaultPlaymatSettings = usePreferencesStore((s) => s.defaultPlaymatSettings);
@@ -553,15 +554,23 @@ export function GameBoard({
         playerId: me.id,
         isLocal: true,
         state: pixiBattlefield,
-        playmat: myDeckHasPlaymat ? myDeck?.playmat : defaultPlaymat,
-        playmatSettings: myDeckHasPlaymat ? myDeck?.playmatSettings : defaultPlaymatSettings,
+        playmat: hiddenPlaymats.has(me.id)
+          ? undefined
+          : myDeckHasPlaymat
+            ? myDeck?.playmat
+            : defaultPlaymat,
+        playmatSettings: hiddenPlaymats.has(me.id)
+          ? undefined
+          : myDeckHasPlaymat
+            ? myDeck?.playmatSettings
+            : defaultPlaymatSettings,
       },
       ...opponents.map((op) => ({
         playerId: op.id,
         isLocal: false,
         state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
-        playmat: gameDecks[op.id]?.playmat,
-        playmatSettings: gameDecks[op.id]?.playmatSettings,
+        playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
+        playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
       })),
     ];
   }, [
@@ -575,6 +584,7 @@ export function GameBoard({
     selectableBattlefieldCardIds,
     hostileTargeting,
     gameDecks,
+    hiddenPlaymats,
     defaultPlaymat,
     defaultPlaymatSettings,
   ]);

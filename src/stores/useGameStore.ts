@@ -207,6 +207,15 @@ export const useGameStore = create<GameState>()(
       isHost: false,
       myPlayerSlot: null,
       gameDecks: {},
+      hiddenPlaymats: new Set<string>(),
+
+      togglePlaymatHidden: (playerId) =>
+        set((state) => {
+          const next = new Set(state.hiddenPlaymats);
+          if (next.has(playerId)) next.delete(playerId);
+          else next.add(playerId);
+          return { hiddenPlaymats: next };
+        }),
 
       updateGameView: (view) => set({ gameView: view }),
 
@@ -458,6 +467,7 @@ export const useGameStore = create<GameState>()(
           isHost: false,
           myPlayerSlot: null,
           gameDecks: {},
+          hiddenPlaymats: new Set<string>(),
         });
         stopActiveManualRoomSync();
         resetSelectedGameRuntime();

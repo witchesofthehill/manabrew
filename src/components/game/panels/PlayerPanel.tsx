@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { GameIcon } from "@/components/game/GameIcon";
 import { ManaPool as ManaPoolDisplay } from "./ManaPool";
 import { PlayerAvatar } from "./PlayerAvatar";
+import { PlayerPanelMenu } from "./PlayerPanelMenu";
 import { ZoneActionColumn } from "@/components/game/ZoneActionColumn";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
@@ -261,7 +262,7 @@ export function PlayerPanel({
   const seatColor = themeColors.playerColors[seat];
 
   const avatarCell = (
-    <div className="h-[100px] flex items-center justify-center pointer-events-auto w-fit shrink-0">
+    <div className="relative h-[100px] flex items-center justify-center pointer-events-auto w-fit shrink-0">
       <PlayerAvatar
         player={effectivePlayer}
         badges={orbitBadges}
@@ -274,6 +275,7 @@ export function PlayerPanel({
         onTarget={onTarget}
         isFlashing={isFlashing}
       />
+      <PlayerPanelMenu playerId={player.id} className="absolute top-0 right-0 z-20" />
     </div>
   );
 

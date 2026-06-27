@@ -541,9 +541,12 @@ export function GameBoard({
     const roomByName = new Map(currentRoom?.players.map((p) => [p.username, p]) ?? []);
     const concededSet = new Set(concededPlayerIds ?? []);
 
-    const cmdDamageBadges = (player: PlayerDto, isSelf: boolean): PlayerHudBadge[] => {
-      const dev = isSelf ? devOverrides : null;
-      if (dev?.cmdDamage != null) {
+    // Dev overrides are applied to every player (not just self) so the dev
+    // panel can light up each state on all opponents at once. In production
+    // these are all empty/false, so this is a no-op.
+    const dev = devOverrides;
+    const cmdDamageBadges = (player: PlayerDto): PlayerHudBadge[] => {
+      if (dev.cmdDamage != null) {
         return dev.cmdDamage > 0
           ? [
               {
@@ -573,43 +576,42 @@ export function GameBoard({
     };
 
     const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
-      const dev = isSelf ? devOverrides : null;
       const badges = [
         ...buildPlayerHudBadges(
           {
-            isMonarch: dev?.forceMonarch ? true : monarchId === player.id,
-            hasInitiative: dev?.forceInitiative ? true : initiativeHolderId === player.id,
-            poison: dev?.poison ?? player.poison,
-            energy: dev?.energy ?? player.energyCounters,
-            radiation: dev?.radiation ?? player.radiationCounters,
-            experience: dev?.experience ?? player.experienceCounters,
-            ticket: dev?.ticket ?? player.ticketCounters,
-            cityBlessing: dev?.forceCityBlessing ? true : player.hasCityBlessing,
-            ringLevel: dev?.ringLevel ?? player.ringLevel,
-            speed: dev?.speed ?? player.speed,
-            handCount: dev?.handCount ?? player.hand.length,
+            isMonarch: dev.forceMonarch ? true : monarchId === player.id,
+            hasInitiative: dev.forceInitiative ? true : initiativeHolderId === player.id,
+            poison: dev.poison ?? player.poison,
+            energy: dev.energy ?? player.energyCounters,
+            radiation: dev.radiation ?? player.radiationCounters,
+            experience: dev.experience ?? player.experienceCounters,
+            ticket: dev.ticket ?? player.ticketCounters,
+            cityBlessing: dev.forceCityBlessing ? true : player.hasCityBlessing,
+            ringLevel: dev.ringLevel ?? player.ringLevel,
+            speed: dev.speed ?? player.speed,
+            handCount: dev.handCount ?? player.hand.length,
           },
           gameTheme.badges,
         ),
-        ...cmdDamageBadges(player, isSelf),
+        ...cmdDamageBadges(player),
       ];
       return {
         playerId: player.id,
         name: player.name,
         isSelf,
-        life: dev?.life ?? player.life,
+        life: dev.life ?? player.life,
         color,
         avatarUrl: avatarByPlayerId.get(player.id),
         isBot: player.isHuman === false,
-        isActiveTurn: dev?.forceActiveTurn ? true : activePlayerId === player.id,
-        isPriorityPlayer: dev?.forcePriority
+        isActiveTurn: dev.forceActiveTurn ? true : activePlayerId === player.id,
+        isPriorityPlayer: dev.forcePriority
           ? true
           : priorityPlayerId === player.id && activePlayerId !== player.id,
-        isTargetable: dev?.forceTargetable ? true : playerIsTargetable(player.id),
-        isSelectedTarget: dev?.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
-        isFlashing: dev?.forceFlashing ? true : turnFlashPlayerId === player.id,
-        isEliminated: dev?.forceEliminated ? true : concededSet.has(player.id),
-        isDisconnected: dev?.forceDisconnected
+        isTargetable: dev.forceTargetable ? true : playerIsTargetable(player.id),
+        isSelectedTarget: dev.forceSelectedTarget ? true : selectedAttackDefenderId === player.id,
+        isFlashing: dev.forceFlashing ? true : turnFlashPlayerId === player.id,
+        isEliminated: dev.forceEliminated ? true : concededSet.has(player.id),
+        isDisconnected: dev.forceDisconnected
           ? true
           : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
         manaPool: player.manaPool,

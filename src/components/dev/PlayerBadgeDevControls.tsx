@@ -16,10 +16,10 @@ type NumericOverrideKey = {
 const LIFE_BUMP_BASE = 20;
 const NUMERIC_BUMP_BASE = 0;
 
-/** Dev helper surface that forces every player badge so the operator
- *  can inspect visuals without a live game. Injected into the "Dev" tab
- *  of `RightActionPanel`; overrides flow through `useGameDevStore` and
- *  are folded into the local player's Pixi HUD spec in `GameBoard`. */
+/** Dev helper surface that forces every player badge/state so the operator
+ *  can inspect visuals without a live game. Injected into the "Dev" tab of
+ *  `RightActionPanel`; overrides flow through `useGameDevStore` and are folded
+ *  into every player's Pixi HUD spec in `GameBoard` (self + all opponents). */
 export function PlayerBadgeDevControls() {
   const overrides = useGameDevStore((s) => s.playerOverrides);
   const setOverride = useGameDevStore((s) => s.setPlayerOverride);
@@ -41,7 +41,7 @@ export function PlayerBadgeDevControls() {
     <div className="flex flex-col gap-2 mt-2 rounded-md border border-border/70 p-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Player badges (self)
+          Player states (all)
         </span>
         {dirty && (
           <button

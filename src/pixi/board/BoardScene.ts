@@ -60,7 +60,6 @@ import {
   PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
   PLAYER_HUD_SIDE_MARGIN_PX as PLAYER_BAR_SIDE_MARGIN_PX,
   PLAYER_HUD_MAX_WIDTH_PX as PLAYER_BAR_MAX_WIDTH_PX,
-  PLAYER_HUD_COLUMN_HEIGHT_PX as PLAYER_BAR_COLUMN_HEIGHT_PX,
 } from "@/pixi/hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
@@ -424,21 +423,14 @@ export class BoardScene {
         // otherwise a left-aligned bar capped at the max width. A top margin
         // keeps it off the screen edge.
         const column = bandW <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
-        const avail = Math.max(0, bandW - PLAYER_BAR_SIDE_MARGIN_PX * 2);
-        // Expanded bar keeps a FIXED width and overflows a narrow field rather
-        // than resizing/reflowing its contents as the field eases.
-        const barW = column ? avail : PLAYER_BAR_MAX_WIDTH_PX;
-        const barH = column
-          ? Math.min(this.topHeight - PLAYER_BAR_TOP_MARGIN_PX, PLAYER_BAR_COLUMN_HEIGHT_PX)
-          : PLAYER_BAR_HEIGHT_PX;
-        this.playerBars.setRect(
-          this.opponentIds[i]!,
-          left + PLAYER_BAR_SIDE_MARGIN_PX,
-          PLAYER_BAR_TOP_MARGIN_PX,
-          barW,
-          barH,
-          column,
-        );
+        // Collapsed → the panel fills the whole band and the field's full height,
+        // so its solid backing occludes the cards beneath. Expanded → a left-
+        // aligned bar at the fixed max width / capsule height.
+        const barW = column ? bandW : PLAYER_BAR_MAX_WIDTH_PX;
+        const barH = column ? this.topHeight : PLAYER_BAR_HEIGHT_PX;
+        const barX = column ? left : left + PLAYER_BAR_SIDE_MARGIN_PX;
+        const barY = column ? 0 : PLAYER_BAR_TOP_MARGIN_PX;
+        this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
       }
     }
     this.drawDelimiterFog();

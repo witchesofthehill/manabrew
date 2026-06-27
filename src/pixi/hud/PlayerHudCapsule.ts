@@ -71,8 +71,10 @@ interface ContentItem {
 
 /** A single player's HUD: a minimal pill with the avatar as a left-edge cap,
  *  the life total, the floating mana pool, and any active player/game badges.
- *  Collapses to an avatar "sphere" + life when its field is narrow. Owns its own
- *  gsap tweens (life-change pop + floating delta, priority pulse, badge fade). */
+ *  When its field collapses to a narrow band it reflows into a **full-height
+ *  vertical stack** (avatar + life + badges + mana) so all the info stays
+ *  visible. Owns its own gsap tweens (life pop + floating delta, priority pulse,
+ *  badge fade). */
 export class PlayerHudCapsule {
   readonly container: Container;
   private theme: Theme;
@@ -335,13 +337,16 @@ export class PlayerHudCapsule {
     this.bg.circle(cx, cy, r - 0.5);
     this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
 
-    // Targetable draws a pulsing ring in `targetRing`; the static ring here is
-    // only the selected-target and active-turn cues.
+    // Targetable draws a pulsing ring in `targetRing`. The static ring here:
+    // selected-target, then priority (same priority colour as the pass-button
+    // border — `activeAction.priority`), then the active-turn seat colour.
     const accent = this.spec.isSelectedTarget
       ? { c: gt.promptAction.attackAction, w: 2.5, a: 1 }
-      : this.spec.isActiveTurn
-        ? { c: this.spec.color, w: 1.5, a: 0.95 }
-        : null;
+      : this.spec.isPriorityPlayer
+        ? { c: gt.activeAction.priority, w: 2.5, a: 1 }
+        : this.spec.isActiveTurn
+          ? { c: this.spec.color, w: 1.5, a: 0.95 }
+          : null;
     if (accent) {
       this.bg.circle(cx, cy, r - accent.w / 2);
       this.bg.stroke({ color: hexToNum(accent.c), width: accent.w, alpha: accent.a });
@@ -478,6 +483,13 @@ export class PlayerHudCapsule {
   private updateFilters(): void {
     const eliminated = this.spec.isEliminated;
     this.container.filters = eliminated ? [this.greyscale] : [];
+    // A collapsed panel has a solid opaque backing — never dim the container or
+    // the felt would show through it. The greyscale (eliminated) filter still
+    // applies. Dimming is only a de-emphasis cue for the expanded capsule.
+    if (this.column) {
+      this.container.alpha = 1;
+      return;
+    }
     const inactiveOpp =
       !this.spec.isSelf &&
       !this.spec.isActiveTurn &&
@@ -528,9 +540,13 @@ export class PlayerHudCapsule {
     }
   }
 
+  /** Collapsed/narrow field: a full-height vertical stack — avatar + life pill
+   *  on top, then every badge and mana pip stacked down the column so all the
+   *  player info is still visible in the sliver of space. */
   private renderColumn(w: number, h: number): void {
-    this.manaLayer.visible = false;
-    this.badgeLayer.visible = false;
+    const gt = this.theme.gameTheme;
+    this.manaLayer.visible = true;
+    this.badgeLayer.visible = true;
     this.glow.visible = false;
     this.damageWash.visible = false;
     this.flashRing.visible = false;
@@ -538,20 +554,55 @@ export class PlayerHudCapsule {
     this.targetTween = null;
     this.targetableActive = false;
     this.targetRing.visible = false;
-    this.lifeFontSize = Math.round(h * 0.15);
-    this.heart.style = this.heartStyle(Math.round(h * 0.12));
-    this.life.style = this.textStyle(this.lifeFontSize, "800");
-    const diameter = Math.max(8, Math.min(w - 8, h - 28));
+
+    // Solid page-background backing fills the whole collapsed band so the cards
+    // beneath it are occluded (the battlefield felt is inherited from this same
+    // page background, just translucent over the playmat).
+    this.bg.rect(0, 0, w, h);
+    this.bg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
+
+    const pad = 5;
     const cx = w / 2;
-    const cy = 4 + diameter / 2;
+    const avatarD = Math.max(8, Math.min(w - pad * 2, Math.round(w * 0.86)));
+    const avatarCy = pad + avatarD / 2;
     this.avatarCx = cx;
-    this.avatarCy = cy;
-    this.avatarDia = diameter;
-    this.drawAvatar(cx, cy, diameter);
-    const total = this.heart.width + 3 + this.life.width;
-    const ly = cy + diameter / 2 + 4 + Math.max(this.heart.height, this.life.height) / 2;
-    this.heart.position.set(cx - total / 2, ly);
-    this.life.position.set(cx - total / 2 + this.heart.width + 3, ly);
+    this.avatarCy = avatarCy;
+    this.avatarDia = avatarD;
+    this.drawAvatar(cx, avatarCy, avatarD);
+
+    // Life pill straddling the avatar's bottom edge.
+    this.lifeFontSize = Math.round(avatarD * 0.3);
+    this.heart.style = this.heartStyle(Math.round(avatarD * 0.24));
+    this.life.style = this.textStyle(this.lifeFontSize, "800");
+    const padX = Math.round(avatarD * 0.12);
+    const pillH = Math.round(avatarD * 0.32);
+    const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
+    const pillLeft = cx - pillW / 2;
+    const pillCy = avatarCy + avatarD / 2 - pillH * 0.25;
+    this.bg.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
+    this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.9 });
+    this.bg.roundRect(pillLeft + 0.5, pillCy - pillH / 2 + 0.5, pillW - 1, pillH - 1, pillH / 2);
+    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.heart.position.set(pillLeft + padX, pillCy);
+    this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
+
+    // Vertical stack of badges + mana, distributed down the remaining height.
+    const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
+    const badges = this.spec.badges;
+    this.ensurePips(present.length);
+    this.ensureChips(badges.length);
+    const unit = Math.round(w * 0.52);
+    const items: ContentItem[] = [];
+    for (let i = 0; i < badges.length; i++) items.push(this.makeBadgeItem(i, unit));
+    for (let i = 0; i < present.length; i++) items.push(this.makePipItem(i, present[i]!, unit));
+
+    const top = pillCy + pillH / 2 + 6;
+    const availH = h - top - pad;
+    const rowH = items.length > 0 ? Math.min(Math.round(unit * 0.62), availH / items.length) : 0;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]!;
+      it.place(cx - it.w / 2, top + i * rowH + rowH / 2);
+    }
   }
 
   private renderCapsule(h: number): void {
@@ -591,82 +642,84 @@ export class PlayerHudCapsule {
     this.layoutContent(startX, avatarCy, avatarD, gap);
   }
 
+  private makePipItem(i: number, letter: string, unit: number): ContentItem {
+    const pip = this.pips[i]!;
+    const pipSize = Math.round(unit * 0.3);
+    const tex = this.manaTexture(letter);
+    if (tex) pip.sprite.texture = tex;
+    pip.sprite.width = pipSize;
+    pip.sprite.height = pipSize;
+    pip.count.style = this.styled(Math.round(unit * 0.27), "700", this.theme.gameTheme.textMuted);
+    pip.count.text = String(this.spec.manaPool[letter] ?? 0);
+    return {
+      w: pipSize + 2 + pip.count.width,
+      place: (x, y) => {
+        pip.sprite.visible = true;
+        pip.count.visible = true;
+        pip.sprite.position.set(x, y - pipSize / 2);
+        pip.count.position.set(x + pipSize + 2, y);
+      },
+    };
+  }
+
+  private makeBadgeItem(i: number, unit: number): ContentItem {
+    const gt = this.theme.gameTheme;
+    const badge = this.spec.badges[i]!;
+    const chip = this.chips[i]!;
+    const badgeSize = Math.round(unit * 0.4);
+    const tex = this.iconTexture(badge.icon);
+    const wasHidden = !chip.sprite.visible;
+    if (tex) chip.sprite.texture = tex;
+    chip.sprite.tint = hexToNum(badge.color);
+    chip.sprite.width = badgeSize;
+    chip.sprite.height = badgeSize;
+    chip.content = this.badgeTooltip(badge);
+    const hasCount = badge.count !== undefined;
+    let w = badgeSize;
+    if (hasCount) {
+      chip.count.style = this.styled(
+        Math.round(unit * 0.3),
+        badge.lethal ? "800" : "700",
+        badge.lethal ? gt.pt.lethal : gt.textMuted,
+      );
+      chip.count.text = String(badge.count);
+      w += 1 + chip.count.width;
+    }
+    return {
+      w,
+      place: (x, y) => {
+        chip.sprite.visible = true;
+        chip.sprite.position.set(x, y - badgeSize / 2);
+        if (wasHidden && tex) {
+          gsap.killTweensOf(chip.sprite);
+          gsap.from(chip.sprite, { alpha: 0, duration: 0.25, ease: "power2.out" });
+        }
+        if (hasCount) {
+          chip.count.visible = true;
+          chip.count.position.set(x + badgeSize + 1, y);
+        } else {
+          chip.count.visible = false;
+        }
+      },
+    };
+  }
+
   private layoutContent(startX: number, cy: number, unit: number, gap: number): void {
     const present = MANA_LETTERS.filter((l) => (this.spec.manaPool[l] ?? 0) > 0);
     const badges = this.spec.badges;
     this.ensurePips(present.length);
     this.ensureChips(badges.length);
-    const gt = this.theme.gameTheme;
-    const pipSize = Math.round(unit * 0.3);
     const badgeSize = Math.round(unit * 0.4);
-
-    const makePip = (i: number, letter: string): ContentItem => {
-      const pip = this.pips[i]!;
-      const tex = this.manaTexture(letter);
-      if (tex) pip.sprite.texture = tex;
-      pip.sprite.width = pipSize;
-      pip.sprite.height = pipSize;
-      pip.count.style = this.styled(Math.round(unit * 0.27), "700", gt.textMuted);
-      pip.count.text = String(this.spec.manaPool[letter] ?? 0);
-      return {
-        w: pipSize + 2 + pip.count.width,
-        place: (x, y) => {
-          pip.sprite.visible = true;
-          pip.count.visible = true;
-          pip.sprite.position.set(x, y - pipSize / 2);
-          pip.count.position.set(x + pipSize + 2, y);
-        },
-      };
-    };
-
-    const makeBadge = (i: number): ContentItem => {
-      const badge = badges[i]!;
-      const chip = this.chips[i]!;
-      const tex = this.iconTexture(badge.icon);
-      const wasHidden = !chip.sprite.visible;
-      if (tex) chip.sprite.texture = tex;
-      chip.sprite.tint = hexToNum(badge.color);
-      chip.sprite.width = badgeSize;
-      chip.sprite.height = badgeSize;
-      chip.content = this.badgeTooltip(badge);
-      const hasCount = badge.count !== undefined;
-      let w = badgeSize;
-      if (hasCount) {
-        chip.count.style = this.styled(
-          Math.round(unit * 0.3),
-          badge.lethal ? "800" : "700",
-          badge.lethal ? gt.pt.lethal : gt.textMuted,
-        );
-        chip.count.text = String(badge.count);
-        w += 1 + chip.count.width;
-      }
-      return {
-        w,
-        place: (x, y) => {
-          chip.sprite.visible = true;
-          chip.sprite.position.set(x, y - badgeSize / 2);
-          if (wasHidden && tex) {
-            gsap.killTweensOf(chip.sprite);
-            gsap.from(chip.sprite, { alpha: 0, duration: 0.25, ease: "power2.out" });
-          }
-          if (hasCount) {
-            chip.count.visible = true;
-            chip.count.position.set(x + badgeSize + 1, y);
-          } else {
-            chip.count.visible = false;
-          }
-        },
-      };
-    };
 
     // Top row: hand-size badge + the floating mana pool. Bottom row(s): every
     // other badge, wrapping within the panel's max width.
     const handIdx = badges.findIndex((b) => b.id === "hand");
     const top: ContentItem[] = [];
-    if (handIdx >= 0) top.push(makeBadge(handIdx));
-    for (let i = 0; i < present.length; i++) top.push(makePip(i, present[i]!));
+    if (handIdx >= 0) top.push(this.makeBadgeItem(handIdx, unit));
+    for (let i = 0; i < present.length; i++) top.push(this.makePipItem(i, present[i]!, unit));
     const bottom: ContentItem[] = [];
-    for (let i = 0; i < badges.length; i++) if (i !== handIdx) bottom.push(makeBadge(i));
+    for (let i = 0; i < badges.length; i++)
+      if (i !== handIdx) bottom.push(this.makeBadgeItem(i, unit));
 
     const interGap = Math.max(4, Math.round(gap * 0.7));
     const rowH = Math.round(unit * 0.52);

@@ -58,6 +58,8 @@ export const CARD_BADGES = {
   copy: { label: "COPY", style: "bg-card-status-copy/90 text-text-on-tinted" },
 } as const;
 
+export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
+
 export const CARD_W = 72;
 export const CARD_H = 100;
 export const CARD_GAP = 8;

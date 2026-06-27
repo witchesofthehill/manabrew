@@ -885,7 +885,8 @@ export function GameBoard({
     const next: Record<string, BlockingRect[]> = {};
     if (actionEl) {
       const r = actionEl.getBoundingClientRect();
-      next[me.id] = [{ x: r.left - b.left, y: r.top - b.top, width: r.width, height: r.height }];
+      const height = Math.min(r.height, unifiedLayout?.selfClusterMaxHeight ?? r.height);
+      next[me.id] = [{ x: r.left - b.left, y: r.bottom - b.top - height, width: r.width, height }];
     }
     const json = JSON.stringify(next);
     if (json === lastPanelBlockersRef.current) return;

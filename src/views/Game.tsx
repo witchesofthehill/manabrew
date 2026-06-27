@@ -23,6 +23,7 @@ import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { ACTION_DRAWER_BUMP_EVENT } from "@/components/game/game.constants";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag } from "@/hooks/useHandDrag";
@@ -670,8 +671,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       myPlayerId: _earlyMyPlayerId,
     });
 
-  const unifiedPassRef = useRef(unifiedPass);
-  unifiedPassRef.current = unifiedPass;
+  const passPriority = useCallback(() => {
+    window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
+    unifiedPass();
+  }, [unifiedPass]);
+  const unifiedPassRef = useRef(passPriority);
+  unifiedPassRef.current = passPriority;
   const activatePassUntilEotRef = useRef(activatePassUntilEot);
   activatePassUntilEotRef.current = activatePassUntilEot;
   const payManaPrimaryRef = useRef(() => {});
@@ -1465,7 +1470,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                   chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
                 }
                 pendingAttackers={pendingAttackers}
-                onPassPriority={unifiedPass}
+                onPassPriority={passPriority}
                 onPassUntilEot={activatePassUntilEot}
                 selectedAttackDefenderId={attackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}

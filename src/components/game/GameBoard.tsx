@@ -98,6 +98,7 @@ interface GameBoardProps {
   onAssignBlock: (blockerId: string, attackerId: string) => void;
   onUnassignBlock: (blockerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
+  onShowBoardMenu?: () => void;
   onOpenZone: (
     title: string,
     cards: CardDto[],
@@ -181,6 +182,7 @@ export function GameBoard({
   onAssignBlock,
   onUnassignBlock,
   onTargetPlayer,
+  onShowBoardMenu,
   onOpenZone,
   onOpenZoneAndCast,
   onTargetFromZone,
@@ -411,6 +413,7 @@ export function GameBoard({
       },
       onTargetPlayer,
       onShowPlayerSheet: setSheetPlayerId,
+      onShowBoardMenu,
     }),
     [
       promptType,
@@ -431,6 +434,7 @@ export function GameBoard({
       onAssignBlock,
       onUnassignBlock,
       onTargetPlayer,
+      onShowBoardMenu,
       setDragBlockerId,
       setSheetPlayerId,
       setStickyOpponentId,

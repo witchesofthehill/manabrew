@@ -230,6 +230,7 @@ export function BoardCanvas({
       onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
       onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
+      onShowBoardMenu: (...a) => callbacksRef.current.onShowBoardMenu?.(...a),
       onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),

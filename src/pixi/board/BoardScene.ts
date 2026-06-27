@@ -267,6 +267,7 @@ export class BoardScene {
       this.theme,
       (id) => this.callbacks.onTargetPlayer?.(id),
       (id) => this.callbacks.onShowPlayerSheet?.(id),
+      () => this.callbacks.onShowBoardMenu?.(),
     );
     this.playerBars.container.zIndex = 5600;
     this.playerBars.container.visible = false;

@@ -21,6 +21,7 @@ export class PlayerHudLayer {
   private theme: Theme;
   private onTarget: (playerId: string) => void;
   private onShowSheet: (playerId: string) => void;
+  private onMenu: () => void;
   private capsules = new Map<string, PlayerHudCapsule>();
   private tooltip: PlayerHudTooltip;
 
@@ -28,10 +29,12 @@ export class PlayerHudLayer {
     theme: Theme,
     onTarget: (playerId: string) => void,
     onShowSheet: (playerId: string) => void,
+    onMenu: () => void,
   ) {
     this.theme = theme;
     this.onTarget = onTarget;
     this.onShowSheet = onShowSheet;
+    this.onMenu = onMenu;
     this.container = new Container();
     this.container.sortableChildren = true;
     this.tooltip = new PlayerHudTooltip(theme);
@@ -60,6 +63,7 @@ export class PlayerHudLayer {
           spec,
           () => this.onTarget(spec.playerId),
           () => this.onShowSheet(spec.playerId),
+          () => this.onMenu(),
           (content, cx, top, bottom) => {
             if (!content) this.tooltip.hide();
             else this.tooltip.show(content, cx!, top!, bottom!, top! < ANCHOR_BELOW_Y);

@@ -78,6 +78,8 @@ export interface GameCanvasCallbacks {
   onTargetPlayer?: (playerId: string) => void;
   /** Fires when a non-targetable player's avatar is tapped — opens their detail sheet. */
   onShowPlayerSheet?: (playerId: string) => void;
+  /** Fires when the self panel's gear is tapped — opens the board menu. */
+  onShowBoardMenu?: () => void;
   /** Fires when the mouse enters/leaves an opponent's battleground (null off-field). */
   onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;

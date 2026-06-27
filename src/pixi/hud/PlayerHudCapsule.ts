@@ -22,6 +22,7 @@ import { RING_ABILITIES } from "@/components/game/game.constants";
 const BOT_ICON_NAME = "robot-antennas";
 const SKULL_ICON_NAME = "skull-crossed-bones";
 const OFFLINE_ICON_NAME = "aerial-signal";
+const GEAR_ICON_NAME = "cog";
 const FONT = "Inter, system-ui, -apple-system, sans-serif";
 
 /** Avatar circle diameter — fixed so it's identical in the expanded capsule and
@@ -89,6 +90,7 @@ export class PlayerHudCapsule {
   private theme: Theme;
   private onTarget: () => void;
   private onShowSheet: () => void;
+  private onMenu: () => void;
   private onHover: HoverFn;
 
   private bg = new Graphics();
@@ -100,6 +102,8 @@ export class PlayerHudCapsule {
   private bot = new Sprite();
   private skull = new Sprite();
   private offline = new Sprite();
+  private gear = new Sprite();
+  private gearHit = new Graphics();
   private initial: Text;
   private avatarHit = new Graphics();
   private heart: Text;
@@ -127,6 +131,10 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
+  private gearHovered = false;
+  private gearCx = 0;
+  private gearCy = 0;
+  private gearChipR = 0;
   private prevFlashing = false;
   private prevBadgeIds = new Set<string>();
   private lifeFontSize = 15;
@@ -140,6 +148,7 @@ export class PlayerHudCapsule {
     spec: PlayerHudSpec,
     onTarget: () => void,
     onShowSheet: () => void,
+    onMenu: () => void,
     onHover: HoverFn,
   ) {
     this.theme = theme;
@@ -147,6 +156,7 @@ export class PlayerHudCapsule {
     this.isBot = spec.isBot;
     this.onTarget = onTarget;
     this.onShowSheet = onShowSheet;
+    this.onMenu = onMenu;
     this.onHover = onHover;
 
     this.container = new Container();
@@ -156,6 +166,26 @@ export class PlayerHudCapsule {
     this.skull.visible = false;
     this.offline.anchor.set(0.5);
     this.offline.visible = false;
+    this.gear.anchor.set(0.5);
+    this.gear.visible = false;
+    this.gear.eventMode = "none";
+    this.gearHit.visible = false;
+    this.gearHit.eventMode = "static";
+    this.gearHit.cursor = "pointer";
+    this.gearHit.on("pointertap", (e) => {
+      e.stopPropagation();
+      this.onMenu();
+    });
+    this.gearHit.on("pointerover", () => {
+      this.gearHovered = true;
+      this.redrawGearChip();
+      this.styleGear();
+    });
+    this.gearHit.on("pointerout", () => {
+      this.gearHovered = false;
+      this.redrawGearChip();
+      this.styleGear();
+    });
     this.greyscale.desaturate();
     this.glow.eventMode = "none";
     this.damageWash.eventMode = "none";
@@ -196,6 +226,8 @@ export class PlayerHudCapsule {
       this.skull,
       this.offline,
       this.avatarHit,
+      this.gearHit,
+      this.gear,
       this.heart,
       this.life,
       this.manaLayer,
@@ -394,7 +426,7 @@ export class PlayerHudCapsule {
     }
     this.offline.visible = this.spec.isDisconnected && !this.spec.isEliminated;
     if (this.offline.visible) {
-      const ox = cx + r * 0.55;
+      const ox = cx + r * 0.4;
       const oy = cy - r * 0.55;
       const chipR = diameter * 0.3;
       this.bg.circle(ox, oy, chipR);
@@ -413,6 +445,49 @@ export class PlayerHudCapsule {
     this.avatarHit.circle(cx, cy, r);
     this.avatarHit.fill({ color: 0xffffff, alpha: 0.001 });
     this.avatarHit.cursor = "pointer";
+
+    // Self only: a small gear on a chip at the avatar's top-left that opens the
+    // board menu (fullscreen / dev panel / concede).
+    this.gear.visible = this.spec.isSelf;
+    this.gearHit.visible = this.spec.isSelf;
+    if (this.spec.isSelf) {
+      this.gearCx = cx - r * 0.78;
+      this.gearCy = cy - r * 0.58;
+      this.gearChipR = diameter * 0.2;
+      this.redrawGearChip();
+      const tex = this.iconTexture(GEAR_ICON_NAME);
+      if (tex) this.gear.texture = tex;
+      this.gear.position.set(this.gearCx, this.gearCy);
+      this.styleGear();
+    }
+  }
+
+  /** The gear's chip backing — doubles as the click/hover hit area. Brightens on
+   *  hover so it reads as a button. */
+  private redrawGearChip(): void {
+    const gt = this.theme.gameTheme;
+    this.gearHit.clear();
+    this.gearHit.circle(this.gearCx, this.gearCy, this.gearChipR);
+    this.gearHit.fill({
+      color: hexToNum(gt.canvas.shadow),
+      alpha: this.gearHovered ? 1 : 0.92,
+    });
+    this.gearHit.circle(this.gearCx, this.gearCy, this.gearChipR);
+    this.gearHit.stroke({
+      color: hexToNum(this.gearHovered ? gt.activeAction.active : gt.textGhost),
+      width: this.gearHovered ? 1.5 : 1,
+      alpha: this.gearHovered ? 0.95 : 0.35,
+    });
+  }
+
+  /** Gear size + tint, with a hover state so it reads as a clickable button. */
+  private styleGear(): void {
+    const gt = this.theme.gameTheme;
+    const base = this.avatarDia * 0.22;
+    const size = this.gearHovered ? base * 1.18 : base;
+    this.gear.width = size;
+    this.gear.height = size;
+    this.gear.tint = hexToNum(this.gearHovered ? gt.activeAction.active : gt.textMuted);
   }
 
   private ensurePips(n: number): void {

@@ -54,18 +54,6 @@ export class DragHandler {
     this.handExclusion = rect ? { xStart: rect.x, xEnd: rect.x + rect.width, topY: rect.y } : null;
   }
 
-  /**
-   * No-op retained for API compatibility. Overlay keep-out rects are now
-   * enforced via the grid cell-blocked mask (so the card snaps to a legal
-   * cell on drop) instead of mid-drag Y clamps, which used to make any gap
-   * between two stacked blockers unreachable during a drag.
-   */
-  setExtraBlockers(
-    _rects: ReadonlyArray<{ x: number; y: number; width: number; height: number }>,
-  ): void {
-    // intentional no-op
-  }
-
   setCardScale(scale: number): void {
     this.cardScale = Math.max(0.1, scale);
   }

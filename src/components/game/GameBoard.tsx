@@ -4,7 +4,8 @@ import type { Prompt } from "@/protocol";
 import type { BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
-import { BoardArrowsCanvas } from "@/pixi/BoardArrowsCanvas";
+import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
+import type { StackSpec } from "@/pixi/stack/stack.types";
 import { isFeatureEnabled } from "@/featureFlags";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
@@ -16,7 +17,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useGameStore } from "@/stores/useGameStore";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameDevStore } from "@/stores/useGameDevStore";
-import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks, ScreenBounds } from "@/pixi/types";
+import type { ArrowSpec, BattlefieldState, GameCanvasCallbacks } from "@/pixi/types";
 import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
@@ -122,7 +123,11 @@ interface GameBoardProps {
   onUntapLand?: (card: CardDto) => void;
   onUntapLands?: (cardIds: string[]) => void;
 
-  pixiExternalBlockers?: ScreenBounds[];
+  stackSpec: StackSpec;
+  onOpenStack: () => void;
+  onTargetSpell: (spellId: string) => void;
+  onHoverStack: (stackObjectId: string | null) => void;
+  onToggleStack: () => void;
 
   boardSceneRef?: React.MutableRefObject<BoardScene | null>;
 
@@ -193,7 +198,11 @@ export function GameBoard({
   onTapLandAbility,
   onUntapLand,
   onUntapLands,
-  pixiExternalBlockers,
+  stackSpec,
+  onOpenStack,
+  onTargetSpell,
+  onHoverStack,
+  onToggleStack,
   boardSceneRef,
   battlefieldContainerRef,
   handSelectionMode,
@@ -954,7 +963,6 @@ export function GameBoard({
           showPlayerBars
           zoneTiles={zoneTilesByPlayer}
           callbacks={pixiCallbacks}
-          externalBlockers={pixiExternalBlockers}
           isDropActive={isOverBattlefield}
           autoSort={battlefieldAutoSort}
           selfBottomReserve={selfBottomReserve}
@@ -986,7 +994,14 @@ export function GameBoard({
           );
         })}
       <div className="absolute inset-0 z-40 pointer-events-none">
-        <BoardArrowsCanvas sceneRef={sceneRef} />
+        <BoardOverlayCanvas
+          sceneRef={sceneRef}
+          stackSpec={stackSpec}
+          onOpenStack={onOpenStack}
+          onTargetSpell={onTargetSpell}
+          onHoverStack={onHoverStack}
+          onToggleStack={onToggleStack}
+        />
       </div>
       {sheetSpec && <PlayerSheetModal spec={sheetSpec} onClose={() => setSheetPlayerId(null)} />}
     </div>

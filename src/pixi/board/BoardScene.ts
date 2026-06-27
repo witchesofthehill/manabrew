@@ -28,7 +28,7 @@ import {
 import { DragHandler } from "../DragHandler";
 import { cellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_H } from "@/components/game/game.constants";
 import {
   BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
@@ -51,6 +51,7 @@ import type {
   PlayZoneRect,
   ScreenPos,
 } from "../types";
+import type { StackAnchorProvider } from "../stack/stack.types";
 import { BoardRegion } from "./BoardRegion";
 import type { ZoneTileSpec } from "./BoardZoneTiles";
 import {
@@ -175,7 +176,7 @@ export class BoardScene {
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
-  private externalBlockers: BlockingRect[] = [];
+  private stackProvider: StackAnchorProvider | null = null;
 
   private hoveredCell: GridCell | null = null;
   private stackTargetId: string | null = null;
@@ -376,7 +377,6 @@ export class BoardScene {
     const selfZone = this.localZone();
     this.dragHandler.setCardScale(cardScale);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
-    this.dragHandler.setExtraBlockers(this.externalBlockers);
     if (selfZone && this.hand) this.dragHandler.setHandExclusion(this.hand.getBlockerRect());
   }
 
@@ -848,11 +848,8 @@ export class BoardScene {
     this.phaseStrip.setCallbacks(cb);
   }
 
-  setExternalBlockers(rects: BlockingRect[]): void {
-    this.externalBlockers = rects;
-    this.dragHandler.setExtraBlockers(rects);
-    const local = this.localRegion();
-    if (local) local.updateBattlefield(local.getLastState() ?? ({ cards: [] } as BattlefieldState));
+  setStackAnchorProvider(provider: StackAnchorProvider | null): void {
+    this.stackProvider = provider;
   }
 
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
@@ -999,10 +996,8 @@ export class BoardScene {
   }
 
   private localBlockers(): BlockingRect[] {
-    const rects = [...this.externalBlockers];
     const handRect = this.hand?.getBlockerRect();
-    if (handRect) rects.push(handRect);
-    return rects;
+    return handRect ? [handRect] : [];
   }
 
   private entrySeedFor(
@@ -1350,30 +1345,11 @@ export class BoardScene {
 
   private captureStackSeeds(): void {
     const now = performance.now();
-    // Skip the per-node getBoundingClientRect scan (forces a layout reflow) when
-    // the stack is empty — the common case. Captured seeds persist via their TTL.
-    if (document.querySelector("[data-stack-object-id]") === null) {
-      if (this.stackCardSeeds.size > 0) {
-        for (const [id, seed] of this.stackCardSeeds) {
-          if (now - seed.ts > STACK_SEED_TTL_MS) this.stackCardSeeds.delete(id);
-        }
-      }
-      return;
+    for (const seed of this.stackProvider?.getSeeds() ?? []) {
+      this.stackCardSeeds.set(seed.cardId, { x: seed.x, y: seed.y, scale: seed.scale, ts: now });
     }
-    const canvasRect = this.app.canvas.getBoundingClientRect();
-    const els = document.querySelectorAll<HTMLElement>("[data-stack-object-id][data-card-id]");
-    for (const el of els) {
-      const cardId = el.dataset["cardId"];
-      if (!cardId) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 && r.height === 0) continue;
-      this.stackCardSeeds.set(cardId, {
-        x: r.left + r.width / 2 - canvasRect.left,
-        y: r.top + r.height / 2 - canvasRect.top,
-        scale: r.width / CARD_W,
-        ts: now,
-      });
-    }
+    // Seeds for cards that just left the stack persist until their TTL so a
+    // resolving spell still has a position to fly from.
     for (const [id, seed] of this.stackCardSeeds) {
       if (now - seed.ts > STACK_SEED_TTL_MS) this.stackCardSeeds.delete(id);
     }
@@ -1398,12 +1374,12 @@ export class BoardScene {
       resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
     }
     if (this.castingArrow) {
-      // Resolve via the stack's `data-casting-card` marker first — robust for
-      // casts from any zone (incl. the command zone, which has no sprite); fall
-      // back to the card resolver for battlefield ability sources.
+      // Resolve via the stack layer first — robust for casts from any zone
+      // (incl. the command zone, which has no sprite); fall back to the card
+      // resolver for battlefield ability sources.
       const id = this.castingArrow.sourceCardId;
       const from =
-        this.domCenterCanvasLocal(`[data-casting-card="${CSS.escape(id)}"]`, canvasRect) ??
+        this.stackProvider?.getCastingAnchor(id) ??
         this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
         const t = this.theme.gameTheme.pointer;
@@ -1467,10 +1443,7 @@ export class BoardScene {
       case "player":
         return this.domCenterCanvasLocal(`[data-player-id="${CSS.escape(ep.id)}"]`, canvasRect);
       case "stack":
-        return this.domCenterCanvasLocal(
-          `[data-stack-object-id="${CSS.escape(ep.id)}"]`,
-          canvasRect,
-        );
+        return this.stackProvider?.getAnchor(ep.id) ?? null;
       case "placement-ghost": {
         const region = ep.playerId ? this.regions.get(ep.playerId)?.region : this.localRegion();
         return region?.getPlacementGhostCenter() ?? null;

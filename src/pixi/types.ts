@@ -22,8 +22,8 @@ export type HoverPlacement = "auto" | "top-center";
 
 /**
  * Arrow endpoint referenced by game-entity identity so the Pixi scene can
- * resolve the current position from its own sprite maps (canvas-local) or
- * fall back to DOM query (player panels, stack cards).
+ * resolve the current position from its own sprite maps (canvas-local), the
+ * stack anchor provider (stack cards), or a DOM query (player panels).
  */
 export type ArrowEndpoint =
   | { kind: "card"; id: string }
@@ -49,9 +49,10 @@ export interface ArrowSpec {
 }
 
 /**
- * Cursor-following pointer shown during target selection. Source is a
- * React-rendered element with `data-casting-card={id}` (StackDisplay).
- * Target is either a specific card/player (locked target) or the cursor.
+ * Cursor-following pointer shown during target selection. Source is the
+ * casting card's sprite in the Pixi `StackLayer` (resolved via the scene's
+ * stack anchor provider). Target is either a specific card/player (locked
+ * target) or the cursor.
  */
 export interface CastingArrowSpec {
   castingCardId: string;

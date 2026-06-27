@@ -45,7 +45,6 @@ import type {
   ScreenBounds,
 } from "./types";
 import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
-import type { BlockingRect } from "./board/types";
 
 export interface BoardCanvasRegion {
   playerId: string;
@@ -101,7 +100,6 @@ interface BoardCanvasProps {
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
   callbacks: GameCanvasCallbacks;
-  externalBlockers?: BlockingRect[];
   /** Bottom-corner keep-out widths for the hand fan so it centers in the gap. */
   handInsets?: { left: number; right: number };
   isDropActive?: boolean;
@@ -135,7 +133,6 @@ export function BoardCanvas({
   zoneTiles,
   selfBottomReserve,
   callbacks,
-  externalBlockers,
   handInsets,
   isDropActive,
   autoSort,
@@ -419,10 +416,6 @@ export function BoardCanvas({
   useEffect(() => {
     if (phaseStripCallbacks) scene?.setPhaseStripCallbacks(phaseStripCallbacks);
   }, [scene, phaseStripCallbacks]);
-
-  useEffect(() => {
-    scene?.setExternalBlockers(externalBlockers ?? []);
-  }, [scene, externalBlockers]);
 
   useEffect(() => {
     scene?.setHandInsets(handInsets?.left ?? 0, handInsets?.right ?? 0);

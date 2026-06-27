@@ -43,9 +43,18 @@ export interface DevPlayerOverrides {
   forceMonarch: boolean;
   forceInitiative: boolean;
   forceCityBlessing: boolean;
+  forceActiveTurn: boolean;
+  forcePriority: boolean;
+  forceTargetable: boolean;
+  forceSelectedTarget: boolean;
+  forceFlashing: boolean;
+  forceEliminated: boolean;
+  forceDisconnected: boolean;
   poison: number | null;
   energy: number | null;
   radiation: number | null;
+  experience: number | null;
+  ticket: number | null;
   ringLevel: number | null;
   speed: number | null;
   cmdDamage: number | null;
@@ -57,9 +66,18 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   forceMonarch: false,
   forceInitiative: false,
   forceCityBlessing: false,
+  forceActiveTurn: false,
+  forcePriority: false,
+  forceTargetable: false,
+  forceSelectedTarget: false,
+  forceFlashing: false,
+  forceEliminated: false,
+  forceDisconnected: false,
   poison: null,
   energy: null,
   radiation: null,
+  experience: null,
+  ticket: null,
   ringLevel: null,
   speed: null,
   cmdDamage: null,

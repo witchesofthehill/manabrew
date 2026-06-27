@@ -949,6 +949,8 @@ export default function Game({ exitTo }: GameProps = {}) {
             hasCityBlessing: false,
             ringLevel: 0,
             speed: 0,
+            experienceCounters: 0,
+            ticketCounters: 0,
           }) as PlayerDto,
       ),
     ],
@@ -1328,6 +1330,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
+          concededPlayerIds={gameView.concededPlayerIds}
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}

@@ -8,10 +8,10 @@ installPixiPatches();
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
 import {
-  type PlayerBarSpec,
-  PLAYER_BAR_HEIGHT_PX,
-  PLAYER_BAR_TOP_MARGIN_PX,
-} from "./board/PlayerBarLayer";
+  PLAYER_HUD_HEIGHT_PX as PLAYER_BAR_HEIGHT_PX,
+  PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
+} from "./hud/PlayerHudLayer";
+import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldScaleForFraction } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
@@ -229,6 +229,7 @@ export function BoardCanvas({
       onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
       onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
+      onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
       onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),

@@ -874,31 +874,29 @@ export function GameBoard({
     for (const op of opponents)
       oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
     const combatRowByDefender = new Map<string, CombatRow>();
-    if (isFeatureEnabled("multiplayerCombatRows")) {
-      const battlefield = [
-        ...myPermanents,
-        ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
-      ];
-      const cardById = new Map(battlefield.map((c) => [c.id, c]));
-      const rows = buildCombatRows({
-        battlefield,
-        combatAssignments: combatAssignments ?? [],
-        selfId: me.id,
-        playerIds: [me.id, ...opponents.map((o) => o.id)],
-      });
-      for (const row of rows) {
-        const defList = oppCards.get(row.defenderId);
-        if (!defList) continue;
-        for (const attackerId of row.attackerIds) {
-          const card = cardById.get(attackerId);
-          if (!card) continue;
-          const ctrl = oppCards.get(card.controllerId);
-          const idx = ctrl?.findIndex((c) => c.id === attackerId) ?? -1;
-          if (ctrl && idx >= 0) ctrl.splice(idx, 1);
-          defList.push(card);
-        }
-        combatRowByDefender.set(row.defenderId, row);
+    const battlefield = [
+      ...myPermanents,
+      ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
+    ];
+    const cardById = new Map(battlefield.map((c) => [c.id, c]));
+    const rows = buildCombatRows({
+      battlefield,
+      combatAssignments: combatAssignments ?? [],
+      selfId: me.id,
+      playerIds: [me.id, ...opponents.map((o) => o.id)],
+    });
+    for (const row of rows) {
+      const defList = oppCards.get(row.defenderId);
+      if (!defList) continue;
+      for (const attackerId of row.attackerIds) {
+        const card = cardById.get(attackerId);
+        if (!card) continue;
+        const ctrl = oppCards.get(card.controllerId);
+        const idx = ctrl?.findIndex((c) => c.id === attackerId) ?? -1;
+        if (ctrl && idx >= 0) ctrl.splice(idx, 1);
+        defList.push(card);
       }
+      combatRowByDefender.set(row.defenderId, row);
     }
 
     const myDeck = gameDecks[me.id];

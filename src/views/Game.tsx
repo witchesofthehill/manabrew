@@ -953,14 +953,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
-  const battlefieldAttachments = useMemo(
-    () =>
-      (gameView?.battlefield ?? [])
-        .filter((c) => !!c.attachedTo)
-        .map((c) => ({ childId: c.id, parentId: c.attachedTo! })),
-    [gameView?.battlefield],
-  );
-
   const cardZoneTiles = useMemo(() => {
     const map = new Map<string, { playerId: string; key: string }>();
     for (const p of gameView?.players ?? []) {
@@ -979,7 +971,6 @@ export default function Game({ exitTo }: GameProps = {}) {
         blockAssignments,
         combatAssignments,
         activeAttackers,
-        battlefieldAttachments,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
         stageBlockers: true,
@@ -991,7 +982,6 @@ export default function Game({ exitTo }: GameProps = {}) {
       blockAssignments,
       combatAssignments,
       activeAttackers,
-      battlefieldAttachments,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
       cardZoneTiles,
@@ -1031,17 +1021,42 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView, debugCardEnabled, debugCardName, debugBattlefieldKeywords, me?.id]);
 
+  const regionOwnerOf = useCallback((card: CardDto, byId: Map<string, CardDto>): string => {
+    let cur = card;
+    const seen = new Set<string>();
+    while (cur.attachedTo && byId.has(cur.attachedTo) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.attachedTo)!;
+    }
+    return cur.controllerId;
+  }, []);
+
+  const battlefieldById = useMemo(() => {
+    const m = new Map<string, CardDto>();
+    for (const c of gameView?.battlefield ?? []) m.set(c.id, c);
+    return m;
+  }, [gameView?.battlefield]);
+
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
     const pendingSet = new Set(pendingAttackers);
     const list = gameView.battlefield
-      .filter((c) => c.controllerId === me.id)
+      .filter((c) => regionOwnerOf(c, battlefieldById) === me.id)
       .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
     if (debugCardEnabled) {
       list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
     }
     return list;
-  }, [gameView, me, pendingAttackers, debugCardEnabled, debugCardName, debugBattlefieldKeywords]);
+  }, [
+    gameView,
+    me,
+    pendingAttackers,
+    debugCardEnabled,
+    debugCardName,
+    debugBattlefieldKeywords,
+    regionOwnerOf,
+    battlefieldById,
+  ]);
 
   const opponentPermanentsByPlayer = useMemo(() => {
     const map = new Map<string, CardDto[]>();
@@ -1049,11 +1064,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     for (const op of opponents) {
       map.set(
         op.id,
-        gameView.battlefield.filter((c) => c.controllerId === op.id),
+        gameView.battlefield.filter((c) => regionOwnerOf(c, battlefieldById) === op.id),
       );
     }
     return map;
-  }, [gameView, opponents]);
+  }, [gameView, opponents, regionOwnerOf, battlefieldById]);
 
   const stackCardsBySourceId = useMemo(() => {
     const byId = new Map<string, CardDto>();

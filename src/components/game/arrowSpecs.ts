@@ -1,6 +1,6 @@
 import type { ArrowSpec } from "@/pixi/types";
 import type { StackObjectDto } from "@/protocol/game";
-import { TargetingIntent, intentIsHostile } from "@/types/promptType";
+import { intentIsHostile } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 
 export interface BuildArrowSpecsOptions {
@@ -8,7 +8,6 @@ export interface BuildArrowSpecsOptions {
   attackerIds: string[];
   blockAssignments: { blockerId: string; attackerId: string }[];
   combatAssignments: { blockerId: string; attackerId: string }[];
-  battlefieldAttachments?: { childId: string; parentId: string }[];
   // Pre-commit pending attackers are signalled via card-tap visuals only
   // (Game.tsx), never an arrow — multiple opponents / planeswalkers / sieges
   // make any "default" destination misleading.
@@ -37,7 +36,6 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     blockAssignments,
     combatAssignments,
     activeAttackers,
-    battlefieldAttachments,
     stack,
     activeStackObjectId,
     stageBlockers,
@@ -45,16 +43,6 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
   } = opts;
 
   const specs: ArrowSpec[] = [];
-
-  if (battlefieldAttachments) {
-    for (const { childId, parentId } of battlefieldAttachments) {
-      specs.push({
-        from: { kind: "card", id: childId },
-        to: { kind: "card", id: parentId },
-        type: "attach",
-      });
-    }
-  }
 
   for (const { attackerId, defenderId } of activeAttackers) {
     specs.push({
@@ -112,16 +100,12 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
               ? { kind: "stack", id: t.id }
               : null;
       if (!to) continue;
-      if (t.intent === TargetingIntent.Attach) {
-        specs.push({ from: { kind: "stack", id: activeObj.id }, to, type: "attach" });
-      } else {
-        specs.push({
-          from: { kind: "stack", id: activeObj.id },
-          to,
-          type: "casting",
-          hostile: t.intent != null && intentIsHostile(t.intent),
-        });
-      }
+      specs.push({
+        from: { kind: "stack", id: activeObj.id },
+        to,
+        type: "casting",
+        hostile: t.intent != null && intentIsHostile(t.intent),
+      });
     }
   }
 

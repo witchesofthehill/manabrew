@@ -294,6 +294,8 @@ export class BoardScene {
     this.cursorListener = (e: MouseEvent) => {
       this.cursorViewportX = e.clientX;
       this.cursorViewportY = e.clientY;
+      const rect = this.app.canvas.getBoundingClientRect();
+      this.updateHoveredOpponent(e.clientX - rect.left, e.clientY - rect.top);
     };
     window.addEventListener("mousemove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();
@@ -632,11 +634,30 @@ export class BoardScene {
     this.applyDelimiters();
   }
 
+  private delimitersSettling(): boolean {
+    for (let i = 0; i < this.delimCurrent.length; i++) {
+      const target = this.delimTarget[i] ?? this.delimCurrent[i]!;
+      if (Math.abs(target - this.delimCurrent[i]!) > DELIMITER_EASE.SNAP) return true;
+    }
+    return false;
+  }
+
+  private isOverStack(x: number, y: number): boolean {
+    const b = this.stackProvider?.getBounds();
+    return !!b && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+  }
+
   private updateHoveredOpponent(localX: number, localY: number): void {
     const n = this.opponentIds.length;
     const W = this.boardWidth;
     let hovered: string | null = null;
-    if (n > 0 && W > 0 && localY >= 0 && localY <= this.topHeight) {
+    if (
+      n > 0 &&
+      W > 0 &&
+      localY >= 0 &&
+      localY <= this.topHeight &&
+      !this.isOverStack(localX, localY)
+    ) {
       for (let i = 0; i < n; i++) {
         const left = (i === 0 ? 0 : this.delimCurrent[i - 1]!) * W;
         const right = (i === n - 1 ? 1 : this.delimCurrent[i]!) * W;
@@ -1357,6 +1378,7 @@ export class BoardScene {
 
   getArrowDefs(): ArrowDef[] {
     if (this.destroyed) return [];
+    if (this.delimitersSettling()) return [];
     const castDragging = this.hand?.isDraggingPermanent() ?? false;
     if (
       this.arrowSpecs.length === 0 &&
@@ -1369,14 +1391,32 @@ export class BoardScene {
     const resolved: ArrowDef[] = [];
     for (const spec of this.arrowSpecs) {
       const from = this.resolveArrowEndpoint(spec.from, canvasRect);
-      const to = this.resolveArrowEndpoint(spec.to, canvasRect);
+      const to = this.resolveTargetEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
       const pointer = this.theme.gameTheme.pointer;
       const color =
         spec.hostile == null
           ? undefined
           : hexToNum(spec.hostile ? pointer.hostile : pointer.friendly);
-      resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type, color });
+      // Placement arrows landing in a visible field also outline the target slot.
+      let slot: { width: number; height: number } | undefined;
+      if (spec.type === "placement" && spec.to.kind === "placement-ghost" && !to.hint) {
+        const region = spec.to.playerId
+          ? this.regions.get(spec.to.playerId)?.region
+          : this.localRegion();
+        const rect = region?.getPlacementGhostRect();
+        if (rect) slot = { width: rect.width, height: rect.height };
+      }
+      resolved.push({
+        fromX: from.x,
+        fromY: from.y,
+        toX: to.pos.x,
+        toY: to.pos.y,
+        type: spec.type,
+        color,
+        hint: to.hint,
+        slot,
+      });
     }
     if (this.castingArrow) {
       // Resolve via the stack layer first — robust for casts from any zone
@@ -1432,6 +1472,25 @@ export class BoardScene {
       }
     }
     return resolved;
+  }
+
+  private resolveTargetEndpoint(
+    ep: ArrowEndpoint,
+    canvasRect: DOMRect,
+  ): { pos: ScreenPos; hint: boolean } | null {
+    if (ep.kind === "card") {
+      for (const rec of this.regions.values()) {
+        const pos = rec.region.getCardPosition(ep.id);
+        if (!pos) continue;
+        if (rec.region.isCollapsed()) return { pos: rec.region.getBandCenter(), hint: true };
+        return { pos, hint: false };
+      }
+    } else if (ep.kind === "zone-tile" || (ep.kind === "placement-ghost" && ep.playerId)) {
+      const region = this.regions.get(ep.playerId!)?.region;
+      if (region?.isCollapsed()) return { pos: region.getBandCenter(), hint: true };
+    }
+    const pos = this.resolveArrowEndpoint(ep, canvasRect);
+    return pos ? { pos, hint: false } : null;
   }
 
   private resolveArrowEndpoint(ep: ArrowEndpoint, canvasRect: DOMRect): ScreenPos | null {

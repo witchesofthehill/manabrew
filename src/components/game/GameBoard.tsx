@@ -502,11 +502,14 @@ export function GameBoard({
   // React just sets this target.
   const focusedOpponentId = useMemo(() => {
     if (!isSelfTurn) return activePlayerId;
+    // While declaring our own attackers, split the opponents evenly so every
+    // field is expanded and it's clear who can be attacked.
+    if (promptType === "chooseAttackers") return null;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
       return stickyOpponentId;
     }
     return opponents[0]?.id ?? null;
-  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
+  }, [isSelfTurn, activePlayerId, promptType, stickyOpponentId, opponents]);
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.

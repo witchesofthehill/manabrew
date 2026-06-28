@@ -33,10 +33,18 @@ function isManualTabletopApi(
 }
 
 function manualZoneCard(card: DeckCard, playerId: string, zoneId: string): CardDto {
+  const { identity, ...rest } = card;
   return {
     ...GAME_CARD_DEFAULTS,
-    ...card,
+    ...rest,
     id: `manual-card-${crypto.randomUUID()}`,
+    identity: {
+      name: identity.name,
+      setCode: identity.setCode,
+      cardNumber: identity.cardNumber,
+      isToken: false,
+    },
+    foil: identity.foil ?? false,
     controllerId: playerId,
     ownerId: playerId,
     zoneId,

@@ -1,8 +1,8 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
-use manabrew_agent_interface::deck_dto::{CardIdentity, Deck, DeckCard};
 use manabrew_agent_interface::protocol::GameFormat;
+use manabrew_protocol::deck_dto::{Deck, DeckCard, DeckCardIdentity};
 use serde::Deserialize;
 use tracing::warn;
 
@@ -218,7 +218,7 @@ fn default_self_play_seats() -> Vec<DeckSelection> {
 
 fn mono_seat(land: &str, spell: &str) -> DeckSelection {
     let card = |name: &str| DeckCard {
-        identity: CardIdentity {
+        identity: DeckCardIdentity {
             name: name.to_string(),
             ..Default::default()
         },
@@ -268,7 +268,7 @@ fn load_preset_deck(
     for entry in preset.cards {
         for _ in 0..entry.count {
             cards.push(DeckCard {
-                identity: CardIdentity {
+                identity: DeckCardIdentity {
                     name: entry.name.clone(),
                     set_code: entry.set.clone(),
                     ..Default::default()
@@ -298,7 +298,7 @@ fn preset_decks_dir() -> PathBuf {
 fn synthetic_deck(name: &str, commander_name: Option<String>) -> DeckSelection {
     let cards: Vec<DeckCard> = (0..60)
         .map(|_| DeckCard {
-            identity: CardIdentity {
+            identity: DeckCardIdentity {
                 name: "Mountain".to_string(),
                 set_code: "M20".to_string(),
                 ..Default::default()

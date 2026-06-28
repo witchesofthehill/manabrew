@@ -90,9 +90,18 @@ fn main() {
     .expect("write transport/index.ts");
 
     fs::write(
+        out.join("version.ts"),
+        format!(
+            "{HEADER}export const VERSION = \"{}\";\n",
+            env!("CARGO_PKG_VERSION")
+        ),
+    )
+    .expect("write version.ts");
+
+    fs::write(
         out.join("index.ts"),
         format!(
-            "{HEADER}export * from \"./prompts\";\nexport * from \"./transport\";\nexport type * from \"./display\";\nexport type * from \"./game\";\nexport type * from \"./deck\";\n"
+            "{HEADER}export * from \"./prompts\";\nexport * from \"./transport\";\nexport type * from \"./display\";\nexport type * from \"./game\";\nexport type * from \"./deck\";\nexport * from \"./version\";\n"
         ),
     )
     .expect("write index.ts");

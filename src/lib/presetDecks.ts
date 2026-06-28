@@ -43,10 +43,13 @@ export function expandPresetDeckDefinition(preset: PresetDeckDefinition): Deck {
     const name = frontFaceName(entry.name);
     for (let copy = 0; copy < entry.count; copy += 1) {
       const card: DeckCard = {
-        id: `preset:${preset.id}:${index++}:${name}`,
-        name,
-        setCode: entry.set,
-        cardNumber: entry.cardNumber,
+        identity: {
+          id: `preset:${preset.id}:${index++}:${name}`,
+          name,
+          setCode: entry.set,
+          cardNumber: entry.cardNumber,
+          foil: false,
+        },
         color: entry.colors ? entry.colors.join("") : "",
         colorIdentity: entry.colorIdentity ?? [],
         manaCost: entry.manaCost ?? "",

@@ -52,7 +52,7 @@ export function DeckGridCard({
         )}
         onClick={onOpen}
       >
-        <DeckCoverImage cover={cover} alt={cover?.name ?? deck.deck.name} />
+        <DeckCoverImage cover={cover} alt={cover?.identity.name ?? deck.deck.name} />
 
         {/* Darkening overlay so bottom info is always readable */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />

@@ -91,12 +91,13 @@ export function effectiveRarity(card: ScryfallCard | null | undefined): UIRarity
 }
 
 export function deckCardToDraftCard(card: DeckCard): DraftCard {
+  const { name, setCode, cardNumber, foil } = card.identity;
   return {
     id: "",
-    name: card.name,
-    setCode: card.setCode,
-    cardNumber: card.cardNumber,
-    foil: card.foil,
+    name,
+    setCode,
+    cardNumber,
+    foil,
   };
 }
 
@@ -134,10 +135,13 @@ export function refToDeckCard(
   const typeLine = parseTypeLine(info?.type_line ?? "");
   const isDfc = info?.layout === "transform" || info?.layout === "modal_dfc";
   return {
-    id: `pool-${idx}-${ref.setCode}-${ref.cardNumber}`,
-    name: frontFaceName(ref.name),
-    setCode: ref.setCode,
-    cardNumber: ref.cardNumber,
+    identity: {
+      id: `pool-${idx}-${ref.setCode}-${ref.cardNumber}`,
+      name: frontFaceName(ref.name),
+      setCode: ref.setCode,
+      cardNumber: ref.cardNumber,
+      foil: ref.foil,
+    },
     color: (info?.colors ?? []).join(""),
     manaCost: info?.mana_cost ?? "",
     cmc: info?.cmc ?? 0,
@@ -147,7 +151,6 @@ export function refToDeckCard(
     text: info?.oracle_text ?? "",
     layout: info?.layout,
     isDoubleFaced: isDfc,
-    foil: ref.foil,
     colorIdentity: info?.color_identity ?? [],
     uris: entry?.uris ?? PLACEHOLDER_URIS,
   };

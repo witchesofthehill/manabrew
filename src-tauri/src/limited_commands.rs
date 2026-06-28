@@ -1,6 +1,6 @@
 use forge_foundation::sealed_product::PaperCard;
 use forge_limited::{CubeImporter, ThemedChaosDraft, CONSPIRACY_HOOKS};
-use manabrew_agent_interface::deck_dto::CardIdentity;
+use manabrew_protocol::deck_dto::DeckCardIdentity;
 use tauri::State;
 
 use crate::card_db::card_name_known;
@@ -20,14 +20,14 @@ pub async fn limited_get_edition_info(set_code: String) -> Option<EditionInfoDto
 
 /// same shape `limited_start_sealed` / `limited_start_booster_draft` expect
 #[tauri::command]
-pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<CardIdentity>, String> {
+pub async fn limited_get_set_pool(set_code: String) -> Result<Vec<DeckCardIdentity>, String> {
     let edition = limited_bootstrap::editions()
         .get(&set_code)
         .ok_or_else(|| format!("unknown set: {set_code}"))?;
-    let pool: Vec<CardIdentity> = edition
+    let pool: Vec<DeckCardIdentity> = edition
         .cards
         .iter()
-        .map(|entry| CardIdentity {
+        .map(|entry| DeckCardIdentity {
             id: String::new(),
             name: entry.name.clone(),
             set_code: edition.code.clone(),
@@ -185,10 +185,10 @@ pub async fn limited_import_cube(
     let importer = CubeImporter::new(&request.cube_id_or_url)?;
     let cube = importer.parse(&body)?;
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
-    let mut pool: Vec<CardIdentity> = Vec::with_capacity(card_count as usize);
+    let mut pool: Vec<DeckCardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
         for copy in 0..entry.count {
-            pool.push(CardIdentity {
+            pool.push(DeckCardIdentity {
                 id: String::new(),
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),
@@ -248,8 +248,8 @@ pub async fn limited_get_gauntlet_match_decks(
 pub async fn limited_update_gauntlet_human_deck(
     lm: State<'_, LimitedManager>,
     gauntlet_id: String,
-    main: Vec<CardIdentity>,
-    sideboard: Vec<CardIdentity>,
+    main: Vec<DeckCardIdentity>,
+    sideboard: Vec<DeckCardIdentity>,
 ) -> Result<GauntletStateDto, String> {
     let main_cards = main.iter().map(identity_to_paper_card).collect();
     let sideboard_cards = sideboard.iter().map(identity_to_paper_card).collect();
@@ -328,7 +328,7 @@ pub async fn limited_list_sealed_templates() -> Result<Vec<SealedTemplateMetadat
     ])
 }
 
-fn filter_playable(pool: &[CardIdentity]) -> Vec<PaperCard> {
+fn filter_playable(pool: &[DeckCardIdentity]) -> Vec<PaperCard> {
     pool.iter()
         .filter(|c| card_name_known(&c.name))
         .map(identity_to_paper_card)

@@ -377,8 +377,8 @@ export function canBePartners(a: DeckCard, b: DeckCard): boolean {
   if (
     pwA &&
     pwB &&
-    pwA.toLowerCase() === b.name.toLowerCase() &&
-    pwB.toLowerCase() === a.name.toLowerCase()
+    pwA.toLowerCase() === b.identity.name.toLowerCase() &&
+    pwB.toLowerCase() === a.identity.name.toLowerCase()
   )
     return true;
   // Background: one has "Choose a Background" text, the other is a Background
@@ -418,7 +418,7 @@ export function validateDeckSections(
   let commanders: DeckCard[] = deck.commanders ?? [];
   let mainDeck: DeckCard[] = deck.cards;
   if (commanders.length === 0 && input.commanderName) {
-    const idx = mainDeck.findIndex((c) => c.name === input.commanderName);
+    const idx = mainDeck.findIndex((c) => c.identity.name === input.commanderName);
     if (idx >= 0) {
       commanders = [mainDeck[idx]];
       mainDeck = mainDeck.filter((_, i) => i !== idx);
@@ -439,15 +439,15 @@ export function validateDeckSections(
   const copyLimits = new Map<string, number>();
   for (const c of availableCards) {
     if (canHaveAnyNumberOf(c)) {
-      copyLimits.set(c.name, Infinity);
+      copyLimits.set(c.identity.name, Infinity);
       continue;
     }
     const limit = copyLimitFromText(c.text);
-    if (limit !== null) copyLimits.set(c.name, limit);
+    if (limit !== null) copyLimits.set(c.identity.name, limit);
   }
 
   const baseValidation = validateDeck(
-    [...mainDeck, ...commanders].map((c) => c.name),
+    [...mainDeck, ...commanders].map((c) => c.identity.name),
     format,
     copyLimits,
   );
@@ -475,13 +475,13 @@ export function validateDeckSections(
 
     for (const cmd of commanders) {
       if (!isCommanderEligible(cmd)) {
-        errors.push(`"${cmd.name}" is not a legal commander`);
+        errors.push(`"${cmd.identity.name}" is not a legal commander`);
       }
     }
 
     if (commanders.length === 2 && !canBePartners(commanders[0], commanders[1])) {
       errors.push(
-        `"${commanders[0].name}" and "${commanders[1].name}" cannot be paired — both commanders must have a compatible partner ability`,
+        `"${commanders[0].identity.name}" and "${commanders[1].identity.name}" cannot be paired — both commanders must have a compatible partner ability`,
       );
     }
 
@@ -491,7 +491,9 @@ export function validateDeckSections(
         getCardIdentity(card).some((color) => !commanderIdentity.has(color)),
       );
       if (invalid) {
-        errors.push(`Deck contains cards outside commander color identity: ${invalid.name}`);
+        errors.push(
+          `Deck contains cards outside commander color identity: ${invalid.identity.name}`,
+        );
       }
     }
   }
@@ -523,7 +525,7 @@ export function looksLikeCommanderDeck(deck: Deck): boolean {
   const counts = new Map<string, number>();
   for (const card of deck.cards) {
     if (canHaveAnyNumberOf(card)) continue;
-    counts.set(card.name, (counts.get(card.name) ?? 0) + 1);
+    counts.set(card.identity.name, (counts.get(card.identity.name) ?? 0) + 1);
   }
   return [...counts.values()].every((n) => n === 1);
 }

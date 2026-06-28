@@ -368,7 +368,7 @@ export function CardDetailModal({
                     <Minus className="h-3.5 w-3.5" />
                   </Button>
                   <span className="min-w-6 px-1 text-center text-xs font-semibold tabular-nums">
-                    {currentDeck.cards.filter((c) => c.name === card.name).length}
+                    {currentDeck.cards.filter((c) => c.identity.name === card.name).length}
                   </span>
                   <Button
                     size="icon"

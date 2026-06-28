@@ -263,10 +263,11 @@ export function CardPreview({
   // casting the raw CardDto instead left `uris` undefined → crash on index.
   const deckCard: DeckCard = asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const { setCode, cardNumber } = deckCard.identity;
   const cardFaces = useCardFaces({
     name: card.identity.name,
-    setCode: deckCard.setCode,
-    cardNumber: deckCard.cardNumber,
+    setCode,
+    cardNumber,
   });
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];

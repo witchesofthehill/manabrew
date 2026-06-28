@@ -48,9 +48,9 @@ function createManualCard(
     ...(base ?? {}),
     id: `manual-card-${crypto.randomUUID()}`,
     identity: {
-      name: base?.name ?? name,
-      setCode: base?.setCode ?? "",
-      cardNumber: base?.cardNumber ?? "",
+      name: base?.identity.name ?? name,
+      setCode: base?.identity.setCode ?? "",
+      cardNumber: base?.identity.cardNumber ?? "",
       isToken,
     },
     color: base?.color ?? "",

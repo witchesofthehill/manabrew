@@ -41,7 +41,7 @@ function PromptTargetCard({ cardId }: { cardId: string }) {
     return (
       <ScryfallImg
         src={deckCard.uris.normal}
-        alt={deckCard.name}
+        alt={deckCard.identity.name}
         className="w-[88px] h-auto self-start object-contain rounded-lg shadow-md shrink-0"
       />
     );

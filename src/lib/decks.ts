@@ -10,12 +10,17 @@ export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard 
   const { name, setCode, cardNumber, isToken } = gameCard.identity;
   const pool = deck ? getDeckCardPool(deck) : [];
   const exact = pool.find(
-    (c) => c.name === name && c.setCode === setCode && c.cardNumber === cardNumber,
+    (c) =>
+      c.identity.name === name &&
+      c.identity.setCode === setCode &&
+      c.identity.cardNumber === cardNumber,
   );
   if (exact) return exact;
   if (isToken) {
     const target = normalizeTokenName(name);
-    const byName = pool.find((c) => c.name === name || normalizeTokenName(c.name) === target);
+    const byName = pool.find(
+      (c) => c.identity.name === name || normalizeTokenName(c.identity.name) === target,
+    );
     if (byName) return byName;
     const token = peekArchivedToken({ name, setCode, cardNumber });
     if (token) return token;
@@ -26,15 +31,13 @@ export function asDeckCard(deck: Deck | undefined, gameCard: CardDto): DeckCard 
   // Mirrors the engine's `get_by_card_name`, which splits on " // ".
   const matchesName = (deckName: string) =>
     deckName === name || deckName.split(" // ").includes(name);
-  const byName = pool.find((c) => matchesName(c.name));
+  const byName = pool.find((c) => matchesName(c.identity.name));
   if (byName) return byName;
   console.warn(
     `asDeckCard: no deck match for "${name}" (${setCode}#${cardNumber}), rendering by name`,
   );
   return {
-    name,
-    setCode,
-    cardNumber,
+    identity: { id: "", name, setCode, cardNumber },
     // `uris` must be present — renderers index `deckCard.uris[resolution]` directly.
     uris: {},
   } as DeckCard;
@@ -96,12 +99,12 @@ export function deriveTokens(deck: Deck): DeckCard[] {
 }
 
 export function getDeckCardNames(deck: Deck): string[] {
-  return [...deck.cards, ...(deck.commanders ?? [])].map((c) => c.name);
+  return [...deck.cards, ...(deck.commanders ?? [])].map((c) => c.identity.name);
 }
 
 export function getDeckFingerprint(deck: Deck): string {
   const tag = (section: string, list: DeckCard[]) =>
-    list.map((c) => `${section}:${c.name}:${c.setCode}`);
+    list.map((c) => `${section}:${c.identity.name}:${c.identity.setCode}`);
   const serialized = [
     ...tag("main", deck.cards),
     ...tag("sideboard", deck.sideboard),
@@ -114,7 +117,7 @@ export function getDeckFingerprint(deck: Deck): string {
   return JSON.stringify({
     name: deck.name,
     format: deck.format ?? "standard",
-    commander: deck.commanders?.[0]?.name ?? null,
+    commander: deck.commanders?.[0]?.identity.name ?? null,
     cards: serialized,
   });
 }

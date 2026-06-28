@@ -22,9 +22,9 @@ export function PreviewCardInfo({ card }: { card: PreviewCard }) {
   const isGameChanger = useIsGameChangerCard(name);
 
   const mainCopies =
-    currentDeck.cards.filter((c) => c.name === name).length +
-    (currentDeck.commanders?.filter((c) => c.name === name).length ?? 0);
-  const sideCopies = currentDeck.sideboard.filter((c) => c.name === name).length;
+    currentDeck.cards.filter((c) => c.identity.name === name).length +
+    (currentDeck.commanders?.filter((c) => c.identity.name === name).length ?? 0);
+  const sideCopies = currentDeck.sideboard.filter((c) => c.identity.name === name).length;
   const tags = currentDeck.cardTags?.[name.toLowerCase()] ?? [];
 
   const typeLine = [

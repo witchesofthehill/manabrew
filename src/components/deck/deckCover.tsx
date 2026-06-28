@@ -14,7 +14,7 @@ export function DeckCoverImage({ cover, alt, className }: DeckCoverImageProps) {
   return (
     <ScryfallImg
       src={cover.uris.art_crop}
-      alt={alt ?? cover?.name ?? "Deck cover"}
+      alt={alt ?? cover?.identity.name ?? "Deck cover"}
       loading="lazy"
       className={cn(
         "absolute inset-0 h-full w-full object-cover",

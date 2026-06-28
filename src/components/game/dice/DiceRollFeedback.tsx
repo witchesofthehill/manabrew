@@ -93,7 +93,7 @@ function SingleRoll({
             <h2 id="dice-roll-title" className="font-semibold text-base">
               Rolled {summary} (d{sides})
             </h2>
-            <p className="text-xs text-muted-foreground font-medium">{sourceCard?.name}</p>
+            <p className="text-xs text-muted-foreground font-medium">{sourceCard?.identity.name}</p>
           </div>
         </div>
       </Modal.Header>

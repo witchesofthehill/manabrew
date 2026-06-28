@@ -1,4 +1,4 @@
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, CombatAssignmentDto } from "@/protocol/game";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 
 export interface ScreenBounds {
@@ -116,6 +116,12 @@ export interface BattlefieldState {
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
+  /** Opp-vs-opp combat: cards in `cards` that are foreign attackers respawned
+   *  into this defender's combat row (laid out across the row, not the grid). */
+  combatRowAttackerIds?: string[];
+  /** Opp-vs-opp combat: blocks against the combat-row attackers (the blockers are
+   *  this region's own creatures, stacked on top of their attacker). */
+  combatRowBlocks?: CombatAssignmentDto[];
 }
 
 export interface HandState {

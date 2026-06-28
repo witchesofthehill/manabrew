@@ -7,6 +7,7 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { isFeatureEnabled } from "@/featureFlags";
+import { buildCombatRows, type CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
@@ -854,13 +855,49 @@ export function GameBoard({
   ]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
-    const oppState = (cards: CardDto[]): BattlefieldState => ({
+    const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
+      combatRowAttackerIds: combatRow?.attackerIds,
+      combatRowBlocks: combatRow?.blocks,
     });
+
+    // Opp-vs-opp combat: respawn each foreign attacker out of its controller's
+    // band and into its defender's band (where it's laid out in the combat row).
+    const oppCards = new Map<string, CardDto[]>();
+    for (const op of opponents)
+      oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
+    const combatRowByDefender = new Map<string, CombatRow>();
+    if (isFeatureEnabled("multiplayerCombatRows")) {
+      const battlefield = [
+        ...myPermanents,
+        ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
+      ];
+      const cardById = new Map(battlefield.map((c) => [c.id, c]));
+      const rows = buildCombatRows({
+        battlefield,
+        combatAssignments: combatAssignments ?? [],
+        selfId: me.id,
+        playerIds: [me.id, ...opponents.map((o) => o.id)],
+      });
+      for (const row of rows) {
+        const defList = oppCards.get(row.defenderId);
+        if (!defList) continue;
+        for (const attackerId of row.attackerIds) {
+          const card = cardById.get(attackerId);
+          if (!card) continue;
+          const ctrl = oppCards.get(card.controllerId);
+          const idx = ctrl?.findIndex((c) => c.id === attackerId) ?? -1;
+          if (ctrl && idx >= 0) ctrl.splice(idx, 1);
+          defList.push(card);
+        }
+        combatRowByDefender.set(row.defenderId, row);
+      }
+    }
+
     const myDeck = gameDecks[me.id];
     // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
     // resolved here too; multiplayer decks already carry it from the relay.
@@ -884,7 +921,7 @@ export function GameBoard({
       ...opponents.map((op, i) => ({
         playerId: op.id,
         isLocal: false,
-        state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
+        state: oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
         playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
@@ -894,6 +931,8 @@ export function GameBoard({
     me.id,
     opponents,
     opponentPermanentsByPlayer,
+    myPermanents,
+    combatAssignments,
     pixiBattlefield,
     promptType,
     promptAttackerIds,

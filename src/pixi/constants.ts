@@ -84,6 +84,9 @@ export const COMBAT_STAGE_PADDING_PX = 6;
 // sits right at the bar, so its creatures can come up a touch further.
 export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
+// Horizontal spacing between attackers laid out in an opponent's combat row, as
+// a fraction of card width (multiplayer opp-vs-opp visualisation).
+export const COMBAT_ROW_STEP_FRAC = 1.12;
 export const Z_STAGED_REGION = 8000;
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
 export const COMBAT_DIM_ALPHA = 0.3;

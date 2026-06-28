@@ -1,5 +1,5 @@
 import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
-import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
 import type { BattlefieldState, PlayZoneRect, ScreenPos } from "../types";
@@ -38,6 +38,7 @@ import {
   EXIT_SHRINK,
   GAP,
   COMBAT_BLOCKER_OVERLAP_FRAC,
+  COMBAT_ROW_STEP_FRAC,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_PADDING_PX,
   COMBAT_STAGE_SELF_EXTRA_PX,
@@ -118,6 +119,8 @@ export class BoardRegion {
   private stackCounts = new Map<string, number>();
   private nameGroupChildren = new Set<string>();
   private combatStaging: SceneCombatStaging | null = null;
+  private combatRowAttackerIds = new Set<string>();
+  private combatRowBlocks: CombatAssignmentDto[] = [];
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
@@ -518,6 +521,8 @@ export class BoardRegion {
     for (const c of this.lastState?.cards ?? []) prevCards.set(c.id, c);
     const isFirstState = this.lastState === null;
     this.lastState = state;
+    this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
+    this.combatRowBlocks = state.combatRowBlocks ?? [];
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
 
@@ -613,6 +618,7 @@ export class BoardRegion {
     }
 
     this.applyCombatStaging();
+    this.applyCombatRow();
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
@@ -679,6 +685,54 @@ export class BoardRegion {
       entry.targetX = this.host.screenXToLocalX(b.laneScreenX) + offset;
       entry.targetY = b.attackerY + (this.mirrored ? -onAttacker : onAttacker);
       entry.targetZIndex = Z_COMBAT_STAGED + 1;
+    }
+  }
+
+  /** Opp-vs-opp combat: lay the foreign attackers respawned into this defender's
+   *  band across the inner-edge row, then stack this region's blockers on top of
+   *  their attacker. Both attacker and blocker sprites live in this region now,
+   *  so everything is in local coords (no cross-region screen math). */
+  private applyCombatRow(): void {
+    if (this.combatRowAttackerIds.size === 0) return;
+    const ids = [...this.combatRowAttackerIds];
+    const y = this.frontEdgeY();
+    const cardW = CARD_W * this.cardScale;
+    const step = cardW * COMBAT_ROW_STEP_FRAC;
+    const bandLeft = this.clipX ?? this.zone.x;
+    const bandWidth = this.clipWidth ?? this.zone.width;
+    const centerX = bandLeft + bandWidth / 2;
+    const startX = centerX - ((ids.length - 1) * step) / 2;
+
+    const attackerX = new Map<string, number>();
+    ids.forEach((id, i) => {
+      const x = startX + i * step;
+      attackerX.set(id, x);
+      const entry = this.entries.get(id);
+      if (!entry) return;
+      entry.targetX = x;
+      entry.targetY = y;
+      entry.targetZIndex = Z_COMBAT_STAGED;
+    });
+
+    const byAttacker = new Map<string, string[]>();
+    for (const b of this.combatRowBlocks) {
+      const list = byAttacker.get(b.attackerId);
+      if (list) list.push(b.blockerId);
+      else byAttacker.set(b.attackerId, [b.blockerId]);
+    }
+    const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
+    const fanStep = cardW * COMBAT_STAGE_FAN_FRAC;
+    for (const [attackerId, blockerIds] of byAttacker) {
+      const ax = attackerX.get(attackerId);
+      if (ax === undefined) continue;
+      blockerIds.forEach((blockerId, i) => {
+        const entry = this.entries.get(blockerId);
+        if (!entry) return;
+        const offset = (i - (blockerIds.length - 1) / 2) * fanStep;
+        entry.targetX = ax + offset;
+        entry.targetY = y + (this.mirrored ? -onAttacker : onAttacker);
+        entry.targetZIndex = Z_COMBAT_STAGED + 1;
+      });
     }
   }
 

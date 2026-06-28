@@ -714,9 +714,13 @@ export class BoardRegion {
     const ids = [...this.combatRowAttackerIds];
     const y = this.frontEdgeY();
     const cardW = CARD_W * this.cardScale;
-    const step = cardW * COMBAT_ROW_STEP_FRAC;
     const bandLeft = this.clipX ?? this.zone.x;
     const bandWidth = this.clipWidth ?? this.zone.width;
+    // Compress the row to fit the visible band — full spacing when expanded, a
+    // tidy overlapping peek when the band is collapsed to a banner.
+    const fullStep = cardW * COMBAT_ROW_STEP_FRAC;
+    const fitStep = ids.length > 1 ? (bandWidth - cardW) / (ids.length - 1) : fullStep;
+    const step = Math.max(0, Math.min(fullStep, fitStep));
     const centerX = bandLeft + bandWidth / 2;
     const startX = centerX - ((ids.length - 1) * step) / 2;
 
@@ -1187,11 +1191,17 @@ export class BoardRegion {
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
     const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    // An active combat row reserves a card-tall strip at the inner (divider) edge
+    // so the resting grid reflows above it instead of overlapping the attackers.
+    const reserve =
+      this.combatRowAttackerIds.size > 0
+        ? CARD_H * this.cardScale + COMBAT_STAGE_PADDING_PX * 2
+        : 0;
     return {
       x: z.x + pad,
       y: z.y + pad,
       width: Math.max(1, z.width - pad * 2),
-      height: Math.max(1, z.height - pad * 2),
+      height: Math.max(1, z.height - pad * 2 - reserve),
     };
   }
 

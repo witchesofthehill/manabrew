@@ -11,6 +11,11 @@ export const featureFlags = {
   /** Draw every field's battlefield grid cells (free + blocked) so the on-grid
    *  layout and snapping can be inspected. Debug aid only – does not affect play. */
   debugShowGrid: false,
+  /** Show opponent-vs-opponent combat in a per-defender "combat row" on each
+   *  opponent's battlefield (attackers respawn there, blockers stack on top),
+   *  instead of staging every attack at the center divider. Self combat is
+   *  unchanged. Frontend-only visualisation. */
+  multiplayerCombatRows: false,
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;

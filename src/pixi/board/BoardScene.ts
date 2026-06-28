@@ -1371,7 +1371,12 @@ export class BoardScene {
       const from = this.resolveArrowEndpoint(spec.from, canvasRect);
       const to = this.resolveArrowEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
-      resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
+      const pointer = this.theme.gameTheme.pointer;
+      const color =
+        spec.hostile == null
+          ? undefined
+          : hexToNum(spec.hostile ? pointer.hostile : pointer.friendly);
+      resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type, color });
     }
     if (this.castingArrow) {
       // Resolve via the stack layer first — robust for casts from any zone
@@ -1441,13 +1446,18 @@ export class BoardScene {
         return this.domCenterCanvasLocal(`[data-card-id="${CSS.escape(ep.id)}"]`, canvasRect);
       }
       case "player":
-        return this.domCenterCanvasLocal(`[data-player-id="${CSS.escape(ep.id)}"]`, canvasRect);
+        return (
+          this.playerBars.getPlayerAnchor(ep.id) ??
+          this.domCenterCanvasLocal(`[data-player-id="${CSS.escape(ep.id)}"]`, canvasRect)
+        );
       case "stack":
         return this.stackProvider?.getAnchor(ep.id) ?? null;
       case "placement-ghost": {
         const region = ep.playerId ? this.regions.get(ep.playerId)?.region : this.localRegion();
         return region?.getPlacementGhostCenter() ?? null;
       }
+      case "zone-tile":
+        return this.regions.get(ep.playerId)?.region.getZoneTileCenter(ep.key) ?? null;
     }
   }
 

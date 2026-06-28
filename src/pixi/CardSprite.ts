@@ -198,7 +198,7 @@ const BADGE_RULES: BadgeRule[] = [
   { label: "MADNESS", test: (c) => !!c.isMadnessExiled, colorKey: "madness" },
   { label: "WARPED", test: (c) => !!c.isWarpExiled, colorKey: "warped" },
   { label: "COPY", test: (c) => !!c.isCopy, colorKey: "copy" },
-  { label: "TOKEN", test: (c) => !!c.isToken, colorKey: "token" },
+  { label: "TOKEN", test: (c) => !!c.identity.isToken, colorKey: "token" },
 ];
 
 function badgeColor(key: CardStatusKey): number {
@@ -351,7 +351,7 @@ export class CardSprite extends Container {
     });
     this.addChild(this.placeholderGfx);
 
-    this.nameText = new Text({ text: card.name, style: NAME_STYLE });
+    this.nameText = new Text({ text: card.identity.name, style: NAME_STYLE });
     this.nameText.resolution = TEXT_RASTER_RESOLUTION;
     this.nameText.anchor.set(0.5);
     this.nameText.x = CARD_W / 2;
@@ -636,7 +636,7 @@ export class CardSprite extends Container {
     const lightText = activeTheme.gameTheme.textOnTinted;
 
     this.frameGfx.clear();
-    this.frameNameText.text = this.card.name;
+    this.frameNameText.text = this.card.identity.name;
     this.frameTypeText.text = frameTypeLine(this.card);
 
     const pad = 3;
@@ -722,9 +722,9 @@ export class CardSprite extends Container {
    */
   updateCardContent(card: CardDto): void {
     const nameChanged =
-      card.name !== this.card.name ||
-      card.setCode !== this.card.setCode ||
-      card.cardNumber !== this.card.cardNumber ||
+      card.identity.name !== this.card.identity.name ||
+      card.identity.setCode !== this.card.identity.setCode ||
+      card.identity.cardNumber !== this.card.identity.cardNumber ||
       card.isFaceDown !== this.card.isFaceDown ||
       card.isTransformed !== this.card.isTransformed;
     this.card = card;
@@ -733,7 +733,7 @@ export class CardSprite extends Container {
       this._imageLoaded = false;
       this.placeholderGfx.visible = true;
       this.nameText.visible = true;
-      this.nameText.text = card.name;
+      this.nameText.text = card.identity.name;
       this.loadImage();
     }
 

@@ -19,6 +19,13 @@ export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
 
 export const ZONE_COLUMN_RESERVED_PX = 120;
 
+export const ZONE_TILE_KEY = {
+  library: "lib",
+  graveyard: "gy",
+  exile: "ex",
+  command: "cmd",
+} as const;
+
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`
  *  every single-faced card references. */

@@ -24,9 +24,7 @@ export function scryfallToSampleGameCard(
   return {
     ...GAME_CARD_DEFAULTS,
     id: sc.id,
-    name: sc.name,
-    setCode: "",
-    cardNumber: "",
+    identity: { name: sc.name, setCode: "", cardNumber: "", isToken: false },
     color: (sc.colors ?? []).join(""),
     manaCost: sc.mana_cost ?? sc.card_faces?.[0]?.mana_cost ?? "",
     cmc: sc.cmc,

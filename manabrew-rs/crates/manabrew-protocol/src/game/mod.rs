@@ -90,11 +90,19 @@ pub struct PlayerDto {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "game/index.ts")]
-pub struct CardDto {
-    pub id: String,
+pub struct CardIdentity {
     pub name: String,
     pub set_code: String,
     pub card_number: String,
+    pub is_token: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "game/index.ts")]
+pub struct CardDto {
+    pub id: String,
+    pub identity: CardIdentity,
     pub color: String,
     pub mana_cost: String,
     pub cmc: i32,
@@ -126,7 +134,6 @@ pub struct CardDto {
     pub counters: HashMap<String, i32>,
     pub damage: i32,
     pub summoning_sick: bool,
-    pub is_token: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_copy: bool,
     pub is_double_faced: bool,
@@ -173,10 +180,8 @@ pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,
     pub controller_id: String,
-    pub name: String,
+    pub identity: CardIdentity,
     pub text: String,
-    pub set_code: String,
-    pub card_number: String,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
     pub targets: Vec<TargetRef>,

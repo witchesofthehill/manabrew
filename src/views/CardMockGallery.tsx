@@ -82,7 +82,7 @@ function GalleryRow({
       {variant === "realistic" ? (
         <ScryfallImg
           src={entry.uris.normal}
-          alt={card.name}
+          alt={card.identity.name}
           style={size}
           className="rounded object-contain"
         />
@@ -98,7 +98,7 @@ function GalleryRow({
       {showReal && variant !== "realistic" && (
         <ScryfallImg
           src={entry.uris.normal}
-          alt={card.name}
+          alt={card.identity.name}
           style={size}
           className="rounded object-contain opacity-90"
         />

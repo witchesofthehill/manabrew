@@ -411,6 +411,11 @@ export class BoardRegion {
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
   }
 
+  getZoneTileCenter(key: string): ScreenPos | null {
+    const center = this.zoneTiles.getTileCenter(key);
+    return center ? this.localToCanvas(center.x, center.y) : null;
+  }
+
   getLastState(): BattlefieldState | null {
     return this.lastState;
   }

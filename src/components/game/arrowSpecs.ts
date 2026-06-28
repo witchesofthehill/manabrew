@@ -1,7 +1,6 @@
 import type { ArrowSpec } from "@/pixi/types";
 import type { StackObjectDto } from "@/protocol/game";
-import type { TargetRef } from "@/protocol";
-import { TargetingIntent } from "@/types/promptType";
+import { TargetingIntent, intentIsHostile } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 
 export interface BuildArrowSpecsOptions {
@@ -17,6 +16,7 @@ export interface BuildArrowSpecsOptions {
   stack?: StackObjectDto[];
   activeStackObjectId?: string | null;
   stageBlockers?: boolean;
+  cardZoneTiles?: Map<string, { playerId: string; key: string }>;
 }
 
 function getActiveStackObject(
@@ -41,6 +41,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
     stack,
     activeStackObjectId,
     stageBlockers,
+    cardZoneTiles,
   } = opts;
 
   const specs: ArrowSpec[] = [];
@@ -98,23 +99,29 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
   }
 
   if (activeObj) {
-    const targets: TargetRef[] = Array.isArray(activeObj.targets) ? activeObj.targets : [];
-    for (const t of targets) {
-      if (t.intent !== TargetingIntent.Attach) continue;
+    for (const t of activeObj.targets) {
+      const tile = t.kind === "card" ? cardZoneTiles?.get(t.id) : undefined;
       const to: ArrowSpec["to"] | null =
         t.kind === "card"
-          ? { kind: "card", id: t.id }
+          ? tile
+            ? { kind: "zone-tile", playerId: tile.playerId, key: tile.key }
+            : { kind: "card", id: t.id }
           : t.kind === "player"
             ? { kind: "player", id: t.id }
             : t.kind === "spell"
               ? { kind: "stack", id: t.id }
               : null;
       if (!to) continue;
-      specs.push({
-        from: { kind: "stack", id: activeObj.id },
-        to,
-        type: "attach",
-      });
+      if (t.intent === TargetingIntent.Attach) {
+        specs.push({ from: { kind: "stack", id: activeObj.id }, to, type: "attach" });
+      } else {
+        specs.push({
+          from: { kind: "stack", id: activeObj.id },
+          to,
+          type: "casting",
+          hostile: t.intent != null && intentIsHostile(t.intent),
+        });
+      }
     }
   }
 

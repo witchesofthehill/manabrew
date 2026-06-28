@@ -125,5 +125,5 @@ function findCardName(
     ...gameView.battlefield,
     ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
   ];
-  return zones.find((c) => c.id === cardId)?.name;
+  return zones.find((c) => c.id === cardId)?.identity.name;
 }

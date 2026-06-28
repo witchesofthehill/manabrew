@@ -23,7 +23,7 @@ import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { ACTION_DRAWER_BUMP_EVENT } from "@/components/game/game.constants";
+import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag } from "@/hooks/useHandDrag";
@@ -76,7 +76,7 @@ function buildDebugKeywordCard(controllerId: string, name: string, keywords: str
   return {
     ...GAME_CARD_DEFAULTS,
     id: DEBUG_KEYWORD_CARD_ID,
-    name: name.trim() || "Raging Goblin",
+    identity: { name: name.trim() || "Raging Goblin", setCode: "", cardNumber: "", isToken: false },
     color: "R",
     manaCost: "{R}",
     cmc: 1,
@@ -490,7 +490,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const blockRequirementError = useMemo<string | null>(() => {
     if (!blockRequirement) return null;
     const name =
-      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.name ??
+      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.identity.name ??
       "This attacker";
     const creatures = (n: number) => `${n} ${n === 1 ? "creature" : "creatures"}`;
     return blockRequirement.kind === "min"
@@ -961,6 +961,16 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
+  const cardZoneTiles = useMemo(() => {
+    const map = new Map<string, { playerId: string; key: string }>();
+    for (const p of gameView?.players ?? []) {
+      for (const c of p.graveyard) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.graveyard });
+      for (const c of p.exile) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.exile });
+      for (const c of p.commandZone) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.command });
+    }
+    return map;
+  }, [gameView?.players]);
+
   const liveArrowSpecs = useMemo(
     () =>
       buildArrowSpecs({
@@ -973,6 +983,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
         stageBlockers: true,
+        cardZoneTiles,
       }),
     [
       promptType,
@@ -983,6 +994,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       battlefieldAttachments,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
+      cardZoneTiles,
     ],
   );
 
@@ -1167,10 +1179,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
     for (const c of visibleCardsById.values()) {
-      byId.set(c.id, c.name);
+      byId.set(c.id, c.identity.name);
     }
     for (const [sourceId, c] of stackCardsBySourceId.entries()) {
-      if (!byId.has(sourceId)) byId.set(sourceId, c.name);
+      if (!byId.has(sourceId)) byId.set(sourceId, c.identity.name);
     }
     return byId;
   }, [visibleCardsById, stackCardsBySourceId]);

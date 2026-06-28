@@ -33,7 +33,8 @@ export type ArrowEndpoint =
    *  which player's battlefield the ghost points at — when set, the
    *  resolver looks up that player's board region; when omitted it
    *  falls back to the local player's region. */
-  | { kind: "placement-ghost"; playerId?: string };
+  | { kind: "placement-ghost"; playerId?: string }
+  | { kind: "zone-tile"; playerId: string; key: string };
 
 /** Arrows render combat declarations (`attack` / `block`, painterly
  *  variant), attach relationships (`attach`, rune variant — Equipment /
@@ -46,6 +47,7 @@ export interface ArrowSpec {
   from: ArrowEndpoint;
   to: ArrowEndpoint;
   type: ArrowType;
+  hostile?: boolean;
 }
 
 /**

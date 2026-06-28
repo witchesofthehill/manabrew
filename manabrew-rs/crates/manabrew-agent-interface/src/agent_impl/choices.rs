@@ -78,7 +78,7 @@ fn card_name<T: Responder>(agent: &PromptAgent<T>, card_id: CardId) -> String {
         .and_then(|view| {
             view.all_zone_cards()
                 .find(|card| card.id == id)
-                .map(|card| card.name.clone())
+                .map(|card| card.identity.name.clone())
         })
         .unwrap_or(id)
 }

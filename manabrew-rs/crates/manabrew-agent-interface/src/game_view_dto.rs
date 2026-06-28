@@ -311,9 +311,12 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
 
     CardDto {
         id: card_id_str(cid),
-        name,
-        set_code: card.set_code.clone().unwrap_or_default(),
-        card_number: card.card_number.clone().unwrap_or_default(),
+        identity: CardIdentity {
+            name,
+            set_code: card.set_code.clone().unwrap_or_default(),
+            card_number: card.card_number.clone().unwrap_or_default(),
+            is_token: card.is_token,
+        },
         color,
         mana_cost: mana_cost_str,
         cmc,
@@ -350,7 +353,6 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
         counters,
         damage: card.damage,
         summoning_sick: card.summoning_sick && !card.has_haste(),
-        is_token: card.is_token,
         is_copy: card.copied_permanent.is_some(),
         is_double_faced: card.other_part.is_some(),
         flashback_cost: card.get_flashback_cost(),
@@ -489,15 +491,18 @@ impl GameViewDtoExt for GameViewDto {
             .iter()
             .map(|entry| {
                 let source_card = entry.spell_ability.source.map(|cid| game.card(cid));
-                let name = source_card
-                    .map(|c| c.card_name.clone())
-                    .unwrap_or_else(|| "Ability".to_string());
-                let set_code = source_card
-                    .and_then(|c| c.set_code.clone())
-                    .unwrap_or_default();
-                let card_number = source_card
-                    .and_then(|c| c.card_number.clone())
-                    .unwrap_or_default();
+                let identity = CardIdentity {
+                    name: source_card
+                        .map(|c| c.card_name.clone())
+                        .unwrap_or_else(|| "Ability".to_string()),
+                    set_code: source_card
+                        .and_then(|c| c.set_code.clone())
+                        .unwrap_or_default(),
+                    card_number: source_card
+                        .and_then(|c| c.card_number.clone())
+                        .unwrap_or_default(),
+                    is_token: source_card.map(|c| c.is_token).unwrap_or(false),
+                };
                 StackObjectDto {
                     id: format!("stack-{}", entry.id),
                     source_id: entry
@@ -506,10 +511,8 @@ impl GameViewDtoExt for GameViewDto {
                         .map(card_id_str)
                         .unwrap_or_default(),
                     controller_id: player_id_str(entry.spell_ability.activating_player),
-                    name,
+                    identity,
                     text: entry.spell_ability.ability_text.clone(),
-                    set_code,
-                    card_number,
                     is_permanent_spell: entry.is_creature_spell || entry.is_permanent_spell,
                     is_casting: entry.is_pending_cast,
                     targets: collect_stack_targets(&entry.spell_ability),

@@ -72,13 +72,13 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
-// ── Cast (source→cursor targeting arrow — bold dashed, big filled head) ─────
-const CAST_STROKE_WIDTH = 5;
-const CAST_ALPHA = 0.9;
-const CAST_DASH = 15;
-const CAST_GAP = 10;
-const CAST_HEAD_LEN = 22;
-const CAST_HEAD_WIDTH = 18;
+// ── Cast (targeting arrow — slim dashed, marching-ants) ─────────────────────
+const CAST_STROKE_WIDTH = 3;
+const CAST_ALPHA = 0.85;
+const CAST_DASH = 10;
+const CAST_GAP = 7;
+const CAST_HEAD_LEN = 14;
+const CAST_HEAD_WIDTH = 12;
 
 interface DashedArrowStyle {
   color: number;
@@ -222,7 +222,9 @@ export class ArrowLayer {
   private arrows: ArrowDef[] = [];
   private pool: ArrowEntry[] = [];
   private elapsedMs = 0;
-  private placementDashOffset = 0;
+  // Shared marching-ants phase for the dashed arrows (placement + casting).
+  // Period is a common multiple of both dash cycles so each stays seamless.
+  private dashMarchOffset = 0;
   private clear = true;
 
   constructor() {
@@ -247,9 +249,9 @@ export class ArrowLayer {
   update(arrows: ArrowDef[], deltaMs = 0): void {
     if (arrows.length === 0 && this.clear) return;
     this.elapsedMs += deltaMs;
-    this.placementDashOffset =
-      (this.placementDashOffset + (deltaMs / 1000) * PLACEMENT_DASH_SPEED_PX_PER_SEC) %
-      (PLACEMENT_DASH + PLACEMENT_GAP);
+    this.dashMarchOffset =
+      (this.dashMarchOffset + (deltaMs / 1000) * PLACEMENT_DASH_SPEED_PX_PER_SEC) %
+      ((PLACEMENT_DASH + PLACEMENT_GAP) * (CAST_DASH + CAST_GAP));
     this.arrows = arrows;
     this.ensurePool(arrows.length);
     this.redraw();
@@ -325,7 +327,7 @@ export class ArrowLayer {
           gap: CAST_GAP,
           headLen: CAST_HEAD_LEN,
           headWidth: CAST_HEAD_WIDTH,
-          dashOffset: 0,
+          dashOffset: this.dashMarchOffset,
         });
         return;
       case "attach":
@@ -340,7 +342,7 @@ export class ArrowLayer {
           gap: PLACEMENT_GAP,
           headLen: PLACEMENT_HEAD_LEN,
           headWidth: PLACEMENT_HEAD_WIDTH,
-          dashOffset: this.placementDashOffset,
+          dashOffset: this.dashMarchOffset,
         });
         return;
     }

@@ -1783,7 +1783,7 @@ public final class ManaBrewInteractiveSession {
             } else {
                 final CardDto minimal = new CardDto();
                 minimal.id = "java-card-view-" + card.getId();
-                minimal.name = card.getName();
+                minimal.identity = new CardIdentity(card.getName(), "", "", false);
                 cardArray.add(minimal);
             }
         }

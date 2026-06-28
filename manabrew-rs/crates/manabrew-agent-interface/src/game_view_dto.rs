@@ -7,6 +7,7 @@ use manabrew_engine::mana::ManaPool;
 use manabrew_engine::spellability::SpellAbility;
 
 pub use manabrew_protocol::game::*;
+use manabrew_protocol::prompts::common::{TargetKind, TargetRef};
 
 use crate::ids_codec::{card_id_str, player_id_str, stack_id_str};
 
@@ -104,54 +105,54 @@ pub fn is_hostile_api(sa: &SpellAbility) -> bool {
     targeting_intent_of(sa).is_hostile()
 }
 
-fn collect_stack_targets(root: &SpellAbility) -> Vec<StackTargetDto> {
+fn collect_stack_targets(root: &SpellAbility) -> Vec<TargetRef> {
     let mut out = Vec::new();
-    let mut node_index = 0u32;
     let mut current = Some(root);
 
     while let Some(sa) = current {
-        let mut target_index = 0u32;
         let intent = targeting_intent_of(sa);
-        let hostile = intent.is_hostile();
+        let oracle = stack_target_oracle(sa);
 
         if let Some(cid) = sa.target_chosen.target_card {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Card,
+            out.push(TargetRef {
+                kind: TargetKind::Card,
                 id: card_id_str(cid),
-                node_index,
-                target_index,
-                hostile,
-                intent,
+                intent: Some(intent),
+                oracle: oracle.clone(),
             });
-            target_index += 1;
         }
         if let Some(pid) = sa.target_chosen.target_player {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Player,
+            out.push(TargetRef {
+                kind: TargetKind::Player,
                 id: player_id_str(pid),
-                node_index,
-                target_index,
-                hostile,
-                intent,
+                intent: Some(intent),
+                oracle: oracle.clone(),
             });
-            target_index += 1;
         }
         if let Some(stack_id) = sa.target_chosen.target_stack_entry {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Stack,
+            out.push(TargetRef {
+                kind: TargetKind::Spell,
                 id: stack_id_str(stack_id),
-                node_index,
-                target_index,
-                hostile,
-                intent,
+                intent: Some(intent),
+                oracle: oracle.clone(),
             });
         }
 
-        node_index += 1;
         current = sa.sub_ability.as_deref();
     }
 
     out
+}
+
+fn stack_target_oracle(sa: &SpellAbility) -> Option<String> {
+    let desc = if !sa.stack_description.trim().is_empty() {
+        sa.stack_description.trim()
+    } else if !sa.description.trim().is_empty() {
+        sa.description.trim()
+    } else {
+        return None;
+    };
+    Some(desc.to_string())
 }
 
 fn mana_pool_to_map(pool: &ManaPool) -> HashMap<String, i32> {

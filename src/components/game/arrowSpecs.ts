@@ -1,5 +1,6 @@
 import type { ArrowSpec } from "@/pixi/types";
-import type { StackObjectDto, StackTargetDto } from "@/protocol/game";
+import type { StackObjectDto } from "@/protocol/game";
+import type { TargetRef } from "@/protocol";
 import { TargetingIntent } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 
@@ -84,9 +85,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
 
   const activeObj = getActiveStackObject(stack, activeStackObjectId);
   if (activeObj && activeObj.isPermanentSpell === true) {
-    const hasTargets =
-      Array.isArray((activeObj as unknown as Record<string, unknown>).targets) &&
-      (activeObj as unknown as { targets: unknown[] }).targets.length > 0;
+    const hasTargets = activeObj.targets.length > 0;
     if (!hasTargets) {
       specs.push({
         from: { kind: "stack", id: activeObj.id },
@@ -99,8 +98,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
   }
 
   if (activeObj) {
-    const objAny = activeObj as unknown as Record<string, unknown>;
-    const targets = Array.isArray(objAny.targets) ? (objAny.targets as StackTargetDto[]) : [];
+    const targets: TargetRef[] = Array.isArray(activeObj.targets) ? activeObj.targets : [];
     for (const t of targets) {
       if (t.intent !== TargetingIntent.Attach) continue;
       const to: ArrowSpec["to"] | null =
@@ -108,7 +106,7 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
           ? { kind: "card", id: t.id }
           : t.kind === "player"
             ? { kind: "player", id: t.id }
-            : t.kind === "stack"
+            : t.kind === "spell"
               ? { kind: "stack", id: t.id }
               : null;
       if (!to) continue;

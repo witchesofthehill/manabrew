@@ -576,12 +576,8 @@ pub(super) fn pay_cost_to_prevent_effect<T: Responder>(
 
 fn game_entity_to_target_ref(entity: &GameEntity) -> TargetRef {
     match entity {
-        GameEntity::Card(id) => TargetRef::Card {
-            id: card_id_str(*id),
-        },
-        GameEntity::Player(id) => TargetRef::Player {
-            id: crate::ids_codec::player_id_str(*id),
-        },
+        GameEntity::Card(id) => TargetRef::card(card_id_str(*id)),
+        GameEntity::Player(id) => TargetRef::player(crate::ids_codec::player_id_str(*id)),
     }
 }
 

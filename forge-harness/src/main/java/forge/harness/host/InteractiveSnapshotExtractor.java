@@ -509,26 +509,24 @@ public final class InteractiveSnapshotExtractor {
         if (targets == null) {
             return out;
         }
-        int targetIndex = 0;
+        final String oracle = ability.getStackDescription();
         for (final Card card : targets.getTargetCards()) {
-            out.add(stackTarget("card", SnapshotExtractor.javaCardId(card), targetIndex));
-            targetIndex++;
+            out.add(stackTarget("card", SnapshotExtractor.javaCardId(card), oracle));
         }
         for (final Player player : targets.getTargetPlayers()) {
-            out.add(stackTarget("player", "player-" + SnapshotExtractor.playerIndex(game, player), targetIndex));
-            targetIndex++;
+            out.add(stackTarget("player", "player-" + SnapshotExtractor.playerIndex(game, player), oracle));
         }
         return out;
     }
 
-    private static Map<String, Object> stackTarget(final String kind, final String id, final int targetIndex) {
+    private static Map<String, Object> stackTarget(final String kind, final String id, final String oracle) {
         final Map<String, Object> target = new LinkedHashMap<>();
         target.put("kind", kind);
         target.put("id", id);
-        target.put("nodeIndex", 0);
-        target.put("targetIndex", targetIndex);
-        target.put("hostile", true);
         target.put("intent", "hostile");
+        if (oracle != null && !oracle.isEmpty()) {
+            target.put("oracle", oracle);
+        }
         return target;
     }
 

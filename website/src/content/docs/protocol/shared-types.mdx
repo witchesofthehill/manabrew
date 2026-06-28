@@ -21,10 +21,17 @@ The title/description header most modal prompts open with.
 
 ## TargetRef
 
-A typed reference to a player, card, or spell. The `kind` tag tells the client
-which id space `id` belongs to.
+A typed reference to a player, card, or spell. The `kind` field says which id
+space `id` belongs to; `intent` and `oracle` optionally annotate the target.
 
 <ProtocolType type="TargetRef" />
+
+## TargetKind
+
+Which id space a [`TargetRef`](#targetref) points into — a player, a card, or a
+spell on the stack.
+
+<ProtocolType type="TargetKind" />
 
 ## ScryDestination
 

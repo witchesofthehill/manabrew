@@ -120,6 +120,12 @@ export class BoardZoneTiles {
     this.redraw();
   }
 
+  getTileCenter(key: string): { x: number; y: number } | null {
+    const p = this.placements.get(key);
+    if (!p) return null;
+    return { x: p.x + this.cardW / 2, y: p.y + this.cardH / 2 };
+  }
+
   setGeometry(
     cardW: number,
     cardH: number,

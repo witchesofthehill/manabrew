@@ -78,15 +78,9 @@ fn main() {
         }),
         ChooseBoardTargets(choose_board_targets::ChooseBoardTargetsInput {
             candidates: vec![
-                common::TargetRef::Player {
-                    id: "player-1".into(),
-                },
-                common::TargetRef::Card {
-                    id: "card-1".into(),
-                },
-                common::TargetRef::Spell {
-                    id: "stack-1".into(),
-                },
+                common::TargetRef::player("player-1".into()),
+                common::TargetRef::card("card-1".into()),
+                common::TargetRef::spell("stack-1".into()),
             ],
             hostile: false,
             intent: TargetingIntent::default(),

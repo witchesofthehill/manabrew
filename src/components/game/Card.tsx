@@ -65,7 +65,7 @@ function CardComponent({
   const deckCard = asDeckCard(deck, card);
 
   const imageUrl = deckCard.uris[resolution];
-  const displayName = card.name;
+  const displayName = card.identity.name;
   const themeColors = useTheme().gameTheme;
 
   const creature = isCreature(card);
@@ -155,8 +155,11 @@ function CardComponent({
                 <CardBadge {...CARD_BADGES.warpExiled} />
               ) : card.isCopy ? (
                 <CardBadge {...CARD_BADGES.copy} />
-              ) : card.isToken ? (
-                <CardBadge label={getTokenLabel(card.name)} style={CARD_BADGES.token.style} />
+              ) : card.identity.isToken ? (
+                <CardBadge
+                  label={getTokenLabel(card.identity.name)}
+                  style={CARD_BADGES.token.style}
+                />
               ) : null}
               {card.keywords && card.keywords.length > 0 && (
                 <KeywordChips keywords={card.keywords} />
@@ -192,7 +195,7 @@ function CardComponent({
           <div className="flex justify-between items-start gap-1">
             <span className="font-bold text-xs leading-tight line-clamp-2">{displayName}</span>
             <div className="flex flex-col items-end gap-0.5 shrink-0">
-              {(card.isToken || card.isTransformed) && (
+              {(card.identity.isToken || card.isTransformed) && (
                 <span
                   className={cn(
                     "text-[8px] font-bold px-1 py-0.5 rounded leading-none",
@@ -300,7 +303,7 @@ export const Card = memo(CardComponent, (prev, next) => {
   if (pc === nc) return true;
   if (
     pc.id !== nc.id ||
-    pc.name !== nc.name ||
+    pc.identity.name !== nc.identity.name ||
     pc.power !== nc.power ||
     pc.toughness !== nc.toughness ||
     pc.damage !== nc.damage ||
@@ -316,13 +319,13 @@ export const Card = memo(CardComponent, (prev, next) => {
     pc.isPlotted !== nc.isPlotted ||
     pc.isMadnessExiled !== nc.isMadnessExiled ||
     pc.isWarpExiled !== nc.isWarpExiled ||
-    pc.isToken !== nc.isToken ||
+    pc.identity.isToken !== nc.identity.isToken ||
     pc.isCopy !== nc.isCopy ||
     pc.foil !== nc.foil ||
     pc.isDoubleFaced !== nc.isDoubleFaced ||
     pc.color !== nc.color ||
-    pc.setCode !== nc.setCode ||
-    pc.cardNumber !== nc.cardNumber ||
+    pc.identity.setCode !== nc.identity.setCode ||
+    pc.identity.cardNumber !== nc.identity.cardNumber ||
     pc.zoneId !== nc.zoneId ||
     pc.text !== nc.text ||
     pc.manaCost !== nc.manaCost ||

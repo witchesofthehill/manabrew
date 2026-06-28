@@ -196,7 +196,7 @@ export function BattlefieldCardFace({
         {artCrop && (
           <ScryfallImg
             src={artCrop}
-            alt={card.name}
+            alt={card.identity.name}
             className="absolute inset-0 w-full h-full object-cover"
           />
         )}
@@ -221,7 +221,7 @@ export function BattlefieldCardFace({
               className="font-semibold leading-tight break-words"
               style={{ fontSize: fontName, color: theme.textOnTinted }}
             >
-              {card.name}
+              {card.identity.name}
             </span>
             {typeLine && (
               <span
@@ -288,7 +288,7 @@ export function BattlefieldCardFace({
           className="font-semibold leading-tight truncate"
           style={{ fontSize: fontName, color: barText }}
         >
-          {card.name}
+          {card.identity.name}
         </span>
         <span
           className="shrink-0 flex items-center"
@@ -302,7 +302,7 @@ export function BattlefieldCardFace({
         {artCrop && (
           <ScryfallImg
             src={artCrop}
-            alt={card.name}
+            alt={card.identity.name}
             className="absolute inset-0 w-full h-full object-cover"
           />
         )}

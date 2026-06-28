@@ -30,7 +30,7 @@ export function AbilityPickerModal({
             <h2 className="font-semibold text-base">
               {hasCastOption ? "Choose Action" : "Activate Ability"}
             </h2>
-            <p className="text-xs text-muted-foreground font-medium">{sourceCard.name}</p>
+            <p className="text-xs text-muted-foreground font-medium">{sourceCard.identity.name}</p>
           </div>
         </div>
       </Modal.Header>

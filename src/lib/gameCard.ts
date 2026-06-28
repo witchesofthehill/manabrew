@@ -2,9 +2,7 @@ import type { CardDto } from "@/protocol/game";
 
 export const GAME_CARD_DEFAULTS: CardDto = {
   id: "",
-  name: "",
-  setCode: "",
-  cardNumber: "",
+  identity: { name: "", setCode: "", cardNumber: "", isToken: false },
   color: "",
   manaCost: "",
   cmc: 0,
@@ -24,7 +22,6 @@ export const GAME_CARD_DEFAULTS: CardDto = {
   counters: {},
   damage: 0,
   summoningSick: false,
-  isToken: false,
   isCopy: false,
   isDoubleFaced: false,
   isTransformed: false,

@@ -1,8 +1,23 @@
-import { Container, FillGradient, Graphics } from "pixi.js";
+import { Container, FillGradient, Graphics, Sprite, type Texture } from "pixi.js";
 import type { Theme } from "@/hooks/useTheme";
 import { getTheme } from "@/hooks/useTheme";
 import { hexToNum } from "./colorUtils";
+import { gameIconTexture } from "./gameIconCache";
 import type { ArrowType } from "./types";
+
+// Lazily-loaded "info" game-icon, drawn (pulsing, active-action color) at the
+// end of an arrow whose real target is hidden inside a collapsed field.
+let infoTexture: Texture | null = null;
+let infoLoading = false;
+function ensureInfoTexture(): void {
+  if (infoTexture || infoLoading) return;
+  infoLoading = true;
+  gameIconTexture("info")
+    .then((t) => {
+      infoTexture = t;
+    })
+    .catch(() => {});
+}
 
 // Re-export so existing callers still import ArrowType from this module.
 export type { ArrowType } from "./types";
@@ -16,6 +31,10 @@ export interface ArrowDef {
   /** Explicit hue (e.g. the casting arrow's intent color); falls back to the
    *  type's theme color when omitted. */
   color?: number;
+  hint?: boolean;
+  /** Placement arrows: the target grid slot's size, drawn as a dashed outline
+   *  around the drop point so the player sees exactly where the permanent lands. */
+  slot?: { width: number; height: number };
 }
 
 // ── Layer ordering ─────────────────────────────────────────────────────────
@@ -72,13 +91,20 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
-// ── Cast (source→cursor targeting arrow — bold dashed, big filled head) ─────
-const CAST_STROKE_WIDTH = 5;
-const CAST_ALPHA = 0.9;
-const CAST_DASH = 15;
-const CAST_GAP = 10;
-const CAST_HEAD_LEN = 22;
-const CAST_HEAD_WIDTH = 18;
+// ── Placement target slot (fixed dotted outline of the grid cell) ───────────
+const SLOT_RADIUS = 6;
+const SLOT_DASH = 1;
+const SLOT_GAP = 6;
+const SLOT_STROKE_WIDTH = 2;
+const SLOT_ALPHA = 0.9;
+
+// ── Cast (targeting arrow — slim dashed, marching-ants) ─────────────────────
+const CAST_STROKE_WIDTH = 3;
+const CAST_ALPHA = 0.85;
+const CAST_DASH = 10;
+const CAST_GAP = 7;
+const CAST_HEAD_LEN = 14;
+const CAST_HEAD_WIDTH = 12;
 
 interface DashedArrowStyle {
   color: number;
@@ -183,6 +209,29 @@ function sampleCubic(curve: CubicCurve, steps: number): Point[] {
   return points;
 }
 
+/** Closed rounded-rect perimeter as a polyline (for dashing). */
+function roundedRectPath(cx: number, cy: number, w: number, h: number, r: number): Point[] {
+  const x0 = cx - w / 2;
+  const y0 = cy - h / 2;
+  const x1 = cx + w / 2;
+  const y1 = cy + h / 2;
+  const rr = Math.min(r, w / 2, h / 2);
+  const pts: Point[] = [];
+  const arc = (ax: number, ay: number, a0: number, a1: number): void => {
+    const steps = 5;
+    for (let i = 0; i <= steps; i++) {
+      const a = a0 + (a1 - a0) * (i / steps);
+      pts.push({ x: ax + Math.cos(a) * rr, y: ay + Math.sin(a) * rr });
+    }
+  };
+  arc(x0 + rr, y0 + rr, Math.PI, Math.PI * 1.5);
+  arc(x1 - rr, y0 + rr, Math.PI * 1.5, Math.PI * 2);
+  arc(x1 - rr, y1 - rr, 0, Math.PI * 0.5);
+  arc(x0 + rr, y1 - rr, Math.PI * 0.5, Math.PI);
+  pts.push(pts[0]!);
+  return pts;
+}
+
 /**
  * Symmetric fade-in / fade-out envelope used by all particle variants —
  * matches the spec's `opacity 0;1;1;0` keyframes (fade in for 25%, hold
@@ -211,10 +260,15 @@ interface ArrowEntry {
   coreGfx: Graphics;
   headGfx: Graphics;
   particlesGfx: Graphics;
+  marker: Sprite;
   gradKey: string;
   underGrad: FillGradient | null;
   coreGrad: FillGradient | null;
 }
+
+const HINT_ICON_SIZE = 26;
+const HINT_PULSE_AMP = 0.18;
+const HINT_PULSE_PERIOD_MS = 240;
 
 export class ArrowLayer {
   private root: Container;
@@ -222,7 +276,9 @@ export class ArrowLayer {
   private arrows: ArrowDef[] = [];
   private pool: ArrowEntry[] = [];
   private elapsedMs = 0;
-  private placementDashOffset = 0;
+  // Shared marching-ants phase for the dashed arrows (placement + casting).
+  // Period is a common multiple of both dash cycles so each stays seamless.
+  private dashMarchOffset = 0;
   private clear = true;
 
   constructor() {
@@ -247,9 +303,9 @@ export class ArrowLayer {
   update(arrows: ArrowDef[], deltaMs = 0): void {
     if (arrows.length === 0 && this.clear) return;
     this.elapsedMs += deltaMs;
-    this.placementDashOffset =
-      (this.placementDashOffset + (deltaMs / 1000) * PLACEMENT_DASH_SPEED_PX_PER_SEC) %
-      (PLACEMENT_DASH + PLACEMENT_GAP);
+    this.dashMarchOffset =
+      (this.dashMarchOffset + (deltaMs / 1000) * PLACEMENT_DASH_SPEED_PX_PER_SEC) %
+      ((PLACEMENT_DASH + PLACEMENT_GAP) * (CAST_DASH + CAST_GAP));
     this.arrows = arrows;
     this.ensurePool(arrows.length);
     this.redraw();
@@ -274,10 +330,14 @@ export class ArrowLayer {
       const coreGfx = new Graphics();
       const headGfx = new Graphics();
       const particlesGfx = new Graphics();
+      const marker = new Sprite();
+      marker.anchor.set(0.5);
+      marker.visible = false;
       root.addChild(underGfx);
       root.addChild(coreGfx);
       root.addChild(headGfx);
       root.addChild(particlesGfx);
+      root.addChild(marker);
       this.root.addChild(root);
       this.pool.push({
         root,
@@ -285,6 +345,7 @@ export class ArrowLayer {
         coreGfx,
         headGfx,
         particlesGfx,
+        marker,
         gradKey: "",
         underGrad: null,
         coreGrad: null,
@@ -313,7 +374,7 @@ export class ArrowLayer {
       case "attack":
       case "block":
         this.drawPainterly(entry, arrow);
-        return;
+        break;
       case "casting":
         // Bold dashed targeting arrow (matches the original board's cast arrow)
         // — distinct from the painterly combat stroke.
@@ -325,12 +386,12 @@ export class ArrowLayer {
           gap: CAST_GAP,
           headLen: CAST_HEAD_LEN,
           headWidth: CAST_HEAD_WIDTH,
-          dashOffset: 0,
+          dashOffset: this.dashMarchOffset,
         });
-        return;
+        break;
       case "attach":
         this.drawRune(entry, arrow);
-        return;
+        break;
       case "placement":
         this.drawPlacement(entry, arrow, {
           color: hexToNum(this.theme.gameTheme.activeAction.active),
@@ -340,10 +401,24 @@ export class ArrowLayer {
           gap: PLACEMENT_GAP,
           headLen: PLACEMENT_HEAD_LEN,
           headWidth: PLACEMENT_HEAD_WIDTH,
-          dashOffset: this.placementDashOffset,
+          dashOffset: this.dashMarchOffset,
         });
-        return;
+        break;
     }
+    if (arrow.slot) this.drawPlacementSlot(entry, arrow);
+    entry.marker.visible = false;
+    if (arrow.hint) this.drawHintCallout(entry, arrow.toX, arrow.toY);
+  }
+
+  private drawHintCallout(entry: ArrowEntry, x: number, y: number): void {
+    ensureInfoTexture();
+    if (!infoTexture) return;
+    const pulse = 1 + HINT_PULSE_AMP * Math.sin(this.elapsedMs / HINT_PULSE_PERIOD_MS);
+    entry.marker.texture = infoTexture;
+    entry.marker.tint = hexToNum(this.theme.gameTheme.activeAction.active);
+    entry.marker.scale.set((HINT_ICON_SIZE / infoTexture.width) * pulse);
+    entry.marker.position.set(x, y);
+    entry.marker.visible = true;
   }
 
   // ── Painterly (combat) ───────────────────────────────────────────────────
@@ -529,47 +604,95 @@ export class ArrowLayer {
   private drawPlacement(entry: ArrowEntry, arrow: ArrowDef, style: DashedArrowStyle): void {
     const { ax1, ay1, ax2, ay2 } = shortenEndpoints(arrow.fromX, arrow.fromY, arrow.toX, arrow.toY);
     const curve = cubicCurve(ax1, ay1, ax2, ay2, BOW_PLACEMENT);
-    const color = style.color;
     const points = sampleCubic(curve, PLACEMENT_BEZIER_STEPS);
+    this.strokeDashedPath(entry.coreGfx, points, {
+      dash: style.dash,
+      gap: style.gap,
+      offset: style.dashOffset,
+      color: style.color,
+      width: style.strokeWidth,
+      alpha: style.alpha,
+    });
+    this.drawPlacementHead(entry.headGfx, curve, style.color, style);
+  }
 
-    const cycle = style.dash + style.gap;
-    let drawing = style.dashOffset % cycle < style.dash;
-    let remaining = drawing
-      ? style.dash - (style.dashOffset % cycle)
-      : cycle - (style.dashOffset % cycle);
-
-    const stroke = () =>
-      entry.coreGfx.stroke({
-        color,
-        width: style.strokeWidth,
-        alpha: style.alpha,
-        cap: "round",
-        join: "round",
-      });
+  /** Marching dashes along the placement arrow's bezier polyline. */
+  private strokeDashedPath(
+    gfx: Graphics,
+    points: Point[],
+    s: { dash: number; gap: number; offset: number; color: number; width: number; alpha: number },
+  ): void {
+    const cycle = s.dash + s.gap;
+    let drawing = s.offset % cycle < s.dash;
+    let remaining = drawing ? s.dash - (s.offset % cycle) : cycle - (s.offset % cycle);
+    const stroke = (): Graphics =>
+      gfx.stroke({ color: s.color, width: s.width, alpha: s.alpha, cap: "round", join: "round" });
 
     let prev = points[0]!;
-    if (drawing) entry.coreGfx.moveTo(prev.x, prev.y);
-
+    if (drawing) gfx.moveTo(prev.x, prev.y);
     for (let i = 1; i < points.length; i += 1) {
       const cur = points[i]!;
       const segLen = Math.hypot(cur.x - prev.x, cur.y - prev.y);
       if (segLen <= remaining) {
-        if (drawing) entry.coreGfx.lineTo(cur.x, cur.y);
+        if (drawing) gfx.lineTo(cur.x, cur.y);
         remaining -= segLen;
       } else {
         if (drawing) {
-          entry.coreGfx.lineTo(cur.x, cur.y);
+          gfx.lineTo(cur.x, cur.y);
           stroke();
         }
         drawing = !drawing;
-        remaining = drawing ? style.dash : style.gap;
-        if (drawing) entry.coreGfx.moveTo(cur.x, cur.y);
+        remaining = drawing ? s.dash : s.gap;
+        if (drawing) gfx.moveTo(cur.x, cur.y);
       }
       prev = cur;
     }
     if (drawing) stroke();
+  }
 
-    this.drawPlacementHead(entry.headGfx, curve, color, style);
+  private drawPlacementSlot(entry: ArrowEntry, arrow: ArrowDef): void {
+    if (!arrow.slot) return;
+    const pts = roundedRectPath(
+      arrow.toX,
+      arrow.toY,
+      arrow.slot.width,
+      arrow.slot.height,
+      SLOT_RADIUS,
+    );
+    const gfx = entry.coreGfx;
+    const color = hexToNum(this.theme.gameTheme.activeAction.active);
+    const cycle = SLOT_DASH + SLOT_GAP;
+    let dist = 0;
+    let prev = pts[0]!;
+    for (let i = 1; i < pts.length; i += 1) {
+      const cur = pts[i]!;
+      const segLen = Math.hypot(cur.x - prev.x, cur.y - prev.y);
+      if (segLen === 0) {
+        prev = cur;
+        continue;
+      }
+      const ux = (cur.x - prev.x) / segLen;
+      const uy = (cur.y - prev.y) / segLen;
+      let pos = 0;
+      while (pos < segLen) {
+        const inDash = dist < SLOT_DASH;
+        const step = Math.min((inDash ? SLOT_DASH : cycle) - dist, segLen - pos);
+        if (inDash) {
+          gfx.moveTo(prev.x + ux * pos, prev.y + uy * pos);
+          gfx.lineTo(prev.x + ux * (pos + step), prev.y + uy * (pos + step));
+          gfx.stroke({
+            color,
+            width: SLOT_STROKE_WIDTH,
+            alpha: SLOT_ALPHA,
+            cap: "round",
+            join: "round",
+          });
+        }
+        pos += step;
+        dist = (dist + step) % cycle;
+      }
+      prev = cur;
+    }
   }
 
   private drawPlacementHead(

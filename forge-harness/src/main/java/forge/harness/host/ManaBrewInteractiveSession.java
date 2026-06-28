@@ -1448,7 +1448,7 @@ public final class ManaBrewInteractiveSession {
         final Card source = sa == null ? null : sa.getHostCard();
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
         for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
-            candidateRefs.add(new TargetRef_card(targetId(candidate)));
+            candidateRefs.add(new TargetRef(TargetKind.CARD, targetId(candidate), null, null));
         }
         publishAgentPrompt(
                 "player-" + playerId,
@@ -1729,12 +1729,12 @@ public final class ManaBrewInteractiveSession {
             }
             if (targetCards != null) {
                 for (final Card card : targetCards) {
-                    targets.add(new TargetRef_card(SnapshotExtractor.javaCardId(card)));
+                    targets.add(new TargetRef(TargetKind.CARD, SnapshotExtractor.javaCardId(card), null, null));
                 }
             }
             if (targetPlayers != null) {
                 for (final Player target : targetPlayers) {
-                    targets.add(new TargetRef_player("player-" + SnapshotExtractor.playerIndex(game, target)));
+                    targets.add(new TargetRef(TargetKind.PLAYER, "player-" + SnapshotExtractor.playerIndex(game, target), null, null));
                 }
             }
             confirmLabel = "Pay";
@@ -1783,7 +1783,7 @@ public final class ManaBrewInteractiveSession {
             } else {
                 final CardDto minimal = new CardDto();
                 minimal.id = "java-card-view-" + card.getId();
-                minimal.name = card.getName();
+                minimal.identity = new CardIdentity(card.getName(), "", "", false);
                 cardArray.add(minimal);
             }
         }
@@ -2006,9 +2006,9 @@ public final class ManaBrewInteractiveSession {
 
     private static TargetRef targetRef(final String kind, final String id) {
         switch (kind) {
-            case "player": return new TargetRef_player(id);
-            case "card": return new TargetRef_card(id);
-            case "spell": return new TargetRef_spell(id);
+            case "player": return new TargetRef(TargetKind.PLAYER, id, null, null);
+            case "card": return new TargetRef(TargetKind.CARD, id, null, null);
+            case "spell": return new TargetRef(TargetKind.SPELL, id, null, null);
             default: throw new IllegalArgumentException("unknown target kind: " + kind);
         }
     }

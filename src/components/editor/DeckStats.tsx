@@ -49,7 +49,10 @@ export function DeckStats({ activeBucket = null, onBucketClick }: DeckStatsProps
 
   const bucketCards: Map<string, number>[] = Array.from({ length: 7 }, () => new Map());
   for (const { card, bucket } of spells) {
-    bucketCards[bucket].set(card.name, (bucketCards[bucket].get(card.name) ?? 0) + 1);
+    bucketCards[bucket].set(
+      card.identity.name,
+      (bucketCards[bucket].get(card.identity.name) ?? 0) + 1,
+    );
   }
   const counts = bucketCards.map((m) => [...m.values()].reduce((a, b) => a + b, 0));
 

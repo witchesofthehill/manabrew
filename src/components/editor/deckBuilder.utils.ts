@@ -103,15 +103,15 @@ export const CARD_WIDTH_MAP: Record<number, number> = { 1: 75, 2: 95, 3: 115, 4:
 export function groupCards(cards: DeckCard[]): CardGroup[] {
   const map = new Map<string, CardGroup>();
   for (const card of cards) {
-    const existing = map.get(card.name);
+    const existing = map.get(card.identity.name);
     if (existing) existing.count++;
-    else map.set(card.name, { card, count: 1 });
+    else map.set(card.identity.name, { card, count: 1 });
   }
   return Array.from(map.values()).sort((a, b) => {
     const aCmc = a.card.cmc ?? 0;
     const bCmc = b.card.cmc ?? 0;
     if (aCmc !== bCmc) return aCmc - bCmc;
-    return a.card.name.localeCompare(b.card.name);
+    return a.card.identity.name.localeCompare(b.card.identity.name);
   });
 }
 
@@ -134,31 +134,31 @@ export function exportToArena(deck: {
   const schemeGroups = groupCards(deck.schemes ?? []);
   const planeGroups = groupCards(deck.planes ?? []);
   const lines: string[] = [];
-  for (const g of mainGroups) lines.push(`${g.count} ${g.card.name}`);
+  for (const g of mainGroups) lines.push(`${g.count} ${g.card.identity.name}`);
   if (sideGroups.length > 0) {
     lines.push("");
     lines.push("Sideboard");
-    for (const g of sideGroups) lines.push(`${g.count} ${g.card.name}`);
+    for (const g of sideGroups) lines.push(`${g.count} ${g.card.identity.name}`);
   }
   if (attractionGroups.length > 0) {
     lines.push("");
     lines.push("Attractions");
-    for (const g of attractionGroups) lines.push(`${g.count} ${g.card.name}`);
+    for (const g of attractionGroups) lines.push(`${g.count} ${g.card.identity.name}`);
   }
   if (contraptionGroups.length > 0) {
     lines.push("");
     lines.push("Contraptions");
-    for (const g of contraptionGroups) lines.push(`${g.count} ${g.card.name}`);
+    for (const g of contraptionGroups) lines.push(`${g.count} ${g.card.identity.name}`);
   }
   if (schemeGroups.length > 0) {
     lines.push("");
     lines.push("Schemes");
-    for (const g of schemeGroups) lines.push(`${g.count} ${g.card.name}`);
+    for (const g of schemeGroups) lines.push(`${g.count} ${g.card.identity.name}`);
   }
   if (planeGroups.length > 0) {
     lines.push("");
     lines.push("Planes");
-    for (const g of planeGroups) lines.push(`${g.count} ${g.card.name}`);
+    for (const g of planeGroups) lines.push(`${g.count} ${g.card.identity.name}`);
   }
   return lines.join("\n");
 }
@@ -183,8 +183,10 @@ export function computeOtherGroups(
   cards: DeckCard[],
   sectionGroups: Array<{ groups: CardGroup[] }>,
 ): CardGroup[] {
-  const matchedNames = new Set(sectionGroups.flatMap((s) => s.groups.map((g) => g.card.name)));
-  return groupCards(cards.filter((c) => !matchedNames.has(c.name)));
+  const matchedNames = new Set(
+    sectionGroups.flatMap((s) => s.groups.map((g) => g.card.identity.name)),
+  );
+  return groupCards(cards.filter((c) => !matchedNames.has(c.identity.name)));
 }
 
 /**
@@ -199,15 +201,15 @@ export function computeStackColumns(
   const cols = columns.map((col) => ({
     ...col,
     groups: allGroups.filter((g) => {
-      if (usedNames.has(g.card.name)) return false;
+      if (usedNames.has(g.card.identity.name)) return false;
       if (col.filter(g.card.types)) {
-        usedNames.add(g.card.name);
+        usedNames.add(g.card.identity.name);
         return true;
       }
       return false;
     }),
   }));
-  const otherGroups = allGroups.filter((g) => !usedNames.has(g.card.name));
+  const otherGroups = allGroups.filter((g) => !usedNames.has(g.card.identity.name));
   if (otherGroups.length > 0)
     cols.push({ id: "other", label: "Other", filter: () => false, groups: otherGroups });
   return cols.filter((c) => c.groups.length > 0);
@@ -286,7 +288,7 @@ function groupByCustomTags(
   const taggedNames = new Set<string>();
   const result = tags.map((tag) => {
     const groups = getTaggedGroups(tag, cards, cardTags);
-    for (const g of groups) taggedNames.add(g.card.name);
+    for (const g of groups) taggedNames.add(g.card.identity.name);
     return {
       id: `tag-${tag}`,
       label: tag,
@@ -295,7 +297,9 @@ function groupByCustomTags(
     };
   });
   const untagged = groupCards(
-    cards.filter((c) => !taggedNames.has(c.name.toLowerCase()) && !taggedNames.has(c.name)),
+    cards.filter(
+      (c) => !taggedNames.has(c.identity.name.toLowerCase()) && !taggedNames.has(c.identity.name),
+    ),
   );
   if (untagged.length > 0) {
     result.push({
@@ -366,5 +370,5 @@ export function getTaggedGroups(
       .filter(([, tags]) => tags.includes(tag))
       .map(([name]) => name),
   );
-  return groupCards(allCards.filter((c) => taggedNames.has(c.name.toLowerCase())));
+  return groupCards(allCards.filter((c) => taggedNames.has(c.identity.name.toLowerCase())));
 }

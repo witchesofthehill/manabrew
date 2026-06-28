@@ -7,15 +7,15 @@ function collectDeckNames(deck: Deck): string[] {
   const push = (name: string | undefined) => {
     if (name) names.add(name);
   };
-  for (const c of deck.cards) push(c.name);
-  for (const c of deck.sideboard) push(c.name);
-  for (const c of deck.commanders ?? []) push(c.name);
-  for (const c of deck.maybeboard ?? []) push(c.name);
-  for (const c of deck.attractions ?? []) push(c.name);
-  for (const c of deck.contraptions ?? []) push(c.name);
-  for (const c of deck.schemes ?? []) push(c.name);
-  for (const c of deck.planes ?? []) push(c.name);
-  if (deck.companion) push(deck.companion.name);
+  for (const c of deck.cards) push(c.identity.name);
+  for (const c of deck.sideboard) push(c.identity.name);
+  for (const c of deck.commanders ?? []) push(c.identity.name);
+  for (const c of deck.maybeboard ?? []) push(c.identity.name);
+  for (const c of deck.attractions ?? []) push(c.identity.name);
+  for (const c of deck.contraptions ?? []) push(c.identity.name);
+  for (const c of deck.schemes ?? []) push(c.identity.name);
+  for (const c of deck.planes ?? []) push(c.identity.name);
+  if (deck.companion) push(deck.companion.identity.name);
   return [...names];
 }
 

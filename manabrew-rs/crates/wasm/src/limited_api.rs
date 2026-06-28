@@ -10,7 +10,7 @@ use forge_limited::{
     SealedCardPoolGenerator, SealedDeckGroup, ThemedChaosDraft, TickOutcome, WinstonDraft,
     WinstonOutcome, CONSPIRACY_HOOKS,
 };
-use manabrew_agent_interface::deck_dto::CardIdentity;
+use manabrew_protocol::deck_dto::DeckCardIdentity;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
@@ -23,15 +23,15 @@ use crate::card_loader::get_card_db;
 pub struct SealedSetupDto {
     pub pool_type: String,
     pub num_boosters: u32,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
 }
 
-fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
-    CardIdentity {
+fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
+    DeckCardIdentity {
         id: String::new(),
         name: c.name.clone(),
         set_code: c.set_code.clone(),
@@ -40,7 +40,7 @@ fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
     }
 }
 
-fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
+fn identity_to_paper_card(c: &DeckCardIdentity) -> PaperCard {
     let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
     let mut pc = PaperCard::new(
         c.name.clone(),
@@ -106,8 +106,8 @@ fn is_basic_land_name(name: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct LimitedDeckDto {
     pub name: String,
-    pub main: Vec<CardIdentity>,
-    pub sideboard: Vec<CardIdentity>,
+    pub main: Vec<DeckCardIdentity>,
+    pub sideboard: Vec<DeckCardIdentity>,
 }
 
 impl From<&LimitedDeck> for LimitedDeckDto {
@@ -126,7 +126,7 @@ pub struct SealedPoolDto {
     pub session_id: String,
     pub deck_name: String,
     pub land_set_code: Option<String>,
-    pub cards: Vec<CardIdentity>,
+    pub cards: Vec<DeckCardIdentity>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
@@ -165,7 +165,7 @@ pub struct SealedTemplateMetadataDto {
 pub struct BoosterDraftSetupDto {
     pub pod_size: u32,
     pub rounds: u32,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -192,8 +192,8 @@ pub struct DraftStateDto {
     pub total_rounds: u32,
     pub pick_number: u32,
     pub pack_size: u32,
-    pub current_pack: Vec<CardIdentity>,
-    pub picked_pile: Vec<CardIdentity>,
+    pub current_pack: Vec<DeckCardIdentity>,
+    pub picked_pile: Vec<DeckCardIdentity>,
     pub seat_summaries: Vec<DraftSeatDto>,
     pub is_round_over: bool,
     pub is_complete: bool,
@@ -215,7 +215,7 @@ impl DraftStateDto {
         awaiting_human: bool,
     ) -> Self {
         let viewer = draft.seat(seat_idx);
-        let pack: Vec<CardIdentity> = draft
+        let pack: Vec<DeckCardIdentity> = draft
             .current_pack_for_seat(seat_idx)
             .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();
@@ -272,9 +272,9 @@ pub struct WinstonStateDto {
     pub session_id: String,
     pub active_seat: u32,
     pub current_pile: u32,
-    pub piles: Vec<Vec<CardIdentity>>,
+    pub piles: Vec<Vec<DeckCardIdentity>>,
     pub deck_size: u32,
-    pub picked_pile: Vec<CardIdentity>,
+    pub picked_pile: Vec<DeckCardIdentity>,
     pub ai_pick_count: u32,
     pub awaiting_human: bool,
     pub is_complete: bool,
@@ -282,7 +282,7 @@ pub struct WinstonStateDto {
 
 impl WinstonStateDto {
     fn from_engine(session_id: String, draft: &WinstonDraft) -> Self {
-        let piles: Vec<Vec<CardIdentity>> = draft
+        let piles: Vec<Vec<DeckCardIdentity>> = draft
             .piles()
             .iter()
             .map(|p| p.iter().map(paper_card_to_identity).collect())
@@ -309,7 +309,7 @@ impl WinstonStateDto {
 #[serde(rename_all = "camelCase")]
 pub struct WinstonSetupDto {
     pub pool_packs: u32,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -407,19 +407,19 @@ pub struct GauntletOutcomeDto {
 #[serde(rename_all = "camelCase")]
 pub struct GauntletMatchDecksDto {
     pub human_deck_name: String,
-    pub human_main: Vec<CardIdentity>,
-    pub human_sideboard: Vec<CardIdentity>,
+    pub human_main: Vec<DeckCardIdentity>,
+    pub human_sideboard: Vec<DeckCardIdentity>,
     pub opponent_name: String,
-    pub opponent_main: Vec<CardIdentity>,
-    pub opponent_sideboard: Vec<CardIdentity>,
+    pub opponent_main: Vec<DeckCardIdentity>,
+    pub opponent_sideboard: Vec<DeckCardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GauntletDeckUpdateDto {
     pub gauntlet_id: String,
-    pub main: Vec<CardIdentity>,
-    pub sideboard: Vec<CardIdentity>,
+    pub main: Vec<DeckCardIdentity>,
+    pub sideboard: Vec<DeckCardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -436,7 +436,7 @@ pub struct CubeImportResultDto {
     pub card_count: u32,
     pub num_packs: u32,
     pub singleton: bool,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
 }
 
 struct WasmLimitedState {
@@ -501,10 +501,10 @@ pub fn limited_get_set_pool(set_code: String) -> Result<JsValue, JsError> {
         .get(&set_code)
         .ok_or_else(|| JsError::new(&format!("unknown set: {set_code}")))?;
 
-    let pool: Vec<CardIdentity> = edition
+    let pool: Vec<DeckCardIdentity> = edition
         .cards
         .iter()
-        .map(|entry| CardIdentity {
+        .map(|entry| DeckCardIdentity {
             id: String::new(),
             name: entry.name.clone(),
             set_code: edition.code.clone(),
@@ -567,7 +567,7 @@ pub fn limited_list_conspiracy_hooks() -> Result<JsValue, JsError> {
     serde_wasm_bindgen::to_value(&out).map_err(|e| JsError::new(&format!("serialize: {e}")))
 }
 
-fn filter_playable(state: &mut WasmLimitedState, pool: &[CardIdentity]) -> Vec<PaperCard> {
+fn filter_playable(state: &mut WasmLimitedState, pool: &[DeckCardIdentity]) -> Vec<PaperCard> {
     if state.name_index.is_empty() {
         rebuild_name_index(state);
     }
@@ -1110,10 +1110,10 @@ pub fn limited_import_cube(request_json: JsValue, body: String) -> Result<JsValu
     let imp = CubeImporter::new(&request.cube_id_or_url).map_err(|e| JsError::new(&e))?;
     let cube = imp.parse(&body).map_err(|e| JsError::new(&e))?;
     let card_count: u32 = cube.cards.iter().map(|c| c.count).sum();
-    let mut pool: Vec<CardIdentity> = Vec::with_capacity(card_count as usize);
+    let mut pool: Vec<DeckCardIdentity> = Vec::with_capacity(card_count as usize);
     for entry in &cube.cards {
         for copy in 0..entry.count {
-            pool.push(CardIdentity {
+            pool.push(DeckCardIdentity {
                 id: String::new(),
                 name: entry.name.clone(),
                 set_code: entry.set_code.clone().unwrap_or_default(),

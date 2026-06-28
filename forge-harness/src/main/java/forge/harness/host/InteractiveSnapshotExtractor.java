@@ -2,6 +2,7 @@ package forge.harness.host;
 
 import forge.harness.common.SnapshotExtractor;
 import forge.harness.protocol.CardDto;
+import forge.harness.protocol.CardIdentity;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -203,10 +204,12 @@ public final class InteractiveSnapshotExtractor {
     ) {
         final CardDto dto = new CardDto();
         dto.id = SnapshotExtractor.javaCardId(card);
-        dto.name = normalizeCardName(card.getName());
         final IPaperCard paper = card.getPaperCard();
-        dto.setCode = paper != null ? paper.getEdition() : card.getSetCode();
-        dto.cardNumber = paper != null ? paper.getCollectorNumber() : "";
+        dto.identity = new CardIdentity(
+                normalizeCardName(card.getName()),
+                paper != null ? paper.getEdition() : card.getSetCode(),
+                paper != null ? paper.getCollectorNumber() : "",
+                card.isToken());
         dto.color = colorString(card.getColor());
         dto.manaCost = card.getManaCost() == null ? "" : card.getManaCost().toString();
         dto.cmc = card.getCMC();
@@ -228,7 +231,6 @@ public final class InteractiveSnapshotExtractor {
         dto.counters = counterMap(card);
         dto.damage = card.getDamage();
         dto.summoningSick = card.hasSickness();
-        dto.isToken = card.isToken();
         dto.isCopy = card.isCloned();
         dto.isDoubleFaced = card.isDoubleFaced();
         dto.isTransformed = card.isTransformed();
@@ -437,20 +439,12 @@ public final class InteractiveSnapshotExtractor {
             stackItem.put("controllerId", sa != null && sa.getActivatingPlayer() != null
                     ? "player-" + SnapshotExtractor.playerIndex(game, sa.getActivatingPlayer())
                     : activePlayerId);
-            stackItem.put("name", source == null
+            final String name = source == null
                     ? item.getStackDescription()
-                    : normalizeCardName(source.getName()));
+                    : normalizeCardName(source.getName());
+            stackItem.put("identity", stackIdentity(name, source));
             stackItem.put("text", item.getStackDescription());
-            if (source != null) {
-                final IPaperCard paper = source.getPaperCard();
-                stackItem.put("setCode", paper != null ? paper.getEdition() : source.getSetCode());
-                stackItem.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
-                stackItem.put("isPermanentSpell", item.isSpell() && source.isPermanent());
-            } else {
-                stackItem.put("setCode", "");
-                stackItem.put("cardNumber", "");
-                stackItem.put("isPermanentSpell", false);
-            }
+            stackItem.put("isPermanentSpell", source != null && item.isSpell() && source.isPermanent());
             stackItem.put("isCasting", false);
             stackItem.put("targets", stackTargets(game, item.getSpellAbility()));
             out.add(stackItem);
@@ -489,11 +483,8 @@ public final class InteractiveSnapshotExtractor {
         stackItem.put("controllerId", castingAbility.getActivatingPlayer() != null
                 ? "player-" + SnapshotExtractor.playerIndex(game, castingAbility.getActivatingPlayer())
                 : activePlayerId);
-        stackItem.put("name", normalizeCardName(source.getName()));
+        stackItem.put("identity", stackIdentity(normalizeCardName(source.getName()), source));
         stackItem.put("text", castingAbility.getStackDescription());
-        final IPaperCard paper = source.getPaperCard();
-        stackItem.put("setCode", paper != null ? paper.getEdition() : source.getSetCode());
-        stackItem.put("cardNumber", paper != null ? paper.getCollectorNumber() : "");
         stackItem.put("isPermanentSpell", castingAbility.isSpell() && source.isPermanent());
         stackItem.put("isCasting", true);
         stackItem.put("targets", stackTargets(game, castingAbility));
@@ -502,33 +493,42 @@ public final class InteractiveSnapshotExtractor {
 
     private static List<Map<String, Object>> stackTargets(final Game game, final SpellAbility ability) {
         final List<Map<String, Object>> out = new ArrayList<>();
-        if (ability == null) {
-            return out;
-        }
-        final TargetChoices targets = ability.getTargets();
-        if (targets == null) {
-            return out;
-        }
-        int targetIndex = 0;
-        for (final Card card : targets.getTargetCards()) {
-            out.add(stackTarget("card", SnapshotExtractor.javaCardId(card), targetIndex));
-            targetIndex++;
-        }
-        for (final Player player : targets.getTargetPlayers()) {
-            out.add(stackTarget("player", "player-" + SnapshotExtractor.playerIndex(game, player), targetIndex));
-            targetIndex++;
+        // Mirror Forge's StackItemView (and the Rust collect_stack_targets): targets
+        // live per ability node, so walk the sub-ability chain, not just the root.
+        for (SpellAbility sa = ability; sa != null; sa = sa.getSubAbility()) {
+            final TargetChoices targets = sa.getTargets();
+            if (targets == null) {
+                continue;
+            }
+            final String oracle = sa.getStackDescription();
+            for (final Card card : targets.getTargetCards()) {
+                out.add(stackTarget("card", SnapshotExtractor.javaCardId(card), oracle));
+            }
+            for (final Player player : targets.getTargetPlayers()) {
+                out.add(stackTarget("player", "player-" + SnapshotExtractor.playerIndex(game, player), oracle));
+            }
         }
         return out;
     }
 
-    private static Map<String, Object> stackTarget(final String kind, final String id, final int targetIndex) {
+    private static Map<String, Object> stackIdentity(final String name, final Card source) {
+        final IPaperCard paper = source == null ? null : source.getPaperCard();
+        final Map<String, Object> identity = new LinkedHashMap<>();
+        identity.put("name", name);
+        identity.put("setCode", source == null ? "" : (paper != null ? paper.getEdition() : source.getSetCode()));
+        identity.put("cardNumber", source == null ? "" : (paper != null ? paper.getCollectorNumber() : ""));
+        identity.put("isToken", source != null && source.isToken());
+        return identity;
+    }
+
+    private static Map<String, Object> stackTarget(final String kind, final String id, final String oracle) {
         final Map<String, Object> target = new LinkedHashMap<>();
         target.put("kind", kind);
         target.put("id", id);
-        target.put("nodeIndex", 0);
-        target.put("targetIndex", targetIndex);
-        target.put("hostile", true);
         target.put("intent", "hostile");
+        if (oracle != null && !oracle.isEmpty()) {
+            target.put("oracle", oracle);
+        }
         return target;
     }
 

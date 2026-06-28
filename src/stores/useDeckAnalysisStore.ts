@@ -32,8 +32,8 @@ const EMPTY: Pick<
  *  deck names, and format. Lets the hook debounce and the store skip redundant
  *  network calls when an unrelated edit (cover art, tags) bumps the deck. */
 export function deckAnalysisSignature(deck: Deck): string {
-  const main = deck.cards.map((c) => c.name).sort();
-  const commanders = (deck.commanders ?? []).map((c) => c.name).sort();
+  const main = deck.cards.map((c) => c.identity.name).sort();
+  const commanders = (deck.commanders ?? []).map((c) => c.identity.name).sort();
   return JSON.stringify([deck.format ?? "", commanders, main]);
 }
 
@@ -48,8 +48,8 @@ export const useDeckAnalysisStore = create<DeckAnalysisState>((set, get) => ({
 
     set({ loading: true, error: null, lastSignature: signature });
 
-    const commanders = (deck.commanders ?? []).map((c) => c.name);
-    const main = deck.cards.map((c) => c.name);
+    const commanders = (deck.commanders ?? []).map((c) => c.identity.name);
+    const main = deck.cards.map((c) => c.identity.name);
 
     try {
       const [gameChangers, combos] = await Promise.all([

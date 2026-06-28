@@ -3,6 +3,7 @@ import type { Theme } from "@/hooks/useTheme";
 import { PlayerHudCapsule } from "./PlayerHudCapsule";
 import { PlayerHudTooltip } from "./PlayerHudTooltip";
 import type { PlayerHudSpec } from "./playerHud.types";
+import type { ScreenPos } from "@/pixi/types";
 
 export const PLAYER_HUD_HEIGHT_PX = 60;
 export const SELF_PLAYER_HUD_HEIGHT_PX = 60;
@@ -90,6 +91,10 @@ export class PlayerHudLayer {
     column: boolean,
   ): void {
     this.capsules.get(playerId)?.setRect(x, y, width, height, column);
+  }
+
+  getPlayerAnchor(playerId: string): ScreenPos | null {
+    return this.capsules.get(playerId)?.getAvatarCenter() ?? null;
   }
 
   destroy(): void {

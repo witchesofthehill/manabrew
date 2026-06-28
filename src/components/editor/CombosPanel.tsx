@@ -97,8 +97,8 @@ export function CombosPanel() {
 
   const deckNames = useMemo(() => {
     const set = new Set<string>();
-    for (const c of currentDeck.cards) set.add(normalizeCardName(c.name));
-    for (const c of currentDeck.commanders ?? []) set.add(normalizeCardName(c.name));
+    for (const c of currentDeck.cards) set.add(normalizeCardName(c.identity.name));
+    for (const c of currentDeck.commanders ?? []) set.add(normalizeCardName(c.identity.name));
     return set;
   }, [currentDeck.cards, currentDeck.commanders]);
 
@@ -118,7 +118,8 @@ export function CombosPanel() {
   async function handleAdd(name: string) {
     try {
       const sc = await getCardByName(frontFaceName(name));
-      addToMain({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
+      const base = scryfallToDeckCard(sc);
+      addToMain({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
       toast.success(`Added ${name}`);
     } catch {
       toast.error(`Couldn't add ${name}`);

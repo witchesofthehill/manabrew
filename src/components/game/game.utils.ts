@@ -62,9 +62,7 @@ export function stackObjectToCardStub(obj: StackObjectDto): CardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: obj.sourceId,
-    name: obj.name,
-    setCode: obj.setCode,
-    cardNumber: obj.cardNumber,
+    identity: obj.identity,
     text: obj.text,
     controllerId: obj.controllerId,
     ownerId: obj.controllerId,

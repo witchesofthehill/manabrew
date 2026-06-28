@@ -122,17 +122,32 @@ export class StackLayer implements StackAnchorProvider {
   setSpec(spec: StackSpec): void {
     this.spec = spec;
     const seen = new Set<string>();
+    const incoming = new Set(spec.cards.map((c) => c.id));
+    const reusableBySource = new Map<string, string>();
+    for (const [id, sprite] of this.sprites) {
+      if (!incoming.has(id)) reusableBySource.set(sprite.sourceId, id);
+    }
     for (const card of spec.cards) {
       seen.add(card.id);
       let sprite = this.sprites.get(card.id);
       if (!sprite) {
+        const staleId = reusableBySource.get(card.sourceId);
+        const reused = staleId !== undefined ? this.sprites.get(staleId) : undefined;
+        if (reused) {
+          reusableBySource.delete(card.sourceId);
+          this.sprites.delete(staleId!);
+          this.sprites.set(card.id, reused);
+          if (this.hoveredId === staleId) this.hoveredId = card.id;
+          reused.setSpec(card);
+          continue;
+        }
         sprite = new StackCardSprite(
           this.theme,
           card,
           CARD_WIDTH,
           () => this.callbacks.onOpen(),
-          () => this.callbacks.onTargetSpell(card.id),
-          (hovered) => this.setHovered(hovered ? card.id : null),
+          (id) => this.callbacks.onTargetSpell(id),
+          (id) => this.setHovered(id),
         );
         this.container.addChild(sprite.container);
         this.sprites.set(card.id, sprite);

@@ -243,7 +243,8 @@ export default function DeckEditor() {
       }
       const target = side ? sideboard : maybe ? maybeboard : cards;
       for (let i = 0; i < count; i++) {
-        target.push({ ...scryfallToDeckCard(sc), id: crypto.randomUUID() });
+        const base = scryfallToDeckCard(sc);
+        target.push({ ...base, identity: { ...base.identity, id: crypto.randomUUID() } });
       }
     }
     if (cards.length === 0 && sideboard.length === 0 && maybeboard.length === 0) {
@@ -251,7 +252,7 @@ export default function DeckEditor() {
     }
     const id = addSavedDeck({
       name: deckName,
-      format: inferImportedFormat(cards.map((c) => c.name)),
+      format: inferImportedFormat(cards.map((c) => c.identity.name)),
       cards,
       sideboard,
       maybeboard,
@@ -337,7 +338,7 @@ export default function DeckEditor() {
     const card = dragData.card as DeckCard;
     const overId = String(over.id);
     const activeId = String(active.id);
-    const cardName = (dragData.name as string) ?? card.name;
+    const cardName = (dragData.name as string) ?? card.identity.name;
 
     const sourceTagMatch = activeId.match(/^deck-tag-(.+?)-(?:.+)$/);
     const sourceTag = sourceTagMatch?.[1] ?? null;
@@ -389,14 +390,14 @@ export default function DeckEditor() {
                     ...(currentDeck.planes ?? []),
                   ]
                 : [];
-      const one = [...sourceList].reverse().find((c) => c.name === cardName);
+      const one = [...sourceList].reverse().find((c) => c.identity.name === cardName);
       if (!one) return;
 
-      if (source === "main") removeFromMain(one.id);
-      else if (source === "side" || source === "special") removeFromSide(one.id);
-      else if (source === "maybe") removeFromMaybe(one.id);
+      if (source === "main") removeFromMain(one.identity.id);
+      else if (source === "side" || source === "special") removeFromSide(one.identity.id);
+      else if (source === "maybe") removeFromMaybe(one.identity.id);
 
-      const fresh = { ...one, id: crypto.randomUUID() };
+      const fresh = { ...one, identity: { ...one.identity, id: crypto.randomUUID() } };
       if (dest === "main") addToMain(fresh);
       else if (dest === "side") addToSide(fresh);
       else if (dest === "maybe") addToMaybe(fresh);

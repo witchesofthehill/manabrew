@@ -26,6 +26,7 @@ import { withAlpha } from "@/themes/gameTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { GAP } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
@@ -761,9 +762,9 @@ export function GameBoard({
     const exPlayable = promptType === "chooseAction" && exile.some((c) => playableIds.has(c.id));
 
     const self: ZoneTileSpec[] = [
-      { key: "lib", label: "Lib", count: me.libraryCount, back: true },
+      { key: ZONE_TILE_KEY.library, label: "Lib", count: me.libraryCount, back: true },
       {
-        key: "gy",
+        key: ZONE_TILE_KEY.graveyard,
         label: "GY",
         count: graveyard.length,
         topCard: top(graveyard),
@@ -776,7 +777,7 @@ export function GameBoard({
               : undefined,
       },
       {
-        key: "ex",
+        key: ZONE_TILE_KEY.exile,
         label: "EX",
         count: exile.length,
         topCard: top(exile),
@@ -791,7 +792,7 @@ export function GameBoard({
     ];
     if ((myCommandZone?.length ?? 0) > 0) {
       self.push({
-        key: "cmd",
+        key: ZONE_TILE_KEY.command,
         label: "CMD",
         count: myCommandZone!.length,
         topCard: top(myCommandZone!),
@@ -803,16 +804,16 @@ export function GameBoard({
     const byPlayer: Record<string, ZoneTileSpec[]> = { [me.id]: self };
     for (const op of opponents) {
       const tiles: ZoneTileSpec[] = [
-        { key: "lib", label: "Lib", count: op.libraryCount, back: true },
+        { key: ZONE_TILE_KEY.library, label: "Lib", count: op.libraryCount, back: true },
         {
-          key: "gy",
+          key: ZONE_TILE_KEY.graveyard,
           label: "GY",
           count: op.graveyard.length,
           topCard: top(op.graveyard),
           onOpen: () => onOpenZone(`${op.name}'s Graveyard`, op.graveyard),
         },
         {
-          key: "ex",
+          key: ZONE_TILE_KEY.exile,
           label: "EX",
           count: op.exile.length,
           topCard: top(op.exile),
@@ -821,7 +822,7 @@ export function GameBoard({
       ];
       if ((op.commandZone?.length ?? 0) > 0) {
         tiles.push({
-          key: "cmd",
+          key: ZONE_TILE_KEY.command,
           label: "CMD",
           count: op.commandZone.length,
           topCard: top(op.commandZone),

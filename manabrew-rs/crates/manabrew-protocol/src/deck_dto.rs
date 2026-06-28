@@ -6,7 +6,7 @@ use crate::game::PlaymatSettings;
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]
-pub struct CardIdentity {
+pub struct DeckCardIdentity {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub id: String,
     pub name: String,
@@ -97,9 +97,7 @@ pub struct CardPart {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]
 pub struct DeckCard {
-    #[serde(flatten)]
-    #[ts(flatten)]
-    pub identity: CardIdentity,
+    pub identity: DeckCardIdentity,
     #[serde(flatten)]
     #[ts(flatten)]
     pub rules: CardRulesSummary,
@@ -141,6 +139,9 @@ pub enum DeckFormat {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "deck/index.ts")]
 pub struct Deck {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub id: Option<String>,

@@ -10,7 +10,6 @@ use crate::engine_backend::{java_backend, rust_backend, EngineBackendKind, Hoste
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use manabot::{run_bot, AgentKind, BotConfig};
-use manabrew_agent_interface::deck_dto::Deck;
 use manabrew_agent_interface::ids_codec::{parse_player_slot, player_slot};
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
 use manabrew_agent_interface::protocol::{
@@ -18,6 +17,7 @@ use manabrew_agent_interface::protocol::{
     StateEnvelope,
 };
 use manabrew_engine::game::TypeRegistry;
+use manabrew_protocol::deck_dto::Deck;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::net::TcpStream;

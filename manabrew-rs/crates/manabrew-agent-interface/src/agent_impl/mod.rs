@@ -268,8 +268,8 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
-                chosen.into_iter().find_map(|r| match r {
-                    TargetRef::Card { id } => parse_card_id(&id),
+                chosen.into_iter().find_map(|r| match r.kind {
+                    TargetKind::Card => parse_card_id(&r.id),
                     _ => None,
                 })
             }
@@ -280,8 +280,8 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn recv_player_choice_or_first(&mut self, valid: &[PlayerId]) -> Option<PlayerId> {
         match self.recv_action() {
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
-                chosen.into_iter().find_map(|r| match r {
-                    TargetRef::Player { id } => parse_player_id(&id),
+                chosen.into_iter().find_map(|r| match r.kind {
+                    TargetKind::Player => parse_player_id(&r.id),
                     _ => None,
                 })
             }
@@ -292,8 +292,8 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn recv_spell_choice_or_first(&mut self, valid: &[u32]) -> Option<u32> {
         match self.recv_action() {
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
-                chosen.into_iter().find_map(|r| match r {
-                    TargetRef::Spell { id } => crate::ids_codec::parse_stack_id(&id),
+                chosen.into_iter().find_map(|r| match r.kind {
+                    TargetKind::Spell => crate::ids_codec::parse_stack_id(&r.id),
                     _ => None,
                 })
             }

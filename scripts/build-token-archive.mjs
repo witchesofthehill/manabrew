@@ -45,10 +45,13 @@ function deckCardFromScryfallToken(card) {
   const colors = card.colors ?? face.colors ?? [];
 
   return {
-    id: `token:${card.id}`,
-    name: card.name,
-    setCode: card.set,
-    cardNumber: card.collector_number,
+    identity: {
+      id: `token:${card.id}`,
+      name: card.name,
+      setCode: card.set,
+      cardNumber: card.collector_number,
+      foil: false,
+    },
     color: colors.join(""),
     colorIdentity: card.color_identity ?? [],
     manaCost: face.mana_cost ?? card.mana_cost ?? "",
@@ -93,15 +96,17 @@ async function fetchTokenCards() {
 
 function buildArchive(cards) {
   const tokens = cards.map(deckCardFromScryfallToken).sort((a, b) => {
-    const nameCmp = a.name.localeCompare(b.name);
+    const nameCmp = a.identity.name.localeCompare(b.identity.name);
     if (nameCmp !== 0) return nameCmp;
-    const setCmp = String(a.setCode).localeCompare(String(b.setCode));
+    const setCmp = String(a.identity.setCode).localeCompare(String(b.identity.setCode));
     if (setCmp !== 0) return setCmp;
-    return String(a.cardNumber).localeCompare(String(b.cardNumber), undefined, { numeric: true });
+    return String(a.identity.cardNumber).localeCompare(String(b.identity.cardNumber), undefined, {
+      numeric: true,
+    });
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     source: {
       type: "scryfall-search",

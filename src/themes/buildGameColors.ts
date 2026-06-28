@@ -178,7 +178,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "playerColors.self": p.green,
     "playerColors.opponent1": p.amber,
     "playerColors.opponent2": p.blue,
-    "playerColors.opponent3": p.purple,
+    "playerColors.opponent3": p.pink,
 
     // ── Badge icon colours ───────────────────────────────────────────
     // Tint the status chips rendered next to the mana pool. No fill —

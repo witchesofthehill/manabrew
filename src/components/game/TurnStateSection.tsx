@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { withAlpha } from "@/themes/gameTheme";
+import { readableTextColor } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 
 interface TurnStateSectionProps {
@@ -30,8 +30,12 @@ export function TurnStateSection({
               "ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 animate-pulse",
             )}
             style={{
-              backgroundColor: withAlpha(themeColors.activeAction.active, 0.2),
-              color: themeColors.activeAction.active,
+              backgroundColor: themeColors.activeAction.active,
+              color: readableTextColor(
+                themeColors.activeAction.active,
+                themeColors.canvas.shadow,
+                themeColors.textOnTinted,
+              ),
             }}
           >
             PRIORITY

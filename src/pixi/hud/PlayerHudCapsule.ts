@@ -395,7 +395,7 @@ export class PlayerHudCapsule {
       : this.spec.isPriorityPlayer
         ? { c: gt.activeAction.priority, w: 2.5, a: 1 }
         : this.spec.isActiveTurn
-          ? { c: this.spec.color, w: 1.5, a: 0.95 }
+          ? { c: this.spec.color, w: 1.5, a: 1 }
           : null;
     if (accent) {
       this.avatarFx.circle(cx, cy, r - accent.w / 2);

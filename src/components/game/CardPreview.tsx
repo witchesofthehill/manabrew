@@ -519,10 +519,7 @@ export function CardPreview({
                         <span className="line-through opacity-50">
                           <ManaSymbols cost={card.manaCost} size="md" />
                         </span>
-                        <span
-                          className="rounded px-0.5"
-                          style={{ backgroundColor: withAlpha(ringColor, 0.2) }}
-                        >
+                        <span className="rounded border px-0.5" style={{ borderColor: ringColor }}>
                           <ManaSymbols cost={card.effectiveManaCost} size="md" />
                         </span>
                       </div>
@@ -588,7 +585,6 @@ export function CardPreview({
                     "flex flex-col px-3 py-2",
                   )}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = withAlpha(ringColor, 0.12);
                     e.currentTarget.style.borderColor = ringColor;
                   }}
                   onMouseLeave={(e) => {

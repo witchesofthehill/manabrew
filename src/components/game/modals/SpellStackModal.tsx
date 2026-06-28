@@ -74,7 +74,7 @@ export function SpellStackModal({
               const glowStyle: CSSProperties = {
                 ...(seatColor
                   ? {
-                      boxShadow: `0 0 0 2px ${withAlpha(seatColor, 0.7)}, 0 0 14px ${withAlpha(seatColor, 0.45)}`,
+                      boxShadow: `0 0 0 2px ${seatColor}, 0 0 14px ${withAlpha(seatColor, 0.45)}`,
                     }
                   : {}),
                 ...(isValid ? ({ "--tw-ring-color": ringColor } as CSSProperties) : {}),

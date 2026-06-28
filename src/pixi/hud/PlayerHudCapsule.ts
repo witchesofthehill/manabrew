@@ -1,13 +1,4 @@
-import {
-  ColorMatrixFilter,
-  Container,
-  Graphics,
-  Matrix,
-  Sprite,
-  Text,
-  Texture,
-  TextStyle,
-} from "pixi.js";
+import { ColorMatrixFilter, Container, Graphics, Sprite, Text, Texture, TextStyle } from "pixi.js";
 import gsap from "gsap";
 import type { Theme } from "@/hooks/useTheme";
 import { MANA_LETTERS } from "@/themes/gameTheme";
@@ -99,6 +90,9 @@ export class PlayerHudCapsule {
   private targetRing = new Graphics();
   private flashRing = new Graphics();
   private avatarTex: Texture | null = null;
+  private avatarPhoto = new Sprite();
+  private avatarMask = new Graphics();
+  private avatarFx = new Graphics();
   private bot = new Sprite();
   private skull = new Sprite();
   private offline = new Sprite();
@@ -160,6 +154,12 @@ export class PlayerHudCapsule {
     this.onHover = onHover;
 
     this.container = new Container();
+    this.avatarPhoto.anchor.set(0.5);
+    this.avatarPhoto.visible = false;
+    this.avatarPhoto.eventMode = "none";
+    this.avatarPhoto.mask = this.avatarMask;
+    this.avatarMask.eventMode = "none";
+    this.avatarFx.eventMode = "none";
     this.bot.anchor.set(0.5);
     this.bot.visible = false;
     this.skull.anchor.set(0.5);
@@ -218,6 +218,9 @@ export class PlayerHudCapsule {
     this.container.addChild(
       this.glow,
       this.bg,
+      this.avatarMask,
+      this.avatarPhoto,
+      this.avatarFx,
       this.damageWash,
       this.targetRing,
       this.flashRing,
@@ -363,20 +366,26 @@ export class PlayerHudCapsule {
     this.bg.circle(cx, cy, r);
     this.bg.fill({ color: hexToNum(gt.canvas.background), alpha: 0.95 });
 
+    // The photo is a masked Sprite (cover-fit), not a Graphics texture fill —
+    // Pixi v8 fills the shape with a *repeating* pattern, which tiled the avatar.
+    this.avatarFx.clear();
+    this.avatarPhoto.visible = hasImage;
     if (hasImage) {
       const tex = this.avatarTex!;
       const tw = tex.width || diameter;
       const th = tex.height || diameter;
       const cover = diameter / Math.min(tw, th);
-      const m = new Matrix();
-      m.scale(cover, cover);
-      m.translate(cx - (tw * cover) / 2, cy - (th * cover) / 2);
-      this.bg.circle(cx, cy, r);
-      this.bg.fill({ texture: tex, matrix: m });
+      this.avatarPhoto.texture = tex;
+      this.avatarPhoto.width = tw * cover;
+      this.avatarPhoto.height = th * cover;
+      this.avatarPhoto.position.set(cx, cy);
+      this.avatarMask.clear();
+      this.avatarMask.circle(cx, cy, r);
+      this.avatarMask.fill({ color: 0xffffff });
     }
 
-    this.bg.circle(cx, cy, r - 0.5);
-    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.avatarFx.circle(cx, cy, r - 0.5);
+    this.avatarFx.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
 
     // Targetable draws a pulsing ring in `targetRing`. The static ring here:
     // selected-target, then priority (same priority colour as the pass-button
@@ -389,8 +398,8 @@ export class PlayerHudCapsule {
           ? { c: this.spec.color, w: 1.5, a: 0.95 }
           : null;
     if (accent) {
-      this.bg.circle(cx, cy, r - accent.w / 2);
-      this.bg.stroke({ color: hexToNum(accent.c), width: accent.w, alpha: accent.a });
+      this.avatarFx.circle(cx, cy, r - accent.w / 2);
+      this.avatarFx.stroke({ color: hexToNum(accent.c), width: accent.w, alpha: accent.a });
     }
 
     const showBot = !hasImage && this.isBot;
@@ -429,10 +438,10 @@ export class PlayerHudCapsule {
       const ox = cx + r * 0.4;
       const oy = cy - r * 0.55;
       const chipR = diameter * 0.3;
-      this.bg.circle(ox, oy, chipR);
-      this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.95 });
-      this.bg.circle(ox, oy, chipR);
-      this.bg.stroke({ color: hexToNum(gt.promptAction.cancel), width: 1.5, alpha: 0.9 });
+      this.avatarFx.circle(ox, oy, chipR);
+      this.avatarFx.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.95 });
+      this.avatarFx.circle(ox, oy, chipR);
+      this.avatarFx.stroke({ color: hexToNum(gt.promptAction.cancel), width: 1.5, alpha: 0.9 });
       const tex = this.iconTexture(OFFLINE_ICON_NAME);
       if (tex) this.offline.texture = tex;
       this.offline.tint = hexToNum(gt.promptAction.cancel);

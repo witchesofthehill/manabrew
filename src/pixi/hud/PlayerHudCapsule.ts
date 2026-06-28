@@ -93,6 +93,7 @@ export class PlayerHudCapsule {
   private avatarPhoto = new Sprite();
   private avatarMask = new Graphics();
   private avatarFx = new Graphics();
+  private lifePill = new Graphics();
   private bot = new Sprite();
   private skull = new Sprite();
   private offline = new Sprite();
@@ -160,6 +161,7 @@ export class PlayerHudCapsule {
     this.avatarPhoto.mask = this.avatarMask;
     this.avatarMask.eventMode = "none";
     this.avatarFx.eventMode = "none";
+    this.lifePill.eventMode = "none";
     this.bot.anchor.set(0.5);
     this.bot.visible = false;
     this.skull.anchor.set(0.5);
@@ -231,6 +233,7 @@ export class PlayerHudCapsule {
       this.avatarHit,
       this.gearHit,
       this.gear,
+      this.lifePill,
       this.heart,
       this.life,
       this.manaLayer,
@@ -543,6 +546,7 @@ export class PlayerHudCapsule {
     this.applyOffline();
 
     this.bg.clear();
+    this.lifePill.clear();
     if (this.column) {
       this.renderColumn(w, h);
       this.checkBadgeSparkles();
@@ -668,10 +672,16 @@ export class PlayerHudCapsule {
     const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
     const pillLeft = cx - pillW / 2;
     const pillCy = avatarCy + avatarD / 2 - pillH * 0.25;
-    this.bg.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
-    this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.9 });
-    this.bg.roundRect(pillLeft + 0.5, pillCy - pillH / 2 + 0.5, pillW - 1, pillH - 1, pillH / 2);
-    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.lifePill.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
+    this.lifePill.fill({ color: hexToNum(gt.canvas.shadow) });
+    this.lifePill.roundRect(
+      pillLeft + 0.5,
+      pillCy - pillH / 2 + 0.5,
+      pillW - 1,
+      pillH - 1,
+      pillH / 2,
+    );
+    this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
 
@@ -716,10 +726,16 @@ export class PlayerHudCapsule {
     const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
     const pillLeft = avatarCx - pillW / 2;
     const pillCy = avatarCy + avatarD / 2 - pillH * 0.3;
-    this.bg.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
-    this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.9 });
-    this.bg.roundRect(pillLeft + 0.5, pillCy - pillH / 2 + 0.5, pillW - 1, pillH - 1, pillH / 2);
-    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.lifePill.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
+    this.lifePill.fill({ color: hexToNum(gt.canvas.shadow) });
+    this.lifePill.roundRect(
+      pillLeft + 0.5,
+      pillCy - pillH / 2 + 0.5,
+      pillW - 1,
+      pillH - 1,
+      pillH / 2,
+    );
+    this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
 

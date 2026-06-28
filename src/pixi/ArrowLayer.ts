@@ -91,10 +91,10 @@ const PLACEMENT_DASH_SPEED_PX_PER_SEC = 48;
 const PLACEMENT_HEAD_LEN = 14;
 const PLACEMENT_HEAD_WIDTH = 11;
 
-// ── Placement target slot (dashed outline of the grid cell) ─────────────────
+// ── Placement target slot (fixed dotted outline of the grid cell) ───────────
 const SLOT_RADIUS = 6;
-const SLOT_DASH = 7;
-const SLOT_GAP = 5;
+const SLOT_DASH = 1;
+const SLOT_GAP = 6;
 const SLOT_STROKE_WIDTH = 2;
 const SLOT_ALPHA = 0.9;
 
@@ -616,8 +616,7 @@ export class ArrowLayer {
     this.drawPlacementHead(entry.headGfx, curve, style.color, style);
   }
 
-  /** Marching dashes along a polyline, shared by the placement arrow and the
-   *  placement-slot outline. */
+  /** Marching dashes along the placement arrow's bezier polyline. */
   private strokeDashedPath(
     gfx: Graphics,
     points: Point[],
@@ -660,14 +659,40 @@ export class ArrowLayer {
       arrow.slot.height,
       SLOT_RADIUS,
     );
-    this.strokeDashedPath(entry.coreGfx, pts, {
-      dash: SLOT_DASH,
-      gap: SLOT_GAP,
-      offset: this.dashMarchOffset,
-      color: hexToNum(this.theme.gameTheme.activeAction.active),
-      width: SLOT_STROKE_WIDTH,
-      alpha: SLOT_ALPHA,
-    });
+    const gfx = entry.coreGfx;
+    const color = hexToNum(this.theme.gameTheme.activeAction.active);
+    const cycle = SLOT_DASH + SLOT_GAP;
+    let dist = 0;
+    let prev = pts[0]!;
+    for (let i = 1; i < pts.length; i += 1) {
+      const cur = pts[i]!;
+      const segLen = Math.hypot(cur.x - prev.x, cur.y - prev.y);
+      if (segLen === 0) {
+        prev = cur;
+        continue;
+      }
+      const ux = (cur.x - prev.x) / segLen;
+      const uy = (cur.y - prev.y) / segLen;
+      let pos = 0;
+      while (pos < segLen) {
+        const inDash = dist < SLOT_DASH;
+        const step = Math.min((inDash ? SLOT_DASH : cycle) - dist, segLen - pos);
+        if (inDash) {
+          gfx.moveTo(prev.x + ux * pos, prev.y + uy * pos);
+          gfx.lineTo(prev.x + ux * (pos + step), prev.y + uy * (pos + step));
+          gfx.stroke({
+            color,
+            width: SLOT_STROKE_WIDTH,
+            alpha: SLOT_ALPHA,
+            cap: "round",
+            join: "round",
+          });
+        }
+        pos += step;
+        dist = (dist + step) % cycle;
+      }
+      prev = cur;
+    }
   }
 
   private drawPlacementHead(

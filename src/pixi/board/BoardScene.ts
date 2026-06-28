@@ -816,8 +816,7 @@ export class BoardScene {
           ? { attackerIds: a!.attackerIds, blockers: a!.blockers, blockerIds: a!.blockerIds }
           : null,
       );
-      const raised = staged || rec.region.hasCombatRow();
-      rec.region.container.zIndex = raised ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
+      rec.region.container.zIndex = staged ? Z_STAGED_REGION : rec.isLocal ? 100 : 50;
     }
     this.refreshPhaseStripDim();
   }

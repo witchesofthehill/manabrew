@@ -36,7 +36,7 @@ import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { GameBoard } from "@/components/game/GameBoard";
-import { withAlpha } from "@/themes/gameTheme";
+import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -1544,11 +1544,19 @@ export default function Game({ exitTo }: GameProps = {}) {
                 isMyPriority={gameView.priorityPlayerId === me.id}
                 sidePanelCollapsed={isActionPanelCollapsed}
                 onToggleSidePanel={toggleActionPanel}
-                players={gameView.players.map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                  color: playerColorMap.get(p.id) ?? themeColors.playerColors.self,
-                }))}
+                players={gameView.players.map((p) => {
+                  const color = playerColorMap.get(p.id) ?? themeColors.playerColors.self;
+                  return {
+                    id: p.id,
+                    name: p.name,
+                    color,
+                    textColor: readableTextColor(
+                      color,
+                      themeColors.canvas.shadow,
+                      themeColors.textOnTinted,
+                    ),
+                  };
+                })}
               />
             </>
           ),

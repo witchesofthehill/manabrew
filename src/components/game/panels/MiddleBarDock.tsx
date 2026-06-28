@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useGameStore } from "@/stores/useGameStore";
-import { withAlpha } from "@/themes/gameTheme";
 import { getPlatformType } from "@/platform";
 
 interface MiddleBarDockProps {
@@ -32,8 +31,9 @@ interface MiddleBarDockProps {
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
   /** Every seat, for the per-player playmat show/hide toggles. `color` is the
-   *  player's seat colour, used to tint the row on hover so it's clear who's who. */
-  players: { id: string; name: string; color: string }[];
+   *  player's seat colour (full opacity, matching their Pixi avatar ring) used as
+   *  the row's hover background; `textColor` is the readable text over it. */
+  players: { id: string; name: string; color: string; textColor: string }[];
 }
 
 /** Board menu opened by the self panel's Pixi gear — fullscreen, the dev/side
@@ -118,8 +118,8 @@ export function MiddleBarDock({
                   checked={hiddenPlaymats.has(p.id)}
                   onCheckedChange={() => togglePlaymatHidden(p.id)}
                   onSelect={(e) => e.preventDefault()}
-                  style={{ "--player-hover": withAlpha(p.color, 0.28) } as CSSProperties}
-                  className="focus:bg-[var(--player-hover)] focus:text-foreground"
+                  style={{ "--player-bg": p.color, "--player-fg": p.textColor } as CSSProperties}
+                  className="focus:bg-[var(--player-bg)] focus:text-[var(--player-fg)]"
                 >
                   {p.name}
                 </DropdownMenuCheckboxItem>

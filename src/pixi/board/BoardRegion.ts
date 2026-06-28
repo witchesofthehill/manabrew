@@ -62,6 +62,7 @@ import {
   Z_COMBAT_STAGED,
   Z_GRID_SKELETON,
   Z_OVERLAY_OFFSET,
+  Z_STAGED_REGION,
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
@@ -619,6 +620,7 @@ export class BoardRegion {
 
     this.applyCombatStaging();
     this.applyCombatRow();
+    this.applyContainerZ();
     this.applyAttackLunge(state);
     if (!isFirstState) {
       const lethal = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
@@ -629,8 +631,12 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          entry.etbGlowAlpha = 1;
-          entry.pendingEntrance = true;
+          // A combat-row guest is respawning from another band, not entering the
+          // battlefield — skip the ETB glow/stomp so it doesn't read as an ETB.
+          if (!this.combatRowAttackerIds.has(card.id)) {
+            entry.etbGlowAlpha = 1;
+            entry.pendingEntrance = true;
+          }
           continue;
         }
         const fx = animationsEnabled();
@@ -692,6 +698,17 @@ export class BoardRegion {
    *  band across the inner-edge row, then stack this region's blockers on top of
    *  their attacker. Both attacker and blocker sprites live in this region now,
    *  so everything is in local coords (no cross-region screen math). */
+  hasCombatRow(): boolean {
+    return this.combatRowAttackerIds.size > 0;
+  }
+
+  /** Float the whole region above its peers while it hosts combat (self staging
+   *  or an opp-vs-opp combat row), matching `applyCombatBlocks`'s z policy. */
+  private applyContainerZ(): void {
+    const raised = this.combatStaging !== null || this.combatRowAttackerIds.size > 0;
+    this.container.zIndex = raised ? Z_STAGED_REGION : this.mirrored ? 50 : 100;
+  }
+
   private applyCombatRow(): void {
     if (this.combatRowAttackerIds.size === 0) return;
     const ids = [...this.combatRowAttackerIds];

@@ -39,8 +39,8 @@ export class StackCardSprite {
     spec: StackCardSpec,
     cardWidth: number,
     onOpen: () => void,
-    onTarget: () => void,
-    onHover: (hovered: boolean) => void,
+    onTarget: (id: string) => void,
+    onHover: (id: string | null) => void,
   ) {
     this.theme = theme;
     this.spec = spec;
@@ -68,18 +68,18 @@ export class StackCardSprite {
     hit.eventMode = "static";
     hit.cursor = "pointer";
     hit.on("pointertap", () => {
-      if (this.spec.isValidTarget) onTarget();
+      if (this.spec.isValidTarget) onTarget(this.spec.id);
       else onOpen();
     });
     hit.on("pointerover", () => {
       this.hovered = true;
       this.applyHover();
-      onHover(true);
+      onHover(this.spec.id);
     });
     hit.on("pointerout", () => {
       this.hovered = false;
       this.applyHover();
-      onHover(false);
+      onHover(null);
     });
 
     this.container.addChild(this.glow, this.face, this.ring, hit);

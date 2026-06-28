@@ -1544,6 +1544,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 isMyPriority={gameView.priorityPlayerId === me.id}
                 sidePanelCollapsed={isActionPanelCollapsed}
                 onToggleSidePanel={toggleActionPanel}
+                players={gameView.players.map((p) => ({ id: p.id, name: p.name }))}
               />
             </>
           ),

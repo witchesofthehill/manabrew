@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { Flag, Maximize2, Minimize2, PanelRightClose, PanelRightOpen } from "lucide-react";
+import {
+  Flag,
+  Image as ImageIcon,
+  Maximize2,
+  Minimize2,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
 
 interface MiddleBarDockProps {
@@ -17,6 +30,8 @@ interface MiddleBarDockProps {
   isMyPriority: boolean;
   sidePanelCollapsed: boolean;
   onToggleSidePanel: () => void;
+  /** Every seat, for the per-player playmat show/hide toggles. */
+  players: { id: string; name: string }[];
 }
 
 /** Board menu opened by the self panel's Pixi gear — fullscreen, the dev/side
@@ -29,8 +44,11 @@ export function MiddleBarDock({
   isMyPriority,
   sidePanelCollapsed,
   onToggleSidePanel,
+  players,
 }: MiddleBarDockProps) {
   const isWeb = getPlatformType() === "web";
+  const hiddenPlaymats = useGameStore((s) => s.hiddenPlaymats);
+  const togglePlaymatHidden = useGameStore((s) => s.togglePlaymatHidden);
   const [isFullscreen, setIsFullscreen] = useState(
     typeof document !== "undefined" && document.fullscreenElement !== null,
   );
@@ -84,6 +102,27 @@ export function MiddleBarDock({
           <PanelIcon className="mr-2 h-4 w-4" />
           {sidePanelCollapsed ? "Show side panel" : "Hide side panel"}
         </DropdownMenuItem>
+        {players.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Playmats
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuLabel>Hide playmat</DropdownMenuLabel>
+              {players.map((p) => (
+                <DropdownMenuCheckboxItem
+                  key={p.id}
+                  checked={hiddenPlaymats.has(p.id)}
+                  onCheckedChange={() => togglePlaymatHidden(p.id)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  {p.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           disabled={!isMyPriority}

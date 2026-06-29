@@ -334,10 +334,11 @@ export class BoardZoneTiles {
     color: number,
     alpha: number,
   ): void {
+    const SEG = 8;
     const pts: { x: number; y: number }[] = [];
     const arc = (cx: number, cy: number, from: number, to: number) => {
-      for (let i = 0; i <= 5; i++) {
-        const a = from + ((to - from) * i) / 5;
+      for (let i = 0; i <= SEG; i++) {
+        const a = from + ((to - from) * i) / SEG;
         pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
       }
     };
@@ -351,18 +352,27 @@ export class BoardZoneTiles {
     arc(r, r, Math.PI, Math.PI * 1.5);
     pts.push(pts[0]!);
 
-    const spacing = 7;
-    let acc = 0;
+    const segLen: number[] = [];
+    let total = 0;
     for (let i = 1; i < pts.length; i++) {
-      const from = pts[i - 1]!;
-      const to = pts[i]!;
-      const len = Math.hypot(to.x - from.x, to.y - from.y);
-      while (acc <= len) {
-        const t = len === 0 ? 0 : acc / len;
-        g.circle(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, 1.3);
-        acc += spacing;
+      const l = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y);
+      segLen.push(l);
+      total += l;
+    }
+    const count = Math.max(4, Math.round(total / 7));
+    const step = total / count;
+    let seg = 0;
+    let segStart = 0;
+    for (let k = 0; k < count; k++) {
+      const target = k * step;
+      while (seg < segLen.length - 1 && segStart + segLen[seg]! < target) {
+        segStart += segLen[seg]!;
+        seg++;
       }
-      acc -= len;
+      const from = pts[seg]!;
+      const to = pts[seg + 1]!;
+      const t = segLen[seg]! === 0 ? 0 : (target - segStart) / segLen[seg]!;
+      g.circle(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, 1.3);
     }
     g.fill({ color, alpha });
   }

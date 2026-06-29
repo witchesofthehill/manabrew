@@ -757,31 +757,31 @@ export class BoardRegion {
       });
     }
 
-    // Each attacking player's group gets a red battle glow on the row, with their
-    // name as a header on the row itself (coloured in their seat colour).
+    // The whole "attack area" is a reddish strip across the band; each attacking
+    // player's name is a header over their cards (coloured in their seat colour).
     const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
-    const halfW = cardW / 2;
     const halfH = (CARD_H * this.cardScale) / 2;
+    const stripPad = 12;
+    const stripLeft = bandLeft + stripPad;
+    const stripW = Math.max(1, bandWidth - stripPad * 2);
+    const stripTop = y - halfH - COMBAT_ROW_LABEL_H - 2;
+    const stripH = halfH * 2 + COMBAT_ROW_LABEL_H + 8;
+    this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
+    this.combatRowGfx.fill({ color: red, alpha: 0.22 });
+    this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
+    this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
+
     let li = 0;
     for (const group of this.combatRowGroups) {
       const xs = group.attackerIds
         .map((id) => attackerX.get(id))
         .filter((x): x is number => x !== undefined);
       if (xs.length === 0) continue;
-      const left = Math.min(...xs) - halfW - 6;
-      const right = Math.max(...xs) + halfW + 6;
-      const top = y - halfH - COMBAT_ROW_LABEL_H - 2;
-      const bottom = y + halfH + 6;
-      const w = right - left;
-      const h = bottom - top;
-      this.combatRowGfx.roundRect(left, top, w, h, 8);
-      this.combatRowGfx.fill({ color: red, alpha: 0.16 });
-      this.combatRowGfx.roundRect(left, top, w, h, 8);
-      this.combatRowGfx.stroke({ color: red, width: 1, alpha: 0.5 });
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
       const label = this.combatRowLabel(li++);
       label.text = group.label;
       label.style.fill = hexToNum(group.color);
-      label.position.set((left + right) / 2, top + COMBAT_ROW_LABEL_H / 2 + 1);
+      label.position.set(cx, stripTop + COMBAT_ROW_LABEL_H / 2 + 1);
       label.visible = true;
     }
   }

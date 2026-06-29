@@ -53,12 +53,16 @@ export interface MainActionOverlayProps {
   onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
+  attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  onSubmitAttack: () => void;
   pendingAttacker: string | null;
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  blockRestrictionHint?: string | null;
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;

@@ -1,4 +1,4 @@
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, CombatAssignmentDto } from "@/protocol/game";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 
 export interface ScreenBounds {
@@ -114,10 +114,20 @@ export interface BattlefieldState {
    *  numbered badge on each (first in line takes damage first). */
   orderedCardIds?: string[];
   selectableCardIds?: string[];
+  mustAttackCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
+  ownerRingByCard?: Record<string, string>;
+  combatRowAttackerIds?: string[];
+  combatRowBlocks?: CombatAssignmentDto[];
+  combatRowGroups?: {
+    color: string;
+    label: string;
+    avatarUrl?: string;
+    attackerIds: string[];
+  }[];
 }
 
 export interface HandState {

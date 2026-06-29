@@ -7,6 +7,7 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { isFeatureEnabled } from "@/featureFlags";
+import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
@@ -60,6 +61,7 @@ interface GameBoardProps {
   boardTargets: BoardTargetBuckets | null;
 
   pendingAttackers: string[];
+  attackAssignments: { attackerId: string; targetId: string }[];
   pendingAttacker?: string | null;
   pendingBlocker?: string | null;
   damageOrder?: string[];
@@ -67,6 +69,7 @@ interface GameBoardProps {
   selectedAttackDefenderId?: string | null;
   blockAssignments: { blockerId: string; attackerId: string }[];
   combatAssignments?: { blockerId: string; attackerId: string }[];
+  combatRows: CombatRow[];
   arrowSpecs?: ArrowSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   playerIsTargetable: (playerId: string) => boolean;
@@ -158,6 +161,7 @@ export function GameBoard({
   currentPrompt,
   boardTargets,
   pendingAttackers,
+  attackAssignments,
   pendingAttacker,
   pendingBlocker,
   damageOrder,
@@ -165,6 +169,7 @@ export function GameBoard({
   selectedAttackDefenderId,
   blockAssignments,
   combatAssignments,
+  combatRows,
   arrowSpecs,
   castingArrow,
   playerIsTargetable,
@@ -248,14 +253,28 @@ export function GameBoard({
       for (const c of list) if (c.isAttacking) s.add(c.id);
     return s;
   }, [myPermanents, opponentPermanentsByPlayer]);
+  const battlefield = useMemo(
+    () => [
+      ...myPermanents,
+      ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
+    ],
+    [myPermanents, opponents, opponentPermanentsByPlayer],
+  );
+  const oppCombatAttackerIds = useMemo(
+    () => new Set(combatRows.flatMap((r) => r.attackerIds)),
+    [combatRows],
+  );
   const combatAssignmentsAll = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
     for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
     return [...byBlocker]
-      .filter(([, attackerId]) => attackingCardIdSet.has(attackerId))
+      .filter(
+        ([, attackerId]) =>
+          attackingCardIdSet.has(attackerId) && !oppCombatAttackerIds.has(attackerId),
+      )
       .map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
-  }, [combatAssignments, blockAssignments, attackingCardIdSet]);
+  }, [combatAssignments, blockAssignments, attackingCardIdSet, oppCombatAttackerIds]);
 
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const promptActions = chooseActionActions ?? payManaCostPrompt?.input.actions;
@@ -282,7 +301,9 @@ export function GameBoard({
         ? [
             ...(chooseAttackersPrompt?.input.attackers.map((a) => a.attackerId) ?? []),
             ...(pendingAttackers.length > 0
-              ? (chooseAttackersPrompt?.input.attackTargets.map((t) => t.id) ?? [])
+              ? (chooseAttackersPrompt?.input.attackTargets
+                  .filter((t) => playerIsTargetable(t.id))
+                  .map((t) => t.id) ?? [])
               : []),
           ]
         : promptType === "chooseBlockers"
@@ -311,6 +332,7 @@ export function GameBoard({
       promptType,
       chooseAttackersPrompt,
       pendingAttackers,
+      playerIsTargetable,
       pendingAttacker,
       pendingBlocker,
       dragBlockerId,
@@ -325,7 +347,7 @@ export function GameBoard({
       cards: myPermanents,
       pendingCardIds:
         promptType === "chooseAttackers"
-          ? pendingAttackers
+          ? [...pendingAttackers, ...attackAssignments.map((a) => a.attackerId)]
           : promptType === "chooseBlockers"
             ? [
                 ...blockAssignments.map((a) => a.blockerId),
@@ -335,6 +357,12 @@ export function GameBoard({
       attackingCardIds: promptAttackerIds,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
+      mustAttackCardIds:
+        promptType === "chooseAttackers"
+          ? chooseAttackersPrompt?.input.attackers
+              .filter((a) => a.mustAttack)
+              .map((a) => a.attackerId)
+          : undefined,
       tappableLandIds: promptActions
         ?.filter((a) => a.type === "activateAbility" && a.isManaAbility)
         .map((a) => a.cardId),
@@ -346,11 +374,13 @@ export function GameBoard({
       myPermanents,
       promptType,
       pendingAttackers,
+      attackAssignments,
       pendingBlocker,
       blockAssignments,
       promptAttackerIds,
       damageOrder,
       selectableBattlefieldCardIds,
+      chooseAttackersPrompt,
       promptActions,
       manaAbilityOptions,
       hostileTargeting,
@@ -502,11 +532,12 @@ export function GameBoard({
   // React just sets this target.
   const focusedOpponentId = useMemo(() => {
     if (!isSelfTurn) return activePlayerId;
+    if (promptType === "chooseAttackers") return null;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
       return stickyOpponentId;
     }
     return opponents[0]?.id ?? null;
-  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
+  }, [isSelfTurn, activePlayerId, promptType, stickyOpponentId, opponents]);
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.
@@ -528,6 +559,50 @@ export function GameBoard({
     }
     return map;
   }, [myAvatar, playerDecks, me.id, opponents]);
+
+  const combatEngagedIds = useMemo(() => {
+    const controllerById = new Map(battlefield.map((c) => [c.id, c.controllerId]));
+    const playerSet = new Set([me.id, ...opponents.map((o) => o.id)]);
+    const engaged = new Set<string>();
+    for (const c of battlefield) {
+      if (!c.isAttacking || !c.attackingPlayerId) continue;
+      engaged.add(c.controllerId);
+      const def = playerSet.has(c.attackingPlayerId)
+        ? c.attackingPlayerId
+        : controllerById.get(c.attackingPlayerId);
+      if (def) engaged.add(def);
+    }
+    for (const a of combatAssignments ?? []) {
+      const ctrl = controllerById.get(a.blockerId);
+      if (ctrl) engaged.add(ctrl);
+    }
+    return engaged;
+  }, [battlefield, combatAssignments, me.id, opponents]);
+
+  const ownerRingByCard = useMemo(() => {
+    const seatColorOf = (pid: string): string =>
+      pid === me.id
+        ? playerColors.self
+        : playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
+    const map: Record<string, string> = {};
+    for (const c of battlefield) {
+      if (c.controllerId !== c.ownerId) map[c.id] = seatColorOf(c.ownerId);
+    }
+    return map;
+  }, [battlefield, playerColors, opponents, me.id]);
+
+  const incomingDamageByPlayer = useMemo(() => {
+    const blocked = new Set((combatAssignments ?? []).map((a) => a.attackerId));
+    const map = new Map<string, number>();
+    for (const c of battlefield) {
+      if (!c.isAttacking || !c.attackingPlayerId || blocked.has(c.id)) continue;
+      if (c.attackTargetId && c.attackTargetId !== c.attackingPlayerId) continue;
+      const p = Number.parseInt(c.power ?? "", 10);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      map.set(c.attackingPlayerId, (map.get(c.attackingPlayerId) ?? 0) + p);
+    }
+    return map;
+  }, [battlefield, combatAssignments]);
 
   // Pixi player HUD capsules: self bottom-left, opponents across the top of
   // their fields. Carries the life, mana pool, and active player/game badges.
@@ -590,8 +665,25 @@ export function GameBoard({
         });
     };
 
+    const incomingDamageBadges = (player: PlayerDto): PlayerHudBadge[] => {
+      const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
+      if (incoming <= 0) return [];
+      const lethal = incoming >= (dev.life ?? player.life);
+      return [
+        {
+          id: "incoming-damage",
+          icon: "bleeding-wound",
+          color: gameTheme.pt.lethal,
+          label: lethal ? "Lethal combat damage incoming" : "Combat damage incoming",
+          count: incoming,
+          lethal,
+        },
+      ];
+    };
+
     const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
       const badges = [
+        ...incomingDamageBadges(player),
         ...buildPlayerHudBadges(
           {
             isMonarch: dev.forceMonarch ? true : monarchId === player.id,
@@ -629,6 +721,7 @@ export function GameBoard({
         isDisconnected: dev.forceDisconnected
           ? true
           : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
+        inCombat: combatEngagedIds.has(player.id),
         manaPool: player.manaPool,
         badges,
       };
@@ -642,6 +735,8 @@ export function GameBoard({
   }, [
     me,
     opponents,
+    combatEngagedIds,
+    incomingDamageByPlayer,
     playerColors,
     avatarByPlayerId,
     activePlayerId,
@@ -652,6 +747,7 @@ export function GameBoard({
     monarchId,
     initiativeHolderId,
     gameTheme.badges,
+    gameTheme.pt,
     devOverrides,
     currentRoom,
     concededPlayerIds,
@@ -855,13 +951,51 @@ export function GameBoard({
   ]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
-    const oppState = (cards: CardDto[]): BattlefieldState => ({
+    const seatColorOf = (pid: string): string =>
+      playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
+    const nameOf = (pid: string): string => opponents.find((o) => o.id === pid)?.name ?? "Player";
+    const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
       hostileTargeting,
+      combatRowAttackerIds: combatRow?.attackerIds,
+      combatRowBlocks: combatRow?.blocks,
+      combatRowGroups: combatRow?.groups.map((g) => ({
+        color: seatColorOf(g.controllerId),
+        label: nameOf(g.controllerId),
+        avatarUrl: avatarByPlayerId.get(g.controllerId),
+        attackerIds: g.attackerIds,
+      })),
     });
+
+    const oppCards = new Map<string, CardDto[]>();
+    for (const op of opponents)
+      oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
+    const combatRowByDefender = new Map<string, CombatRow>();
+    const cardById = new Map(battlefield.map((c) => [c.id, c]));
+    const attachedTo = new Map<string, CardDto[]>();
+    for (const c of battlefield) {
+      if (!c.attachedTo) continue;
+      (attachedTo.get(c.attachedTo) ?? attachedTo.set(c.attachedTo, []).get(c.attachedTo)!).push(c);
+    }
+    const moveToDefender = (id: string, defList: CardDto[]) => {
+      const card = cardById.get(id);
+      if (!card) return;
+      const ctrl = oppCards.get(card.controllerId);
+      const idx = ctrl?.findIndex((c) => c.id === id) ?? -1;
+      if (ctrl && idx >= 0) ctrl.splice(idx, 1);
+      defList.push(card);
+      for (const child of attachedTo.get(id) ?? []) moveToDefender(child.id, defList);
+    };
+    for (const row of combatRows) {
+      const defList = oppCards.get(row.defenderId);
+      if (!defList) continue;
+      for (const attackerId of row.attackerIds) moveToDefender(attackerId, defList);
+      combatRowByDefender.set(row.defenderId, row);
+    }
+
     const myDeck = gameDecks[me.id];
     // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
     // resolved here too; multiplayer decks already carry it from the relay.
@@ -870,7 +1004,7 @@ export function GameBoard({
       {
         playerId: me.id,
         isLocal: true,
-        state: pixiBattlefield,
+        state: { ...pixiBattlefield, ownerRingByCard },
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat
@@ -885,7 +1019,10 @@ export function GameBoard({
       ...opponents.map((op, i) => ({
         playerId: op.id,
         isLocal: false,
-        state: oppState(opponentPermanentsByPlayer.get(op.id) ?? []),
+        state: {
+          ...oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
+          ownerRingByCard,
+        },
         playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
@@ -895,6 +1032,10 @@ export function GameBoard({
     me.id,
     opponents,
     opponentPermanentsByPlayer,
+    battlefield,
+    combatRows,
+    avatarByPlayerId,
+    ownerRingByCard,
     pixiBattlefield,
     promptType,
     promptAttackerIds,

@@ -96,6 +96,7 @@ export class PlayerHudCapsule {
 
   private bg = new Graphics();
   private glow = new Graphics();
+  private combatGlow = new Graphics();
   private damageWash = new Graphics();
   private targetRing = new Graphics();
   private flashRing = new Graphics();
@@ -103,6 +104,7 @@ export class PlayerHudCapsule {
   private avatarPhoto = new Sprite();
   private avatarMask = new Graphics();
   private avatarFx = new Graphics();
+  private lifePill = new Graphics();
   private bot = new Sprite();
   private skull = new Sprite();
   private offline = new Sprite();
@@ -135,6 +137,8 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
+  private combatPulse: gsap.core.Tween | null = null;
+  private combatActive = false;
   private gearHovered = false;
   private gearCx = 0;
   private gearCy = 0;
@@ -170,6 +174,9 @@ export class PlayerHudCapsule {
     this.avatarPhoto.mask = this.avatarMask;
     this.avatarMask.eventMode = "none";
     this.avatarFx.eventMode = "none";
+    this.combatGlow.eventMode = "none";
+    this.combatGlow.visible = false;
+    this.lifePill.eventMode = "none";
     this.bot.anchor.set(0.5);
     this.bot.visible = false;
     this.skull.anchor.set(0.5);
@@ -231,6 +238,7 @@ export class PlayerHudCapsule {
       this.avatarMask,
       this.avatarPhoto,
       this.avatarFx,
+      this.combatGlow,
       this.damageWash,
       this.targetRing,
       this.flashRing,
@@ -241,6 +249,7 @@ export class PlayerHudCapsule {
       this.avatarHit,
       this.gearHit,
       this.gear,
+      this.lifePill,
       this.heart,
       this.life,
       this.manaLayer,
@@ -308,6 +317,7 @@ export class PlayerHudCapsule {
       s.isFlashing,
       s.isEliminated,
       s.isDisconnected,
+      s.inCombat,
       s.color,
       s.name,
       s.isBot,
@@ -557,14 +567,17 @@ export class PlayerHudCapsule {
     this.applyOffline();
 
     this.bg.clear();
+    this.lifePill.clear();
     if (this.column) {
       this.renderColumn(w, h);
+      this.applyCombatGlow();
       this.checkBadgeSparkles();
       return;
     }
     this.renderCapsule(h);
     this.applyLifeAnim();
     this.applyPriority();
+    this.applyCombatGlow();
     this.applyTargetable();
     this.applyFlash();
     this.checkBadgeSparkles();
@@ -682,10 +695,16 @@ export class PlayerHudCapsule {
     const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
     const pillLeft = cx - pillW / 2;
     const pillCy = avatarCy + avatarD / 2 - pillH * 0.25;
-    this.bg.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
-    this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.9 });
-    this.bg.roundRect(pillLeft + 0.5, pillCy - pillH / 2 + 0.5, pillW - 1, pillH - 1, pillH / 2);
-    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.lifePill.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
+    this.lifePill.fill({ color: hexToNum(gt.canvas.shadow) });
+    this.lifePill.roundRect(
+      pillLeft + 0.5,
+      pillCy - pillH / 2 + 0.5,
+      pillW - 1,
+      pillH - 1,
+      pillH / 2,
+    );
+    this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
 
@@ -730,10 +749,16 @@ export class PlayerHudCapsule {
     const pillW = padX * 2 + this.heart.width + 3 + this.life.width;
     const pillLeft = avatarCx - pillW / 2;
     const pillCy = avatarCy + avatarD / 2 - pillH * 0.3;
-    this.bg.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
-    this.bg.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.9 });
-    this.bg.roundRect(pillLeft + 0.5, pillCy - pillH / 2 + 0.5, pillW - 1, pillH - 1, pillH / 2);
-    this.bg.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
+    this.lifePill.roundRect(pillLeft, pillCy - pillH / 2, pillW, pillH, pillH / 2);
+    this.lifePill.fill({ color: hexToNum(gt.canvas.shadow) });
+    this.lifePill.roundRect(
+      pillLeft + 0.5,
+      pillCy - pillH / 2 + 0.5,
+      pillW - 1,
+      pillH - 1,
+      pillH / 2,
+    );
+    this.lifePill.stroke({ color: hexToNum(gt.textGhost), width: 1, alpha: 0.25 });
     this.heart.position.set(pillLeft + padX, pillCy);
     this.life.position.set(this.heart.x + this.heart.width + 3, pillCy);
 
@@ -1021,12 +1046,53 @@ export class PlayerHudCapsule {
     this.glow.fill({ color: hexToNum(this.theme.gameTheme.activeAction.priority), alpha: 0.22 });
   }
 
+  private applyCombatGlow(): void {
+    if (this.spec.inCombat === this.combatActive) {
+      if (this.combatActive) this.drawCombatGlow();
+      return;
+    }
+    this.combatActive = this.spec.inCombat;
+    if (this.combatActive) {
+      this.drawCombatGlow();
+      this.combatGlow.visible = true;
+      this.combatGlow.alpha = 1;
+      this.combatPulse = gsap.to(this.combatGlow, {
+        alpha: 0.5,
+        duration: 0.9,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      });
+    } else {
+      this.combatPulse?.kill();
+      this.combatPulse = null;
+      this.combatGlow.visible = false;
+      this.combatGlow.clear();
+    }
+  }
+
+  private drawCombatGlow(): void {
+    this.combatGlow.clear();
+    const r = this.avatarDia / 2;
+    const red = hexToNum(this.theme.gameTheme.pt.lethal);
+    for (const layer of [
+      { rr: r + 5, w: 7, a: 0.18 },
+      { rr: r + 2, w: 4, a: 0.45 },
+      { rr: r, w: 2, a: 0.95 },
+    ]) {
+      this.combatGlow.circle(this.avatarCx, this.avatarCy, layer.rr);
+      this.combatGlow.stroke({ color: red, width: layer.w, alpha: layer.a });
+    }
+  }
+
   destroy(): void {
     this.pulse?.kill();
+    this.combatPulse?.kill();
     this.targetTween?.kill();
     this.flashTween?.kill();
     this.lifeTween?.kill();
     this.offlineTween?.kill();
+    gsap.killTweensOf(this.combatGlow);
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);

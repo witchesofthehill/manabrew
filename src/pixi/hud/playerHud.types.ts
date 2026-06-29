@@ -28,6 +28,7 @@ export interface PlayerHudSpec {
   isFlashing: boolean;
   isEliminated: boolean;
   isDisconnected: boolean;
+  inCombat: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
 }

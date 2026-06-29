@@ -36,6 +36,7 @@ import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { GameBoard } from "@/components/game/GameBoard";
+import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -45,6 +46,7 @@ import { tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
 import { intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
+import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
@@ -459,6 +461,8 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const {
     pendingAttackers,
+    attackAssignments,
+    submitAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,
@@ -468,6 +472,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     assignBlockPair,
     unassignBlock,
     damageOrder,
+    toggleDamageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,
@@ -497,6 +502,34 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
       : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
   }, [blockRequirement, gameView?.battlefield]);
+  const mustAttackHint = useMemo<string | null>(() => {
+    const must = chooseAttackersInput?.attackers.filter((a) => a.mustAttack) ?? [];
+    if (must.length === 0) return null;
+    const nameOf = (id: string) =>
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "A creature";
+    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
+  }, [chooseAttackersInput, gameView?.battlefield]);
+  const blockRestrictionHint = useMemo<string | null>(() => {
+    const attackers = chooseBlockersInput?.attackers ?? [];
+    const nameOf = (id: string) =>
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "An attacker";
+    const parts: string[] = [];
+    const menace = attackers.filter(
+      (a) => a.minBlockers > 1 && a.validBlockerIds.length >= a.minBlockers,
+    );
+    if (menace.length > 0) {
+      parts.push(
+        `Requires multiple blockers — ${menace
+          .map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`)
+          .join(", ")}`,
+      );
+    }
+    const mustBlock = attackers.filter((a) => a.mustBeBlocked && a.validBlockerIds.length > 0);
+    if (mustBlock.length > 0) {
+      parts.push(`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [chooseBlockersInput, gameView?.battlefield]);
   const { declineTargets } = casting;
   const targetCompletion = useMemo(() => {
     if (activePrompt?.input.type !== "chooseBoardTargets") return null;
@@ -707,6 +740,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseAttackers") {
+      if (multipleAttackDefenders) {
+        if (attackAssignments.length === 0) return false;
+        submitAttack();
+        return true;
+      }
       if (pendingAttackers.length === 0) return false;
       respond(
         declareAttackersOutput(activePrompt, pendingAttackers, attackDefenderId ?? undefined),
@@ -941,6 +979,23 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
 
+  const combatRows = useMemo(
+    () =>
+      gameView
+        ? buildCombatRows({
+            battlefield: gameView.battlefield,
+            combatAssignments,
+            selfId: me?.id ?? "",
+            playerIds: gameView.players.map((p) => p.id),
+          })
+        : [],
+    [gameView, combatAssignments, me?.id],
+  );
+  const oppCombatAttackerIds = useMemo(
+    () => new Set(combatRows.flatMap((r) => r.attackerIds)),
+    [combatRows],
+  );
+
   const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
   const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
   const stackCollapsed = useStackUIStore((s) => s.collapsed);
@@ -963,14 +1018,26 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView?.players]);
 
+  const attackArrows = useMemo(
+    () => [
+      ...activeAttackers.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
+      ...attackAssignments.map((a) => ({ attackerId: a.attackerId, defenderId: a.targetId })),
+    ],
+    [activeAttackers, attackAssignments, oppCombatAttackerIds],
+  );
+  const arrowBlocks = useMemo(
+    () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
+    [combatAssignments, oppCombatAttackerIds],
+  );
+
   const liveArrowSpecs = useMemo(
     () =>
       buildArrowSpecs({
         promptType,
         attackerIds,
         blockAssignments,
-        combatAssignments,
-        activeAttackers,
+        combatAssignments: arrowBlocks,
+        activeAttackers: attackArrows,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
         stageBlockers: true,
@@ -980,8 +1047,8 @@ export default function Game({ exitTo }: GameProps = {}) {
       promptType,
       attackerIds,
       blockAssignments,
-      combatAssignments,
-      activeAttackers,
+      arrowBlocks,
+      attackArrows,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
       cardZoneTiles,
@@ -1039,10 +1106,15 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
-    const pendingSet = new Set(pendingAttackers);
+    const pendingSet = new Set([
+      ...pendingAttackers,
+      ...attackAssignments.map((a) => a.attackerId),
+    ]);
     const list = gameView.battlefield
       .filter((c) => regionOwnerOf(c, battlefieldById) === me.id)
-      .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
+      .map((c) =>
+        pendingSet.has(c.id) && !c.keywords.includes("Vigilance") ? { ...c, tapped: true } : c,
+      );
     if (debugCardEnabled) {
       list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
     }
@@ -1051,6 +1123,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     gameView,
     me,
     pendingAttackers,
+    attackAssignments,
     debugCardEnabled,
     debugCardName,
     debugBattlefieldKeywords,
@@ -1375,6 +1448,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           currentPrompt={activePrompt}
           boardTargets={boardTargets}
           pendingAttackers={pendingAttackers}
+          attackAssignments={attackAssignments}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           damageOrder={damageOrder}
@@ -1382,6 +1456,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
+          combatRows={combatRows}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}
@@ -1507,10 +1582,14 @@ export default function Game({ exitTo }: GameProps = {}) {
                   respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
                 }
                 onBeginAttackTargetPick={selectAllAttackersForPick}
+                attackAssignmentCount={attackAssignments.length}
+                mustAttackHint={mustAttackHint}
+                onSubmitAttack={submitAttack}
                 pendingAttacker={pendingAttacker}
                 pendingBlocker={pendingBlocker}
                 blockError={blockError}
                 blockRequirementError={blockRequirementError}
+                blockRestrictionHint={blockRestrictionHint}
                 attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
                 blockAssignments={blockAssignments}
                 onDeclareBlockers={(assignments) =>
@@ -1624,6 +1703,17 @@ export default function Game({ exitTo }: GameProps = {}) {
           </div>
         )}
 
+      {gameView.step === "first_strike_damage" && (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-xs text-muted-foreground">
+              only first &amp; double strikers deal damage now
+            </span>
+          </div>
+        </div>
+      )}
+
       <GameModals
         currentPrompt={activePrompt}
         sourceDeckCard={promptSourceDeckCard}
@@ -1645,6 +1735,29 @@ export default function Game({ exitTo }: GameProps = {}) {
         }}
         onCancelAbilityPicker={closeAbilityPicker}
       />
+
+      {damageOrderInput && (
+        <DamageOrderModal
+          attackerName={
+            gameView.battlefield.find((c) => c.id === damageOrderInput.attackerId)?.identity.name ??
+            "The attacker"
+          }
+          blockerCards={damageOrderInput.blockerCards}
+          order={damageOrder}
+          isWaiting={isWaitingForResponse}
+          onToggle={toggleDamageOrder}
+          onUndo={undoDamageOrder}
+          onAuto={() =>
+            respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrderInput.blockerIds,
+            })
+          }
+          onConfirm={() =>
+            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+          }
+        />
+      )}
 
       {playModePicker && (
         <PlayModePicker

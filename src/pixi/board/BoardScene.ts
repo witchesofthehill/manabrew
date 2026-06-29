@@ -454,7 +454,7 @@ export class BoardScene {
           Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
         );
         if (frac > 0.001) {
-          this.collapseVeil.rect(left, 0, bandW, this.topHeight);
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight + STRIP_BAND_PX / 2);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }
         // A field clipped down to (about) its banner width → collapsed column;

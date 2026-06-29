@@ -297,6 +297,7 @@ export class CardSprite extends Container {
    *  it into the base/hover scale each frame so the two don't fight. */
   readonly fxScale = { x: 1, y: 1 };
   private ringGfx: Graphics;
+  private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -313,6 +314,9 @@ export class CardSprite extends Container {
   private foilStar: Text;
   private ringBearerGfx: Graphics;
   private ringBearerIcon: Sprite;
+  private mustAttackGfx: Graphics;
+  private mustAttackIcon: Sprite;
+  private mustAttackActive = false;
   private stackCountContainer: Container;
   private stackCountBg: Graphics;
   private stackCountText: Text;
@@ -332,6 +336,9 @@ export class CardSprite extends Container {
     this.isBattlefield = kind === "battlefield";
     this.eventMode = "static";
     this.cursor = "pointer";
+
+    this.ownerRingGfx = new Graphics();
+    this.addChild(this.ownerRingGfx);
 
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
@@ -455,6 +462,15 @@ export class CardSprite extends Container {
     this.ringBearerIcon.anchor.set(0.5, 0.5);
     this.ringBearerIcon.visible = false;
     this.addChild(this.ringBearerIcon);
+
+    this.mustAttackGfx = new Graphics();
+    this.mustAttackGfx.visible = false;
+    this.addChild(this.mustAttackGfx);
+
+    this.mustAttackIcon = new Sprite(Texture.EMPTY);
+    this.mustAttackIcon.anchor.set(0.5, 0.5);
+    this.mustAttackIcon.visible = false;
+    this.addChild(this.mustAttackIcon);
 
     this.stackCountContainer = new Container();
     this.stackCountBg = new Graphics();
@@ -896,6 +912,35 @@ export class CardSprite extends Container {
     applyIcon(this.ringBearerIcon, "ring", fgHex, 64, iconSize, iconSize);
   }
 
+  setMustAttack(active: boolean): void {
+    if (active === this.mustAttackActive) return;
+    this.mustAttackActive = active;
+    this.mustAttackGfx.visible = active;
+    this.mustAttackIcon.visible = active;
+    if (!active) {
+      this.mustAttackGfx.clear();
+      return;
+    }
+    const discRadius = 13;
+    const cx = discRadius + 2;
+    const cy = CARD_H - discRadius - 2;
+    const fgHex = activeTheme.gameTheme.textOnTinted;
+    this.mustAttackGfx.clear();
+    this.mustAttackGfx.circle(cx, cy, discRadius);
+    this.mustAttackGfx.fill({
+      color: hexToNum(activeTheme.gameTheme.promptAction.attackAction),
+      alpha: 0.95,
+    });
+    this.mustAttackGfx.circle(cx, cy, discRadius);
+    this.mustAttackGfx.stroke({ color: hexToNum(fgHex), width: 1.5, alpha: 0.6 });
+    const iconSize = 18;
+    this.mustAttackIcon.x = cx;
+    this.mustAttackIcon.y = cy;
+    this.mustAttackIcon.width = iconSize;
+    this.mustAttackIcon.height = iconSize;
+    applyIcon(this.mustAttackIcon, "sword-brandish", fgHex, 64, iconSize, iconSize);
+  }
+
   private updateKeywords(): void {
     this.keywordsContainer.removeChildren().forEach((c) => c.destroy({ children: true }));
     const custom = this.isBattlefield && activeStyle !== "realistic";
@@ -1184,6 +1229,14 @@ export class CardSprite extends Container {
     this.ringGfx.clear();
     if (color == null) return;
     this.drawRingStroke(color, alpha);
+  }
+
+  setOwnerRing(color: number | null): void {
+    this.ownerRingGfx.clear();
+    if (color == null) return;
+    const o = RING_INSET + 3;
+    this.ownerRingGfx.roundRect(-o, -o, CARD_W + o * 2, CARD_H + o * 2, RING_RADIUS + 3);
+    this.ownerRingGfx.stroke({ color, width: 2.5 });
   }
 
   setDoomed(active: boolean): void {

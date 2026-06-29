@@ -42,6 +42,9 @@ export function useCombatState({
   engineHasBlocks,
 }: UseCombatStateOptions) {
   const [pendingAttackers, setPendingAttackers] = useState<string[]>([]);
+  const [attackAssignments, setAttackAssignments] = useState<
+    { attackerId: string; targetId: string }[]
+  >([]);
   const [pendingAttacker, setPendingAttacker] = useState<string | null>(null);
   const [pendingBlocker, setPendingBlocker] = useState<string | null>(null);
   const [attackDefenderId, setAttackDefenderId] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export function useCombatState({
   if (prevPromptType !== promptType) {
     setPrevPromptType(promptType);
     setPendingAttackers([]);
+    setAttackAssignments([]);
     setPendingAttacker(null);
     setPendingBlocker(null);
     setAttackDefenderId(null);
@@ -74,6 +78,21 @@ export function useCombatState({
   const possibleDefenders =
     currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackTargets : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
+
+  const attackerOptions =
+    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackers : [];
+  const stagedTargetIds: Set<string> | null = (() => {
+    if (promptType !== "chooseAttackers" || pendingAttackers.length === 0) return null;
+    let acc: string[] | null = null;
+    for (const id of pendingAttackers) {
+      const valid = attackerOptions.find((a) => a.attackerId === id)?.validTargetIds ?? [];
+      acc = acc == null ? [...valid] : acc.filter((x) => valid.includes(x));
+    }
+    return new Set(acc ?? []);
+  })();
+  const defenderIsTargetable = (id: string): boolean =>
+    possibleDefenders.some((d) => d.id === id) &&
+    (stagedTargetIds == null || stagedTargetIds.has(id));
 
   // Per-attacker block legality the engine reported; drives which blocker→
   // attacker pairings are allowed (and the menace/error feedback in the UI).
@@ -131,19 +150,37 @@ export function useCombatState({
 
   const playerIsTargetable =
     promptType === "chooseAttackers"
-      ? (pid: string) => possibleDefenders.some((defender) => defender.id === pid)
+      ? (pid: string) => defenderIsTargetable(pid)
       : promptType === "chooseBoardTargets"
         ? (pid: string) => targetablePlayerIds.includes(pid)
         : () => false;
 
-  /** True when a battlefield card is a legal defender (planeswalker / siege). */
-  function cardIsAttackTarget(cardId: string): boolean {
-    return awaitingAttackTarget && possibleDefenders.some((defender) => defender.id === cardId);
+  function assignPendingToTarget(defenderId: string) {
+    if (pendingAttackers.length === 0) return;
+    if (possibleDefenders.length <= 1) {
+      respond(declareAttackersOutput(currentPrompt, pendingAttackers, defenderId));
+      setPendingAttackers([]);
+      return;
+    }
+    const pendingSet = new Set(pendingAttackers);
+    setAttackAssignments((prev) => [
+      ...prev.filter((a) => !pendingSet.has(a.attackerId)),
+      ...pendingAttackers.map((id) => ({ attackerId: id, targetId: defenderId })),
+    ]);
+    setPendingAttackers([]);
   }
 
-  function commitAttackAgainst(defenderId: string) {
-    if (pendingAttackers.length === 0) return;
-    respond(declareAttackersOutput(currentPrompt, pendingAttackers, defenderId));
+  function submitAttack() {
+    const available =
+      currentPrompt?.input.type === "chooseAttackers"
+        ? new Set(currentPrompt.input.attackers.map((a) => a.attackerId))
+        : null;
+    const assignments = available
+      ? attackAssignments.filter((a) => available.has(a.attackerId))
+      : attackAssignments;
+    if (assignments.length === 0) return;
+    respond({ type: "declareAttackers", assignments });
+    setAttackAssignments([]);
     setPendingAttackers([]);
   }
 
@@ -157,7 +194,8 @@ export function useCombatState({
       respond(declareAttackersOutput(currentPrompt, attackerIds, possibleDefenders[0]?.id));
       return;
     }
-    setPendingAttackers(attackerIds);
+    const assigned = new Set(attackAssignments.map((a) => a.attackerId));
+    setPendingAttackers(attackerIds.filter((id) => !assigned.has(id)));
   }
 
   function cancelAttackTargetPick() {
@@ -165,8 +203,8 @@ export function useCombatState({
   }
 
   function handleTargetPlayer(pid: string) {
-    if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === pid)) {
-      commitAttackAgainst(pid);
+    if (awaitingAttackTarget && defenderIsTargetable(pid)) {
+      assignPendingToTarget(pid);
       return;
     }
     if (promptType === "chooseAttackers") {
@@ -179,8 +217,8 @@ export function useCombatState({
   function handleBattlefieldClick(card: CardDto) {
     if (!currentPrompt) return;
 
-    if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === card.id)) {
-      commitAttackAgainst(card.id);
+    if (awaitingAttackTarget && defenderIsTargetable(card.id)) {
+      assignPendingToTarget(card.id);
       return;
     }
 
@@ -189,6 +227,10 @@ export function useCombatState({
         currentPrompt.input.type !== "chooseAttackers" ||
         !currentPrompt.input.attackers.some((a) => a.attackerId === card.id)
       ) {
+        return;
+      }
+      if (attackAssignments.some((a) => a.attackerId === card.id)) {
+        setAttackAssignments((prev) => prev.filter((a) => a.attackerId !== card.id));
         return;
       }
       setPendingAttackers((prev) =>
@@ -214,18 +256,20 @@ export function useCombatState({
       if (!targetableCardIds.includes(card.id)) return;
       targetCard(card.id);
     } else if (promptType === "chooseDamageAssignmentOrder") {
-      if (
-        currentPrompt.input.type !== "chooseDamageAssignmentOrder" ||
-        !currentPrompt.input.blockerIds.includes(card.id)
-      ) {
-        return;
-      }
-      // Click a blocker to append it to the damage order; click an already-
-      // ordered one to remove it (everything after re-sequences).
-      setDamageOrder((prev) =>
-        prev.includes(card.id) ? prev.filter((id) => id !== card.id) : [...prev, card.id],
-      );
+      toggleDamageOrder(card.id);
     }
+  }
+
+  function toggleDamageOrder(cardId: string) {
+    if (
+      currentPrompt?.input.type !== "chooseDamageAssignmentOrder" ||
+      !currentPrompt.input.blockerIds.includes(cardId)
+    ) {
+      return;
+    }
+    setDamageOrder((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId],
+    );
   }
 
   function undoDamageOrder() {
@@ -277,6 +321,8 @@ export function useCombatState({
 
   return {
     pendingAttackers,
+    attackAssignments,
+    submitAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,
@@ -286,11 +332,11 @@ export function useCombatState({
     assignBlockPair,
     unassignBlock,
     damageOrder,
+    toggleDamageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,
     playerIsTargetable,
-    cardIsAttackTarget,
     handleTargetPlayer,
     handleBattlefieldClick,
     handleAttackerClick,

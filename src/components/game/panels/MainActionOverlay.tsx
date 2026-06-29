@@ -44,12 +44,16 @@ export function MainActionOverlay({
   onPassUntilEot,
   selectedAttackDefenderId,
   multipleAttackDefenders,
+  attackAssignmentCount,
+  mustAttackHint,
   onDeclareAttackers,
   onBeginAttackTargetPick,
+  onSubmitAttack,
   pendingAttacker,
   pendingBlocker,
   blockError,
   blockRequirementError,
+  blockRestrictionHint,
   attackerIds,
   blockAssignments,
   onDeclareBlockers,
@@ -235,12 +239,16 @@ export function MainActionOverlay({
                 onPassUntilEot={onPassUntilEot}
                 selectedAttackDefenderId={selectedAttackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}
+                attackAssignmentCount={attackAssignmentCount}
+                mustAttackHint={mustAttackHint}
                 onDeclareAttackers={onDeclareAttackers}
                 onBeginAttackTargetPick={onBeginAttackTargetPick}
+                onSubmitAttack={onSubmitAttack}
                 pendingAttacker={pendingAttacker}
                 pendingBlocker={pendingBlocker}
                 blockError={blockError}
                 blockRequirementError={blockRequirementError}
+                blockRestrictionHint={blockRestrictionHint}
                 blockAssignments={blockAssignments}
                 onDeclareBlockers={onDeclareBlockers}
                 damageOrderCount={damageOrderCount}

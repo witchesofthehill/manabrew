@@ -28,7 +28,7 @@ function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptAction
     case "chooseBlockers":
       return "chooseBlockers";
     case "chooseDamageAssignmentOrder":
-      return "chooseDamageOrder";
+      return "noAction";
     case "chooseBoardTargets":
       return "promptLabel";
     case "payManaCost":
@@ -54,12 +54,16 @@ interface PromptActionControllerProps {
   onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
+  attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  onSubmitAttack: () => void;
   pendingAttacker: string | null;
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  blockRestrictionHint?: string | null;
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
@@ -106,12 +110,16 @@ export function PromptActionController({
   onPassUntilEot: _onPassUntilEot,
   selectedAttackDefenderId,
   multipleAttackDefenders,
+  attackAssignmentCount,
+  mustAttackHint,
   onDeclareAttackers,
   onBeginAttackTargetPick,
+  onSubmitAttack,
   pendingAttacker,
   pendingBlocker,
   blockError,
   blockRequirementError,
+  blockRestrictionHint,
   blockAssignments,
   onDeclareBlockers,
   damageOrderCount,
@@ -151,9 +159,12 @@ export function PromptActionController({
         pendingAttackers={pendingAttackers}
         selectedDefenderId={selectedAttackDefenderId}
         multipleDefenders={multipleAttackDefenders}
+        attackAssignmentCount={attackAssignmentCount}
+        mustAttackHint={mustAttackHint}
         onPassPriority={onPassPriority}
         onDeclareAttackers={onDeclareAttackers}
         onBeginAttackTargetPick={onBeginAttackTargetPick}
+        onSubmitAttack={onSubmitAttack}
       />
     ),
     chooseBlockers: () => (
@@ -163,6 +174,7 @@ export function PromptActionController({
         pendingBlocker={pendingBlocker}
         blockError={blockError}
         blockRequirementError={blockRequirementError}
+        blockRestrictionHint={blockRestrictionHint}
         blockAssignments={blockAssignments}
         onPassPriority={onPassPriority}
         onDeclareBlockers={onDeclareBlockers}

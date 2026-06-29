@@ -43,6 +43,7 @@ pub(super) fn choose_attackers<T: Responder>(
         .map(|attacker_id| AttackerOptionDto {
             attacker_id,
             valid_target_ids: all_target_ids.clone(),
+            must_attack: false,
         })
         .collect();
     agent.send_prompt(

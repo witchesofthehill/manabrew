@@ -17,11 +17,14 @@ export interface ChooseAttackersProps extends PromptActionLayoutProps {
    *  declaration and ask the user to click a target instead of committing
    *  immediately against the default defender. */
   multipleDefenders: boolean;
+  attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onPassPriority: () => void;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   /** Begin the click-to-pick-defender flow. Called instead of
    *  `onDeclareAttackers` when `multipleDefenders` is true. */
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  onSubmitAttack: () => void;
 }
 
 export interface ChooseBlockersProps extends PromptActionLayoutProps {
@@ -29,6 +32,7 @@ export interface ChooseBlockersProps extends PromptActionLayoutProps {
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  blockRestrictionHint?: string | null;
   blockAssignments: CombatAssignment[];
   onPassPriority: () => void;
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;

@@ -129,6 +129,9 @@ pub struct CardDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub attacking_player_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub attack_target_id: Option<String>,
     pub keywords: Vec<String>,
     #[ts(type = "Record<string, number>")]
     pub counters: HashMap<String, i32>,

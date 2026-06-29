@@ -330,6 +330,8 @@ export class BoardRegion {
     this.updateClip();
     // The playmat fits the visible band, so re-fit it as the band eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
+    // The combat row spans the band, so re-lay it as the field eases open/closed.
+    if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
   }
 
   private updateClip(): void {
@@ -408,6 +410,11 @@ export class BoardRegion {
     if (card.isAttacking) return true;
     const s = this.combatStaging;
     return !!s && (s.attackerIds.has(card.id) || s.blockerIds.has(card.id));
+  }
+
+  private isDeclaredBlocker(cardId: string): boolean {
+    if (this.combatStaging?.blockerIds.has(cardId)) return true;
+    return this.combatRowBlocks.some((b) => b.blockerId === cardId);
   }
 
   setPendingDropSlot(slot: { col: number; row: number } | null): void {
@@ -1297,6 +1304,12 @@ export class BoardRegion {
     sprite.setDoomed(card.wouldDieInCombat ?? false);
     if (this.host.isSelected(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
+      return;
+    }
+    // A declared blocker keeps the defender ring even when it will die in combat
+    // (the lethal red is carried by the doomed wash, not the ring).
+    if (this.isDeclaredBlocker(card.id)) {
+      sprite.setRing(hexToNum(theme.gameTheme.promptAction.defenseAction));
       return;
     }
     // Attacking and summoning-sickness are shown by the card's own edge glow

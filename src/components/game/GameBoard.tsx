@@ -250,14 +250,37 @@ export function GameBoard({
       for (const c of list) if (c.isAttacking) s.add(c.id);
     return s;
   }, [myPermanents, opponentPermanentsByPlayer]);
+  // Opp-vs-opp combat is rendered by the per-defender combat rows; compute the
+  // grouping once and reuse it for the rows, the engaged set, and to keep these
+  // attackers out of the center-of-screen staging.
+  const combatRows = useMemo(
+    () =>
+      buildCombatRows({
+        battlefield: [
+          ...myPermanents,
+          ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
+        ],
+        combatAssignments: combatAssignments ?? [],
+        selfId: me.id,
+        playerIds: [me.id, ...opponents.map((o) => o.id)],
+      }),
+    [myPermanents, opponents, opponentPermanentsByPlayer, combatAssignments, me.id],
+  );
+  const oppCombatAttackerIds = useMemo(
+    () => new Set(combatRows.flatMap((r) => r.attackerIds)),
+    [combatRows],
+  );
   const combatAssignmentsAll = useMemo(() => {
     const byBlocker = new Map<string, string>();
     for (const a of combatAssignments ?? []) byBlocker.set(a.blockerId, a.attackerId);
     for (const a of blockAssignments) byBlocker.set(a.blockerId, a.attackerId);
     return [...byBlocker]
-      .filter(([, attackerId]) => attackingCardIdSet.has(attackerId))
+      .filter(
+        ([, attackerId]) =>
+          attackingCardIdSet.has(attackerId) && !oppCombatAttackerIds.has(attackerId),
+      )
       .map(([blockerId, attackerId]) => ({ blockerId, attackerId }));
-  }, [combatAssignments, blockAssignments, attackingCardIdSet]);
+  }, [combatAssignments, blockAssignments, attackingCardIdSet, oppCombatAttackerIds]);
 
   const chooseActionActions = chooseActionPrompt?.input.actions;
   const promptActions = chooseActionActions ?? payManaCostPrompt?.input.actions;
@@ -914,18 +937,13 @@ export function GameBoard({
     for (const op of opponents)
       oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
     const combatRowByDefender = new Map<string, CombatRow>();
-    const battlefield = [
-      ...myPermanents,
-      ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
-    ];
-    const cardById = new Map(battlefield.map((c) => [c.id, c]));
-    const rows = buildCombatRows({
-      battlefield,
-      combatAssignments: combatAssignments ?? [],
-      selfId: me.id,
-      playerIds: [me.id, ...opponents.map((o) => o.id)],
-    });
-    for (const row of rows) {
+    const cardById = new Map(
+      [
+        ...myPermanents,
+        ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
+      ].map((c) => [c.id, c]),
+    );
+    for (const row of combatRows) {
       const defList = oppCards.get(row.defenderId);
       if (!defList) continue;
       for (const attackerId of row.attackerIds) {
@@ -973,7 +991,7 @@ export function GameBoard({
     opponents,
     opponentPermanentsByPlayer,
     myPermanents,
-    combatAssignments,
+    combatRows,
     avatarByPlayerId,
     pixiBattlefield,
     promptType,

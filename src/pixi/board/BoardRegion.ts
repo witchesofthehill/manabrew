@@ -67,6 +67,9 @@ import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
 import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
+import { applyIcon } from "../panelIcons";
+
+const COMBAT_ROW_BOT_ICON = "robot-antennas";
 
 type Point = ScreenPos;
 
@@ -773,34 +776,37 @@ export class BoardRegion {
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
     this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
 
-    const avatarD = Math.min(30, stripH - 8);
-    const slotH = avatarD + 5;
+    // Avatar + name anchored at the top-left corner of the attack zone.
+    const lightHex = this.host.getTheme().gameTheme.textOnTinted;
+    const avatarD = Math.min(24, stripH - 6);
     const groups = this.combatRowGroups;
-    let slotY = stripTop + (stripH - groups.length * slotH) / 2 + avatarD / 2;
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi]!;
       const col = hexToNum(group.color);
-      const ax = stripLeft + 12 + avatarD / 2;
-      this.combatRowGfx.circle(ax, slotY, avatarD / 2);
+      const ax = stripLeft + 8 + avatarD / 2;
+      const ay = stripTop + 6 + avatarD / 2 + gi * (avatarD + 4);
+      this.combatRowGfx.circle(ax, ay, avatarD / 2);
       this.combatRowGfx.fill({ color: col, alpha: 0.4 });
-      this.combatRowGfx.circle(ax, slotY, avatarD / 2);
+      this.combatRowGfx.circle(ax, ay, avatarD / 2);
       this.combatRowGfx.stroke({ color: col, width: 1.5 });
       const av = this.combatRowAvatar(gi);
+      av.sprite.visible = true;
+      av.sprite.position.set(ax, ay);
+      av.mask.clear();
+      av.mask.circle(ax, ay, avatarD / 2 - 1);
+      av.mask.fill({ color: 0xffffff });
       if (group.avatarUrl) {
-        av.sprite.visible = true;
-        av.sprite.position.set(ax, slotY);
-        av.mask.clear();
-        av.mask.circle(ax, slotY, avatarD / 2 - 1);
-        av.mask.fill({ color: 0xffffff });
         this.loadCombatRowAvatar(av, group.avatarUrl, avatarD);
+      } else {
+        av.url = null;
+        applyIcon(av.sprite, COMBAT_ROW_BOT_ICON, lightHex, 64, avatarD * 0.7, avatarD * 0.7);
       }
       const label = this.combatRowLabel(gi);
       label.text = group.label;
       label.style.fill = col;
       label.anchor.set(0, 0.5);
-      label.position.set(ax + avatarD / 2 + 7, slotY);
+      label.position.set(ax + avatarD / 2 + 6, ay);
       label.visible = true;
-      slotY += slotH;
     }
   }
 

@@ -314,6 +314,9 @@ export class CardSprite extends Container {
   private foilStar: Text;
   private ringBearerGfx: Graphics;
   private ringBearerIcon: Sprite;
+  private mustAttackGfx: Graphics;
+  private mustAttackIcon: Sprite;
+  private mustAttackActive = false;
   private stackCountContainer: Container;
   private stackCountBg: Graphics;
   private stackCountText: Text;
@@ -459,6 +462,15 @@ export class CardSprite extends Container {
     this.ringBearerIcon.anchor.set(0.5, 0.5);
     this.ringBearerIcon.visible = false;
     this.addChild(this.ringBearerIcon);
+
+    this.mustAttackGfx = new Graphics();
+    this.mustAttackGfx.visible = false;
+    this.addChild(this.mustAttackGfx);
+
+    this.mustAttackIcon = new Sprite(Texture.EMPTY);
+    this.mustAttackIcon.anchor.set(0.5, 0.5);
+    this.mustAttackIcon.visible = false;
+    this.addChild(this.mustAttackIcon);
 
     this.stackCountContainer = new Container();
     this.stackCountBg = new Graphics();
@@ -898,6 +910,37 @@ export class CardSprite extends Container {
     this.ringBearerIcon.width = iconSize;
     this.ringBearerIcon.height = iconSize;
     applyIcon(this.ringBearerIcon, "ring", fgHex, 64, iconSize, iconSize);
+  }
+
+  /** Bottom-left badge marking a creature the engine requires to attack
+   *  (goad / "attacks if able"), shown during declare-attackers. */
+  setMustAttack(active: boolean): void {
+    if (active === this.mustAttackActive) return;
+    this.mustAttackActive = active;
+    this.mustAttackGfx.visible = active;
+    this.mustAttackIcon.visible = active;
+    if (!active) {
+      this.mustAttackGfx.clear();
+      return;
+    }
+    const discRadius = 13;
+    const cx = discRadius + 2;
+    const cy = CARD_H - discRadius - 2;
+    const fgHex = activeTheme.gameTheme.textOnTinted;
+    this.mustAttackGfx.clear();
+    this.mustAttackGfx.circle(cx, cy, discRadius);
+    this.mustAttackGfx.fill({
+      color: hexToNum(activeTheme.gameTheme.promptAction.attackAction),
+      alpha: 0.95,
+    });
+    this.mustAttackGfx.circle(cx, cy, discRadius);
+    this.mustAttackGfx.stroke({ color: hexToNum(fgHex), width: 1.5, alpha: 0.6 });
+    const iconSize = 18;
+    this.mustAttackIcon.x = cx;
+    this.mustAttackIcon.y = cy;
+    this.mustAttackIcon.width = iconSize;
+    this.mustAttackIcon.height = iconSize;
+    applyIcon(this.mustAttackIcon, "sword-brandish", fgHex, 64, iconSize, iconSize);
   }
 
   private updateKeywords(): void {

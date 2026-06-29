@@ -1284,6 +1284,7 @@ export class BoardRegion {
     entry.targetRotation = overriddenCard.tapped ? (this.mirrored ? -Math.PI / 2 : Math.PI / 2) : 0;
     const ownerColor = state.ownerRingByCard?.[card.id];
     entry.sprite.setOwnerRing(ownerColor ? hexToNum(ownerColor) : null);
+    entry.sprite.setMustAttack(state.mustAttackCardIds?.includes(card.id) ?? false);
     this.applyBattlefieldRing(entry.sprite, state);
     this.host.rebuildOverlay(entry, state);
   }

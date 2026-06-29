@@ -361,6 +361,12 @@ export function GameBoard({
       attackingCardIds: promptAttackerIds,
       orderedCardIds: damageOrder,
       selectableCardIds: selectableBattlefieldCardIds,
+      mustAttackCardIds:
+        promptType === "chooseAttackers"
+          ? chooseAttackersPrompt?.input.attackers
+              .filter((a) => a.mustAttack)
+              .map((a) => a.attackerId)
+          : undefined,
       tappableLandIds: promptActions
         ?.filter((a) => a.type === "activateAbility" && a.isManaAbility)
         .map((a) => a.cardId),
@@ -378,6 +384,7 @@ export function GameBoard({
       promptAttackerIds,
       damageOrder,
       selectableBattlefieldCardIds,
+      chooseAttackersPrompt,
       promptActions,
       manaAbilityOptions,
       hostileTargeting,

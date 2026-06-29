@@ -114,6 +114,9 @@ export interface BattlefieldState {
    *  numbered badge on each (first in line takes damage first). */
   orderedCardIds?: string[];
   selectableCardIds?: string[];
+  /** Attackers the engine requires to attack (goad / "attacks if able") during
+   *  declare-attackers — marked with a badge so they aren't omitted. */
+  mustAttackCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];

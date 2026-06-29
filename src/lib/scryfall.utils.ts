@@ -59,10 +59,12 @@ export function scryfallToDeckCard(sc: ScryfallCard): DeckCard {
   const uris = chooseImageUrisForCard(sc, { frontOnly: true });
   if (!uris) throw new Error(`Scryfall card has no image uris: ${sc.name}`);
   return {
-    id: id ?? crypto.randomUUID(),
-    name: frontFaceName(sc.name),
-    setCode: sc.set,
-    cardNumber: sc.collector_number,
+    identity: {
+      id: id ?? crypto.randomUUID(),
+      name: frontFaceName(sc.name),
+      setCode: sc.set,
+      cardNumber: sc.collector_number,
+    },
     color: sc.colors ? sc.colors.join("") : "",
     colorIdentity: sc.color_identity ?? [],
     manaCost: getScryfallManaCost(sc) ?? "",

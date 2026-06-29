@@ -1,4 +1,5 @@
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useGameStore } from "@/stores/useGameStore";
 import { Children, type ReactNode, useEffect, useMemo } from "react";
 import { PromptModalChromeContext } from "@/components/game/modals/promptModalChrome.context";
 
@@ -16,6 +17,7 @@ export function PromptModalController({
   const promptModalHidden = useGameUIStore((s) => s.promptModalHidden);
   const showPromptModal = useGameUIStore((s) => s.showPromptModal);
   const hidePromptModal = useGameUIStore((s) => s.hidePromptModal);
+  const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
 
   const activeChildren = useMemo(() => Children.toArray(children).filter(Boolean), [children]);
 
@@ -27,7 +29,7 @@ export function PromptModalController({
     }
   }, [isActive, promptStateKey, showPromptModal]);
 
-  if (!isActive) {
+  if (!isActive || isWaitingForResponse) {
     return null;
   }
 

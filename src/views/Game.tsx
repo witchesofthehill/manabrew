@@ -23,7 +23,7 @@ import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { ACTION_DRAWER_BUMP_EVENT } from "@/components/game/game.constants";
+import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag } from "@/hooks/useHandDrag";
@@ -77,7 +77,7 @@ function buildDebugKeywordCard(controllerId: string, name: string, keywords: str
   return {
     ...GAME_CARD_DEFAULTS,
     id: DEBUG_KEYWORD_CARD_ID,
-    name: name.trim() || "Raging Goblin",
+    identity: { name: name.trim() || "Raging Goblin", setCode: "", cardNumber: "", isToken: false },
     color: "R",
     manaCost: "{R}",
     cmc: 1,
@@ -493,7 +493,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const blockRequirementError = useMemo<string | null>(() => {
     if (!blockRequirement) return null;
     const name =
-      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.name ??
+      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.identity.name ??
       "This attacker";
     const creatures = (n: number) => `${n} ${n === 1 ? "creature" : "creatures"}`;
     return blockRequirement.kind === "min"
@@ -980,13 +980,15 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
-  const battlefieldAttachments = useMemo(
-    () =>
-      (gameView?.battlefield ?? [])
-        .filter((c) => !!c.attachedTo)
-        .map((c) => ({ childId: c.id, parentId: c.attachedTo! })),
-    [gameView?.battlefield],
-  );
+  const cardZoneTiles = useMemo(() => {
+    const map = new Map<string, { playerId: string; key: string }>();
+    for (const p of gameView?.players ?? []) {
+      for (const c of p.graveyard) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.graveyard });
+      for (const c of p.exile) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.exile });
+      for (const c of p.commandZone) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.command });
+    }
+    return map;
+  }, [gameView?.players]);
 
   // Attack arrows: drop opp-vs-opp attackers (shown in the combat rows instead),
   // and while declaring our own attackers draw the locally-assigned batches.
@@ -1011,10 +1013,10 @@ export default function Game({ exitTo }: GameProps = {}) {
         blockAssignments,
         combatAssignments: arrowBlocks,
         activeAttackers: attackArrows,
-        battlefieldAttachments,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
         stageBlockers: true,
+        cardZoneTiles,
       }),
     [
       promptType,
@@ -1022,9 +1024,9 @@ export default function Game({ exitTo }: GameProps = {}) {
       blockAssignments,
       arrowBlocks,
       attackArrows,
-      battlefieldAttachments,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
+      cardZoneTiles,
     ],
   );
 
@@ -1061,6 +1063,22 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView, debugCardEnabled, debugCardName, debugBattlefieldKeywords, me?.id]);
 
+  const regionOwnerOf = useCallback((card: CardDto, byId: Map<string, CardDto>): string => {
+    let cur = card;
+    const seen = new Set<string>();
+    while (cur.attachedTo && byId.has(cur.attachedTo) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.attachedTo)!;
+    }
+    return cur.controllerId;
+  }, []);
+
+  const battlefieldById = useMemo(() => {
+    const m = new Map<string, CardDto>();
+    for (const c of gameView?.battlefield ?? []) m.set(c.id, c);
+    return m;
+  }, [gameView?.battlefield]);
+
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
     // Keep chosen attackers tapped through the whole declaration — both the
@@ -1071,7 +1089,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       ...attackAssignments.map((a) => a.attackerId),
     ]);
     const list = gameView.battlefield
-      .filter((c) => c.controllerId === me.id)
+      .filter((c) => regionOwnerOf(c, battlefieldById) === me.id)
       .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
     if (debugCardEnabled) {
       list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
@@ -1085,6 +1103,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     debugCardEnabled,
     debugCardName,
     debugBattlefieldKeywords,
+    regionOwnerOf,
+    battlefieldById,
   ]);
 
   const opponentPermanentsByPlayer = useMemo(() => {
@@ -1093,11 +1113,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     for (const op of opponents) {
       map.set(
         op.id,
-        gameView.battlefield.filter((c) => c.controllerId === op.id),
+        gameView.battlefield.filter((c) => regionOwnerOf(c, battlefieldById) === op.id),
       );
     }
     return map;
-  }, [gameView, opponents]);
+  }, [gameView, opponents, regionOwnerOf, battlefieldById]);
 
   const stackCardsBySourceId = useMemo(() => {
     const byId = new Map<string, CardDto>();
@@ -1223,10 +1243,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
     for (const c of visibleCardsById.values()) {
-      byId.set(c.id, c.name);
+      byId.set(c.id, c.identity.name);
     }
     for (const [sourceId, c] of stackCardsBySourceId.entries()) {
-      if (!byId.has(sourceId)) byId.set(sourceId, c.name);
+      if (!byId.has(sourceId)) byId.set(sourceId, c.identity.name);
     }
     return byId;
   }, [visibleCardsById, stackCardsBySourceId]);

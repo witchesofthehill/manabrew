@@ -31,10 +31,17 @@ their zones.
 ## CardDto
 
 The engine's snapshot of a single card — every zone holds these. Only `id` and
-`name` are needed to round-trip a choice; the rest drives richer rendering. The
-prompt pages that show cards reference this same type.
+the card's `identity` are needed to round-trip a choice; the rest drives richer
+rendering. The prompt pages that show cards reference this same type.
 
 <ProtocolType type="CardDto" />
+
+## CardIdentity
+
+Which card a `CardDto` or `StackObjectDto` is — name, printing
+(`setCode`/`cardNumber`), and whether it's a token.
+
+<ProtocolType type="CardIdentity" />
 
 ## CombatAssignmentDto
 
@@ -44,28 +51,16 @@ A declared block: which blocker is assigned to which attacker.
 
 ## StackObjectDto
 
-A spell or ability currently on the stack, with its targets.
+A spell or ability currently on the stack. Its `targets` are
+[`TargetRef`](/protocol/shared-types/#targetref)s, each tagged with the
+[`TargetingIntent`](#targetingintent) the engine inferred for it.
 
 <ProtocolType type="StackObjectDto" />
-
-## StackTargetDto
-
-One target chosen by a `StackObjectDto`, tagged with the [`TargetingIntent`](#targetingintent)
-the engine inferred for it.
-
-<ProtocolType type="StackTargetDto" />
-
-## StackTargetKindDto
-
-Which id space a [`StackTargetDto`](#stacktargetdto) points into — a card, a
-player, or another object on the stack.
-
-<ProtocolType type="StackTargetKindDto" />
 
 ## TargetingIntent
 
 A semantic hint describing what an effect intends to do to its target — the
-client uses it to pre-highlight sensible targets. Carried by [`StackTargetDto`](#stacktargetdto)
-and by the targeting prompts.
+client uses it to pre-highlight sensible targets. Carried by
+[`TargetRef`](/protocol/shared-types/#targetref) and by the targeting prompts.
 
 <ProtocolType type="TargetingIntent" />

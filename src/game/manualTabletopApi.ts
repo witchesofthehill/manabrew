@@ -303,7 +303,7 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
           controllerId: action.controllerId,
           ownerId: action.controllerId,
           zoneId: action.zoneId ?? "battlefield",
-          isToken: action.card.isToken ?? false,
+          identity: { ...action.card.identity, isToken: action.card.identity.isToken ?? false },
         });
       case "createToken":
         return {
@@ -315,7 +315,7 @@ export class ManualTabletopGameApi implements ManualTabletopApi {
               controllerId: action.controllerId,
               ownerId: action.controllerId,
               zoneId: "battlefield",
-              isToken: true,
+              identity: { ...action.card.identity, isToken: true },
             },
           ],
         };

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 manabrew-agent-interface = { path = "../manabrew-agent-interface" }
+manabrew-protocol = { path = "../manabrew-protocol" }
 forge-carddb = { path = "../forge-carddb" }
 manabrew-engine = { path = "../manabrew-engine" }
 forge-foundation = { path = "../forge-foundation" }

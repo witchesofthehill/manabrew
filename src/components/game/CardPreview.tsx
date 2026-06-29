@@ -61,7 +61,7 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
     if (card.isMadnessExiled) out.push({ key: "madness", ...CARD_BADGES.madnessExiled });
     if (card.isWarpExiled) out.push({ key: "warped", ...CARD_BADGES.warpExiled });
     if (card.isCopy) out.push({ key: "copy", ...CARD_BADGES.copy });
-    if (card.isToken) out.push({ key: "token", ...CARD_BADGES.token });
+    if (card.identity.isToken) out.push({ key: "token", ...CARD_BADGES.token });
     return out;
   }, [
     card.exerted,
@@ -72,7 +72,7 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
     card.isMadnessExiled,
     card.isWarpExiled,
     card.isCopy,
-    card.isToken,
+    card.identity.isToken,
   ]);
 
   const keywords = card.keywords ?? [];
@@ -263,10 +263,11 @@ export function CardPreview({
   // casting the raw CardDto instead left `uris` undefined → crash on index.
   const deckCard: DeckCard = asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const { setCode, cardNumber } = deckCard.identity;
   const cardFaces = useCardFaces({
-    name: card.name,
-    setCode: deckCard.setCode,
-    cardNumber: deckCard.cardNumber,
+    name: card.identity.name,
+    setCode,
+    cardNumber,
   });
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
@@ -383,7 +384,8 @@ export function CardPreview({
 
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
-  const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
+  const currentCardName =
+    hasDoubleFace && showBackFace ? doubleFacedData.backName : card.identity.name;
   const currentLowResUrl =
     imageSize !== "large"
       ? null

@@ -40,7 +40,7 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
     while !remaining.is_empty() {
         let candidates: Vec<TargetRef> = PromptAgent::<T>::card_ids(&remaining)
             .into_iter()
-            .map(|id| TargetRef::Card { id })
+            .map(TargetRef::card)
             .collect();
         agent.send_prompt(
             PromptInput::ChooseBoardTargets(
@@ -62,8 +62,8 @@ pub(super) fn choose_board_targets_multi<T: Responder>(
             }) if !picked.is_empty() => {
                 let mut advanced = false;
                 for r in picked {
-                    if let TargetRef::Card { id } = r {
-                        if let Some(cid) = parse_card_id(&id) {
+                    if r.kind == TargetKind::Card {
+                        if let Some(cid) = parse_card_id(&r.id) {
                             if remaining.contains(&cid) {
                                 remaining.retain(|c| *c != cid);
                                 chosen.push(cid);
@@ -92,7 +92,7 @@ pub(super) fn choose_target_player<T: Responder>(
 ) -> Option<PlayerId> {
     let candidates = PromptAgent::<T>::player_ids(valid)
         .into_iter()
-        .map(|id| TargetRef::Player { id })
+        .map(TargetRef::player)
         .collect();
     agent.send_prompt(
         board_targets(candidates, hostile, intent, intent.to_string()),
@@ -111,7 +111,7 @@ pub(super) fn choose_target_card<T: Responder>(
 ) -> Option<CardId> {
     let candidates = PromptAgent::<T>::card_ids(valid)
         .into_iter()
-        .map(|id| TargetRef::Card { id })
+        .map(TargetRef::card)
         .collect();
     agent.send_prompt(
         board_targets(candidates, hostile, intent, intent.to_string()),
@@ -131,7 +131,7 @@ pub(super) fn choose_target_card_from_zone<T: Responder>(
 ) -> Option<CardId> {
     let candidates = PromptAgent::<T>::card_ids(valid)
         .into_iter()
-        .map(|id| TargetRef::Card { id })
+        .map(TargetRef::card)
         .collect();
     agent.send_prompt(
         board_targets(candidates, intent.is_hostile(), intent, intent.to_string()),
@@ -151,12 +151,12 @@ pub(super) fn choose_target_any<T: Responder>(
 ) -> TargetChoice {
     let mut candidates: Vec<TargetRef> = PromptAgent::<T>::player_ids(valid_players)
         .into_iter()
-        .map(|id| TargetRef::Player { id })
+        .map(TargetRef::player)
         .collect();
     candidates.extend(
         PromptAgent::<T>::card_ids(valid_cards)
             .into_iter()
-            .map(|id| TargetRef::Card { id }),
+            .map(TargetRef::card),
     );
     agent.send_prompt(
         board_targets(candidates, hostile, intent, intent.to_string()),
@@ -166,10 +166,10 @@ pub(super) fn choose_target_any<T: Responder>(
         PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
             chosen
                 .into_iter()
-                .find_map(|r| match r {
-                    TargetRef::Player { id } => parse_player_id(&id).map(TargetChoice::Player),
-                    TargetRef::Card { id } => parse_card_id(&id).map(TargetChoice::Card),
-                    TargetRef::Spell { .. } => None,
+                .find_map(|r| match r.kind {
+                    TargetKind::Player => parse_player_id(&r.id).map(TargetChoice::Player),
+                    TargetKind::Card => parse_card_id(&r.id).map(TargetChoice::Card),
+                    TargetKind::Spell => None,
                 })
                 .unwrap_or(TargetChoice::None)
         }
@@ -194,9 +194,7 @@ pub(super) fn choose_target_spell<T: Responder>(
     let intent = TargetingIntent::Counter;
     let candidates = valid
         .iter()
-        .map(|&id| TargetRef::Spell {
-            id: stack_id_str(id),
-        })
+        .map(|&id| TargetRef::spell(stack_id_str(id)))
         .collect();
     agent.send_prompt(
         board_targets(candidates, intent.is_hostile(), intent, intent.to_string()),
@@ -213,7 +211,7 @@ pub(super) fn choose_sacrifice<T: Responder>(
 ) -> Option<CardId> {
     let candidates = PromptAgent::<T>::card_ids(valid)
         .into_iter()
-        .map(|id| TargetRef::Card { id })
+        .map(TargetRef::card)
         .collect();
     agent.send_prompt(
         board_targets(

@@ -3634,6 +3634,7 @@ dependencies = [
  "forge-limited",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-protocol",
  "memmap2",
  "rand 0.8.6",
  "self-hosted-node",
@@ -3694,7 +3695,7 @@ dependencies = [
 
 [[package]]
 name = "manabrew-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3728,6 +3729,7 @@ dependencies = [
  "forge-foundation",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-protocol",
  "rand 0.8.6",
  "tracing",
 ]
@@ -5919,6 +5921,7 @@ dependencies = [
  "manabot",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-protocol",
  "manabrew_game_runtime",
  "memmap2",
  "rand 0.8.6",
@@ -7927,6 +7930,7 @@ dependencies = [
  "manabot",
  "manabrew-agent-interface",
  "manabrew-engine",
+ "manabrew-protocol",
  "manabrew_game_runtime",
  "rand 0.8.6",
  "serde",

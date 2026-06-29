@@ -48,7 +48,7 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
       <ScryfallImg
         ref={imgRef}
         src={card.uris.normal}
-        alt={card.name}
+        alt={card.identity.name}
         className={cn("cursor-zoom-in", className)}
         onMouseEnter={handleMouseEnter}
         onMouseMove={handleMouseMove}
@@ -62,7 +62,7 @@ export function CardImageThumbnail({ card, className }: CardImageThumbnailProps)
           >
             <ScryfallImg
               src={card.uris.large}
-              alt={card.name}
+              alt={card.identity.name}
               className="w-full h-full object-contain rounded-xl shadow-2xl ring-1 ring-black/20"
             />
           </div>,

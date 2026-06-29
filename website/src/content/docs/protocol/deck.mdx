@@ -24,11 +24,17 @@ zones, and the preserved client-side metadata.
 
 ## DeckCard
 
-One entry in a deck. Identity (`id`, `name`, `setCode`, `cardNumber`, `foil`) and
-a rules summary are flattened in alongside the UI-only `uris`, so a `DeckCard` is
-a single flat object on the wire.
+One entry in a deck: a nested `identity` (which card and printing) plus a
+flattened rules summary and the UI-only `uris`.
 
 <ProtocolType type="DeckCard" />
+
+## DeckCardIdentity
+
+Which card a `DeckCard` is — name, printing (`setCode`/`cardNumber`), and an
+optional `foil` flag. `id` is a client-side instance id.
+
+<ProtocolType type="DeckCardIdentity" />
 
 ## DeckLabel
 

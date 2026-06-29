@@ -44,7 +44,7 @@ export function StackSection({ stack, promptType, onOpenStack }: StackSectionPro
             .map((obj, idx) => (
               <span key={obj.id} className="text-[11px] text-muted-foreground truncate">
                 {idx === 0 ? "[TOP] " : ""}
-                {obj.name}
+                {obj.identity.name}
                 {obj.isCasting ? " (casting)" : ""}
               </span>
             ))}

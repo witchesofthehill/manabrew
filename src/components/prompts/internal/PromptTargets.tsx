@@ -41,7 +41,7 @@ function PromptTargetCard({ cardId }: { cardId: string }) {
     return (
       <ScryfallImg
         src={deckCard.uris.normal}
-        alt={deckCard.name}
+        alt={deckCard.identity.name}
         className="w-[88px] h-auto self-start object-contain rounded-lg shadow-md shrink-0"
       />
     );
@@ -125,5 +125,5 @@ function findCardName(
     ...gameView.battlefield,
     ...gameView.players.flatMap((p) => [...p.hand, ...p.graveyard, ...p.exile, ...p.commandZone]),
   ];
-  return zones.find((c) => c.id === cardId)?.name;
+  return zones.find((c) => c.id === cardId)?.identity.name;
 }

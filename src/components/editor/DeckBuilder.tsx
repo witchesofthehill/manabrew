@@ -406,12 +406,12 @@ export function DeckBuilder({
     const allCards = [...currentDeck.cards, ...supplementaryCards];
     const toFetch = allCards
       .filter((c) => {
-        if (enrichedNamesRef.current.has(c.name.toLowerCase())) return false;
+        if (enrichedNamesRef.current.has(c.identity.name.toLowerCase())) return false;
         const needsBasicMeta = (c.cmc === undefined || c.cmc === null) && !c.manaCost;
         const needsAllParts = c.allParts === undefined;
         return needsBasicMeta || needsAllParts;
       })
-      .map((c) => c.name);
+      .map((c) => c.identity.name);
     if (toFetch.length === 0) return;
     const uniqueNames = [...new Set(toFetch)];
     uniqueNames.forEach((n) => enrichedNamesRef.current.add(n.toLowerCase()));
@@ -446,18 +446,18 @@ export function DeckBuilder({
     bulkAction(
       (name) =>
         currentDeck.cards
-          .filter((c) => c.name.toLowerCase() === name)
-          .forEach((c) => removeFromMain(c.id)),
+          .filter((c) => c.identity.name.toLowerCase() === name)
+          .forEach((c) => removeFromMain(c.identity.id)),
       `Removed ${selectedCards.size} cards`,
     );
   const handleMoveSelectedToSide = () =>
     bulkAction(
       (name) =>
         currentDeck.cards
-          .filter((c) => c.name.toLowerCase() === name)
+          .filter((c) => c.identity.name.toLowerCase() === name)
           .forEach((c) => {
-            removeFromMain(c.id);
-            addToSide({ ...c, id: crypto.randomUUID() });
+            removeFromMain(c.identity.id);
+            addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
           }),
       `Moved ${selectedCards.size} cards to sideboard`,
     );
@@ -465,10 +465,10 @@ export function DeckBuilder({
     bulkAction(
       (name) =>
         supplementaryCards
-          .filter((c) => c.name.toLowerCase() === name)
+          .filter((c) => c.identity.name.toLowerCase() === name)
           .forEach((c) => {
-            removeFromSide(c.id);
-            addToMain({ ...c, id: crypto.randomUUID() });
+            removeFromSide(c.identity.id);
+            addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
           }),
       `Moved ${selectedCards.size} cards to main`,
     );
@@ -503,7 +503,7 @@ export function DeckBuilder({
       ? validateDeckSections(
           {
             deck: currentDeck,
-            commanderName: currentDeck.commanders?.[0]?.name,
+            commanderName: currentDeck.commanders?.[0]?.identity.name,
           },
           deckFormat,
         ).legal
@@ -512,7 +512,10 @@ export function DeckBuilder({
   const filterTerms = useMemo(() => parseFilterTerms(deckFilter), [deckFilter]);
   const matchesFilters = useCallback(
     (c: DeckCard) => {
-      if (filterTerms.length > 0 && !filterTerms.some((t) => c.name.toLowerCase().includes(t))) {
+      if (
+        filterTerms.length > 0 &&
+        !filterTerms.some((t) => c.identity.name.toLowerCase().includes(t))
+      ) {
         return false;
       }
       if (cmcFilter !== null && cmcBucketIndex(c) !== cmcFilter) return false;
@@ -562,53 +565,57 @@ export function DeckBuilder({
   // ── Handlers ──
 
   function handleRemoveOneFromMain(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.name === cardName);
-    if (card) removeFromMain(card.id);
+    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
+    if (card) removeFromMain(card.identity.id);
   }
 
   function handleRemoveAllFromMain(cardName: string) {
-    currentDeck.cards.filter((c) => c.name === cardName).forEach((c) => removeFromMain(c.id));
+    currentDeck.cards
+      .filter((c) => c.identity.name === cardName)
+      .forEach((c) => removeFromMain(c.identity.id));
   }
 
   function handleMoveOneToSide(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.name === cardName);
+    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
     if (!card) return;
-    removeFromMain(card.id);
-    addToSide({ ...card, id: crypto.randomUUID() });
+    removeFromMain(card.identity.id);
+    addToSide({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Moved 1 ${cardName} to sideboard`);
   }
 
   function handleMoveAllToSide(cardName: string) {
-    const copies = currentDeck.cards.filter((c) => c.name === cardName);
+    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return;
     for (const c of copies) {
-      removeFromMain(c.id);
-      addToSide({ ...c, id: crypto.randomUUID() });
+      removeFromMain(c.identity.id);
+      addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
     }
     toast.success(`Moved ${copies.length} ${cardName} to sideboard`);
   }
 
   function handleMoveOneToMaybe(cardName: string) {
-    const card = [...currentDeck.cards].reverse().find((c) => c.name === cardName);
+    const card = [...currentDeck.cards].reverse().find((c) => c.identity.name === cardName);
     if (!card) return;
-    removeFromMain(card.id);
-    addToMaybe({ ...card, id: crypto.randomUUID() });
+    removeFromMain(card.identity.id);
+    addToMaybe({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Moved 1 ${cardName} to maybeboard`);
   }
 
   function handleMoveAllToMaybe(cardName: string) {
-    const copies = currentDeck.cards.filter((c) => c.name === cardName);
+    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return;
     for (const c of copies) {
-      removeFromMain(c.id);
-      addToMaybe({ ...c, id: crypto.randomUUID() });
+      removeFromMain(c.identity.id);
+      addToMaybe({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
     }
     toast.success(`Moved ${copies.length} ${cardName} to maybeboard`);
   }
 
   function handleRemoveOneFromMaybe(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])].reverse().find((c) => c.name === cardName);
-    if (card) removeFromMaybe(card.id);
+    const card = [...(currentDeck.maybeboard ?? [])]
+      .reverse()
+      .find((c) => c.identity.name === cardName);
+    if (card) removeFromMaybe(card.identity.id);
   }
 
   function handleShowInfo(cardName: string) {
@@ -619,18 +626,18 @@ export function DeckBuilder({
       ...supplementaryCards,
       ...(currentDeck.commanders ?? []),
     ];
-    const deckCard = allCards.find((c) => c.name === cardName);
-    const token = mergedTokens.find((t) => t.name === cardName);
+    const deckCard = allCards.find((c) => c.identity.name === cardName);
+    const token = mergedTokens.find((t) => t.identity.name === cardName);
     const lookup = deckCard
       ? {
-          name: deckCard.name,
-          setCode: deckCard.setCode,
-          collectorNumber: deckCard.cardNumber,
+          name: deckCard.identity.name,
+          setCode: deckCard.identity.setCode,
+          collectorNumber: deckCard.identity.cardNumber,
         }
       : {
           name: cardName,
-          setCode: token?.setCode,
-          collectorNumber: token?.cardNumber,
+          setCode: token?.identity.setCode,
+          collectorNumber: token?.identity.cardNumber,
         };
     useScryfallStore
       .getState()
@@ -640,85 +647,89 @@ export function DeckBuilder({
   }
 
   function handleRemoveOneFromSide(cardName: string) {
-    const card = [...supplementaryCards].reverse().find((c) => c.name === cardName);
-    if (card) removeFromSide(card.id);
+    const card = [...supplementaryCards].reverse().find((c) => c.identity.name === cardName);
+    if (card) removeFromSide(card.identity.id);
   }
 
   function handleMoveOneFromSideToMain(cardName: string) {
-    const card = [...currentDeck.sideboard].reverse().find((c) => c.name === cardName);
+    const card = [...currentDeck.sideboard].reverse().find((c) => c.identity.name === cardName);
     if (!card) return;
-    removeFromSide(card.id);
-    addToMain({ ...card, id: crypto.randomUUID() });
+    removeFromSide(card.identity.id);
+    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Moved 1 ${cardName} to main`);
   }
 
   function handleMoveAllFromSideToMain(cardName: string) {
-    const copies = currentDeck.sideboard.filter((c) => c.name === cardName);
+    const copies = currentDeck.sideboard.filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return;
     for (const c of copies) {
-      removeFromSide(c.id);
-      addToMain({ ...c, id: crypto.randomUUID() });
+      removeFromSide(c.identity.id);
+      addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
     }
     toast.success(`Moved ${copies.length} ${cardName} to main`);
   }
 
   function handleMoveOneFromSideToMaybe(cardName: string) {
-    const card = [...currentDeck.sideboard].reverse().find((c) => c.name === cardName);
+    const card = [...currentDeck.sideboard].reverse().find((c) => c.identity.name === cardName);
     if (!card) return;
-    removeFromSide(card.id);
-    addToMaybe({ ...card, id: crypto.randomUUID() });
+    removeFromSide(card.identity.id);
+    addToMaybe({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Moved 1 ${cardName} to maybeboard`);
   }
 
   function handleMoveAllFromSideToMaybe(cardName: string) {
-    const copies = currentDeck.sideboard.filter((c) => c.name === cardName);
+    const copies = currentDeck.sideboard.filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return;
     for (const c of copies) {
-      removeFromSide(c.id);
-      addToMaybe({ ...c, id: crypto.randomUUID() });
+      removeFromSide(c.identity.id);
+      addToMaybe({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
     }
     toast.success(`Moved ${copies.length} ${cardName} to maybeboard`);
   }
 
   function handleMoveOneFromMaybeToMain(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])].reverse().find((c) => c.name === cardName);
+    const card = [...(currentDeck.maybeboard ?? [])]
+      .reverse()
+      .find((c) => c.identity.name === cardName);
     if (!card) return;
-    removeFromMaybe(card.id);
-    addToMain({ ...card, id: crypto.randomUUID() });
+    removeFromMaybe(card.identity.id);
+    addToMain({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Moved 1 ${cardName} to main`);
   }
 
   function handleMoveAllFromMaybeToMain(cardName: string) {
-    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.name === cardName);
+    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return;
     for (const c of copies) {
-      removeFromMaybe(c.id);
-      addToMain({ ...c, id: crypto.randomUUID() });
+      removeFromMaybe(c.identity.id);
+      addToMain({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
     }
     toast.success(`Moved ${copies.length} ${cardName} to main`);
   }
 
   function handleMoveOneFromMaybeToSide(cardName: string) {
-    const card = [...(currentDeck.maybeboard ?? [])].reverse().find((c) => c.name === cardName);
+    const card = [...(currentDeck.maybeboard ?? [])]
+      .reverse()
+      .find((c) => c.identity.name === cardName);
     if (!card) return;
-    removeFromMaybe(card.id);
-    addToSide({ ...card, id: crypto.randomUUID() });
+    removeFromMaybe(card.identity.id);
+    addToSide({ ...card, identity: { ...card.identity, id: crypto.randomUUID() } });
     toast.success(`Moved 1 ${cardName} to sideboard`);
   }
 
   function handleMoveAllFromMaybeToSide(cardName: string) {
-    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.name === cardName);
+    const copies = (currentDeck.maybeboard ?? []).filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return;
     for (const c of copies) {
-      removeFromMaybe(c.id);
-      addToSide({ ...c, id: crypto.randomUUID() });
+      removeFromMaybe(c.identity.id);
+      addToSide({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
     }
     toast.success(`Moved ${copies.length} ${cardName} to sideboard`);
   }
 
   function handleSetCommander(card: DeckCard) {
     if (!isCommanderEligible(card)) {
-      toast.error(`"${card.name}" is not a legal commander`);
+      toast.error(`"${card.identity.name}" is not a legal commander`);
       return;
     }
 
@@ -730,14 +741,18 @@ export function DeckBuilder({
       const newHasPartner = hasPartner(card) || getPartnerWithName(card) !== null;
 
       if (!existingHasPartner && !newHasPartner) {
-        toast.info(`"${existing[0].name}" replaced — neither commander has a partner ability`);
+        toast.info(
+          `"${existing[0].identity.name}" replaced — neither commander has a partner ability`,
+        );
       } else if (!existingHasPartner) {
-        toast.info(`"${existing[0].name}" replaced — it doesn't have a partner ability`);
+        toast.info(`"${existing[0].identity.name}" replaced — it doesn't have a partner ability`);
       } else if (!newHasPartner) {
-        toast.info(`"${card.name}" set as sole commander — it doesn't have a partner ability`);
+        toast.info(
+          `"${card.identity.name}" set as sole commander — it doesn't have a partner ability`,
+        );
       } else {
         toast.info(
-          `"${existing[0].name}" replaced — "${card.name}" must partner with a different card`,
+          `"${existing[0].identity.name}" replaced — "${card.identity.name}" must partner with a different card`,
         );
       }
     }
@@ -748,7 +763,7 @@ export function DeckBuilder({
   function isAtCopyLimit(cardName: string): boolean {
     const format = getFormat(currentDeck.format ?? "standard");
     if (!format) return false;
-    const copies = currentDeck.cards.filter((c) => c.name === cardName);
+    const copies = currentDeck.cards.filter((c) => c.identity.name === cardName);
     if (copies.length === 0) return false;
     if (canHaveAnyNumberOf(copies[0])) return false;
     const limit = copyLimitFromText(copies[0].text) ?? format.deckRules.maxCopies;
@@ -756,14 +771,14 @@ export function DeckBuilder({
   }
 
   function handleAddOneToMain(group: CardGroup) {
-    if (isAtCopyLimit(group.card.name)) {
+    if (isAtCopyLimit(group.card.identity.name)) {
       const format = getFormat(currentDeck.format ?? "standard");
       toast.error(
-        `Max ${format?.deckRules.maxCopies} copies of "${group.card.name}" allowed in ${format?.name}`,
+        `Max ${format?.deckRules.maxCopies} copies of "${group.card.identity.name}" allowed in ${format?.name}`,
       );
       return;
     }
-    addToMain({ ...group.card, id: crypto.randomUUID() });
+    addToMain({ ...group.card, identity: { ...group.card.identity, id: crypto.randomUUID() } });
   }
 
   function handleAddOneToMainByName(cardName: string) {
@@ -774,8 +789,9 @@ export function DeckBuilder({
       );
       return;
     }
-    const existing = currentDeck.cards.find((c) => c.name === cardName);
-    if (existing) addToMain({ ...existing, id: crypto.randomUUID() });
+    const existing = currentDeck.cards.find((c) => c.identity.name === cardName);
+    if (existing)
+      addToMain({ ...existing, identity: { ...existing.identity, id: crypto.randomUUID() } });
   }
 
   function handleExport() {
@@ -816,9 +832,10 @@ export function DeckBuilder({
   function handleSelectCard(cardName: string, shiftKey: boolean) {
     if (shiftKey) {
       const orderedNames: string[] = [];
-      for (const c of currentDeck.commanders ?? []) orderedNames.push(c.name);
-      for (const s of sectionGroups) for (const g of s.groups) orderedNames.push(g.card.name);
-      for (const g of otherGroups) orderedNames.push(g.card.name);
+      for (const c of currentDeck.commanders ?? []) orderedNames.push(c.identity.name);
+      for (const s of sectionGroups)
+        for (const g of s.groups) orderedNames.push(g.card.identity.name);
+      for (const g of otherGroups) orderedNames.push(g.card.identity.name);
       rangeSelect(cardName, orderedNames);
     } else {
       toggleCard(cardName);
@@ -956,7 +973,9 @@ export function DeckBuilder({
                 onRemove={(name) => {
                   handleRemoveOneFromMain(name);
                 }}
-                getCount={(name) => currentDeck.cards.filter((c) => c.name === name).length}
+                getCount={(name) =>
+                  currentDeck.cards.filter((c) => c.identity.name === name).length
+                }
               />
             </div>
             {onToggleSearch && (
@@ -1163,16 +1182,18 @@ export function DeckBuilder({
                   coverCardFace={currentDeck.coverCardFace}
                   onSetCover={(card) => {
                     const isSameFront =
-                      currentDeck.coverCardName === card.name &&
+                      currentDeck.coverCardName === card.identity.name &&
                       (currentDeck.coverCardFace ?? 0) === 0;
-                    setCoverCard(isSameFront ? undefined : card.name, 0);
-                    if (!isSameFront) useScryfallStore.getState().invalidateCard(card.name);
+                    setCoverCard(isSameFront ? undefined : card.identity.name, 0);
+                    if (!isSameFront)
+                      useScryfallStore.getState().invalidateCard(card.identity.name);
                   }}
                   onSetCoverBack={(card) => {
                     const isSameBack =
-                      currentDeck.coverCardName === card.name && currentDeck.coverCardFace === 1;
-                    setCoverCard(isSameBack ? undefined : card.name, 1);
-                    if (!isSameBack) useScryfallStore.getState().invalidateCard(card.name);
+                      currentDeck.coverCardName === card.identity.name &&
+                      currentDeck.coverCardFace === 1;
+                    setCoverCard(isSameBack ? undefined : card.identity.name, 1);
+                    if (!isSameBack) useScryfallStore.getState().invalidateCard(card.identity.name);
                   }}
                   stackPositions={currentDeck.stackPositions}
                   onStackPositionsChange={setStackPositions}
@@ -1299,22 +1320,25 @@ export function DeckBuilder({
               onRemoveOne: handleRemoveOneFromMain,
               onPickPrint: (name) => setPrintPickerCard(name),
               onSetCommander: (name) => {
-                const existing = currentDeck.commanders?.find((c) => c.name === name);
+                const existing = currentDeck.commanders?.find((c) => c.identity.name === name);
                 if (existing) {
                   removeCommander(existing);
                 } else {
-                  const card = currentDeck.cards.find((c) => c.name === name);
+                  const card = currentDeck.cards.find((c) => c.identity.name === name);
                   if (card) handleSetCommander(card);
                 }
               },
               isCommander: detailCard
-                ? (currentDeck.commanders?.some((c) => c.name === detailCard.name) ?? false)
+                ? (currentDeck.commanders?.some((c) => c.identity.name === detailCard.name) ??
+                  false)
                 : false,
               deckFormat: currentDeck.format ?? "standard",
               customTags: currentDeck.customTags,
               onTagCard: tagCard,
               onAddTag: addCustomTag,
-              isToken: detailCard ? mergedTokens.some((t) => t.name === detailCard.name) : false,
+              isToken: detailCard
+                ? mergedTokens.some((t) => t.identity.name === detailCard.name)
+                : false,
               onUpdateTokenPrint: updatePrint,
             }}
           />

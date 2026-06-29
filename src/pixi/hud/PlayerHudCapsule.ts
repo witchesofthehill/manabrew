@@ -1,4 +1,13 @@
-import { ColorMatrixFilter, Container, Graphics, Sprite, Text, Texture, TextStyle } from "pixi.js";
+import {
+  ColorMatrixFilter,
+  Container,
+  Graphics,
+  Point,
+  Sprite,
+  Text,
+  Texture,
+  TextStyle,
+} from "pixi.js";
 import gsap from "gsap";
 import type { Theme } from "@/hooks/useTheme";
 import { MANA_LETTERS } from "@/themes/gameTheme";
@@ -8,6 +17,7 @@ import { gameIconTexture } from "../gameIconCache";
 import { getManaSymbolTextureSync, loadManaSymbolTexture } from "../manaSymbolCache";
 import { loadAvatarTexture } from "./avatarTextureCache";
 import type { PlayerHudSpec, PlayerHudTooltipContent } from "./playerHud.types";
+import type { ScreenPos } from "@/pixi/types";
 import { RING_ABILITIES } from "@/components/game/game.constants";
 
 const BOT_ICON_NAME = "robot-antennas";
@@ -282,6 +292,10 @@ export class PlayerHudCapsule {
     this.theme = theme;
     this.lastSig = "";
     this.render();
+  }
+
+  getAvatarCenter(): ScreenPos {
+    return this.container.toGlobal(new Point(this.avatarCx, this.avatarCy));
   }
 
   setSpec(spec: PlayerHudSpec): void {

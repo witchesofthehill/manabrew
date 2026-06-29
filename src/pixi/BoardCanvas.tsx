@@ -446,9 +446,9 @@ export function BoardCanvas({
   const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
 
   const hoverFaces = useCardFaces({
-    name: handHover?.card.name,
-    setCode: handHover?.card.setCode,
-    cardNumber: handHover?.card.cardNumber,
+    name: handHover?.card.identity.name,
+    setCode: handHover?.card.identity.setCode,
+    cardNumber: handHover?.card.identity.cardNumber,
   });
   const [handFlipBack, setHandFlipBack] = useState(false);
   const hoverCardId = handHover?.card.id ?? null;

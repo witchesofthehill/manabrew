@@ -45,7 +45,7 @@ export function PromptPresentation({
         {sourceCard && (
           <ScryfallImg
             src={sourceCard.uris.normal}
-            alt={sourceCard.name}
+            alt={sourceCard.identity.name}
             className="w-[200px] h-auto self-center object-contain rounded-xl shadow-lg"
           />
         )}
@@ -60,7 +60,7 @@ export function PromptPresentation({
       {sourceCard && (
         <ScryfallImg
           src={sourceCard.uris.normal}
-          alt={sourceCard.name}
+          alt={sourceCard.identity.name}
           className="w-[220px] h-auto self-start object-contain rounded-xl shadow-lg shrink-0"
         />
       )}

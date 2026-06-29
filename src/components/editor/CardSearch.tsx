@@ -392,7 +392,7 @@ function DraggableCardGrid({
 }) {
   const dragDisabled = !!standalone;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `search-${card.id}`,
+    id: `search-${card.identity.id}`,
     data: { card },
     disabled: dragDisabled,
   });
@@ -446,7 +446,7 @@ function DraggableCardRow({
 }) {
   const dragDisabled = !!standalone;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `search-${card.id}`,
+    id: `search-${card.identity.id}`,
     data: { card },
     disabled: dragDisabled,
   });
@@ -476,7 +476,7 @@ function DraggableCardRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate leading-tight">{card.name}</div>
+        <div className="text-sm font-medium truncate leading-tight">{card.identity.name}</div>
         <div className="text-xs text-muted-foreground truncate leading-tight">{typeStr}</div>
       </div>
 
@@ -1050,7 +1050,11 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
           {viewMode === "grid" ? (
             <div className="flex flex-wrap gap-3 pb-4">
               {allCards.map((card, i) => (
-                <div key={card.id} className="shrink-0" style={{ width: standalone ? 130 : 110 }}>
+                <div
+                  key={card.identity.id}
+                  className="shrink-0"
+                  style={{ width: standalone ? 130 : 110 }}
+                >
                   <DraggableCardGrid
                     card={card}
                     onMoreInfo={() => setDetailCard(rawCards[i])}
@@ -1067,7 +1071,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
             <div className="pb-4">
               {allCards.map((card, i) => (
                 <DraggableCardRow
-                  key={card.id}
+                  key={card.identity.id}
                   card={card}
                   onMoreInfo={() => setDetailCard(rawCards[i])}
                   standalone={standalone}

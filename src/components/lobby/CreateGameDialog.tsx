@@ -38,7 +38,7 @@ export function CreateGameDialog({
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>(initialFormat);
   const [selectedDeck, setSelectedDeck] = useState<string>(preSelectedDeckId ?? "current");
   const [selectedCommander, setSelectedCommander] = useState<string>(
-    currentDeck.commanders?.[0]?.name ?? "",
+    currentDeck.commanders?.[0]?.identity.name ?? "",
   );
   const presetDecks = usePresetDecks();
   const [playerCount, setPlayerCount] = useState(2);
@@ -81,7 +81,7 @@ export function CreateGameDialog({
           cover: resolveCoverCard(currentDeck),
           cards: allDeckCards(currentDeck),
           formatId: currentDeck.format ?? "standard",
-          commanderName: currentDeck.commanders?.[0]?.name,
+          commanderName: currentDeck.commanders?.[0]?.identity.name,
         },
       ];
   const userDecks = [
@@ -96,7 +96,7 @@ export function CreateGameDialog({
       cover: resolveCoverCard(s.deck),
       cards: allDeckCards(s.deck),
       formatId: s.deck.format ?? "standard",
-      commanderName: s.deck.commanders?.[0]?.name,
+      commanderName: s.deck.commanders?.[0]?.identity.name,
     })),
   ];
 
@@ -110,7 +110,7 @@ export function CreateGameDialog({
     cover: resolveCoverCard(deck),
     cards: [...deck.cards, ...(deck.commanders ?? [])],
     formatId: deck.format ?? "standard",
-    commanderName: deck.commanders?.[0]?.name,
+    commanderName: deck.commanders?.[0]?.identity.name,
   }));
 
   const allDecks = [...userDecks, ...presetDeckEntries];
@@ -159,7 +159,7 @@ export function CreateGameDialog({
             : []),
           ...selectedDeckEntry.cards
             .filter((c) => c.supertypes?.includes("Legendary") && c.types?.includes("Creature"))
-            .map((c) => [c.name, c.name] as [string, string]),
+            .map((c) => [c.identity.name, c.identity.name] as [string, string]),
         ]).values(),
       )
     : [];

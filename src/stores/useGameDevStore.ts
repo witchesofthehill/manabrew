@@ -324,7 +324,7 @@ export function applyCardOverrides(card: CardDto, o: DevCardOverrides): CardDto 
     isMadnessExiled: o.forceMadnessExiled || card.isMadnessExiled,
     isWarpExiled: o.forceWarpExiled || card.isWarpExiled,
     isCopy: o.forceCopy || card.isCopy,
-    isToken: o.forceToken || card.isToken,
+    identity: { ...card.identity, isToken: o.forceToken || card.identity.isToken },
     foil: o.forceFoil || card.foil,
     phasedOut: o.forcePhasedOut || card.phasedOut,
     isAttacking: o.forceAttacking || card.isAttacking,

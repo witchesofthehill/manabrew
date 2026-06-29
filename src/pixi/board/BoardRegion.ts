@@ -64,7 +64,7 @@ import {
   Z_OVERLAY_OFFSET,
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
-import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
+import { COLLAPSED_OPPONENT_WIDTH_PX, STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
 import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
@@ -432,6 +432,23 @@ export class BoardRegion {
   getCardPosition(cardId: string): ScreenPos | null {
     const entry = this.entries.get(cardId);
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
+  }
+
+  getZoneTileCenter(key: string): ScreenPos | null {
+    const center = this.zoneTiles.getTileCenter(key);
+    return center ? this.localToCanvas(center.x, center.y) : null;
+  }
+
+  isCollapsed(): boolean {
+    return this.clipWidth !== null && this.clipWidth <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
+  }
+
+  getBandCenter(): ScreenPos {
+    const x =
+      this.clipX !== null && this.clipWidth !== null
+        ? this.clipX + this.clipWidth / 2
+        : this.zone.x + this.zone.width / 2;
+    return this.localToCanvas(x, this.zone.y + this.zone.height / 2);
   }
 
   getLastState(): BattlefieldState | null {
@@ -1125,12 +1142,19 @@ export class BoardRegion {
     return positions;
   }
 
-  getPlacementGhostCenter(): ScreenPos {
+  getPlacementGhostRect(): { x: number; y: number; width: number; height: number } {
     const slot = this.findFirstFreeBattlefieldSlot();
     return {
-      x: slot.x + (CARD_W * this.cardScale) / 2,
-      y: slot.y + (CARD_H * this.cardScale) / 2,
+      x: slot.x,
+      y: slot.y,
+      width: CARD_W * this.cardScale,
+      height: CARD_H * this.cardScale,
     };
+  }
+
+  getPlacementGhostCenter(): ScreenPos {
+    const r = this.getPlacementGhostRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   }
 
   private findFirstFreeBattlefieldSlot(): Point {

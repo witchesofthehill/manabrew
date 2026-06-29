@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::game::TargetingIntent;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
@@ -158,15 +160,54 @@ pub enum TargetAnyChoice {
     None,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(
-    tag = "kind",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "prompts/common.ts")]
-pub enum TargetRef {
-    Player { id: String },
-    Card { id: String },
-    Spell { id: String },
+pub enum TargetKind {
+    Player,
+    Card,
+    Spell,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "prompts/common.ts")]
+pub struct TargetRef {
+    pub kind: TargetKind,
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub intent: Option<TargetingIntent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub oracle: Option<String>,
+}
+
+impl TargetRef {
+    pub fn card(id: String) -> Self {
+        Self {
+            kind: TargetKind::Card,
+            id,
+            intent: None,
+            oracle: None,
+        }
+    }
+
+    pub fn player(id: String) -> Self {
+        Self {
+            kind: TargetKind::Player,
+            id,
+            intent: None,
+            oracle: None,
+        }
+    }
+
+    pub fn spell(id: String) -> Self {
+        Self {
+            kind: TargetKind::Spell,
+            id,
+            intent: None,
+            oracle: None,
+        }
+    }
 }

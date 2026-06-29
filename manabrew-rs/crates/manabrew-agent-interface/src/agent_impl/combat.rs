@@ -233,7 +233,7 @@ pub(super) fn pay_combat_cost<T: Responder>(
         .latest_view
         .as_ref()
         .and_then(|v| v.battlefield.iter().find(|c| c.id == attacker_id))
-        .map(|c| c.name.clone())
+        .map(|c| c.identity.name.clone())
         .unwrap_or_default();
     let mut actions = mana_payment_actions(mana_ability_options);
     for &land in untappable_lands {

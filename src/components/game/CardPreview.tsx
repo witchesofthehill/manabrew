@@ -12,7 +12,7 @@ import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
@@ -285,9 +285,18 @@ export function CardPreview({
       }
     : null;
 
+  const horizontalCard = isHorizontalGameCard(card, deckCard.layout);
+  const [orientationFlipped, setOrientationFlipped] = useState(false);
+  const [prevCardId, setPrevCardId] = useState(card.id);
+  if (prevCardId !== card.id) {
+    setPrevCardId(card.id);
+    setOrientationFlipped(false);
+  }
+
   useKeybindings({
     "flip-card": () => {
-      if (onFlip && hasFlippableFaces) onFlip();
+      if (horizontalCard) setOrientationFlipped((prev) => !prev);
+      else if (onFlip && hasFlippableFaces) onFlip();
     },
   });
 
@@ -323,10 +332,7 @@ export function CardPreview({
     };
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
-  const horizontal = isHorizontalCard({
-    layout: deckCard.layout,
-    types: card.types,
-  });
+  const horizontal = horizontalCard && !orientationFlipped;
   const cardWidth = horizontal ? CARD_H : CARD_W;
   const cardHeight = horizontal ? CARD_W : CARD_H;
 
@@ -508,6 +514,20 @@ export function CardPreview({
                   >
                     <RotateCw className="h-3 w-3" />
                     {showBackFace ? "Front" : "Back"}
+                  </button>
+                )}
+                {horizontalCard && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOrientationFlipped((prev) => !prev);
+                    }}
+                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    title="Rotate the card to read it (F)"
+                  >
+                    <RotateCw className="h-3 w-3" />
+                    {orientationFlipped ? "Read" : "Rotate"}
                   </button>
                 )}
               </>

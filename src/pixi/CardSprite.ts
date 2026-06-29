@@ -11,7 +11,7 @@ import {
 } from "pixi.js";
 import type { CardDto } from "@/protocol/game";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import type { Theme } from "@/hooks/useTheme";
 import {
   FRAME_TINT_COLORLESS_MAX_LUMINANCE,
@@ -535,10 +535,7 @@ export class CardSprite extends Container {
   // Scryfall serves horizontal-frame cards as upright 5:7 PNGs — rotate
   // the sprite 90° so the printed art reads in landscape inside the slot.
   private isHorizontal(): boolean {
-    return isHorizontalCard({
-      layout: this.deckCard().layout,
-      types: this.card.types,
-    });
+    return isHorizontalGameCard(this.card, this.deckCard().layout);
   }
 
   get horizontalFrame(): boolean {

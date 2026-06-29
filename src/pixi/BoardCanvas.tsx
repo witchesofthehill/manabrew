@@ -26,7 +26,7 @@ import {
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { setAnimationsEnabled } from "./effects/enabled";
@@ -451,7 +451,7 @@ export function BoardCanvas({
     setCode: handHover?.card.identity.setCode,
     cardNumber: handHover?.card.identity.cardNumber,
   });
-  const hoverHorizontal = !!handHover && isHorizontalCard({ types: handHover.card.types });
+  const hoverHorizontal = !!handHover && isHorizontalGameCard(handHover.card);
   const [handFlipBack, setHandFlipBack] = useState(false);
   const [handFlippedHorizontal, setHandFlippedHorizontal] = useState(false);
   const hoverCardId = handHover?.card.id ?? null;

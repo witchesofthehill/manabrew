@@ -106,11 +106,11 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
       // If a card is already showing, switch instantly; only debounce the initial show
       if (hoveredCard || delay === 0) {
         setHoveredCard(card);
-        setShowBackFace(false);
+        setShowBackFace(card.isTransformed);
       } else {
         hoverTimerRef.current = setTimeout(() => {
           setHoveredCard(card);
-          setShowBackFace(false);
+          setShowBackFace(card.isTransformed);
           hoverTimerRef.current = null;
         }, delay);
       }
@@ -178,7 +178,7 @@ export function useCardPreview(dismissDeps: unknown[] = []) {
     }
     setPlacement("auto");
     setHoveredCard(card);
-    setShowBackFace(false);
+    setShowBackFace(card.isTransformed);
     setIsSticky(true);
   }, []);
 

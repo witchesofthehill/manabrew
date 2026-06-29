@@ -124,6 +124,8 @@ export class BoardRegion {
   private combatRowGroups: { color: string; label: string; attackerIds: string[] }[] = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
+  private inCombat = false;
+  private battleGlowGfx = new Graphics();
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
@@ -164,6 +166,11 @@ export class BoardRegion {
     // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
     this.container.addChild(this.effects.container);
+
+    // Battle glow around the felt for any player engaged in combat.
+    this.battleGlowGfx.eventMode = "none";
+    this.battleGlowGfx.zIndex = -8;
+    this.container.addChild(this.battleGlowGfx);
 
     // Per-attacking-player highlight behind the opp-vs-opp combat row.
     this.combatRowGfx.eventMode = "none";
@@ -532,6 +539,8 @@ export class BoardRegion {
     this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
     this.combatRowBlocks = state.combatRowBlocks ?? [];
     this.combatRowGroups = state.combatRowGroups ?? [];
+    this.inCombat = state.inCombat ?? false;
+    this.drawBattleGlow();
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
 
@@ -1263,6 +1272,25 @@ export class BoardRegion {
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
+    this.drawBattleGlow();
+  }
+
+  /** A red battle glow ringing the felt while this player is engaged in combat. */
+  private drawBattleGlow(): void {
+    this.battleGlowGfx.clear();
+    if (!this.inCombat) return;
+    const felt = this.feltZone();
+    const col = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+    this.battleGlowGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
+    this.battleGlowGfx.stroke({ color: col, width: 12, alpha: 0.16 });
+    this.battleGlowGfx.roundRect(
+      felt.x + 2,
+      felt.y + 2,
+      felt.width - 4,
+      felt.height - 4,
+      TABLE_RADIUS,
+    );
+    this.battleGlowGfx.stroke({ color: col, width: 2.5 });
   }
 
   setPlaymat(url: string | undefined): void {

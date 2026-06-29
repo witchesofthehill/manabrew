@@ -908,6 +908,23 @@ export function GameBoard({
       combatRowByDefender.set(row.defenderId, row);
     }
 
+    // Every player engaged in any combat (attacker controllers, defenders, and
+    // blockers) gets a battle glow on their field.
+    const playerSet = new Set([me.id, ...opponents.map((o) => o.id)]);
+    const engaged = new Set<string>();
+    for (const c of battlefield) {
+      if (!c.isAttacking || !c.attackingPlayerId) continue;
+      engaged.add(c.controllerId);
+      const def = playerSet.has(c.attackingPlayerId)
+        ? c.attackingPlayerId
+        : cardById.get(c.attackingPlayerId)?.controllerId;
+      if (def) engaged.add(def);
+    }
+    for (const a of combatAssignments ?? []) {
+      const bl = cardById.get(a.blockerId);
+      if (bl) engaged.add(bl.controllerId);
+    }
+
     const myDeck = gameDecks[me.id];
     // Local/AI/hotseat decks skip setDeckSelection, so the default playmat is
     // resolved here too; multiplayer decks already carry it from the relay.
@@ -916,7 +933,7 @@ export function GameBoard({
       {
         playerId: me.id,
         isLocal: true,
-        state: pixiBattlefield,
+        state: { ...pixiBattlefield, inCombat: engaged.has(me.id) },
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat
@@ -931,7 +948,10 @@ export function GameBoard({
       ...opponents.map((op, i) => ({
         playerId: op.id,
         isLocal: false,
-        state: oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
+        state: {
+          ...oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
+          inCombat: engaged.has(op.id),
+        },
         playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],

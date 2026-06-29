@@ -125,6 +125,9 @@ export interface BattlefieldState {
   /** Opp-vs-opp combat: the row's attackers grouped by attacking player, each with
    *  that player's seat colour + name for the per-group highlight + label. */
   combatRowGroups?: { color: string; label: string; attackerIds: string[] }[];
+  /** This player is engaged in combat (attacking, defending, or blocking) → draw a
+   *  battle glow around their battlefield. */
+  inCombat?: boolean;
 }
 
 export interface HandState {

@@ -589,20 +589,25 @@ public final class ManaBrewInteractiveSession {
         requireAttached();
         final Random rng = forge.util.MyRandom.getRandom();
         final int sides = 20;
+        final Map<Player, Integer> openingRolls = new LinkedHashMap<Player, Integer>();
         List<Player> contenders = new ArrayList<Player>(players);
-        Map<Player, Integer> rolls = new LinkedHashMap<Player, Integer>();
         Player winner;
+        boolean firstRound = true;
         while (true) {
-            rolls.clear();
+            final Map<Player, Integer> roundRolls = new LinkedHashMap<Player, Integer>();
             int highest = 0;
             for (final Player contender : contenders) {
                 final int value = rng.nextInt(sides) + 1;
-                rolls.put(contender, value);
+                roundRolls.put(contender, value);
                 highest = Math.max(highest, value);
+            }
+            if (firstRound) {
+                openingRolls.putAll(roundRolls);
+                firstRound = false;
             }
             final List<Player> top = new ArrayList<Player>();
             for (final Player contender : contenders) {
-                if (rolls.get(contender) == highest) {
+                if (roundRolls.get(contender) == highest) {
                     top.add(contender);
                 }
             }
@@ -612,7 +617,7 @@ public final class ManaBrewInteractiveSession {
             }
             contenders = top;
         }
-        publishFirstPlayerRollPrompt(playerId, players, rolls, winner, sides);
+        publishFirstPlayerRollPrompt(playerId, players, openingRolls, winner, sides);
         awaitFirstPlayerRollAcknowledgement();
         return winner;
     }

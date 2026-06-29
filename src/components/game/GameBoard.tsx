@@ -575,6 +575,20 @@ export function GameBoard({
     return engaged;
   }, [battlefield, combatAssignments, me.id, opponents]);
 
+  // Stolen cards (controlled but not owned) get a ring in the owner's seat
+  // colour — a global card-id → colour map shared by every region.
+  const ownerRingByCard = useMemo(() => {
+    const seatColorOf = (pid: string): string =>
+      pid === me.id
+        ? playerColors.self
+        : playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
+    const map: Record<string, string> = {};
+    for (const c of battlefield) {
+      if (c.controllerId !== c.ownerId) map[c.id] = seatColorOf(c.ownerId);
+    }
+    return map;
+  }, [battlefield, playerColors, opponents, me.id]);
+
   // Pixi player HUD capsules: self bottom-left, opponents across the top of
   // their fields. Carries the life, mana pool, and active player/game badges.
   const devOverrides = useGameDevStore((s) => s.playerOverrides);
@@ -961,7 +975,7 @@ export function GameBoard({
       {
         playerId: me.id,
         isLocal: true,
-        state: pixiBattlefield,
+        state: { ...pixiBattlefield, ownerRingByCard },
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat
@@ -976,7 +990,10 @@ export function GameBoard({
       ...opponents.map((op, i) => ({
         playerId: op.id,
         isLocal: false,
-        state: oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
+        state: {
+          ...oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
+          ownerRingByCard,
+        },
         playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
         playmatSettings: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmatSettings,
         color: playerColors[OPPONENT_SEATS[i] ?? "opponent1"],
@@ -989,6 +1006,7 @@ export function GameBoard({
     battlefield,
     combatRows,
     avatarByPlayerId,
+    ownerRingByCard,
     pixiBattlefield,
     promptType,
     promptAttackerIds,

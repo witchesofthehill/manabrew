@@ -297,6 +297,7 @@ export class CardSprite extends Container {
    *  it into the base/hover scale each frame so the two don't fight. */
   readonly fxScale = { x: 1, y: 1 };
   private ringGfx: Graphics;
+  private ownerRingGfx: Graphics;
   private contentContainer: Container;
   private ptContainer: Container;
   private ptBg: Graphics;
@@ -332,6 +333,9 @@ export class CardSprite extends Container {
     this.isBattlefield = kind === "battlefield";
     this.eventMode = "static";
     this.cursor = "pointer";
+
+    this.ownerRingGfx = new Graphics();
+    this.addChild(this.ownerRingGfx);
 
     this.ringGfx = new Graphics();
     this.addChild(this.ringGfx);
@@ -1184,6 +1188,17 @@ export class CardSprite extends Container {
     this.ringGfx.clear();
     if (color == null) return;
     this.drawRingStroke(color, alpha);
+  }
+
+  /** Persistent ring in the owner's seat colour for a controlled-but-not-owned
+   *  card (stolen via Control Magic / Act of Treason / …). Drawn outside the
+   *  interaction ring so both stay visible. */
+  setOwnerRing(color: number | null): void {
+    this.ownerRingGfx.clear();
+    if (color == null) return;
+    const o = RING_INSET + 3;
+    this.ownerRingGfx.roundRect(-o, -o, CARD_W + o * 2, CARD_H + o * 2, RING_RADIUS + 3);
+    this.ownerRingGfx.stroke({ color, width: 2.5 });
   }
 
   setDoomed(active: boolean): void {

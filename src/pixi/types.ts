@@ -118,6 +118,9 @@ export interface BattlefieldState {
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
+  /** Cards controlled but not owned (stolen) → the owner's seat colour, drawn as
+   *  a persistent ring. Keyed by card id; a global map shared by every region. */
+  ownerRingByCard?: Record<string, string>;
   /** Opp-vs-opp combat: cards in `cards` that are foreign attackers respawned
    *  into this defender's combat row (laid out across the row, not the grid). */
   combatRowAttackerIds?: string[];

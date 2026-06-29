@@ -1259,6 +1259,8 @@ export class BoardRegion {
     const orderIdx = state.orderedCardIds?.indexOf(card.id) ?? -1;
     entry.sprite.setOrderBadge(orderIdx >= 0 ? orderIdx + 1 : null);
     entry.targetRotation = overriddenCard.tapped ? (this.mirrored ? -Math.PI / 2 : Math.PI / 2) : 0;
+    const ownerColor = state.ownerRingByCard?.[card.id];
+    entry.sprite.setOwnerRing(ownerColor ? hexToNum(ownerColor) : null);
     this.applyBattlefieldRing(entry.sprite, state);
     this.host.rebuildOverlay(entry, state);
   }

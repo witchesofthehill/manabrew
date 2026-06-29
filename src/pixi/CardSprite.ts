@@ -541,6 +541,10 @@ export class CardSprite extends Container {
     });
   }
 
+  get horizontalFrame(): boolean {
+    return this.cw > this.ch;
+  }
+
   private fitImageToSlot(): void {
     if (this.isHorizontal()) {
       this.imageSpr.anchor.set(0.5, 0.5);

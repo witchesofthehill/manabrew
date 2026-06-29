@@ -46,8 +46,6 @@ export class StackCardSprite {
     this.spec = spec;
     this.sourceId = spec.sourceId;
     this.faceScale = cardWidth / CARD_W;
-    this.width = cardWidth;
-    this.height = CARD_H * this.faceScale;
 
     this.container = new Container();
     this.glow.eventMode = "none";
@@ -55,6 +53,10 @@ export class StackCardSprite {
     this.face = new CardSprite(spec.card, "hand");
     this.face.scale.set(this.faceScale);
     this.face.position.set(0, 0);
+
+    const horiz = this.face.horizontalFrame;
+    this.width = (horiz ? CARD_H : CARD_W) * this.faceScale;
+    this.height = (horiz ? CARD_W : CARD_H) * this.faceScale;
 
     const hit = new Graphics()
       .roundRect(

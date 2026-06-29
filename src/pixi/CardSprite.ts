@@ -912,8 +912,6 @@ export class CardSprite extends Container {
     applyIcon(this.ringBearerIcon, "ring", fgHex, 64, iconSize, iconSize);
   }
 
-  /** Bottom-left badge marking a creature the engine requires to attack
-   *  (goad / "attacks if able"), shown during declare-attackers. */
   setMustAttack(active: boolean): void {
     if (active === this.mustAttackActive) return;
     this.mustAttackActive = active;
@@ -1233,9 +1231,6 @@ export class CardSprite extends Container {
     this.drawRingStroke(color, alpha);
   }
 
-  /** Persistent ring in the owner's seat colour for a controlled-but-not-owned
-   *  card (stolen via Control Magic / Act of Treason / …). Drawn outside the
-   *  interaction ring so both stay visible. */
   setOwnerRing(color: number | null): void {
     this.ownerRingGfx.clear();
     if (color == null) return;

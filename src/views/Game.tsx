@@ -524,7 +524,6 @@ export default function Game({ exitTo }: GameProps = {}) {
           .join(", ")}`,
       );
     }
-    // "if able" — only surface when the defender actually has a legal blocker.
     const mustBlock = attackers.filter((a) => a.mustBeBlocked && a.validBlockerIds.length > 0);
     if (mustBlock.length > 0) {
       parts.push(`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`);
@@ -980,8 +979,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
 
-  // Opp-vs-opp combat — computed once here; threaded to the board for the combat
-  // rows and used to keep those attackers/blocks out of the center-screen arrows.
   const combatRows = useMemo(
     () =>
       gameView
@@ -1021,8 +1018,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView?.players]);
 
-  // Attack arrows: drop opp-vs-opp attackers (shown in the combat rows instead),
-  // and while declaring our own attackers draw the locally-assigned batches.
   const attackArrows = useMemo(
     () => [
       ...activeAttackers.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
@@ -1030,7 +1025,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     ],
     [activeAttackers, attackAssignments, oppCombatAttackerIds],
   );
-  // Opp-vs-opp blocks are drawn in the combat rows, so keep them out of the arrows.
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
     [combatAssignments, oppCombatAttackerIds],
@@ -1112,9 +1106,6 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
-    // Keep chosen attackers tapped through the whole declaration — both the
-    // pending batch and the ones already assigned to a target — so they don't
-    // untap when assigned and re-tap when the engine commits.
     const pendingSet = new Set([
       ...pendingAttackers,
       ...attackAssignments.map((a) => a.attackerId),

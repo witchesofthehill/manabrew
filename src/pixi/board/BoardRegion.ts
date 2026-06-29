@@ -79,11 +79,8 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 
-/** Vertical padding (top + bottom) of the combat-row "attack area" strip. */
 const COMBAT_ROW_PAD_Y = 8;
-/** Left/right inset of the combat-row strip from the visible band edges. */
 const COMBAT_ROW_INSET_X = 12;
-/** Max diameter of the attacking player's avatar on the combat row. */
 const COMBAT_ROW_AVATAR_D = 24;
 
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
@@ -178,7 +175,6 @@ export class BoardRegion {
     this.effects.container.zIndex = 0;
     this.container.addChild(this.effects.container);
 
-    // Per-attacking-player highlight behind the opp-vs-opp combat row.
     this.combatRowGfx.eventMode = "none";
     this.combatRowGfx.zIndex = Z_COMBAT_STAGED - 5;
     this.container.addChild(this.combatRowGfx);
@@ -330,7 +326,6 @@ export class BoardRegion {
     this.updateClip();
     // The playmat fits the visible band, so re-fit it as the band eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
-    // The combat row spans the band, so re-lay it as the field eases open/closed.
     if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
   }
 
@@ -676,8 +671,6 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          // A combat-row guest (or its attachment) is respawning from another
-          // band, not entering the battlefield — skip the ETB glow/stomp.
           const guest =
             this.combatRowAttackerIds.has(card.id) ||
             this.combatRowAttackerIds.has(effectiveParent.get(card.id) ?? "");
@@ -745,8 +738,6 @@ export class BoardRegion {
     }
   }
 
-  /** Stack a host's attachments (Equipment/Auras) above it during combat staging
-   *  so they follow it instead of staying at its resting grid slot. */
   private stackAttachments(hostId: string, x: number, y: number, baseZ: number): void {
     const attachs = this.effectiveChildrenMap.get(hostId);
     if (!attachs) return;
@@ -759,10 +750,6 @@ export class BoardRegion {
     });
   }
 
-  /** Opp-vs-opp combat: lay the foreign attackers respawned into this defender's
-   *  band across the inner-edge row, then stack this region's blockers on top of
-   *  their attacker. Both attacker and blocker sprites live in this region now,
-   *  so everything is in local coords (no cross-region screen math). */
   private applyCombatRow(): void {
     this.combatRowGfx.clear();
     for (const t of this.combatRowLabels) t.visible = false;
@@ -773,8 +760,6 @@ export class BoardRegion {
     const cardW = CARD_W * this.cardScale;
     const bandLeft = this.clipX ?? this.zone.x;
     const bandWidth = this.clipWidth ?? this.zone.width;
-    // Compress the row to fit the visible band — full spacing when expanded, a
-    // tidy overlapping peek when the band is collapsed to a banner.
     const fullStep = cardW * COMBAT_ROW_STEP_FRAC;
     const fitStep = ids.length > 1 ? (bandWidth - cardW) / (ids.length - 1) : fullStep;
     const step = Math.max(0, Math.min(fullStep, fitStep));
@@ -818,8 +803,6 @@ export class BoardRegion {
       });
     }
 
-    // Reddish "attack area" strip spanning the band; the attacking players'
-    // avatars + names anchor at its top-left corner.
     const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     const halfH = (CARD_H * this.cardScale) / 2;
     const stripLeft = bandLeft + COMBAT_ROW_INSET_X;
@@ -831,9 +814,6 @@ export class BoardRegion {
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
     this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
 
-    // Tether each blocker back to the attacker it blocks, so the pairing is
-    // legible when several blockers fan over one attacker (a watching player
-    // can't otherwise tell which blocker stops which attacker).
     if (connectors.length > 0) {
       const defense = hexToNum(this.host.getTheme().gameTheme.promptAction.defenseAction);
       for (const c of connectors) {
@@ -1323,8 +1303,6 @@ export class BoardRegion {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
       return;
     }
-    // A declared blocker keeps the defender ring even when it will die in combat
-    // (the lethal red is carried by the doomed wash, not the ring).
     if (this.isDeclaredBlocker(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.defenseAction));
       return;
@@ -1382,8 +1360,6 @@ export class BoardRegion {
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
     const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
-    // An active combat row reserves a card-tall strip at the inner (divider) edge
-    // so the resting grid reflows above it instead of overlapping the attackers.
     const reserve =
       this.combatRowAttackerIds.size > 0
         ? CARD_H * this.cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX

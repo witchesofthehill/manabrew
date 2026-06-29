@@ -129,11 +129,6 @@ pub struct CardDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub attacking_player_id: Option<String>,
-    // The attacked entity — a player id, or the card id of an attacked
-    // planeswalker / battle. `attacking_player_id` collapses to the defending
-    // player; this keeps the real target. NB: a `///` doc comment here makes
-    // ts-rs wrap the generated CardDto multi-line, which breaks the harness
-    // prompt generator's single-line parser (scripts/gen-harness-prompts.mjs).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub attack_target_id: Option<String>,

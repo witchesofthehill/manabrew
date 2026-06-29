@@ -18,10 +18,6 @@ export function ChooseAttackers({
 }: ChooseAttackersProps) {
   const promptActionColors = usePromptActionColors();
 
-  // Multi-defender (multiplayer / planeswalkers / sieges): "Attack All" stages
-  // every attacker as pending so a target is picked; clicking a defender assigns
-  // a batch (accumulating); "Attack (N)" submits the accumulated assignments.
-  // Single-defender: tap + "Attack (N)" commits the pending batch straight to it.
   const attackAllClick = multipleDefenders
     ? () => onBeginAttackTargetPick(availableAttackerIds)
     : () => onDeclareAttackers(availableAttackerIds, selectedDefenderId ?? undefined);

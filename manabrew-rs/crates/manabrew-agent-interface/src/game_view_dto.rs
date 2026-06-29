@@ -335,8 +335,6 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
         is_crewed: card.is_crewed,
         is_attacking: card.attacking_player.is_some(),
         attacking_player_id: card.attacking_player.map(player_id_str),
-        // Defaulted under the Rust engine (no attacked-entity tracking yet); the
-        // Java host populates it from Combat.getDefenderByAttacker.
         attack_target_id: None,
         // Merge intrinsic keywords with those granted by continuous effects (layer 6)
         // and temporary pump keywords (KW$ parameter, until end of turn).

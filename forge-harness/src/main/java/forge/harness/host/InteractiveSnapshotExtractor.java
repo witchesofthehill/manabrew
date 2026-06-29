@@ -269,9 +269,6 @@ public final class InteractiveSnapshotExtractor {
                 if (defender != null) {
                     dto.attackingPlayerId = "player-" + SnapshotExtractor.playerIndex(game, defender);
                 }
-                // The actual attacked entity — preserves a planeswalker / battle
-                // target the defending-player collapse above loses. Same id scheme
-                // as the rest of the gameView (player-N / card id).
                 final GameEntity target = combat.getDefenderByAttacker(card);
                 if (target instanceof Player) {
                     dto.attackTargetId =

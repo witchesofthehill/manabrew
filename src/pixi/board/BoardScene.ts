@@ -454,8 +454,6 @@ export class BoardScene {
           Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
         );
         if (frac > 0.001) {
-          // Extend down past the field's inner edge to the divider so the
-          // collapsed veil also covers the combat row's front-edge strip.
           this.collapseVeil.rect(left, 0, bandW, this.topHeight + STRIP_BAND_PX / 2);
           this.collapseVeil.fill({ color: veilColor, alpha: frac });
         }

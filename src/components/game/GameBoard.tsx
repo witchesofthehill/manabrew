@@ -260,8 +260,6 @@ export function GameBoard({
     ],
     [myPermanents, opponents, opponentPermanentsByPlayer],
   );
-  // Opp-vs-opp combat (computed in `Game.tsx`) is rendered by the per-defender
-  // combat rows; keep those attackers out of the center-of-screen staging.
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
     [combatRows],
@@ -302,8 +300,6 @@ export function GameBoard({
       promptType === "chooseAttackers"
         ? [
             ...(chooseAttackersPrompt?.input.attackers.map((a) => a.attackerId) ?? []),
-            // Only the defenders the staged batch can legally attack (matches the
-            // avatar highlight) — planeswalkers / battles outside that set stay dim.
             ...(pendingAttackers.length > 0
               ? (chooseAttackersPrompt?.input.attackTargets
                   .filter((t) => playerIsTargetable(t.id))
@@ -536,8 +532,6 @@ export function GameBoard({
   // React just sets this target.
   const focusedOpponentId = useMemo(() => {
     if (!isSelfTurn) return activePlayerId;
-    // While declaring our own attackers, split the opponents evenly so every
-    // field is expanded and it's clear who can be attacked.
     if (promptType === "chooseAttackers") return null;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
       return stickyOpponentId;
@@ -566,8 +560,6 @@ export function GameBoard({
     return map;
   }, [myAvatar, playerDecks, me.id, opponents]);
 
-  // Players engaged in any combat (attacker controllers, defenders, blockers) —
-  // drives the red avatar glow.
   const combatEngagedIds = useMemo(() => {
     const controllerById = new Map(battlefield.map((c) => [c.id, c.controllerId]));
     const playerSet = new Set([me.id, ...opponents.map((o) => o.id)]);
@@ -587,8 +579,6 @@ export function GameBoard({
     return engaged;
   }, [battlefield, combatAssignments, me.id, opponents]);
 
-  // Stolen cards (controlled but not owned) get a ring in the owner's seat
-  // colour — a global card-id → colour map shared by every region.
   const ownerRingByCard = useMemo(() => {
     const seatColorOf = (pid: string): string =>
       pid === me.id
@@ -601,17 +591,11 @@ export function GameBoard({
     return map;
   }, [battlefield, playerColors, opponents, me.id]);
 
-  // Unblocked combat damage bearing down on each player this combat — the sum of
-  // power of attackers attacking them that nothing is blocking. Drives the avatar
-  // "incoming damage" badge (lethal-tinted when it meets or exceeds their life).
   const incomingDamageByPlayer = useMemo(() => {
     const blocked = new Set((combatAssignments ?? []).map((a) => a.attackerId));
     const map = new Map<string, number>();
     for (const c of battlefield) {
       if (!c.isAttacking || !c.attackingPlayerId || blocked.has(c.id)) continue;
-      // Only damage aimed at the player's face — a planeswalker / battle attack
-      // (attackTargetId set to a card id) hits that permanent, not the player.
-      // When attackTargetId is absent (Rust engine) fall back to counting it.
       if (c.attackTargetId && c.attackTargetId !== c.attackingPlayerId) continue;
       const p = Number.parseInt(c.power ?? "", 10);
       if (!Number.isFinite(p) || p <= 0) continue;
@@ -967,7 +951,6 @@ export function GameBoard({
   ]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
-    // Combat-row attackers are always opponents (self attacks use the center flow).
     const seatColorOf = (pid: string): string =>
       playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
     const nameOf = (pid: string): string => opponents.find((o) => o.id === pid)?.name ?? "Player";
@@ -987,8 +970,6 @@ export function GameBoard({
       })),
     });
 
-    // Opp-vs-opp combat: respawn each foreign attacker out of its controller's
-    // band and into its defender's band (where it's laid out in the combat row).
     const oppCards = new Map<string, CardDto[]>();
     for (const op of opponents)
       oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
@@ -999,8 +980,6 @@ export function GameBoard({
       if (!c.attachedTo) continue;
       (attachedTo.get(c.attachedTo) ?? attachedTo.set(c.attachedTo, []).get(c.attachedTo)!).push(c);
     }
-    // Move an attacker — and its attachments (Equipment/Auras), recursively —
-    // out of its controller's band and into the defender's.
     const moveToDefender = (id: string, defList: CardDto[]) => {
       const card = cardById.get(id);
       if (!card) return;

@@ -7,7 +7,6 @@ import type { CardDto } from "@/protocol/game";
 interface DamageOrderModalProps {
   attackerName: string;
   blockerCards: CardDto[];
-  /** The chosen order (card ids), shared with the on-board click flow. */
   order: string[];
   isWaiting: boolean;
   onToggle: (cardId: string) => void;

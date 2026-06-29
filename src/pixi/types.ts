@@ -114,24 +114,14 @@ export interface BattlefieldState {
    *  numbered badge on each (first in line takes damage first). */
   orderedCardIds?: string[];
   selectableCardIds?: string[];
-  /** Attackers the engine requires to attack (goad / "attacks if able") during
-   *  declare-attackers — marked with a badge so they aren't omitted. */
   mustAttackCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
-  /** Cards controlled but not owned (stolen) → the owner's seat colour, drawn as
-   *  a persistent ring. Keyed by card id; a global map shared by every region. */
   ownerRingByCard?: Record<string, string>;
-  /** Opp-vs-opp combat: cards in `cards` that are foreign attackers respawned
-   *  into this defender's combat row (laid out across the row, not the grid). */
   combatRowAttackerIds?: string[];
-  /** Opp-vs-opp combat: blocks against the combat-row attackers (the blockers are
-   *  this region's own creatures, stacked on top of their attacker). */
   combatRowBlocks?: CombatAssignmentDto[];
-  /** Opp-vs-opp combat: the row's attackers grouped by attacking player, each with
-   *  that player's seat colour + name + avatar for the row's left-side header. */
   combatRowGroups?: {
     color: string;
     label: string;

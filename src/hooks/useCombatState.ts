@@ -79,10 +79,6 @@ export function useCombatState({
     currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackTargets : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
 
-  // Per-attacker legal defenders the engine reported. Once attackers are staged,
-  // a defender is only a legal target for the whole pending batch if EVERY staged
-  // attacker can attack it (intersection) — so we dim defenders no staged attacker
-  // may hit instead of letting the click dead-end on an engine rejection.
   const attackerOptions =
     currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackers : [];
   const stagedTargetIds: Set<string> | null = (() => {
@@ -159,10 +155,6 @@ export function useCombatState({
         ? (pid: string) => targetablePlayerIds.includes(pid)
         : () => false;
 
-  // Assign the current pending batch to a defender. In a multi-defender game this
-  // accumulates (a player may attack several opponents in one combat); the whole
-  // set is submitted later via `submitAttack`. With a single legal defender it
-  // commits immediately — there's no target to pick.
   function assignPendingToTarget(defenderId: string) {
     if (pendingAttackers.length === 0) return;
     if (possibleDefenders.length <= 1) {
@@ -179,8 +171,6 @@ export function useCombatState({
   }
 
   function submitAttack() {
-    // Drop any assignment whose attacker is no longer offered (e.g. the engine
-    // re-prompted with a narrower list after an illegal declaration).
     const available =
       currentPrompt?.input.type === "chooseAttackers"
         ? new Set(currentPrompt.input.attackers.map((a) => a.attackerId))
@@ -239,8 +229,6 @@ export function useCombatState({
       ) {
         return;
       }
-      // Tapping an already-assigned attacker un-assigns it (re-target it from
-      // scratch); otherwise toggle it in the pending batch.
       if (attackAssignments.some((a) => a.attackerId === card.id)) {
         setAttackAssignments((prev) => prev.filter((a) => a.attackerId !== card.id));
         return;
@@ -272,9 +260,6 @@ export function useCombatState({
     }
   }
 
-  // Click a blocker to append it to the damage order; click an already-ordered
-  // one to remove it (everything after re-sequences). Shared by the on-board
-  // click flow and the damage-order modal so both drive one ordering.
   function toggleDamageOrder(cardId: string) {
     if (
       currentPrompt?.input.type !== "chooseDamageAssignmentOrder" ||

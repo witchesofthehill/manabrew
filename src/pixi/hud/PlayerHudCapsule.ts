@@ -1071,7 +1071,6 @@ export class PlayerHudCapsule {
     }
   }
 
-  /** Red glow ringing the avatar border while this player is in combat. */
   private drawCombatGlow(): void {
     this.combatGlow.clear();
     const r = this.avatarDia / 2;

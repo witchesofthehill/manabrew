@@ -502,6 +502,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
       : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
   }, [blockRequirement, gameView?.battlefield]);
+  const mustAttackHint = useMemo<string | null>(() => {
+    const must = chooseAttackersInput?.attackers.filter((a) => a.mustAttack) ?? [];
+    if (must.length === 0) return null;
+    const nameOf = (id: string) =>
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "A creature";
+    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
+  }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
     const menace = chooseBlockersInput?.attackers.filter((a) => a.minBlockers > 1) ?? [];
     if (menace.length === 0) return null;
@@ -1571,6 +1578,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 }
                 onBeginAttackTargetPick={selectAllAttackersForPick}
                 attackAssignmentCount={attackAssignments.length}
+                mustAttackHint={mustAttackHint}
                 onSubmitAttack={submitAttack}
                 pendingAttacker={pendingAttacker}
                 pendingBlocker={pendingBlocker}
@@ -1689,6 +1697,17 @@ export default function Game({ exitTo }: GameProps = {}) {
             </div>
           </div>
         )}
+
+      {gameView.step === "first_strike_damage" && (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-xs text-muted-foreground">
+              only first &amp; double strikers deal damage now
+            </span>
+          </div>
+        </div>
+      )}
 
       <GameModals
         currentPrompt={activePrompt}

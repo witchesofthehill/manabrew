@@ -20,6 +20,9 @@ export interface ChooseAttackersProps extends PromptActionLayoutProps {
   /** Attackers already assigned to a defender (multi-defender games accumulate
    *  several batches before submitting). */
   attackAssignmentCount: number;
+  /** Up-front note naming attackers that must attack (goad / "attacks if able"),
+   *  so omitting one isn't a silent engine re-prompt. */
+  mustAttackHint?: string | null;
   onPassPriority: () => void;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   /** Begin the click-to-pick-defender flow. Called instead of

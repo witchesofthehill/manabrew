@@ -54,6 +54,7 @@ export interface MainActionOverlayProps {
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
   attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
   onSubmitAttack: () => void;

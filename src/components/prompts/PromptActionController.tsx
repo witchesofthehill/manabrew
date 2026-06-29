@@ -55,6 +55,7 @@ interface PromptActionControllerProps {
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
   attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
   onSubmitAttack: () => void;
@@ -110,6 +111,7 @@ export function PromptActionController({
   selectedAttackDefenderId,
   multipleAttackDefenders,
   attackAssignmentCount,
+  mustAttackHint,
   onDeclareAttackers,
   onBeginAttackTargetPick,
   onSubmitAttack,
@@ -158,6 +160,7 @@ export function PromptActionController({
         selectedDefenderId={selectedAttackDefenderId}
         multipleDefenders={multipleAttackDefenders}
         attackAssignmentCount={attackAssignmentCount}
+        mustAttackHint={mustAttackHint}
         onPassPriority={onPassPriority}
         onDeclareAttackers={onDeclareAttackers}
         onBeginAttackTargetPick={onBeginAttackTargetPick}

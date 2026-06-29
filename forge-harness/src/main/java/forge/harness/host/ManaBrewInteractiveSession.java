@@ -25,6 +25,7 @@ import forge.game.player.PlayerView;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.SpellAbility;
 import forge.game.staticability.StaticAbilityCantAttackBlock;
+import forge.game.staticability.StaticAbilityMustAttack;
 import forge.game.zone.ZoneType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -1881,7 +1882,10 @@ public final class ManaBrewInteractiveSession {
             for (final GameEntity d : CombatChoiceSpace.legalDefendersForAttacker(a, combat)) {
                 validTargetIds.add(defenderId(d));
             }
-            attackers.add(new AttackerOptionDto(SnapshotExtractor.javaCardId(a), validTargetIds));
+            final boolean mustAttack =
+                    a.isGoaded() || !StaticAbilityMustAttack.entitiesMustAttack(a).isEmpty();
+            attackers.add(new AttackerOptionDto(
+                    SnapshotExtractor.javaCardId(a), validTargetIds, mustAttack));
         }
         final List<AttackTargetDto> attackTargets = new java.util.ArrayList<>();
         for (final GameEntity defender : combat.getDefenders()) {

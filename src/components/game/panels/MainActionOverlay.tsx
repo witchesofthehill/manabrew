@@ -45,6 +45,7 @@ export function MainActionOverlay({
   selectedAttackDefenderId,
   multipleAttackDefenders,
   attackAssignmentCount,
+  mustAttackHint,
   onDeclareAttackers,
   onBeginAttackTargetPick,
   onSubmitAttack,
@@ -239,6 +240,7 @@ export function MainActionOverlay({
                 selectedAttackDefenderId={selectedAttackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}
                 attackAssignmentCount={attackAssignmentCount}
+                mustAttackHint={mustAttackHint}
                 onDeclareAttackers={onDeclareAttackers}
                 onBeginAttackTargetPick={onBeginAttackTargetPick}
                 onSubmitAttack={onSubmitAttack}

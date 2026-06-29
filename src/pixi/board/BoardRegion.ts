@@ -75,15 +75,6 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 
-/** Concentric stroke layers (px width, alpha) for the battle glow bloom. */
-const BATTLE_GLOW_LAYERS = [
-  { w: 18, a: 0.07 },
-  { w: 11, a: 0.15 },
-  { w: 6, a: 0.3 },
-  { w: 2.5, a: 1 },
-];
-/** Left/right inset of the battlefield battle glow from the visible band edges. */
-const BATTLE_GLOW_PAD_X = 12;
 /** Header height reserved on the combat row for the attacking player's name. */
 const COMBAT_ROW_LABEL_H = 15;
 
@@ -136,8 +127,6 @@ export class BoardRegion {
   private combatRowGroups: { color: string; label: string; attackerIds: string[] }[] = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
-  private inCombat = false;
-  private battleGlowGfx = new Graphics();
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
@@ -178,11 +167,6 @@ export class BoardRegion {
     // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
     this.container.addChild(this.effects.container);
-
-    // Battle glow around the felt for any player engaged in combat.
-    this.battleGlowGfx.eventMode = "none";
-    this.battleGlowGfx.zIndex = -8;
-    this.container.addChild(this.battleGlowGfx);
 
     // Per-attacking-player highlight behind the opp-vs-opp combat row.
     this.combatRowGfx.eventMode = "none";
@@ -334,9 +318,8 @@ export class BoardRegion {
     this.clipX = clipX;
     this.clipWidth = clipWidth;
     this.updateClip();
-    // The playmat + battle glow fit the visible band, so re-fit as it eases.
+    // The playmat fits the visible band, so re-fit it as the band eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
-    this.drawBattleGlow();
   }
 
   private updateClip(): void {
@@ -463,7 +446,6 @@ export class BoardRegion {
   animate(): void {
     let exited: string[] | null = null;
     const now = performance.now();
-    this.pulseBattleGlow(now);
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
@@ -553,8 +535,6 @@ export class BoardRegion {
     this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
     this.combatRowBlocks = state.combatRowBlocks ?? [];
     this.combatRowGroups = state.combatRowGroups ?? [];
-    this.inCombat = state.inCombat ?? false;
-    this.drawBattleGlow();
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
 
@@ -795,15 +775,9 @@ export class BoardRegion {
       const w = right - left;
       const h = bottom - top;
       this.combatRowGfx.roundRect(left, top, w, h, 8);
-      this.combatRowGfx.fill({ color: red, alpha: 0.06 });
-      for (const layer of [
-        { w: 9, a: 0.1 },
-        { w: 4, a: 0.24 },
-        { w: 1.5, a: 0.95 },
-      ]) {
-        this.combatRowGfx.roundRect(left, top, w, h, 8);
-        this.combatRowGfx.stroke({ color: red, width: layer.w, alpha: layer.a });
-      }
+      this.combatRowGfx.fill({ color: red, alpha: 0.16 });
+      this.combatRowGfx.roundRect(left, top, w, h, 8);
+      this.combatRowGfx.stroke({ color: red, width: 1, alpha: 0.5 });
       const label = this.combatRowLabel(li++);
       label.text = group.label;
       label.style.fill = hexToNum(group.color);
@@ -1295,34 +1269,6 @@ export class BoardRegion {
       alpha: this.dropActive ? BG_ALPHA_DROP : BG_ALPHA_IDLE,
     });
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
-    this.drawBattleGlow();
-  }
-
-  /** A red battle glow ringing the felt while this player is engaged in combat. */
-  private drawBattleGlow(): void {
-    this.battleGlowGfx.clear();
-    if (!this.inCombat) return;
-    const band = this.bandZone();
-    const x = band.x + BATTLE_GLOW_PAD_X;
-    const w = Math.max(1, band.width - BATTLE_GLOW_PAD_X * 2);
-    const col = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
-    // Layered bloom — wide+faint → thin+bright concentric strokes fake a real
-    // glowing edge. `pulseBattleGlow` breathes/flickers the whole layer's alpha.
-    for (const layer of BATTLE_GLOW_LAYERS) {
-      this.battleGlowGfx.roundRect(x, band.y, w, band.height, TABLE_RADIUS);
-      this.battleGlowGfx.stroke({ color: col, width: layer.w, alpha: layer.a });
-    }
-  }
-
-  private pulseBattleGlow(now: number): void {
-    if (!this.inCombat) return;
-    const t = now / 1000;
-    // Slow breathing pulse (~1.6s) with a faint, faster ember flicker on top.
-    const pulse = 0.78 + 0.22 * Math.sin(t * 4);
-    const flicker = 1 - 0.05 * (0.5 + 0.5 * Math.sin(t * 41));
-    const alpha = pulse * flicker;
-    this.battleGlowGfx.alpha = alpha;
-    this.combatRowGfx.alpha = alpha;
   }
 
   setPlaymat(url: string | undefined): void {

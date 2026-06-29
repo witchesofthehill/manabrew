@@ -86,6 +86,7 @@ export class PlayerHudCapsule {
 
   private bg = new Graphics();
   private glow = new Graphics();
+  private combatGlow = new Graphics();
   private damageWash = new Graphics();
   private targetRing = new Graphics();
   private flashRing = new Graphics();
@@ -126,6 +127,8 @@ export class PlayerHudCapsule {
   private lifeTween: gsap.core.Tween | null = null;
   private offlineTween: gsap.core.Tween | null = null;
   private offlineActive = false;
+  private combatPulse: gsap.core.Tween | null = null;
+  private combatActive = false;
   private gearHovered = false;
   private gearCx = 0;
   private gearCy = 0;
@@ -161,6 +164,8 @@ export class PlayerHudCapsule {
     this.avatarPhoto.mask = this.avatarMask;
     this.avatarMask.eventMode = "none";
     this.avatarFx.eventMode = "none";
+    this.combatGlow.eventMode = "none";
+    this.combatGlow.visible = false;
     this.lifePill.eventMode = "none";
     this.bot.anchor.set(0.5);
     this.bot.visible = false;
@@ -223,6 +228,7 @@ export class PlayerHudCapsule {
       this.avatarMask,
       this.avatarPhoto,
       this.avatarFx,
+      this.combatGlow,
       this.damageWash,
       this.targetRing,
       this.flashRing,
@@ -297,6 +303,7 @@ export class PlayerHudCapsule {
       s.isFlashing,
       s.isEliminated,
       s.isDisconnected,
+      s.inCombat,
       s.color,
       s.name,
       s.isBot,
@@ -549,12 +556,14 @@ export class PlayerHudCapsule {
     this.lifePill.clear();
     if (this.column) {
       this.renderColumn(w, h);
+      this.applyCombatGlow();
       this.checkBadgeSparkles();
       return;
     }
     this.renderCapsule(h);
     this.applyLifeAnim();
     this.applyPriority();
+    this.applyCombatGlow();
     this.applyTargetable();
     this.applyFlash();
     this.checkBadgeSparkles();
@@ -1023,12 +1032,54 @@ export class PlayerHudCapsule {
     this.glow.fill({ color: hexToNum(this.theme.gameTheme.activeAction.priority), alpha: 0.22 });
   }
 
+  private applyCombatGlow(): void {
+    if (this.spec.inCombat === this.combatActive) {
+      if (this.combatActive) this.drawCombatGlow();
+      return;
+    }
+    this.combatActive = this.spec.inCombat;
+    if (this.combatActive) {
+      this.drawCombatGlow();
+      this.combatGlow.visible = true;
+      this.combatGlow.alpha = 1;
+      this.combatPulse = gsap.to(this.combatGlow, {
+        alpha: 0.5,
+        duration: 0.9,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+      });
+    } else {
+      this.combatPulse?.kill();
+      this.combatPulse = null;
+      this.combatGlow.visible = false;
+      this.combatGlow.clear();
+    }
+  }
+
+  /** Red glow ringing the avatar border while this player is in combat. */
+  private drawCombatGlow(): void {
+    this.combatGlow.clear();
+    const r = this.avatarDia / 2;
+    const red = hexToNum(this.theme.gameTheme.pt.lethal);
+    for (const layer of [
+      { rr: r + 5, w: 7, a: 0.18 },
+      { rr: r + 2, w: 4, a: 0.45 },
+      { rr: r, w: 2, a: 0.95 },
+    ]) {
+      this.combatGlow.circle(this.avatarCx, this.avatarCy, layer.rr);
+      this.combatGlow.stroke({ color: red, width: layer.w, alpha: layer.a });
+    }
+  }
+
   destroy(): void {
     this.pulse?.kill();
+    this.combatPulse?.kill();
     this.targetTween?.kill();
     this.flashTween?.kill();
     this.lifeTween?.kill();
     this.offlineTween?.kill();
+    gsap.killTweensOf(this.combatGlow);
     gsap.killTweensOf(this.life.scale);
     gsap.killTweensOf(this.lifeFloat);
     gsap.killTweensOf(this.glow);

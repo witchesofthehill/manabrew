@@ -28,6 +28,8 @@ export interface PlayerHudSpec {
   isFlashing: boolean;
   isEliminated: boolean;
   isDisconnected: boolean;
+  /** Engaged in combat (attacking, defending, or blocking) → red avatar glow. */
+  inCombat: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
 }

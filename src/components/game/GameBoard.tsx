@@ -532,12 +532,11 @@ export function GameBoard({
   // React just sets this target.
   const focusedOpponentId = useMemo(() => {
     if (!isSelfTurn) return activePlayerId;
-    if (promptType === "chooseAttackers") return null;
     if (stickyOpponentId && opponents.some((op) => op.id === stickyOpponentId)) {
       return stickyOpponentId;
     }
     return opponents[0]?.id ?? null;
-  }, [isSelfTurn, activePlayerId, promptType, stickyOpponentId, opponents]);
+  }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.

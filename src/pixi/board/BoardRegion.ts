@@ -81,6 +81,10 @@ const ENTRANCE_LAND_PX = 8;
 
 /** Vertical padding (top + bottom) of the combat-row "attack area" strip. */
 const COMBAT_ROW_PAD_Y = 8;
+/** Left/right inset of the combat-row strip from the visible band edges. */
+const COMBAT_ROW_INSET_X = 12;
+/** Max diameter of the attacking player's avatar on the combat row. */
+const COMBAT_ROW_AVATAR_D = 24;
 
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
@@ -763,12 +767,12 @@ export class BoardRegion {
       });
     }
 
-    // The whole "attack area" is a reddish strip across the band; each attacking
-    // player's avatar + name sits at the left of the strip (their seat colour).
+    // Reddish "attack area" strip spanning the band; the attacking players'
+    // avatars + names anchor at its top-left corner.
     const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     const halfH = (CARD_H * this.cardScale) / 2;
-    const stripLeft = bandLeft + 12;
-    const stripW = Math.max(1, bandWidth - 24);
+    const stripLeft = bandLeft + COMBAT_ROW_INSET_X;
+    const stripW = Math.max(1, bandWidth - COMBAT_ROW_INSET_X * 2);
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
@@ -776,9 +780,8 @@ export class BoardRegion {
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
     this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
 
-    // Avatar + name anchored at the top-left corner of the attack zone.
     const lightHex = this.host.getTheme().gameTheme.textOnTinted;
-    const avatarD = Math.min(24, stripH - 6);
+    const avatarD = Math.min(COMBAT_ROW_AVATAR_D, stripH - 6);
     const groups = this.combatRowGroups;
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi]!;

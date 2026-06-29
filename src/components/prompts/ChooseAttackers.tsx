@@ -16,40 +16,18 @@ export function ChooseAttackers({
   onSubmitAttack,
 }: ChooseAttackersProps) {
   const promptActionColors = usePromptActionColors();
-  const hasPendingAttackers = pendingAttackers.length > 0;
 
   // Multi-defender (multiplayer / planeswalkers / sieges): "Attack All" stages
-  // every attacker as pending so the user picks a target; targets are assigned
-  // by clicking a defender (accumulating across batches); "Attack (N)" submits
-  // the accumulated assignments once at least one is made.
-  if (multipleDefenders) {
-    return (
-      <div className="flex flex-row items-center justify-center gap-1.5">
-        <PromptActionButton
-          label="Attack All"
-          icon={<Swords className="h-3.5 w-3.5" />}
-          baseColor={promptActionColors.attackAction}
-          onClick={() => onBeginAttackTargetPick(availableAttackerIds)}
-          disabled={isWaitingForResponse}
-        />
-        <PromptActionButton
-          label={attackAssignmentCount > 0 ? `Attack (${attackAssignmentCount})` : "Attack"}
-          icon={<Sword className="h-3.5 w-3.5" />}
-          baseColor={promptActionColors.attackAction}
-          onClick={onSubmitAttack}
-          disabled={isWaitingForResponse || attackAssignmentCount === 0}
-        />
-        <PromptActionButton
-          label="Pass"
-          icon={<Ban className="h-3.5 w-3.5" />}
-          variant="outline"
-          baseColor={promptActionColors.passAction}
-          onClick={onPassPriority}
-          disabled={isWaitingForResponse}
-        />
-      </div>
-    );
-  }
+  // every attacker as pending so a target is picked; clicking a defender assigns
+  // a batch (accumulating); "Attack (N)" submits the accumulated assignments.
+  // Single-defender: tap + "Attack (N)" commits the pending batch straight to it.
+  const attackAllClick = multipleDefenders
+    ? () => onBeginAttackTargetPick(availableAttackerIds)
+    : () => onDeclareAttackers(availableAttackerIds, selectedDefenderId ?? undefined);
+  const attackCount = multipleDefenders ? attackAssignmentCount : pendingAttackers.length;
+  const attackClick = multipleDefenders
+    ? onSubmitAttack
+    : () => onDeclareAttackers(pendingAttackers, selectedDefenderId ?? undefined);
 
   return (
     <div className="flex flex-row items-center justify-center gap-1.5">
@@ -57,15 +35,15 @@ export function ChooseAttackers({
         label="Attack All"
         icon={<Swords className="h-3.5 w-3.5" />}
         baseColor={promptActionColors.attackAction}
-        onClick={() => onDeclareAttackers(availableAttackerIds, selectedDefenderId ?? undefined)}
+        onClick={attackAllClick}
         disabled={isWaitingForResponse}
       />
       <PromptActionButton
-        label={hasPendingAttackers ? `Attack (${pendingAttackers.length})` : "Attack"}
+        label={attackCount > 0 ? `Attack (${attackCount})` : "Attack"}
         icon={<Sword className="h-3.5 w-3.5" />}
         baseColor={promptActionColors.attackAction}
-        onClick={() => onDeclareAttackers(pendingAttackers, selectedDefenderId ?? undefined)}
-        disabled={isWaitingForResponse || !hasPendingAttackers}
+        onClick={attackClick}
+        disabled={isWaitingForResponse || attackCount === 0}
       />
       <PromptActionButton
         label="Pass"

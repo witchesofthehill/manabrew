@@ -165,8 +165,17 @@ export function useCombatState({
   }
 
   function submitAttack() {
-    if (attackAssignments.length === 0) return;
-    respond({ type: "declareAttackers", assignments: attackAssignments });
+    // Drop any assignment whose attacker is no longer offered (e.g. the engine
+    // re-prompted with a narrower list after an illegal declaration).
+    const available =
+      currentPrompt?.input.type === "chooseAttackers"
+        ? new Set(currentPrompt.input.attackers.map((a) => a.attackerId))
+        : null;
+    const assignments = available
+      ? attackAssignments.filter((a) => available.has(a.attackerId))
+      : attackAssignments;
+    if (assignments.length === 0) return;
+    respond({ type: "declareAttackers", assignments });
     setAttackAssignments([]);
     setPendingAttackers([]);
   }

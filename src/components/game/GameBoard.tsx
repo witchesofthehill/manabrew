@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
-import type { BoardTargetBuckets } from "@/lib/boardTargets";
+import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
 import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
@@ -283,11 +283,13 @@ export function GameBoard({
     ?.filter((a) => a.type === "activateAbility")
     .map((a) => a.cardId);
   const hostileTargeting = boardTargetsPrompt?.input.hostile ?? false;
-  const targetZoneCardIds = (zone: string): string[] =>
-    boardTargets?.zone?.zone === zone ? boardTargets.zone.validCardIds : [];
-  const commandTargetIds = targetZoneCardIds("Command");
-  const graveyardTargetIds = targetZoneCardIds("Graveyard");
-  const exileTargetIds = targetZoneCardIds("Exile");
+  const targetZoneCardIds = (zone: string, cards?: CardDto[]): string[] =>
+    boardTargets?.zone?.zone === zone
+      ? validCardIdsInCards(boardTargets.zone.validCardIds, cards)
+      : [];
+  const commandTargetIds = targetZoneCardIds("Command", myCommandZone);
+  const graveyardTargetIds = targetZoneCardIds("Graveyard", graveyard);
+  const exileTargetIds = targetZoneCardIds("Exile", exile);
   const commandPlayableIds = myCommandZone
     ?.filter((card) => playableIds.has(card.id))
     .map((card) => card.id);
@@ -897,7 +899,18 @@ export function GameBoard({
     }
 
     const byPlayer: Record<string, ZoneTileSpec[]> = { [me.id]: self };
+    const opZoneTargetIds = (zone: string, cards: CardDto[]): string[] =>
+      isTargetingPrompt && boardTargets?.zone?.zone === zone
+        ? validCardIdsInCards(boardTargets.zone.validCardIds, cards)
+        : [];
     for (const op of opponents) {
+      const gyTargets = opZoneTargetIds("Graveyard", op.graveyard);
+      const exTargets = opZoneTargetIds("Exile", op.exile);
+      const cmdTargets = opZoneTargetIds("Command", op.commandZone);
+      const openOpZone = (title: string, cards: CardDto[], targetIds: string[]) =>
+        targetIds.length > 0
+          ? onOpenZone(title, cards, onTargetFromZone, targetIds, hostileTargeting)
+          : onOpenZone(title, cards);
       const tiles: ZoneTileSpec[] = [
         { key: ZONE_TILE_KEY.library, label: "Lib", count: op.libraryCount, back: true },
         {
@@ -905,14 +918,16 @@ export function GameBoard({
           label: "GY",
           count: op.graveyard.length,
           topCard: top(op.graveyard),
-          onOpen: () => onOpenZone(`${op.name}'s Graveyard`, op.graveyard),
+          onOpen: () => openOpZone(`${op.name}'s Graveyard`, op.graveyard, gyTargets),
+          highlightColor: gyTargets.length > 0 ? targetColor : undefined,
         },
         {
           key: ZONE_TILE_KEY.exile,
           label: "EX",
           count: op.exile.length,
           topCard: top(op.exile),
-          onOpen: () => onOpenZone(`${op.name}'s Exile`, op.exile),
+          onOpen: () => openOpZone(`${op.name}'s Exile`, op.exile, exTargets),
+          highlightColor: exTargets.length > 0 ? targetColor : undefined,
         },
       ];
       if ((op.commandZone?.length ?? 0) > 0) {
@@ -921,7 +936,8 @@ export function GameBoard({
           label: "CMD",
           count: op.commandZone.length,
           topCard: top(op.commandZone),
-          onOpen: () => onOpenZone(`${op.name}'s Command Zone`, op.commandZone),
+          onOpen: () => openOpZone(`${op.name}'s Command Zone`, op.commandZone, cmdTargets),
+          highlightColor: cmdTargets.length > 0 ? targetColor : undefined,
         });
       }
       byPlayer[op.id] = tiles;
@@ -943,6 +959,8 @@ export function GameBoard({
     hostileTargeting,
     graveyardTargetIds,
     exileTargetIds,
+    boardTargets,
+    onTargetFromZone,
     onOpenZone,
     openCommandZone,
     openGraveyard,

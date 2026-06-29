@@ -79,6 +79,25 @@ export function useCombatState({
     currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackTargets : [];
   const multipleAttackDefenders = possibleDefenders.length > 1;
 
+  // Per-attacker legal defenders the engine reported. Once attackers are staged,
+  // a defender is only a legal target for the whole pending batch if EVERY staged
+  // attacker can attack it (intersection) — so we dim defenders no staged attacker
+  // may hit instead of letting the click dead-end on an engine rejection.
+  const attackerOptions =
+    currentPrompt?.input.type === "chooseAttackers" ? currentPrompt.input.attackers : [];
+  const stagedTargetIds: Set<string> | null = (() => {
+    if (promptType !== "chooseAttackers" || pendingAttackers.length === 0) return null;
+    let acc: string[] | null = null;
+    for (const id of pendingAttackers) {
+      const valid = attackerOptions.find((a) => a.attackerId === id)?.validTargetIds ?? [];
+      acc = acc == null ? [...valid] : acc.filter((x) => valid.includes(x));
+    }
+    return new Set(acc ?? []);
+  })();
+  const defenderIsTargetable = (id: string): boolean =>
+    possibleDefenders.some((d) => d.id === id) &&
+    (stagedTargetIds == null || stagedTargetIds.has(id));
+
   // Per-attacker block legality the engine reported; drives which blocker→
   // attacker pairings are allowed (and the menace/error feedback in the UI).
   const blockableAttackers =
@@ -135,14 +154,14 @@ export function useCombatState({
 
   const playerIsTargetable =
     promptType === "chooseAttackers"
-      ? (pid: string) => possibleDefenders.some((defender) => defender.id === pid)
+      ? (pid: string) => defenderIsTargetable(pid)
       : promptType === "chooseBoardTargets"
         ? (pid: string) => targetablePlayerIds.includes(pid)
         : () => false;
 
   /** True when a battlefield card is a legal defender (planeswalker / siege). */
   function cardIsAttackTarget(cardId: string): boolean {
-    return awaitingAttackTarget && possibleDefenders.some((defender) => defender.id === cardId);
+    return awaitingAttackTarget && defenderIsTargetable(cardId);
   }
 
   // Assign the current pending batch to a defender. In a multi-defender game this
@@ -199,7 +218,7 @@ export function useCombatState({
   }
 
   function handleTargetPlayer(pid: string) {
-    if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === pid)) {
+    if (awaitingAttackTarget && defenderIsTargetable(pid)) {
       assignPendingToTarget(pid);
       return;
     }
@@ -213,7 +232,7 @@ export function useCombatState({
   function handleBattlefieldClick(card: CardDto) {
     if (!currentPrompt) return;
 
-    if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === card.id)) {
+    if (awaitingAttackTarget && defenderIsTargetable(card.id)) {
       assignPendingToTarget(card.id);
       return;
     }

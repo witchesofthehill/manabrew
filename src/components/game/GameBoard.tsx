@@ -589,6 +589,21 @@ export function GameBoard({
     return map;
   }, [battlefield, playerColors, opponents, me.id]);
 
+  // Unblocked combat damage bearing down on each player this combat — the sum of
+  // power of attackers attacking them that nothing is blocking. Drives the avatar
+  // "incoming damage" badge (lethal-tinted when it meets or exceeds their life).
+  const incomingDamageByPlayer = useMemo(() => {
+    const blocked = new Set((combatAssignments ?? []).map((a) => a.attackerId));
+    const map = new Map<string, number>();
+    for (const c of battlefield) {
+      if (!c.isAttacking || !c.attackingPlayerId || blocked.has(c.id)) continue;
+      const p = Number.parseInt(c.power ?? "", 10);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      map.set(c.attackingPlayerId, (map.get(c.attackingPlayerId) ?? 0) + p);
+    }
+    return map;
+  }, [battlefield, combatAssignments]);
+
   // Pixi player HUD capsules: self bottom-left, opponents across the top of
   // their fields. Carries the life, mana pool, and active player/game badges.
   const devOverrides = useGameDevStore((s) => s.playerOverrides);
@@ -650,8 +665,25 @@ export function GameBoard({
         });
     };
 
+    const incomingDamageBadges = (player: PlayerDto): PlayerHudBadge[] => {
+      const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
+      if (incoming <= 0) return [];
+      const lethal = incoming >= (dev.life ?? player.life);
+      return [
+        {
+          id: "incoming-damage",
+          icon: "bleeding-wound",
+          color: gameTheme.pt.lethal,
+          label: lethal ? "Lethal combat damage incoming" : "Combat damage incoming",
+          count: incoming,
+          lethal,
+        },
+      ];
+    };
+
     const toSpec = (player: PlayerDto, color: string, isSelf: boolean): PlayerHudSpec => {
       const badges = [
+        ...incomingDamageBadges(player),
         ...buildPlayerHudBadges(
           {
             isMonarch: dev.forceMonarch ? true : monarchId === player.id,
@@ -704,6 +736,7 @@ export function GameBoard({
     me,
     opponents,
     combatEngagedIds,
+    incomingDamageByPlayer,
     playerColors,
     avatarByPlayerId,
     activePlayerId,
@@ -714,6 +747,7 @@ export function GameBoard({
     monarchId,
     initiativeHolderId,
     gameTheme.badges,
+    gameTheme.pt,
     devOverrides,
     currentRoom,
     concededPlayerIds,

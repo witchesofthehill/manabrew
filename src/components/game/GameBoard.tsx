@@ -903,6 +903,7 @@ export function GameBoard({
       combatRowGroups: combatRow?.groups.map((g) => ({
         color: seatColorOf(g.controllerId),
         label: nameOf(g.controllerId),
+        avatarUrl: avatarByPlayerId.get(g.controllerId),
         attackerIds: g.attackerIds,
       })),
     });
@@ -973,6 +974,7 @@ export function GameBoard({
     opponentPermanentsByPlayer,
     myPermanents,
     combatAssignments,
+    avatarByPlayerId,
     pixiBattlefield,
     promptType,
     promptAttackerIds,

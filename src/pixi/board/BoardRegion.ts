@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics, Sprite, Text, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
@@ -66,6 +66,7 @@ import {
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
 import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
+import { loadAvatarTexture } from "../hud/avatarTextureCache";
 
 type Point = ScreenPos;
 
@@ -75,8 +76,8 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 
-/** Header height reserved on the combat row for the attacking player's name. */
-const COMBAT_ROW_LABEL_H = 15;
+/** Vertical padding (top + bottom) of the combat-row "attack area" strip. */
+const COMBAT_ROW_PAD_Y = 8;
 
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
@@ -124,9 +125,10 @@ export class BoardRegion {
   private combatStaging: SceneCombatStaging | null = null;
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
-  private combatRowGroups: { color: string; label: string; attackerIds: string[] }[] = [];
+  private combatRowGroups: NonNullable<BattlefieldState["combatRowGroups"]> = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
+  private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null }[] = [];
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
@@ -711,6 +713,7 @@ export class BoardRegion {
   private applyCombatRow(): void {
     this.combatRowGfx.clear();
     for (const t of this.combatRowLabels) t.visible = false;
+    for (const a of this.combatRowAvatars) a.sprite.visible = false;
     if (this.combatRowAttackerIds.size === 0) return;
     const ids = [...this.combatRowAttackerIds];
     const y = this.frontEdgeY();
@@ -758,32 +761,81 @@ export class BoardRegion {
     }
 
     // The whole "attack area" is a reddish strip across the band; each attacking
-    // player's name is a header over their cards (coloured in their seat colour).
+    // player's avatar + name sits at the left of the strip (their seat colour).
     const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     const halfH = (CARD_H * this.cardScale) / 2;
-    const stripPad = 12;
-    const stripLeft = bandLeft + stripPad;
-    const stripW = Math.max(1, bandWidth - stripPad * 2);
-    const stripTop = y - halfH - COMBAT_ROW_LABEL_H - 2;
-    const stripH = halfH * 2 + COMBAT_ROW_LABEL_H + 8;
+    const stripLeft = bandLeft + 12;
+    const stripW = Math.max(1, bandWidth - 24);
+    const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
+    const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
     this.combatRowGfx.fill({ color: red, alpha: 0.22 });
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
     this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
 
-    let li = 0;
-    for (const group of this.combatRowGroups) {
-      const xs = group.attackerIds
-        .map((id) => attackerX.get(id))
-        .filter((x): x is number => x !== undefined);
-      if (xs.length === 0) continue;
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-      const label = this.combatRowLabel(li++);
+    const avatarD = Math.min(30, stripH - 8);
+    const slotH = avatarD + 5;
+    const groups = this.combatRowGroups;
+    let slotY = stripTop + (stripH - groups.length * slotH) / 2 + avatarD / 2;
+    for (let gi = 0; gi < groups.length; gi++) {
+      const group = groups[gi]!;
+      const col = hexToNum(group.color);
+      const ax = stripLeft + 12 + avatarD / 2;
+      this.combatRowGfx.circle(ax, slotY, avatarD / 2);
+      this.combatRowGfx.fill({ color: col, alpha: 0.4 });
+      this.combatRowGfx.circle(ax, slotY, avatarD / 2);
+      this.combatRowGfx.stroke({ color: col, width: 1.5 });
+      const av = this.combatRowAvatar(gi);
+      if (group.avatarUrl) {
+        av.sprite.visible = true;
+        av.sprite.position.set(ax, slotY);
+        av.mask.clear();
+        av.mask.circle(ax, slotY, avatarD / 2 - 1);
+        av.mask.fill({ color: 0xffffff });
+        this.loadCombatRowAvatar(av, group.avatarUrl, avatarD);
+      }
+      const label = this.combatRowLabel(gi);
       label.text = group.label;
-      label.style.fill = hexToNum(group.color);
-      label.position.set(cx, stripTop + COMBAT_ROW_LABEL_H / 2 + 1);
+      label.style.fill = col;
+      label.anchor.set(0, 0.5);
+      label.position.set(ax + avatarD / 2 + 7, slotY);
       label.visible = true;
+      slotY += slotH;
     }
+  }
+
+  private combatRowAvatar(i: number): { sprite: Sprite; mask: Graphics; url: string | null } {
+    let a = this.combatRowAvatars[i];
+    if (!a) {
+      const sprite = new Sprite();
+      sprite.anchor.set(0.5);
+      sprite.eventMode = "none";
+      sprite.zIndex = Z_COMBAT_STAGED + 2;
+      const mask = new Graphics();
+      mask.eventMode = "none";
+      sprite.mask = mask;
+      this.container.addChild(mask, sprite);
+      a = { sprite, mask, url: null };
+      this.combatRowAvatars[i] = a;
+    }
+    return a;
+  }
+
+  private loadCombatRowAvatar(
+    a: { sprite: Sprite; mask: Graphics; url: string | null },
+    url: string,
+    size: number,
+  ): void {
+    if (a.url === url) return;
+    a.url = url;
+    loadAvatarTexture(url)
+      .then((tex) => {
+        if (a.sprite.destroyed || a.url !== url) return;
+        a.sprite.texture = tex;
+        a.sprite.width = size;
+        a.sprite.height = size;
+      })
+      .catch(() => {});
   }
 
   private combatRowLabel(i: number): Text {
@@ -1246,7 +1298,7 @@ export class BoardRegion {
     // so the resting grid reflows above it instead of overlapping the attackers.
     const reserve =
       this.combatRowAttackerIds.size > 0
-        ? CARD_H * this.cardScale + COMBAT_ROW_LABEL_H + COMBAT_STAGE_PADDING_PX * 2
+        ? CARD_H * this.cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX
         : 0;
     return {
       x: z.x + pad,

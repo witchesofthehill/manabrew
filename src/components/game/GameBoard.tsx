@@ -609,6 +609,10 @@ export function GameBoard({
     const map = new Map<string, number>();
     for (const c of battlefield) {
       if (!c.isAttacking || !c.attackingPlayerId || blocked.has(c.id)) continue;
+      // Only damage aimed at the player's face — a planeswalker / battle attack
+      // (attackTargetId set to a card id) hits that permanent, not the player.
+      // When attackTargetId is absent (Rust engine) fall back to counting it.
+      if (c.attackTargetId && c.attackTargetId !== c.attackingPlayerId) continue;
       const p = Number.parseInt(c.power ?? "", 10);
       if (!Number.isFinite(p) || p <= 0) continue;
       map.set(c.attackingPlayerId, (map.get(c.attackingPlayerId) ?? 0) + p);

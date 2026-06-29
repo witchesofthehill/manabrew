@@ -9,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import forge.card.ColorSet;
 import forge.card.MagicColor;
 import forge.game.Game;
+import forge.game.GameEntity;
 import forge.ai.ComputerUtilCombat;
 import forge.game.card.Card;
 import forge.game.card.CounterEnumType;
@@ -267,6 +268,16 @@ public final class InteractiveSnapshotExtractor {
                 final Player defender = combat.getDefenderPlayerByAttacker(card);
                 if (defender != null) {
                     dto.attackingPlayerId = "player-" + SnapshotExtractor.playerIndex(game, defender);
+                }
+                // The actual attacked entity — preserves a planeswalker / battle
+                // target the defending-player collapse above loses. Same id scheme
+                // as the rest of the gameView (player-N / card id).
+                final GameEntity target = combat.getDefenderByAttacker(card);
+                if (target instanceof Player) {
+                    dto.attackTargetId =
+                            "player-" + SnapshotExtractor.playerIndex(game, (Player) target);
+                } else if (target instanceof Card) {
+                    dto.attackTargetId = SnapshotExtractor.javaCardId((Card) target);
                 }
             }
             // AI combat eval invoked from snapshot extraction, a context Forge

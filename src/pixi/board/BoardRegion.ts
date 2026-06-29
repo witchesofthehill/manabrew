@@ -82,6 +82,10 @@ const BATTLE_GLOW_LAYERS = [
   { w: 6, a: 0.3 },
   { w: 2.5, a: 1 },
 ];
+/** Left/right inset of the battlefield battle glow from the visible band edges. */
+const BATTLE_GLOW_PAD_X = 12;
+/** Header height reserved on the combat row for the attacking player's name. */
+const COMBAT_ROW_LABEL_H = 15;
 
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
@@ -773,7 +777,9 @@ export class BoardRegion {
       });
     }
 
-    // Per-attacking-player highlight + name label behind each group's attackers.
+    // Each attacking player's group gets a red battle glow on the row, with their
+    // name as a header on the row itself (coloured in their seat colour).
+    const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     const halfW = cardW / 2;
     const halfH = (CARD_H * this.cardScale) / 2;
     let li = 0;
@@ -782,19 +788,26 @@ export class BoardRegion {
         .map((id) => attackerX.get(id))
         .filter((x): x is number => x !== undefined);
       if (xs.length === 0) continue;
-      const left = Math.min(...xs) - halfW - 4;
-      const right = Math.max(...xs) + halfW + 4;
-      const top = y - halfH - 4;
-      const bottom = y + halfH + 4;
-      const col = hexToNum(group.color);
-      this.combatRowGfx.roundRect(left, top, right - left, bottom - top, 8);
-      this.combatRowGfx.fill({ color: col, alpha: 0.16 });
-      this.combatRowGfx.roundRect(left, top, right - left, bottom - top, 8);
-      this.combatRowGfx.stroke({ color: col, width: 1.5 });
+      const left = Math.min(...xs) - halfW - 6;
+      const right = Math.max(...xs) + halfW + 6;
+      const top = y - halfH - COMBAT_ROW_LABEL_H - 2;
+      const bottom = y + halfH + 6;
+      const w = right - left;
+      const h = bottom - top;
+      this.combatRowGfx.roundRect(left, top, w, h, 8);
+      this.combatRowGfx.fill({ color: red, alpha: 0.06 });
+      for (const layer of [
+        { w: 9, a: 0.1 },
+        { w: 4, a: 0.24 },
+        { w: 1.5, a: 0.95 },
+      ]) {
+        this.combatRowGfx.roundRect(left, top, w, h, 8);
+        this.combatRowGfx.stroke({ color: red, width: layer.w, alpha: layer.a });
+      }
       const label = this.combatRowLabel(li++);
       label.text = group.label;
-      label.style.fill = col;
-      label.position.set((left + right) / 2, top - 9);
+      label.style.fill = hexToNum(group.color);
+      label.position.set((left + right) / 2, top + COMBAT_ROW_LABEL_H / 2 + 1);
       label.visible = true;
     }
   }
@@ -1259,7 +1272,7 @@ export class BoardRegion {
     // so the resting grid reflows above it instead of overlapping the attackers.
     const reserve =
       this.combatRowAttackerIds.size > 0
-        ? CARD_H * this.cardScale + COMBAT_STAGE_PADDING_PX * 2
+        ? CARD_H * this.cardScale + COMBAT_ROW_LABEL_H + COMBAT_STAGE_PADDING_PX * 2
         : 0;
     return {
       x: z.x + pad,
@@ -1290,11 +1303,13 @@ export class BoardRegion {
     this.battleGlowGfx.clear();
     if (!this.inCombat) return;
     const band = this.bandZone();
+    const x = band.x + BATTLE_GLOW_PAD_X;
+    const w = Math.max(1, band.width - BATTLE_GLOW_PAD_X * 2);
     const col = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     // Layered bloom — wide+faint → thin+bright concentric strokes fake a real
     // glowing edge. `pulseBattleGlow` breathes/flickers the whole layer's alpha.
     for (const layer of BATTLE_GLOW_LAYERS) {
-      this.battleGlowGfx.roundRect(band.x, band.y, band.width, band.height, TABLE_RADIUS);
+      this.battleGlowGfx.roundRect(x, band.y, w, band.height, TABLE_RADIUS);
       this.battleGlowGfx.stroke({ color: col, width: layer.w, alpha: layer.a });
     }
   }
@@ -1305,7 +1320,9 @@ export class BoardRegion {
     // Slow breathing pulse (~1.6s) with a faint, faster ember flicker on top.
     const pulse = 0.78 + 0.22 * Math.sin(t * 4);
     const flicker = 1 - 0.05 * (0.5 + 0.5 * Math.sin(t * 41));
-    this.battleGlowGfx.alpha = pulse * flicker;
+    const alpha = pulse * flicker;
+    this.battleGlowGfx.alpha = alpha;
+    this.combatRowGfx.alpha = alpha;
   }
 
   setPlaymat(url: string | undefined): void {

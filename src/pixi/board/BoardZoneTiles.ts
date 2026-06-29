@@ -27,6 +27,8 @@ export interface ZoneTileSpec {
   back?: boolean;
   /** Highlight colour when the zone is playable/targetable (else none). */
   highlightColor?: string;
+  /** The command zone holding a commander — draws the commander helm badge. */
+  commander?: boolean;
   onOpen?: () => void;
 }
 
@@ -46,6 +48,7 @@ interface Tile {
   back: Sprite | null;
   icon: Text;
   iconSprite: Sprite;
+  badge: Sprite | null;
   countText: Text;
 }
 
@@ -167,6 +170,7 @@ export class BoardZoneTiles {
       back: null,
       icon,
       iconSprite,
+      badge: null,
       countText,
     };
 
@@ -233,11 +237,12 @@ export class BoardZoneTiles {
       tile.back = null;
     }
     if (spec.topCard) {
+      const faceCard = { ...spec.topCard, summoningSick: false };
       if (!tile.face) {
-        tile.face = new CardSprite(spec.topCard);
+        tile.face = new CardSprite(faceCard);
         tile.container.addChildAt(tile.face, 0);
       }
-      tile.face.updateCardContent(spec.topCard);
+      tile.face.updateCardContent(faceCard);
     }
   }
 
@@ -292,7 +297,33 @@ export class BoardZoneTiles {
         tile.outline.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
         tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.78 });
         tile.countText.position.set(cardW / 2, pillY + pillH / 2);
+
+        if (spec.commander) {
+          if (!tile.badge) {
+            tile.badge = new Sprite(Texture.EMPTY);
+            tile.badge.anchor.set(0.5);
+            tile.container.addChild(tile.badge);
+          }
+          const br = Math.round(cardW * 0.19);
+          const bcx = br + 3;
+          const bcy = br + 3;
+          tile.outline.circle(bcx, bcy, br);
+          tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.85 });
+          tile.outline.circle(bcx, bcy, br);
+          tile.outline.stroke({
+            color: hexToNum(gt.badges.commanderDamage),
+            width: 1.5,
+            alpha: 0.9,
+          });
+          const bs = Math.round(br * 1.5);
+          applyIcon(tile.badge, "overlord-helm", gt.badges.commanderDamage, 64, bs, bs);
+          tile.badge.position.set(bcx, bcy);
+          tile.badge.visible = true;
+        } else if (tile.badge) {
+          tile.badge.visible = false;
+        }
       } else {
+        if (tile.badge) tile.badge.visible = false;
         if (tile.back) tile.back.visible = false;
         if (tile.face) tile.face.visible = false;
         tile.countText.visible = false;

@@ -895,6 +895,7 @@ export function GameBoard({
         topCard: top(myCommandZone!),
         onOpen: openCommandZone,
         highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
+        commander: true,
       });
     }
 
@@ -938,6 +939,7 @@ export function GameBoard({
           topCard: top(op.commandZone),
           onOpen: () => openOpZone(`${op.name}'s Command Zone`, op.commandZone, cmdTargets),
           highlightColor: cmdTargets.length > 0 ? targetColor : undefined,
+          commander: true,
         });
       }
       byPlayer[op.id] = tiles;

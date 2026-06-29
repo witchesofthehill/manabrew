@@ -1585,7 +1585,7 @@ fn battlefield_contains(game_view: &GameViewDto, card_name: &str) -> bool {
     game_view
         .battlefield
         .iter()
-        .any(|card| card.name == card_name && card.controller_id == "player-0")
+        .any(|card| card.identity.name == card_name && card.controller_id == "player-0")
 }
 
 pub trait JavaBridge {

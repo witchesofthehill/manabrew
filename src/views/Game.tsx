@@ -510,12 +510,26 @@ export default function Game({ exitTo }: GameProps = {}) {
     return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
   }, [chooseAttackersInput, gameView?.battlefield]);
   const blockRestrictionHint = useMemo<string | null>(() => {
-    const menace = chooseBlockersInput?.attackers.filter((a) => a.minBlockers > 1) ?? [];
-    if (menace.length === 0) return null;
+    const attackers = chooseBlockersInput?.attackers ?? [];
     const nameOf = (id: string) =>
       gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "An attacker";
-    const names = menace.map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`).join(", ");
-    return `Requires multiple blockers — ${names}`;
+    const parts: string[] = [];
+    const menace = attackers.filter(
+      (a) => a.minBlockers > 1 && a.validBlockerIds.length >= a.minBlockers,
+    );
+    if (menace.length > 0) {
+      parts.push(
+        `Requires multiple blockers — ${menace
+          .map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`)
+          .join(", ")}`,
+      );
+    }
+    // "if able" — only surface when the defender actually has a legal blocker.
+    const mustBlock = attackers.filter((a) => a.mustBeBlocked && a.validBlockerIds.length > 0);
+    if (mustBlock.length > 0) {
+      parts.push(`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
   }, [chooseBlockersInput, gameView?.battlefield]);
   const { declineTargets } = casting;
   const targetCompletion = useMemo(() => {

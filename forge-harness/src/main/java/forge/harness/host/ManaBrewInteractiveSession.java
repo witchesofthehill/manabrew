@@ -1911,10 +1911,15 @@ public final class ManaBrewInteractiveSession {
                 validBlockerIds.add(SnapshotExtractor.javaCardId(blocker));
             }
             final int rawMax = StaticAbilityCantAttackBlock.getMinMaxBlocker(attacker, defendingPlayer).getRight();
+            // Lure family — mirrors CombatUtil.attackerLureSatisfied's attacker-side
+            // keyword checks ("must be blocked" / "by exactly one" / "by two or more").
+            final boolean mustBeBlocked =
+                    attacker.hasStartOfKeyword("All creatures able to block CARDNAME do so.")
+                            || attacker.hasStartOfKeyword("CARDNAME must be blocked");
             attackerOptions.add(new BlockableAttackerDto(
                     SnapshotExtractor.javaCardId(attacker), validBlockerIds,
                     CombatUtil.getMinNumBlockersForAttacker(attacker, defendingPlayer),
-                    rawMax < Integer.MAX_VALUE ? rawMax : null, false));
+                    rawMax < Integer.MAX_VALUE ? rawMax : null, mustBeBlocked));
         }
         final List<String> availableBlockerIds = new java.util.ArrayList<>();
         for (final Card blocker : availableBlockers) {

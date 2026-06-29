@@ -52,6 +52,7 @@ export function MainActionOverlay({
   pendingBlocker,
   blockError,
   blockRequirementError,
+  blockRestrictionHint,
   attackerIds,
   blockAssignments,
   onDeclareBlockers,
@@ -245,6 +246,7 @@ export function MainActionOverlay({
                 pendingBlocker={pendingBlocker}
                 blockError={blockError}
                 blockRequirementError={blockRequirementError}
+                blockRestrictionHint={blockRestrictionHint}
                 blockAssignments={blockAssignments}
                 onDeclareBlockers={onDeclareBlockers}
                 damageOrderCount={damageOrderCount}

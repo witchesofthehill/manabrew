@@ -9,6 +9,7 @@ export function ChooseBlockers({
   pendingBlocker,
   blockError,
   blockRequirementError,
+  blockRestrictionHint,
   blockAssignments,
   onPassPriority,
   onDeclareBlockers,
@@ -31,6 +32,11 @@ export function ChooseBlockers({
         </p>
       )}
       {hint && <p className="text-center text-[11px] italic text-muted-foreground">{hint}</p>}
+      {!blockError && !blockRequirementError && blockRestrictionHint && (
+        <p className="text-center text-[11px] font-medium text-muted-foreground">
+          {blockRestrictionHint}
+        </p>
+      )}
       <div className="flex flex-row items-center justify-center gap-1.5">
         {blockAssignments.length > 0 && (
           <PromptActionButton

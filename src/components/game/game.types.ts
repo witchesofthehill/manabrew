@@ -61,6 +61,7 @@ export interface MainActionOverlayProps {
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  blockRestrictionHint?: string | null;
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;

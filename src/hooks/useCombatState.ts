@@ -273,18 +273,23 @@ export function useCombatState({
       if (!targetableCardIds.includes(card.id)) return;
       targetCard(card.id);
     } else if (promptType === "chooseDamageAssignmentOrder") {
-      if (
-        currentPrompt.input.type !== "chooseDamageAssignmentOrder" ||
-        !currentPrompt.input.blockerIds.includes(card.id)
-      ) {
-        return;
-      }
-      // Click a blocker to append it to the damage order; click an already-
-      // ordered one to remove it (everything after re-sequences).
-      setDamageOrder((prev) =>
-        prev.includes(card.id) ? prev.filter((id) => id !== card.id) : [...prev, card.id],
-      );
+      toggleDamageOrder(card.id);
     }
+  }
+
+  // Click a blocker to append it to the damage order; click an already-ordered
+  // one to remove it (everything after re-sequences). Shared by the on-board
+  // click flow and the damage-order modal so both drive one ordering.
+  function toggleDamageOrder(cardId: string) {
+    if (
+      currentPrompt?.input.type !== "chooseDamageAssignmentOrder" ||
+      !currentPrompt.input.blockerIds.includes(cardId)
+    ) {
+      return;
+    }
+    setDamageOrder((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId],
+    );
   }
 
   function undoDamageOrder() {
@@ -347,6 +352,7 @@ export function useCombatState({
     assignBlockPair,
     unassignBlock,
     damageOrder,
+    toggleDamageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,

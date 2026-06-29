@@ -801,6 +801,7 @@ export class BoardRegion {
     }
     const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
     const fanStep = cardW * COMBAT_STAGE_FAN_FRAC;
+    const connectors: { ax: number; bx: number; by: number }[] = [];
     for (const [attackerId, blockerIds] of byAttacker) {
       const ax = attackerX.get(attackerId);
       if (ax === undefined) continue;
@@ -808,9 +809,12 @@ export class BoardRegion {
         const entry = this.entries.get(blockerId);
         if (!entry) return;
         const offset = (i - (blockerIds.length - 1) / 2) * fanStep;
-        entry.targetX = ax + offset;
-        entry.targetY = y + (this.mirrored ? -onAttacker : onAttacker);
+        const bx = ax + offset;
+        const by = y + (this.mirrored ? -onAttacker : onAttacker);
+        entry.targetX = bx;
+        entry.targetY = by;
         entry.targetZIndex = Z_COMBAT_STAGED + 1;
+        connectors.push({ ax, bx, by });
       });
     }
 
@@ -826,6 +830,18 @@ export class BoardRegion {
     this.combatRowGfx.fill({ color: red, alpha: 0.22 });
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
     this.combatRowGfx.stroke({ color: red, width: 1.5, alpha: 0.6 });
+
+    // Tether each blocker back to the attacker it blocks, so the pairing is
+    // legible when several blockers fan over one attacker (a watching player
+    // can't otherwise tell which blocker stops which attacker).
+    if (connectors.length > 0) {
+      const defense = hexToNum(this.host.getTheme().gameTheme.promptAction.defenseAction);
+      for (const c of connectors) {
+        this.combatRowGfx.moveTo(c.ax, y);
+        this.combatRowGfx.lineTo(c.bx, c.by);
+      }
+      this.combatRowGfx.stroke({ color: defense, width: 2, alpha: 0.55 });
+    }
 
     const lightHex = this.host.getTheme().gameTheme.textOnTinted;
     const avatarD = Math.min(COMBAT_ROW_AVATAR_D, stripH - 6);

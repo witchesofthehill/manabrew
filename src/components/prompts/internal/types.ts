@@ -34,6 +34,9 @@ export interface ChooseBlockersProps extends PromptActionLayoutProps {
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  /** Up-front note naming attackers that need multiple blockers (menace), shown
+   *  before any block is assigned so the requirement isn't a surprise. */
+  blockRestrictionHint?: string | null;
   blockAssignments: CombatAssignment[];
   onPassPriority: () => void;
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;

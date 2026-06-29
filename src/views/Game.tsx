@@ -46,6 +46,7 @@ import { tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
 import { intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
+import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
@@ -471,6 +472,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     assignBlockPair,
     unassignBlock,
     damageOrder,
+    toggleDamageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,
@@ -500,6 +502,14 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
       : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
   }, [blockRequirement, gameView?.battlefield]);
+  const blockRestrictionHint = useMemo<string | null>(() => {
+    const menace = chooseBlockersInput?.attackers.filter((a) => a.minBlockers > 1) ?? [];
+    if (menace.length === 0) return null;
+    const nameOf = (id: string) =>
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "An attacker";
+    const names = menace.map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`).join(", ");
+    return `Requires multiple blockers — ${names}`;
+  }, [chooseBlockersInput, gameView?.battlefield]);
   const { declineTargets } = casting;
   const targetCompletion = useMemo(() => {
     if (activePrompt?.input.type !== "chooseBoardTargets") return null;
@@ -1090,7 +1100,9 @@ export default function Game({ exitTo }: GameProps = {}) {
     ]);
     const list = gameView.battlefield
       .filter((c) => regionOwnerOf(c, battlefieldById) === me.id)
-      .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
+      .map((c) =>
+        pendingSet.has(c.id) && !c.keywords.includes("Vigilance") ? { ...c, tapped: true } : c,
+      );
     if (debugCardEnabled) {
       list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
     }
@@ -1564,6 +1576,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 pendingBlocker={pendingBlocker}
                 blockError={blockError}
                 blockRequirementError={blockRequirementError}
+                blockRestrictionHint={blockRestrictionHint}
                 attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
                 blockAssignments={blockAssignments}
                 onDeclareBlockers={(assignments) =>
@@ -1698,6 +1711,29 @@ export default function Game({ exitTo }: GameProps = {}) {
         }}
         onCancelAbilityPicker={closeAbilityPicker}
       />
+
+      {damageOrderInput && (
+        <DamageOrderModal
+          attackerName={
+            gameView.battlefield.find((c) => c.id === damageOrderInput.attackerId)?.identity.name ??
+            "The attacker"
+          }
+          blockerCards={damageOrderInput.blockerCards}
+          order={damageOrder}
+          isWaiting={isWaitingForResponse}
+          onToggle={toggleDamageOrder}
+          onUndo={undoDamageOrder}
+          onAuto={() =>
+            respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrderInput.blockerIds,
+            })
+          }
+          onConfirm={() =>
+            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+          }
+        />
+      )}
 
       {playModePicker && (
         <PlayModePicker

@@ -36,6 +36,7 @@ import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { GameBoard } from "@/components/game/GameBoard";
+import { buildCombatRows } from "@/components/game/combatRows";
 import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -948,6 +949,25 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
 
+  // Opp-vs-opp combat — computed once here; threaded to the board for the combat
+  // rows and used to keep those attackers/blocks out of the center-screen arrows.
+  const combatRows = useMemo(
+    () =>
+      gameView
+        ? buildCombatRows({
+            battlefield: gameView.battlefield,
+            combatAssignments,
+            selfId: me?.id ?? "",
+            playerIds: gameView.players.map((p) => p.id),
+          })
+        : [],
+    [gameView, combatAssignments, me?.id],
+  );
+  const oppCombatAttackerIds = useMemo(
+    () => new Set(combatRows.flatMap((r) => r.attackerIds)),
+    [combatRows],
+  );
+
   const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
   const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
   const stackCollapsed = useStackUIStore((s) => s.collapsed);
@@ -968,14 +988,19 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
-  // While declaring attackers the engine hasn't committed yet, so draw the
-  // locally-assigned (attacker → target) batches as attack arrows too.
+  // Attack arrows: drop opp-vs-opp attackers (shown in the combat rows instead),
+  // and while declaring our own attackers draw the locally-assigned batches.
   const attackArrows = useMemo(
     () => [
-      ...activeAttackers,
+      ...activeAttackers.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
       ...attackAssignments.map((a) => ({ attackerId: a.attackerId, defenderId: a.targetId })),
     ],
-    [activeAttackers, attackAssignments],
+    [activeAttackers, attackAssignments, oppCombatAttackerIds],
+  );
+  // Opp-vs-opp blocks are drawn in the combat rows, so keep them out of the arrows.
+  const arrowBlocks = useMemo(
+    () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
+    [combatAssignments, oppCombatAttackerIds],
   );
 
   const liveArrowSpecs = useMemo(
@@ -984,7 +1009,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         promptType,
         attackerIds,
         blockAssignments,
-        combatAssignments,
+        combatAssignments: arrowBlocks,
         activeAttackers: attackArrows,
         battlefieldAttachments,
         stack: gameView?.stack ?? [],
@@ -995,7 +1020,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       promptType,
       attackerIds,
       blockAssignments,
-      combatAssignments,
+      arrowBlocks,
       attackArrows,
       battlefieldAttachments,
       gameView?.stack,
@@ -1387,6 +1412,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
+          combatRows={combatRows}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}

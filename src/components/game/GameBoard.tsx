@@ -7,7 +7,7 @@ import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/p
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
 import { isFeatureEnabled } from "@/featureFlags";
-import { buildCombatRows, type CombatRow } from "@/components/game/combatRows";
+import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
 import { buildPlayerHudBadges } from "@/components/game/panels/playerHudBadges";
@@ -68,6 +68,7 @@ interface GameBoardProps {
   selectedAttackDefenderId?: string | null;
   blockAssignments: { blockerId: string; attackerId: string }[];
   combatAssignments?: { blockerId: string; attackerId: string }[];
+  combatRows: CombatRow[];
   arrowSpecs?: ArrowSpec[];
   castingArrow?: { sourceCardId: string; hostile: boolean } | null;
   playerIsTargetable: (playerId: string) => boolean;
@@ -167,6 +168,7 @@ export function GameBoard({
   selectedAttackDefenderId,
   blockAssignments,
   combatAssignments,
+  combatRows,
   arrowSpecs,
   castingArrow,
   playerIsTargetable,
@@ -250,22 +252,15 @@ export function GameBoard({
       for (const c of list) if (c.isAttacking) s.add(c.id);
     return s;
   }, [myPermanents, opponentPermanentsByPlayer]);
-  // Opp-vs-opp combat is rendered by the per-defender combat rows; compute the
-  // grouping once and reuse it for the rows, the engaged set, and to keep these
-  // attackers out of the center-of-screen staging.
-  const combatRows = useMemo(
-    () =>
-      buildCombatRows({
-        battlefield: [
-          ...myPermanents,
-          ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
-        ],
-        combatAssignments: combatAssignments ?? [],
-        selfId: me.id,
-        playerIds: [me.id, ...opponents.map((o) => o.id)],
-      }),
-    [myPermanents, opponents, opponentPermanentsByPlayer, combatAssignments, me.id],
+  const battlefield = useMemo(
+    () => [
+      ...myPermanents,
+      ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
+    ],
+    [myPermanents, opponents, opponentPermanentsByPlayer],
   );
+  // Opp-vs-opp combat (computed in `Game.tsx`) is rendered by the per-defender
+  // combat rows; keep those attackers out of the center-of-screen staging.
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),
     [combatRows],
@@ -561,10 +556,6 @@ export function GameBoard({
   // Players engaged in any combat (attacker controllers, defenders, blockers) —
   // drives the red avatar glow.
   const combatEngagedIds = useMemo(() => {
-    const battlefield = [
-      ...myPermanents,
-      ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
-    ];
     const controllerById = new Map(battlefield.map((c) => [c.id, c.controllerId]));
     const playerSet = new Set([me.id, ...opponents.map((o) => o.id)]);
     const engaged = new Set<string>();
@@ -581,7 +572,7 @@ export function GameBoard({
       if (ctrl) engaged.add(ctrl);
     }
     return engaged;
-  }, [myPermanents, opponentPermanentsByPlayer, combatAssignments, me.id, opponents]);
+  }, [battlefield, combatAssignments, me.id, opponents]);
 
   // Pixi player HUD capsules: self bottom-left, opponents across the top of
   // their fields. Carries the life, mana pool, and active player/game badges.
@@ -937,12 +928,7 @@ export function GameBoard({
     for (const op of opponents)
       oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
     const combatRowByDefender = new Map<string, CombatRow>();
-    const cardById = new Map(
-      [
-        ...myPermanents,
-        ...opponents.flatMap((op) => opponentPermanentsByPlayer.get(op.id) ?? []),
-      ].map((c) => [c.id, c]),
-    );
+    const cardById = new Map(battlefield.map((c) => [c.id, c]));
     for (const row of combatRows) {
       const defList = oppCards.get(row.defenderId);
       if (!defList) continue;
@@ -990,7 +976,7 @@ export function GameBoard({
     me.id,
     opponents,
     opponentPermanentsByPlayer,
-    myPermanents,
+    battlefield,
     combatRows,
     avatarByPlayerId,
     pixiBattlefield,

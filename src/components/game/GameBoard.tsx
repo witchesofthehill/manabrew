@@ -930,17 +930,26 @@ export function GameBoard({
       oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
     const combatRowByDefender = new Map<string, CombatRow>();
     const cardById = new Map(battlefield.map((c) => [c.id, c]));
+    const attachedTo = new Map<string, CardDto[]>();
+    for (const c of battlefield) {
+      if (!c.attachedTo) continue;
+      (attachedTo.get(c.attachedTo) ?? attachedTo.set(c.attachedTo, []).get(c.attachedTo)!).push(c);
+    }
+    // Move an attacker — and its attachments (Equipment/Auras), recursively —
+    // out of its controller's band and into the defender's.
+    const moveToDefender = (id: string, defList: CardDto[]) => {
+      const card = cardById.get(id);
+      if (!card) return;
+      const ctrl = oppCards.get(card.controllerId);
+      const idx = ctrl?.findIndex((c) => c.id === id) ?? -1;
+      if (ctrl && idx >= 0) ctrl.splice(idx, 1);
+      defList.push(card);
+      for (const child of attachedTo.get(id) ?? []) moveToDefender(child.id, defList);
+    };
     for (const row of combatRows) {
       const defList = oppCards.get(row.defenderId);
       if (!defList) continue;
-      for (const attackerId of row.attackerIds) {
-        const card = cardById.get(attackerId);
-        if (!card) continue;
-        const ctrl = oppCards.get(card.controllerId);
-        const idx = ctrl?.findIndex((c) => c.id === attackerId) ?? -1;
-        if (ctrl && idx >= 0) ctrl.splice(idx, 1);
-        defList.push(card);
-      }
+      for (const attackerId of row.attackerIds) moveToDefender(attackerId, defList);
       combatRowByDefender.set(row.defenderId, row);
     }
 

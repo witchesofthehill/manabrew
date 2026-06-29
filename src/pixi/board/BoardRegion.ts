@@ -136,6 +136,7 @@ export class BoardRegion {
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
   private combatRowAvatars: { sprite: Sprite; mask: Graphics; url: string | null }[] = [];
+  private effectiveChildrenMap = new Map<string, string[]>();
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
@@ -613,6 +614,7 @@ export class BoardRegion {
       list.push(childId);
       effectiveChildren.set(parentId, list);
     }
+    this.effectiveChildrenMap = effectiveChildren;
     const topLevelCards = state.cards.filter((c) => !effectiveParent.has(c.id));
 
     this.pruneRemovedBattlefieldEntries(currentIds);
@@ -667,9 +669,12 @@ export class BoardRegion {
         if (!entry) continue;
         const prev = prevCards.get(card.id);
         if (!prev) {
-          // A combat-row guest is respawning from another band, not entering the
-          // battlefield — skip the ETB glow/stomp so it doesn't read as an ETB.
-          if (!this.combatRowAttackerIds.has(card.id)) {
+          // A combat-row guest (or its attachment) is respawning from another
+          // band, not entering the battlefield — skip the ETB glow/stomp.
+          const guest =
+            this.combatRowAttackerIds.has(card.id) ||
+            this.combatRowAttackerIds.has(effectiveParent.get(card.id) ?? "");
+          if (!guest) {
             entry.etbGlowAlpha = 1;
             entry.pendingEntrance = true;
           }
@@ -761,6 +766,16 @@ export class BoardRegion {
       entry.targetX = x;
       entry.targetY = y;
       entry.targetZIndex = Z_COMBAT_STAGED;
+      // Stack the attacker's attachments (Equipment/Auras) above it, as on the
+      // battlefield, so they follow it into the row.
+      const attachs = this.effectiveChildrenMap.get(id) ?? [];
+      attachs.forEach((attId, k) => {
+        const att = this.entries.get(attId);
+        if (!att) return;
+        att.targetX = x;
+        att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y;
+        att.targetZIndex = Z_COMBAT_STAGED - (k + 1);
+      });
     });
 
     const byAttacker = new Map<string, string[]>();

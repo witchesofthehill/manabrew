@@ -708,6 +708,7 @@ export class BoardRegion {
       if (!entry) continue;
       entry.targetY = frontY;
       entry.targetZIndex = Math.max(entry.targetZIndex, Z_COMBAT_STAGED - 1);
+      this.stackAttachments(card.id, entry.targetX, frontY, Z_COMBAT_STAGED - 1);
     }
   }
 
@@ -722,6 +723,7 @@ export class BoardRegion {
       if (!entry) continue;
       entry.targetY = frontY;
       entry.targetZIndex = Z_COMBAT_STAGED;
+      this.stackAttachments(id, entry.targetX, frontY, Z_COMBAT_STAGED);
     }
 
     const onAttacker = CARD_H * this.cardScale * COMBAT_BLOCKER_OVERLAP_FRAC;
@@ -732,7 +734,22 @@ export class BoardRegion {
       entry.targetX = this.host.screenXToLocalX(b.laneScreenX) + offset;
       entry.targetY = b.attackerY + (this.mirrored ? -onAttacker : onAttacker);
       entry.targetZIndex = Z_COMBAT_STAGED + 1;
+      this.stackAttachments(b.id, entry.targetX, entry.targetY, Z_COMBAT_STAGED + 1);
     }
+  }
+
+  /** Stack a host's attachments (Equipment/Auras) above it during combat staging
+   *  so they follow it instead of staying at its resting grid slot. */
+  private stackAttachments(hostId: string, x: number, y: number, baseZ: number): void {
+    const attachs = this.effectiveChildrenMap.get(hostId);
+    if (!attachs) return;
+    attachs.forEach((attId, k) => {
+      const att = this.entries.get(attId);
+      if (!att) return;
+      att.targetX = x;
+      att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y;
+      att.targetZIndex = baseZ - (k + 1);
+    });
   }
 
   /** Opp-vs-opp combat: lay the foreign attackers respawned into this defender's
@@ -766,16 +783,7 @@ export class BoardRegion {
       entry.targetX = x;
       entry.targetY = y;
       entry.targetZIndex = Z_COMBAT_STAGED;
-      // Stack the attacker's attachments (Equipment/Auras) above it, as on the
-      // battlefield, so they follow it into the row.
-      const attachs = this.effectiveChildrenMap.get(id) ?? [];
-      attachs.forEach((attId, k) => {
-        const att = this.entries.get(attId);
-        if (!att) return;
-        att.targetX = x;
-        att.targetY = y + (this.mirrored ? -1 : 1) * (k + 1) * ATTACH_OFFSET_Y;
-        att.targetZIndex = Z_COMBAT_STAGED - (k + 1);
-      });
+      this.stackAttachments(id, x, y, Z_COMBAT_STAGED);
     });
 
     const byAttacker = new Map<string, string[]>();

@@ -1299,12 +1299,12 @@ export class BoardRegion {
     const theme = this.host.getTheme();
     const card = sprite.card;
     sprite.setDoomed(card.wouldDieInCombat ?? false);
-    if (this.host.isSelected(card.id)) {
-      sprite.setRing(hexToNum(theme.gameTheme.cardRing));
-      return;
-    }
     if (this.isDeclaredBlocker(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.defenseAction));
+      return;
+    }
+    if (this.host.isSelected(card.id)) {
+      sprite.setRing(hexToNum(theme.gameTheme.cardRing));
       return;
     }
     // Attacking and summoning-sickness are shown by the card's own edge glow

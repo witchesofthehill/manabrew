@@ -28,7 +28,10 @@ function viewKeyForPrompt(promptType: PromptTypeValue | undefined): PromptAction
     case "chooseBlockers":
       return "chooseBlockers";
     case "chooseDamageAssignmentOrder":
-      return "chooseDamageOrder";
+      // The DamageOrderModal owns this prompt; the action bar stays empty so the
+      // two surfaces don't duplicate. (`chooseDamageOrder` is still reachable via
+      // the dev prompt-action override.)
+      return "noAction";
     case "chooseBoardTargets":
       return "promptLabel";
     case "payManaCost":

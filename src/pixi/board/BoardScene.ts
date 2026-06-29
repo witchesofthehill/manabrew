@@ -760,6 +760,10 @@ export class BoardScene {
     this.hand?.setHoveredPreviewFace(face);
   }
 
+  setHandFlippedHorizontal(flipped: boolean): void {
+    this.hand?.setHoveredHorizontalFlipped(flipped);
+  }
+
   setHandScale(scale: number): void {
     this.hand?.setScale(scale);
     this.hand?.relayout();

@@ -26,6 +26,7 @@ import {
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
+import { isHorizontalCard } from "@/lib/cardLayout";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { setAnimationsEnabled } from "./effects/enabled";
@@ -450,12 +451,15 @@ export function BoardCanvas({
     setCode: handHover?.card.identity.setCode,
     cardNumber: handHover?.card.identity.cardNumber,
   });
+  const hoverHorizontal = !!handHover && isHorizontalCard({ types: handHover.card.types });
   const [handFlipBack, setHandFlipBack] = useState(false);
+  const [handFlippedHorizontal, setHandFlippedHorizontal] = useState(false);
   const hoverCardId = handHover?.card.id ?? null;
   useEffect(() => {
     setHandFlipBack(false);
+    setHandFlippedHorizontal(false);
   }, [hoverCardId]);
-  const showHandFlip = !!handHover && hoverFaces.isFlippable;
+  const showHandFlip = !!handHover && (hoverFaces.isFlippable || hoverHorizontal);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
   useEffect(() => {
@@ -473,12 +477,20 @@ export function BoardCanvas({
   }, [scene, etbPreviewVersion]);
 
   const toggleHandFlip = useCallback(() => {
+    if (hoverHorizontal) {
+      setHandFlippedHorizontal((prev) => {
+        const next = !prev;
+        sceneRef.current?.setHandFlippedHorizontal(next);
+        return next;
+      });
+      return;
+    }
     setHandFlipBack((prev) => {
       const next = !prev;
       sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
       return next;
     });
-  }, [sceneRef]);
+  }, [sceneRef, hoverHorizontal]);
 
   useKeybindings({
     "flip-card": () => {
@@ -502,7 +514,9 @@ export function BoardCanvas({
           <button
             type="button"
             className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85"
-            title="Flip card to view the other face"
+            title={
+              hoverHorizontal ? "Rotate the card to read it" : "Flip card to view the other face"
+            }
             onMouseEnter={() => {
               cancelHandHoverClear();
               sceneRef.current?.holdHandHover();
@@ -517,7 +531,13 @@ export function BoardCanvas({
             }}
           >
             <RotateCw className="h-3 w-3" />
-            {handFlipBack ? "Front" : "Back"}
+            {hoverHorizontal
+              ? handFlippedHorizontal
+                ? "Upright"
+                : "Read"
+              : handFlipBack
+                ? "Front"
+                : "Back"}
           </button>
         </div>
       )}

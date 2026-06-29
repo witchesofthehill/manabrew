@@ -858,6 +858,10 @@ export function GameBoard({
   ]);
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
+    // Combat-row attackers are always opponents (self attacks use the center flow).
+    const seatColorOf = (pid: string): string =>
+      playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
+    const nameOf = (pid: string): string => opponents.find((o) => o.id === pid)?.name ?? "Player";
     const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
@@ -866,6 +870,11 @@ export function GameBoard({
       hostileTargeting,
       combatRowAttackerIds: combatRow?.attackerIds,
       combatRowBlocks: combatRow?.blocks,
+      combatRowGroups: combatRow?.groups.map((g) => ({
+        color: seatColorOf(g.controllerId),
+        label: nameOf(g.controllerId),
+        attackerIds: g.attackerIds,
+      })),
     });
 
     // Opp-vs-opp combat: respawn each foreign attacker out of its controller's

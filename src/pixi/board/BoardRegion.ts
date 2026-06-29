@@ -1,4 +1,4 @@
-import { Container, Graphics, type FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import type { CardDto, CombatAssignmentDto, PlaymatSettings } from "@/protocol/game";
 import { CardSprite } from "../CardSprite";
 import { BoardZoneTiles, type ZoneTileSpec } from "./BoardZoneTiles";
@@ -121,6 +121,9 @@ export class BoardRegion {
   private combatStaging: SceneCombatStaging | null = null;
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
+  private combatRowGroups: { color: string; label: string; attackerIds: string[] }[] = [];
+  private combatRowGfx = new Graphics();
+  private combatRowLabels: Text[] = [];
   private lastState: BattlefieldState | null = null;
   private pendingDropSlot: { col: number; row: number } | null = null;
   private lastDropCell: { col: number; row: number } | null = null;
@@ -161,6 +164,11 @@ export class BoardRegion {
     // Above the felt, below the cards.
     this.effects.container.zIndex = 0;
     this.container.addChild(this.effects.container);
+
+    // Per-attacking-player highlight behind the opp-vs-opp combat row.
+    this.combatRowGfx.eventMode = "none";
+    this.combatRowGfx.zIndex = Z_COMBAT_STAGED - 5;
+    this.container.addChild(this.combatRowGfx);
 
     this.gridSkeletonGfx = new Graphics();
     this.gridSkeletonGfx.eventMode = "none";
@@ -523,6 +531,7 @@ export class BoardRegion {
     this.lastState = state;
     this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
     this.combatRowBlocks = state.combatRowBlocks ?? [];
+    this.combatRowGroups = state.combatRowGroups ?? [];
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
 
@@ -697,6 +706,8 @@ export class BoardRegion {
    *  their attacker. Both attacker and blocker sprites live in this region now,
    *  so everything is in local coords (no cross-region screen math). */
   private applyCombatRow(): void {
+    this.combatRowGfx.clear();
+    for (const t of this.combatRowLabels) t.visible = false;
     if (this.combatRowAttackerIds.size === 0) return;
     const ids = [...this.combatRowAttackerIds];
     const y = this.frontEdgeY();
@@ -742,6 +753,53 @@ export class BoardRegion {
         entry.targetZIndex = Z_COMBAT_STAGED + 1;
       });
     }
+
+    // Per-attacking-player highlight + name label behind each group's attackers.
+    const halfW = cardW / 2;
+    const halfH = (CARD_H * this.cardScale) / 2;
+    let li = 0;
+    for (const group of this.combatRowGroups) {
+      const xs = group.attackerIds
+        .map((id) => attackerX.get(id))
+        .filter((x): x is number => x !== undefined);
+      if (xs.length === 0) continue;
+      const left = Math.min(...xs) - halfW - 4;
+      const right = Math.max(...xs) + halfW + 4;
+      const top = y - halfH - 4;
+      const bottom = y + halfH + 4;
+      const col = hexToNum(group.color);
+      this.combatRowGfx.roundRect(left, top, right - left, bottom - top, 8);
+      this.combatRowGfx.fill({ color: col, alpha: 0.16 });
+      this.combatRowGfx.roundRect(left, top, right - left, bottom - top, 8);
+      this.combatRowGfx.stroke({ color: col, width: 1.5 });
+      const label = this.combatRowLabel(li++);
+      label.text = group.label;
+      label.style.fill = col;
+      label.position.set((left + right) / 2, top - 9);
+      label.visible = true;
+    }
+  }
+
+  private combatRowLabel(i: number): Text {
+    let t = this.combatRowLabels[i];
+    if (!t) {
+      t = new Text({
+        text: "",
+        style: {
+          fontFamily: "Inter, system-ui, sans-serif",
+          fontSize: 12,
+          fontWeight: "800",
+          fill: 0xffffff,
+          dropShadow: { color: 0x000000, alpha: 0.6, blur: 3, distance: 1, angle: Math.PI / 2 },
+        },
+      });
+      t.anchor.set(0.5);
+      t.eventMode = "none";
+      t.zIndex = Z_COMBAT_STAGED + 2;
+      this.container.addChild(t);
+      this.combatRowLabels[i] = t;
+    }
+    return t;
   }
 
   private frontEdgeY(): number {

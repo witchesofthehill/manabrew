@@ -122,6 +122,9 @@ export interface BattlefieldState {
   /** Opp-vs-opp combat: blocks against the combat-row attackers (the blockers are
    *  this region's own creatures, stacked on top of their attacker). */
   combatRowBlocks?: CombatAssignmentDto[];
+  /** Opp-vs-opp combat: the row's attackers grouped by attacking player, each with
+   *  that player's seat colour + name for the per-group highlight + label. */
+  combatRowGroups?: { color: string; label: string; attackerIds: string[] }[];
 }
 
 export interface HandState {

@@ -5,6 +5,9 @@ export interface CombatRow {
   defenderId: string;
   /** Ids of the attacking creatures aimed at this defender (drawn in the row). */
   attackerIds: string[];
+  /** The attackers grouped by their controller (one colour + label per attacking
+   *  player), preserving the row order. */
+  groups: { controllerId: string; attackerIds: string[] }[];
   /** Declared blocks against those attackers — the defender's own creatures. */
   blocks: CombatAssignmentDto[];
 }
@@ -36,7 +39,7 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
   const rowFor = (defenderId: string): CombatRow => {
     let r = rows.get(defenderId);
     if (!r) {
-      r = { defenderId, attackerIds: [], blocks: [] };
+      r = { defenderId, attackerIds: [], groups: [], blocks: [] };
       rows.set(defenderId, r);
     }
     return r;
@@ -54,6 +57,18 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
   for (const a of combatAssignments) {
     const defenderId = attackerDefender.get(a.attackerId);
     if (defenderId) rowFor(defenderId).blocks.push(a);
+  }
+
+  for (const r of rows.values()) {
+    const byCtrl = new Map<string, string[]>();
+    for (const id of r.attackerIds) {
+      const ctrl = controllerById.get(id);
+      if (!ctrl) continue;
+      const list = byCtrl.get(ctrl);
+      if (list) list.push(id);
+      else byCtrl.set(ctrl, [id]);
+    }
+    r.groups = [...byCtrl].map(([controllerId, attackerIds]) => ({ controllerId, attackerIds }));
   }
 
   return [...rows.values()];

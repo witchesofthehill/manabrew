@@ -322,8 +322,9 @@ export class BoardRegion {
     this.clipX = clipX;
     this.clipWidth = clipWidth;
     this.updateClip();
-    // The playmat fits the visible band, so re-fit it as the band eases.
+    // The playmat + battle glow fit the visible band, so re-fit as it eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
+    this.drawBattleGlow();
   }
 
   private updateClip(): void {
@@ -1279,7 +1280,7 @@ export class BoardRegion {
   private drawBattleGlow(): void {
     this.battleGlowGfx.clear();
     if (!this.inCombat) return;
-    const felt = this.feltZone();
+    const felt = this.bandZone();
     const col = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     this.battleGlowGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
     this.battleGlowGfx.stroke({ color: col, width: 12, alpha: 0.16 });

@@ -75,6 +75,14 @@ interface BoardRegionOptions {
 
 const ENTRANCE_LAND_PX = 8;
 
+/** Concentric stroke layers (px width, alpha) for the battle glow bloom. */
+const BATTLE_GLOW_LAYERS = [
+  { w: 18, a: 0.07 },
+  { w: 11, a: 0.15 },
+  { w: 6, a: 0.3 },
+  { w: 2.5, a: 1 },
+];
+
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
  *  update, so a real change recomputes; the many re-layout passes that reuse the
  *  same objects (resize, blockers, combat staging) hit the cache. */
@@ -451,6 +459,7 @@ export class BoardRegion {
   animate(): void {
     let exited: string[] | null = null;
     const now = performance.now();
+    this.pulseBattleGlow(now);
     for (const [id, entry] of this.entries) {
       const s = entry.sprite;
       if (entry.exiting) {
@@ -1280,18 +1289,23 @@ export class BoardRegion {
   private drawBattleGlow(): void {
     this.battleGlowGfx.clear();
     if (!this.inCombat) return;
-    const felt = this.bandZone();
+    const band = this.bandZone();
     const col = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
-    this.battleGlowGfx.roundRect(felt.x, felt.y, felt.width, felt.height, TABLE_RADIUS);
-    this.battleGlowGfx.stroke({ color: col, width: 12, alpha: 0.16 });
-    this.battleGlowGfx.roundRect(
-      felt.x + 2,
-      felt.y + 2,
-      felt.width - 4,
-      felt.height - 4,
-      TABLE_RADIUS,
-    );
-    this.battleGlowGfx.stroke({ color: col, width: 2.5 });
+    // Layered bloom — wide+faint → thin+bright concentric strokes fake a real
+    // glowing edge. `pulseBattleGlow` breathes/flickers the whole layer's alpha.
+    for (const layer of BATTLE_GLOW_LAYERS) {
+      this.battleGlowGfx.roundRect(band.x, band.y, band.width, band.height, TABLE_RADIUS);
+      this.battleGlowGfx.stroke({ color: col, width: layer.w, alpha: layer.a });
+    }
+  }
+
+  private pulseBattleGlow(now: number): void {
+    if (!this.inCombat) return;
+    const t = now / 1000;
+    // Slow breathing pulse (~1.6s) with a faint, faster ember flicker on top.
+    const pulse = 0.78 + 0.22 * Math.sin(t * 4);
+    const flicker = 1 - 0.05 * (0.5 + 0.5 * Math.sin(t * 41));
+    this.battleGlowGfx.alpha = pulse * flicker;
   }
 
   setPlaymat(url: string | undefined): void {

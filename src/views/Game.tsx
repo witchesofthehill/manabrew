@@ -1038,7 +1038,13 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
-    const pendingSet = new Set(pendingAttackers);
+    // Keep chosen attackers tapped through the whole declaration — both the
+    // pending batch and the ones already assigned to a target — so they don't
+    // untap when assigned and re-tap when the engine commits.
+    const pendingSet = new Set([
+      ...pendingAttackers,
+      ...attackAssignments.map((a) => a.attackerId),
+    ]);
     const list = gameView.battlefield
       .filter((c) => c.controllerId === me.id)
       .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
@@ -1046,7 +1052,15 @@ export default function Game({ exitTo }: GameProps = {}) {
       list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
     }
     return list;
-  }, [gameView, me, pendingAttackers, debugCardEnabled, debugCardName, debugBattlefieldKeywords]);
+  }, [
+    gameView,
+    me,
+    pendingAttackers,
+    attackAssignments,
+    debugCardEnabled,
+    debugCardName,
+    debugBattlefieldKeywords,
+  ]);
 
   const opponentPermanentsByPlayer = useMemo(() => {
     const map = new Map<string, CardDto[]>();

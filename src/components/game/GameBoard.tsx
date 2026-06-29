@@ -302,8 +302,12 @@ export function GameBoard({
       promptType === "chooseAttackers"
         ? [
             ...(chooseAttackersPrompt?.input.attackers.map((a) => a.attackerId) ?? []),
+            // Only the defenders the staged batch can legally attack (matches the
+            // avatar highlight) — planeswalkers / battles outside that set stay dim.
             ...(pendingAttackers.length > 0
-              ? (chooseAttackersPrompt?.input.attackTargets.map((t) => t.id) ?? [])
+              ? (chooseAttackersPrompt?.input.attackTargets
+                  .filter((t) => playerIsTargetable(t.id))
+                  .map((t) => t.id) ?? [])
               : []),
           ]
         : promptType === "chooseBlockers"
@@ -332,6 +336,7 @@ export function GameBoard({
       promptType,
       chooseAttackersPrompt,
       pendingAttackers,
+      playerIsTargetable,
       pendingAttacker,
       pendingBlocker,
       dragBlockerId,

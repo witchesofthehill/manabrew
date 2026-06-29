@@ -159,11 +159,6 @@ export function useCombatState({
         ? (pid: string) => targetablePlayerIds.includes(pid)
         : () => false;
 
-  /** True when a battlefield card is a legal defender (planeswalker / siege). */
-  function cardIsAttackTarget(cardId: string): boolean {
-    return awaitingAttackTarget && defenderIsTargetable(cardId);
-  }
-
   // Assign the current pending batch to a defender. In a multi-defender game this
   // accumulates (a player may attack several opponents in one combat); the whole
   // set is submitted later via `submitAttack`. With a single legal defender it
@@ -357,7 +352,6 @@ export function useCombatState({
     multipleAttackDefenders,
     awaitingAttackTarget,
     playerIsTargetable,
-    cardIsAttackTarget,
     handleTargetPlayer,
     handleBattlefieldClick,
     handleAttackerClick,

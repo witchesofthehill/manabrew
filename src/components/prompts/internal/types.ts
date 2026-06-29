@@ -17,11 +17,16 @@ export interface ChooseAttackersProps extends PromptActionLayoutProps {
    *  declaration and ask the user to click a target instead of committing
    *  immediately against the default defender. */
   multipleDefenders: boolean;
+  /** Attackers already assigned to a defender (multi-defender games accumulate
+   *  several batches before submitting). */
+  attackAssignmentCount: number;
   onPassPriority: () => void;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   /** Begin the click-to-pick-defender flow. Called instead of
    *  `onDeclareAttackers` when `multipleDefenders` is true. */
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  /** Submit the accumulated multi-defender assignments → proceed to blockers. */
+  onSubmitAttack: () => void;
 }
 
 export interface ChooseBlockersProps extends PromptActionLayoutProps {

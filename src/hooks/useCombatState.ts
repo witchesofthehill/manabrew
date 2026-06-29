@@ -42,6 +42,9 @@ export function useCombatState({
   engineHasBlocks,
 }: UseCombatStateOptions) {
   const [pendingAttackers, setPendingAttackers] = useState<string[]>([]);
+  const [attackAssignments, setAttackAssignments] = useState<
+    { attackerId: string; targetId: string }[]
+  >([]);
   const [pendingAttacker, setPendingAttacker] = useState<string | null>(null);
   const [pendingBlocker, setPendingBlocker] = useState<string | null>(null);
   const [attackDefenderId, setAttackDefenderId] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export function useCombatState({
   if (prevPromptType !== promptType) {
     setPrevPromptType(promptType);
     setPendingAttackers([]);
+    setAttackAssignments([]);
     setPendingAttacker(null);
     setPendingBlocker(null);
     setAttackDefenderId(null);
@@ -141,9 +145,29 @@ export function useCombatState({
     return awaitingAttackTarget && possibleDefenders.some((defender) => defender.id === cardId);
   }
 
-  function commitAttackAgainst(defenderId: string) {
+  // Assign the current pending batch to a defender. In a multi-defender game this
+  // accumulates (a player may attack several opponents in one combat); the whole
+  // set is submitted later via `submitAttack`. With a single legal defender it
+  // commits immediately — there's no target to pick.
+  function assignPendingToTarget(defenderId: string) {
     if (pendingAttackers.length === 0) return;
-    respond(declareAttackersOutput(currentPrompt, pendingAttackers, defenderId));
+    if (possibleDefenders.length <= 1) {
+      respond(declareAttackersOutput(currentPrompt, pendingAttackers, defenderId));
+      setPendingAttackers([]);
+      return;
+    }
+    const pendingSet = new Set(pendingAttackers);
+    setAttackAssignments((prev) => [
+      ...prev.filter((a) => !pendingSet.has(a.attackerId)),
+      ...pendingAttackers.map((id) => ({ attackerId: id, targetId: defenderId })),
+    ]);
+    setPendingAttackers([]);
+  }
+
+  function submitAttack() {
+    if (attackAssignments.length === 0) return;
+    respond({ type: "declareAttackers", assignments: attackAssignments });
+    setAttackAssignments([]);
     setPendingAttackers([]);
   }
 
@@ -157,7 +181,8 @@ export function useCombatState({
       respond(declareAttackersOutput(currentPrompt, attackerIds, possibleDefenders[0]?.id));
       return;
     }
-    setPendingAttackers(attackerIds);
+    const assigned = new Set(attackAssignments.map((a) => a.attackerId));
+    setPendingAttackers(attackerIds.filter((id) => !assigned.has(id)));
   }
 
   function cancelAttackTargetPick() {
@@ -166,7 +191,7 @@ export function useCombatState({
 
   function handleTargetPlayer(pid: string) {
     if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === pid)) {
-      commitAttackAgainst(pid);
+      assignPendingToTarget(pid);
       return;
     }
     if (promptType === "chooseAttackers") {
@@ -180,7 +205,7 @@ export function useCombatState({
     if (!currentPrompt) return;
 
     if (awaitingAttackTarget && possibleDefenders.some((d) => d.id === card.id)) {
-      commitAttackAgainst(card.id);
+      assignPendingToTarget(card.id);
       return;
     }
 
@@ -189,6 +214,12 @@ export function useCombatState({
         currentPrompt.input.type !== "chooseAttackers" ||
         !currentPrompt.input.attackers.some((a) => a.attackerId === card.id)
       ) {
+        return;
+      }
+      // Tapping an already-assigned attacker un-assigns it (re-target it from
+      // scratch); otherwise toggle it in the pending batch.
+      if (attackAssignments.some((a) => a.attackerId === card.id)) {
+        setAttackAssignments((prev) => prev.filter((a) => a.attackerId !== card.id));
         return;
       }
       setPendingAttackers((prev) =>
@@ -277,6 +308,8 @@ export function useCombatState({
 
   return {
     pendingAttackers,
+    attackAssignments,
+    submitAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,

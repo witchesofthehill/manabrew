@@ -60,6 +60,7 @@ interface GameBoardProps {
   boardTargets: BoardTargetBuckets | null;
 
   pendingAttackers: string[];
+  attackAssignments: { attackerId: string; targetId: string }[];
   pendingAttacker?: string | null;
   pendingBlocker?: string | null;
   damageOrder?: string[];
@@ -158,6 +159,7 @@ export function GameBoard({
   currentPrompt,
   boardTargets,
   pendingAttackers,
+  attackAssignments,
   pendingAttacker,
   pendingBlocker,
   damageOrder,
@@ -325,7 +327,7 @@ export function GameBoard({
       cards: myPermanents,
       pendingCardIds:
         promptType === "chooseAttackers"
-          ? pendingAttackers
+          ? [...pendingAttackers, ...attackAssignments.map((a) => a.attackerId)]
           : promptType === "chooseBlockers"
             ? [
                 ...blockAssignments.map((a) => a.blockerId),
@@ -346,6 +348,7 @@ export function GameBoard({
       myPermanents,
       promptType,
       pendingAttackers,
+      attackAssignments,
       pendingBlocker,
       blockAssignments,
       promptAttackerIds,

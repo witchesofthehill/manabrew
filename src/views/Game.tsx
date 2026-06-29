@@ -459,6 +459,8 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const {
     pendingAttackers,
+    attackAssignments,
+    submitAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,
@@ -707,6 +709,11 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseAttackers") {
+      if (multipleAttackDefenders) {
+        if (attackAssignments.length === 0) return false;
+        submitAttack();
+        return true;
+      }
       if (pendingAttackers.length === 0) return false;
       respond(
         declareAttackersOutput(activePrompt, pendingAttackers, attackDefenderId ?? undefined),
@@ -961,6 +968,16 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
+  // While declaring attackers the engine hasn't committed yet, so draw the
+  // locally-assigned (attacker → target) batches as attack arrows too.
+  const attackArrows = useMemo(
+    () => [
+      ...activeAttackers,
+      ...attackAssignments.map((a) => ({ attackerId: a.attackerId, defenderId: a.targetId })),
+    ],
+    [activeAttackers, attackAssignments],
+  );
+
   const liveArrowSpecs = useMemo(
     () =>
       buildArrowSpecs({
@@ -968,7 +985,7 @@ export default function Game({ exitTo }: GameProps = {}) {
         attackerIds,
         blockAssignments,
         combatAssignments,
-        activeAttackers,
+        activeAttackers: attackArrows,
         battlefieldAttachments,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
@@ -979,7 +996,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       attackerIds,
       blockAssignments,
       combatAssignments,
-      activeAttackers,
+      attackArrows,
       battlefieldAttachments,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
@@ -1348,6 +1365,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           currentPrompt={activePrompt}
           boardTargets={boardTargets}
           pendingAttackers={pendingAttackers}
+          attackAssignments={attackAssignments}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           damageOrder={damageOrder}
@@ -1480,6 +1498,8 @@ export default function Game({ exitTo }: GameProps = {}) {
                   respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
                 }
                 onBeginAttackTargetPick={selectAllAttackersForPick}
+                attackAssignmentCount={attackAssignments.length}
+                onSubmitAttack={submitAttack}
                 pendingAttacker={pendingAttacker}
                 pendingBlocker={pendingBlocker}
                 blockError={blockError}

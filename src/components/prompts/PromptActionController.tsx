@@ -54,8 +54,10 @@ interface PromptActionControllerProps {
   onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
+  attackAssignmentCount: number;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  onSubmitAttack: () => void;
   pendingAttacker: string | null;
   pendingBlocker: string | null;
   blockError?: string | null;
@@ -106,8 +108,10 @@ export function PromptActionController({
   onPassUntilEot: _onPassUntilEot,
   selectedAttackDefenderId,
   multipleAttackDefenders,
+  attackAssignmentCount,
   onDeclareAttackers,
   onBeginAttackTargetPick,
+  onSubmitAttack,
   pendingAttacker,
   pendingBlocker,
   blockError,
@@ -151,9 +155,11 @@ export function PromptActionController({
         pendingAttackers={pendingAttackers}
         selectedDefenderId={selectedAttackDefenderId}
         multipleDefenders={multipleAttackDefenders}
+        attackAssignmentCount={attackAssignmentCount}
         onPassPriority={onPassPriority}
         onDeclareAttackers={onDeclareAttackers}
         onBeginAttackTargetPick={onBeginAttackTargetPick}
+        onSubmitAttack={onSubmitAttack}
       />
     ),
     chooseBlockers: () => (

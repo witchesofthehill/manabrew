@@ -416,6 +416,7 @@ export class HandController {
     const sprite = new CardSprite(card, "hand");
     sprite.eventMode = "static";
     sprite.cursor = this.lastState?.playableIds?.has(card.id) ? "grab" : "default";
+    sprite.onReorient = () => this.relayout();
 
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();

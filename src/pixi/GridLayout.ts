@@ -77,6 +77,16 @@ export const battlefieldScaleForFraction = (usableH: number, fraction: number): 
   return minScale + f * (maxScale - minScale);
 };
 
+/** Like `battlefieldScaleForFraction`, but grows the cards to exactly fill
+ *  `usableH` with the whole row count the fraction lands on — removing the
+ *  leftover slack when the interpolated scale sits between two row counts. */
+export const battlefieldFillScale = (usableH: number, fraction: number): number => {
+  const provisional = battlefieldScaleForFraction(usableH, fraction);
+  const cellH = CARD_H * provisional * (1 + CELL_BREATHING_FRAC) + GAP;
+  const rows = Math.max(BATTLEFIELD_MIN_ROWS, Math.floor((usableH + GAP) / cellH));
+  return Math.max(BATTLEFIELD_CARD_SCALE_FLOOR, maxScaleForRows(usableH, rows));
+};
+
 /**
  * Extra breathing space added to each cell footprint on top of the GAP.
  * Tapped cards rotate 90° around their center and briefly stick out past

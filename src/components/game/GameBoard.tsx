@@ -542,10 +542,21 @@ export function GameBoard({
     return opponents[0]?.id ?? null;
   }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
-  const combatFocusIds = useMemo(
-    () => [...new Set(combatRows.map((r) => r.defenderId))],
-    [combatRows],
-  );
+  // Opponent fields to expand during combat: the OTHER party in the combat —
+  // the opponents I'm attacking (even-split among them when more than one), or,
+  // when I'm being attacked, the field of whoever is attacking me.
+  const combatFocusIds = useMemo(() => {
+    const myDefenders = new Set<string>();
+    const attackingMe = new Set<string>();
+    for (const row of combatRows) {
+      if (row.defenderId === me.id) {
+        for (const g of row.groups) attackingMe.add(g.controllerId);
+      } else if (row.groups.some((g) => g.controllerId === me.id)) {
+        myDefenders.add(row.defenderId);
+      }
+    }
+    return myDefenders.size > 0 ? [...myDefenders] : [...attackingMe];
+  }, [combatRows, me.id]);
 
   useEffect(() => {
     if (opponents.length === 0) return;

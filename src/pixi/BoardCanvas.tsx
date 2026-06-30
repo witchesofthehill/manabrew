@@ -13,7 +13,7 @@ import {
 } from "./hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import { battlefieldScaleForFraction, combatRowReserve, maxScaleForRows } from "./GridLayout";
+import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
@@ -329,8 +329,8 @@ export function BoardCanvas({
     // band (two passes: the band height depends on the scale it reserves).
     const oppTopReserve = showPlayerBars ? PLAYER_BAR_HEIGHT_PX + PLAYER_BAR_TOP_MARGIN_PX * 2 : 0;
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    const selfBand = combatRowReserve(battlefieldScaleForFraction(selfUsable, fraction));
-    const selfScale = battlefieldScaleForFraction(Math.max(1, selfUsable - selfBand), fraction);
+    const selfBand = combatRowReserve(battlefieldFillScale(selfUsable, fraction));
+    const selfScale = battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
     const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height - oppTopReserve));
     const oppUsable = oppHeights.length ? Math.min(...oppHeights) : selfUsable;
     const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));

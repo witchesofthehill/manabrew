@@ -197,6 +197,8 @@ export class BoardScene {
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
   private autoSort = false;
+  private gridSkeletonDebug = false;
+  private attackRowDebug = false;
 
   // Delimiters (opponent clip bands). Owned and eased here, not in React.
   // `delimCurrent`/`delimTarget` are `count - 1` ascending fractions of width.
@@ -327,9 +329,13 @@ export class BoardScene {
     return this.app.canvas as HTMLCanvasElement;
   }
 
-  configure(players: BoardPlayerSpec[], layout: BoardLayout, cardScale: number): void {
+  configure(
+    players: BoardPlayerSpec[],
+    layout: BoardLayout,
+    scales: { self: number; opponent: number },
+  ): void {
     if (this.destroyed) return;
-    this.cardScale = cardScale;
+    this.cardScale = scales.self;
     const seen = new Set<string>();
     let oppIndex = 0;
 
@@ -337,6 +343,7 @@ export class BoardScene {
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
+      const regionScale = spec.isLocal ? scales.self : scales.opponent;
       // The clip bands tile the canvas (no overlap), so z-order is cosmetic.
       const zIndex = spec.isLocal ? 100 : 50;
       seen.add(spec.playerId);
@@ -345,7 +352,7 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
         existing.region.setZone(zone, orientation);
-        existing.region.setCardScale(cardScale);
+        existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
         existing.region.setPlaymat(spec.playmat);
         continue;
@@ -354,13 +361,15 @@ export class BoardScene {
         this.makeRegionHost(spec.playerId, spec.isLocal),
         this.root,
         zone,
-        cardScale,
+        regionScale,
         { orientation },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setPlaymat(spec.playmat);
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
+      region.setSkeletonDebug(this.gridSkeletonDebug);
+      region.setAttackRowDebug(this.attackRowDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -391,7 +400,7 @@ export class BoardScene {
 
     this.positionPhaseStrip(layout);
     const selfZone = this.localZone();
-    this.dragHandler.setCardScale(cardScale);
+    this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     if (selfZone && this.hand) this.dragHandler.setHandExclusion(this.hand.getBlockerRect());
   }
@@ -970,6 +979,18 @@ export class BoardScene {
     this.hand?.setHoverDebug(on);
   }
 
+  setGridSkeletonDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.gridSkeletonDebug = on;
+    for (const rec of this.regions.values()) rec.region.setSkeletonDebug(on);
+  }
+
+  setAttackRowDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.attackRowDebug = on;
+    for (const rec of this.regions.values()) rec.region.setAttackRowDebug(on);
+  }
+
   setTheme(theme: Theme): void {
     if (this.destroyed) return;
     this.theme = theme;
@@ -1165,7 +1186,10 @@ export class BoardScene {
     sprite.eventMode = "static";
     sprite.cursor = "pointer";
     const region = this.regions.get(playerId)?.region;
-    if (isLocal) {
+    // A guest attacker sitting in the local player's combat row (an opponent's
+    // creature, controllerId ≠ us) must keep the attacker wiring — tap/drop to
+    // block — not the local drag wiring, or it can't be blocked.
+    if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         this.onBattlefieldCardDown(sprite, e);

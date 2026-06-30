@@ -10,12 +10,11 @@ export interface CombatRow {
 export interface CombatRowInput {
   battlefield: CardDto[];
   combatAssignments: CombatAssignmentDto[];
-  selfId: string;
   playerIds: string[];
 }
 
 export function buildCombatRows(input: CombatRowInput): CombatRow[] {
-  const { battlefield, combatAssignments, selfId, playerIds } = input;
+  const { battlefield, combatAssignments, playerIds } = input;
   const players = new Set(playerIds);
   const controllerById = new Map<string, string>();
   for (const c of battlefield) controllerById.set(c.id, c.controllerId);
@@ -37,7 +36,7 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
   for (const c of battlefield) {
     if (!c.isAttacking || !c.attackingPlayerId) continue;
     const defenderId = defenderOf(c.attackingPlayerId);
-    if (!defenderId || defenderId === selfId) continue;
+    if (!defenderId) continue;
     attackerDefender.set(c.id, defenderId);
     rowFor(defenderId).attackerIds.push(c.id);
   }

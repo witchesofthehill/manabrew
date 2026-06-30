@@ -63,6 +63,10 @@ export function BattlefieldKeywordDevControls() {
   const setDebugCardName = useGameDevStore((s) => s.setDebugCardName);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
   const setShowHoverAreas = useGameDevStore((s) => s.setShowHoverAreas);
+  const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
+  const setShowGridSkeleton = useGameDevStore((s) => s.setShowGridSkeleton);
+  const showAttackRows = useGameDevStore((s) => s.showAttackRows);
+  const setShowAttackRows = useGameDevStore((s) => s.setShowAttackRows);
 
   const [draftName, setDraftName] = useState(debugCardName);
 
@@ -127,6 +131,48 @@ export function BattlefieldKeywordDevControls() {
             className={cn(
               "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
               showHoverAreas ? "translate-x-4" : "translate-x-0.5",
+            )}
+          />
+        </button>
+      </label>
+
+      <label className="flex items-center justify-between gap-2 cursor-pointer">
+        <span className="text-xs">Show grid rows &amp; card skeletons (all players)</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showGridSkeleton}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+            showGridSkeleton ? "border-primary bg-primary" : "border-border/70 bg-muted",
+          )}
+          onClick={() => setShowGridSkeleton(!showGridSkeleton)}
+        >
+          <span
+            className={cn(
+              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
+              showGridSkeleton ? "translate-x-4" : "translate-x-0.5",
+            )}
+          />
+        </button>
+      </label>
+
+      <label className="flex items-center justify-between gap-2 cursor-pointer">
+        <span className="text-xs">Show attack areas (all players)</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showAttackRows}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+            showAttackRows ? "border-primary bg-primary" : "border-border/70 bg-muted",
+          )}
+          onClick={() => setShowAttackRows(!showAttackRows)}
+        >
+          <span
+            className={cn(
+              "block h-4 w-4 rounded-full bg-background shadow-sm transition-transform",
+              showAttackRows ? "translate-x-4" : "translate-x-0.5",
             )}
           />
         </button>

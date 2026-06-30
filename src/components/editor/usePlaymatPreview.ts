@@ -6,24 +6,23 @@ import { CardSprite } from "@/pixi/CardSprite";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
 import { safeDestroy } from "@/pixi/board/pixiHelpers";
 import { useTheme } from "@/hooks/useTheme";
-import { useHandScale } from "@/hooks/useHandScale";
 import { PlaymatLayer, clampPlaymatZoom } from "@/pixi/board/PlaymatLayer";
 import { computeBoardLayout } from "@/pixi/board/boardLayout";
-import { HAND_CARD_BASE } from "@/components/game/game.styles";
-import { BG_ALPHA_IDLE, GAP, TABLE_RADIUS } from "@/pixi/constants";
+import { BG_ALPHA_IDLE, TABLE_RADIUS } from "@/pixi/constants";
 import { hexToNum } from "@/pixi/colorUtils";
 import type { PlaymatSettings } from "@/protocol/game";
 
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 
 function useBattlefieldMetrics(): { aspect: number; feltWidth: number } {
-  const vScale = useHandScale();
   return useMemo(() => {
     const layout = computeBoardLayout(window.innerWidth, window.innerHeight, 1);
-    const handReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
-    const feltHeight = Math.max(1, layout.self.height - handReserve);
+    // The in-game playmat fills the FULL field height (BoardRegion.bandZone),
+    // covering under the hand and player panel — so the preview aspect uses the
+    // full self height too, no hand-reserve trim.
+    const feltHeight = Math.max(1, layout.self.height);
     return { aspect: layout.self.width / feltHeight, feltWidth: layout.self.width };
-  }, [vScale]);
+  }, []);
 }
 
 interface PlaymatPreviewArgs {

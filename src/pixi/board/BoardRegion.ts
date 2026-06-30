@@ -8,6 +8,7 @@ import {
   cellFromPoint,
   cellKey,
   cellsByDistance,
+  combatRowReserve,
   computeGridLayout,
   type GridCell,
   type GridLayoutInfo,
@@ -38,10 +39,9 @@ import {
   EXIT_SHRINK,
   GAP,
   COMBAT_BLOCKER_OVERLAP_FRAC,
+  COMBAT_ROW_PAD_Y,
   COMBAT_ROW_STEP_FRAC,
   COMBAT_STAGE_FAN_FRAC,
-  COMBAT_STAGE_PADDING_PX,
-  COMBAT_STAGE_SELF_EXTRA_PX,
   GRID_SKELETON_FILL_ALPHA,
   GRID_SKELETON_HOVER_ALPHA,
   GRID_SKELETON_STACK_ALPHA,
@@ -64,7 +64,7 @@ import {
   Z_OVERLAY_OFFSET,
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
-import { COLLAPSED_OPPONENT_WIDTH_PX, STRIP_BAND_PX, type RegionOrientation } from "./boardLayout";
+import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayout";
 import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
@@ -80,8 +80,6 @@ interface BoardRegionOptions {
 const ENTRANCE_LAND_PX = 8;
 const GLIDE_LAND_PX = 24;
 
-const COMBAT_ROW_PAD_Y = 8;
-const COMBAT_ROW_INSET_X = 12;
 const COMBAT_ROW_AVATAR_D = 24;
 
 /** Keyed by the card object. The engine mints fresh `CardDto` objects per state
@@ -131,6 +129,9 @@ export class BoardRegion {
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
   private combatRowBlockerIds = new Set<string>();
+  private skeletonDebug = false;
+  private attackRowDebug = false;
+  private attackRowDebugGfx = new Graphics();
   private combatRowGroups: NonNullable<BattlefieldState["combatRowGroups"]> = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
@@ -180,6 +181,10 @@ export class BoardRegion {
     this.combatRowGfx.eventMode = "none";
     this.combatRowGfx.zIndex = Z_COMBAT_STAGED - 5;
     this.container.addChild(this.combatRowGfx);
+    this.attackRowDebugGfx.eventMode = "none";
+    this.attackRowDebugGfx.visible = false;
+    this.attackRowDebugGfx.zIndex = Z_COMBAT_STAGED - 6;
+    this.container.addChild(this.attackRowDebugGfx);
 
     this.gridSkeletonGfx = new Graphics();
     this.gridSkeletonGfx.eventMode = "none";
@@ -329,6 +334,7 @@ export class BoardRegion {
     // The playmat fits the visible band, so re-fit it as the band eases.
     this.playmat.layout(this.bandZone(), { dropActive: this.dropActive });
     if (this.combatRowAttackerIds.size > 0) this.applyCombatRow();
+    if (this.attackRowDebug) this.drawAttackRowDebug();
   }
 
   private updateClip(): void {
@@ -724,6 +730,8 @@ export class BoardRegion {
         }
       }
     }
+    if (this.skeletonDebug) this.refreshSkeletonDebug();
+    if (this.attackRowDebug) this.drawAttackRowDebug();
   }
 
   private applyAttackLunge(state: BattlefieldState): void {
@@ -785,12 +793,11 @@ export class BoardRegion {
     const ids = [...this.combatRowAttackerIds];
     const y = this.frontEdgeY();
     const cardW = CARD_W * this.cardScale;
-    const bandLeft = this.clipX ?? this.zone.x;
-    const bandWidth = this.clipWidth ?? this.zone.width;
+    const mat = this.playmatRect();
     const fullStep = cardW * COMBAT_ROW_STEP_FRAC;
-    const fitStep = ids.length > 1 ? (bandWidth - cardW) / (ids.length - 1) : fullStep;
+    const fitStep = ids.length > 1 ? (mat.width - cardW) / (ids.length - 1) : fullStep;
     const step = Math.max(0, Math.min(fullStep, fitStep));
-    const centerX = bandLeft + bandWidth / 2;
+    const centerX = mat.x + mat.width / 2;
     const startX = centerX - ((ids.length - 1) * step) / 2;
 
     const attackerX = new Map<string, number>();
@@ -832,8 +839,8 @@ export class BoardRegion {
 
     const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     const halfH = (CARD_H * this.cardScale) / 2;
-    const stripLeft = bandLeft + COMBAT_ROW_INSET_X;
-    const stripW = Math.max(1, bandWidth - COMBAT_ROW_INSET_X * 2);
+    const stripLeft = mat.x;
+    const stripW = mat.width;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
@@ -940,13 +947,14 @@ export class BoardRegion {
   }
 
   private frontEdgeY(): number {
-    const gap = STRIP_BAND_PX / 2 + COMBAT_STAGE_PADDING_PX + (CARD_H * this.cardScale) / 2;
+    const halfCard = (CARD_H * this.cardScale) / 2;
+    // Anchor the row's outer edge to the playmat border (bottom inner edge for
+    // opponents, top inner edge for us), not the raw field edge.
+    const mat = this.playmatRect();
     if (this.mirrored) {
-      const dividerY = this.zone.y + this.zone.height + STRIP_BAND_PX / 2;
-      return dividerY - gap;
+      return mat.y + mat.height - COMBAT_ROW_PAD_Y - halfCard;
     }
-    const dividerY = this.zone.y - STRIP_BAND_PX / 2;
-    return dividerY + gap - COMBAT_STAGE_SELF_EXTRA_PX;
+    return mat.y + COMBAT_ROW_PAD_Y + halfCard;
   }
 
   private applyNameGrouping(topLevel: CardDto[]): void {
@@ -1386,30 +1394,47 @@ export class BoardRegion {
     return this.usableZone();
   }
 
-  /** The currently-VISIBLE field rect (usable zone ∩ clip band). The playmat
-   *  fits this so it sits inside each field with equal padding on all sides,
-   *  rather than being anchored to the fixed (canvas-right-extending) rect. */
+  /** The playmat's rect: the visible band horizontally (usable width ∩ clip),
+   *  but the FULL field height so it extends under the player panel / bar and
+   *  hand reserve rather than stopping at the reserve-trimmed usable zone. */
   private bandZone(): PlayZoneRect {
     const z = this.usableZone();
-    if (this.clipX === null || this.clipWidth === null) return z;
+    const y = this.zone.y;
+    const height = this.zone.height;
+    if (this.clipX === null || this.clipWidth === null) {
+      return { x: z.x, y, width: z.width, height };
+    }
     const left = Math.max(z.x, this.clipX);
     const right = Math.min(z.x + z.width, this.clipX + this.clipWidth);
-    return { x: left, y: z.y, width: Math.max(1, right - left), height: z.height };
+    return { x: left, y, width: Math.max(1, right - left), height };
+  }
+
+  /** The VISIBLE playmat rect — `PlaymatLayer`'s uniform inset of the band zone.
+   *  The combat row's strip + position align to this so they match the playmat
+   *  border on every side. Keep the inset in sync with `PlaymatLayer.layout`. */
+  private playmatRect(): PlayZoneRect {
+    const b = this.bandZone();
+    const pad = Math.min(b.width, b.height) * PLAYMAT_PADDING;
+    return {
+      x: b.x + pad,
+      y: b.y + pad,
+      width: Math.max(1, b.width - pad * 2),
+      height: Math.max(1, b.height - pad * 2),
+    };
   }
 
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
     const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
-    // Opponent fields permanently reserve the inner-edge combat-row band so the
-    // three grid rows are sized once and never reflow when combat starts/ends;
-    // the row just shows/hides inside the reserved strip.
-    const reserve =
-      this.mirrored || this.combatRowAttackerIds.size > 0
-        ? CARD_H * this.cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX
-        : 0;
+    // Every field permanently reserves the inner-edge combat-row band so the
+    // grid rows are sized once and never reflow when combat starts/ends; the row
+    // shows/hides inside the reserved strip. The inner edge (next to the divider)
+    // is the bottom for opponents and the top for the local player.
+    const reserve = combatRowReserve(this.cardScale);
+    const topReserve = this.mirrored ? 0 : reserve;
     return {
       x: z.x + pad,
-      y: z.y + pad,
+      y: z.y + pad + topReserve,
       width: Math.max(1, z.width - pad * 2),
       height: Math.max(1, z.height - pad * 2 - reserve),
     };
@@ -1608,8 +1633,57 @@ export class BoardRegion {
   }
 
   hideGridSkeleton(): void {
+    if (this.skeletonDebug) {
+      this.refreshSkeletonDebug();
+      return;
+    }
     this.gridSkeletonGfx.visible = false;
     this.gridSkeletonGfx.clear();
+  }
+
+  /** Dev toggle: keep every grid cell's card skeleton drawn for this region,
+   *  not just during a drag, so the locked rows are visible for all players. */
+  setSkeletonDebug(on: boolean): void {
+    if (this.skeletonDebug === on) return;
+    this.skeletonDebug = on;
+    this.refreshSkeletonDebug();
+  }
+
+  private refreshSkeletonDebug(): void {
+    if (this.skeletonDebug) this.drawGridSkeleton(new Set(), null, null);
+    else {
+      this.gridSkeletonGfx.visible = false;
+      this.gridSkeletonGfx.clear();
+    }
+  }
+
+  /** Dev toggle: outline this region's reserved combat-row band (the attack
+   *  area) even when no attack is happening, for every player. */
+  setAttackRowDebug(on: boolean): void {
+    if (this.attackRowDebug === on) return;
+    this.attackRowDebug = on;
+    this.drawAttackRowDebug();
+  }
+
+  private drawAttackRowDebug(): void {
+    const gfx = this.attackRowDebugGfx;
+    gfx.clear();
+    if (!this.attackRowDebug) {
+      gfx.visible = false;
+      return;
+    }
+    const halfH = (CARD_H * this.cardScale) / 2;
+    const mat = this.playmatRect();
+    const stripLeft = mat.x;
+    const stripW = mat.width;
+    const stripTop = this.frontEdgeY() - halfH - COMBAT_ROW_PAD_Y;
+    const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
+    const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
+    gfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
+    gfx.fill({ color: red, alpha: 0.12 });
+    gfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);
+    gfx.stroke({ color: red, width: 1.5, alpha: 0.7 });
+    gfx.visible = true;
   }
 
   drawGridSkeleton(
@@ -1619,7 +1693,7 @@ export class BoardRegion {
   ): void {
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
-    if (!this.gridInfo || draggingIds.size === 0) {
+    if (!this.gridInfo || (draggingIds.size === 0 && !this.skeletonDebug)) {
       gfx.visible = false;
       return;
     }

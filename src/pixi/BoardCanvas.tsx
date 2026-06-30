@@ -7,10 +7,6 @@ installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
 import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
-import {
-  PLAYER_HUD_HEIGHT_PX as PLAYER_BAR_HEIGHT_PX,
-  PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
-} from "./hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
 import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridLayout";
@@ -327,11 +323,12 @@ export function BoardCanvas({
     // the roomier opponent fields wasted space. Self follows the card-scale
     // preference; opponents lock to 3 rows beneath the always-reserved combat
     // band (two passes: the band height depends on the scale it reserves).
-    const oppTopReserve = showPlayerBars ? PLAYER_BAR_HEIGHT_PX + PLAYER_BAR_TOP_MARGIN_PX * 2 : 0;
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
     const selfBand = combatRowReserve(battlefieldFillScale(selfUsable, fraction));
     const selfScale = battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
-    const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height - oppTopReserve));
+    // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
+    // the full field height (the avatar's top-left cells are blocked instead).
+    const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height));
     const oppUsable = oppHeights.length ? Math.min(...oppHeights) : selfUsable;
     const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
     const oppScale = Math.max(

@@ -41,6 +41,7 @@ import {
   TABLE_RADIUS,
   Z_STAGED_REGION,
   Z_COMBAT_GUEST,
+  HAND_RESERVE_TRIM,
 } from "../constants";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
@@ -1039,9 +1040,10 @@ export class BoardScene {
       },
       wireSprite: (sprite) => this.wireSprite(sprite, playerId, isLocal),
       screenXToLocalX: (screenX) => screenX - this.app.canvas.getBoundingClientRect().left,
-      getHandReserveBottom: () => (isLocal ? this.handReserveBottom() : 0),
-      getTopReserve: () =>
-        !isLocal && this.barsEnabled ? PLAYER_BAR_HEIGHT_PX + PLAYER_BAR_TOP_MARGIN_PX * 2 : 0,
+      getHandReserveBottom: () => (isLocal ? this.handReserveBottom() * HAND_RESERVE_TRIM : 0),
+      // The opponent HUD is a keep-out blocker (see BoardRegion.collectLocalBlockers)
+      // rather than a full-width top reserve, so the grid uses the whole height.
+      getTopReserve: () => 0,
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       isDestroyed: () => this.destroyed,
     };

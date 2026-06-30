@@ -28,7 +28,7 @@ import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ZONE_TILE_KEY } from "@/components/game/game.constants";
-import { GAP } from "@/pixi/constants";
+import { GAP, HAND_RESERVE_TRIM } from "@/pixi/constants";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { ReconnectBanner } from "@/components/lobby/ReconnectBanner";
 
@@ -222,7 +222,9 @@ export function GameBoard({
 
   const vScale = useHandScale();
 
-  const selfBottomReserve = Math.round(0.55 * HAND_CARD_BASE.cardH * vScale) + GAP;
+  const selfBottomReserve = Math.round(
+    (0.55 * HAND_CARD_BASE.cardH * vScale + GAP) * HAND_RESERVE_TRIM,
+  );
 
   const isTargetingPrompt = promptType === "chooseBoardTargets";
   const chooseActionPrompt = promptOf(currentPrompt, "chooseAction");

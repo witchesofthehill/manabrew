@@ -65,6 +65,11 @@ import {
 } from "../constants";
 import type { BlockingRect, RegionHost, SceneCombatStaging, SpriteEntry } from "./types";
 import { COLLAPSED_OPPONENT_WIDTH_PX, type RegionOrientation } from "./boardLayout";
+import {
+  PLAYER_HUD_HEIGHT_PX,
+  PLAYER_HUD_MAX_WIDTH_PX,
+  PLAYER_HUD_TOP_MARGIN_PX,
+} from "../hud/PlayerHudLayer";
 import { PlaymatLayer, PLAYMAT_PADDING } from "./PlaymatLayer";
 import { loadAvatarTexture } from "../hud/avatarTextureCache";
 import { applyIcon } from "../panelIcons";
@@ -365,10 +370,23 @@ export class BoardRegion {
   }
 
   private collectLocalBlockers(): BlockingRect[] {
-    return this.host.collectBlockers().map((r) => {
+    const blockers = this.host.collectBlockers().map((r) => {
       const p1 = this.canvasToLocal(r.x, r.y);
       return { x: p1.x, y: p1.y, width: r.width, height: r.height };
     });
+    if (this.mirrored) {
+      // The opponent HUD capsule (avatar / life / badges) sits at the top-left
+      // of the band; block just its cells so the grid uses the rest of the top
+      // instead of reserving the whole bar-height band across the field.
+      const bandLeft = this.clipX ?? this.zone.x;
+      blockers.push({
+        x: bandLeft,
+        y: this.zone.y,
+        width: Math.min(PLAYER_HUD_MAX_WIDTH_PX, this.clipWidth ?? this.zone.width),
+        height: PLAYER_HUD_HEIGHT_PX + PLAYER_HUD_TOP_MARGIN_PX * 2,
+      });
+    }
+    return blockers;
   }
 
   setCardScale(scale: number): void {

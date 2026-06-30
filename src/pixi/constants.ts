@@ -86,6 +86,10 @@ export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
 export const COMBAT_ROW_STEP_FRAC = 1.12;
 export const Z_STAGED_REGION = 8000;
+// Combat-row attackers that travelled in from another player's field render in
+// an unclipped scene layer (above every region's accordion mask) so they glide
+// across the board into a collapsed defender's row instead of popping in.
+export const Z_COMBAT_GUEST = 8500;
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
 export const COMBAT_DIM_ALPHA = 0.3;
 // Tint rather than alpha so overlapping stacked cards don't show through each

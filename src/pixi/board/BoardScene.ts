@@ -40,6 +40,7 @@ import {
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
   Z_STAGED_REGION,
+  Z_COMBAT_GUEST,
 } from "../constants";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
@@ -161,6 +162,7 @@ export class BoardScene {
 
   private floaterLayer: Container;
   private floaters: { text: Text; age: number }[] = [];
+  private combatGuestLayer: Container;
 
   private declareBlockers = false;
   private blockDragBlockerId: string | null = null;
@@ -286,6 +288,11 @@ export class BoardScene {
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
     this.root.addChild(this.phaseStrip.container);
+
+    this.combatGuestLayer = new Container();
+    this.combatGuestLayer.sortableChildren = true;
+    this.combatGuestLayer.zIndex = Z_COMBAT_GUEST;
+    this.root.addChild(this.combatGuestLayer);
 
     this.floaterLayer = new Container();
     this.floaterLayer.eventMode = "none";
@@ -737,6 +744,12 @@ export class BoardScene {
     this.refreshPhaseStripDim();
   }
 
+  pruneCardPositions(liveIds: ReadonlySet<string>): void {
+    for (const id of this.lastCardPositions.keys()) {
+      if (!liveIds.has(id)) this.lastCardPositions.delete(id);
+    }
+  }
+
   private refreshPhaseStripDim(): void {
     let active = false;
     for (const rec of this.regions.values()) {
@@ -962,6 +975,7 @@ export class BoardScene {
         ...(isLocal ? this.localBlockers() : []),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
+      getCombatGuestLayer: () => this.combatGuestLayer,
       recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {
@@ -1041,10 +1055,7 @@ export class BoardScene {
       if (live) return live;
     }
     const remembered = this.lastCardPositions.get(cardId);
-    if (remembered) {
-      this.lastCardPositions.delete(cardId);
-      return remembered;
-    }
+    if (remembered) return remembered;
     const stack = this.stackCardSeeds.get(cardId);
     if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
     if (isLocal && this.hand) {

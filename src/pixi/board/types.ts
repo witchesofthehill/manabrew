@@ -105,6 +105,10 @@ export interface RegionHost {
   /** Seed transform for a newly-entering battlefield sprite (mirror of a
    *  hand sprite / stack card / hand-fan origin). */
   getEntrySeed(cardId: string): { x: number; y: number; scaleX: number; scaleY: number };
+  /** Unclipped scene layer for combat-row attackers that travelled in from
+   *  another field, so they glide across the board (past accordion masks)
+   *  instead of being clipped to a collapsed defender's band. */
+  getCombatGuestLayer(): Container;
   /** Remember a card's last on-screen transform as it leaves a region, so a
    *  respawn in another region (combat-row move) seeds there and glides in. */
   recordCardExit(

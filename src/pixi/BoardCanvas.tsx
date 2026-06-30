@@ -376,6 +376,9 @@ export function BoardCanvas({
       lastRegionStateRef.current.set(r.playerId, r.state);
       scene.updateRegionState(r.playerId, r.state);
     }
+    const liveIds = new Set<string>();
+    for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
+    scene.pruneCardPositions(liveIds);
   }, [scene, regions]);
 
   useEffect(() => {

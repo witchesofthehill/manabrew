@@ -1360,8 +1360,11 @@ export class BoardRegion {
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
     const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    // Opponent fields permanently reserve the inner-edge combat-row band so the
+    // three grid rows are sized once and never reflow when combat starts/ends;
+    // the row just shows/hides inside the reserved strip.
     const reserve =
-      this.combatRowAttackerIds.size > 0
+      this.mirrored || this.combatRowAttackerIds.size > 0
         ? CARD_H * this.cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX
         : 0;
     return {

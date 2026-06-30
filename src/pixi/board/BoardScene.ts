@@ -1415,8 +1415,6 @@ export class BoardScene {
       return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
-    // Lane attack arrows that converge on the same player so several attackers
-    // don't stack their heads on one avatar.
     const attackTargetCounts = new Map<string, number>();
     for (const s of this.arrowSpecs) {
       if (s.type === "attack" && s.to.kind === "player") {

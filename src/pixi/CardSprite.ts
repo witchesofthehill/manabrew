@@ -329,8 +329,6 @@ export class CardSprite extends Container {
   private readonly isBattlefield: boolean;
   private cw: number;
   private ch: number;
-  /** Fired when the card's frame orientation flips (horizontal layout resolved
-   *  from Scryfall after construction) so the hand can re-rotate it. */
   onReorient?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
@@ -545,9 +543,7 @@ export class CardSprite extends Container {
     return this.cw > this.ch;
   }
 
-  /** Recompute the frame orientation (now that the Scryfall layout may have
-   *  loaded) and re-lay the dimension-dependent geometry if it changed. The
-   *  image fit + frame are repainted by the caller (`loadImage`). */
+  // Image fit + frame are left for the caller (`loadImage`) to repaint.
   private reapplyOrientation(): void {
     const horizontal = this.isHorizontal();
     const cw = horizontal ? CARD_H : CARD_W;

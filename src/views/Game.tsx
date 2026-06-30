@@ -1015,7 +1015,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   );
 
   const combatPairings = useMemo(() => {
-    const names = new Map((gameView?.players ?? []).map((p) => [p.id, p.name]));
+    const nameOf = (id: string) =>
+      id === myPlayerSlot
+        ? "You"
+        : (gameView?.players?.find((p) => p.id === id)?.name ?? "A player");
     const pairs = new Map<string, { attacker: string; defender: string; count: number }>();
     for (const c of gameView?.battlefield ?? []) {
       if (!c.isAttacking || !c.attackingPlayerId) continue;
@@ -1024,13 +1027,13 @@ export default function Game({ exitTo }: GameProps = {}) {
       if (existing) existing.count += 1;
       else
         pairs.set(key, {
-          attacker: names.get(c.controllerId) ?? "A player",
-          defender: names.get(c.attackingPlayerId) ?? "a player",
+          attacker: nameOf(c.controllerId),
+          defender: nameOf(c.attackingPlayerId),
           count: 1,
         });
     }
     return pairs;
-  }, [gameView?.battlefield, gameView?.players]);
+  }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
   const combatSignature = useMemo(
     () => [...combatPairings.keys()].sort().join("|"),
     [combatPairings],
@@ -1039,7 +1042,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   useEffect(() => {
     if (combatSignature && combatSignature !== prevCombatSignature.current) {
       for (const { attacker, defender, count } of combatPairings.values()) {
-        toast(`${attacker} attacks ${defender}`, {
+        toast(`${attacker} ${attacker === "You" ? "attack" : "attacks"} ${defender}`, {
           description: `${count} ${count === 1 ? "attacker" : "attackers"}`,
         });
       }

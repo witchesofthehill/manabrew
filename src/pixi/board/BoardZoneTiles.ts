@@ -27,8 +27,8 @@ export interface ZoneTileSpec {
   back?: boolean;
   /** Highlight colour when the zone is playable/targetable (else none). */
   highlightColor?: string;
-  /** The command zone holding a commander — draws the commander helm badge in
-   *  this player's seat colour so it's clear whose commander it is. */
+  /** Seat colour for the commander helm badge; absent when the zone holds no
+   *  commander. */
   commander?: string;
   onOpen?: () => void;
 }

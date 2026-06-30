@@ -486,6 +486,13 @@ export class BoardRegion {
       s.tickEffects(now);
       s.x = lerp(s.x, entry.targetX, BATTLEFIELD_LERP, SNAP_PX);
       s.y = lerp(s.y, entry.targetY, BATTLEFIELD_LERP, SNAP_PX);
+      const cp = this.localToCanvas(s.x, s.y);
+      this.host.recordCardExit(id, {
+        x: cp.x,
+        y: cp.y,
+        scaleX: s.scale.x,
+        scaleY: s.scale.y,
+      });
       if (entry.pendingEntrance) {
         const dx = s.x - entry.targetX;
         const dy = s.y - entry.targetY;
@@ -630,6 +637,7 @@ export class BoardRegion {
 
     for (const card of topLevelCards) {
       const center = positions.get(card.id) ?? { x: this.zoneCenterX(), y: this.zoneCenterY() };
+      const guest = this.combatRowAttackerIds.has(card.id);
       const childIds = effectiveChildren.get(card.id) ?? [];
       const attachments = childIds
         .map((id) => cardMap.get(id))
@@ -647,6 +655,7 @@ export class BoardRegion {
           topLeftY + totalOffset - stepsAbove * ATTACH_OFFSET_Y + (CARD_H * this.cardScale) / 2,
           i + 1,
           state,
+          guest,
         );
       }
 
@@ -656,6 +665,7 @@ export class BoardRegion {
         topLeftY + totalOffset + (CARD_H * this.cardScale) / 2,
         attachments.length + 1,
         state,
+        guest,
       );
     }
 
@@ -1222,6 +1232,13 @@ export class BoardRegion {
     for (const [id, entry] of this.entries) {
       if (currentIds.has(id) || entry.exiting) continue;
       entry.exiting = true;
+      const c = this.localToCanvas(entry.sprite.x, entry.sprite.y);
+      this.host.recordCardExit(id, {
+        x: c.x,
+        y: c.y,
+        scaleX: entry.sprite.scale.x,
+        scaleY: entry.sprite.scale.y,
+      });
       if (entry.overlay) entry.overlay.visible = false;
       this.userPlacedCards.delete(id);
     }
@@ -1230,7 +1247,7 @@ export class BoardRegion {
   private destroyEntry(id: string): void {
     const entry = this.entries.get(id);
     if (!entry) return;
-    this.container.removeChild(entry.sprite);
+    entry.sprite.parent?.removeChild(entry.sprite);
     if (entry.overlay) this.container.removeChild(entry.overlay);
     safeDestroy(entry.sprite);
     if (entry.overlay) safeDestroy(entry.overlay);
@@ -1243,6 +1260,7 @@ export class BoardRegion {
     centerY: number,
     zIndex: number,
     state: BattlefieldState,
+    guest = false,
   ): void {
     this.ensureBattlefieldEntry(card);
     const entry = this.entries.get(card.id)!;
@@ -1250,6 +1268,8 @@ export class BoardRegion {
       entry.exiting = false;
       entry.sprite.alpha = 1;
     }
+    const parent = guest ? this.host.getCombatGuestLayer() : this.container;
+    if (entry.sprite.parent !== parent) parent.addChild(entry.sprite);
     entry.targetX = centerX;
     entry.targetY = centerY;
     entry.targetZIndex = zIndex;
@@ -1360,8 +1380,11 @@ export class BoardRegion {
   private playArea(): PlayZoneRect {
     const z = this.usableZone();
     const pad = Math.min(z.width, z.height) * PLAYMAT_PADDING;
+    // Opponent fields permanently reserve the inner-edge combat-row band so the
+    // three grid rows are sized once and never reflow when combat starts/ends;
+    // the row just shows/hides inside the reserved strip.
     const reserve =
-      this.combatRowAttackerIds.size > 0
+      this.mirrored || this.combatRowAttackerIds.size > 0
         ? CARD_H * this.cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX
         : 0;
     return {
@@ -1675,6 +1698,10 @@ export class BoardRegion {
   }
 
   destroy(): void {
+    for (const entry of this.entries.values()) {
+      entry.sprite.parent?.removeChild(entry.sprite);
+      safeDestroy(entry.sprite);
+    }
     this.playmat.destroy();
     this.effects.destroy();
     this.zoneTiles.destroy();

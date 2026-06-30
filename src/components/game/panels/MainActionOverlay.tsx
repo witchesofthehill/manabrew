@@ -56,6 +56,7 @@ export function MainActionOverlay({
   blockRestrictionHint,
   attackerIds,
   blockAssignments,
+  combatPairings,
   onDeclareBlockers,
   damageOrderCount,
   damageOrderTotal,
@@ -216,6 +217,7 @@ export function MainActionOverlay({
               attackerIds={attackerIds}
               pendingAttackers={pendingAttackers}
               blockAssignments={blockAssignments}
+              combatPairings={combatPairings}
               resolveCardName={resolveCardName}
               resolveCard={resolveCard}
             />

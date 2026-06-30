@@ -49,6 +49,7 @@ import { declareAttackersOutput } from "@/components/prompts/internal/playerActi
 import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
+import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
@@ -1013,6 +1014,28 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
+  const combatPairings = useMemo<CombatPairing[]>(() => {
+    const nameOf = (id: string) =>
+      id === myPlayerSlot
+        ? "You"
+        : (gameView?.players?.find((p) => p.id === id)?.name ?? "A player");
+    const pairs = new Map<string, CombatPairing>();
+    for (const c of gameView?.battlefield ?? []) {
+      if (!c.isAttacking || !c.attackingPlayerId) continue;
+      const key = `${c.controllerId}->${c.attackingPlayerId}`;
+      const existing = pairs.get(key);
+      if (existing) existing.count += 1;
+      else
+        pairs.set(key, {
+          key,
+          attacker: nameOf(c.controllerId),
+          defender: nameOf(c.attackingPlayerId),
+          count: 1,
+        });
+    }
+    return [...pairs.values()];
+  }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
+
   const cardZoneTiles = useMemo(() => {
     const map = new Map<string, { playerId: string; key: string }>();
     for (const p of gameView?.players ?? []) {
@@ -1597,6 +1620,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 blockRestrictionHint={blockRestrictionHint}
                 attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
                 blockAssignments={blockAssignments}
+                combatPairings={combatPairings}
                 onDeclareBlockers={(assignments) =>
                   respond({ type: "declareBlockers", assignments })
                 }

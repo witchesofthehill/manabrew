@@ -40,6 +40,7 @@ import {
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
   Z_STAGED_REGION,
+  Z_COMBAT_GUEST,
 } from "../constants";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
@@ -98,6 +99,7 @@ export interface BoardPlayerSpec {
 const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
 const GRIP_HIT_WIDTH_PX = 16;
+const ATTACK_ARROW_LANE_PX = 18;
 
 /* ─────────────────────────────────────────────────────────────────────────
  * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
@@ -160,6 +162,7 @@ export class BoardScene {
 
   private floaterLayer: Container;
   private floaters: { text: Text; age: number }[] = [];
+  private combatGuestLayer: Container;
 
   private declareBlockers = false;
   private blockDragBlockerId: string | null = null;
@@ -176,6 +179,10 @@ export class BoardScene {
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
+  private lastCardPositions = new Map<
+    string,
+    { x: number; y: number; scaleX: number; scaleY: number }
+  >();
   private stackProvider: StackAnchorProvider | null = null;
 
   private hoveredCell: GridCell | null = null;
@@ -281,6 +288,11 @@ export class BoardScene {
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
     this.root.addChild(this.phaseStrip.container);
+
+    this.combatGuestLayer = new Container();
+    this.combatGuestLayer.sortableChildren = true;
+    this.combatGuestLayer.zIndex = Z_COMBAT_GUEST;
+    this.root.addChild(this.combatGuestLayer);
 
     this.floaterLayer = new Container();
     this.floaterLayer.eventMode = "none";
@@ -732,6 +744,12 @@ export class BoardScene {
     this.refreshPhaseStripDim();
   }
 
+  pruneCardPositions(liveIds: ReadonlySet<string>): void {
+    for (const id of this.lastCardPositions.keys()) {
+      if (!liveIds.has(id)) this.lastCardPositions.delete(id);
+    }
+  }
+
   private refreshPhaseStripDim(): void {
     let active = false;
     for (const rec of this.regions.values()) {
@@ -957,6 +975,8 @@ export class BoardScene {
         ...(isLocal ? this.localBlockers() : []),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
+      getCombatGuestLayer: () => this.combatGuestLayer,
+      recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
@@ -1033,13 +1053,15 @@ export class BoardScene {
     if (isLocal && this.hand) {
       const live = this.hand.getLiveSpriteTransform(cardId);
       if (live) return live;
-      const stack = this.stackCardSeeds.get(cardId);
-      if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
+    }
+    const remembered = this.lastCardPositions.get(cardId);
+    if (remembered) return remembered;
+    const stack = this.stackCardSeeds.get(cardId);
+    if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
+    if (isLocal && this.hand) {
       const origin = this.hand.getOriginSeed();
       return { x: origin.x, y: origin.y, scaleX: origin.scale, scaleY: origin.scale };
     }
-    const stack = this.stackCardSeeds.get(cardId);
-    if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
     const zone = this.regions.get(playerId)?.zone;
     const scale = this.cardScale;
     if (!zone) return { x: 0, y: 0, scaleX: scale, scaleY: scale };
@@ -1393,10 +1415,25 @@ export class BoardScene {
       return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
+    const attackTargetCounts = new Map<string, number>();
+    for (const s of this.arrowSpecs) {
+      if (s.type === "attack" && s.to.kind === "player") {
+        attackTargetCounts.set(s.to.id, (attackTargetCounts.get(s.to.id) ?? 0) + 1);
+      }
+    }
+    const attackTargetSeen = new Map<string, number>();
     for (const spec of this.arrowSpecs) {
       const from = this.resolveArrowEndpoint(spec.from, canvasRect);
       const to = this.resolveTargetEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
+      if (spec.type === "attack" && spec.to.kind === "player") {
+        const total = attackTargetCounts.get(spec.to.id) ?? 1;
+        if (total > 1) {
+          const idx = attackTargetSeen.get(spec.to.id) ?? 0;
+          attackTargetSeen.set(spec.to.id, idx + 1);
+          to.pos.x += (idx - (total - 1) / 2) * ATTACK_ARROW_LANE_PX;
+        }
+      }
       const pointer = this.theme.gameTheme.pointer;
       const color =
         spec.hostile == null

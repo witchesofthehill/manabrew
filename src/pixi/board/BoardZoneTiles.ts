@@ -27,8 +27,9 @@ export interface ZoneTileSpec {
   back?: boolean;
   /** Highlight colour when the zone is playable/targetable (else none). */
   highlightColor?: string;
-  /** The command zone holding a commander — draws the commander helm badge. */
-  commander?: boolean;
+  /** Seat colour for the commander helm badge; absent when the zone holds no
+   *  commander. */
+  commander?: string;
   onOpen?: () => void;
 }
 
@@ -310,13 +311,9 @@ export class BoardZoneTiles {
           tile.outline.circle(bcx, bcy, br);
           tile.outline.fill({ color: hexToNum(gt.canvas.shadow), alpha: 0.85 });
           tile.outline.circle(bcx, bcy, br);
-          tile.outline.stroke({
-            color: hexToNum(gt.badges.commanderDamage),
-            width: 1.5,
-            alpha: 0.9,
-          });
+          tile.outline.stroke({ color: hexToNum(spec.commander), width: 1.5, alpha: 0.9 });
           const bs = Math.round(br * 1.5);
-          applyIcon(tile.badge, "overlord-helm", gt.badges.commanderDamage, 64, bs, bs);
+          applyIcon(tile.badge, "overlord-helm", spec.commander, 64, bs, bs);
           tile.badge.position.set(bcx, bcy);
           tile.badge.visible = true;
         } else if (tile.badge) {

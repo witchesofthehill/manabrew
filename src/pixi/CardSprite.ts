@@ -327,8 +327,9 @@ export class CardSprite extends Container {
   private hoverDebugGfx: Graphics;
   private _imageLoaded = false;
   private readonly isBattlefield: boolean;
-  private readonly cw: number;
-  private readonly ch: number;
+  private cw: number;
+  private ch: number;
+  onReorient?: () => void;
   private previewFace: 0 | 1 | null = null;
   private loadGeneration = 0;
 
@@ -542,6 +543,35 @@ export class CardSprite extends Container {
     return this.cw > this.ch;
   }
 
+  // Image fit + frame are left for the caller (`loadImage`) to repaint.
+  private reapplyOrientation(): void {
+    const horizontal = this.isHorizontal();
+    const cw = horizontal ? CARD_H : CARD_W;
+    const ch = horizontal ? CARD_W : CARD_H;
+    if (cw === this.cw && ch === this.ch) return;
+    this.cw = cw;
+    this.ch = ch;
+    this.placeholderGfx.clear();
+    this.placeholderGfx.roundRect(0, 0, cw, ch, CARD_RADIUS);
+    this.placeholderGfx.fill({
+      color: hexToNum(activeTheme.gameTheme.cardPlaceholder.fill),
+      alpha: 0.8,
+    });
+    this.placeholderGfx.stroke({
+      color: hexToNum(activeTheme.gameTheme.cardPlaceholder.stroke),
+      width: 1,
+    });
+    const neutral = hexToNum(activeTheme.gameTheme.canvas.neutral);
+    for (const m of [this.imageMask, this.frameMask, this.edgeGlowMask]) {
+      m.clear();
+      m.roundRect(0, 0, cw, ch, CARD_RADIUS).fill(neutral);
+    }
+    this.nameText.position.set(cw / 2, ch / 2);
+    this.foilStar.x = cw - 3;
+    this.pivot.set(cw / 2, ch / 2);
+    this.onReorient?.();
+  }
+
   private fitImageToSlot(): void {
     if (this.isHorizontal()) {
       this.imageSpr.anchor.set(0.5, 0.5);
@@ -573,6 +603,7 @@ export class CardSprite extends Container {
       tex = Texture.EMPTY;
     }
     if (this.destroyed || generation !== this.loadGeneration) return;
+    this.reapplyOrientation();
     if (tex !== Texture.EMPTY) {
       this.imageSpr.texture = tex;
       if (custom) this.fitArtCover();

@@ -206,6 +206,8 @@ export class BoardScene {
   private delimCurrent: number[] = [];
   private delimTarget: number[] = [];
   private focusPlayerId: string | null = null;
+  private combatFocusIds: string[] = [];
+  private manualFocusId: string | null = null;
   private draggingDelim: number | null = null;
   private hoveredOpponentId: string | null = null;
   private gripLayer: Container;
@@ -402,22 +404,55 @@ export class BoardScene {
     this.recomputeDelimTarget();
   }
 
+  /** Opponents being attacked this combat — expanded (even-split among them
+   *  when more than one) over the turn focus, so combat is always visible. */
+  setCombatFocus(playerIds: string[]): void {
+    if (
+      this.combatFocusIds.length === playerIds.length &&
+      this.combatFocusIds.every((id, i) => id === playerIds[i])
+    ) {
+      return;
+    }
+    this.combatFocusIds = playerIds;
+    this.recomputeDelimTarget();
+  }
+
+  /** Keyboard-cycled focus — an explicit single-field pick that wins over the
+   *  combat and turn focus (hover still floats on top). Null releases it. */
+  setManualFocus(playerId: string | null): void {
+    if (this.manualFocusId === playerId) return;
+    this.manualFocusId = playerId;
+    this.recomputeDelimTarget();
+  }
+
   private recomputeDelimTarget(): void {
     const n = this.opponentIds.length;
-    // Hover opens a field the same way its turn does, and takes priority over
-    // the turn focus while the cursor is over it.
-    const focus = this.hoveredOpponentId ?? this.focusPlayerId;
-    const idx = focus ? this.opponentIds.indexOf(focus) : -1;
-    if (n <= 1 || this.boardWidth <= 0 || idx < 0) {
+    // Precedence: hover (momentary) > manual keyboard pick > combat (the set of
+    // attacked opponents) > turn focus.
+    const focusIds = this.hoveredOpponentId
+      ? [this.hoveredOpponentId]
+      : this.manualFocusId
+        ? [this.manualFocusId]
+        : this.combatFocusIds.length > 0
+          ? this.combatFocusIds
+          : this.focusPlayerId
+            ? [this.focusPlayerId]
+            : [];
+    const focused = new Set<number>();
+    for (const id of focusIds) {
+      const i = this.opponentIds.indexOf(id);
+      if (i >= 0) focused.add(i);
+    }
+    if (n <= 1 || this.boardWidth <= 0 || focused.size === 0) {
       this.delimTarget = evenDelimiters(n);
       return;
     }
     const banner = COLLAPSED_OPPONENT_WIDTH_PX / this.boardWidth;
-    const focused = Math.max(banner, 1 - (n - 1) * banner);
+    const each = Math.max(banner, (1 - (n - focused.size) * banner) / focused.size);
     const target: number[] = [];
     let acc = 0;
     for (let i = 0; i < n - 1; i++) {
-      acc += i === idx ? focused : banner;
+      acc += focused.has(i) ? each : banner;
       target.push(acc);
     }
     this.delimTarget = target;
@@ -1049,13 +1084,13 @@ export class BoardScene {
     playerId: string,
     isLocal: boolean,
     cardId: string,
-  ): { x: number; y: number; scaleX: number; scaleY: number } {
+  ): { x: number; y: number; scaleX: number; scaleY: number; glide?: boolean } {
     if (isLocal && this.hand) {
       const live = this.hand.getLiveSpriteTransform(cardId);
       if (live) return live;
     }
     const remembered = this.lastCardPositions.get(cardId);
-    if (remembered) return remembered;
+    if (remembered) return { ...remembered, glide: true };
     const stack = this.stackCardSeeds.get(cardId);
     if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
     if (isLocal && this.hand) {

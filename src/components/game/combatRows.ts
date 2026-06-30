@@ -35,7 +35,7 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
 
   const attackerDefender = new Map<string, string>();
   for (const c of battlefield) {
-    if (!c.isAttacking || !c.attackingPlayerId || c.controllerId === selfId) continue;
+    if (!c.isAttacking || !c.attackingPlayerId) continue;
     const defenderId = defenderOf(c.attackingPlayerId);
     if (!defenderId || defenderId === selfId) continue;
     attackerDefender.set(c.id, defenderId);

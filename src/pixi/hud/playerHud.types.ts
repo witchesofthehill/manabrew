@@ -29,6 +29,8 @@ export interface PlayerHudSpec {
   isEliminated: boolean;
   isDisconnected: boolean;
   inCombat: boolean;
+  /** Facing lethal unblocked combat damage — the combat ring pulses harder. */
+  combatLethal: boolean;
   manaPool: Record<string, number>;
   badges: PlayerHudBadge[];
 }

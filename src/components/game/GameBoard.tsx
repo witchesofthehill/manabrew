@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
@@ -240,10 +240,12 @@ export function GameBoard({
   // expanded once the turn returns to us, until we hover a different board.
   const isSelfTurn = !opponents.some((op) => op.id === activePlayerId);
   const [stickyOpponentId, setStickyOpponentId] = useState<string | null>(null);
+  const [manualFocusId, setManualFocusId] = useState<string | null>(null);
   const [prevActivePlayerId, setPrevActivePlayerId] = useState(activePlayerId);
   if (activePlayerId !== prevActivePlayerId) {
     setPrevActivePlayerId(activePlayerId);
     if (!isSelfTurn) setStickyOpponentId(activePlayerId);
+    setManualFocusId(null);
   }
 
   const attackingCardIdSet = useMemo(() => {
@@ -540,6 +542,32 @@ export function GameBoard({
     return opponents[0]?.id ?? null;
   }, [isSelfTurn, activePlayerId, stickyOpponentId, opponents]);
 
+  const combatFocusIds = useMemo(
+    () => [...new Set(combatRows.map((r) => r.defenderId))],
+    [combatRows],
+  );
+
+  useEffect(() => {
+    if (opponents.length === 0) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.code !== "BracketLeft" && e.code !== "BracketRight") return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      e.preventDefault();
+      const ids = opponents.map((o) => o.id);
+      const dir = e.code === "BracketRight" ? 1 : -1;
+      setManualFocusId((cur) => {
+        const i = cur ? ids.indexOf(cur) : -1;
+        if (i < 0) return dir === 1 ? ids[0]! : ids[ids.length - 1]!;
+        const next = i + dir;
+        return next < 0 || next >= ids.length ? null : ids[next]!;
+      });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [opponents]);
+
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.
   const hoveredOpponentRef = useRef<string | null>(null);
@@ -703,6 +731,7 @@ export function GameBoard({
         ),
         ...cmdDamageBadges(player),
       ];
+      const incoming = incomingDamageByPlayer.get(player.id) ?? 0;
       return {
         playerId: player.id,
         name: player.name,
@@ -723,6 +752,7 @@ export function GameBoard({
           ? true
           : !isSelf && player.isHuman && roomByName.get(player.name)?.connected === false,
         inCombat: combatEngagedIds.has(player.id),
+        combatLethal: incoming > 0 && incoming >= (dev.life ?? player.life),
         manaPool: player.manaPool,
         badges,
       };
@@ -972,8 +1002,11 @@ export function GameBoard({
 
   const unifiedRegions = useMemo((): BoardCanvasRegion[] => {
     const seatColorOf = (pid: string): string =>
-      playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
-    const nameOf = (pid: string): string => opponents.find((o) => o.id === pid)?.name ?? "Player";
+      pid === me.id
+        ? playerColors.self
+        : playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
+    const nameOf = (pid: string): string =>
+      pid === me.id ? "You" : (opponents.find((o) => o.id === pid)?.name ?? "Player");
     const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
       cards,
       attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
@@ -990,9 +1023,11 @@ export function GameBoard({
       })),
     });
 
-    const oppCards = new Map<string, CardDto[]>();
+    const selfCards = [...pixiBattlefield.cards];
+    const cardsByController = new Map<string, CardDto[]>();
+    cardsByController.set(me.id, selfCards);
     for (const op of opponents)
-      oppCards.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
+      cardsByController.set(op.id, [...(opponentPermanentsByPlayer.get(op.id) ?? [])]);
     const combatRowByDefender = new Map<string, CombatRow>();
     const cardById = new Map(battlefield.map((c) => [c.id, c]));
     const attachedTo = new Map<string, CardDto[]>();
@@ -1003,14 +1038,14 @@ export function GameBoard({
     const moveToDefender = (id: string, defList: CardDto[]) => {
       const card = cardById.get(id);
       if (!card) return;
-      const ctrl = oppCards.get(card.controllerId);
+      const ctrl = cardsByController.get(card.controllerId);
       const idx = ctrl?.findIndex((c) => c.id === id) ?? -1;
       if (ctrl && idx >= 0) ctrl.splice(idx, 1);
       defList.push(card);
       for (const child of attachedTo.get(id) ?? []) moveToDefender(child.id, defList);
     };
     for (const row of combatRows) {
-      const defList = oppCards.get(row.defenderId);
+      const defList = cardsByController.get(row.defenderId);
       if (!defList) continue;
       for (const attackerId of row.attackerIds) moveToDefender(attackerId, defList);
       combatRowByDefender.set(row.defenderId, row);
@@ -1024,7 +1059,7 @@ export function GameBoard({
       {
         playerId: me.id,
         isLocal: true,
-        state: { ...pixiBattlefield, ownerRingByCard },
+        state: { ...pixiBattlefield, cards: selfCards, ownerRingByCard },
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat
@@ -1040,7 +1075,7 @@ export function GameBoard({
         playerId: op.id,
         isLocal: false,
         state: {
-          ...oppState(oppCards.get(op.id) ?? [], combatRowByDefender.get(op.id)),
+          ...oppState(cardsByController.get(op.id) ?? [], combatRowByDefender.get(op.id)),
           ownerRingByCard,
         },
         playmat: hiddenPlaymats.has(op.id) ? undefined : gameDecks[op.id]?.playmat,
@@ -1112,6 +1147,31 @@ export function GameBoard({
     return `${turn}${players}.`;
   }, [playerBarSpecs]);
 
+  const combatA11y = useMemo(() => {
+    const nameOf = (id: string) =>
+      id === me.id ? "You" : (opponents.find((o) => o.id === id)?.name ?? "a player");
+    const pairs = new Map<string, { attacker: string; defender: string; count: number }>();
+    for (const c of battlefield) {
+      if (!c.isAttacking || !c.attackingPlayerId) continue;
+      const key = `${c.controllerId}->${c.attackingPlayerId}`;
+      const e = pairs.get(key);
+      if (e) e.count += 1;
+      else
+        pairs.set(key, {
+          attacker: nameOf(c.controllerId),
+          defender: nameOf(c.attackingPlayerId),
+          count: 1,
+        });
+    }
+    if (pairs.size === 0) return "";
+    return `${[...pairs.values()]
+      .map(
+        (p) =>
+          `${p.attacker} ${p.attacker === "You" ? "attack" : "attacks"} ${p.defender} with ${p.count} ${p.count === 1 ? "attacker" : "attackers"}`,
+      )
+      .join(". ")}.`;
+  }, [battlefield, opponents, me.id]);
+
   return (
     <div
       ref={setBoardRef}
@@ -1120,6 +1180,9 @@ export function GameBoard({
       <ReconnectBanner />
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {a11ySummary}
+      </div>
+      <div className="sr-only" aria-live="assertive" aria-atomic="true">
+        {combatA11y}
       </div>
       <div ref={battlefieldContainerRef} className="absolute inset-0 z-10 overflow-hidden">
         <BoardCanvas
@@ -1132,6 +1195,8 @@ export function GameBoard({
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
           focusedOpponentId={focusedOpponentId}
+          combatFocusIds={combatFocusIds}
+          manualFocusId={manualFocusId}
           playerBars={playerBarSpecs}
           showPlayerBars
           zoneTiles={zoneTilesByPlayer}

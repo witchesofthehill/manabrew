@@ -139,6 +139,7 @@ export class PlayerHudCapsule {
   private offlineActive = false;
   private combatPulse: gsap.core.Tween | null = null;
   private combatActive = false;
+  private combatLethalActive = false;
   private gearHovered = false;
   private gearCx = 0;
   private gearCy = 0;
@@ -318,6 +319,7 @@ export class PlayerHudCapsule {
       s.isEliminated,
       s.isDisconnected,
       s.inCombat,
+      s.combatLethal,
       s.color,
       s.name,
       s.isBot,
@@ -1047,25 +1049,27 @@ export class PlayerHudCapsule {
   }
 
   private applyCombatGlow(): void {
-    if (this.spec.inCombat === this.combatActive) {
+    const lethal = this.spec.combatLethal;
+    if (this.spec.inCombat === this.combatActive && lethal === this.combatLethalActive) {
       if (this.combatActive) this.drawCombatGlow();
       return;
     }
     this.combatActive = this.spec.inCombat;
+    this.combatLethalActive = lethal;
+    this.combatPulse?.kill();
+    this.combatPulse = null;
     if (this.combatActive) {
       this.drawCombatGlow();
       this.combatGlow.visible = true;
       this.combatGlow.alpha = 1;
       this.combatPulse = gsap.to(this.combatGlow, {
-        alpha: 0.5,
-        duration: 0.9,
+        alpha: lethal ? 0.7 : 0.5,
+        duration: lethal ? 0.4 : 0.9,
         ease: "sine.inOut",
         repeat: -1,
         yoyo: true,
       });
     } else {
-      this.combatPulse?.kill();
-      this.combatPulse = null;
       this.combatGlow.visible = false;
       this.combatGlow.clear();
     }
@@ -1075,11 +1079,18 @@ export class PlayerHudCapsule {
     this.combatGlow.clear();
     const r = this.avatarDia / 2;
     const red = hexToNum(this.theme.gameTheme.pt.lethal);
-    for (const layer of [
-      { rr: r + 5, w: 7, a: 0.18 },
-      { rr: r + 2, w: 4, a: 0.45 },
-      { rr: r, w: 2, a: 0.95 },
-    ]) {
+    const layers = this.combatLethalActive
+      ? [
+          { rr: r + 8, w: 10, a: 0.25 },
+          { rr: r + 3, w: 6, a: 0.6 },
+          { rr: r, w: 3, a: 1 },
+        ]
+      : [
+          { rr: r + 5, w: 7, a: 0.18 },
+          { rr: r + 2, w: 4, a: 0.45 },
+          { rr: r, w: 2, a: 0.95 },
+        ];
+    for (const layer of layers) {
       this.combatGlow.circle(this.avatarCx, this.avatarCy, layer.rr);
       this.combatGlow.stroke({ color: red, width: layer.w, alpha: layer.a });
     }

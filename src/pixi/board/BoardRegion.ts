@@ -78,6 +78,7 @@ interface BoardRegionOptions {
 }
 
 const ENTRANCE_LAND_PX = 8;
+const GLIDE_LAND_PX = 24;
 
 const COMBAT_ROW_PAD_Y = 8;
 const COMBAT_ROW_INSET_X = 12;
@@ -129,6 +130,7 @@ export class BoardRegion {
   private combatStaging: SceneCombatStaging | null = null;
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
+  private combatRowBlockerIds = new Set<string>();
   private combatRowGroups: NonNullable<BattlefieldState["combatRowGroups"]> = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
@@ -493,6 +495,17 @@ export class BoardRegion {
         scaleX: s.scale.x,
         scaleY: s.scale.y,
       });
+      if (entry.gliding) {
+        const dx = s.x - entry.targetX;
+        const dy = s.y - entry.targetY;
+        if (dx * dx + dy * dy <= GLIDE_LAND_PX * GLIDE_LAND_PX) entry.gliding = false;
+      }
+      const wantGuest =
+        this.combatRowAttackerIds.has(id) ||
+        this.combatRowBlockerIds.has(id) ||
+        entry.gliding === true;
+      const parent = wantGuest ? this.host.getCombatGuestLayer() : this.container;
+      if (s.parent !== parent) parent.addChild(s);
       if (entry.pendingEntrance) {
         const dx = s.x - entry.targetX;
         const dy = s.y - entry.targetY;
@@ -541,7 +554,10 @@ export class BoardRegion {
       s.setEntryGlowAlpha(entry.etbGlowAlpha);
 
       const isHovered = this.hoveredCardId === s.card.id;
-      const targetScale = this.cardScale * (isHovered ? HOVER_SCALE : 1);
+      // Landscape cards (split/battle/room) are CARD_H wide, so shrink them to
+      // the portrait cell width to sit in the grid without overlapping.
+      const fit = s.horizontalFrame ? CARD_W / CARD_H : 1;
+      const targetScale = this.cardScale * fit * (isHovered ? HOVER_SCALE : 1);
       entry.scaleBase = lerp(entry.scaleBase, targetScale, HOVER_SCALE_LERP, SNAP_SCALE);
       const fx = s.fxScale;
       s.scale.set(entry.scaleBase * fx.x, entry.scaleBase * fx.y);
@@ -570,6 +586,7 @@ export class BoardRegion {
     this.lastState = state;
     this.combatRowAttackerIds = new Set(state.combatRowAttackerIds ?? []);
     this.combatRowBlocks = state.combatRowBlocks ?? [];
+    this.combatRowBlockerIds = new Set(this.combatRowBlocks.map((b) => b.blockerId));
     this.combatRowGroups = state.combatRowGroups ?? [];
     const cardMap = new Map<string, CardDto>(state.cards.map((c) => [c.id, c]));
     const currentIds = new Set(state.cards.map((c) => c.id));
@@ -684,7 +701,7 @@ export class BoardRegion {
           const guest =
             this.combatRowAttackerIds.has(card.id) ||
             this.combatRowAttackerIds.has(effectiveParent.get(card.id) ?? "");
-          if (!guest) {
+          if (!guest && !entry.gliding) {
             entry.etbGlowAlpha = 1;
             entry.pendingEntrance = true;
           }
@@ -1268,8 +1285,10 @@ export class BoardRegion {
       entry.exiting = false;
       entry.sprite.alpha = 1;
     }
-    const parent = guest ? this.host.getCombatGuestLayer() : this.container;
-    if (entry.sprite.parent !== parent) parent.addChild(entry.sprite);
+    if (guest) {
+      const gl = this.host.getCombatGuestLayer();
+      if (entry.sprite.parent !== gl) gl.addChild(entry.sprite);
+    }
     entry.targetX = centerX;
     entry.targetY = centerY;
     entry.targetZIndex = zIndex;
@@ -1311,6 +1330,7 @@ export class BoardRegion {
       scaleBase: sprite.scale.x,
       shakeFrames: 0,
       pendingEntrance: false,
+      gliding: seed.glide ?? false,
       overlay: null,
     });
   }

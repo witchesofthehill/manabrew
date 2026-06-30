@@ -105,6 +105,12 @@ export interface RegionHost {
   /** Seed transform for a newly-entering battlefield sprite (mirror of a
    *  hand sprite / stack card / hand-fan origin). */
   getEntrySeed(cardId: string): { x: number; y: number; scaleX: number; scaleY: number };
+  /** Remember a card's last on-screen transform as it leaves a region, so a
+   *  respawn in another region (combat-row move) seeds there and glides in. */
+  recordCardExit(
+    cardId: string,
+    seed: { x: number; y: number; scaleX: number; scaleY: number },
+  ): void;
   isSelected(cardId: string): boolean;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
   /** Wire pointer events (drag/tap/hover) on a new battlefield sprite. */

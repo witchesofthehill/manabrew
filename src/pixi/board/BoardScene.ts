@@ -176,6 +176,10 @@ export class BoardScene {
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
+  private lastCardPositions = new Map<
+    string,
+    { x: number; y: number; scaleX: number; scaleY: number }
+  >();
   private stackProvider: StackAnchorProvider | null = null;
 
   private hoveredCell: GridCell | null = null;
@@ -957,6 +961,7 @@ export class BoardScene {
         ...(isLocal ? this.localBlockers() : []),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
+      recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
@@ -1033,13 +1038,18 @@ export class BoardScene {
     if (isLocal && this.hand) {
       const live = this.hand.getLiveSpriteTransform(cardId);
       if (live) return live;
-      const stack = this.stackCardSeeds.get(cardId);
-      if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
-      const origin = this.hand.getOriginSeed();
-      return { x: origin.x, y: origin.y, scaleX: origin.scale, scaleY: origin.scale };
+    }
+    const remembered = this.lastCardPositions.get(cardId);
+    if (remembered) {
+      this.lastCardPositions.delete(cardId);
+      return remembered;
     }
     const stack = this.stackCardSeeds.get(cardId);
     if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
+    if (isLocal && this.hand) {
+      const origin = this.hand.getOriginSeed();
+      return { x: origin.x, y: origin.y, scaleX: origin.scale, scaleY: origin.scale };
+    }
     const zone = this.regions.get(playerId)?.zone;
     const scale = this.cardScale;
     if (!zone) return { x: 0, y: 0, scaleX: scale, scaleY: scale };

@@ -1222,6 +1222,13 @@ export class BoardRegion {
     for (const [id, entry] of this.entries) {
       if (currentIds.has(id) || entry.exiting) continue;
       entry.exiting = true;
+      const c = this.localToCanvas(entry.sprite.x, entry.sprite.y);
+      this.host.recordCardExit(id, {
+        x: c.x,
+        y: c.y,
+        scaleX: entry.sprite.scale.x,
+        scaleY: entry.sprite.scale.y,
+      });
       if (entry.overlay) entry.overlay.visible = false;
       this.userPlacedCards.delete(id);
     }

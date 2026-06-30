@@ -7,7 +7,6 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import type { CardDto, PlayerDto, StackObjectDto } from "@/protocol/game";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
@@ -50,6 +49,7 @@ import { declareAttackersOutput } from "@/components/prompts/internal/playerActi
 import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
+import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
@@ -1014,12 +1014,12 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
-  const combatPairings = useMemo(() => {
+  const combatPairings = useMemo<CombatPairing[]>(() => {
     const nameOf = (id: string) =>
       id === myPlayerSlot
         ? "You"
         : (gameView?.players?.find((p) => p.id === id)?.name ?? "A player");
-    const pairs = new Map<string, { attacker: string; defender: string; count: number }>();
+    const pairs = new Map<string, CombatPairing>();
     for (const c of gameView?.battlefield ?? []) {
       if (!c.isAttacking || !c.attackingPlayerId) continue;
       const key = `${c.controllerId}->${c.attackingPlayerId}`;
@@ -1027,28 +1027,14 @@ export default function Game({ exitTo }: GameProps = {}) {
       if (existing) existing.count += 1;
       else
         pairs.set(key, {
+          key,
           attacker: nameOf(c.controllerId),
           defender: nameOf(c.attackingPlayerId),
           count: 1,
         });
     }
-    return pairs;
+    return [...pairs.values()];
   }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
-  const combatSignature = useMemo(
-    () => [...combatPairings.keys()].sort().join("|"),
-    [combatPairings],
-  );
-  const prevCombatSignature = useRef("");
-  useEffect(() => {
-    if (combatSignature && combatSignature !== prevCombatSignature.current) {
-      for (const { attacker, defender, count } of combatPairings.values()) {
-        toast(`${attacker} ${attacker === "You" ? "attack" : "attacks"} ${defender}`, {
-          description: `${count} ${count === 1 ? "attacker" : "attackers"}`,
-        });
-      }
-    }
-    prevCombatSignature.current = combatSignature;
-  }, [combatSignature, combatPairings]);
 
   const cardZoneTiles = useMemo(() => {
     const map = new Map<string, { playerId: string; key: string }>();
@@ -1634,6 +1620,7 @@ export default function Game({ exitTo }: GameProps = {}) {
                 blockRestrictionHint={blockRestrictionHint}
                 attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
                 blockAssignments={blockAssignments}
+                combatPairings={combatPairings}
                 onDeclareBlockers={(assignments) =>
                   respond({ type: "declareBlockers", assignments })
                 }

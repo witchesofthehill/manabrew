@@ -10,6 +10,13 @@ export interface CombatAssignment {
   attackerId: string;
 }
 
+export interface CombatPairing {
+  key: string;
+  attacker: string;
+  defender: string;
+  count: number;
+}
+
 export type FlashItem =
   | { kind: "card"; cardId: string; cardName: string; setCode: string }
   | { kind: "turn"; playerId: string; playerName: string };
@@ -65,6 +72,7 @@ export interface MainActionOverlayProps {
   blockRestrictionHint?: string | null;
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
+  combatPairings: CombatPairing[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
   damageOrderTotal: number;

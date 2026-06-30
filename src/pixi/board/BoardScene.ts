@@ -98,6 +98,7 @@ export interface BoardPlayerSpec {
 const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
 const GRIP_HIT_WIDTH_PX = 16;
+const ATTACK_ARROW_LANE_PX = 18;
 
 /* ─────────────────────────────────────────────────────────────────────────
  * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
@@ -1403,10 +1404,27 @@ export class BoardScene {
       return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
+    // Lane attack arrows that converge on the same player so several attackers
+    // don't stack their heads on one avatar.
+    const attackTargetCounts = new Map<string, number>();
+    for (const s of this.arrowSpecs) {
+      if (s.type === "attack" && s.to.kind === "player") {
+        attackTargetCounts.set(s.to.id, (attackTargetCounts.get(s.to.id) ?? 0) + 1);
+      }
+    }
+    const attackTargetSeen = new Map<string, number>();
     for (const spec of this.arrowSpecs) {
       const from = this.resolveArrowEndpoint(spec.from, canvasRect);
       const to = this.resolveTargetEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
+      if (spec.type === "attack" && spec.to.kind === "player") {
+        const total = attackTargetCounts.get(spec.to.id) ?? 1;
+        if (total > 1) {
+          const idx = attackTargetSeen.get(spec.to.id) ?? 0;
+          attackTargetSeen.set(spec.to.id, idx + 1);
+          to.pos.x += (idx - (total - 1) / 2) * ATTACK_ARROW_LANE_PX;
+        }
+      }
       const pointer = this.theme.gameTheme.pointer;
       const color =
         spec.hostile == null

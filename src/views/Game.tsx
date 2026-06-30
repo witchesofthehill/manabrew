@@ -7,6 +7,7 @@ import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { CardDto, PlayerDto, StackObjectDto } from "@/protocol/game";
 import { GameModals } from "@/components/game/GameModals";
 import { GameOverScreen } from "@/components/game/GameOverScreen";
@@ -1012,6 +1013,39 @@ export default function Game({ exitTo }: GameProps = {}) {
         .map((c) => ({ attackerId: c.id, defenderId: c.attackingPlayerId! })),
     [gameView?.battlefield],
   );
+
+  const combatPairings = useMemo(() => {
+    const names = new Map((gameView?.players ?? []).map((p) => [p.id, p.name]));
+    const pairs = new Map<string, { attacker: string; defender: string; count: number }>();
+    for (const c of gameView?.battlefield ?? []) {
+      if (!c.isAttacking || !c.attackingPlayerId) continue;
+      const key = `${c.controllerId}->${c.attackingPlayerId}`;
+      const existing = pairs.get(key);
+      if (existing) existing.count += 1;
+      else
+        pairs.set(key, {
+          attacker: names.get(c.controllerId) ?? "A player",
+          defender: names.get(c.attackingPlayerId) ?? "a player",
+          count: 1,
+        });
+    }
+    return pairs;
+  }, [gameView?.battlefield, gameView?.players]);
+  const combatSignature = useMemo(
+    () => [...combatPairings.keys()].sort().join("|"),
+    [combatPairings],
+  );
+  const prevCombatSignature = useRef("");
+  useEffect(() => {
+    if (combatSignature && combatSignature !== prevCombatSignature.current) {
+      for (const { attacker, defender, count } of combatPairings.values()) {
+        toast(`${attacker} attacks ${defender}`, {
+          description: `${count} ${count === 1 ? "attacker" : "attackers"}`,
+        });
+      }
+    }
+    prevCombatSignature.current = combatSignature;
+  }, [combatSignature, combatPairings]);
 
   const cardZoneTiles = useMemo(() => {
     const map = new Map<string, { playerId: string; key: string }>();

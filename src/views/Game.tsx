@@ -3,6 +3,7 @@ import { asDeckCard } from "@/lib/decks";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
 import { partitionBoardTargets, validCardIdsInCards } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
@@ -697,14 +698,13 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
-  const { unifiedPass, activatePassUntilEot, spellStackModalOpen, setSpellStackModalOpen } =
-    usePromptEffects({
-      currentPrompt: activePrompt,
-      gameView,
-      isWaitingForResponse,
-      respond,
-      myPlayerId: _earlyMyPlayerId,
-    });
+  const { unifiedPass, spellStackModalOpen, setSpellStackModalOpen } = usePromptEffects({
+    currentPrompt: activePrompt,
+    gameView,
+    isWaitingForResponse,
+    respond,
+    myPlayerId: _earlyMyPlayerId,
+  });
 
   const passPriority = useCallback(() => {
     window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
@@ -712,8 +712,6 @@ export default function Game({ exitTo }: GameProps = {}) {
   }, [unifiedPass]);
   const unifiedPassRef = useRef(passPriority);
   unifiedPassRef.current = passPriority;
-  const activatePassUntilEotRef = useRef(activatePassUntilEot);
-  activatePassUntilEotRef.current = activatePassUntilEot;
   const payManaPrimaryRef = useRef(() => {});
   payManaPrimaryRef.current = () => {
     if (promptType !== "payManaCost") return;
@@ -825,31 +823,16 @@ export default function Game({ exitTo }: GameProps = {}) {
   useGameEventListeners();
   useGamePrefetch();
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.repeat) return;
-      if ((e.metaKey || e.ctrlKey) && e.code === "KeyS") {
-        e.preventDefault();
-        useStackUIStore.getState().toggleCollapsed();
-        return;
-      }
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+  useKeybindings({
+    "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
+    "open-dev-panel": () => useGameUIStore.getState().openDevPanel(),
+    "pass-priority": () => {
       if (manualApi) return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        if (document.querySelector('[role="dialog"]')) return;
-        if (confirmPromptRef.current()) return;
-        if (promptType === "chooseAction") {
-          unifiedPassRef.current();
-        }
-      } else if (e.code === "F6") {
-        e.preventDefault();
-        activatePassUntilEotRef.current();
-      }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [manualApi, promptType]);
+      if (document.querySelector('[role="dialog"]')) return;
+      if (confirmPromptRef.current()) return;
+      if (promptType === "chooseAction") unifiedPassRef.current();
+    },
+  });
 
   const me =
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??
@@ -1607,7 +1590,6 @@ export default function Game({ exitTo }: GameProps = {}) {
                 }
                 pendingAttackers={pendingAttackers}
                 onPassPriority={passPriority}
-                onPassUntilEot={activatePassUntilEot}
                 selectedAttackDefenderId={attackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}
                 onDeclareAttackers={(attackerIds, defenderId) =>

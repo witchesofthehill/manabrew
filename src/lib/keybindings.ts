@@ -99,6 +99,42 @@ export const KEYBINDINGS: KeybindingDef[] = [
     category: "Game",
     defaultCombo: { key: "f" },
   },
+  {
+    id: "pass-priority",
+    label: "Pass priority / confirm",
+    category: "Battlefield",
+    defaultCombo: { key: " " },
+  },
+  {
+    id: "toggle-stack",
+    label: "Collapse / expand the stack",
+    category: "Battlefield",
+    defaultCombo: { key: "s", mod: true },
+  },
+  {
+    id: "focus-next-field",
+    label: "Focus next opponent field",
+    category: "Battlefield",
+    defaultCombo: { key: "tab" },
+  },
+  {
+    id: "focus-prev-field",
+    label: "Focus previous opponent field",
+    category: "Battlefield",
+    defaultCombo: { key: "tab", shift: true },
+  },
+  {
+    id: "open-dev-panel",
+    label: "Open the dev panel",
+    category: "Battlefield",
+    defaultCombo: { key: "d", mod: true, shift: true },
+  },
+  {
+    id: "toggle-fullscreen",
+    label: "Toggle fullscreen",
+    category: "Battlefield",
+    defaultCombo: { key: "f", mod: true },
+  },
 ];
 
 export const IS_APPLE =

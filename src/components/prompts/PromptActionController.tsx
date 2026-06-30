@@ -51,7 +51,6 @@ interface PromptActionControllerProps {
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;
-  onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
   attackAssignmentCount: number;
@@ -107,7 +106,6 @@ export function PromptActionController({
   availableAttackerIds,
   pendingAttackers,
   onPassPriority,
-  onPassUntilEot: _onPassUntilEot,
   selectedAttackDefenderId,
   multipleAttackDefenders,
   attackAssignmentCount,
@@ -214,7 +212,6 @@ export function PromptActionController({
         onOpenPrompt={showPromptModal}
       />
     ),
-    passingUntilEot: () => <NoAction />,
     promptLabel: () => {
       const labels: Record<string, string> = {
         ["chooseBoardTargets"]: "Choose a target",

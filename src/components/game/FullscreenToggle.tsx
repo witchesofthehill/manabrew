@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 
 import { getPlatformType } from "@/platform";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { cn } from "@/lib/utils";
 
 export function FullscreenToggle() {
@@ -23,19 +24,7 @@ export function FullscreenToggle() {
     }
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "f" && e.key !== "F") return;
-      // Don't steal F while the user is typing into a field.
-      const target = e.target as HTMLElement | null;
-      if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      e.preventDefault();
-      toggle();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [toggle]);
+  useKeybindings({ "toggle-fullscreen": toggle });
 
   if (getPlatformType() !== "web") return null;
 
@@ -44,7 +33,7 @@ export function FullscreenToggle() {
     <button
       type="button"
       onClick={toggle}
-      title={isFullscreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}
+      title={isFullscreen ? "Exit fullscreen (⌘F)" : "Enter fullscreen (⌘F)"}
       aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
       className={cn(
         "absolute right-1.5 top-11 z-50 inline-flex h-8 w-8 items-center justify-center",

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import type { CardDto, PlayerDto } from "@/protocol/game";
 import type { Prompt } from "@/protocol";
 import { validCardIdsInCards, type BoardTargetBuckets } from "@/lib/boardTargets";
@@ -560,29 +561,20 @@ export function GameBoard({
     return myDefenders.size > 0 ? [...myDefenders] : [...attackingMe];
   }, [combatRows, me.id]);
 
-  useEffect(() => {
-    if (opponents.length === 0) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      let dir: 1 | -1;
-      if (e.code === "Tab") dir = e.shiftKey ? -1 : 1;
-      else if (e.code === "BracketRight") dir = 1;
-      else if (e.code === "BracketLeft") dir = -1;
-      else return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      e.preventDefault();
-      const ids = opponents.map((o) => o.id);
-      setManualFocusId((cur) => {
-        const i = cur ? ids.indexOf(cur) : -1;
-        if (i < 0) return dir === 1 ? ids[0]! : ids[ids.length - 1]!;
-        const next = i + dir;
-        return next < 0 || next >= ids.length ? null : ids[next]!;
-      });
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [opponents]);
+  const cycleField = (dir: 1 | -1) => {
+    if (opponents.length === 0 || document.querySelector('[role="dialog"]')) return;
+    const ids = opponents.map((o) => o.id);
+    setManualFocusId((cur) => {
+      const i = cur ? ids.indexOf(cur) : -1;
+      if (i < 0) return dir === 1 ? ids[0]! : ids[ids.length - 1]!;
+      const next = i + dir;
+      return next < 0 || next >= ids.length ? null : ids[next]!;
+    });
+  };
+  useKeybindings({
+    "focus-next-field": () => cycleField(1),
+    "focus-prev-field": () => cycleField(-1),
+  });
 
   // Which opponent's battleground the mouse is over (from the scene's hover
   // detection). Stashed for later use.

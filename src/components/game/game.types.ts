@@ -57,7 +57,6 @@ export interface MainActionOverlayProps {
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;
-  onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
   multipleAttackDefenders: boolean;
   attackAssignmentCount: number;

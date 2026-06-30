@@ -13,7 +13,6 @@ export const PROMPT_ACTION_VIEW_KEYS = [
   "payManaCost",
   "promptRequired",
   "promptLabel",
-  "passingUntilEot",
   "noAction",
   "mulligan",
   "mulliganPutBack",

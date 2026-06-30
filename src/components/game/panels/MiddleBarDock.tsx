@@ -69,20 +69,6 @@ export function MiddleBarDock({
     }
   }, []);
 
-  useEffect(() => {
-    if (!isWeb) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "f" && e.key !== "F") return;
-      const target = e.target as HTMLElement | null;
-      if (target?.matches?.("input, textarea, [contenteditable='true']")) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      e.preventDefault();
-      toggleFullscreen();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [toggleFullscreen, isWeb]);
-
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;
 

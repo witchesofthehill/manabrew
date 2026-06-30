@@ -264,10 +264,12 @@ export function CardPreview({
   const deckCard: DeckCard = asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const { setCode, cardNumber } = deckCard.identity;
+  // Empty set/number (e.g. the dev debug card) must fall through to a name-only
+  // lookup — passing "" builds a set+number key that never resolves an image.
   const cardFaces = useCardFaces({
     name: card.identity.name,
-    setCode,
-    cardNumber,
+    setCode: setCode || undefined,
+    cardNumber: cardNumber || undefined,
   });
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];

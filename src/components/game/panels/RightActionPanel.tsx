@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useGameUIStore } from "@/stores/useGameUIStore";
 import { PanelRightClose } from "lucide-react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
@@ -43,7 +43,8 @@ export function RightActionPanel({
   const clearPromptActionOverride = useGameDevStore((s) => s.clearPromptActionOverride);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
 
-  const [activeTab, setActiveTab] = useState<"log" | "snapshots" | "dev">("log");
+  const activeTab = useGameUIStore((s) => s.rightPanelTab);
+  const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
 
   if (collapsed) return null;
 

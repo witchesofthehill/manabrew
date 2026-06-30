@@ -48,15 +48,10 @@ export function usePromptEffects({
     pass(nextStop);
   }, [currentPrompt, gameView, isWaitingForResponse, pass, myPlayerId]);
 
-  function activatePassUntilEot() {
-    unifiedPass();
-  }
-
   const [spellStackModalOpen, setSpellStackModalOpen] = useState(false);
 
   return {
     unifiedPass,
-    activatePassUntilEot,
     spellStackModalOpen,
     setSpellStackModalOpen,
   };

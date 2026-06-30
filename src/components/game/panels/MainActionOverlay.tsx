@@ -9,7 +9,7 @@ import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { cn } from "@/lib/utils";
 
-const NO_ACTION_VIEWS: PromptActionViewKey[] = ["passingUntilEot", "noAction"];
+const NO_ACTION_VIEWS: PromptActionViewKey[] = ["noAction"];
 
 const PROMPT_TITLES: Partial<Record<string, string>> = {
   chooseAction: "Priority",
@@ -41,7 +41,6 @@ export function MainActionOverlay({
   availableAttackerIds,
   pendingAttackers,
   onPassPriority,
-  onPassUntilEot,
   selectedAttackDefenderId,
   multipleAttackDefenders,
   attackAssignmentCount,
@@ -238,7 +237,6 @@ export function MainActionOverlay({
                 availableAttackerIds={availableAttackerIds}
                 pendingAttackers={pendingAttackers}
                 onPassPriority={onPassPriority}
-                onPassUntilEot={onPassUntilEot}
                 selectedAttackDefenderId={selectedAttackDefenderId}
                 multipleAttackDefenders={multipleAttackDefenders}
                 attackAssignmentCount={attackAssignmentCount}

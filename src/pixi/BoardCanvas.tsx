@@ -484,6 +484,12 @@ export function BoardCanvas({
     scene?.setHoverDebug(showHoverAreas);
   }, [scene, showHoverAreas]);
 
+  const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
+
+  useEffect(() => {
+    scene?.setGridSkeletonDebug(showGridSkeleton);
+  }, [scene, showGridSkeleton]);
+
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
   useEffect(() => {
     setAnimationsEnabled(inGameAnimations);

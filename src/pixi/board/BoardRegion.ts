@@ -131,6 +131,7 @@ export class BoardRegion {
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
   private combatRowBlockerIds = new Set<string>();
+  private skeletonDebug = false;
   private combatRowGroups: NonNullable<BattlefieldState["combatRowGroups"]> = [];
   private combatRowGfx = new Graphics();
   private combatRowLabels: Text[] = [];
@@ -724,6 +725,7 @@ export class BoardRegion {
         }
       }
     }
+    if (this.skeletonDebug) this.refreshSkeletonDebug();
   }
 
   private applyAttackLunge(state: BattlefieldState): void {
@@ -1608,8 +1610,28 @@ export class BoardRegion {
   }
 
   hideGridSkeleton(): void {
+    if (this.skeletonDebug) {
+      this.refreshSkeletonDebug();
+      return;
+    }
     this.gridSkeletonGfx.visible = false;
     this.gridSkeletonGfx.clear();
+  }
+
+  /** Dev toggle: keep every grid cell's card skeleton drawn for this region,
+   *  not just during a drag, so the locked rows are visible for all players. */
+  setSkeletonDebug(on: boolean): void {
+    if (this.skeletonDebug === on) return;
+    this.skeletonDebug = on;
+    this.refreshSkeletonDebug();
+  }
+
+  private refreshSkeletonDebug(): void {
+    if (this.skeletonDebug) this.drawGridSkeleton(new Set(), null, null);
+    else {
+      this.gridSkeletonGfx.visible = false;
+      this.gridSkeletonGfx.clear();
+    }
   }
 
   drawGridSkeleton(
@@ -1619,7 +1641,7 @@ export class BoardRegion {
   ): void {
     const gfx = this.gridSkeletonGfx;
     gfx.clear();
-    if (!this.gridInfo || draggingIds.size === 0) {
+    if (!this.gridInfo || (draggingIds.size === 0 && !this.skeletonDebug)) {
       gfx.visible = false;
       return;
     }

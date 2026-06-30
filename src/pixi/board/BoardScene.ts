@@ -197,6 +197,7 @@ export class BoardScene {
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
   private autoSort = false;
+  private gridSkeletonDebug = false;
 
   // Delimiters (opponent clip bands). Owned and eased here, not in React.
   // `delimCurrent`/`delimTarget` are `count - 1` ascending fractions of width.
@@ -361,6 +362,7 @@ export class BoardScene {
       region.setPlaymat(spec.playmat);
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
+      region.setSkeletonDebug(this.gridSkeletonDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -968,6 +970,12 @@ export class BoardScene {
     setCardSpriteHoverDebug(on);
     for (const rec of this.regions.values()) rec.region.redrawHoverDebug();
     this.hand?.setHoverDebug(on);
+  }
+
+  setGridSkeletonDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.gridSkeletonDebug = on;
+    for (const rec of this.regions.values()) rec.region.setSkeletonDebug(on);
   }
 
   setTheme(theme: Theme): void {

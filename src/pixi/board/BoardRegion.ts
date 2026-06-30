@@ -8,6 +8,7 @@ import {
   cellFromPoint,
   cellKey,
   cellsByDistance,
+  combatRowReserve,
   computeGridLayout,
   type GridCell,
   type GridLayoutInfo,
@@ -38,6 +39,7 @@ import {
   EXIT_SHRINK,
   GAP,
   COMBAT_BLOCKER_OVERLAP_FRAC,
+  COMBAT_ROW_PAD_Y,
   COMBAT_ROW_STEP_FRAC,
   COMBAT_STAGE_FAN_FRAC,
   COMBAT_STAGE_PADDING_PX,
@@ -80,7 +82,6 @@ interface BoardRegionOptions {
 const ENTRANCE_LAND_PX = 8;
 const GLIDE_LAND_PX = 24;
 
-const COMBAT_ROW_PAD_Y = 8;
 const COMBAT_ROW_INSET_X = 12;
 const COMBAT_ROW_AVATAR_D = 24;
 
@@ -1388,15 +1389,19 @@ export class BoardRegion {
     return this.usableZone();
   }
 
-  /** The currently-VISIBLE field rect (usable zone ∩ clip band). The playmat
-   *  fits this so it sits inside each field with equal padding on all sides,
-   *  rather than being anchored to the fixed (canvas-right-extending) rect. */
+  /** The playmat's rect: the visible band horizontally (usable width ∩ clip),
+   *  but the FULL field height so it extends under the player panel / bar and
+   *  hand reserve rather than stopping at the reserve-trimmed usable zone. */
   private bandZone(): PlayZoneRect {
     const z = this.usableZone();
-    if (this.clipX === null || this.clipWidth === null) return z;
+    const y = this.zone.y;
+    const height = this.zone.height;
+    if (this.clipX === null || this.clipWidth === null) {
+      return { x: z.x, y, width: z.width, height };
+    }
     const left = Math.max(z.x, this.clipX);
     const right = Math.min(z.x + z.width, this.clipX + this.clipWidth);
-    return { x: left, y: z.y, width: Math.max(1, right - left), height: z.height };
+    return { x: left, y, width: Math.max(1, right - left), height };
   }
 
   private playArea(): PlayZoneRect {
@@ -1406,9 +1411,7 @@ export class BoardRegion {
     // three grid rows are sized once and never reflow when combat starts/ends;
     // the row just shows/hides inside the reserved strip.
     const reserve =
-      this.mirrored || this.combatRowAttackerIds.size > 0
-        ? CARD_H * this.cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX
-        : 0;
+      this.mirrored || this.combatRowAttackerIds.size > 0 ? combatRowReserve(this.cardScale) : 0;
     return {
       x: z.x + pad,
       y: z.y + pad,

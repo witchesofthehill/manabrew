@@ -13,12 +13,14 @@ import {
 } from "./hud/PlayerHudLayer";
 import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
 import type { ZoneTileSpec } from "./board/BoardZoneTiles";
-import { battlefieldScaleForFraction } from "./GridLayout";
+import { battlefieldScaleForFraction, combatRowReserve, maxScaleForRows } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
 import {
+  BATTLEFIELD_CARD_SCALE_FLOOR,
+  BATTLEFIELD_MIN_ROWS,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
   PIXI_MAX_FPS,
@@ -320,17 +322,22 @@ export function BoardCanvas({
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
     const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction);
-    // Subtract each region's reserved bands before picking the scale so ~3 rows
-    // stay visible in every region: the hand fan for self, the player bar (when
-    // shown) for opponents — otherwise the opponent grid loses a row to the bar.
+    // Each region is scaled to fill its OWN height — a single shared scale let
+    // the tightest field (self, after the hand-fan reserve) shrink everyone, so
+    // the roomier opponent fields wasted space. Self follows the card-scale
+    // preference; opponents lock to 3 rows beneath the always-reserved combat
+    // band (two passes: the band height depends on the scale it reserves).
     const oppTopReserve = showPlayerBars ? PLAYER_BAR_HEIGHT_PX + PLAYER_BAR_TOP_MARGIN_PX * 2 : 0;
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    const minHeight = Math.min(
-      selfUsable,
-      ...layout.opponents.map((o) => Math.max(1, o.rect.height - oppTopReserve)),
+    const selfScale = battlefieldScaleForFraction(selfUsable, fraction);
+    const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height - oppTopReserve));
+    const oppUsable = oppHeights.length ? Math.min(...oppHeights) : selfUsable;
+    const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
+    const oppScale = Math.max(
+      BATTLEFIELD_CARD_SCALE_FLOOR,
+      maxScaleForRows(Math.max(1, oppUsable - band), BATTLEFIELD_MIN_ROWS),
     );
-    const cardScale = battlefieldScaleForFraction(minHeight, fraction);
-    s.configure(players, layout, cardScale);
+    s.configure(players, layout, { self: selfScale, opponent: oppScale });
     const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,

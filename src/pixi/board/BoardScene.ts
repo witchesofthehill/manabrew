@@ -328,9 +328,13 @@ export class BoardScene {
     return this.app.canvas as HTMLCanvasElement;
   }
 
-  configure(players: BoardPlayerSpec[], layout: BoardLayout, cardScale: number): void {
+  configure(
+    players: BoardPlayerSpec[],
+    layout: BoardLayout,
+    scales: { self: number; opponent: number },
+  ): void {
     if (this.destroyed) return;
-    this.cardScale = cardScale;
+    this.cardScale = scales.self;
     const seen = new Set<string>();
     let oppIndex = 0;
 
@@ -338,6 +342,7 @@ export class BoardScene {
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
+      const regionScale = spec.isLocal ? scales.self : scales.opponent;
       // The clip bands tile the canvas (no overlap), so z-order is cosmetic.
       const zIndex = spec.isLocal ? 100 : 50;
       seen.add(spec.playerId);
@@ -346,7 +351,7 @@ export class BoardScene {
         existing.zone = zone;
         existing.region.container.zIndex = zIndex;
         existing.region.setZone(zone, orientation);
-        existing.region.setCardScale(cardScale);
+        existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
         existing.region.setPlaymat(spec.playmat);
         continue;
@@ -355,7 +360,7 @@ export class BoardScene {
         this.makeRegionHost(spec.playerId, spec.isLocal),
         this.root,
         zone,
-        cardScale,
+        regionScale,
         { orientation },
       );
       region.setPlaymatSettings(spec.playmatSettings);
@@ -393,7 +398,7 @@ export class BoardScene {
 
     this.positionPhaseStrip(layout);
     const selfZone = this.localZone();
-    this.dragHandler.setCardScale(cardScale);
+    this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
     if (selfZone && this.hand) this.dragHandler.setHandExclusion(this.hand.getBlockerRect());
   }

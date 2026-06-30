@@ -80,6 +80,7 @@ export const CAST_DRAG_HAND_SINK_PX = 200;
 export const EXIT_FADE_LERP = 0.2;
 export const EXIT_SHRINK = 0.95;
 export const COMBAT_STAGE_PADDING_PX = 6;
+export const COMBAT_ROW_PAD_Y = 8;
 // Extra upward tilt for the local player's staged creatures — the self region
 // sits right at the bar, so its creatures can come up a touch further.
 export const COMBAT_STAGE_SELF_EXTRA_PX = 18;

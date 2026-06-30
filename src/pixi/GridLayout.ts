@@ -11,8 +11,17 @@ import {
   BATTLEFIELD_MIN_ROWS,
   BATTLEFIELD_MAX_ROWS,
   BATTLEFIELD_CARD_SCALE_FLOOR,
+  COMBAT_ROW_PAD_Y,
+  COMBAT_STAGE_PADDING_PX,
 } from "./constants";
 import type { PlayZoneRect } from "./types";
+
+/** Vertical band an opponent field reserves at its inner edge for the combat
+ *  row, so the grid rows are sized once and never reflow when combat appears.
+ *  Single source of truth — `BoardRegion.playArea` carves the same amount, and
+ *  `BoardCanvas` subtracts it before picking the scale so 3 grid rows survive. */
+export const combatRowReserve = (cardScale: number): number =>
+  CARD_H * cardScale + COMBAT_ROW_PAD_Y * 2 + COMBAT_STAGE_PADDING_PX;
 
 export interface GridBlocker {
   x: number;

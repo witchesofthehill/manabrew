@@ -174,6 +174,8 @@ interface GameDevState {
   setShowHoverAreas: (value: boolean) => void;
   showGridSkeleton: boolean;
   setShowGridSkeleton: (value: boolean) => void;
+  showAttackRows: boolean;
+  setShowAttackRows: (value: boolean) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
   setDevToolsEnabled: (value: boolean) => void;
   clearPromptActionOverride: () => void;
@@ -211,6 +213,8 @@ export const useGameDevStore = create<GameDevState>()(
       setShowHoverAreas: (value) => set({ showHoverAreas: value }),
       showGridSkeleton: false,
       setShowGridSkeleton: (value) => set({ showGridSkeleton: value }),
+      showAttackRows: false,
+      setShowAttackRows: (value) => set({ showAttackRows: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
       setDevToolsEnabled: (value) => set({ devToolsEnabled: value }),
       clearPromptActionOverride: () => set({ promptActionOverride: null }),
@@ -251,6 +255,7 @@ export const useGameDevStore = create<GameDevState>()(
           debugCardName: "Raging Goblin",
           showHoverAreas: false,
           showGridSkeleton: false,
+          showAttackRows: false,
         }),
     }),
     { name: "gameDev", enabled: import.meta.env.DEV },

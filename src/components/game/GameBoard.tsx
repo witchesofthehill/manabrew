@@ -551,12 +551,15 @@ export function GameBoard({
     if (opponents.length === 0) return;
     function onKey(e: KeyboardEvent) {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.code !== "BracketLeft" && e.code !== "BracketRight") return;
+      let dir: 1 | -1;
+      if (e.code === "Tab") dir = e.shiftKey ? -1 : 1;
+      else if (e.code === "BracketRight") dir = 1;
+      else if (e.code === "BracketLeft") dir = -1;
+      else return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (document.querySelector('[role="dialog"]')) return;
       e.preventDefault();
       const ids = opponents.map((o) => o.id);
-      const dir = e.code === "BracketRight" ? 1 : -1;
       setManualFocusId((cur) => {
         const i = cur ? ids.indexOf(cur) : -1;
         if (i < 0) return dir === 1 ? ids[0]! : ids[ids.length - 1]!;
@@ -1007,12 +1010,7 @@ export function GameBoard({
         : playerColors[OPPONENT_SEATS[opponents.findIndex((o) => o.id === pid)] ?? "opponent1"];
     const nameOf = (pid: string): string =>
       pid === me.id ? "You" : (opponents.find((o) => o.id === pid)?.name ?? "Player");
-    const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
-      cards,
-      attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
-      orderedCardIds: damageOrder,
-      selectableCardIds: selectableBattlefieldCardIds,
-      hostileTargeting,
+    const rowFields = (combatRow?: CombatRow): Partial<BattlefieldState> => ({
       combatRowAttackerIds: combatRow?.attackerIds,
       combatRowBlocks: combatRow?.blocks,
       combatRowGroups: combatRow?.groups.map((g) => ({
@@ -1021,6 +1019,14 @@ export function GameBoard({
         avatarUrl: avatarByPlayerId.get(g.controllerId),
         attackerIds: g.attackerIds,
       })),
+    });
+    const oppState = (cards: CardDto[], combatRow?: CombatRow): BattlefieldState => ({
+      cards,
+      attackingCardIds: promptType === "chooseBlockers" ? promptAttackerIds : undefined,
+      orderedCardIds: damageOrder,
+      selectableCardIds: selectableBattlefieldCardIds,
+      hostileTargeting,
+      ...rowFields(combatRow),
     });
 
     const selfCards = [...pixiBattlefield.cards];
@@ -1059,7 +1065,12 @@ export function GameBoard({
       {
         playerId: me.id,
         isLocal: true,
-        state: { ...pixiBattlefield, cards: selfCards, ownerRingByCard },
+        state: {
+          ...pixiBattlefield,
+          cards: selfCards,
+          ...rowFields(combatRowByDefender.get(me.id)),
+          ownerRingByCard,
+        },
         playmat: hiddenPlaymats.has(me.id)
           ? undefined
           : myDeckHasPlaymat

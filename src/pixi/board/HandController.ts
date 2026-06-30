@@ -195,7 +195,7 @@ export class HandController {
       // them landscape to read, and they animate back on hover-out.
       const verticalInHand = sprite.horizontalFrame && this.flippedHorizontalId !== card.id;
       let rot = isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180;
-      if (verticalInHand) rot += Math.PI / 2;
+      if (verticalInHand) rot -= Math.PI / 2;
       this.targets.set(card.id, {
         x: centerX + l.x,
         y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,

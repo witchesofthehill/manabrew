@@ -990,12 +990,16 @@ export default function Game({ exitTo }: GameProps = {}) {
       gameView
         ? buildCombatRows({
             battlefield: gameView.battlefield,
-            combatAssignments,
-            selfId: me?.id ?? "",
+            combatAssignments: [
+              ...combatAssignments,
+              ...blockAssignments.filter(
+                (b) => !combatAssignments.some((c) => c.blockerId === b.blockerId),
+              ),
+            ],
             playerIds: gameView.players.map((p) => p.id),
           })
         : [],
-    [gameView, combatAssignments, me?.id],
+    [gameView, combatAssignments, blockAssignments],
   );
   const oppCombatAttackerIds = useMemo(
     () => new Set(combatRows.flatMap((r) => r.attackerIds)),

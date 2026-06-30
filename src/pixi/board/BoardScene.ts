@@ -198,6 +198,7 @@ export class BoardScene {
   private playerBlockers = new Map<string, BlockingRect[]>();
   private autoSort = false;
   private gridSkeletonDebug = false;
+  private attackRowDebug = false;
 
   // Delimiters (opponent clip bands). Owned and eased here, not in React.
   // `delimCurrent`/`delimTarget` are `count - 1` ascending fractions of width.
@@ -368,6 +369,7 @@ export class BoardScene {
       region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
       region.setSkeletonDebug(this.gridSkeletonDebug);
+      region.setAttackRowDebug(this.attackRowDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
@@ -983,6 +985,12 @@ export class BoardScene {
     for (const rec of this.regions.values()) rec.region.setSkeletonDebug(on);
   }
 
+  setAttackRowDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.attackRowDebug = on;
+    for (const rec of this.regions.values()) rec.region.setAttackRowDebug(on);
+  }
+
   setTheme(theme: Theme): void {
     if (this.destroyed) return;
     this.theme = theme;
@@ -1178,7 +1186,10 @@ export class BoardScene {
     sprite.eventMode = "static";
     sprite.cursor = "pointer";
     const region = this.regions.get(playerId)?.region;
-    if (isLocal) {
+    // A guest attacker sitting in the local player's combat row (an opponent's
+    // creature, controllerId ≠ us) must keep the attacker wiring — tap/drop to
+    // block — not the local drag wiring, or it can't be blocked.
+    if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         this.onBattlefieldCardDown(sprite, e);

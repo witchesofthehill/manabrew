@@ -895,7 +895,7 @@ export function GameBoard({
         topCard: top(myCommandZone!),
         onOpen: openCommandZone,
         highlightColor: (commandPlayableIds?.length ?? 0) > 0 ? active : undefined,
-        commander: true,
+        commander: playerColors.self,
       });
     }
 
@@ -904,7 +904,7 @@ export function GameBoard({
       isTargetingPrompt && boardTargets?.zone?.zone === zone
         ? validCardIdsInCards(boardTargets.zone.validCardIds, cards)
         : [];
-    for (const op of opponents) {
+    for (const [oppIndex, op] of opponents.entries()) {
       const gyTargets = opZoneTargetIds("Graveyard", op.graveyard);
       const exTargets = opZoneTargetIds("Exile", op.exile);
       const cmdTargets = opZoneTargetIds("Command", op.commandZone);
@@ -939,7 +939,7 @@ export function GameBoard({
           topCard: top(op.commandZone),
           onOpen: () => openOpZone(`${op.name}'s Command Zone`, op.commandZone, cmdTargets),
           highlightColor: cmdTargets.length > 0 ? targetColor : undefined,
-          commander: true,
+          commander: playerColors[OPPONENT_SEATS[oppIndex] ?? "opponent1"],
         });
       }
       byPlayer[op.id] = tiles;
@@ -950,6 +950,7 @@ export function GameBoard({
     me.libraryCount,
     opponents,
     gameTheme,
+    playerColors,
     myCommandZone,
     commandPlayableIds,
     graveyard,

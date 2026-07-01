@@ -1,4 +1,12 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import {
+  forwardRef,
+  useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+} from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -762,30 +770,30 @@ function CardVisual({
   );
 }
 
-function DraggableMiniRow({
-  dragId,
-  card,
-  className,
-  children,
-  onMouseEnter,
-  onMouseMove,
-  onMouseLeave,
-}: {
-  dragId: string;
-  card: DeckCard;
-  className?: string;
-  children: React.ReactNode;
-  onMouseEnter?: (e: React.MouseEvent) => void;
-  onMouseMove?: (e: React.MouseEvent) => void;
-  onMouseLeave?: () => void;
-}) {
+const DraggableMiniRow = forwardRef<
+  HTMLDivElement,
+  {
+    dragId: string;
+    card: DeckCard;
+    className?: string;
+    children: React.ReactNode;
+  } & React.HTMLAttributes<HTMLDivElement>
+>(function DraggableMiniRow({ dragId, card, className, children, ...rest }, forwardedRef) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
     data: { type: "deck-card", card, name: card.identity.name },
   });
+  // Merge dnd-kit's node ref with any ref injected by a wrapping
+  // ContextMenuTrigger (`asChild`), which also needs it to anchor the menu.
+  const setRefs = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    if (typeof forwardedRef === "function") forwardedRef(node);
+    else if (forwardedRef) forwardedRef.current = node;
+  };
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
+      {...rest}
       {...listeners}
       {...attributes}
       className={cn(
@@ -794,14 +802,11 @@ function DraggableMiniRow({
         isDragging && "opacity-30",
       )}
       data-card-name={card.identity.name}
-      onMouseEnter={onMouseEnter}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
     >
       {children}
     </div>
   );
-}
+});
 
 // ─── List Row ─────────────────────────────────────────────────────────────────
 

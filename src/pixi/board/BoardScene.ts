@@ -102,6 +102,9 @@ const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
 const GRIP_HIT_WIDTH_PX = 16;
 const ATTACK_ARROW_LANE_PX = 18;
+/** Extra px around a planeswalker/battle card that still counts as targeting it
+ *  while dragging an attacker — makes small opponent permanents easy to hit. */
+const ATTACK_TARGET_HIT_PAD = 44;
 
 /* ─────────────────────────────────────────────────────────────────────────
  * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
@@ -173,6 +176,9 @@ export class BoardScene {
   private attackerOptions: { attackerId: string; validTargetIds: string[] }[] = [];
   private attackDragAttackerId: string | null = null;
   private attackDragTargetId: string | null = null;
+  // Dragging one of our own already-declared attackers (staged as a guest in an
+  // opponent's band) back toward our field to un-declare it.
+  private unassignDrag: { cardId: string; region: BoardRegion; overOwn: boolean } | null = null;
   private phaseStripAlphaTarget = 1;
 
   private hand: HandController | null = null;
@@ -942,14 +948,24 @@ export class BoardScene {
     this.declareAttackers = active;
     this.attackTargets = attackTargets;
     this.attackerOptions = attackerOptions;
-    if (!active) this.setAttackDragId(null);
+    if (!active) {
+      this.setAttackDragId(null);
+      this.unassignDrag = null;
+    }
   }
 
   private setAttackDragId(id: string | null): void {
     if (this.attackDragAttackerId === id) return;
     this.attackDragAttackerId = id;
-    if (id === null) this.attackDragTargetId = null;
+    if (id === null) {
+      this.attackDragTargetId = null;
+      this.updateAttackTargetRing(null);
+    }
     this.callbacks.onAttackDragChange?.(id);
+  }
+
+  private updateAttackTargetRing(cardId: string | null): void {
+    for (const rec of this.regions.values()) rec.region.setAttackTargetRing(cardId);
   }
 
   /** Resolve a scene-space point (root-local, as `getCardPosition` returns) to a
@@ -960,13 +976,21 @@ export class BoardScene {
     const valid = this.attackerOptions.find((a) => a.attackerId === attackerId)?.validTargetIds;
     if (!valid || valid.length === 0) return null;
     const validSet = new Set(valid);
+    // Generous pad around each planeswalker/battle so dragging *near* one targets
+    // it; when several enlarged hit-zones overlap, the nearest centre wins.
+    let best: { id: string; dist: number } | null = null;
     for (const t of this.attackTargets) {
       if (t.kind === "player" || !validSet.has(t.id)) continue;
       for (const rec of this.regions.values()) {
         if (rec.isLocal) continue;
-        if (rec.region.containsPointInCard(t.id, gx, gy)) return t.id;
+        const center = rec.region.getCardPosition(t.id);
+        if (!center) continue;
+        if (!rec.region.containsPointInCard(t.id, gx, gy, ATTACK_TARGET_HIT_PAD)) continue;
+        const dist = (gx - center.x) ** 2 + (gy - center.y) ** 2;
+        if (!best || dist < best.dist) best = { id: t.id, dist };
       }
     }
+    if (best) return best.id;
     const oppId = this.hoveredOpponentId;
     if (
       oppId &&
@@ -1251,6 +1275,15 @@ export class BoardScene {
         this.overlay?.handleCardTap(sprite.card);
       });
     } else {
+      sprite.on("pointerdown", (e: FederatedPointerEvent) => {
+        // Grab our own declared attacker (staged in this opponent's band) to
+        // drag it back and un-declare it.
+        if (this.declareAttackers && sprite.card.controllerId === this.localPlayerId && region) {
+          e.stopPropagation();
+          this.callbacks.onDismissHoverPreview?.();
+          this.unassignDrag = { cardId: sprite.card.id, region, overOwn: false };
+        }
+      });
       sprite.on("pointertap", () => {
         if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
           this.callbacks.onAttackerClick?.(sprite.card);
@@ -1355,6 +1388,18 @@ export class BoardScene {
     if (this.destroyed) return;
     const pos = this.root.toLocal(e.global);
     this.updateHoveredOpponent(pos.x, pos.y);
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      const entry = ud.region.getEntries().get(ud.cardId);
+      if (entry) {
+        entry.targetX = pos.x;
+        entry.targetY = pos.y;
+        entry.sprite.x = pos.x;
+        entry.sprite.y = pos.y;
+      }
+      ud.overOwn = pos.y > this.topHeight;
+      return;
+    }
     if (this.draggingDelim !== null) {
       this.dragDelimiterTo(pos.x);
       return;
@@ -1400,6 +1445,7 @@ export class BoardScene {
 
     if (this.attackDragAttackerId) {
       this.attackDragTargetId = this.resolveAttackTargetAt(pos.x, pos.y, this.attackDragAttackerId);
+      this.updateAttackTargetRing(this.attackDragTargetId);
       this.hoveredCell = null;
       this.stackTargetId = null;
       local.hideGridSkeleton();
@@ -1421,6 +1467,17 @@ export class BoardScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      this.unassignDrag = null;
+      if (ud.overOwn) {
+        this.callbacks.onUnassignAttacker?.(ud.cardId);
+      } else {
+        const state = ud.region.getLastState();
+        if (state) ud.region.updateBattlefield(state);
+      }
+      return;
+    }
     if (this.draggingDelim !== null) {
       this.draggingDelim = null;
       return;

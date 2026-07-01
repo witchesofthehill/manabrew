@@ -1039,10 +1039,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     for (const t of chooseAttackersInput?.attackTargets ?? []) m.set(t.id, t.kind);
     return m;
   }, [chooseAttackersInput]);
-  const playerIdSet = useMemo(
-    () => new Set((gameView?.players ?? []).map((p) => p.id)),
-    [gameView?.players],
-  );
   const attackArrows = useMemo(
     () => [
       ...activeAttackers
@@ -1053,7 +1049,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           targetKind: "player" as const,
         })),
       // Player attacks read from the attack-row staging; only planeswalker /
-      // battle attacks draw an arrow, pointing at the specific permanent.
+      // battle attacks draw an arrow, pointing at the specific permanent. This
+      // only covers the pre-commit declaration — a committed planeswalker/battle
+      // arrow would need the engine to populate CardDto.attackTargetId (always
+      // None today), so it's intentionally not attempted here.
       ...attackAssignments
         .filter((a) => {
           const kind = attackTargetKindById.get(a.targetId);
@@ -1064,26 +1063,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           targetId: a.targetId,
           targetKind: "card" as const,
         })),
-      // Committed attackers pointed at a planeswalker / battle: the combat row
-      // groups them under the controlling player, so an arrow to the specific
-      // permanent (via the engine's attackTargetId) is the only thing that shows
-      // which one is under attack once the declaration is locked in.
-      ...(gameView?.battlefield ?? [])
-        .filter((c) => c.isAttacking && !!c.attackTargetId && !playerIdSet.has(c.attackTargetId))
-        .map((c) => ({
-          attackerId: c.id,
-          targetId: c.attackTargetId!,
-          targetKind: "card" as const,
-        })),
     ],
-    [
-      activeAttackers,
-      attackAssignments,
-      oppCombatAttackerIds,
-      attackTargetKindById,
-      gameView?.battlefield,
-      playerIdSet,
-    ],
+    [activeAttackers, attackAssignments, oppCombatAttackerIds, attackTargetKindById],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),

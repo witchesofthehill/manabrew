@@ -172,10 +172,19 @@ export function useCombatState({
         ? new Set(currentPrompt.input.attackers.map((a) => a.attackerId))
         : null;
     // Fold any still-pending (tapped-but-untargeted) attackers into the default
-    // defender so the tap flow and the drag flow submit together.
-    const pendingPairs = attackDefenderId
-      ? pendingAttackers.map((id) => ({ attackerId: id, targetId: attackDefenderId }))
-      : [];
+    // defender so the tap flow and the drag flow submit together — but only when
+    // that defender is actually legal for the attacker, so a multi-defender Space
+    // can't ship an illegal (attacker, arbitrary-default) pairing to the engine.
+    const pendingPairs =
+      attackDefenderId != null
+        ? pendingAttackers
+            .filter((id) =>
+              (attackerOptions.find((a) => a.attackerId === id)?.validTargetIds ?? []).includes(
+                attackDefenderId,
+              ),
+            )
+            .map((id) => ({ attackerId: id, targetId: attackDefenderId }))
+        : [];
     const assignedIds = new Set(attackAssignments.map((a) => a.attackerId));
     const merged = [
       ...attackAssignments,

@@ -864,12 +864,17 @@ export class BoardRegion {
     const cardW = CARD_W * this.cardScale;
     const mat = this.playmatRect();
     // Opponent bands hold a zone tile (exile/…) in the attack-row slot (grid
-    // col 0), so start the band at col 1's left edge to clear that whole column
-    // rather than a card width from the playmat edge (the grid is inset/centred).
+    // col 0), so start the band at col 1's left edge to clear that whole column.
+    // grid.originX is full-field (unclipped) space while `mat` is the eased/clipped
+    // band, so during the accordion ease col-1 can fall outside the visible band —
+    // clamp bandLeft into [mat.x, bandRight] so bandW never inverts.
     const grid = this.gridInfo;
+    const bandRight = mat.x + mat.width;
     const bandLeft =
-      this.mirrored && this.zoneTileKeys.length > 0 && grid ? grid.originX + grid.cellW : mat.x;
-    const bandW = mat.x + mat.width - bandLeft;
+      this.mirrored && this.zoneTileKeys.length > 0 && grid
+        ? Math.min(Math.max(grid.originX + grid.cellW, mat.x), bandRight)
+        : mat.x;
+    const bandW = Math.max(0, bandRight - bandLeft);
     const fullStep = cardW * COMBAT_ROW_STEP_FRAC;
     const fitStep = ids.length > 1 ? (bandW - cardW) / (ids.length - 1) : fullStep;
     const step = Math.max(0, Math.min(fullStep, fitStep));

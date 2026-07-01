@@ -31,6 +31,9 @@ export function ChooseAttackers({
           {mustAttackHint}
         </p>
       )}
+      <p className="text-center text-[11px] text-muted-foreground/70">
+        Drag a creature onto a player or planeswalker to attack it.
+      </p>
       <div className="flex flex-row items-center justify-center gap-1.5">
         <PromptActionButton
           label="Attack All"

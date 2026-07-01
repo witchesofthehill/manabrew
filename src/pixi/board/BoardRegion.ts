@@ -932,8 +932,14 @@ export class BoardRegion {
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi]!;
       const col = hexToNum(group.color);
-      const ax = stripLeft + 8 + avatarD / 2;
-      const ay = stripTop + 6 + avatarD / 2 + gi * (avatarD + 4);
+      const ax = stripLeft + 6 + avatarD / 2;
+      // Opponent bands carry a zone tile (exile/…) in the attack-row slot, so the
+      // group label sits just *below* the band (far-left, in the gap above the
+      // divider) to avoid overlapping anything inside the play area; the self band
+      // has no tile there and keeps its top-left anchor inside the strip.
+      const ay = this.mirrored
+        ? stripTop + stripH + 6 + avatarD / 2 + gi * (avatarD + 4)
+        : stripTop + 6 + avatarD / 2 + gi * (avatarD + 4);
       this.combatRowGfx.circle(ax, ay, avatarD / 2);
       this.combatRowGfx.fill({ color: col, alpha: 0.4 });
       this.combatRowGfx.circle(ax, ay, avatarD / 2);
@@ -1438,6 +1444,8 @@ export class BoardRegion {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
     } else if (state.untappableLandIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.cancel));
+    } else if (state.hostileTargetCardIds?.includes(card.id)) {
+      sprite.setRing(hexToNum(theme.gameTheme.pointer.hostile));
     } else if (state.selectableCardIds?.includes(card.id)) {
       sprite.setRing(
         state.hostileTargeting

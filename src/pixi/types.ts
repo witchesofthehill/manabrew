@@ -127,6 +127,9 @@ export interface BattlefieldState {
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
+  /** Selectable cards that should glow hostile-red rather than the neutral ring
+   *  — planeswalker / battle attack targets during declare-attackers. */
+  hostileTargetCardIds?: string[];
   ownerRingByCard?: Record<string, string>;
   combatRowAttackerIds?: string[];
   combatRowBlocks?: CombatAssignmentDto[];

@@ -174,6 +174,9 @@ export class BoardScene {
   private declareAttackers = false;
   private attackTargets: AttackTargetDto[] = [];
   private attackerOptions: { attackerId: string; validTargetIds: string[] }[] = [];
+  // The legal attacker under a pointer-down, armed into an attack drag only once
+  // the pointer actually moves — so a plain tap still reaches the click handler.
+  private attackDragCandidate: string | null = null;
   private attackDragAttackerId: string | null = null;
   private attackDragTargetId: string | null = null;
   // Dragging one of our own already-declared attackers (staged as a guest in an
@@ -1376,12 +1379,10 @@ export class BoardScene {
       ),
     );
     selection.refresh();
-    if (
-      this.declareAttackers &&
-      this.attackerOptions.some((a) => a.attackerId === sprite.card.id)
-    ) {
-      this.setAttackDragId(sprite.card.id);
-    }
+    this.attackDragCandidate =
+      this.declareAttackers && this.attackerOptions.some((a) => a.attackerId === sprite.card.id)
+        ? sprite.card.id
+        : null;
   }
 
   private onGlobalMove(e: FederatedPointerEvent): void {
@@ -1443,6 +1444,9 @@ export class BoardScene {
       local.followAttachmentsDuringDrag(id, p);
     }
 
+    if (this.attackDragCandidate && !this.attackDragAttackerId) {
+      this.setAttackDragId(this.attackDragCandidate);
+    }
     if (this.attackDragAttackerId) {
       this.attackDragTargetId = this.resolveAttackTargetAt(pos.x, pos.y, this.attackDragAttackerId);
       this.updateAttackTargetRing(this.attackDragTargetId);
@@ -1467,6 +1471,7 @@ export class BoardScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
+    this.attackDragCandidate = null;
     if (this.unassignDrag) {
       const ud = this.unassignDrag;
       this.unassignDrag = null;

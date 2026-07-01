@@ -372,6 +372,17 @@ export function GameBoard({
       chooseActionAbilityCardIds,
     ],
   );
+  const hostileAttackTargetIds = useMemo(
+    () =>
+      new Set(
+        promptType === "chooseAttackers"
+          ? (chooseAttackersPrompt?.input.attackTargets
+              .filter((t) => t.kind === "planeswalker" || t.kind === "battle")
+              .map((t) => t.id) ?? [])
+          : [],
+      ),
+    [promptType, chooseAttackersPrompt],
+  );
   const pixiBattlefield = useMemo(
     (): BattlefieldState => ({
       cards: myPermanents,
@@ -399,6 +410,10 @@ export function GameBoard({
       untappableLandIds: promptActions?.filter((a) => a.type === "undoMana").map((a) => a.cardId),
       manaAbilityOptions,
       hostileTargeting,
+      hostileTargetCardIds:
+        promptType === "chooseAttackers"
+          ? selectableBattlefieldCardIds.filter((id) => hostileAttackTargetIds.has(id))
+          : undefined,
     }),
     [
       myPermanents,
@@ -414,6 +429,7 @@ export function GameBoard({
       promptActions,
       manaAbilityOptions,
       hostileTargeting,
+      hostileAttackTargetIds,
     ],
   );
 

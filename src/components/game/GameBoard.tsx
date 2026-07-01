@@ -412,7 +412,7 @@ export function GameBoard({
       hostileTargeting,
       hostileTargetCardIds:
         promptType === "chooseAttackers"
-          ? selectableBattlefieldCardIds.filter((id) => hostileAttackTargetIds.has(id))
+          ? (selectableBattlefieldCardIds ?? []).filter((id) => hostileAttackTargetIds.has(id))
           : undefined,
     }),
     [

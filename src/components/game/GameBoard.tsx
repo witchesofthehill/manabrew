@@ -103,6 +103,8 @@ interface GameBoardProps {
   onAttackerClick: (card: CardDto) => void;
   onAssignBlock: (blockerId: string, attackerId: string) => void;
   onUnassignBlock: (blockerId: string) => void;
+  onAssignAttacker: (attackerId: string, targetId: string) => void;
+  onUnassignAttacker: (attackerId: string) => void;
   onTargetPlayer: (playerId: string) => void;
   onShowBoardMenu?: () => void;
   onOpenZone: (
@@ -193,6 +195,8 @@ export function GameBoard({
   onAttackerClick,
   onAssignBlock,
   onUnassignBlock,
+  onAssignAttacker,
+  onUnassignAttacker,
   onTargetPlayer,
   onShowBoardMenu,
   onOpenZone,
@@ -235,6 +239,7 @@ export function GameBoard({
   const payManaCostPrompt = promptOf(currentPrompt, "payManaCost");
   const promptAttackerIds = chooseBlockersPrompt?.input.attackers.map((a) => a.attackerId);
   const [dragBlockerId, setDragBlockerId] = useState<string | null>(null);
+  const [dragAttackerId, setDragAttackerId] = useState<string | null>(null);
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null);
 
   // On our turn, one opponent field stays expanded (sticky) instead of an even
@@ -312,6 +317,23 @@ export function GameBoard({
                   .filter((t) => playerIsTargetable(t.id))
                   .map((t) => t.id) ?? [])
               : []),
+            ...(dragAttackerId
+              ? (() => {
+                  const valid =
+                    chooseAttackersPrompt?.input.attackers.find(
+                      (a) => a.attackerId === dragAttackerId,
+                    )?.validTargetIds ?? [];
+                  return (
+                    chooseAttackersPrompt?.input.attackTargets
+                      .filter(
+                        (t) =>
+                          (t.kind === "planeswalker" || t.kind === "battle") &&
+                          valid.includes(t.id),
+                      )
+                      .map((t) => t.id) ?? []
+                  );
+                })()
+              : []),
           ]
         : promptType === "chooseBlockers"
           ? pendingAttacker
@@ -343,11 +365,23 @@ export function GameBoard({
       pendingAttacker,
       pendingBlocker,
       dragBlockerId,
+      dragAttackerId,
       chooseBlockersPrompt,
       damageOrderBlockerIds,
       boardTargets,
       chooseActionAbilityCardIds,
     ],
+  );
+  const hostileAttackTargetIds = useMemo(
+    () =>
+      new Set(
+        promptType === "chooseAttackers"
+          ? (chooseAttackersPrompt?.input.attackTargets
+              .filter((t) => t.kind === "planeswalker" || t.kind === "battle")
+              .map((t) => t.id) ?? [])
+          : [],
+      ),
+    [promptType, chooseAttackersPrompt],
   );
   const pixiBattlefield = useMemo(
     (): BattlefieldState => ({
@@ -376,6 +410,10 @@ export function GameBoard({
       untappableLandIds: promptActions?.filter((a) => a.type === "undoMana").map((a) => a.cardId),
       manaAbilityOptions,
       hostileTargeting,
+      hostileTargetCardIds:
+        promptType === "chooseAttackers"
+          ? selectableBattlefieldCardIds.filter((id) => hostileAttackTargetIds.has(id))
+          : undefined,
     }),
     [
       myPermanents,
@@ -391,6 +429,7 @@ export function GameBoard({
       promptActions,
       manaAbilityOptions,
       hostileTargeting,
+      hostileAttackTargetIds,
     ],
   );
 
@@ -454,6 +493,9 @@ export function GameBoard({
       onAssignBlock,
       onUnassignBlock,
       onBlockDragChange: setDragBlockerId,
+      onAssignAttacker,
+      onUnassignAttacker,
+      onAttackDragChange: setDragAttackerId,
       onHoverOpponent: (playerId) => {
         hoveredOpponentRef.current = playerId;
         if (playerId && isSelfTurn) setStickyOpponentId(playerId);
@@ -480,9 +522,12 @@ export function GameBoard({
       onAttackerClick,
       onAssignBlock,
       onUnassignBlock,
+      onAssignAttacker,
+      onUnassignAttacker,
       onTargetPlayer,
       onShowBoardMenu,
       setDragBlockerId,
+      setDragAttackerId,
       setSheetPlayerId,
       setStickyOpponentId,
       isSelfTurn,
@@ -1208,6 +1253,9 @@ export function GameBoard({
           castingArrow={castingArrow}
           declareBlockers={promptType === "chooseBlockers"}
           combatBlocks={combatAssignmentsAll}
+          declareAttackers={promptType === "chooseAttackers"}
+          attackTargets={chooseAttackersPrompt?.input.attackTargets ?? []}
+          attackerOptions={chooseAttackersPrompt?.input.attackers ?? []}
           phaseStrip={pixiPhaseStrip}
           phaseStripCallbacks={pixiPhaseStripCallbacks}
           focusedOpponentId={focusedOpponentId}

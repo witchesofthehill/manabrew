@@ -35,6 +35,7 @@ import { RotateCw } from "lucide-react";
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { AttackTargetDto } from "@/protocol/prompts/common";
 import type {
   ArrowSpec,
   BattlefieldState,
@@ -80,6 +81,12 @@ interface BoardCanvasProps {
   /** Local player is declaring blockers — enables drag-to-block. */
   declareBlockers?: boolean;
   combatBlocks?: { blockerId: string; attackerId: string }[];
+  /** Local player is declaring attackers — enables drag-to-attack. */
+  declareAttackers?: boolean;
+  /** Legal defenders (player / planeswalker / battle) for the active
+   *  `chooseAttackers` prompt, and per-attacker validity. */
+  attackTargets?: AttackTargetDto[];
+  attackerOptions?: { attackerId: string; validTargetIds: string[] }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
   /** Fraction of usable height for the local player's bottom region; defaults to
@@ -128,6 +135,9 @@ export function BoardCanvas({
   castingArrow,
   declareBlockers,
   combatBlocks,
+  declareAttackers,
+  attackTargets,
+  attackerOptions,
   phaseStrip,
   phaseStripCallbacks,
   selfHeightFraction,
@@ -231,6 +241,9 @@ export function BoardCanvas({
       onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
       onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
       onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
+      onAssignAttacker: (...a) => callbacksRef.current.onAssignAttacker?.(...a),
+      onUnassignAttacker: (...a) => callbacksRef.current.onUnassignAttacker?.(...a),
+      onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
       onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
       onShowBoardMenu: (...a) => callbacksRef.current.onShowBoardMenu?.(...a),
@@ -428,6 +441,14 @@ export function BoardCanvas({
   useEffect(() => {
     scene?.setDeclareBlockers(declareBlockers ?? false);
   }, [scene, declareBlockers]);
+
+  useEffect(() => {
+    scene?.setDeclareAttackers(
+      declareAttackers ?? false,
+      attackTargets ?? [],
+      attackerOptions ?? [],
+    );
+  }, [scene, declareAttackers, attackTargets, attackerOptions]);
 
   useEffect(() => {
     scene?.applyCombatBlocks(combatBlocks ?? []);

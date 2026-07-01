@@ -1,4 +1,12 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import {
+  forwardRef,
+  useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useMemo,
+} from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -399,6 +407,8 @@ function DraggableStackCard({
   topOffset,
   onCardHover,
   onCardLeave,
+  contextLocation,
+  contextActions,
 }: {
   group: CardGroup;
   dragId: string;
@@ -413,6 +423,8 @@ function DraggableStackCard({
   topOffset: number;
   onCardHover: (index: number) => void;
   onCardLeave: () => void;
+  contextLocation?: CardLocation;
+  contextActions?: CardContextActions;
 }) {
   const { name } = group.card.identity;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -423,7 +435,7 @@ function DraggableStackCard({
   const isCombo = useIsComboCard(name);
   const isGameChanger = useIsGameChangerCard(name);
 
-  return (
+  const content = (
     <div
       ref={setNodeRef}
       {...listeners}
@@ -458,6 +470,13 @@ function DraggableStackCard({
         rounded="rounded-[4%]"
       />
     </div>
+  );
+
+  if (!contextActions || !contextLocation) return content;
+  return (
+    <CardContextMenu count={group.count} location={contextLocation} {...contextActions}>
+      {content}
+    </CardContextMenu>
   );
 }
 
@@ -512,6 +531,7 @@ interface StackColumnProps {
   onSelectCard?: (cardName: string, addToSelection: boolean) => void;
   onShowInfo?: (cardName: string) => void;
   dragHandleProps?: DragHandleProps;
+  contextMenuFor?: (g: CardGroup) => { location: CardLocation; actions: CardContextActions } | null;
 }
 
 function StackColumn({
@@ -526,6 +546,7 @@ function StackColumn({
   onSelectCard,
   onShowInfo,
   dragHandleProps,
+  contextMenuFor,
 }: StackColumnProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const cardHeight = Math.round(cardWidth * 1.4);
@@ -566,24 +587,29 @@ function StackColumn({
         className="relative transition-[height] duration-200 ease-out"
         style={{ height: totalHeight }}
       >
-        {groups.map((g, i) => (
-          <DraggableStackCard
-            key={g.card.identity.name}
-            group={g}
-            dragId={`deck-${sectionId}-${g.card.identity.name}`}
-            cardWidth={cardWidth}
-            index={i}
-            onAddOne={() => onAddOne(g)}
-            onRemoveOne={() => onRemoveOne(g.card.identity.name)}
-            onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
-            isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
-            onSelect={onSelectCard}
-            onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
-            topOffset={getTop(i)}
-            onCardHover={setHoveredIdx}
-            onCardLeave={() => setHoveredIdx(null)}
-          />
-        ))}
+        {groups.map((g, i) => {
+          const cm = contextMenuFor?.(g);
+          return (
+            <DraggableStackCard
+              key={g.card.identity.name}
+              group={g}
+              dragId={`deck-${sectionId}-${g.card.identity.name}`}
+              cardWidth={cardWidth}
+              index={i}
+              onAddOne={() => onAddOne(g)}
+              onRemoveOne={() => onRemoveOne(g.card.identity.name)}
+              onUntag={onUntag ? () => onUntag(g.card.identity.name) : undefined}
+              isSelected={selectedCards?.has(g.card.identity.name.toLowerCase())}
+              onSelect={onSelectCard}
+              onShowInfo={onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined}
+              topOffset={getTop(i)}
+              onCardHover={setHoveredIdx}
+              onCardLeave={() => setHoveredIdx(null)}
+              contextLocation={cm?.location}
+              contextActions={cm?.actions}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -744,30 +770,30 @@ function CardVisual({
   );
 }
 
-function DraggableMiniRow({
-  dragId,
-  card,
-  className,
-  children,
-  onMouseEnter,
-  onMouseMove,
-  onMouseLeave,
-}: {
-  dragId: string;
-  card: DeckCard;
-  className?: string;
-  children: React.ReactNode;
-  onMouseEnter?: (e: React.MouseEvent) => void;
-  onMouseMove?: (e: React.MouseEvent) => void;
-  onMouseLeave?: () => void;
-}) {
+const DraggableMiniRow = forwardRef<
+  HTMLDivElement,
+  {
+    dragId: string;
+    card: DeckCard;
+    className?: string;
+    children: React.ReactNode;
+  } & React.HTMLAttributes<HTMLDivElement>
+>(function DraggableMiniRow({ dragId, card, className, children, ...rest }, forwardedRef) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
     data: { type: "deck-card", card, name: card.identity.name },
   });
+  // Merge dnd-kit's node ref with any ref injected by a wrapping
+  // ContextMenuTrigger (`asChild`), which also needs it to anchor the menu.
+  const setRefs = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    if (typeof forwardedRef === "function") forwardedRef(node);
+    else if (forwardedRef) forwardedRef.current = node;
+  };
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
+      {...rest}
       {...listeners}
       {...attributes}
       className={cn(
@@ -776,14 +802,11 @@ function DraggableMiniRow({
         isDragging && "opacity-30",
       )}
       data-card-name={card.identity.name}
-      onMouseEnter={onMouseEnter}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
     >
       {children}
     </div>
   );
-}
+});
 
 // ─── List Row ─────────────────────────────────────────────────────────────────
 
@@ -1697,7 +1720,32 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromSide}
+              onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
+              contextMenuFor={(g) => ({
+                location: "side",
+                actions: {
+                  onAddOne: () =>
+                    onAddToSide({
+                      ...g.card,
+                      identity: { ...g.card.identity, id: crypto.randomUUID() },
+                    }),
+                  onRemoveOne: () => onRemoveFromSide(g.card.identity.name),
+                  onMoveOneToMain: () => onMoveOneFromSideToMain(g.card.identity.name),
+                  onMoveAllToMain: () => onMoveAllFromSideToMain(g.card.identity.name),
+                  onMoveOneToMaybe: () => onMoveOneFromSideToMaybe(g.card.identity.name),
+                  onMoveAllToMaybe: () => onMoveAllFromSideToMaybe(g.card.identity.name),
+                  onShowInfo: onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined,
+                  onPickPrint: () => onPickPrint(g.card.identity.name),
+                  onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined,
+                  isFoil: !!g.card.identity.foil,
+                  customTags,
+                  appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
+                  onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
+                  onRemoveCustomTag: onRemoveTag,
+                  onCreateTag: (t) => createAndApplyTag(g.card.identity.name, t),
+                },
+              })}
             />
           ) : (
             <EmptyStackBoard label="Sideboard" cardWidth={cardWidth} dragHandleProps={dhProps} />
@@ -1733,7 +1781,32 @@ export function DeckListView({
                 })
               }
               onRemoveOne={onRemoveFromMaybe}
+              onShowInfo={onShowInfo}
               dragHandleProps={dhProps}
+              contextMenuFor={(g) => ({
+                location: "maybe",
+                actions: {
+                  onAddOne: () =>
+                    onAddToMaybe({
+                      ...g.card,
+                      identity: { ...g.card.identity, id: crypto.randomUUID() },
+                    }),
+                  onRemoveOne: () => onRemoveFromMaybe(g.card.identity.name),
+                  onMoveOneToMain: () => onMoveOneFromMaybeToMain(g.card.identity.name),
+                  onMoveAllToMain: () => onMoveAllFromMaybeToMain(g.card.identity.name),
+                  onMoveOneToSide: () => onMoveOneFromMaybeToSide(g.card.identity.name),
+                  onMoveAllToSide: () => onMoveAllFromMaybeToSide(g.card.identity.name),
+                  onShowInfo: onShowInfo ? () => onShowInfo(g.card.identity.name) : undefined,
+                  onPickPrint: () => onPickPrint(g.card.identity.name),
+                  onToggleFoil: onToggleFoil ? () => onToggleFoil(g.card.identity.name) : undefined,
+                  isFoil: !!g.card.identity.foil,
+                  customTags,
+                  appliedTags: cardTags?.[g.card.identity.name.toLowerCase()],
+                  onApplyTag: (t) => applyCardTag(g.card.identity.name, t),
+                  onRemoveCustomTag: onRemoveTag,
+                  onCreateTag: (t) => createAndApplyTag(g.card.identity.name, t),
+                },
+              })}
             />
           ) : (
             <EmptyStackBoard label="Maybeboard" cardWidth={cardWidth} dragHandleProps={dhProps} />

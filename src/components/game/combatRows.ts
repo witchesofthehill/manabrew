@@ -11,10 +11,14 @@ export interface CombatRowInput {
   battlefield: CardDto[];
   combatAssignments: CombatAssignmentDto[];
   playerIds: string[];
+  /** In-progress (pre-commit) attacker→target assignments from the local
+   *  declaration, staged into the defender's row exactly like committed
+   *  attackers so drag-declared creatures slide into the attack band. */
+  pendingAttacks?: { attackerId: string; targetId: string }[];
 }
 
 export function buildCombatRows(input: CombatRowInput): CombatRow[] {
-  const { battlefield, combatAssignments, playerIds } = input;
+  const { battlefield, combatAssignments, playerIds, pendingAttacks } = input;
   const players = new Set(playerIds);
   const controllerById = new Map<string, string>();
   for (const c of battlefield) controllerById.set(c.id, c.controllerId);
@@ -39,6 +43,14 @@ export function buildCombatRows(input: CombatRowInput): CombatRow[] {
     if (!defenderId) continue;
     attackerDefender.set(c.id, defenderId);
     rowFor(defenderId).attackerIds.push(c.id);
+  }
+
+  for (const { attackerId, targetId } of pendingAttacks ?? []) {
+    if (attackerDefender.has(attackerId)) continue;
+    const defenderId = defenderOf(targetId);
+    if (!defenderId) continue;
+    attackerDefender.set(attackerId, defenderId);
+    rowFor(defenderId).attackerIds.push(attackerId);
   }
 
   for (const a of combatAssignments) {

@@ -2133,6 +2133,13 @@ public final class ManaBrewInteractiveSession {
         if (defender instanceof Player) {
             return "player-" + SnapshotExtractor.playerIndex(game, (Player) defender);
         }
+        // A planeswalker / battle defender publishes its card id so it matches the
+        // sprite the UI targets (mirrors the Rust host, which keys permanent
+        // defenders by card id). Both the prompt emit and findDefenderByPublishedId
+        // route through here, so the response round-trip stays consistent.
+        if (defender instanceof Card) {
+            return SnapshotExtractor.javaCardId((Card) defender);
+        }
         return "defender-" + defender.getId();
     }
 

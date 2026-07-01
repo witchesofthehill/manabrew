@@ -130,12 +130,11 @@ export function useCombatState({
       return null;
     }, null);
 
-  // Awaiting-defender state is implicit now: as soon as the user has at
-  // least one pending attacker AND there's more than one legal defender
-  // (multiplayer / planeswalkers / sieges), the next click on a valid
-  // defender commits the whole pending batch against it.
-  const awaitingAttackTarget =
-    promptType === "chooseAttackers" && multipleAttackDefenders && pendingAttackers.length > 0;
+  // Click-to-assign flow (alongside drag): once the user has at least one
+  // pending attacker (tapped a creature), the next click on a valid defender
+  // assigns the whole pending batch to it. Available even with a single legal
+  // defender so tapping a creature then the target always works.
+  const awaitingAttackTarget = promptType === "chooseAttackers" && pendingAttackers.length > 0;
 
   // Default attackDefenderId to first valid defender during ChooseAttackers.
   if (promptType === "chooseAttackers") {
@@ -157,11 +156,8 @@ export function useCombatState({
 
   function assignPendingToTarget(defenderId: string) {
     if (pendingAttackers.length === 0) return;
-    if (possibleDefenders.length <= 1) {
-      respond(declareAttackersOutput(currentPrompt, pendingAttackers, defenderId));
-      setPendingAttackers([]);
-      return;
-    }
+    // Accumulate into attackAssignments (staged in the target's band) and let the
+    // Attack button submit — same path drag uses, so both flows behave alike.
     const pendingSet = new Set(pendingAttackers);
     setAttackAssignments((prev) => [
       ...prev.filter((a) => !pendingSet.has(a.attackerId)),
@@ -175,13 +171,39 @@ export function useCombatState({
       currentPrompt?.input.type === "chooseAttackers"
         ? new Set(currentPrompt.input.attackers.map((a) => a.attackerId))
         : null;
-    const assignments = available
-      ? attackAssignments.filter((a) => available.has(a.attackerId))
-      : attackAssignments;
+    // Fold any still-pending (tapped-but-untargeted) attackers into the default
+    // defender so the tap flow and the drag flow submit together.
+    const pendingPairs = attackDefenderId
+      ? pendingAttackers.map((id) => ({ attackerId: id, targetId: attackDefenderId }))
+      : [];
+    const assignedIds = new Set(attackAssignments.map((a) => a.attackerId));
+    const merged = [
+      ...attackAssignments,
+      ...pendingPairs.filter((p) => !assignedIds.has(p.attackerId)),
+    ];
+    const assignments = available ? merged.filter((a) => available.has(a.attackerId)) : merged;
     if (assignments.length === 0) return;
     respond({ type: "declareAttackers", assignments });
     setAttackAssignments([]);
     setPendingAttackers([]);
+  }
+
+  // Drag-to-attack: drop a creature onto a defender (player / planeswalker /
+  // battle) to assign it directly. Upserts so re-dropping moves the attacker.
+  function assignAttackPair(attackerId: string, targetId: string) {
+    const valid = attackerOptions.find((a) => a.attackerId === attackerId)?.validTargetIds ?? [];
+    if (!valid.includes(targetId)) return;
+    setAttackAssignments((prev) => [
+      ...prev.filter((a) => a.attackerId !== attackerId),
+      { attackerId, targetId },
+    ]);
+    setPendingAttackers((prev) => prev.filter((id) => id !== attackerId));
+  }
+
+  // Drag-to-unattack: drop a staged attacker back on our own field to remove it.
+  function unassignAttack(attackerId: string) {
+    setAttackAssignments((prev) => prev.filter((a) => a.attackerId !== attackerId));
+    setPendingAttackers((prev) => prev.filter((id) => id !== attackerId));
   }
 
   /** "Attack All" — mark every legal attacker as pending. In single-
@@ -323,6 +345,8 @@ export function useCombatState({
     pendingAttackers,
     attackAssignments,
     submitAttack,
+    assignAttackPair,
+    unassignAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,

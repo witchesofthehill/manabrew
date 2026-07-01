@@ -131,6 +131,7 @@ export class BoardRegion {
   private stackCounts = new Map<string, number>();
   private nameGroupChildren = new Set<string>();
   private combatStaging: SceneCombatStaging | null = null;
+  private attackTargetRingId: string | null = null;
   private combatRowAttackerIds = new Set<string>();
   private combatRowBlocks: CombatAssignmentDto[] = [];
   private combatRowBlockerIds = new Set<string>();
@@ -208,7 +209,11 @@ export class BoardRegion {
       onDrop: (key, cx, cy) => this.onZoneTileMoved(key, cx, cy),
       onDragEnd: () => this.hideGridSkeleton(),
     });
-    this.zoneTiles.container.zIndex = 30;
+    // Above the combat-row band (`combatRowGfx`, Z_COMBAT_STAGED - 5) so a zone
+    // tile parked in the inner-edge attack slot (mirrored fields) sits on top of
+    // the red strip instead of being dimmed beneath it — still below staged
+    // attacker cards and the row's avatar/label header.
+    this.zoneTiles.container.zIndex = Z_COMBAT_STAGED - 4;
     this.zoneTiles.setDraggable(!this.mirrored);
     this.container.addChild(this.zoneTiles.container);
 
@@ -477,6 +482,36 @@ export class BoardRegion {
   getCardPosition(cardId: string): ScreenPos | null {
     const entry = this.entries.get(cardId);
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
+  }
+
+  /** Draw the hostile "under attack" ring on `cardId` (a planeswalker/battle the
+   *  local player is dragging an attacker onto), or clear it. A card not in this
+   *  region is treated as null so the scene can broadcast to every region. */
+  setAttackTargetRing(cardId: string | null): void {
+    const mine = cardId && this.entries.has(cardId) ? cardId : null;
+    if (this.attackTargetRingId === mine) return;
+    const prev = this.attackTargetRingId;
+    this.attackTargetRingId = mine;
+    if (prev && this.lastState) {
+      const e = this.entries.get(prev);
+      if (e) this.applyBattlefieldRing(e.sprite, this.lastState);
+    }
+    if (mine) {
+      const e = this.entries.get(mine);
+      if (e) e.sprite.setRing(hexToNum(this.host.getTheme().gameTheme.pointer.hostile));
+    }
+  }
+
+  containsPointInCard(cardId: string, canvasX: number, canvasY: number, pad = 0): boolean {
+    const entry = this.entries.get(cardId);
+    if (!entry) return false;
+    const center = this.localToCanvas(entry.targetX, entry.targetY);
+    // Battles / planes render sideways — match the landscape footprint so their
+    // targeting zone is identical in size to an upright planeswalker's.
+    const horizontal = entry.sprite.horizontalFrame;
+    const halfW = ((horizontal ? CARD_H : CARD_W) * this.cardScale) / 2 + pad;
+    const halfH = ((horizontal ? CARD_W : CARD_H) * this.cardScale) / 2 + pad;
+    return Math.abs(canvasX - center.x) <= halfW && Math.abs(canvasY - center.y) <= halfH;
   }
 
   getZoneTileCenter(key: string): ScreenPos | null {
@@ -897,8 +932,14 @@ export class BoardRegion {
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi]!;
       const col = hexToNum(group.color);
-      const ax = stripLeft + 8 + avatarD / 2;
-      const ay = stripTop + 6 + avatarD / 2 + gi * (avatarD + 4);
+      const ax = stripLeft + 6 + avatarD / 2;
+      // Opponent bands carry a zone tile (exile/…) in the attack-row slot, so the
+      // group label sits just *below* the band (far-left, in the gap above the
+      // divider) to avoid overlapping anything inside the play area; the self band
+      // has no tile there and keeps its top-left anchor inside the strip.
+      const ay = this.mirrored
+        ? stripTop + stripH + 6 + avatarD / 2 + gi * (avatarD + 4)
+        : stripTop + 6 + avatarD / 2 + gi * (avatarD + 4);
       this.combatRowGfx.circle(ax, ay, avatarD / 2);
       this.combatRowGfx.fill({ color: col, alpha: 0.4 });
       this.combatRowGfx.circle(ax, ay, avatarD / 2);
@@ -1381,6 +1422,10 @@ export class BoardRegion {
     const theme = this.host.getTheme();
     const card = sprite.card;
     sprite.setDoomed(card.wouldDieInCombat ?? false);
+    if (this.attackTargetRingId === card.id) {
+      sprite.setRing(hexToNum(theme.gameTheme.pointer.hostile));
+      return;
+    }
     if (this.isDeclaredBlocker(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.defenseAction));
       return;
@@ -1399,6 +1444,8 @@ export class BoardRegion {
       sprite.setRing(hexToNum(theme.gameTheme.cardRing));
     } else if (state.untappableLandIds?.includes(card.id)) {
       sprite.setRing(hexToNum(theme.gameTheme.promptAction.cancel));
+    } else if (state.hostileTargetCardIds?.includes(card.id)) {
+      sprite.setRing(hexToNum(theme.gameTheme.pointer.hostile));
     } else if (state.selectableCardIds?.includes(card.id)) {
       sprite.setRing(
         state.hostileTargeting

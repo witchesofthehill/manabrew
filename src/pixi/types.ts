@@ -98,6 +98,14 @@ export interface GameCanvasCallbacks {
   /** Fires when a block-drag arms (blockerId) or ends (null), so the UI can
    *  highlight the attackers that blocker may legally block. */
   onBlockDragChange?: (blockerId: string | null) => void;
+  /** Drag-to-attack: a creature sprite was dropped onto a defender (player /
+   *  planeswalker / battle). */
+  onAssignAttacker?: (attackerId: string, targetId: string) => void;
+  /** Drag-to-unattack: a staged attacker was dragged back off its target. */
+  onUnassignAttacker?: (attackerId: string) => void;
+  /** Fires when an attack-drag arms (attackerId) or ends (null), so the UI can
+   *  highlight that attacker's legal defenders. */
+  onAttackDragChange?: (attackerId: string | null) => void;
   onCastSpell?: (cardId: string) => void;
   /**
    * Dismiss the hover preview immediately (no 250ms grace). Used when
@@ -119,6 +127,9 @@ export interface BattlefieldState {
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
+  /** Selectable cards that should glow hostile-red rather than the neutral ring
+   *  — planeswalker / battle attack targets during declare-attackers. */
+  hostileTargetCardIds?: string[];
   ownerRingByCard?: Record<string, string>;
   combatRowAttackerIds?: string[];
   combatRowBlocks?: CombatAssignmentDto[];

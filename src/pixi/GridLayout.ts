@@ -95,10 +95,6 @@ export const battlefieldFillScale = (usableH: number, fraction: number): number 
  */
 const CELL_BREATHING_FRAC = 0.12;
 
-/** Small left inset for left-aligned grids so cards/zones don't kiss the
- *  battleground's left border. */
-const LEFT_ALIGN_PAD_PX = 6;
-
 export const computeGridLayout = (
   zone: PlayZoneRect,
   leftReserved: number,
@@ -132,10 +128,11 @@ export const computeGridLayout = (
   const zoneCenterX = zone.x + zone.width / 2;
   const midCol = (cols - 1) / 2;
   // Card center for midCol: originX + midCol * cellW + cardW/2 = zoneCenterX.
-  // Left-aligned grids (on-grid zone tiles) instead start flush at the play
-  // area's left edge so the zones hug the battleground border.
+  // Left-aligned grids (on-grid zone tiles) centre the grid block in the usable
+  // width so the leftover space is split evenly on both sides of the playmat.
+  const gridW = cols * cellW - GAP;
   const originX = leftAlign
-    ? zone.x + leftPad + LEFT_ALIGN_PAD_PX
+    ? zone.x + leftPad + Math.max(0, (usableW - gridW) / 2)
     : zoneCenterX - midCol * cellW - cardW / 2;
   const topMargin = Math.max(0, (usableH - gridH) / 2);
   const originY = zone.y + topMargin;

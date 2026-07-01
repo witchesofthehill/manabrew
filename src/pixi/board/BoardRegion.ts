@@ -479,6 +479,15 @@ export class BoardRegion {
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
   }
 
+  containsPointInCard(cardId: string, globalX: number, globalY: number): boolean {
+    const entry = this.entries.get(cardId);
+    if (!entry) return false;
+    const b = entry.sprite.getBounds();
+    return (
+      globalX >= b.x && globalX <= b.x + b.width && globalY >= b.y && globalY <= b.y + b.height
+    );
+  }
+
   getZoneTileCenter(key: string): ScreenPos | null {
     const center = this.zoneTiles.getTileCenter(key);
     return center ? this.localToCanvas(center.x, center.y) : null;

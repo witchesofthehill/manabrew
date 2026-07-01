@@ -21,10 +21,8 @@ export function ChooseAttackers({
   const attackAllClick = multipleDefenders
     ? () => onBeginAttackTargetPick(availableAttackerIds)
     : () => onDeclareAttackers(availableAttackerIds, selectedDefenderId ?? undefined);
-  const attackCount = multipleDefenders ? attackAssignmentCount : pendingAttackers.length;
-  const attackClick = multipleDefenders
-    ? onSubmitAttack
-    : () => onDeclareAttackers(pendingAttackers, selectedDefenderId ?? undefined);
+  const attackCount = attackAssignmentCount + pendingAttackers.length;
+  const attackClick = onSubmitAttack;
 
   return (
     <div className="flex flex-col items-center gap-1.5">

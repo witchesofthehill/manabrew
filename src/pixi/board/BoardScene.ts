@@ -9,6 +9,7 @@ import {
 } from "pixi.js";
 import { darken, withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { AttackTargetDto } from "@/protocol/prompts/common";
 import {
   CardSprite,
   setCardSpriteTheme,
@@ -167,6 +168,11 @@ export class BoardScene {
 
   private declareBlockers = false;
   private blockDragBlockerId: string | null = null;
+  private declareAttackers = false;
+  private attackTargets: AttackTargetDto[] = [];
+  private attackerOptions: { attackerId: string; validTargetIds: string[] }[] = [];
+  private attackDragAttackerId: string | null = null;
+  private attackDragTargetId: string | null = null;
   private phaseStripAlphaTarget = 1;
 
   private hand: HandController | null = null;
@@ -928,6 +934,49 @@ export class BoardScene {
     this.callbacks.onBlockDragChange?.(id);
   }
 
+  setDeclareAttackers(
+    active: boolean,
+    attackTargets: AttackTargetDto[],
+    attackerOptions: { attackerId: string; validTargetIds: string[] }[],
+  ): void {
+    this.declareAttackers = active;
+    this.attackTargets = attackTargets;
+    this.attackerOptions = attackerOptions;
+    if (!active) this.setAttackDragId(null);
+  }
+
+  private setAttackDragId(id: string | null): void {
+    if (this.attackDragAttackerId === id) return;
+    this.attackDragAttackerId = id;
+    if (id === null) this.attackDragTargetId = null;
+    this.callbacks.onAttackDragChange?.(id);
+  }
+
+  /** Resolve a canvas-global point to a legal defender for `attackerId`: a
+   *  planeswalker/battle card directly under the pointer wins; otherwise the
+   *  opponent whose field band the pointer is over (proximity → the player). */
+  private resolveAttackTargetAt(gx: number, gy: number, attackerId: string): string | null {
+    const valid = this.attackerOptions.find((a) => a.attackerId === attackerId)?.validTargetIds;
+    if (!valid || valid.length === 0) return null;
+    const validSet = new Set(valid);
+    for (const t of this.attackTargets) {
+      if (t.kind === "player" || !validSet.has(t.id)) continue;
+      for (const rec of this.regions.values()) {
+        if (rec.isLocal) continue;
+        if (rec.region.containsPointInCard(t.id, gx, gy)) return t.id;
+      }
+    }
+    const oppId = this.hoveredOpponentId;
+    if (
+      oppId &&
+      validSet.has(oppId) &&
+      this.attackTargets.some((t) => t.id === oppId && t.kind === "player")
+    ) {
+      return oppId;
+    }
+    return null;
+  }
+
   setPhaseStripState(state: PhaseStripState): void {
     this.phaseStrip.update(state);
   }
@@ -1293,6 +1342,12 @@ export class BoardScene {
       ),
     );
     selection.refresh();
+    if (
+      this.declareAttackers &&
+      this.attackerOptions.some((a) => a.attackerId === sprite.card.id)
+    ) {
+      this.setAttackDragId(sprite.card.id);
+    }
   }
 
   private onGlobalMove(e: FederatedPointerEvent): void {
@@ -1342,6 +1397,18 @@ export class BoardScene {
       local.followAttachmentsDuringDrag(id, p);
     }
 
+    if (this.attackDragAttackerId) {
+      this.attackDragTargetId = this.resolveAttackTargetAt(
+        e.global.x,
+        e.global.y,
+        this.attackDragAttackerId,
+      );
+      this.hoveredCell = null;
+      this.stackTargetId = null;
+      local.hideGridSkeleton();
+      return;
+    }
+
     const grid = local.getGridInfo();
     if (primaryPos && grid) {
       this.hoveredCell = cellFromPoint(grid, primaryPos.x, primaryPos.y);
@@ -1369,6 +1436,28 @@ export class BoardScene {
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;
+
+    if (this.attackDragAttackerId) {
+      const draggedIds = [...this.dragHandler.draggingCardIds];
+      const targetId = this.attackDragTargetId;
+      const result = this.dragHandler.end();
+      this.setAttackDragId(null);
+      local.hideGridSkeleton();
+      if (result?.wasDrag) {
+        for (const id of draggedIds) {
+          const opt = this.attackerOptions.find((a) => a.attackerId === id);
+          if (!opt) continue;
+          if (targetId && opt.validTargetIds.includes(targetId)) {
+            this.callbacks.onAssignAttacker?.(id, targetId);
+          } else {
+            this.callbacks.onUnassignAttacker?.(id);
+          }
+        }
+      }
+      const state = local.getLastState();
+      if (state) local.updateBattlefield(state);
+      return;
+    }
 
     if (selection.isMarqueeActive()) {
       selection.endMarquee(local.snapshotCurrentPositions());
@@ -1471,7 +1560,8 @@ export class BoardScene {
       this.arrowSpecs.length === 0 &&
       !this.castingArrow &&
       !castDragging &&
-      !this.blockDragBlockerId
+      !this.blockDragBlockerId &&
+      !this.attackDragAttackerId
     )
       return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
@@ -1552,6 +1642,37 @@ export class BoardScene {
           toX: this.cursorViewportX - canvasRect.left,
           toY: this.cursorViewportY - canvasRect.top,
           type: "block",
+        });
+      }
+    }
+    if (this.attackDragAttackerId) {
+      const from = this.resolveArrowEndpoint(
+        { kind: "card", id: this.attackDragAttackerId },
+        canvasRect,
+      );
+      if (from) {
+        let toX = this.cursorViewportX - canvasRect.left;
+        let toY = this.cursorViewportY - canvasRect.top;
+        if (this.attackDragTargetId) {
+          const tgt = this.attackTargets.find((t) => t.id === this.attackDragTargetId);
+          const to = this.resolveTargetEndpoint(
+            tgt?.kind === "player"
+              ? { kind: "player", id: this.attackDragTargetId }
+              : { kind: "card", id: this.attackDragTargetId },
+            canvasRect,
+          );
+          if (to) {
+            toX = to.pos.x;
+            toY = to.pos.y;
+          }
+        }
+        resolved.push({
+          fromX: from.x,
+          fromY: from.y,
+          toX,
+          toY,
+          type: "attack",
+          color: hexToNum(this.theme.gameTheme.pointer.hostile),
         });
       }
     }

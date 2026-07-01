@@ -473,6 +473,8 @@ export default function Game({ exitTo }: GameProps = {}) {
     blockRequirement,
     assignBlockPair,
     unassignBlock,
+    assignAttackPair,
+    unassignAttack,
     damageOrder,
     toggleDamageOrder,
     undoDamageOrder,
@@ -1506,6 +1508,8 @@ export default function Game({ exitTo }: GameProps = {}) {
           onAttackerClick={handleAttackerClick}
           onAssignBlock={assignBlockPair}
           onUnassignBlock={unassignBlock}
+          onAssignAttacker={assignAttackPair}
+          onUnassignAttacker={unassignAttack}
           onTargetPlayer={handleTargetPlayer}
           onShowBoardMenu={() => setBoardMenuOpen(true)}
           onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {

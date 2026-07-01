@@ -175,13 +175,39 @@ export function useCombatState({
       currentPrompt?.input.type === "chooseAttackers"
         ? new Set(currentPrompt.input.attackers.map((a) => a.attackerId))
         : null;
-    const assignments = available
-      ? attackAssignments.filter((a) => available.has(a.attackerId))
-      : attackAssignments;
+    // Fold any still-pending (tapped-but-untargeted) attackers into the default
+    // defender so the tap flow and the drag flow submit together.
+    const pendingPairs = attackDefenderId
+      ? pendingAttackers.map((id) => ({ attackerId: id, targetId: attackDefenderId }))
+      : [];
+    const assignedIds = new Set(attackAssignments.map((a) => a.attackerId));
+    const merged = [
+      ...attackAssignments,
+      ...pendingPairs.filter((p) => !assignedIds.has(p.attackerId)),
+    ];
+    const assignments = available ? merged.filter((a) => available.has(a.attackerId)) : merged;
     if (assignments.length === 0) return;
     respond({ type: "declareAttackers", assignments });
     setAttackAssignments([]);
     setPendingAttackers([]);
+  }
+
+  // Drag-to-attack: drop a creature onto a defender (player / planeswalker /
+  // battle) to assign it directly. Upserts so re-dropping moves the attacker.
+  function assignAttackPair(attackerId: string, targetId: string) {
+    const valid = attackerOptions.find((a) => a.attackerId === attackerId)?.validTargetIds ?? [];
+    if (!valid.includes(targetId)) return;
+    setAttackAssignments((prev) => [
+      ...prev.filter((a) => a.attackerId !== attackerId),
+      { attackerId, targetId },
+    ]);
+    setPendingAttackers((prev) => prev.filter((id) => id !== attackerId));
+  }
+
+  // Drag-to-unattack: drop a staged attacker back on our own field to remove it.
+  function unassignAttack(attackerId: string) {
+    setAttackAssignments((prev) => prev.filter((a) => a.attackerId !== attackerId));
+    setPendingAttackers((prev) => prev.filter((id) => id !== attackerId));
   }
 
   /** "Attack All" — mark every legal attacker as pending. In single-
@@ -323,6 +349,8 @@ export function useCombatState({
     pendingAttackers,
     attackAssignments,
     submitAttack,
+    assignAttackPair,
+    unassignAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,

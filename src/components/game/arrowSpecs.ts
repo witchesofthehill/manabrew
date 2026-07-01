@@ -8,10 +8,10 @@ export interface BuildArrowSpecsOptions {
   attackerIds: string[];
   blockAssignments: { blockerId: string; attackerId: string }[];
   combatAssignments: { blockerId: string; attackerId: string }[];
-  // Pre-commit pending attackers are signalled via card-tap visuals only
-  // (Game.tsx), never an arrow — multiple opponents / planeswalkers / sieges
-  // make any "default" destination misleading.
-  activeAttackers: { attackerId: string; defenderId: string }[];
+  // Attacker→target arrows. `targetKind` picks the endpoint: "player" anchors to
+  // the defender's avatar; "card" anchors to the specific planeswalker/battle
+  // being attacked (drag-declared attacks know their exact target).
+  activeAttackers: { attackerId: string; targetId: string; targetKind: "player" | "card" }[];
   stack?: StackObjectDto[];
   activeStackObjectId?: string | null;
   stageBlockers?: boolean;
@@ -44,10 +44,10 @@ export function buildArrowSpecs(opts: BuildArrowSpecsOptions): ArrowSpec[] {
 
   const specs: ArrowSpec[] = [];
 
-  for (const { attackerId, defenderId } of activeAttackers) {
+  for (const { attackerId, targetId, targetKind } of activeAttackers) {
     specs.push({
       from: { kind: "card", id: attackerId },
-      to: { kind: "player", id: defenderId },
+      to: targetKind === "card" ? { kind: "card", id: targetId } : { kind: "player", id: targetId },
       type: "attack",
     });
   }

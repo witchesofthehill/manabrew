@@ -952,9 +952,10 @@ export class BoardScene {
     this.callbacks.onAttackDragChange?.(id);
   }
 
-  /** Resolve a canvas-global point to a legal defender for `attackerId`: a
-   *  planeswalker/battle card directly under the pointer wins; otherwise the
-   *  opponent whose field band the pointer is over (proximity → the player). */
+  /** Resolve a scene-space point (root-local, as `getCardPosition` returns) to a
+   *  legal defender for `attackerId`: a planeswalker/battle card directly under
+   *  the pointer wins; otherwise the opponent whose field band the pointer is
+   *  over (proximity → the player). */
   private resolveAttackTargetAt(gx: number, gy: number, attackerId: string): string | null {
     const valid = this.attackerOptions.find((a) => a.attackerId === attackerId)?.validTargetIds;
     if (!valid || valid.length === 0) return null;
@@ -1398,11 +1399,7 @@ export class BoardScene {
     }
 
     if (this.attackDragAttackerId) {
-      this.attackDragTargetId = this.resolveAttackTargetAt(
-        e.global.x,
-        e.global.y,
-        this.attackDragAttackerId,
-      );
+      this.attackDragTargetId = this.resolveAttackTargetAt(pos.x, pos.y, this.attackDragAttackerId);
       this.hoveredCell = null;
       this.stackTargetId = null;
       local.hideGridSkeleton();

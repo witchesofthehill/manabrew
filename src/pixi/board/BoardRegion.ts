@@ -479,13 +479,12 @@ export class BoardRegion {
     return entry ? this.localToCanvas(entry.targetX, entry.targetY) : null;
   }
 
-  containsPointInCard(cardId: string, globalX: number, globalY: number): boolean {
-    const entry = this.entries.get(cardId);
-    if (!entry) return false;
-    const b = entry.sprite.getBounds();
-    return (
-      globalX >= b.x && globalX <= b.x + b.width && globalY >= b.y && globalY <= b.y + b.height
-    );
+  containsPointInCard(cardId: string, canvasX: number, canvasY: number): boolean {
+    const center = this.getCardPosition(cardId);
+    if (!center) return false;
+    const halfW = (CARD_W * this.cardScale) / 2;
+    const halfH = (CARD_H * this.cardScale) / 2;
+    return Math.abs(canvasX - center.x) <= halfW && Math.abs(canvasY - center.y) <= halfH;
   }
 
   getZoneTileCenter(key: string): ScreenPos | null {

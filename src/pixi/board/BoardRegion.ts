@@ -863,10 +863,17 @@ export class BoardRegion {
     const y = this.frontEdgeY();
     const cardW = CARD_W * this.cardScale;
     const mat = this.playmatRect();
+    // Opponent bands hold a zone tile (exile/…) in the attack-row slot (grid
+    // col 0), so start the band at col 1's left edge to clear that whole column
+    // rather than a card width from the playmat edge (the grid is inset/centred).
+    const grid = this.gridInfo;
+    const bandLeft =
+      this.mirrored && this.zoneTileKeys.length > 0 && grid ? grid.originX + grid.cellW : mat.x;
+    const bandW = mat.x + mat.width - bandLeft;
     const fullStep = cardW * COMBAT_ROW_STEP_FRAC;
-    const fitStep = ids.length > 1 ? (mat.width - cardW) / (ids.length - 1) : fullStep;
+    const fitStep = ids.length > 1 ? (bandW - cardW) / (ids.length - 1) : fullStep;
     const step = Math.max(0, Math.min(fullStep, fitStep));
-    const centerX = mat.x + mat.width / 2;
+    const centerX = bandLeft + bandW / 2;
     const startX = centerX - ((ids.length - 1) * step) / 2;
 
     const attackerX = new Map<string, number>();
@@ -908,8 +915,8 @@ export class BoardRegion {
 
     const red = hexToNum(this.host.getTheme().gameTheme.pt.lethal);
     const halfH = (CARD_H * this.cardScale) / 2;
-    const stripLeft = mat.x;
-    const stripW = mat.width;
+    const stripLeft = bandLeft;
+    const stripW = bandW;
     const stripTop = y - halfH - COMBAT_ROW_PAD_Y;
     const stripH = halfH * 2 + COMBAT_ROW_PAD_Y * 2;
     this.combatRowGfx.roundRect(stripLeft, stripTop, stripW, stripH, 10);

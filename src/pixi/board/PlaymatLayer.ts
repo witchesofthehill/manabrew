@@ -186,6 +186,7 @@ export class PlaymatLayer {
   private settings: Required<PlaymatSettings> = { ...DEFAULT_PLAYMAT_SETTINGS };
   private rect: PlayZoneRect | null = null;
   private dropActive = false;
+  private mirrored = false;
 
   constructor() {
     this.container = new Container();
@@ -244,6 +245,12 @@ export class PlaymatLayer {
     if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
   }
 
+  setMirrored(mirrored: boolean): void {
+    if (mirrored === this.mirrored) return;
+    this.mirrored = mirrored;
+    if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+  }
+
   private updateVisibility(): void {
     this.container.visible = !!this.url || !!this.settings.color;
   }
@@ -289,6 +296,10 @@ export class PlaymatLayer {
     const sy = r.height / th;
     const cx = r.x + r.width / 2;
     const cy = r.y + r.height / 2;
+    // Opponent mats read as their own mat rotated 180°: spin the sprite about its
+    // centre (bounds unchanged) and mirror the cover-fit offset so the framing
+    // rotates with it.
+    this.image.rotation = this.mirrored ? Math.PI : 0;
     if (this.settings.fit === "stretch") {
       this.image.scale.set(sx, sy);
       this.image.x = cx;
@@ -300,8 +311,8 @@ export class PlaymatLayer {
     } else {
       const scale = Math.max(sx, sy) * clampPlaymatZoom(this.settings.zoom);
       this.image.scale.set(scale);
-      const ox = clamp01(this.settings.offsetX);
-      const oy = clamp01(this.settings.offsetY);
+      const ox = clamp01(this.mirrored ? 1 - this.settings.offsetX : this.settings.offsetX);
+      const oy = clamp01(this.mirrored ? 1 - this.settings.offsetY : this.settings.offsetY);
       this.image.x = cx + (0.5 - ox) * (tw * scale - r.width);
       this.image.y = cy + (0.5 - oy) * (th * scale - r.height);
     }

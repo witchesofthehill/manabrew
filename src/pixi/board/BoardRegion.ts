@@ -177,6 +177,7 @@ export class BoardRegion {
     this.container.addChild(this.backgroundGfx);
 
     this.playmat.container.zIndex = -9;
+    this.playmat.setMirrored(this.mirrored);
     this.container.addChild(this.playmat.container);
 
     // Above the felt, below the cards.
@@ -333,6 +334,7 @@ export class BoardRegion {
       prev.width !== zone.width ||
       prev.height !== zone.height;
     this.mirrored = orientation !== "bottom";
+    this.playmat.setMirrored(this.mirrored);
     this.zoneTiles.setDraggable(!this.mirrored);
     this.applyOrientation(zone);
     this.updateClip();

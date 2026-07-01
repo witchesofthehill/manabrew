@@ -234,9 +234,12 @@ export class BoardRegion {
   }
 
   /** Assign each zone tile a grid cell (persisted slot, else the next free cell
-   *  scanning from the player's near edge — bottom-left for the local player,
-   *  top-left for mirrored opponents), reserve those cells in `occupied` so
-   *  cards avoid them, and push the pixel placements to the tile layer. */
+   *  scanning column-major from the player's near edge — a vertical stack up
+   *  from bottom-left for the local player, down from top-left for mirrored
+   *  opponents), reserve those cells in `occupied` so cards avoid them, and push
+   *  the pixel placements to the tile layer. Mirrored opponents extend each
+   *  column into the reserved attack-row band (synthetic row `grid.rows`) so the
+   *  stack flows into that inner-edge slot before wrapping to the next column. */
   private placeZoneTiles(grid: GridLayoutInfo, occupied: Set<string>): void {
     const placements = new Map<string, { x: number; y: number }>();
     const taken = new Set<string>();
@@ -246,13 +249,24 @@ export class BoardRegion {
       !taken.has(cellKey(cell.col, cell.row)) &&
       !occupied.has(cellKey(cell.col, cell.row));
 
-    const rowOrder = this.mirrored
+    const attackBandRow = grid.rows;
+    const resolveCell = (col: number, row: number): GridCell | null => {
+      if (row !== attackBandRow) return cellAt(grid, col, row);
+      if (!this.mirrored || col < 0 || col >= grid.cols) return null;
+      const x = grid.originX + col * grid.cellW;
+      const cy = this.frontEdgeY();
+      const y = cy - grid.cardH / 2;
+      return { col, row, x, y, cx: x + grid.cardW / 2, cy, blocked: false };
+    };
+
+    const gridRows = this.mirrored
       ? Array.from({ length: grid.rows }, (_, r) => r)
       : Array.from({ length: grid.rows }, (_, r) => grid.rows - 1 - r);
+    const rowOrder = this.mirrored ? [...gridRows, attackBandRow] : gridRows;
     const nextDefaultCell = (): GridCell | null => {
-      for (const row of rowOrder) {
-        for (let col = 0; col < grid.cols; col++) {
-          const cell = cellAt(grid, col, row);
+      for (let col = 0; col < grid.cols; col++) {
+        for (const row of rowOrder) {
+          const cell = resolveCell(col, row);
           if (isFree(cell)) return cell;
         }
       }
@@ -261,7 +275,7 @@ export class BoardRegion {
 
     for (const key of this.zoneTileKeys) {
       const slot = this.zoneSlots.get(key);
-      let cell = slot ? cellAt(grid, slot.col, slot.row) : null;
+      let cell = slot ? resolveCell(slot.col, slot.row) : null;
       if (!isFree(cell)) cell = nextDefaultCell();
       if (!cell) continue;
       this.zoneSlots.set(key, { col: cell.col, row: cell.row });

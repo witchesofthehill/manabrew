@@ -367,7 +367,7 @@ export const useDeckStore = create<DeckState>()(
               // Move commanders back to main deck
               const movedBack = (deck.commanders ?? []).map((c) => ({
                 ...c,
-                id: crypto.randomUUID(),
+                identity: { ...c.identity, id: crypto.randomUUID() },
               }));
               return {
                 currentDeck: {

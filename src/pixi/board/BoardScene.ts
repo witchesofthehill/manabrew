@@ -1398,7 +1398,9 @@ export class BoardScene {
         entry.sprite.x = pos.x;
         entry.sprite.y = pos.y;
       }
-      ud.overOwn = pos.y > this.topHeight;
+      // Only the self field counts as "own" — exclude the phase-strip band above
+      // it, or releasing over the strip would silently un-declare the attacker.
+      ud.overOwn = pos.y >= (this.localZone()?.y ?? this.topHeight);
       return;
     }
     if (this.draggingDelim !== null) {
@@ -1613,16 +1615,17 @@ export class BoardScene {
 
   getArrowDefs(): ArrowDef[] {
     if (this.destroyed) return [];
-    if (this.delimitersSettling()) return [];
     const castDragging = this.hand?.isDraggingPermanent() ?? false;
-    if (
-      this.arrowSpecs.length === 0 &&
-      !this.castingArrow &&
-      !castDragging &&
-      !this.blockDragBlockerId &&
-      !this.attackDragAttackerId
-    )
-      return [];
+    const interacting =
+      !!this.castingArrow ||
+      castDragging ||
+      !!this.blockDragBlockerId ||
+      !!this.attackDragAttackerId;
+    // Suppress the (card-anchored) combat arrows while the accordion eases so they
+    // don't lag their moving targets — but keep live drag/casting arrows, or the
+    // player loses targeting feedback exactly when combat opens the fields.
+    if (this.delimitersSettling() && !interacting) return [];
+    if (this.arrowSpecs.length === 0 && !interacting) return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
     const attackTargetCounts = new Map<string, number>();

@@ -27,6 +27,9 @@ export function useFlashQueue(flashDurationMs: number) {
     if (prompt) {
       updates.currentPrompt = prompt;
       updates.isWaitingForResponse = false;
+      // Mirror route(): a fresh prompt means we hold priority again, so clear the
+      // optimistic relinquished flag or the board stays stuck "waiting for others".
+      updates.relinquishedPriority = false;
     }
     if (Object.keys(updates).length > 0) useGameStore.setState(updates);
   }

@@ -725,6 +725,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
   const confirmPromptRef = useRef<() => boolean>(() => false);
   confirmPromptRef.current = () => {
+    // A response is already in flight — ignore the keyboard confirm so it can't
+    // fire submitAttack (which would clear staging while respond() is dropped).
+    if (isWaitingForResponse) return false;
     if (promptType === "payManaCost") {
       payManaPrimaryRef.current();
       return true;
@@ -741,15 +744,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseAttackers") {
-      if (multipleAttackDefenders) {
-        if (attackAssignments.length === 0) return false;
-        submitAttack();
-        return true;
-      }
-      if (pendingAttackers.length === 0) return false;
-      respond(
-        declareAttackersOutput(activePrompt, pendingAttackers, attackDefenderId ?? undefined),
-      );
+      if (attackAssignments.length === 0 && pendingAttackers.length === 0) return false;
+      // submitAttack merges drag-declared assignments with any still-pending
+      // (tapped) attackers, so both flows commit regardless of defender count.
+      submitAttack();
       return true;
     }
     if (promptType === "chooseBlockers") {
@@ -1041,6 +1039,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     for (const t of chooseAttackersInput?.attackTargets ?? []) m.set(t.id, t.kind);
     return m;
   }, [chooseAttackersInput]);
+  const playerIdSet = useMemo(
+    () => new Set((gameView?.players ?? []).map((p) => p.id)),
+    [gameView?.players],
+  );
   const attackArrows = useMemo(
     () => [
       ...activeAttackers
@@ -1062,8 +1064,26 @@ export default function Game({ exitTo }: GameProps = {}) {
           targetId: a.targetId,
           targetKind: "card" as const,
         })),
+      // Committed attackers pointed at a planeswalker / battle: the combat row
+      // groups them under the controlling player, so an arrow to the specific
+      // permanent (via the engine's attackTargetId) is the only thing that shows
+      // which one is under attack once the declaration is locked in.
+      ...(gameView?.battlefield ?? [])
+        .filter((c) => c.isAttacking && !!c.attackTargetId && !playerIdSet.has(c.attackTargetId))
+        .map((c) => ({
+          attackerId: c.id,
+          targetId: c.attackTargetId!,
+          targetKind: "card" as const,
+        })),
     ],
-    [activeAttackers, attackAssignments, oppCombatAttackerIds, attackTargetKindById],
+    [
+      activeAttackers,
+      attackAssignments,
+      oppCombatAttackerIds,
+      attackTargetKindById,
+      gameView?.battlefield,
+      playerIdSet,
+    ],
   );
   const arrowBlocks = useMemo(
     () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),

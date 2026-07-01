@@ -83,7 +83,10 @@ export const battlefieldScaleForFraction = (usableH: number, fraction: number): 
 export const battlefieldFillScale = (usableH: number, fraction: number): number => {
   const provisional = battlefieldScaleForFraction(usableH, fraction);
   const cellH = CARD_H * provisional * (1 + CELL_BREATHING_FRAC) + GAP;
-  const rows = Math.max(BATTLEFIELD_MIN_ROWS, Math.floor((usableH + GAP) / cellH));
+  const rows = Math.min(
+    BATTLEFIELD_MAX_ROWS,
+    Math.max(BATTLEFIELD_MIN_ROWS, Math.floor((usableH + GAP) / cellH)),
+  );
   return Math.max(BATTLEFIELD_CARD_SCALE_FLOOR, maxScaleForRows(usableH, rows));
 };
 

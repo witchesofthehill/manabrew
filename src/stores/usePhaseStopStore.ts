@@ -86,7 +86,11 @@ export function getNextStop(
   for (let slot = 0; slot <= n; slot++) {
     const playerId = playerOrder[(startIdx + slot) % n]!;
     const stops = playerId === myId ? selfStops : getOpponentStops(playerId);
-    const phaseStart = slot === 0 ? currentPhaseIdx + 1 : 0;
+    // For the active player's current turn (slot 0) skip phases already elapsed.
+    // If currentStep isn't in PHASE_ORDER we can't tell how far in we are, so skip
+    // this turn entirely rather than emit a stop for a possibly-passed phase.
+    const phaseStart =
+      slot === 0 ? (currentPhaseIdx < 0 ? PHASE_ORDER.length : currentPhaseIdx + 1) : 0;
     for (let i = phaseStart; i < PHASE_ORDER.length; i++) {
       if (stops.has(PHASE_ORDER[i]!)) return { playerId, phase: PHASE_ORDER[i]! };
     }

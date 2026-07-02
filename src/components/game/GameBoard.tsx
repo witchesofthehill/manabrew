@@ -7,7 +7,6 @@ import { type ZonePanelItem } from "@/stores/usePreferencesStore";
 import { BoardCanvas, type BoardCanvasLayout, type BoardCanvasRegion } from "@/pixi/BoardCanvas";
 import { BoardOverlayCanvas } from "@/pixi/BoardOverlayCanvas";
 import type { StackSpec } from "@/pixi/stack/stack.types";
-import { isFeatureEnabled } from "@/featureFlags";
 import type { CombatRow } from "@/components/game/combatRows";
 import type { BoardScene } from "@/pixi/board/BoardScene";
 import type { PlayerHudSpec, PlayerHudBadge } from "@/pixi/hud/playerHud.types";
@@ -24,7 +23,6 @@ import { usePhaseStopStore } from "@/stores/usePhaseStopStore";
 import type { PromptType } from "@/protocol";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
-import { withAlpha } from "@/themes/gameTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
@@ -1277,24 +1275,6 @@ export function GameBoard({
           }}
         />
       </div>
-      {isFeatureEnabled("debugBattlegroundRects") &&
-        unifiedLayout?.opponents.map(({ playerId, rect }, i) => {
-          const seat = OPPONENT_SEATS[i] ?? "opponent1";
-          return (
-            <div
-              key={`bg-rect-${playerId}`}
-              className="pointer-events-none absolute z-20"
-              style={{
-                left: rect.x,
-                top: rect.y,
-                width: rect.width,
-                height: rect.height,
-                backgroundColor: withAlpha(playerColors[seat], 0.2),
-                outline: `2px solid ${withAlpha(playerColors[seat], 0.55)}`,
-              }}
-            />
-          );
-        })}
       <div className="absolute inset-0 z-40 pointer-events-none">
         <BoardOverlayCanvas
           sceneRef={sceneRef}

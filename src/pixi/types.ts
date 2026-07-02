@@ -50,22 +50,6 @@ export interface ArrowSpec {
   hostile?: boolean;
 }
 
-/**
- * Cursor-following pointer shown during target selection. Source is the
- * casting card's sprite in the Pixi `StackLayer` (resolved via the scene's
- * stack anchor provider). Target is either a specific card/player (locked
- * target) or the cursor.
- */
-export interface CastingArrowSpec {
-  castingCardId: string;
-  /** When set, the arrow locks onto this card or player id. */
-  targetId?: string | null;
-  /** Legacy hostile flag — kept so existing props don't break. */
-  hostile: boolean;
-  /** Semantic intent used to pick the pointer icon + glow color. */
-  intent: import("@/types/promptType").TargetingIntent;
-}
-
 export interface GameCanvasCallbacks {
   onClickCard?: (card: CardDto) => void;
   onClickAnyCard?: (card: CardDto) => void;
@@ -149,15 +133,4 @@ export interface HandState {
   castingCardId?: string | null;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
-}
-
-export interface CardSpriteData {
-  card: CardDto;
-  x: number;
-  y: number;
-  tapped: boolean;
-  ringColor: number | null;
-  ringAlpha: number;
-  phasedOut: boolean;
-  summoningSick: boolean;
 }

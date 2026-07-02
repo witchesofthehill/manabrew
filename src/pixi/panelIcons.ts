@@ -58,7 +58,6 @@ const iconCache = new Map<string, Texture>();
 const pendingSprites = new Map<string, Set<PendingSprite>>();
 
 export const ICON_RASTER = 64;
-export const AVATAR_RASTER = 256;
 
 function getIconBody(key: string): string | undefined {
   if (SVG[key]) return SVG[key];

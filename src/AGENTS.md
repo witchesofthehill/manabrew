@@ -44,7 +44,7 @@ Read first: `/AGENTS.md`, `docs/STYLE_GUIDELINES.md`, `docs/agents/UI_THEME_RULE
 
 ## Feature flags
 
-Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. (Currently holds `debugBattlegroundRects`, a debug overlay that tints each multiplayer battleground's rectangle.)
+Compile-time feature flags live in **one** file: `src/featureFlags.ts`. Add a boolean to the `featureFlags` object (default `false` to ship a feature dark) and gate code with `isFeatureEnabled("<flag>")`. Don't scatter ad-hoc flags elsewhere — this is the single source of truth, flipped by hand in the file. (Currently empty — the registry stays as the home for the next flag.)
 
 ## Card data — Scryfall store
 

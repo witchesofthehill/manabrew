@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useGameStore } from "@/stores/useGameStore";
 import { getPlatformType } from "@/platform";
+import { useKeybindings } from "@/hooks/useKeybindings";
 
 interface MiddleBarDockProps {
   /** Controlled open state — the trigger is the Pixi gear in the self panel. */
@@ -68,6 +69,8 @@ export function MiddleBarDock({
       void document.documentElement.requestFullscreen().catch(() => undefined);
     }
   }, []);
+
+  useKeybindings({ "toggle-fullscreen": toggleFullscreen });
 
   const FullscreenIcon = isFullscreen ? Minimize2 : Maximize2;
   const PanelIcon = sidePanelCollapsed ? PanelRightOpen : PanelRightClose;

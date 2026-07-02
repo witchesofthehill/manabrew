@@ -14,7 +14,6 @@ import {
   type GridLayoutInfo,
 } from "../GridLayout";
 import { CARD_W, CARD_H } from "@/components/game/game.constants";
-import { isFeatureEnabled } from "@/featureFlags";
 import { hexToNum } from "../colorUtils";
 import { lerp, safeDestroy } from "./pixiHelpers";
 import { EffectsLayer } from "../effects/EffectsLayer";
@@ -117,7 +116,6 @@ export class BoardRegion {
   private playmat = new PlaymatLayer();
   private effects = new EffectsLayer();
   private gridSkeletonGfx: Graphics;
-  private debugGridGfx: Graphics;
   private zoneTiles: BoardZoneTiles;
   private zoneTileKeys: string[] = [];
   private zoneSlots = new Map<string, { col: number; row: number }>();
@@ -198,11 +196,6 @@ export class BoardRegion {
     this.gridSkeletonGfx.visible = false;
     this.gridSkeletonGfx.zIndex = Z_GRID_SKELETON;
     this.container.addChild(this.gridSkeletonGfx);
-
-    this.debugGridGfx = new Graphics();
-    this.debugGridGfx.eventMode = "none";
-    this.debugGridGfx.zIndex = Z_GRID_SKELETON;
-    this.container.addChild(this.debugGridGfx);
 
     this.zoneTiles = new BoardZoneTiles(this.host.getTheme(), {
       onDragMove: (cx, cy) => this.drawDropGrid(cx, cy),
@@ -290,26 +283,6 @@ export class BoardRegion {
       placements.set(key, { x: cell.x, y: cell.y });
     }
     this.zoneTiles.setGeometry(CARD_W * this.cardScale, CARD_H * this.cardScale, placements);
-    this.drawDebugGrid(grid);
-  }
-
-  private drawDebugGrid(grid: GridLayoutInfo): void {
-    const gfx = this.debugGridGfx;
-    gfx.clear();
-    if (!isFeatureEnabled("debugShowGrid")) {
-      gfx.visible = false;
-      return;
-    }
-    const gt = this.host.getTheme().gameTheme;
-    for (const cell of grid.cells) {
-      if (cell.blocked) gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-    }
-    gfx.stroke({ color: hexToNum(gt.pt.lethal), width: 1, alpha: 0.3 });
-    for (const cell of grid.cells) {
-      if (!cell.blocked) gfx.roundRect(cell.x, cell.y, grid.cardW, grid.cardH, CARD_RADIUS);
-    }
-    gfx.stroke({ color: hexToNum(gt.canvas.neutral), width: 1, alpha: 0.35 });
-    gfx.visible = true;
   }
 
   private onZoneTileMoved(key: string, centerX: number, centerY: number): void {

@@ -25,6 +25,7 @@ import forge.game.player.PlayerView;
 import forge.game.spellability.AbilityManaPart;
 import forge.game.spellability.SpellAbility;
 import forge.game.staticability.StaticAbilityCantAttackBlock;
+import forge.game.staticability.StaticAbilityMustAttack;
 import forge.game.zone.ZoneType;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -161,22 +162,29 @@ public final class ManaBrewInteractiveSession {
     static final class PriorityChoice {
         private final PriorityActionKind kind;
         private final SpellAbility action;
+        private final String untilPlayer;
         private final String untilPhase;
         private final Card untapCard;
         private final String color;
 
-        private PriorityChoice(final PriorityActionKind kind, final SpellAbility action, final String untilPhase) {
-            this(kind, action, untilPhase, null, null);
+        private PriorityChoice(
+                final PriorityActionKind kind,
+                final SpellAbility action,
+                final String untilPlayer,
+                final String untilPhase) {
+            this(kind, action, untilPlayer, untilPhase, null, null);
         }
 
         private PriorityChoice(
                 final PriorityActionKind kind,
                 final SpellAbility action,
+                final String untilPlayer,
                 final String untilPhase,
                 final Card untapCard,
                 final String color) {
             this.kind = kind;
             this.action = action;
+            this.untilPlayer = untilPlayer;
             this.untilPhase = untilPhase;
             this.untapCard = untapCard;
             this.color = color;
@@ -188,6 +196,10 @@ public final class ManaBrewInteractiveSession {
 
         SpellAbility action() {
             return action;
+        }
+
+        String untilPlayer() {
+            return untilPlayer;
         }
 
         String untilPhase() {
@@ -216,25 +228,29 @@ public final class ManaBrewInteractiveSession {
                 action = actions.take();
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
-                return new PriorityChoice(PriorityActionKind.PASS, null, null);
+                return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
             }
             final String kind = action.has("kind") ? action.get("kind").getAsString() : "";
             if ("pass".equals(kind) || "pass_priority".equals(kind)) {
-                final String until = action.has("until") && !action.get("until").isJsonNull()
-                        ? action.get("until").getAsString()
+                final JsonObject until = action.has("until") && action.get("until").isJsonObject()
+                        ? action.getAsJsonObject("until")
                         : null;
-                return new PriorityChoice(PriorityActionKind.PASS, null, until);
+                final String untilPlayer = until != null && until.has("playerId")
+                        && !until.get("playerId").isJsonNull() ? until.get("playerId").getAsString() : null;
+                final String untilPhase = until != null && until.has("phase")
+                        && !until.get("phase").isJsonNull() ? until.get("phase").getAsString() : null;
+                return new PriorityChoice(PriorityActionKind.PASS, null, untilPlayer, untilPhase);
             }
             if ("untap_land".equals(kind)) {
                 final Card untapCard = resolveUntapCard(action, untappableCards);
-                return new PriorityChoice(PriorityActionKind.UNDO, null, null, untapCard, null);
+                return new PriorityChoice(PriorityActionKind.UNDO, null, null, null, untapCard, null);
             }
             if ("choose_action".equals(kind)) {
                 final int index = action.get("index").getAsInt();
                 if (index < 0 || index >= actionsForPrompt.size()) {
                     throw new IllegalArgumentException("action index out of range: " + index);
                 }
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null);
             }
             if ("tap_land".equals(kind)) {
                 if (!action.has("manaAbilityIndex") || action.get("manaAbilityIndex").isJsonNull()) {
@@ -247,11 +263,11 @@ public final class ManaBrewInteractiveSession {
                 final String color = action.has("color") && !action.get("color").isJsonNull()
                         ? action.get("color").getAsString()
                         : null;
-                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, color);
+                return new PriorityChoice(PriorityActionKind.ACTION, actionsForPrompt.get(index), null, null, null, color);
             }
             throw new UnsupportedOperationException("unsupported action kind: " + kind);
         }
-        return new PriorityChoice(PriorityActionKind.PASS, null, null);
+        return new PriorityChoice(PriorityActionKind.PASS, null, null, null);
     }
 
     enum ManaPaymentKind { TAP, UNTAP, PAY, PAY_LIFE, CANCEL, DELVE, UNDELVE }
@@ -573,20 +589,25 @@ public final class ManaBrewInteractiveSession {
         requireAttached();
         final Random rng = forge.util.MyRandom.getRandom();
         final int sides = 20;
+        final Map<Player, Integer> openingRolls = new LinkedHashMap<Player, Integer>();
         List<Player> contenders = new ArrayList<Player>(players);
-        Map<Player, Integer> rolls = new LinkedHashMap<Player, Integer>();
         Player winner;
+        boolean firstRound = true;
         while (true) {
-            rolls.clear();
+            final Map<Player, Integer> roundRolls = new LinkedHashMap<Player, Integer>();
             int highest = 0;
             for (final Player contender : contenders) {
                 final int value = rng.nextInt(sides) + 1;
-                rolls.put(contender, value);
+                roundRolls.put(contender, value);
                 highest = Math.max(highest, value);
+            }
+            if (firstRound) {
+                openingRolls.putAll(roundRolls);
+                firstRound = false;
             }
             final List<Player> top = new ArrayList<Player>();
             for (final Player contender : contenders) {
-                if (rolls.get(contender) == highest) {
+                if (roundRolls.get(contender) == highest) {
                     top.add(contender);
                 }
             }
@@ -596,7 +617,7 @@ public final class ManaBrewInteractiveSession {
             }
             contenders = top;
         }
-        publishFirstPlayerRollPrompt(playerId, players, rolls, winner, sides);
+        publishFirstPlayerRollPrompt(playerId, players, openingRolls, winner, sides);
         awaitFirstPlayerRollAcknowledgement();
         return winner;
     }
@@ -1433,7 +1454,7 @@ public final class ManaBrewInteractiveSession {
         final Card source = sa == null ? null : sa.getHostCard();
         final List<TargetRef> candidateRefs = new java.util.ArrayList<>();
         for (final Pair<GameEntity, forge.game.GameObject> candidate : candidates) {
-            candidateRefs.add(new TargetRef_card(targetId(candidate)));
+            candidateRefs.add(new TargetRef(TargetKind.CARD, targetId(candidate), null, null));
         }
         publishAgentPrompt(
                 "player-" + playerId,
@@ -1714,12 +1735,12 @@ public final class ManaBrewInteractiveSession {
             }
             if (targetCards != null) {
                 for (final Card card : targetCards) {
-                    targets.add(new TargetRef_card(SnapshotExtractor.javaCardId(card)));
+                    targets.add(new TargetRef(TargetKind.CARD, SnapshotExtractor.javaCardId(card), null, null));
                 }
             }
             if (targetPlayers != null) {
                 for (final Player target : targetPlayers) {
-                    targets.add(new TargetRef_player("player-" + SnapshotExtractor.playerIndex(game, target)));
+                    targets.add(new TargetRef(TargetKind.PLAYER, "player-" + SnapshotExtractor.playerIndex(game, target), null, null));
                 }
             }
             confirmLabel = "Pay";
@@ -1768,7 +1789,7 @@ public final class ManaBrewInteractiveSession {
             } else {
                 final CardDto minimal = new CardDto();
                 minimal.id = "java-card-view-" + card.getId();
-                minimal.name = card.getName();
+                minimal.identity = new CardIdentity(card.getName(), "", "", false);
                 cardArray.add(minimal);
             }
         }
@@ -1866,7 +1887,10 @@ public final class ManaBrewInteractiveSession {
             for (final GameEntity d : CombatChoiceSpace.legalDefendersForAttacker(a, combat)) {
                 validTargetIds.add(defenderId(d));
             }
-            attackers.add(new AttackerOptionDto(SnapshotExtractor.javaCardId(a), validTargetIds));
+            final boolean mustAttack =
+                    a.isGoaded() || !StaticAbilityMustAttack.entitiesMustAttack(a).isEmpty();
+            attackers.add(new AttackerOptionDto(
+                    SnapshotExtractor.javaCardId(a), validTargetIds, mustAttack));
         }
         final List<AttackTargetDto> attackTargets = new java.util.ArrayList<>();
         for (final GameEntity defender : combat.getDefenders()) {
@@ -1892,10 +1916,13 @@ public final class ManaBrewInteractiveSession {
                 validBlockerIds.add(SnapshotExtractor.javaCardId(blocker));
             }
             final int rawMax = StaticAbilityCantAttackBlock.getMinMaxBlocker(attacker, defendingPlayer).getRight();
+            final boolean mustBeBlocked =
+                    attacker.hasStartOfKeyword("All creatures able to block CARDNAME do so.")
+                            || attacker.hasStartOfKeyword("CARDNAME must be blocked");
             attackerOptions.add(new BlockableAttackerDto(
                     SnapshotExtractor.javaCardId(attacker), validBlockerIds,
                     CombatUtil.getMinNumBlockersForAttacker(attacker, defendingPlayer),
-                    rawMax < Integer.MAX_VALUE ? rawMax : null, false));
+                    rawMax < Integer.MAX_VALUE ? rawMax : null, mustBeBlocked));
         }
         final List<String> availableBlockerIds = new java.util.ArrayList<>();
         for (final Card blocker : availableBlockers) {
@@ -1991,9 +2018,9 @@ public final class ManaBrewInteractiveSession {
 
     private static TargetRef targetRef(final String kind, final String id) {
         switch (kind) {
-            case "player": return new TargetRef_player(id);
-            case "card": return new TargetRef_card(id);
-            case "spell": return new TargetRef_spell(id);
+            case "player": return new TargetRef(TargetKind.PLAYER, id, null, null);
+            case "card": return new TargetRef(TargetKind.CARD, id, null, null);
+            case "spell": return new TargetRef(TargetKind.SPELL, id, null, null);
             default: throw new IllegalArgumentException("unknown target kind: " + kind);
         }
     }
@@ -2105,6 +2132,13 @@ public final class ManaBrewInteractiveSession {
     private String defenderId(final GameEntity defender) {
         if (defender instanceof Player) {
             return "player-" + SnapshotExtractor.playerIndex(game, (Player) defender);
+        }
+        // A planeswalker / battle defender publishes its card id so it matches the
+        // sprite the UI targets (mirrors the Rust host, which keys permanent
+        // defenders by card id). Both the prompt emit and findDefenderByPublishedId
+        // route through here, so the response round-trip stays consistent.
+        if (defender instanceof Card) {
+            return SnapshotExtractor.javaCardId((Card) defender);
         }
         return "defender-" + defender.getId();
     }

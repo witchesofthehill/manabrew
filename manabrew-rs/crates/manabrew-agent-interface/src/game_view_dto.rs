@@ -7,6 +7,7 @@ use manabrew_engine::mana::ManaPool;
 use manabrew_engine::spellability::SpellAbility;
 
 pub use manabrew_protocol::game::*;
+use manabrew_protocol::prompts::common::{TargetKind, TargetRef};
 
 use crate::ids_codec::{card_id_str, player_id_str, stack_id_str};
 
@@ -104,54 +105,54 @@ pub fn is_hostile_api(sa: &SpellAbility) -> bool {
     targeting_intent_of(sa).is_hostile()
 }
 
-fn collect_stack_targets(root: &SpellAbility) -> Vec<StackTargetDto> {
+fn collect_stack_targets(root: &SpellAbility) -> Vec<TargetRef> {
     let mut out = Vec::new();
-    let mut node_index = 0u32;
     let mut current = Some(root);
 
     while let Some(sa) = current {
-        let mut target_index = 0u32;
         let intent = targeting_intent_of(sa);
-        let hostile = intent.is_hostile();
+        let oracle = stack_target_oracle(sa);
 
         if let Some(cid) = sa.target_chosen.target_card {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Card,
+            out.push(TargetRef {
+                kind: TargetKind::Card,
                 id: card_id_str(cid),
-                node_index,
-                target_index,
-                hostile,
-                intent,
+                intent: Some(intent),
+                oracle: oracle.clone(),
             });
-            target_index += 1;
         }
         if let Some(pid) = sa.target_chosen.target_player {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Player,
+            out.push(TargetRef {
+                kind: TargetKind::Player,
                 id: player_id_str(pid),
-                node_index,
-                target_index,
-                hostile,
-                intent,
+                intent: Some(intent),
+                oracle: oracle.clone(),
             });
-            target_index += 1;
         }
         if let Some(stack_id) = sa.target_chosen.target_stack_entry {
-            out.push(StackTargetDto {
-                kind: StackTargetKindDto::Stack,
+            out.push(TargetRef {
+                kind: TargetKind::Spell,
                 id: stack_id_str(stack_id),
-                node_index,
-                target_index,
-                hostile,
-                intent,
+                intent: Some(intent),
+                oracle: oracle.clone(),
             });
         }
 
-        node_index += 1;
         current = sa.sub_ability.as_deref();
     }
 
     out
+}
+
+fn stack_target_oracle(sa: &SpellAbility) -> Option<String> {
+    let desc = if !sa.stack_description.trim().is_empty() {
+        sa.stack_description.trim()
+    } else if !sa.description.trim().is_empty() {
+        sa.description.trim()
+    } else {
+        return None;
+    };
+    Some(desc.to_string())
 }
 
 fn mana_pool_to_map(pool: &ManaPool) -> HashMap<String, i32> {
@@ -310,9 +311,12 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
 
     CardDto {
         id: card_id_str(cid),
-        name,
-        set_code: card.set_code.clone().unwrap_or_default(),
-        card_number: card.card_number.clone().unwrap_or_default(),
+        identity: CardIdentity {
+            name,
+            set_code: card.set_code.clone().unwrap_or_default(),
+            card_number: card.card_number.clone().unwrap_or_default(),
+            is_token: card.is_token,
+        },
         color,
         mana_cost: mana_cost_str,
         cmc,
@@ -331,6 +335,7 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
         is_crewed: card.is_crewed,
         is_attacking: card.attacking_player.is_some(),
         attacking_player_id: card.attacking_player.map(player_id_str),
+        attack_target_id: None,
         // Merge intrinsic keywords with those granted by continuous effects (layer 6)
         // and temporary pump keywords (KW$ parameter, until end of turn).
         keywords: {
@@ -349,7 +354,6 @@ pub fn card_to_dto(game: &GameState, cid: CardId, zone_label: &str) -> CardDto {
         counters,
         damage: card.damage,
         summoning_sick: card.summoning_sick && !card.has_haste(),
-        is_token: card.is_token,
         is_copy: card.copied_permanent.is_some(),
         is_double_faced: card.other_part.is_some(),
         flashback_cost: card.get_flashback_cost(),
@@ -469,6 +473,8 @@ impl GameViewDtoExt for GameViewDto {
                 has_city_blessing: ps.has_city_blessing,
                 ring_level: ps.ring_level,
                 speed: ps.speed,
+                experience_counters: 0,
+                ticket_counters: 0,
             });
         }
 
@@ -486,15 +492,18 @@ impl GameViewDtoExt for GameViewDto {
             .iter()
             .map(|entry| {
                 let source_card = entry.spell_ability.source.map(|cid| game.card(cid));
-                let name = source_card
-                    .map(|c| c.card_name.clone())
-                    .unwrap_or_else(|| "Ability".to_string());
-                let set_code = source_card
-                    .and_then(|c| c.set_code.clone())
-                    .unwrap_or_default();
-                let card_number = source_card
-                    .and_then(|c| c.card_number.clone())
-                    .unwrap_or_default();
+                let identity = CardIdentity {
+                    name: source_card
+                        .map(|c| c.card_name.clone())
+                        .unwrap_or_else(|| "Ability".to_string()),
+                    set_code: source_card
+                        .and_then(|c| c.set_code.clone())
+                        .unwrap_or_default(),
+                    card_number: source_card
+                        .and_then(|c| c.card_number.clone())
+                        .unwrap_or_default(),
+                    is_token: source_card.map(|c| c.is_token).unwrap_or(false),
+                };
                 StackObjectDto {
                     id: format!("stack-{}", entry.id),
                     source_id: entry
@@ -503,10 +512,8 @@ impl GameViewDtoExt for GameViewDto {
                         .map(card_id_str)
                         .unwrap_or_default(),
                     controller_id: player_id_str(entry.spell_ability.activating_player),
-                    name,
+                    identity,
                     text: entry.spell_ability.ability_text.clone(),
-                    set_code,
-                    card_number,
                     is_permanent_spell: entry.is_creature_spell || entry.is_permanent_spell,
                     is_casting: entry.is_pending_cast,
                     targets: collect_stack_targets(&entry.spell_ability),

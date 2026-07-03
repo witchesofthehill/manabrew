@@ -1,20 +1,15 @@
 import { Ban, Shield } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
-import { BUTTON_CONFIRM_BLOCKS, PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
-import {
-  getPromptActionButtonStyle,
-  usePromptActionColors,
-} from "@/components/prompts/internal/promptActionTheme";
+import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
 import type { ChooseBlockersProps } from "./internal/types";
 
 export function ChooseBlockers({
-  buttonLayout,
   isWaitingForResponse,
   pendingAttacker,
   pendingBlocker,
   blockError,
   blockRequirementError,
+  blockRestrictionHint,
   blockAssignments,
   onPassPriority,
   onDeclareBlockers,
@@ -26,75 +21,41 @@ export function ChooseBlockers({
       : null;
   const promptActionColors = usePromptActionColors();
 
-  if (buttonLayout === "modern") {
-    const defenseStyle = getPromptActionButtonStyle(promptActionColors.defenseAction);
-
-    return (
-      <div className="flex w-3/5 flex-col gap-1.5">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9 w-full rounded-lg text-sm font-black tracking-[0.12em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105"
-          onClick={onPassPriority}
-          disabled={isWaitingForResponse}
-          style={defenseStyle}
-        >
-          NO BLOCKERS
-        </Button>
-        {(blockError || blockRequirementError) && (
-          <p
-            className="text-xs font-semibold text-center"
-            style={{ color: promptActionColors.attackAction }}
-          >
-            {blockError ?? blockRequirementError}
-          </p>
-        )}
-        {hint && <p className="text-xs italic text-muted-foreground text-center">{hint}</p>}
-        {blockAssignments.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9 w-full rounded-lg text-sm font-black tracking-[0.12em] !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105 gap-1.5"
-            onClick={() => onDeclareBlockers(blockAssignments)}
-            disabled={isWaitingForResponse || !!blockRequirementError}
-            style={defenseStyle}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            {`BLOCK (${blockAssignments.length})`}
-          </Button>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className={PROMPT_BUTTON_COLUMN}>
-      <PromptActionButton
-        layout={buttonLayout}
-        label="No Blockers"
-        icon={<Ban className="h-3.5 w-3.5" />}
-        variant="outline"
-        baseColor={promptActionColors.defenseAction}
-        onClick={onPassPriority}
-        disabled={isWaitingForResponse}
-      />
+    <div className="flex flex-col items-center gap-1.5">
       {(blockError || blockRequirementError) && (
-        <p className="text-xs font-semibold" style={{ color: promptActionColors.attackAction }}>
+        <p
+          className="text-center text-xs font-semibold"
+          style={{ color: promptActionColors.attackAction }}
+        >
           {blockError ?? blockRequirementError}
         </p>
       )}
-      {hint && <p className="text-xs italic text-muted-foreground">{hint}</p>}
-      {blockAssignments.length > 0 && (
-        <PromptActionButton
-          layout={buttonLayout}
-          label={`Block (${blockAssignments.length})`}
-          icon={<Shield className="h-3.5 w-3.5" />}
-          className={BUTTON_CONFIRM_BLOCKS}
-          baseColor={promptActionColors.defenseAction}
-          onClick={() => onDeclareBlockers(blockAssignments)}
-          disabled={isWaitingForResponse || !!blockRequirementError}
-        />
+      {hint && <p className="text-center text-[11px] italic text-muted-foreground">{hint}</p>}
+      {!blockError && !blockRequirementError && blockRestrictionHint && (
+        <p className="text-center text-[11px] font-medium text-muted-foreground">
+          {blockRestrictionHint}
+        </p>
       )}
+      <div className="flex flex-row items-center justify-center gap-1.5">
+        {blockAssignments.length > 0 && (
+          <PromptActionButton
+            label={`Block ${blockAssignments.length}`}
+            icon={<Shield className="h-3.5 w-3.5" />}
+            baseColor={promptActionColors.defenseAction}
+            onClick={() => onDeclareBlockers(blockAssignments)}
+            disabled={isWaitingForResponse || !!blockRequirementError}
+          />
+        )}
+        <PromptActionButton
+          label="No Blocks"
+          icon={<Ban className="h-3.5 w-3.5" />}
+          variant="outline"
+          baseColor={promptActionColors.cancel}
+          onClick={onPassPriority}
+          disabled={isWaitingForResponse}
+        />
+      </div>
     </div>
   );
 }

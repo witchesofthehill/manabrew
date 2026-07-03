@@ -75,10 +75,15 @@ impl BotAgent for SimpleAi {
                         .or_else(|| actions.iter().find(useful))
                         .map(|a| a.id.clone())
                 };
-                Some(PromptOutput::ChooseAction(
-                    pick.map(|action_id| ChooseActionOutput::Act { action_id })
-                        .unwrap_or(ChooseActionOutput::Pass { until_phase: None }),
-                ))
+                Some(PromptOutput::ChooseAction(match pick {
+                    Some(action_id) => ChooseActionOutput::Act { action_id },
+                    None => ChooseActionOutput::Pass {
+                        until: Some(PassUntil {
+                            player_id: prompt.deciding_player_id.clone(),
+                            phase: "main1".to_string(),
+                        }),
+                    },
+                }))
             }
             PromptInput::ChooseAttackers(manabrew_protocol::prompts::choose_attackers::ChooseAttackersInput {
                 attackers,

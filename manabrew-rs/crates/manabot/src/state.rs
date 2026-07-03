@@ -1,7 +1,7 @@
-use manabrew_agent_interface::deck_dto::Deck;
 use manabrew_agent_interface::ids_codec::player_slot;
 use manabrew_agent_interface::prompt::AgentPrompt;
 use manabrew_agent_interface::protocol::{ClientMessage, ServerMessage, StateEnvelope};
+use manabrew_protocol::deck_dto::Deck;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::{debug, warn};

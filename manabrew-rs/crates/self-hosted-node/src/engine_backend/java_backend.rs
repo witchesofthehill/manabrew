@@ -22,7 +22,7 @@ use std::time::Duration;
 #[cfg(feature = "java-forge")]
 use std::time::Instant;
 
-use manabrew_agent_interface::deck_dto::{CardIdentity, Deck};
+use manabrew_protocol::deck_dto::{Deck, DeckCardIdentity};
 
 use crate::config::DeckSelection;
 #[cfg(feature = "java-forge")]
@@ -85,7 +85,7 @@ pub fn run_smoke_game(max_prompts: usize) -> Result<(), String> {
             .map_err(|err| format!("failed to parse java-forge smoke prompt: {err}"))?;
         let player = player_index(&prompt.deciding_player_id);
         info!(prompts_seen, player, "java-forge smoke prompt");
-        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None });
+        let pass = PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None });
         session.submit_action(&serde_json::to_string(&pass).map_err(|err| err.to_string())?)?;
         prompts_seen += 1;
     }
@@ -1146,7 +1146,7 @@ fn auto_action(prompt: &AgentPrompt) -> Option<PromptOutput> {
     match prompt.input {
         PromptInput::ChooseAction(_) => {
             Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                until_phase: None,
+                until: None,
             }))
         }
         _ => None,
@@ -1171,7 +1171,7 @@ fn state_via_handle(engine: &ForgeEngine, session_id: &str) -> Result<StateUpdat
 }
 
 #[cfg(forge_backend)]
-fn deck_card_identities(deck: &Deck) -> Vec<CardIdentity> {
+fn deck_card_identities(deck: &Deck) -> Vec<DeckCardIdentity> {
     deck.cards
         .iter()
         .chain(deck.commanders.iter().flatten())
@@ -1180,13 +1180,13 @@ fn deck_card_identities(deck: &Deck) -> Vec<CardIdentity> {
 }
 
 #[cfg(feature = "java-forge")]
-fn smoke_deck(land_name: &str, spell_name: &str) -> Vec<CardIdentity> {
+fn smoke_deck(land_name: &str, spell_name: &str) -> Vec<DeckCardIdentity> {
     (0..24)
-        .map(|_| CardIdentity {
+        .map(|_| DeckCardIdentity {
             name: land_name.to_string(),
             ..Default::default()
         })
-        .chain((0..36).map(|_| CardIdentity {
+        .chain((0..36).map(|_| DeckCardIdentity {
             name: spell_name.to_string(),
             ..Default::default()
         }))
@@ -1194,9 +1194,9 @@ fn smoke_deck(land_name: &str, spell_name: &str) -> Vec<CardIdentity> {
 }
 
 #[cfg(feature = "java-forge")]
-fn scenario_deck(land_name: &str) -> Vec<CardIdentity> {
+fn scenario_deck(land_name: &str) -> Vec<DeckCardIdentity> {
     (0..60)
-        .map(|_| CardIdentity {
+        .map(|_| DeckCardIdentity {
             name: land_name.to_string(),
             ..Default::default()
         })
@@ -1260,7 +1260,7 @@ impl JavaScenario {
                             Ok(Some(action))
                         } else {
                             Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                                until_phase: None,
+                                until: None,
                             })))
                         }
                     }
@@ -1304,7 +1304,7 @@ impl JavaScenario {
                             *played_land = true;
                             Ok(Some(action))
                         } else {
-                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })))
+                            Ok(Some(PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })))
                         }
                     }
                     other => Err(format!(
@@ -1585,7 +1585,7 @@ fn battlefield_contains(game_view: &GameViewDto, card_name: &str) -> bool {
     game_view
         .battlefield
         .iter()
-        .any(|card| card.name == card_name && card.controller_id == "player-0")
+        .any(|card| card.identity.name == card_name && card.controller_id == "player-0")
 }
 
 pub trait JavaBridge {
@@ -2023,7 +2023,7 @@ impl StartGameRequest {
 }
 
 impl PlayerConfig {
-    pub fn new(name: String, deck: &[CardIdentity], commander_name: Option<String>) -> Self {
+    pub fn new(name: String, deck: &[DeckCardIdentity], commander_name: Option<String>) -> Self {
         Self {
             name,
             deck: deck.iter().map(CardIdentityForJava::from).collect(),
@@ -2033,8 +2033,8 @@ impl PlayerConfig {
     }
 }
 
-impl From<&CardIdentity> for CardIdentityForJava {
-    fn from(identity: &CardIdentity) -> Self {
+impl From<&DeckCardIdentity> for CardIdentityForJava {
+    fn from(identity: &DeckCardIdentity) -> Self {
         Self {
             name: java_card_name(&identity.name),
             set_code: (!identity.set_code.is_empty()).then(|| identity.set_code.clone()),

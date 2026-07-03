@@ -12,7 +12,7 @@ import { CARD_BADGES } from "./game.constants";
 import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { isCreature, isLethalDamage } from "./game.utils";
-import { isHorizontalCard } from "@/lib/cardLayout";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { useEffect, useMemo, useState } from "react";
@@ -61,7 +61,7 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
     if (card.isMadnessExiled) out.push({ key: "madness", ...CARD_BADGES.madnessExiled });
     if (card.isWarpExiled) out.push({ key: "warped", ...CARD_BADGES.warpExiled });
     if (card.isCopy) out.push({ key: "copy", ...CARD_BADGES.copy });
-    if (card.isToken) out.push({ key: "token", ...CARD_BADGES.token });
+    if (card.identity.isToken) out.push({ key: "token", ...CARD_BADGES.token });
     return out;
   }, [
     card.exerted,
@@ -72,7 +72,7 @@ function CardDetailOverlay({ card, horizontal }: { card: CardDto; horizontal: bo
     card.isMadnessExiled,
     card.isWarpExiled,
     card.isCopy,
-    card.isToken,
+    card.identity.isToken,
   ]);
 
   const keywords = card.keywords ?? [];
@@ -263,10 +263,13 @@ export function CardPreview({
   // casting the raw CardDto instead left `uris` undefined → crash on index.
   const deckCard: DeckCard = asDeckCard(deck, card);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const { setCode, cardNumber } = deckCard.identity;
+  // Empty set/number (e.g. the dev debug card) must fall through to a name-only
+  // lookup — passing "" builds a set+number key that never resolves an image.
   const cardFaces = useCardFaces({
-    name: card.name,
-    setCode: deckCard.setCode,
-    cardNumber: deckCard.cardNumber,
+    name: card.identity.name,
+    setCode: setCode || undefined,
+    cardNumber: cardNumber || undefined,
   });
   const front = cardFaces.faces[0];
   const back = cardFaces.faces[1];
@@ -284,9 +287,18 @@ export function CardPreview({
       }
     : null;
 
+  const horizontalCard = isHorizontalGameCard(card, deckCard.layout);
+  const [orientationFlipped, setOrientationFlipped] = useState(false);
+  const [prevCardId, setPrevCardId] = useState(card.id);
+  if (prevCardId !== card.id) {
+    setPrevCardId(card.id);
+    setOrientationFlipped(false);
+  }
+
   useKeybindings({
     "flip-card": () => {
-      if (onFlip && hasFlippableFaces) onFlip();
+      if (horizontalCard) setOrientationFlipped((prev) => !prev);
+      else if (onFlip && hasFlippableFaces) onFlip();
     },
   });
 
@@ -322,10 +334,7 @@ export function CardPreview({
     };
   }, [hasActions, isSticky, onDismiss, onSelectAction, actions]);
 
-  const horizontal = isHorizontalCard({
-    layout: deckCard.layout,
-    types: card.types,
-  });
+  const horizontal = horizontalCard && !orientationFlipped;
   const cardWidth = horizontal ? CARD_H : CARD_W;
   const cardHeight = horizontal ? CARD_W : CARD_H;
 
@@ -383,7 +392,8 @@ export function CardPreview({
 
   const hasDoubleFace = !!doubleFacedData;
   const currentImageUrl = hasDoubleFace && showBackFace ? doubleFacedData.backImageUrl : imageUrl;
-  const currentCardName = hasDoubleFace && showBackFace ? doubleFacedData.backName : card.name;
+  const currentCardName =
+    hasDoubleFace && showBackFace ? doubleFacedData.backName : card.identity.name;
   const currentLowResUrl =
     imageSize !== "large"
       ? null
@@ -508,6 +518,20 @@ export function CardPreview({
                     {showBackFace ? "Front" : "Back"}
                   </button>
                 )}
+                {horizontalCard && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOrientationFlipped((prev) => !prev);
+                    }}
+                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    title="Rotate the card to read it (F)"
+                  >
+                    <RotateCw className="h-3 w-3" />
+                    {orientationFlipped ? "Read" : "Rotate"}
+                  </button>
+                )}
               </>
             ) : (
               <div className="w-full h-full p-4 flex flex-col gap-2 bg-card">
@@ -519,10 +543,7 @@ export function CardPreview({
                         <span className="line-through opacity-50">
                           <ManaSymbols cost={card.manaCost} size="md" />
                         </span>
-                        <span
-                          className="rounded px-0.5"
-                          style={{ backgroundColor: withAlpha(ringColor, 0.2) }}
-                        >
+                        <span className="rounded border px-0.5" style={{ borderColor: ringColor }}>
                           <ManaSymbols cost={card.effectiveManaCost} size="md" />
                         </span>
                       </div>
@@ -588,7 +609,6 @@ export function CardPreview({
                     "flex flex-col px-3 py-2",
                   )}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = withAlpha(ringColor, 0.12);
                     e.currentTarget.style.borderColor = ringColor;
                   }}
                   onMouseLeave={(e) => {

@@ -4,10 +4,10 @@ import { usePreferencesStore, type ZonePanelItem } from "@/stores/usePreferences
 import { normalizeToWebp, ImageTooLargeError, AVATAR_IMAGE_BUDGET } from "@/lib/imageEncode";
 import { BattlefieldStylePreview } from "@/components/game/BattlefieldStylePreview";
 import { PlaymatEditorModal } from "@/components/editor/PlaymatEditorModal";
-import { isFeatureEnabled } from "@/featureFlags";
 import { THEME_PRESETS, type ThemeColors } from "@/themes";
 import { useServerStore } from "@/stores/useServerStore";
 import { useGameStore } from "@/stores/useGameStore";
+import { useScryfallStore } from "@/stores/useScryfallStore";
 import { PromptPreferencesPanel } from "@/components/prompts/internal/PromptPreferencesPanel";
 import { KeybindingsPanel } from "@/components/settings/KeybindingsPanel";
 import { toPickerHexColor } from "@/themes/gameTheme";
@@ -358,8 +358,9 @@ export default function Settings() {
   const server = useServerStore();
   const { theme, setTheme, resolvedTheme } = useColorMode();
   const [activeTab, setActiveTab] = useState<
-    "server" | "preferences" | "theme" | "prompts" | "keybindings"
+    "server" | "preferences" | "theme" | "prompts" | "keybindings" | "cache"
   >("preferences");
+  const [clearingCache, setClearingCache] = useState(false);
   const [presetOpen, setPresetOpen] = useState(false);
   const [editingThemeColorPath, setEditingThemeColorPath] = useState<string | null>(null);
   const [editingThemeColorValue, setEditingThemeColorValue] = useState("");
@@ -448,6 +449,22 @@ export default function Settings() {
     }
   }
 
+  async function handleClearImageCache() {
+    setClearingCache(true);
+    try {
+      useScryfallStore.getState().clearImageCaches();
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      toast.success("Image cache cleared — reloading…");
+      window.location.reload();
+    } catch {
+      setClearingCache(false);
+      toast.error("Couldn't clear the image cache");
+    }
+  }
+
   if (isGameActive) {
     return <Navigate to="/play" replace />;
   }
@@ -518,10 +535,45 @@ export default function Settings() {
           >
             Shortcuts
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("cache")}
+            className={
+              "pb-2 text-sm font-medium transition-colors border-b-2 " +
+              (activeTab === "cache"
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground")
+            }
+          >
+            Cache
+          </button>
         </div>
       </section>
 
       {activeTab === "keybindings" && <KeybindingsPanel />}
+
+      {activeTab === "cache" && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">Cache</h2>
+          <div className="rounded-lg border bg-card/40 p-4 space-y-3 max-w-xl">
+            <Label>Card Image Cache</Label>
+            <p className="text-xs text-muted-foreground">
+              Drops Manabrew&apos;s in-memory card textures and image object URLs, clears the
+              CacheStorage API, then reloads so every card image is fetched fresh. Use this if
+              battlefield card art fails to appear. For a full browser HTTP cache wipe, use the
+              browser&apos;s &quot;Empty Cache and Hard Reload&quot; (DevTools open → right-click
+              reload).
+            </p>
+            <Button
+              variant="destructive"
+              onClick={() => void handleClearImageCache()}
+              disabled={clearingCache}
+            >
+              {clearingCache ? "Clearing…" : "Clear image cache & reload"}
+            </Button>
+          </div>
+        </section>
+      )}
 
       {activeTab === "prompts" && <PromptPreferencesPanel />}
 
@@ -909,33 +961,6 @@ export default function Settings() {
                 over, others require holding a modifier key.
               </p>
             </div>
-
-            {isFeatureEnabled("wraparoundBoardLayout") && (
-              <div className="rounded-lg border bg-card/40 p-4 space-y-2">
-                <Label>Board Arrangement</Label>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={prefs.boardArrangement === "row" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => prefs.setBoardArrangement("row")}
-                  >
-                    Opponents in a row
-                  </Button>
-                  <Button
-                    variant={prefs.boardArrangement === "perimeter" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => prefs.setBoardArrangement("perimeter")}
-                  >
-                    Wrapped around
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  How opponents are placed in multiplayer games. "Row" lines them up across the top;
-                  "Wrapped around" seats them to your left, across, and right. Only affects 4-player
-                  games.
-                </p>
-              </div>
-            )}
 
             <div className="rounded-lg border bg-card/40 p-4 space-y-2">
               <div className="flex items-center justify-between">

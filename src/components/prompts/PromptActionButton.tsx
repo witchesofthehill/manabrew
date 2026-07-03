@@ -3,10 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getPromptActionButtonStyle, usePromptActionColors } from "./internal/promptActionTheme";
 
-export type PromptButtonLayout = "full" | "modern";
-
 interface PromptActionButtonProps {
-  layout: PromptButtonLayout;
   label: string;
   icon?: ReactNode;
   onClick?: () => void;
@@ -19,7 +16,6 @@ interface PromptActionButtonProps {
 }
 
 export function PromptActionButton({
-  layout,
   label,
   icon,
   onClick,
@@ -37,45 +33,25 @@ export function PromptActionButton({
     ...style,
   };
 
-  if (layout === "modern") {
-    return (
-      <div className="relative group/action">
-        <Button
-          size="icon"
-          variant={variant}
-          className={cn(
-            "!h-9 !w-9 min-h-9 min-w-9 rounded-lg p-0 shrink-0 !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105",
-            className,
-          )}
-          onClick={onClick}
-          disabled={disabled}
-          title={title ?? label}
-          style={themedStyle}
-        >
-          {icon}
-        </Button>
-        <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-7 whitespace-nowrap rounded bg-black/80 px-2 py-0.5 text-[10px] font-semibold text-white opacity-0 group-hover/action:opacity-100 transition-opacity">
-          {label}
-        </span>
-      </div>
-    );
-  }
-
   return (
-    <Button
-      size="sm"
-      variant={variant}
-      className={cn(
-        "flex items-center gap-1 !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105",
-        className,
-      )}
-      onClick={onClick}
-      disabled={disabled}
-      title={title ?? label}
-      style={themedStyle}
-    >
-      {icon}
-      {label}
-    </Button>
+    <div className="relative group/action">
+      <Button
+        size="icon"
+        variant={variant}
+        className={cn(
+          "!h-9 !w-9 min-h-9 min-w-9 rounded-lg p-0 shrink-0 !border-0 !text-white transition-[filter,box-shadow] hover:brightness-105",
+          className,
+        )}
+        onClick={onClick}
+        disabled={disabled}
+        title={title ?? label}
+        style={themedStyle}
+      >
+        {icon}
+      </Button>
+      <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 -top-7 whitespace-nowrap rounded bg-black/80 px-2 py-0.5 text-[10px] font-semibold text-white opacity-0 group-hover/action:opacity-100 transition-opacity">
+        {label}
+      </span>
+    </div>
   );
 }

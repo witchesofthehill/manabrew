@@ -29,17 +29,17 @@ export function mergeDerivedAndCustomized(
   derived: DeckCard[],
   customized: DeckCard[] | undefined,
 ): DeckCard[] {
-  const customByName = new Map((customized ?? []).map((t) => [t.name.toLowerCase(), t]));
+  const customByName = new Map((customized ?? []).map((t) => [t.identity.name.toLowerCase(), t]));
   const seen = new Set<string>();
   const out: DeckCard[] = [];
   for (const d of derived) {
-    const key = d.name.toLowerCase();
+    const key = d.identity.name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(customByName.get(key) ?? d);
   }
   for (const c of customized ?? []) {
-    const key = c.name.toLowerCase();
+    const key = c.identity.name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(c);

@@ -32,7 +32,8 @@ async function prefetchDeckCovers(): Promise<void> {
   const covers: DeckCard[] = [];
   const push = (c: DeckCard | null | undefined) => {
     if (!c) return;
-    const k = `${c.name.toLowerCase()}::${c.setCode.toLowerCase()}::${c.cardNumber.toLowerCase()}`;
+    const { name, setCode, cardNumber } = c.identity;
+    const k = `${name.toLowerCase()}::${setCode.toLowerCase()}::${cardNumber.toLowerCase()}`;
     if (seen.has(k)) return;
     seen.add(k);
     covers.push(c);

@@ -74,7 +74,7 @@ impl MpscTransport {
         // When the response channel is disconnected — typically because
         // `GameManager::end_game()` (or the concede branch of `respond`)
         // dropped it to tear the session down — the previous fallback of
-        // `PlayerAction::Pass { until_phase: None }` quietly passed
+        // `PlayerAction::Pass { until: None }` quietly passed
         // priority and let the game loop keep running forever on auto-
         // pilot, which manifested on the UI side as the concede/return-
         // to-menu "infinite prompt" loop. Treating a disconnect as a
@@ -88,7 +88,7 @@ impl MpscTransport {
             match self.response_rx.recv_timeout(timeout) {
                 Ok(action) => action,
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                    PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase: None })
+                    PromptOutput::ChooseAction(ChooseActionOutput::Pass { until: None })
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                     PromptOutput::ChooseAction(ChooseActionOutput::Concede)

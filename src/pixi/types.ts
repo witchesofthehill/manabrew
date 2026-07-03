@@ -1,4 +1,4 @@
-import type { CardDto } from "@/protocol/game";
+import type { CardDto, CombatAssignmentDto } from "@/protocol/game";
 import type { ManaAbilityActionInfo } from "@/components/game/manaUtils";
 
 export interface ScreenBounds {
@@ -22,8 +22,8 @@ export type HoverPlacement = "auto" | "top-center";
 
 /**
  * Arrow endpoint referenced by game-entity identity so the Pixi scene can
- * resolve the current position from its own sprite maps (canvas-local) or
- * fall back to DOM query (player panels, stack cards).
+ * resolve the current position from its own sprite maps (canvas-local), the
+ * stack anchor provider (stack cards), or a DOM query (player panels).
  */
 export type ArrowEndpoint =
   | { kind: "card"; id: string }
@@ -33,7 +33,8 @@ export type ArrowEndpoint =
    *  which player's battlefield the ghost points at — when set, the
    *  resolver looks up that player's board region; when omitted it
    *  falls back to the local player's region. */
-  | { kind: "placement-ghost"; playerId?: string };
+  | { kind: "placement-ghost"; playerId?: string }
+  | { kind: "zone-tile"; playerId: string; key: string };
 
 /** Arrows render combat declarations (`attack` / `block`, painterly
  *  variant), attach relationships (`attach`, rune variant — Equipment /
@@ -46,21 +47,7 @@ export interface ArrowSpec {
   from: ArrowEndpoint;
   to: ArrowEndpoint;
   type: ArrowType;
-}
-
-/**
- * Cursor-following pointer shown during target selection. Source is a
- * React-rendered element with `data-casting-card={id}` (StackDisplay).
- * Target is either a specific card/player (locked target) or the cursor.
- */
-export interface CastingArrowSpec {
-  castingCardId: string;
-  /** When set, the arrow locks onto this card or player id. */
-  targetId?: string | null;
-  /** Legacy hostile flag — kept so existing props don't break. */
-  hostile: boolean;
-  /** Semantic intent used to pick the pointer icon + glow color. */
-  intent: import("@/types/promptType").TargetingIntent;
+  hostile?: boolean;
 }
 
 export interface GameCanvasCallbacks {
@@ -76,6 +63,12 @@ export interface GameCanvasCallbacks {
   onClickCard_Hand?: (card: CardDto) => void;
   onHoverHandCard?: (card: CardDto | null, screenBounds?: ScreenBounds) => void;
   onTargetPlayer?: (playerId: string) => void;
+  /** Fires when a non-targetable player's avatar is tapped — opens their detail sheet. */
+  onShowPlayerSheet?: (playerId: string) => void;
+  /** Fires when the self panel's gear is tapped — opens the board menu. */
+  onShowBoardMenu?: () => void;
+  /** Fires when the mouse enters/leaves an opponent's battleground (null off-field). */
+  onHoverOpponent?: (playerId: string | null) => void;
   onTapLand?: (card: CardDto) => void;
   onTapLands?: (cardIds: string[]) => void;
   onTapLandAbility?: (actionId: string) => void;
@@ -89,6 +82,14 @@ export interface GameCanvasCallbacks {
   /** Fires when a block-drag arms (blockerId) or ends (null), so the UI can
    *  highlight the attackers that blocker may legally block. */
   onBlockDragChange?: (blockerId: string | null) => void;
+  /** Drag-to-attack: a creature sprite was dropped onto a defender (player /
+   *  planeswalker / battle). */
+  onAssignAttacker?: (attackerId: string, targetId: string) => void;
+  /** Drag-to-unattack: a staged attacker was dragged back off its target. */
+  onUnassignAttacker?: (attackerId: string) => void;
+  /** Fires when an attack-drag arms (attackerId) or ends (null), so the UI can
+   *  highlight that attacker's legal defenders. */
+  onAttackDragChange?: (attackerId: string | null) => void;
   onCastSpell?: (cardId: string) => void;
   /**
    * Dismiss the hover preview immediately (no 250ms grace). Used when
@@ -105,10 +106,23 @@ export interface BattlefieldState {
    *  numbered badge on each (first in line takes damage first). */
   orderedCardIds?: string[];
   selectableCardIds?: string[];
+  mustAttackCardIds?: string[];
   tappableLandIds?: string[];
   untappableLandIds?: string[];
   manaAbilityOptions?: ManaAbilityActionInfo[];
   hostileTargeting?: boolean;
+  /** Selectable cards that should glow hostile-red rather than the neutral ring
+   *  — planeswalker / battle attack targets during declare-attackers. */
+  hostileTargetCardIds?: string[];
+  ownerRingByCard?: Record<string, string>;
+  combatRowAttackerIds?: string[];
+  combatRowBlocks?: CombatAssignmentDto[];
+  combatRowGroups?: {
+    color: string;
+    label: string;
+    avatarUrl?: string;
+    attackerIds: string[];
+  }[];
 }
 
 export interface HandState {
@@ -119,15 +133,4 @@ export interface HandState {
   castingCardId?: string | null;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
-}
-
-export interface CardSpriteData {
-  card: CardDto;
-  x: number;
-  y: number;
-  tapped: boolean;
-  ringColor: number | null;
-  ringAlpha: number;
-  phasedOut: boolean;
-  summoningSick: boolean;
 }

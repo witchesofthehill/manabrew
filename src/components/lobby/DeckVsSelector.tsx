@@ -88,7 +88,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       name: deck.name,
       sourceDeck: deck,
       formatId: deck.format ?? "standard",
-      commanderName: deck.commanders?.[0]?.name,
+      commanderName: deck.commanders?.[0]?.identity.name,
     };
   });
 
@@ -127,7 +127,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       color: deck.color,
       sourceDeck: deck,
       formatId: selectedFormat,
-      commanderName: deck.commanders?.[0]?.name,
+      commanderName: deck.commanders?.[0]?.identity.name,
       coverCardName: deck.coverCardName,
     });
   }
@@ -148,7 +148,7 @@ export function DeckVsSelector({ onStart, onStartTabletop }: DeckVsSelectorProps
       color: random.color,
       sourceDeck: random,
       formatId: selectedFormat,
-      commanderName: random.commanders?.[0]?.name,
+      commanderName: random.commanders?.[0]?.identity.name,
       coverCardName: random.coverCardName,
     });
   }

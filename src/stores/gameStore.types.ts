@@ -43,6 +43,9 @@ export interface GameState {
   isFlashing: boolean;
   /** True after respond() is called and before the next prompt arrives — prevents double-submit. */
   isWaitingForResponse: boolean;
+  /** Optimistic: true from when the local player passes/declines a decision until the next prompt
+   *  for them arrives. Lets the UI reflect "waiting for others" instantly, without the state lag. */
+  relinquishedPriority: boolean;
   gameConfig: GameConfig | null;
   /** True if this is a networked multiplayer game. */
   isMultiplayer: boolean;
@@ -54,6 +57,10 @@ export interface GameState {
    *  Used by `asDeckCard(deck, gameCard)` callers to resolve the deck side of
    *  a game card without scanning unrelated decks. */
   gameDecks: Record<string, Deck>;
+  /** Local view-only set of player slots whose playmat the viewer has hidden.
+   *  Never synced — it only affects this client's board. Cleared on game end. */
+  hiddenPlaymats: Set<string>;
+  togglePlaymatHidden: (playerId: string) => void;
   updateGameView: (view: GameViewDto) => void;
   setGameConfig: (config: GameConfig) => void;
   // Actions

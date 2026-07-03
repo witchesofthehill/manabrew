@@ -80,7 +80,7 @@ pub struct PromptAgent<R: Responder> {
     pending_prompt: Option<AgentPrompt>,
     pub(crate) latest_view: Option<GameViewDto>,
     pub(crate) pending_restore_checkpoint: Option<u64>,
-    pub pass_until_phase: Option<Option<String>>,
+    pub pass_until: Option<manabrew_engine::agent::PassUntilTarget>,
     next_prompt_id: u32,
 }
 
@@ -93,7 +93,7 @@ impl<R: Responder> PromptAgent<R> {
             pending_prompt: None,
             latest_view: None,
             pending_restore_checkpoint: None,
-            pass_until_phase: None,
+            pass_until: None,
             next_prompt_id: 0,
         }
     }
@@ -268,8 +268,8 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn recv_card_choice_or_first(&mut self, valid: &[CardId]) -> Option<CardId> {
         match self.recv_action() {
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
-                chosen.into_iter().find_map(|r| match r {
-                    TargetRef::Card { id } => parse_card_id(&id),
+                chosen.into_iter().find_map(|r| match r.kind {
+                    TargetKind::Card => parse_card_id(&r.id),
                     _ => None,
                 })
             }
@@ -280,8 +280,8 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn recv_player_choice_or_first(&mut self, valid: &[PlayerId]) -> Option<PlayerId> {
         match self.recv_action() {
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
-                chosen.into_iter().find_map(|r| match r {
-                    TargetRef::Player { id } => parse_player_id(&id),
+                chosen.into_iter().find_map(|r| match r.kind {
+                    TargetKind::Player => parse_player_id(&r.id),
                     _ => None,
                 })
             }
@@ -292,8 +292,8 @@ impl<R: Responder> PromptAgent<R> {
     pub(crate) fn recv_spell_choice_or_first(&mut self, valid: &[u32]) -> Option<u32> {
         match self.recv_action() {
             PromptOutput::ChooseBoardTargets(ChooseBoardTargetsOutput::BoardTargets { chosen }) => {
-                chosen.into_iter().find_map(|r| match r {
-                    TargetRef::Spell { id } => crate::ids_codec::parse_stack_id(&id),
+                chosen.into_iter().find_map(|r| match r.kind {
+                    TargetKind::Spell => crate::ids_codec::parse_stack_id(&r.id),
                     _ => None,
                 })
             }
@@ -312,12 +312,12 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
         manabrew_engine::spellability::choose_targets_by_kind(self, sa, game, mana_pools)
     }
 
-    fn get_pass_until_phase(&self) -> Option<Option<&str>> {
-        self.pass_until_phase.as_ref().map(|inner| inner.as_deref())
+    fn get_pass_until(&self) -> Option<manabrew_engine::agent::PassUntilTarget> {
+        self.pass_until
     }
 
     fn clear_pass_until(&mut self) {
-        self.pass_until_phase = None;
+        self.pass_until = None;
     }
 
     fn snapshot_state(&mut self, game: &GameState, mana_pools: &[ManaPool]) {
@@ -502,12 +502,13 @@ impl<R: Responder> PlayerAgent for PromptAgent<R> {
             // Only the priority-loop branch acts on Concede; other recv_action
             // sites discard it and concede re-enters at the next priority window.
             PromptOutput::ChooseAction(ChooseActionOutput::Concede) => EnginePlayerAction::Concede,
-            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until_phase }) => {
-                // Only store a fast-forward declaration when there's a target phase.
-                // None = atomic single pass, no fast-forward.
-                if until_phase.is_some() {
-                    self.pass_until_phase = Some(until_phase);
-                }
+            PromptOutput::ChooseAction(ChooseActionOutput::Pass { until }) => {
+                self.pass_until = until.and_then(|u| {
+                    Some(manabrew_engine::agent::PassUntilTarget {
+                        player: crate::ids_codec::parse_player_id(&u.player_id)?,
+                        phase: forge_foundation::PhaseType::from_step_string(&u.phase)?,
+                    })
+                });
                 EnginePlayerAction::PassPriority
             }
             PromptOutput::ChooseAction(ChooseActionOutput::RestoreSnapshot { checkpoint_id }) => {

@@ -4,7 +4,7 @@ use forge_limited::{
     BoosterDraft, GauntletKind, GauntletMini, IBoosterDraft, LimitedDeck, SealedDeckGroup,
     WinstonDraft,
 };
-use manabrew_agent_interface::deck_dto::CardIdentity;
+use manabrew_protocol::deck_dto::DeckCardIdentity;
 use serde::{Deserialize, Serialize};
 
 use crate::limited_bootstrap;
@@ -14,15 +14,15 @@ use crate::limited_bootstrap;
 pub struct SealedSetupDto {
     pub pool_type: String,
     pub num_boosters: u32,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
 }
 
-pub fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
-    CardIdentity {
+pub fn paper_card_to_identity(c: &PaperCard) -> DeckCardIdentity {
+    DeckCardIdentity {
         id: String::new(),
         name: c.name.clone(),
         set_code: c.set_code.clone(),
@@ -31,7 +31,7 @@ pub fn paper_card_to_identity(c: &PaperCard) -> CardIdentity {
     }
 }
 
-pub fn identity_to_paper_card(c: &CardIdentity) -> PaperCard {
+pub fn identity_to_paper_card(c: &DeckCardIdentity) -> PaperCard {
     let (rarity, colors, dual_faced) = resolve_card_meta(&c.name, &c.set_code, &c.card_number);
     let mut pc = PaperCard::new(
         c.name.clone(),
@@ -97,8 +97,8 @@ fn is_basic_land_name(name: &str) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct LimitedDeckDto {
     pub name: String,
-    pub main: Vec<CardIdentity>,
-    pub sideboard: Vec<CardIdentity>,
+    pub main: Vec<DeckCardIdentity>,
+    pub sideboard: Vec<DeckCardIdentity>,
 }
 
 impl From<&LimitedDeck> for LimitedDeckDto {
@@ -117,7 +117,7 @@ pub struct SealedPoolDto {
     pub session_id: String,
     pub deck_name: String,
     pub land_set_code: Option<String>,
-    pub cards: Vec<CardIdentity>,
+    pub cards: Vec<DeckCardIdentity>,
     pub suggested_deck: Option<LimitedDeckDto>,
     pub ai_decks: Vec<LimitedDeckDto>,
 }
@@ -191,7 +191,7 @@ pub struct CubeMetadataDto {
 pub struct BoosterDraftSetupDto {
     pub pod_size: u32,
     pub rounds: u32,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -218,8 +218,8 @@ pub struct DraftStateDto {
     pub total_rounds: u32,
     pub pick_number: u32,
     pub pack_size: u32,
-    pub current_pack: Vec<CardIdentity>,
-    pub picked_pile: Vec<CardIdentity>,
+    pub current_pack: Vec<DeckCardIdentity>,
+    pub picked_pile: Vec<DeckCardIdentity>,
     pub seat_summaries: Vec<DraftSeatDto>,
     pub is_round_over: bool,
     pub is_complete: bool,
@@ -235,9 +235,9 @@ pub struct WinstonStateDto {
     pub session_id: String,
     pub active_seat: u32,
     pub current_pile: u32,
-    pub piles: Vec<Vec<CardIdentity>>,
+    pub piles: Vec<Vec<DeckCardIdentity>>,
     pub deck_size: u32,
-    pub picked_pile: Vec<CardIdentity>,
+    pub picked_pile: Vec<DeckCardIdentity>,
     pub ai_pick_count: u32,
     pub awaiting_human: bool,
     pub is_complete: bool,
@@ -245,7 +245,7 @@ pub struct WinstonStateDto {
 
 impl WinstonStateDto {
     pub fn from_engine(session_id: String, draft: &WinstonDraft) -> Self {
-        let piles: Vec<Vec<CardIdentity>> = draft
+        let piles: Vec<Vec<DeckCardIdentity>> = draft
             .piles()
             .iter()
             .map(|p| p.iter().map(paper_card_to_identity).collect())
@@ -272,7 +272,7 @@ impl WinstonStateDto {
 #[serde(rename_all = "camelCase")]
 pub struct WinstonSetupDto {
     pub pool_packs: u32,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
     #[serde(default)]
     pub variant: Option<String>,
     #[serde(default)]
@@ -293,7 +293,7 @@ pub struct CubeImportResultDto {
     pub card_count: u32,
     pub num_packs: u32,
     pub singleton: bool,
-    pub pool: Vec<CardIdentity>,
+    pub pool: Vec<DeckCardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -316,11 +316,11 @@ pub struct GauntletSetupDto {
 #[serde(rename_all = "camelCase")]
 pub struct GauntletMatchDecksDto {
     pub human_deck_name: String,
-    pub human_main: Vec<CardIdentity>,
-    pub human_sideboard: Vec<CardIdentity>,
+    pub human_main: Vec<DeckCardIdentity>,
+    pub human_sideboard: Vec<DeckCardIdentity>,
     pub opponent_name: String,
-    pub opponent_main: Vec<CardIdentity>,
-    pub opponent_sideboard: Vec<CardIdentity>,
+    pub opponent_main: Vec<DeckCardIdentity>,
+    pub opponent_sideboard: Vec<DeckCardIdentity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -414,7 +414,7 @@ impl DraftStateDto {
         awaiting_human: bool,
     ) -> Self {
         let viewer = draft.seat(seat_idx);
-        let pack: Vec<CardIdentity> = draft
+        let pack: Vec<DeckCardIdentity> = draft
             .current_pack_for_seat(seat_idx)
             .map(|p| p.cards().iter().map(paper_card_to_identity).collect())
             .unwrap_or_default();

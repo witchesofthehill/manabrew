@@ -106,6 +106,8 @@
   --color-badges-city-blessing: var(--badges-city-blessing);
   --color-badges-ring: var(--badges-ring);
   --color-badges-speed: var(--badges-speed);
+  --color-badges-experience: var(--badges-experience);
+  --color-badges-ticket: var(--badges-ticket);
   --color-legality-legal: var(--legality-legal);
   --color-legality-banned: var(--legality-banned);
   --color-legality-restricted: var(--legality-restricted);
@@ -135,14 +137,6 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
   --animate-card-flash: card-flash var(--flash-duration, 1000ms) ease-out forwards;
   --animate-card-flash-backdrop: card-flash-backdrop var(--flash-duration, 1000ms) ease-out forwards;
-  --animate-card-stack-enter: card-stack-enter 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  --animate-card-stack-flash-in: card-stack-flash-in 560ms cubic-bezier(0.18, 0.72, 0.25, 1) both;
-  --animate-player-turn-flash: player-turn-flash var(--flash-duration, 1000ms) ease-out forwards;
-  --animate-life-flash: life-flash 600ms ease-out;
-  --animate-life-damage-wash: life-damage-wash 550ms ease-out;
-  --animate-player-targetable-pulse: player-targetable-pulse 1.5s ease-in-out infinite;
-  --animate-player-priority-pulse: player-priority-pulse 1.6s ease-in-out infinite;
-  --animate-life-float: life-float 900ms ease-out forwards;
   --animate-dice-roll: dice-roll 2s cubic-bezier(0.18, 0.72, 0.25, 1) both;
   --animate-onboard-fade-in: onboard-fade-in 200ms ease-out both;
   --animate-onboard-fade-up: onboard-fade-up 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
@@ -203,129 +197,6 @@
     }
     100% {
       opacity: 0;
-    }
-  }
-
-  @keyframes card-stack-enter {
-    0% {
-      opacity: 0;
-      transform: translateY(8px) scale(0.88);
-    }
-    65% {
-      opacity: 1;
-      transform: translateY(-2px) scale(1.02);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes card-stack-flash-in {
-    0% {
-      opacity: 0.05;
-      transform: scale(0.84);
-      filter: brightness(1.12);
-    }
-    58% {
-      opacity: 1;
-      transform: scale(1.03);
-      filter: brightness(1.05);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-      filter: brightness(1);
-    }
-  }
-
-  /* `--turn-flash-color` is set inline by PlayerAvatar to the active
-     player's seat colour. Falls back to a neutral hue so any other
-     consumer still sees something. */
-  @keyframes life-flash {
-    0% {
-      transform: scale(1);
-    }
-    35% {
-      transform: scale(1.22);
-      box-shadow: 0 0 12px 3px var(--life-flash-color, hsl(0 80% 55%));
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
-  /* Red wash over the whole avatar face when the player loses life — the
-     player-scale echo of the card damage wash. `--life-wash-color` set inline. */
-  @keyframes life-damage-wash {
-    0% {
-      opacity: 0;
-    }
-    18% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-    }
-  }
-
-  @keyframes player-turn-flash {
-    0% {
-      box-shadow: 0 0 0 0 transparent;
-      border-color: var(--border);
-    }
-    15% {
-      box-shadow: 0 0 16px 6px var(--turn-flash-color, hsl(210 100% 60%));
-    }
-    80% {
-      box-shadow: 0 0 16px 6px var(--turn-flash-color, hsl(210 100% 60%));
-    }
-    100% {
-      box-shadow: 0 0 0 0 transparent;
-      border-color: var(--border);
-    }
-  }
-
-  @keyframes player-targetable-pulse {
-    0%,
-    100% {
-      box-shadow: 0 0 6px 2px var(--targetable-color, hsl(0 72% 51%));
-    }
-    50% {
-      box-shadow: 0 0 14px 5px var(--targetable-color, hsl(0 72% 51%));
-    }
-  }
-
-  /* Rising/fading life-change number above the avatar. Keeps horizontal
-     centering via translateX(-50%) while it floats up. */
-  @keyframes life-float {
-    0% {
-      opacity: 0;
-      transform: translate(-50%, 4px) scale(0.85);
-    }
-    20% {
-      opacity: 1;
-      transform: translate(-50%, -2px) scale(1);
-    }
-    100% {
-      opacity: 0;
-      transform: translate(-50%, -22px) scale(1);
-    }
-  }
-
-  /* Inset ring so it composes with the active-turn outer glow rather than
-     fighting it. `--priority-color` is set inline by PlayerAvatar. */
-  @keyframes player-priority-pulse {
-    0%,
-    100% {
-      box-shadow:
-        inset 0 0 0 2px var(--priority-color, hsl(45 90% 55%)),
-        0 0 6px 1px var(--priority-color, hsl(45 90% 55%));
-    }
-    50% {
-      box-shadow:
-        inset 0 0 0 2px var(--priority-color, hsl(45 90% 55%)),
-        0 0 12px 3px var(--priority-color, hsl(45 90% 55%));
     }
   }
 
@@ -446,13 +317,6 @@
   .animate-companion-die-tumble,
   .animate-card-flash,
   .animate-card-flash-backdrop,
-  .animate-card-stack-enter,
-  .animate-card-stack-flash-in,
-  .animate-player-turn-flash,
-  .animate-player-targetable-pulse,
-  .animate-player-priority-pulse,
-  .animate-life-float,
-  .animate-life-damage-wash,
   .animate-dice-roll,
   .animate-password-pip {
     animation: none !important;
@@ -666,30 +530,26 @@
   }
 }
 
-.casting-card {
-  animation: casting-glow 2s ease-in-out infinite;
+.animate-reject-flash {
+  animation: reject-flash 400ms ease-out;
 }
 
-@keyframes casting-glow {
-  0% {
+.action-overlay-glow {
+  animation: action-overlay-glow-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes action-overlay-glow-pulse {
+  0%,
+  100% {
     box-shadow:
-      0 0 0 2px var(--casting-ring-color),
-      0 0 14px var(--casting-glow-color);
+      0 0 0 2px var(--action-glow-ring),
+      0 0 12px var(--action-glow-soft);
   }
   50% {
     box-shadow:
-      0 0 0 3px var(--casting-ring-color-strong),
-      0 0 24px var(--casting-glow-color-strong);
+      0 0 0 3px var(--action-glow-ring-strong),
+      0 0 22px var(--action-glow-soft-strong);
   }
-  100% {
-    box-shadow:
-      0 0 0 2px var(--casting-ring-color),
-      0 0 14px var(--casting-glow-color);
-  }
-}
-
-.animate-reject-flash {
-  animation: reject-flash 400ms ease-out;
 }
 
 @keyframes reject-flash {

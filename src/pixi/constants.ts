@@ -80,11 +80,22 @@ export const CAST_DRAG_HAND_SINK_PX = 200;
 export const EXIT_FADE_LERP = 0.2;
 export const EXIT_SHRINK = 0.95;
 export const COMBAT_STAGE_PADDING_PX = 6;
+export const COMBAT_ROW_PAD_Y = 8;
+// The local grid + its card-scale reserve only this fraction of the hand-fan
+// height (the fan extends partly below the field and renders on top), so the
+// bottom row can grow down behind the hand. The action overlay keeps the full
+// reserve so it never sits under the hand.
+export const HAND_RESERVE_TRIM = 0.65;
 // Extra upward tilt for the local player's staged creatures — the self region
 // sits right at the bar, so its creatures can come up a touch further.
 export const COMBAT_STAGE_SELF_EXTRA_PX = 18;
 export const COMBAT_BLOCKER_OVERLAP_FRAC = 0.4;
+export const COMBAT_ROW_STEP_FRAC = 1.12;
 export const Z_STAGED_REGION = 8000;
+// Combat-row attackers that travelled in from another player's field render in
+// an unclipped scene layer (above every region's accordion mask) so they glide
+// across the board into a collapsed defender's row instead of popping in.
+export const Z_COMBAT_GUEST = 8500;
 export const PHASE_STRIP_COMBAT_ALPHA = 0.25;
 export const COMBAT_DIM_ALPHA = 0.3;
 // Tint rather than alpha so overlapping stacked cards don't show through each
@@ -102,6 +113,7 @@ export const Z_SELECTION_BADGE = 9500;
 export const Z_HAND_ACTIONS_MENU = 200;
 
 export const BG_ALPHA_IDLE = 0.4;
+export const STRIP_TURN_ALPHA = 0.85;
 export const BG_ALPHA_DROP = 0.15;
 export const DROP_STROKE_ALPHA = 0.8;
 export const DROP_TINT_ALPHA = 0.06;

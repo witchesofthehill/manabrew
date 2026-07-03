@@ -106,6 +106,8 @@ export interface GameThemeColors {
     cityBlessing: string;
     ring: string;
     speed: string;
+    experience: string;
+    ticket: string;
   };
   legality: {
     legal: string;

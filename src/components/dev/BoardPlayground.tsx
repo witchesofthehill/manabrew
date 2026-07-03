@@ -47,9 +47,7 @@ function makeCard(spec: CardSpec): CardDto {
   return {
     ...GAME_CARD_DEFAULTS,
     id: `pg-${seq}`,
-    name: spec.name,
-    setCode: "",
-    cardNumber: "",
+    identity: { name: spec.name, setCode: "", cardNumber: "", isToken: false },
     color: spec.color,
     manaCost: "",
     cmc: 0,
@@ -165,7 +163,6 @@ export function BoardPlayground() {
           hand={{ cards: [] }}
           arrowSpecs={[]}
           phaseStrip={PHASE_STRIP_STUB}
-          arrangement="row"
           callbacks={{
             onClickCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),
             onClickAnyCard: (c) => setSelectedId((id) => (id === c.id ? null : c.id)),

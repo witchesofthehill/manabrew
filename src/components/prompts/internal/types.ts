@@ -1,14 +1,7 @@
 import type { CombatAssignment } from "@/components/game/game.types";
-import type { PromptButtonLayout } from "@/components/prompts/PromptActionButton";
 
 export interface PromptActionLayoutProps {
-  buttonLayout: PromptButtonLayout;
   isWaitingForResponse: boolean;
-}
-
-export interface NoActionProps {
-  buttonLayout: PromptButtonLayout;
-  label?: string;
 }
 
 export interface ChooseActionProps extends PromptActionLayoutProps {
@@ -19,17 +12,19 @@ export interface ChooseAttackersProps extends PromptActionLayoutProps {
   availableAttackerIds: string[];
   pendingAttackers: string[];
   selectedDefenderId?: string | null;
-  selectedDefenderLabel?: string | null;
   /** When true, the engine reports more than one legal defender (multi-
    *  player game, planeswalkers, sieges). Attack/Attack-All defer the
    *  declaration and ask the user to click a target instead of committing
    *  immediately against the default defender. */
   multipleDefenders: boolean;
+  attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onPassPriority: () => void;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   /** Begin the click-to-pick-defender flow. Called instead of
    *  `onDeclareAttackers` when `multipleDefenders` is true. */
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  onSubmitAttack: () => void;
 }
 
 export interface ChooseBlockersProps extends PromptActionLayoutProps {
@@ -37,6 +32,7 @@ export interface ChooseBlockersProps extends PromptActionLayoutProps {
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  blockRestrictionHint?: string | null;
   blockAssignments: CombatAssignment[];
   onPassPriority: () => void;
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;

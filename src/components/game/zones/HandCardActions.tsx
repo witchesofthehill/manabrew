@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
-import { withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { useEffect } from "react";
 
@@ -56,7 +55,6 @@ export function HandCardActions({ actions, onSelectAction }: HandCardActionsProp
             "flex flex-col px-3 py-2",
           )}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = withAlpha(ringColor, 0.12);
             e.currentTarget.style.borderColor = ringColor;
           }}
           onMouseLeave={(e) => {

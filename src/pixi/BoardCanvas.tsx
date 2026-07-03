@@ -6,17 +6,17 @@ import { destroyPixiApp, installPixiPatches } from "./pixiPatches";
 installPixiPatches();
 
 import { BoardScene, type BoardPlayerSpec } from "./board/BoardScene";
-import {
-  computeBoardLayout,
-  type BoardArrangement,
-  type RegionOrientation,
-} from "./board/boardLayout";
-import { battlefieldScaleForFraction } from "./GridLayout";
+import { computeBoardLayout, type RegionOrientation } from "./board/boardLayout";
+import type { PlayerHudSpec as PlayerBarSpec } from "./hud/playerHud.types";
+import type { ZoneTileSpec } from "./board/BoardZoneTiles";
+import { battlefieldFillScale, combatRowReserve, maxScaleForRows } from "./GridLayout";
 import { setPixiTextStyleTheme } from "./textStyles";
 import { getTheme } from "@/hooks/useTheme";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { registerPixiApp } from "./visibility";
 import {
+  BATTLEFIELD_CARD_SCALE_FLOOR,
+  BATTLEFIELD_MIN_ROWS,
   HAND_ACTIONS_CLEAR_DELAY_MS,
   HAND_ACTIONS_GAP_PX,
   PIXI_MAX_FPS,
@@ -24,6 +24,7 @@ import {
 } from "./constants";
 import { HandCardActions } from "@/components/game/zones/HandCardActions";
 import { useCardFaces } from "@/hooks/useCardFaces";
+import { isHorizontalGameCard } from "@/lib/horizontalGameCard";
 import { useKeybindings } from "@/hooks/useKeybindings";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import { setAnimationsEnabled } from "./effects/enabled";
@@ -34,6 +35,7 @@ import { RotateCw } from "lucide-react";
 const HAND_ACTIONS_PANEL_W = 220;
 import type { HandActionOption } from "@/stores/useGameUIStore";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { AttackTargetDto } from "@/protocol/prompts/common";
 import type {
   ArrowSpec,
   BattlefieldState,
@@ -43,7 +45,6 @@ import type {
   ScreenBounds,
 } from "./types";
 import type { PhaseStripCallbacks, PhaseStripState } from "./PhaseStripLayer";
-import type { BlockingRect } from "./board/types";
 
 export interface BoardCanvasRegion {
   playerId: string;
@@ -51,6 +52,8 @@ export interface BoardCanvasRegion {
   state: BattlefieldState;
   playmat?: string;
   playmatSettings?: PlaymatSettings;
+  /** Seat colour (hex) for the hover highlight. */
+  color?: string;
 }
 
 /** Canvas-local px == CSS px, so the parent can anchor React panels to each
@@ -59,7 +62,15 @@ export interface BoardCanvasLayout {
   self: PlayZoneRect | null;
   /** Y of the center band where the phase strip is centered. */
   dividerY: number;
-  opponents: { playerId: string; rect: PlayZoneRect; orientation: RegionOrientation }[];
+  /** Px from the canvas bottom up to the local player's playmat bottom edge
+   *  (= hand-fan top). The action cluster is hard-capped to this so it can never
+   *  render over the playmat. Mirrors `BoardScene.handReserveBottom`. */
+  selfClusterMaxHeight: number;
+  opponents: {
+    playerId: string;
+    rect: PlayZoneRect;
+    orientation: RegionOrientation;
+  }[];
 }
 
 interface BoardCanvasProps {
@@ -70,19 +81,36 @@ interface BoardCanvasProps {
   /** Local player is declaring blockers — enables drag-to-block. */
   declareBlockers?: boolean;
   combatBlocks?: { blockerId: string; attackerId: string }[];
+  /** Local player is declaring attackers — enables drag-to-attack. */
+  declareAttackers?: boolean;
+  /** Legal defenders (player / planeswalker / battle) for the active
+   *  `chooseAttackers` prompt, and per-attacker validity. */
+  attackTargets?: AttackTargetDto[];
+  attackerOptions?: { attackerId: string; validTargetIds: string[] }[];
   phaseStrip: PhaseStripState;
   phaseStripCallbacks?: PhaseStripCallbacks;
-  arrangement: BoardArrangement;
   /** Fraction of usable height for the local player's bottom region; defaults to
    *  the layout's built-in fraction when omitted. */
   selfHeightFraction?: number;
-  /** Per-opponent column width fractions; equal split when omitted. */
-  opponentFractions?: number[];
+  /** The opponent whose field auto-expands (their turn), or `null` for an even
+   *  split (our turn). The scene owns + eases the delimiters; this sets the
+   *  target. */
+  focusedOpponentId?: string | null;
+  /** Opponents under attack this combat — expanded (even-split when several)
+   *  over the turn focus so combat stays visible. */
+  combatFocusIds?: string[];
+  /** Keyboard-cycled single-opponent focus; wins over combat/turn focus. */
+  manualFocusId?: string | null;
+  /** Thin Pixi player bars over each opponent's field. `showPlayerBars` toggles
+   *  them; `playerBars` carries the per-opponent name/life/colour/state. */
+  playerBars?: PlayerBarSpec[];
+  showPlayerBars?: boolean;
+  /** On-grid zone tiles (deck/graveyard/exile/command) per player id. */
+  zoneTiles?: Record<string, ZoneTileSpec[]>;
   /** Px the hand fan reserves at the bottom of the self region — subtracted from
    *  its height when sizing cards so ~3 rows always fit the free area. */
   selfBottomReserve?: number;
   callbacks: GameCanvasCallbacks;
-  externalBlockers?: BlockingRect[];
   /** Bottom-corner keep-out widths for the hand fan so it centers in the gap. */
   handInsets?: { left: number; right: number };
   isDropActive?: boolean;
@@ -107,14 +135,20 @@ export function BoardCanvas({
   castingArrow,
   declareBlockers,
   combatBlocks,
+  declareAttackers,
+  attackTargets,
+  attackerOptions,
   phaseStrip,
   phaseStripCallbacks,
-  arrangement,
   selfHeightFraction,
-  opponentFractions,
+  focusedOpponentId,
+  combatFocusIds,
+  manualFocusId,
+  playerBars,
+  showPlayerBars,
+  zoneTiles,
   selfBottomReserve,
   callbacks,
-  externalBlockers,
   handInsets,
   isDropActive,
   autoSort,
@@ -131,6 +165,9 @@ export function BoardCanvas({
   const sceneRef = useRef<BoardScene | null>(null);
   const callbacksRef = useRef(callbacks);
   const onLayoutRef = useRef(onLayout);
+  const reserveRef = useRef(0);
+  const latestLayoutRef = useRef<BoardCanvasLayout | null>(null);
+  const selfBottomReserveRef = useRef(selfBottomReserve ?? 0);
 
   const fraction = usePreferencesStore((s) => s.battlefieldCardScale);
   const cardStyle = usePreferencesStore((s) => s.battlefieldCardStyle);
@@ -161,6 +198,9 @@ export function BoardCanvas({
   useEffect(() => {
     onLayoutRef.current = onLayout;
   }, [onLayout]);
+  useEffect(() => {
+    selfBottomReserveRef.current = selfBottomReserve ?? 0;
+  }, [selfBottomReserve]);
 
   const initApp = useCallback(async () => {
     if (!canvasRef.current || appRef.current) return;
@@ -201,7 +241,13 @@ export function BoardCanvas({
       onAssignBlock: (...a) => callbacksRef.current.onAssignBlock?.(...a),
       onUnassignBlock: (...a) => callbacksRef.current.onUnassignBlock?.(...a),
       onBlockDragChange: (...a) => callbacksRef.current.onBlockDragChange?.(...a),
+      onAssignAttacker: (...a) => callbacksRef.current.onAssignAttacker?.(...a),
+      onUnassignAttacker: (...a) => callbacksRef.current.onUnassignAttacker?.(...a),
+      onAttackDragChange: (...a) => callbacksRef.current.onAttackDragChange?.(...a),
       onTargetPlayer: (...a) => callbacksRef.current.onTargetPlayer?.(...a),
+      onShowPlayerSheet: (...a) => callbacksRef.current.onShowPlayerSheet?.(...a),
+      onShowBoardMenu: (...a) => callbacksRef.current.onShowBoardMenu?.(...a),
+      onHoverOpponent: (...a) => callbacksRef.current.onHoverOpponent?.(...a),
       onStartDrag: (...a) => callbacksRef.current.onStartDrag?.(...a),
       onClickCard_Hand: (...a) => callbacksRef.current.onClickCard_Hand?.(...a),
       onCastSpell: (...a) => callbacksRef.current.onCastSpell?.(...a),
@@ -226,6 +272,14 @@ export function BoardCanvas({
 
     const parent = canvasRef.current.parentElement;
     if (parent) newScene.resize(parent.clientWidth, parent.clientHeight);
+    newScene.setOnHandReserveChange((px) => {
+      reserveRef.current = px;
+      const base = latestLayoutRef.current;
+      if (!base) return;
+      const updated = { ...base, selfClusterMaxHeight: Math.max(px, selfBottomReserveRef.current) };
+      latestLayoutRef.current = updated;
+      onLayoutRef.current?.(updated);
+    });
     setScene(newScene);
   }, [cancelHandHoverClear]);
 
@@ -259,17 +313,15 @@ export function BoardCanvas({
     isLocal: r.isLocal,
     playmat: r.playmat,
     playmatSettings: r.playmatSettings,
+    color: r.color,
   }));
   const playersKey = players
     .map(
       (p) =>
-        `${p.playerId}:${p.isLocal ? 1 : 0}:${p.playmat ? 1 : 0}:${JSON.stringify(p.playmatSettings ?? {})}`,
+        `${p.playerId}:${p.isLocal ? 1 : 0}:${p.playmat ? 1 : 0}:${p.color ?? ""}:${JSON.stringify(p.playmatSettings ?? {})}`,
     )
     .join(",");
   const opponentIds = regions.filter((r) => !r.isLocal).map((r) => r.playerId);
-  // Stable content key so `reconfigure`'s identity doesn't churn when the parent
-  // re-creates this array prop.
-  const opponentFractionsKey = (opponentFractions ?? []).join(",");
 
   const reconfigure = useCallback(() => {
     const app = appRef.current;
@@ -278,38 +330,39 @@ export function BoardCanvas({
     const w = app.renderer.width;
     const h = app.renderer.height;
     const opponentCount = opponentIds.length;
-    const layout = computeBoardLayout(
-      w,
-      h,
-      opponentCount,
-      arrangement,
-      selfHeightFraction,
-      opponentFractions,
-    );
-    // Subtract the hand-fan reserve before picking the scale so ~3 rows stay
-    // visible in every region.
+    const layout = computeBoardLayout(w, h, opponentCount, selfHeightFraction);
+    // Each region is scaled to fill its OWN height — a single shared scale let
+    // the tightest field (self, after the hand-fan reserve) shrink everyone, so
+    // the roomier opponent fields wasted space. Self follows the card-scale
+    // preference; opponents lock to 3 rows beneath the always-reserved combat
+    // band (two passes: the band height depends on the scale it reserves).
     const selfUsable = Math.max(1, layout.self.height - (selfBottomReserve ?? 0));
-    const minHeight = Math.min(selfUsable, ...layout.opponents.map((o) => o.rect.height));
-    const cardScale = battlefieldScaleForFraction(minHeight, fraction);
-    s.configure(players, layout, cardScale);
-    onLayoutRef.current?.({
+    const selfBand = combatRowReserve(battlefieldFillScale(selfUsable, fraction));
+    const selfScale = battlefieldFillScale(Math.max(1, selfUsable - selfBand), fraction);
+    // No top reserve: the opponent HUD is a keep-out blocker, so the grid uses
+    // the full field height (the avatar's top-left cells are blocked instead).
+    const oppHeights = layout.opponents.map((o) => Math.max(1, o.rect.height));
+    const oppUsable = oppHeights.length ? Math.min(...oppHeights) : selfUsable;
+    const band = combatRowReserve(maxScaleForRows(oppUsable, BATTLEFIELD_MIN_ROWS));
+    const oppScale = Math.max(
+      BATTLEFIELD_CARD_SCALE_FLOOR,
+      maxScaleForRows(Math.max(1, oppUsable - band), BATTLEFIELD_MIN_ROWS),
+    );
+    s.configure(players, layout, { self: selfScale, opponent: oppScale });
+    const next: BoardCanvasLayout = {
       self: layout.self,
       dividerY: layout.dividerY,
+      selfClusterMaxHeight: Math.max(reserveRef.current, selfBottomReserve ?? 0),
       opponents: opponentIds.map((id, i) => ({
         playerId: id,
         rect: layout.opponents[i]?.rect ?? layout.self,
         orientation: layout.opponents[i]?.orientation ?? "top",
       })),
-    });
+    };
+    latestLayoutRef.current = next;
+    onLayoutRef.current?.(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    playersKey,
-    arrangement,
-    fraction,
-    selfHeightFraction,
-    opponentFractionsKey,
-    selfBottomReserve,
-  ]);
+  }, [playersKey, fraction, selfHeightFraction, selfBottomReserve, showPlayerBars]);
 
   useEffect(() => {
     reconfigure();
@@ -348,7 +401,30 @@ export function BoardCanvas({
       lastRegionStateRef.current.set(r.playerId, r.state);
       scene.updateRegionState(r.playerId, r.state);
     }
+    const liveIds = new Set<string>();
+    for (const r of regions) for (const c of r.state.cards) liveIds.add(c.id);
+    scene.pruneCardPositions(liveIds);
   }, [scene, regions]);
+
+  useEffect(() => {
+    scene?.setOpponentFocus(focusedOpponentId ?? null);
+  }, [scene, focusedOpponentId]);
+
+  useEffect(() => {
+    scene?.setCombatFocus(combatFocusIds ?? []);
+  }, [scene, combatFocusIds]);
+
+  useEffect(() => {
+    scene?.setManualFocus(manualFocusId ?? null);
+  }, [scene, manualFocusId]);
+
+  useEffect(() => {
+    scene?.setPlayerBars(playerBars ?? [], showPlayerBars ?? false);
+  }, [scene, playerBars, showPlayerBars]);
+
+  useEffect(() => {
+    scene?.setZoneTiles(zoneTiles ?? {});
+  }, [scene, zoneTiles]);
 
   useEffect(() => {
     scene?.updateHand(hand);
@@ -367,6 +443,14 @@ export function BoardCanvas({
   }, [scene, declareBlockers]);
 
   useEffect(() => {
+    scene?.setDeclareAttackers(
+      declareAttackers ?? false,
+      attackTargets ?? [],
+      attackerOptions ?? [],
+    );
+  }, [scene, declareAttackers, attackTargets, attackerOptions]);
+
+  useEffect(() => {
     scene?.applyCombatBlocks(combatBlocks ?? []);
   }, [scene, combatBlocks, regions]);
 
@@ -377,10 +461,6 @@ export function BoardCanvas({
   useEffect(() => {
     if (phaseStripCallbacks) scene?.setPhaseStripCallbacks(phaseStripCallbacks);
   }, [scene, phaseStripCallbacks]);
-
-  useEffect(() => {
-    scene?.setExternalBlockers(externalBlockers ?? []);
-  }, [scene, externalBlockers]);
 
   useEffect(() => {
     scene?.setHandInsets(handInsets?.left ?? 0, handInsets?.right ?? 0);
@@ -411,21 +491,36 @@ export function BoardCanvas({
   const showActionPanel = handHover && handActions.length > 0 && !!onSelectHandAction;
 
   const hoverFaces = useCardFaces({
-    name: handHover?.card.name,
-    setCode: handHover?.card.setCode,
-    cardNumber: handHover?.card.cardNumber,
+    name: handHover?.card.identity.name,
+    setCode: handHover?.card.identity.setCode,
+    cardNumber: handHover?.card.identity.cardNumber,
   });
+  const hoverHorizontal = !!handHover && isHorizontalGameCard(handHover.card);
   const [handFlipBack, setHandFlipBack] = useState(false);
+  const [handFlippedHorizontal, setHandFlippedHorizontal] = useState(false);
   const hoverCardId = handHover?.card.id ?? null;
   useEffect(() => {
     setHandFlipBack(false);
+    setHandFlippedHorizontal(false);
   }, [hoverCardId]);
-  const showHandFlip = !!handHover && hoverFaces.isFlippable;
+  const showHandFlip = !!handHover && (hoverFaces.isFlippable || hoverHorizontal);
   const showHoverAreas = useGameDevStore((s) => s.showHoverAreas);
 
   useEffect(() => {
     scene?.setHoverDebug(showHoverAreas);
   }, [scene, showHoverAreas]);
+
+  const showGridSkeleton = useGameDevStore((s) => s.showGridSkeleton);
+
+  useEffect(() => {
+    scene?.setGridSkeletonDebug(showGridSkeleton);
+  }, [scene, showGridSkeleton]);
+
+  const showAttackRows = useGameDevStore((s) => s.showAttackRows);
+
+  useEffect(() => {
+    scene?.setAttackRowDebug(showAttackRows);
+  }, [scene, showAttackRows]);
 
   const inGameAnimations = usePreferencesStore((s) => s.inGameAnimations);
   useEffect(() => {
@@ -438,12 +533,20 @@ export function BoardCanvas({
   }, [scene, etbPreviewVersion]);
 
   const toggleHandFlip = useCallback(() => {
+    if (hoverHorizontal) {
+      setHandFlippedHorizontal((prev) => {
+        const next = !prev;
+        sceneRef.current?.setHandFlippedHorizontal(next);
+        return next;
+      });
+      return;
+    }
     setHandFlipBack((prev) => {
       const next = !prev;
       sceneRef.current?.setHandPreviewFace(next ? 1 : 0);
       return next;
     });
-  }, [sceneRef]);
+  }, [sceneRef, hoverHorizontal]);
 
   useKeybindings({
     "flip-card": () => {
@@ -467,7 +570,9 @@ export function BoardCanvas({
           <button
             type="button"
             className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow hover:bg-black/85"
-            title="Flip card to view the other face"
+            title={
+              hoverHorizontal ? "Rotate the card to read it" : "Flip card to view the other face"
+            }
             onMouseEnter={() => {
               cancelHandHoverClear();
               sceneRef.current?.holdHandHover();
@@ -482,7 +587,13 @@ export function BoardCanvas({
             }}
           >
             <RotateCw className="h-3 w-3" />
-            {handFlipBack ? "Front" : "Back"}
+            {hoverHorizontal
+              ? handFlippedHorizontal
+                ? "Upright"
+                : "Read"
+              : handFlipBack
+                ? "Front"
+                : "Back"}
           </button>
         </div>
       )}

@@ -55,6 +55,7 @@ interface GameUIState {
   playModePicker: PlayModePickerState | null;
   viewingZone: ViewingZoneState | null;
   isActionPanelCollapsed: boolean;
+  rightPanelTab: "log" | "snapshots" | "dev";
   promptModalHidden: boolean;
 
   // Actions
@@ -66,6 +67,8 @@ interface GameUIState {
   closeZoneViewer: () => void;
   toggleActionPanel: () => void;
   setActionPanelCollapsed: (collapsed: boolean) => void;
+  setRightPanelTab: (tab: "log" | "snapshots" | "dev") => void;
+  openDevPanel: () => void;
   hidePromptModal: () => void;
   showPromptModal: () => void;
   resetAll: () => void;
@@ -81,6 +84,7 @@ export const useGameUIStore = create<GameUIState>()(
       playModePicker: null,
       viewingZone: null,
       isActionPanelCollapsed: true,
+      rightPanelTab: "log",
       promptModalHidden: false,
 
       // Actions
@@ -96,6 +100,8 @@ export const useGameUIStore = create<GameUIState>()(
       toggleActionPanel: () =>
         set((state) => ({ isActionPanelCollapsed: !state.isActionPanelCollapsed })),
       setActionPanelCollapsed: (collapsed) => set({ isActionPanelCollapsed: collapsed }),
+      setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
+      openDevPanel: () => set({ isActionPanelCollapsed: false, rightPanelTab: "dev" }),
       hidePromptModal: () => set({ promptModalHidden: true }),
       showPromptModal: () => set({ promptModalHidden: false }),
 

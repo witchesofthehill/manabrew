@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppInitGate } from "@/components/AppInitGate";
 import { useTheme } from "@/hooks/useTheme";
 import { useGameDevStore } from "@/stores/useGameDevStore";
+import { useDeckStore } from "@/stores/useDeckStore";
 import { lazy, Suspense, useEffect } from "react";
 import { toast } from "sonner";
 import { getPlatformType } from "@/platform";
@@ -54,6 +55,15 @@ function PlatformRuntimeChecks() {
 
     console.info("[Runtime] Cross-origin isolation is enabled.");
   }, []);
+
+  const deckMigrationError = useDeckStore((s) => s.migrationError);
+  useEffect(() => {
+    if (!deckMigrationError) return;
+    toast.error(
+      "Couldn't load your saved decks — they're left untouched on disk. Please contact the developer.",
+      { duration: Infinity },
+    );
+  }, [deckMigrationError]);
 
   return null;
 }

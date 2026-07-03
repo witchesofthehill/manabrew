@@ -11,7 +11,7 @@ export function DeckValidationPanel({ unsupportedNames }: { unsupportedNames?: S
   const validation = validateDeckSections(
     {
       deck: currentDeck,
-      commanderName: currentDeck.commanders?.[0]?.name,
+      commanderName: currentDeck.commanders?.[0]?.identity.name,
     },
     format,
   );

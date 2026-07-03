@@ -26,7 +26,7 @@ export function LibraryZoneTile({ count, onClick, label = "Lib" }: LibraryZoneTi
           onClick ? "hover:brightness-110 cursor-pointer" : "opacity-95",
         )}
         style={{
-          borderColor: withAlpha(ringColor, 0.8),
+          borderColor: ringColor,
           boxShadow: `0 1px 4px ${withAlpha(ringColor, 0.25)}`,
         }}
         onClick={onClick}

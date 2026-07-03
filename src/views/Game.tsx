@@ -1,8 +1,9 @@
 import { useGameStore } from "@/stores/useGameStore";
 import { asDeckCard } from "@/lib/decks";
 import { GAME_CARD_DEFAULTS } from "@/lib/gameCard";
-import { partitionBoardTargets } from "@/lib/boardTargets";
+import { partitionBoardTargets, validCardIdsInCards } from "@/lib/boardTargets";
 import { useGameUIStore } from "@/stores/useGameUIStore";
+import { useKeybindings } from "@/hooks/useKeybindings";
 import { usePreferencesStore } from "@/stores/usePreferencesStore";
 import { useAutoResolvePrompt } from "@/components/prompts/internal/useAutoResolvePrompt";
 import { useShallow } from "zustand/react/shallow";
@@ -13,18 +14,17 @@ import { GameOverScreen } from "@/components/game/GameOverScreen";
 import { GameLoadingScreen } from "@/components/game/GameLoadingScreen";
 import { GameFailedScreen } from "@/components/game/GameFailedScreen";
 import { WaitingForPlayerScreen } from "@/components/game/WaitingForPlayerScreen";
-import { FullscreenToggle } from "@/components/game/FullscreenToggle";
 import { ManualTabletopControls } from "@/components/game/ManualTabletopControls";
-import { MainActionOverlay, RightActionPanel } from "@/components/game/panels";
-import { StackDisplay } from "@/components/game/panels/StackDisplay";
+import { MainActionOverlay, MiddleBarDock, RightActionPanel } from "@/components/game/panels";
+import type { StackSpec } from "@/pixi/stack/stack.types";
 import { useCastingState } from "@/hooks/useCastingState";
 import type { BoardScene } from "@/pixi/board/BoardScene";
-import { PERIMETER_SIDE_FRACTION } from "@/pixi/board/boardLayout";
-import { isFeatureEnabled } from "@/featureFlags";
+import type { BoardCanvasLayout } from "@/pixi/BoardCanvas";
 import { buildArrowSpecs } from "@/components/game/arrowSpecs";
 import { getDisplayedManaAbilities } from "@/components/game/manaUtils";
 import { PlayModePicker } from "@/components/game/PlayModePicker";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
+import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
 import { useHandDrag } from "@/hooks/useHandDrag";
@@ -37,7 +37,8 @@ import { useGameEventListeners } from "@/hooks/useGameEventListeners";
 import { useGamePrefetch } from "@/hooks/useGamePrefetch";
 import { useMultiplayerInterruption } from "@/hooks/useMultiplayerInterruption";
 import { GameBoard } from "@/components/game/GameBoard";
-import { withAlpha } from "@/themes/gameTheme";
+import { buildCombatRows } from "@/components/game/combatRows";
+import { readableTextColor, withAlpha } from "@/themes/gameTheme";
 import { useTheme } from "@/hooks/useTheme";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
@@ -46,8 +47,10 @@ import { tryConsumeGauntletMatch } from "@/lib/gauntletReturn";
 import { intentPrefersArrow } from "@/types/promptType";
 import type { PromptType } from "@/protocol";
 import { declareAttackersOutput } from "@/components/prompts/internal/playerActions";
+import { DamageOrderModal } from "@/components/prompts/DamageOrderModal";
 import { TargetingCursor } from "@/components/game/TargetingCursor";
 import { OPPONENT_SEATS } from "@/components/game/game.types";
+import type { CombatPairing } from "@/components/game/game.types";
 import { useStackUIStore } from "@/stores/useStackUIStore";
 import { useGameDevStore, DEBUG_KEYWORD_CARD_ID } from "@/stores/useGameDevStore";
 import { stackObjectToCardStub, isPermanentSpellCard } from "@/components/game/game.utils";
@@ -77,7 +80,7 @@ function buildDebugKeywordCard(controllerId: string, name: string, keywords: str
   return {
     ...GAME_CARD_DEFAULTS,
     id: DEBUG_KEYWORD_CARD_ID,
-    name: name.trim() || "Raging Goblin",
+    identity: { name: name.trim() || "Raging Goblin", setCode: "", cardNumber: "", isToken: false },
     color: "R",
     manaCost: "{R}",
     cmc: 1,
@@ -105,6 +108,7 @@ export default function Game({ exitTo }: GameProps = {}) {
   const isGameActive = useGameStore((s) => s.isGameActive);
   const isPrefetchingCards = useGameStore((s) => s.isPrefetchingCards);
   const isWaitingForResponse = useGameStore((s) => s.isWaitingForResponse);
+  const relinquishedPriority = useGameStore((s) => s.relinquishedPriority);
   const gameLog = useGameStore((s) => s.gameLog);
   const snapshots = useGameStore((s) => s.snapshots);
   const debugInfo = useGameStore((s) => s.debugInfo);
@@ -123,8 +127,6 @@ export default function Game({ exitTo }: GameProps = {}) {
     })),
   );
   const flashDurationMs = usePreferencesStore((s) => s.flashDurationMs);
-  const boardArrangementPref = usePreferencesStore((s) => s.boardArrangement);
-  const boardArrangement = isFeatureEnabled("wraparoundBoardLayout") ? boardArrangementPref : "row";
   const zonePanelOrder = usePreferencesStore((s) => s.zonePanelOrder);
   const vScale = useHandScale();
   const themeColors = useTheme().gameTheme;
@@ -133,45 +135,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     (location.state as { devExtraOpponents?: number } | null)?.devExtraOpponents ?? 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const boardSceneRef = useRef<BoardScene | null>(null);
+  const [boardLayout, setBoardLayout] = useState<BoardCanvasLayout | null>(null);
+  const [boardMenuOpen, setBoardMenuOpen] = useState(false);
+  const [boardSurfaceEl, setBoardSurfaceEl] = useState<HTMLDivElement | null>(null);
 
-  const [stackBlockerRect, setStackBlockerRect] = useState<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null>(null);
-  useEffect(() => {
-    let raf = 0;
-    let lastKey = "";
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const scene = boardSceneRef.current;
-      const panel = document.querySelector<HTMLElement>("[data-stack-panel]");
-      if (!scene || !panel) {
-        if (lastKey !== "") {
-          lastKey = "";
-          setStackBlockerRect(null);
-        }
-        return;
-      }
-      const canvasRect = scene.canvasElement.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
-      const rect = {
-        x: Math.round(panelRect.left - canvasRect.left),
-        y: Math.round(panelRect.top - canvasRect.top),
-        width: Math.round(panelRect.width),
-        height: Math.round(panelRect.height),
-      };
-      const key = `${rect.x},${rect.y},${rect.width},${rect.height}`;
-      if (key === lastKey) return;
-      lastKey = key;
-      setStackBlockerRect(rect);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  const activePrompt = manualApi || isWaitingForResponse ? null : currentPrompt;
+  const activePrompt = manualApi ? null : currentPrompt;
   const promptType = activePrompt?.input.type;
   const chooseActionInput = activePrompt?.input.type === "chooseAction" ? activePrompt.input : null;
   const chooseAttackersInput =
@@ -495,6 +463,8 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const {
     pendingAttackers,
+    attackAssignments,
+    submitAttack,
     pendingAttacker,
     pendingBlocker,
     attackDefenderId,
@@ -503,7 +473,10 @@ export default function Game({ exitTo }: GameProps = {}) {
     blockRequirement,
     assignBlockPair,
     unassignBlock,
+    assignAttackPair,
+    unassignAttack,
     damageOrder,
+    toggleDamageOrder,
     undoDamageOrder,
     multipleAttackDefenders,
     awaitingAttackTarget,
@@ -523,19 +496,44 @@ export default function Game({ exitTo }: GameProps = {}) {
     targetablePlayerIds: boardTargets?.playerIds ?? [],
     engineHasBlocks: (gameView?.combatAssignments?.length ?? 0) > 0,
   });
-  const selectedAttackDefender = chooseAttackersInput?.attackTargets.find(
-    (target) => target.id === attackDefenderId,
-  );
   const blockRequirementError = useMemo<string | null>(() => {
     if (!blockRequirement) return null;
     const name =
-      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.name ??
+      gameView?.battlefield.find((c) => c.id === blockRequirement.attackerId)?.identity.name ??
       "This attacker";
     const creatures = (n: number) => `${n} ${n === 1 ? "creature" : "creatures"}`;
     return blockRequirement.kind === "min"
       ? `${name} must be blocked by ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`
       : `${name} can be blocked by at most ${creatures(blockRequirement.count)} (${blockRequirement.assigned} assigned).`;
   }, [blockRequirement, gameView?.battlefield]);
+  const mustAttackHint = useMemo<string | null>(() => {
+    const must = chooseAttackersInput?.attackers.filter((a) => a.mustAttack) ?? [];
+    if (must.length === 0) return null;
+    const nameOf = (id: string) =>
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "A creature";
+    return `Must attack if able — ${must.map((a) => nameOf(a.attackerId)).join(", ")}`;
+  }, [chooseAttackersInput, gameView?.battlefield]);
+  const blockRestrictionHint = useMemo<string | null>(() => {
+    const attackers = chooseBlockersInput?.attackers ?? [];
+    const nameOf = (id: string) =>
+      gameView?.battlefield.find((c) => c.id === id)?.identity.name ?? "An attacker";
+    const parts: string[] = [];
+    const menace = attackers.filter(
+      (a) => a.minBlockers > 1 && a.validBlockerIds.length >= a.minBlockers,
+    );
+    if (menace.length > 0) {
+      parts.push(
+        `Requires multiple blockers — ${menace
+          .map((a) => `${nameOf(a.attackerId)} (needs ${a.minBlockers})`)
+          .join(", ")}`,
+      );
+    }
+    const mustBlock = attackers.filter((a) => a.mustBeBlocked && a.validBlockerIds.length > 0);
+    if (mustBlock.length > 0) {
+      parts.push(`Must be blocked — ${mustBlock.map((a) => nameOf(a.attackerId)).join(", ")}`);
+    }
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [chooseBlockersInput, gameView?.battlefield]);
   const { declineTargets } = casting;
   const targetCompletion = useMemo(() => {
     if (activePrompt?.input.type !== "chooseBoardTargets") return null;
@@ -702,27 +700,20 @@ export default function Game({ exitTo }: GameProps = {}) {
 
   const _earlyMyPlayerId =
     gameView?.players?.find((p) => p.isHuman)?.id ?? gameView?.players?.[0]?.id ?? "";
-  const {
-    isAutoPassing,
-    isPassingUntilEot,
-    unifiedPass,
-    activatePassUntilEot,
-    spellStackModalOpen,
-    setSpellStackModalOpen,
-  } = usePromptEffects({
+  const { unifiedPass, spellStackModalOpen, setSpellStackModalOpen } = usePromptEffects({
     currentPrompt: activePrompt,
     gameView,
     isWaitingForResponse,
     respond,
     myPlayerId: _earlyMyPlayerId,
-    turn: gameView?.turn ?? 0,
-    stackLength: gameView?.stack?.length ?? 0,
   });
 
-  const unifiedPassRef = useRef(unifiedPass);
-  unifiedPassRef.current = unifiedPass;
-  const activatePassUntilEotRef = useRef(activatePassUntilEot);
-  activatePassUntilEotRef.current = activatePassUntilEot;
+  const passPriority = useCallback(() => {
+    window.dispatchEvent(new Event(ACTION_DRAWER_BUMP_EVENT));
+    unifiedPass();
+  }, [unifiedPass]);
+  const unifiedPassRef = useRef(passPriority);
+  unifiedPassRef.current = passPriority;
   const payManaPrimaryRef = useRef(() => {});
   payManaPrimaryRef.current = () => {
     if (promptType !== "payManaCost") return;
@@ -734,6 +725,9 @@ export default function Game({ exitTo }: GameProps = {}) {
   };
   const confirmPromptRef = useRef<() => boolean>(() => false);
   confirmPromptRef.current = () => {
+    // A response is already in flight — ignore the keyboard confirm so it can't
+    // fire submitAttack (which would clear staging while respond() is dropped).
+    if (isWaitingForResponse) return false;
     if (promptType === "payManaCost") {
       payManaPrimaryRef.current();
       return true;
@@ -750,10 +744,10 @@ export default function Game({ exitTo }: GameProps = {}) {
       return true;
     }
     if (promptType === "chooseAttackers") {
-      if (pendingAttackers.length === 0) return false;
-      respond(
-        declareAttackersOutput(activePrompt, pendingAttackers, attackDefenderId ?? undefined),
-      );
+      if (attackAssignments.length === 0 && pendingAttackers.length === 0) return false;
+      // submitAttack merges drag-declared assignments with any still-pending
+      // (tapped) attackers, so both flows commit regardless of defender count.
+      submitAttack();
       return true;
     }
     if (promptType === "chooseBlockers") {
@@ -829,26 +823,16 @@ export default function Game({ exitTo }: GameProps = {}) {
   useGameEventListeners();
   useGamePrefetch();
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.repeat) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+  useKeybindings({
+    "toggle-stack": () => useStackUIStore.getState().toggleCollapsed(),
+    "open-dev-panel": () => useGameUIStore.getState().openDevPanel(),
+    "pass-priority": () => {
       if (manualApi) return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        if (document.querySelector('[role="dialog"]')) return;
-        if (confirmPromptRef.current()) return;
-        if (promptType === "chooseAction") {
-          unifiedPassRef.current();
-        }
-      } else if (e.code === "F6") {
-        e.preventDefault();
-        activatePassUntilEotRef.current();
-      }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [manualApi, promptType]);
+      if (document.querySelector('[role="dialog"]')) return;
+      if (confirmPromptRef.current()) return;
+      if (promptType === "chooseAction") unifiedPassRef.current();
+    },
+  });
 
   const me =
     gameView?.players?.find((p) => p.id === myPlayerSlot) ??
@@ -913,7 +897,12 @@ export default function Game({ exitTo }: GameProps = {}) {
       closeZoneViewer();
       return;
     }
-    openZoneViewer({ ...vz, clickableCardIds: boardTargets.zone.validCardIds });
+    const clickableCardIds = validCardIdsInCards(boardTargets.zone.validCardIds, vz.cards);
+    if (clickableCardIds.length === 0) {
+      closeZoneViewer();
+      return;
+    }
+    openZoneViewer({ ...vz, clickableCardIds });
   }, [boardTargets, openZoneViewer, closeZoneViewer]);
 
   // Generic sticky-viewer close: a viewer bound to a prompt type stays open
@@ -961,6 +950,8 @@ export default function Game({ exitTo }: GameProps = {}) {
             hasCityBlessing: false,
             ringLevel: 0,
             speed: 0,
+            experienceCounters: 0,
+            ticketCounters: 0,
           }) as PlayerDto,
       ),
     ],
@@ -977,7 +968,32 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.combatAssignments?.map((a) => `${a.blockerId}:${a.attackerId}`).join(",")],
   );
 
+  const combatRows = useMemo(
+    () =>
+      gameView
+        ? buildCombatRows({
+            battlefield: gameView.battlefield,
+            combatAssignments: [
+              ...combatAssignments,
+              ...blockAssignments.filter(
+                (b) => !combatAssignments.some((c) => c.blockerId === b.blockerId),
+              ),
+            ],
+            playerIds: gameView.players.map((p) => p.id),
+            pendingAttacks: attackAssignments,
+          })
+        : [],
+    [gameView, combatAssignments, blockAssignments, attackAssignments],
+  );
+  const oppCombatAttackerIds = useMemo(
+    () => new Set(combatRows.flatMap((r) => r.attackerIds)),
+    [combatRows],
+  );
+
   const hoveredStackObjectIdForSpecs = useStackUIStore((s) => s.hoveredStackObjectId);
+  const setHoveredStackObjectId = useStackUIStore((s) => s.setHoveredStackObjectId);
+  const stackCollapsed = useStackUIStore((s) => s.collapsed);
+  const toggleStackCollapsed = useStackUIStore((s) => s.toggleCollapsed);
   const activeAttackers = useMemo(
     () =>
       (gameView?.battlefield ?? [])
@@ -986,12 +1002,73 @@ export default function Game({ exitTo }: GameProps = {}) {
     [gameView?.battlefield],
   );
 
-  const battlefieldAttachments = useMemo(
-    () =>
-      (gameView?.battlefield ?? [])
-        .filter((c) => !!c.attachedTo)
-        .map((c) => ({ childId: c.id, parentId: c.attachedTo! })),
-    [gameView?.battlefield],
+  const combatPairings = useMemo<CombatPairing[]>(() => {
+    const nameOf = (id: string) =>
+      id === myPlayerSlot
+        ? "You"
+        : (gameView?.players?.find((p) => p.id === id)?.name ?? "A player");
+    const pairs = new Map<string, CombatPairing>();
+    for (const c of gameView?.battlefield ?? []) {
+      if (!c.isAttacking || !c.attackingPlayerId) continue;
+      const key = `${c.controllerId}->${c.attackingPlayerId}`;
+      const existing = pairs.get(key);
+      if (existing) existing.count += 1;
+      else
+        pairs.set(key, {
+          key,
+          attacker: nameOf(c.controllerId),
+          defender: nameOf(c.attackingPlayerId),
+          count: 1,
+        });
+    }
+    return [...pairs.values()];
+  }, [gameView?.battlefield, gameView?.players, myPlayerSlot]);
+
+  const cardZoneTiles = useMemo(() => {
+    const map = new Map<string, { playerId: string; key: string }>();
+    for (const p of gameView?.players ?? []) {
+      for (const c of p.graveyard) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.graveyard });
+      for (const c of p.exile) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.exile });
+      for (const c of p.commandZone) map.set(c.id, { playerId: p.id, key: ZONE_TILE_KEY.command });
+    }
+    return map;
+  }, [gameView?.players]);
+
+  const attackTargetKindById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of chooseAttackersInput?.attackTargets ?? []) m.set(t.id, t.kind);
+    return m;
+  }, [chooseAttackersInput]);
+  const attackArrows = useMemo(
+    () => [
+      ...activeAttackers
+        .filter((a) => !oppCombatAttackerIds.has(a.attackerId))
+        .map((a) => ({
+          attackerId: a.attackerId,
+          targetId: a.defenderId,
+          targetKind: "player" as const,
+        })),
+      // Player attacks read from the attack-row staging; only planeswalker /
+      // battle attacks draw an arrow, pointing at the specific permanent. This
+      // only covers the pre-commit declaration — a committed planeswalker/battle
+      // arrow would need the engine to populate CardDto.attackTargetId (always
+      // None today), so it's intentionally not attempted here.
+      ...attackAssignments
+        .filter((a) => {
+          const kind = attackTargetKindById.get(a.targetId);
+          return kind === "planeswalker" || kind === "battle";
+        })
+        .map((a) => ({
+          attackerId: a.attackerId,
+          targetId: a.targetId,
+          targetKind: "card" as const,
+        })),
+    ],
+    [activeAttackers, attackAssignments, oppCombatAttackerIds, attackTargetKindById],
+  );
+  const arrowBlocks = useMemo(
+    () => combatAssignments.filter((a) => !oppCombatAttackerIds.has(a.attackerId)),
+    [combatAssignments, oppCombatAttackerIds],
   );
 
   const liveArrowSpecs = useMemo(
@@ -1000,22 +1077,22 @@ export default function Game({ exitTo }: GameProps = {}) {
         promptType,
         attackerIds,
         blockAssignments,
-        combatAssignments,
-        activeAttackers,
-        battlefieldAttachments,
+        combatAssignments: arrowBlocks,
+        activeAttackers: attackArrows,
         stack: gameView?.stack ?? [],
         activeStackObjectId: hoveredStackObjectIdForSpecs,
         stageBlockers: true,
+        cardZoneTiles,
       }),
     [
       promptType,
       attackerIds,
       blockAssignments,
-      combatAssignments,
-      activeAttackers,
-      battlefieldAttachments,
+      arrowBlocks,
+      attackArrows,
       gameView?.stack,
       hoveredStackObjectIdForSpecs,
+      cardZoneTiles,
     ],
   );
 
@@ -1052,17 +1129,48 @@ export default function Game({ exitTo }: GameProps = {}) {
     return map;
   }, [gameView, debugCardEnabled, debugCardName, debugBattlefieldKeywords, me?.id]);
 
+  const regionOwnerOf = useCallback((card: CardDto, byId: Map<string, CardDto>): string => {
+    let cur = card;
+    const seen = new Set<string>();
+    while (cur.attachedTo && byId.has(cur.attachedTo) && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      cur = byId.get(cur.attachedTo)!;
+    }
+    return cur.controllerId;
+  }, []);
+
+  const battlefieldById = useMemo(() => {
+    const m = new Map<string, CardDto>();
+    for (const c of gameView?.battlefield ?? []) m.set(c.id, c);
+    return m;
+  }, [gameView?.battlefield]);
+
   const myPermanents = useMemo<CardDto[]>(() => {
     if (!gameView || !me) return [];
-    const pendingSet = new Set(pendingAttackers);
+    const pendingSet = new Set([
+      ...pendingAttackers,
+      ...attackAssignments.map((a) => a.attackerId),
+    ]);
     const list = gameView.battlefield
-      .filter((c) => c.controllerId === me.id)
-      .map((c) => (pendingSet.has(c.id) ? { ...c, tapped: true } : c));
+      .filter((c) => regionOwnerOf(c, battlefieldById) === me.id)
+      .map((c) =>
+        pendingSet.has(c.id) && !c.keywords.includes("Vigilance") ? { ...c, tapped: true } : c,
+      );
     if (debugCardEnabled) {
       list.push(buildDebugKeywordCard(me.id, debugCardName, debugBattlefieldKeywords));
     }
     return list;
-  }, [gameView, me, pendingAttackers, debugCardEnabled, debugCardName, debugBattlefieldKeywords]);
+  }, [
+    gameView,
+    me,
+    pendingAttackers,
+    attackAssignments,
+    debugCardEnabled,
+    debugCardName,
+    debugBattlefieldKeywords,
+    regionOwnerOf,
+    battlefieldById,
+  ]);
 
   const opponentPermanentsByPlayer = useMemo(() => {
     const map = new Map<string, CardDto[]>();
@@ -1070,11 +1178,11 @@ export default function Game({ exitTo }: GameProps = {}) {
     for (const op of opponents) {
       map.set(
         op.id,
-        gameView.battlefield.filter((c) => c.controllerId === op.id),
+        gameView.battlefield.filter((c) => regionOwnerOf(c, battlefieldById) === op.id),
       );
     }
     return map;
-  }, [gameView, opponents]);
+  }, [gameView, opponents, regionOwnerOf, battlefieldById]);
 
   const stackCardsBySourceId = useMemo(() => {
     const byId = new Map<string, CardDto>();
@@ -1200,10 +1308,10 @@ export default function Game({ exitTo }: GameProps = {}) {
   const cardNameById = useMemo(() => {
     const byId = new Map<string, string>();
     for (const c of visibleCardsById.values()) {
-      byId.set(c.id, c.name);
+      byId.set(c.id, c.identity.name);
     }
     for (const [sourceId, c] of stackCardsBySourceId.entries()) {
-      if (!byId.has(sourceId)) byId.set(sourceId, c.name);
+      if (!byId.has(sourceId)) byId.set(sourceId, c.identity.name);
     }
     return byId;
   }, [visibleCardsById, stackCardsBySourceId]);
@@ -1296,6 +1404,34 @@ export default function Game({ exitTo }: GameProps = {}) {
       ? { sourceCardId: casting.castingCardId, hostile: casting.arrowHostile }
       : null;
 
+  const stackValidTargetSet = new Set(boardTargets?.spellIds ?? []);
+  const stackTargetingActive = stackValidTargetSet.size > 0;
+  const stackSpec: StackSpec = {
+    cards: (gameView?.stack ?? []).map((obj, idx, arr) => {
+      const isValidTarget = stackTargetingActive && stackValidTargetSet.has(obj.id);
+      return {
+        id: obj.id,
+        sourceId: obj.sourceId,
+        card: resolveStackCard(obj),
+        controllerId: obj.controllerId,
+        isCasting: obj.isCasting,
+        isTopOfStack: idx === arr.length - 1,
+        seatColor: playerColorMap.get(obj.controllerId),
+        isValidTarget,
+        isDimmed: stackTargetingActive && !isValidTarget,
+      };
+    }),
+    flash:
+      shouldRenderStackFlashCard && activeFlashCard && activeFlash
+        ? {
+            token: `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`,
+            card: activeFlashCard,
+          }
+        : null,
+    showPreStackFlash: shouldShowPreStackFlash,
+    collapsed: stackCollapsed,
+  };
+
   return (
     <div
       ref={containerRef}
@@ -1318,11 +1454,19 @@ export default function Game({ exitTo }: GameProps = {}) {
         } as React.CSSProperties
       }
     >
-      <FullscreenToggle />
       <div className="flex min-h-0 flex-1 overflow-visible">
         <GameBoard
           boardSceneRef={boardSceneRef}
-          pixiExternalBlockers={stackBlockerRect ? [stackBlockerRect] : []}
+          onLayoutChange={setBoardLayout}
+          boardSurfaceRef={setBoardSurfaceEl}
+          stackSpec={stackSpec}
+          onOpenStack={() => setSpellStackModalOpen(true)}
+          onTargetSpell={(spellId) => {
+            casting.wrappedTargetSpell(spellId);
+            setSpellStackModalOpen(false);
+          }}
+          onHoverStack={setHoveredStackObjectId}
+          onToggleStack={toggleStackCollapsed}
           handSelectionMode={mulliganPutBack.active}
           handSelectedIds={mulliganPutBack.selected}
           onHandCardToggle={mulliganPutBack.toggle}
@@ -1339,11 +1483,13 @@ export default function Game({ exitTo }: GameProps = {}) {
           priorityPlayerId={effectivePriorityHighlightPlayerId}
           monarchId={gameView.monarchId ?? null}
           initiativeHolderId={gameView.initiativeHolderId ?? null}
+          concededPlayerIds={gameView.concededPlayerIds}
           step={gameView.step}
           promptType={promptType}
           currentPrompt={activePrompt}
           boardTargets={boardTargets}
           pendingAttackers={pendingAttackers}
+          attackAssignments={attackAssignments}
           pendingAttacker={pendingAttacker}
           pendingBlocker={pendingBlocker}
           damageOrder={damageOrder}
@@ -1351,6 +1497,7 @@ export default function Game({ exitTo }: GameProps = {}) {
           selectedAttackDefenderId={attackDefenderId}
           blockAssignments={blockAssignments}
           combatAssignments={combatAssignments}
+          combatRows={combatRows}
           arrowSpecs={arrowSpecs}
           castingArrow={castingArrow}
           playerIsTargetable={playerIsTargetable}
@@ -1385,7 +1532,10 @@ export default function Game({ exitTo }: GameProps = {}) {
           onAttackerClick={handleAttackerClick}
           onAssignBlock={assignBlockPair}
           onUnassignBlock={unassignBlock}
+          onAssignAttacker={assignAttackPair}
+          onUnassignAttacker={unassignAttack}
           onTargetPlayer={handleTargetPlayer}
+          onShowBoardMenu={() => setBoardMenuOpen(true)}
           onOpenZone={(title, cards, onClickCard, clickableCardIds, targetHostile) => {
             if (manualApi) {
               openManualZone(title, cards);
@@ -1398,7 +1548,9 @@ export default function Game({ exitTo }: GameProps = {}) {
               title,
               cards,
               (cardId) => {
-                handleCastSpell(cardId);
+                const card = cards.find((c) => c.id === cardId);
+                if (card) handleHandCardAction(card);
+                else handleCastSpell(cardId);
                 onClickCard(cardId);
               },
               clickableCardIds,
@@ -1450,80 +1602,115 @@ export default function Game({ exitTo }: GameProps = {}) {
         onRestoreSnapshot={restoreSnapshot}
       />
 
-      {!manualApi && (
-        <MainActionOverlay
-          promptType={promptType}
-          isWaitingForResponse={isWaitingForResponse}
-          isAutoPassing={isAutoPassing}
-          isPassingUntilEot={isPassingUntilEot}
-          availableAttackerIds={chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []}
-          pendingAttackers={pendingAttackers}
-          onPassPriority={unifiedPass}
-          onPassUntilEot={activatePassUntilEot}
-          selectedAttackDefenderId={attackDefenderId}
-          selectedAttackDefenderLabel={selectedAttackDefender?.label}
-          multipleAttackDefenders={multipleAttackDefenders}
-          onDeclareAttackers={(attackerIds, defenderId) =>
-            respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
-          }
-          onBeginAttackTargetPick={selectAllAttackersForPick}
-          pendingAttacker={pendingAttacker}
-          pendingBlocker={pendingBlocker}
-          blockError={blockError}
-          blockRequirementError={blockRequirementError}
-          attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
-          blockAssignments={blockAssignments}
-          onDeclareBlockers={(assignments) => respond({ type: "declareBlockers", assignments })}
-          damageOrderCount={damageOrder.length}
-          damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
-          onConfirmDamageOrder={() =>
-            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
-          }
-          onUndoDamageOrder={undoDamageOrder}
-          onDefaultDamageOrder={() =>
-            respond({
-              type: "damageAssignmentOrderDecision",
-              orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
-            })
-          }
-          onOpenStack={() => setSpellStackModalOpen(true)}
-          targetCompletionLabel={targetCompletion?.label}
-          onCompleteTargets={targetCompletion?.onComplete}
-          onConcede={concede}
-          resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
-          resolveCard={(cardId) => visibleCardsById.get(cardId)}
-          isMyPriority={gameView.priorityPlayerId === me.id}
-          turn={gameView.turn}
-          activePlayerName={
-            gameView.players.find((p) => p.id === gameView.activePlayerId)?.name ?? "Unknown"
-          }
-          isMyTurn={gameView.activePlayerId === me.id}
-          step={gameView.step}
-          payManaCostInfo={
-            payManaCostInput
-              ? {
-                  cardName: payManaCostInput.cardName,
-                  manaCost: payManaCostInput.manaCost,
-                  description: payManaCostInput.description,
-                  manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
-                  canConfirmFromPool: payManaCostInput.canConfirmFromPool,
-                  delveCount: delvedCardIds.length,
-                  delveAvailable: delveSourceIds.length > 0,
-                  onOpenDelve: openDelveZone,
+      {boardSurfaceEl &&
+        createPortal(
+          !manualApi && (
+            <>
+              <MainActionOverlay
+                promptType={promptType}
+                isWaitingForResponse={isWaitingForResponse}
+                isWaitingForOthers={
+                  relinquishedPriority ||
+                  (isWaitingForResponse && gameView.priorityPlayerId !== me.id)
                 }
-              : null
-          }
-          onPayManaCost={() => respond({ type: "pay", auto: false })}
-          onAutoManaCost={() => respond({ type: "pay", auto: true })}
-          onCancelManaCost={() => respond({ type: "cancel" })}
-          mulliganCount={mulliganInput?.mulliganCount ?? 0}
-          onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
-          onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
-          mulliganPutBackCount={mulliganPutBack.count}
-          mulliganSelectedCount={mulliganPutBack.selected.size}
-          onMulliganPutBackConfirm={mulliganPutBack.confirm}
-        />
-      )}
+                availableAttackerIds={
+                  chooseAttackersInput?.attackers.map((a) => a.attackerId) ?? []
+                }
+                pendingAttackers={pendingAttackers}
+                onPassPriority={passPriority}
+                selectedAttackDefenderId={attackDefenderId}
+                multipleAttackDefenders={multipleAttackDefenders}
+                onDeclareAttackers={(attackerIds, defenderId) =>
+                  respond(declareAttackersOutput(activePrompt, attackerIds, defenderId))
+                }
+                onBeginAttackTargetPick={selectAllAttackersForPick}
+                attackAssignmentCount={attackAssignments.length}
+                mustAttackHint={mustAttackHint}
+                onSubmitAttack={submitAttack}
+                pendingAttacker={pendingAttacker}
+                pendingBlocker={pendingBlocker}
+                blockError={blockError}
+                blockRequirementError={blockRequirementError}
+                blockRestrictionHint={blockRestrictionHint}
+                attackerIds={chooseBlockersInput?.attackers.map((a) => a.attackerId) ?? []}
+                blockAssignments={blockAssignments}
+                combatPairings={combatPairings}
+                onDeclareBlockers={(assignments) =>
+                  respond({ type: "declareBlockers", assignments })
+                }
+                damageOrderCount={damageOrder.length}
+                damageOrderTotal={damageOrderInput?.blockerIds.length ?? 0}
+                onConfirmDamageOrder={() =>
+                  respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+                }
+                onUndoDamageOrder={undoDamageOrder}
+                onDefaultDamageOrder={() =>
+                  respond({
+                    type: "damageAssignmentOrderDecision",
+                    orderedBlockerIds: damageOrderInput?.blockerIds ?? [],
+                  })
+                }
+                onOpenStack={() => setSpellStackModalOpen(true)}
+                targetCompletionLabel={targetCompletion?.label}
+                onCompleteTargets={targetCompletion?.onComplete}
+                resolveCardName={(cardId) => cardNameById.get(cardId) ?? cardId}
+                resolveCard={(cardId) => visibleCardsById.get(cardId)}
+                turn={gameView.turn}
+                activePlayerName={
+                  gameView.players.find((p) => p.id === gameView.activePlayerId)?.name ?? "Unknown"
+                }
+                isMyTurn={gameView.activePlayerId === me.id}
+                step={gameView.step}
+                payManaCostInfo={
+                  payManaCostInput
+                    ? {
+                        cardName: payManaCostInput.cardName,
+                        manaCost: payManaCostInput.manaCost,
+                        description: payManaCostInput.description,
+                        manaPool: gameView.players.find((p) => p.isHuman)?.manaPool ?? {},
+                        canConfirmFromPool: payManaCostInput.canConfirmFromPool,
+                        delveCount: delvedCardIds.length,
+                        delveAvailable: delveSourceIds.length > 0,
+                        onOpenDelve: openDelveZone,
+                      }
+                    : null
+                }
+                onPayManaCost={() => respond({ type: "pay", auto: false })}
+                onAutoManaCost={() => respond({ type: "pay", auto: true })}
+                onCancelManaCost={() => respond({ type: "cancel" })}
+                mulliganCount={mulliganInput?.mulliganCount ?? 0}
+                onMulliganKeep={() => respond({ type: "mulliganDecision", keep: true })}
+                onMulliganDraw={() => respond({ type: "mulliganDecision", keep: false })}
+                mulliganPutBackCount={mulliganPutBack.count}
+                mulliganSelectedCount={mulliganPutBack.selected.size}
+                onMulliganPutBackConfirm={mulliganPutBack.confirm}
+                selfClusterMaxHeight={boardLayout?.selfClusterMaxHeight}
+              />
+              <MiddleBarDock
+                open={boardMenuOpen}
+                onOpenChange={setBoardMenuOpen}
+                onConcede={concede}
+                isMyPriority={gameView.priorityPlayerId === me.id}
+                sidePanelCollapsed={isActionPanelCollapsed}
+                onToggleSidePanel={toggleActionPanel}
+                players={gameView.players.map((p) => {
+                  const color = playerColorMap.get(p.id) ?? themeColors.playerColors.self;
+                  return {
+                    id: p.id,
+                    name: p.name,
+                    color,
+                    textColor: readableTextColor(
+                      color,
+                      themeColors.canvas.shadow,
+                      themeColors.textOnTinted,
+                    ),
+                  };
+                })}
+              />
+            </>
+          ),
+          boardSurfaceEl,
+        )}
 
       {awaitingAttackTarget && (
         <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
@@ -1559,28 +1746,16 @@ export default function Game({ exitTo }: GameProps = {}) {
           </div>
         )}
 
-      <StackDisplay
-        stack={gameView.stack}
-        resolveStackCard={resolveStackCard}
-        onOpenStack={() => setSpellStackModalOpen(true)}
-        flashCard={shouldRenderStackFlashCard ? activeFlashCard : null}
-        flashToken={
-          shouldRenderStackFlashCard
-            ? `${activeFlash.cardId}:${activeFlash.cardName}:${activeFlash.setCode}`
-            : null
-        }
-        showPreStackFlash={shouldShowPreStackFlash}
-        rightPanelCollapsed={isActionPanelCollapsed}
-        rightInsetExtra={
-          boardArrangement === "perimeter" ? `${PERIMETER_SIDE_FRACTION * 100}%` : undefined
-        }
-        playerColorMap={playerColorMap}
-        validSpellIds={boardTargets?.spellIds ?? []}
-        onTargetSpell={(spellId) => {
-          casting.wrappedTargetSpell(spellId);
-          setSpellStackModalOpen(false);
-        }}
-      />
+      {gameView.step === "first_strike_damage" && (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-4 py-2 shadow-lg backdrop-blur">
+            <span className="text-sm font-semibold tracking-wide">First Strike Damage</span>
+            <span className="text-xs text-muted-foreground">
+              only first &amp; double strikers deal damage now
+            </span>
+          </div>
+        </div>
+      )}
 
       <GameModals
         currentPrompt={activePrompt}
@@ -1603,6 +1778,29 @@ export default function Game({ exitTo }: GameProps = {}) {
         }}
         onCancelAbilityPicker={closeAbilityPicker}
       />
+
+      {damageOrderInput && (
+        <DamageOrderModal
+          attackerName={
+            gameView.battlefield.find((c) => c.id === damageOrderInput.attackerId)?.identity.name ??
+            "The attacker"
+          }
+          blockerCards={damageOrderInput.blockerCards}
+          order={damageOrder}
+          isWaiting={isWaitingForResponse}
+          onToggle={toggleDamageOrder}
+          onUndo={undoDamageOrder}
+          onAuto={() =>
+            respond({
+              type: "damageAssignmentOrderDecision",
+              orderedBlockerIds: damageOrderInput.blockerIds,
+            })
+          }
+          onConfirm={() =>
+            respond({ type: "damageAssignmentOrderDecision", orderedBlockerIds: damageOrder })
+          }
+        />
+      )}
 
       {playModePicker && (
         <PlayModePicker

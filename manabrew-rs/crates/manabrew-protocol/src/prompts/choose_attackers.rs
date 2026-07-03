@@ -9,6 +9,7 @@ use crate::prompts::common::{AttackAssignment, AttackTargetDto};
 pub struct AttackerOptionDto {
     pub attacker_id: String,
     pub valid_target_ids: Vec<String>,
+    pub must_attack: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

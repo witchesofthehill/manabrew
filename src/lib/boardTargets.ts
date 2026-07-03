@@ -13,6 +13,12 @@ export interface BoardTargetBuckets {
   zone: { zone: string; cards: CardDto[]; validCardIds: string[] } | null;
 }
 
+export function validCardIdsInCards(validCardIds: string[], cards?: CardDto[]): string[] {
+  if (!cards?.length) return [];
+  const cardIds = new Set(cards.map((card) => card.id));
+  return validCardIds.filter((id) => cardIds.has(id));
+}
+
 function findInZones(gv: GameViewDto, id: string): { zone: string; card: CardDto } | null {
   for (const p of gv.players) {
     const zones: [string, CardDto[] | undefined][] = [

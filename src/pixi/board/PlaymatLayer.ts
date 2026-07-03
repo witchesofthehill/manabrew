@@ -1,4 +1,13 @@
-import { Container, Graphics, ImageSource, Sprite, Texture, TilingSprite } from "pixi.js";
+import {
+  BlurFilter,
+  ColorMatrixFilter,
+  Container,
+  Graphics,
+  ImageSource,
+  Sprite,
+  Texture,
+  TilingSprite,
+} from "pixi.js";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { PlayZoneRect } from "../types";
 import { TABLE_RADIUS } from "../constants";
@@ -9,12 +18,30 @@ export const DEFAULT_PLAYMAT_SETTINGS: Required<PlaymatSettings> = {
   opacity: 0.62,
   texture: 0.5,
   borderWidth: 2,
-  borderColor: "#000000",
+  borderColor: "#27272a",
   fit: "cover",
   offsetX: 0.5,
   offsetY: 0.5,
+  zoom: 1,
+  blur: 0,
+  brightness: 1,
   color: "",
 };
+
+/** Bounds for the playmat zoom (uniform resize) in `cover` fit. */
+export const PLAYMAT_ZOOM_MIN = 1;
+export const PLAYMAT_ZOOM_MAX = 4;
+export const clampPlaymatZoom = (z: number): number =>
+  Math.max(PLAYMAT_ZOOM_MIN, Math.min(PLAYMAT_ZOOM_MAX, Number.isFinite(z) ? z : 1));
+
+/** Render-time readability filters applied to the playmat image. */
+export const PLAYMAT_BLUR_MAX = 20;
+export const PLAYMAT_BRIGHTNESS_MIN = 0.3;
+export const PLAYMAT_BRIGHTNESS_MAX = 1.5;
+export const clampPlaymatBlur = (b: number): number =>
+  Math.max(0, Math.min(PLAYMAT_BLUR_MAX, Number.isFinite(b) ? b : 0));
+export const clampPlaymatBrightness = (b: number): number =>
+  Math.max(PLAYMAT_BRIGHTNESS_MIN, Math.min(PLAYMAT_BRIGHTNESS_MAX, Number.isFinite(b) ? b : 1));
 
 const PLAYMAT_DROP_DIM = 0.29;
 export const PLAYMAT_PADDING = 0.04;
@@ -153,10 +180,13 @@ export class PlaymatLayer {
   private border: Graphics;
   private mask: Graphics;
   private imageTexture: Texture | null = null;
+  private blurFilter = new BlurFilter({ strength: 0, quality: 4 });
+  private brightnessFilter = new ColorMatrixFilter();
   private url: string | null = null;
   private settings: Required<PlaymatSettings> = { ...DEFAULT_PLAYMAT_SETTINGS };
   private rect: PlayZoneRect | null = null;
   private dropActive = false;
+  private mirrored = false;
 
   constructor() {
     this.container = new Container();
@@ -215,12 +245,31 @@ export class PlaymatLayer {
     if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
   }
 
+  setMirrored(mirrored: boolean): void {
+    if (mirrored === this.mirrored) return;
+    this.mirrored = mirrored;
+    if (this.rect) this.layout(this.rect, { dropActive: this.dropActive });
+  }
+
   private updateVisibility(): void {
     this.container.visible = !!this.url || !!this.settings.color;
   }
 
   private applySettings(): void {
     this.fabric.alpha = clamp01(this.settings.texture) * PLAYMAT_FABRIC_MAX_ALPHA;
+
+    const blur = clampPlaymatBlur(this.settings.blur);
+    const brightness = clampPlaymatBrightness(this.settings.brightness);
+    const filters: (BlurFilter | ColorMatrixFilter)[] = [];
+    if (brightness !== 1) {
+      this.brightnessFilter.brightness(brightness, false);
+      filters.push(this.brightnessFilter);
+    }
+    if (blur > 0) {
+      this.blurFilter.strength = blur;
+      filters.push(this.blurFilter);
+    }
+    this.image.filters = filters;
   }
 
   layout(rect: PlayZoneRect, opts: { dropActive: boolean }): void {
@@ -247,6 +296,10 @@ export class PlaymatLayer {
     const sy = r.height / th;
     const cx = r.x + r.width / 2;
     const cy = r.y + r.height / 2;
+    // Opponent mats read as their own mat rotated 180°: spin the sprite about its
+    // centre (bounds unchanged) and mirror the cover-fit offset so the framing
+    // rotates with it.
+    this.image.rotation = this.mirrored ? Math.PI : 0;
     if (this.settings.fit === "stretch") {
       this.image.scale.set(sx, sy);
       this.image.x = cx;
@@ -256,10 +309,10 @@ export class PlaymatLayer {
       this.image.x = cx;
       this.image.y = cy;
     } else {
-      const scale = Math.max(sx, sy);
+      const scale = Math.max(sx, sy) * clampPlaymatZoom(this.settings.zoom);
       this.image.scale.set(scale);
-      const ox = clamp01(this.settings.offsetX);
-      const oy = clamp01(this.settings.offsetY);
+      const ox = clamp01(this.mirrored ? 1 - this.settings.offsetX : this.settings.offsetX);
+      const oy = clamp01(this.mirrored ? 1 - this.settings.offsetY : this.settings.offsetY);
       this.image.x = cx + (0.5 - ox) * (tw * scale - r.width);
       this.image.y = cy + (0.5 - oy) * (th * scale - r.height);
     }

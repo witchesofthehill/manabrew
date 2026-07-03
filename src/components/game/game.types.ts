@@ -10,6 +10,13 @@ export interface CombatAssignment {
   attackerId: string;
 }
 
+export interface CombatPairing {
+  key: string;
+  attacker: string;
+  defender: string;
+  count: number;
+}
+
 export type FlashItem =
   | { kind: "card"; cardId: string; cardName: string; setCode: string }
   | { kind: "turn"; playerId: string; playerName: string };
@@ -46,23 +53,25 @@ export interface RightActionPanelProps {
 export interface MainActionOverlayProps {
   promptType?: PromptActionType;
   isWaitingForResponse: boolean;
-  isAutoPassing: boolean;
-  isPassingUntilEot: boolean;
+  isWaitingForOthers: boolean;
   availableAttackerIds: string[];
   pendingAttackers: string[];
   onPassPriority: () => void;
-  onPassUntilEot: () => void;
   selectedAttackDefenderId?: string | null;
-  selectedAttackDefenderLabel?: string | null;
   multipleAttackDefenders: boolean;
+  attackAssignmentCount: number;
+  mustAttackHint?: string | null;
   onDeclareAttackers: (attackerIds: string[], defenderId?: string) => void;
   onBeginAttackTargetPick: (attackerIds: string[]) => void;
+  onSubmitAttack: () => void;
   pendingAttacker: string | null;
   pendingBlocker: string | null;
   blockError?: string | null;
   blockRequirementError?: string | null;
+  blockRestrictionHint?: string | null;
   attackerIds: string[];
   blockAssignments: CombatAssignment[];
+  combatPairings: CombatPairing[];
   onDeclareBlockers: (assignments: CombatAssignment[]) => void;
   damageOrderCount: number;
   damageOrderTotal: number;
@@ -72,10 +81,8 @@ export interface MainActionOverlayProps {
   onOpenStack: () => void;
   targetCompletionLabel?: string | null;
   onCompleteTargets?: (() => void) | null;
-  onConcede: () => void;
   resolveCardName: (cardId: string) => string;
   resolveCard: (cardId: string) => CardDto | undefined;
-  isMyPriority: boolean;
   turn: number;
   activePlayerName: string;
   isMyTurn: boolean;
@@ -101,4 +108,5 @@ export interface MainActionOverlayProps {
   mulliganPutBackCount?: number;
   mulliganSelectedCount?: number;
   onMulliganPutBackConfirm?: () => void;
+  selfClusterMaxHeight?: number;
 }

@@ -1,5 +1,15 @@
-import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import {
+  Application,
+  Container,
+  FillGradient,
+  Graphics,
+  Rectangle,
+  Text,
+  type FederatedPointerEvent,
+} from "pixi.js";
+import { darken, withAlpha } from "@/themes/gameTheme";
 import type { CardDto, PlaymatSettings } from "@/protocol/game";
+import type { AttackTargetDto } from "@/protocol/prompts/common";
 import {
   CardSprite,
   setCardSpriteTheme,
@@ -19,7 +29,7 @@ import {
 import { DragHandler } from "../DragHandler";
 import { cellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
-import { CARD_W, CARD_H } from "@/components/game/game.constants";
+import { CARD_H } from "@/components/game/game.constants";
 import {
   BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
@@ -31,6 +41,8 @@ import {
   STACK_SEED_TTL_MS,
   TABLE_RADIUS,
   Z_STAGED_REGION,
+  Z_COMBAT_GUEST,
+  HAND_RESERVE_TRIM,
 } from "../constants";
 import { useGameDevStore } from "@/stores/useGameDevStore";
 import type {
@@ -42,12 +54,28 @@ import type {
   PlayZoneRect,
   ScreenPos,
 } from "../types";
+import type { StackAnchorProvider } from "../stack/stack.types";
 import { BoardRegion } from "./BoardRegion";
+import type { ZoneTileSpec } from "./BoardZoneTiles";
+import {
+  PlayerHudLayer,
+  PLAYER_HUD_HEIGHT_PX as PLAYER_BAR_HEIGHT_PX,
+  SELF_PLAYER_HUD_HEIGHT_PX as SELF_PLAYER_BAR_HEIGHT_PX,
+  PLAYER_HUD_TOP_MARGIN_PX as PLAYER_BAR_TOP_MARGIN_PX,
+  PLAYER_HUD_SIDE_MARGIN_PX as PLAYER_BAR_SIDE_MARGIN_PX,
+  PLAYER_HUD_MAX_WIDTH_PX as PLAYER_BAR_MAX_WIDTH_PX,
+} from "@/pixi/hud/PlayerHudLayer";
+import type { PlayerHudSpec as PlayerBarSpec } from "@/pixi/hud/playerHud.types";
 import { isAttackerTap } from "./combatRouting";
 import { BattlefieldOverlay } from "./BattlefieldOverlay";
 import { HandController } from "./HandController";
 import { SelectionController } from "./SelectionController";
-import { STRIP_BAND_PX, type BoardLayout, type RegionOrientation } from "./boardLayout";
+import {
+  COLLAPSED_OPPONENT_WIDTH_PX,
+  STRIP_BAND_PX,
+  type BoardLayout,
+  type RegionOrientation,
+} from "./boardLayout";
 import type {
   BlockingRect,
   HandHost,
@@ -63,6 +91,52 @@ export interface BoardPlayerSpec {
   isLocal: boolean;
   playmat?: string;
   playmatSettings?: PlaymatSettings;
+  /** Seat colour (hex) for the hover highlight. */
+  color?: string;
+}
+
+/** Delimiter auto-focus easing (tweak freely). `FACTOR` is the fraction of the
+ *  remaining distance closed each frame; `SNAP` is the width-fraction threshold
+ *  at which the ease finishes and pins to the target. */
+const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
+
+const GRIP_HIT_WIDTH_PX = 16;
+const ATTACK_ARROW_LANE_PX = 18;
+/** Extra px around a planeswalker/battle card that still counts as targeting it
+ *  while dragging an attacker — makes small opponent permanents easy to hit. */
+const ATTACK_TARGET_HIT_PAD = 44;
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * DIVIDER + FOG — tweak these. The vertical divider bar and the fog-of-war
+ * fade beside it share ONE colour and ONE peak opacity, so the fog merges
+ * seamlessly into the bar. The colour is a gently darkened canvas background
+ * (see `dividerColor()` / `DIVIDER.darken`) — the field felt is already
+ * canvas-background-coloured, so a same-colour separator is invisible against
+ * it; the darken is the minimum distinct shade that reads as a seam without
+ * going near-black. Tune `DIVIDER.darken` up for a clearer line, down softer.
+ *   - alpha       opacity of the bar AND the fog at its darkest (right at the
+ *                 divider). The fog is always this dark next to the divider, no
+ *                 matter how collapsed the field is.
+ *   - fadeWidthPx how far the fog leaks into a fully-collapsed field. Scales
+ *                 DOWN with expansion (0 once a field is fully expanded), so it
+ *                 controls the spread only — never the darkness at the divider.
+ *   - barWidthPx  thickness of the divider bar.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const DIVIDER = {
+  /** How much to darken the canvas background for the bar + fog. The field felt
+   *  is already canvas-background-coloured, so a same-colour separator is
+   *  invisible against it — this is the minimum distinct shade that still
+   *  reads. Tune up for a clearer seam, down for a softer one. */
+  darken: 0.2,
+  alpha: 1,
+  fadeWidthPx: 0,
+  barWidthPx: 4,
+} as const;
+
+/** `count - 1` evenly-spaced delimiter positions (fractions of width). */
+function evenDelimiters(count: number): number[] {
+  return Array.from({ length: Math.max(0, count - 1) }, (_, i) => (i + 1) / count);
 }
 
 interface RegionRecord {
@@ -76,6 +150,10 @@ export class BoardScene {
   private callbacks: GameCanvasCallbacks;
   private theme: Theme;
   private root: Container;
+  private baseBg: Graphics;
+  private collapseVeil: Graphics;
+  private canvasW = 0;
+  private canvasH = 0;
   private destroyed = false;
   private perfFrames = 0;
   private perfTotalDelta = 0;
@@ -89,9 +167,21 @@ export class BoardScene {
 
   private floaterLayer: Container;
   private floaters: { text: Text; age: number }[] = [];
+  private combatGuestLayer: Container;
 
   private declareBlockers = false;
   private blockDragBlockerId: string | null = null;
+  private declareAttackers = false;
+  private attackTargets: AttackTargetDto[] = [];
+  private attackerOptions: { attackerId: string; validTargetIds: string[] }[] = [];
+  // The legal attacker under a pointer-down, armed into an attack drag only once
+  // the pointer actually moves — so a plain tap still reaches the click handler.
+  private attackDragCandidate: string | null = null;
+  private attackDragAttackerId: string | null = null;
+  private attackDragTargetId: string | null = null;
+  // Dragging one of our own already-declared attackers (staged as a guest in an
+  // opponent's band) back toward our field to un-declare it.
+  private unassignDrag: { cardId: string; region: BoardRegion; overOwn: boolean } | null = null;
   private phaseStripAlphaTarget = 1;
 
   private hand: HandController | null = null;
@@ -100,13 +190,16 @@ export class BoardScene {
   private dragHandler: DragHandler;
   private phaseStrip: PhaseStripLayer;
   private stripBackgroundGfx: Graphics;
-  private regionDividerGfx: Graphics;
   private lastLayout: BoardLayout | null = null;
 
   private arrowSpecs: ArrowSpec[] = [];
   private castingArrow: { sourceCardId: string; hostile: boolean } | null = null;
   private stackCardSeeds = new Map<string, { x: number; y: number; scale: number; ts: number }>();
-  private externalBlockers: BlockingRect[] = [];
+  private lastCardPositions = new Map<
+    string,
+    { x: number; y: number; scaleX: number; scaleY: number }
+  >();
+  private stackProvider: StackAnchorProvider | null = null;
 
   private hoveredCell: GridCell | null = null;
   private stackTargetId: string | null = null;
@@ -120,6 +213,29 @@ export class BoardScene {
   private handInsetRight = 0;
   private playerBlockers = new Map<string, BlockingRect[]>();
   private autoSort = false;
+  private gridSkeletonDebug = false;
+  private attackRowDebug = false;
+
+  // Delimiters (opponent clip bands). Owned and eased here, not in React.
+  // `delimCurrent`/`delimTarget` are `count - 1` ascending fractions of width.
+  private boardWidth = 0;
+  private topHeight = 0;
+  private opponentIds: string[] = [];
+  private delimCurrent: number[] = [];
+  private delimTarget: number[] = [];
+  private focusPlayerId: string | null = null;
+  private combatFocusIds: string[] = [];
+  private manualFocusId: string | null = null;
+  private draggingDelim: number | null = null;
+  private hoveredOpponentId: string | null = null;
+  private gripLayer: Container;
+  private gripHandles: Graphics[] = [];
+  private fogGfx: Graphics;
+  private fogGradRight: FillGradient | null = null;
+  private fogGradLeft: FillGradient | null = null;
+  private highlightGfx: Graphics;
+  private playerBars: PlayerHudLayer;
+  private barsEnabled = false;
 
   private cursorViewportX = 0;
   private cursorViewportY = 0;
@@ -138,6 +254,15 @@ export class BoardScene {
     app.stage.addChild(this.root);
     app.stage.eventMode = "static";
 
+    // Solid page-background base behind everything (the canvas itself is
+    // transparent). Gives the whole battlefield one consistent colour so the
+    // collapsed player panels — drawn in the same colour — blend in seamlessly
+    // instead of popping against the translucent felt.
+    this.baseBg = new Graphics();
+    this.baseBg.eventMode = "none";
+    this.baseBg.zIndex = -1000;
+    this.root.addChild(this.baseBg);
+
     this.dragHandler = new DragHandler();
 
     this.stripBackgroundGfx = new Graphics();
@@ -145,14 +270,49 @@ export class BoardScene {
     this.stripBackgroundGfx.zIndex = 5;
     this.root.addChild(this.stripBackgroundGfx);
 
-    this.regionDividerGfx = new Graphics();
-    this.regionDividerGfx.eventMode = "none";
-    this.regionDividerGfx.zIndex = 6000;
-    this.root.addChild(this.regionDividerGfx);
+    // Delimiter fog veils the field content (cards/zones) but sits BELOW the
+    // player bars, so a collapsed field's avatar stays clear of the fog.
+    this.fogGfx = new Graphics();
+    this.fogGfx.eventMode = "none";
+    this.fogGfx.zIndex = 5550;
+    this.root.addChild(this.fogGfx);
+
+    // Solid page-background veil over each opponent field, its opacity driven
+    // by how collapsed the field is (computed every frame in `applyDelimiters`,
+    // so it stays perfectly in sync with the delimiter ease). Sits above the
+    // cards but below the player panels, which render on top of it.
+    this.collapseVeil = new Graphics();
+    this.collapseVeil.eventMode = "none";
+    this.collapseVeil.zIndex = 5560;
+    this.root.addChild(this.collapseVeil);
+
+    this.highlightGfx = new Graphics();
+    this.highlightGfx.eventMode = "none";
+    this.highlightGfx.zIndex = 5500;
+    this.root.addChild(this.highlightGfx);
+
+    this.playerBars = new PlayerHudLayer(
+      this.theme,
+      (id) => this.callbacks.onTargetPlayer?.(id),
+      (id) => this.callbacks.onShowPlayerSheet?.(id),
+      () => this.callbacks.onShowBoardMenu?.(),
+    );
+    this.playerBars.container.zIndex = 5600;
+    this.playerBars.container.visible = false;
+    this.root.addChild(this.playerBars.container);
+
+    this.gripLayer = new Container();
+    this.gripLayer.zIndex = 6000;
+    this.root.addChild(this.gripLayer);
 
     this.phaseStrip = new PhaseStripLayer(this.theme);
     this.phaseStrip.container.zIndex = 7000;
     this.root.addChild(this.phaseStrip.container);
+
+    this.combatGuestLayer = new Container();
+    this.combatGuestLayer.sortableChildren = true;
+    this.combatGuestLayer.zIndex = Z_COMBAT_GUEST;
+    this.root.addChild(this.combatGuestLayer);
 
     this.floaterLayer = new Container();
     this.floaterLayer.eventMode = "none";
@@ -166,6 +326,8 @@ export class BoardScene {
     this.cursorListener = (e: MouseEvent) => {
       this.cursorViewportX = e.clientX;
       this.cursorViewportY = e.clientY;
+      const rect = this.app.canvas.getBoundingClientRect();
+      this.updateHoveredOpponent(e.clientX - rect.left, e.clientY - rect.top);
     };
     window.addEventListener("mousemove", this.cursorListener);
     this.canvasLeaveListener = () => this.hand?.clearHover();
@@ -183,9 +345,13 @@ export class BoardScene {
     return this.app.canvas as HTMLCanvasElement;
   }
 
-  configure(players: BoardPlayerSpec[], layout: BoardLayout, cardScale: number): void {
+  configure(
+    players: BoardPlayerSpec[],
+    layout: BoardLayout,
+    scales: { self: number; opponent: number },
+  ): void {
     if (this.destroyed) return;
-    this.cardScale = cardScale;
+    this.cardScale = scales.self;
     const seen = new Set<string>();
     let oppIndex = 0;
 
@@ -193,12 +359,16 @@ export class BoardScene {
       const opp = spec.isLocal ? null : layout.opponents[oppIndex++];
       const zone = opp?.rect ?? layout.self;
       const orientation: RegionOrientation = spec.isLocal ? "bottom" : (opp?.orientation ?? "top");
+      const regionScale = spec.isLocal ? scales.self : scales.opponent;
+      // The clip bands tile the canvas (no overlap), so z-order is cosmetic.
+      const zIndex = spec.isLocal ? 100 : 50;
       seen.add(spec.playerId);
       const existing = this.regions.get(spec.playerId);
       if (existing) {
         existing.zone = zone;
+        existing.region.container.zIndex = zIndex;
         existing.region.setZone(zone, orientation);
-        existing.region.setCardScale(cardScale);
+        existing.region.setCardScale(regionScale);
         existing.region.setPlaymatSettings(spec.playmatSettings);
         existing.region.setPlaymat(spec.playmat);
         continue;
@@ -207,19 +377,35 @@ export class BoardScene {
         this.makeRegionHost(spec.playerId, spec.isLocal),
         this.root,
         zone,
-        cardScale,
+        regionScale,
         { orientation },
       );
       region.setPlaymatSettings(spec.playmatSettings);
       region.setPlaymat(spec.playmat);
-      region.container.zIndex = spec.isLocal ? 100 : 50;
+      region.container.zIndex = zIndex;
       region.setAutoSort(this.autoSort);
+      region.setSkeletonDebug(this.gridSkeletonDebug);
+      region.setAttackRowDebug(this.attackRowDebug);
       this.regions.set(spec.playerId, { region, zone, isLocal: spec.isLocal });
       if (spec.isLocal) {
         this.localPlayerId = spec.playerId;
         this.setupLocalControllers(region);
       }
     }
+
+    this.boardWidth = layout.self.width;
+    this.topHeight = layout.opponents[0]?.rect.height ?? 0;
+    const oppIds = players.filter((p) => !p.isLocal).map((p) => p.playerId);
+    const sameOpponents =
+      oppIds.length === this.opponentIds.length &&
+      oppIds.every((id, i) => id === this.opponentIds[i]);
+    this.opponentIds = oppIds;
+    if (!sameOpponents || this.delimCurrent.length !== oppIds.length - 1) {
+      this.delimCurrent = evenDelimiters(oppIds.length);
+      this.rebuildGripHandles();
+    }
+    this.recomputeDelimTarget();
+    this.applyDelimiters();
 
     for (const [id, rec] of [...this.regions]) {
       if (seen.has(id)) continue;
@@ -230,10 +416,341 @@ export class BoardScene {
 
     this.positionPhaseStrip(layout);
     const selfZone = this.localZone();
-    this.dragHandler.setCardScale(cardScale);
+    this.dragHandler.setCardScale(scales.self);
     this.dragHandler.setContainerSize(this.app.renderer.width, this.app.renderer.height);
-    this.dragHandler.setExtraBlockers(this.externalBlockers);
     if (selfZone && this.hand) this.dragHandler.setHandExclusion(this.hand.getBlockerRect());
+  }
+
+  /** Set which opponent's field auto-expands (their turn), or `null` for an even
+   *  split (our turn). The delimiters ease to this in `tick`. */
+  setOpponentFocus(playerId: string | null): void {
+    if (this.focusPlayerId === playerId) return;
+    this.focusPlayerId = playerId;
+    this.recomputeDelimTarget();
+  }
+
+  /** Opponents being attacked this combat — expanded (even-split among them
+   *  when more than one) over the turn focus, so combat is always visible. */
+  setCombatFocus(playerIds: string[]): void {
+    if (
+      this.combatFocusIds.length === playerIds.length &&
+      this.combatFocusIds.every((id, i) => id === playerIds[i])
+    ) {
+      return;
+    }
+    this.combatFocusIds = playerIds;
+    this.recomputeDelimTarget();
+  }
+
+  /** Keyboard-cycled focus — an explicit single-field pick that wins over the
+   *  combat and turn focus (hover still floats on top). Null releases it. */
+  setManualFocus(playerId: string | null): void {
+    if (this.manualFocusId === playerId) return;
+    this.manualFocusId = playerId;
+    this.recomputeDelimTarget();
+  }
+
+  private recomputeDelimTarget(): void {
+    const n = this.opponentIds.length;
+    // Precedence: hover (momentary) > manual keyboard pick > combat (the set of
+    // attacked opponents) > turn focus.
+    const focusIds = this.hoveredOpponentId
+      ? [this.hoveredOpponentId]
+      : this.manualFocusId
+        ? [this.manualFocusId]
+        : this.combatFocusIds.length > 0
+          ? this.combatFocusIds
+          : this.focusPlayerId
+            ? [this.focusPlayerId]
+            : [];
+    const focused = new Set<number>();
+    for (const id of focusIds) {
+      const i = this.opponentIds.indexOf(id);
+      if (i >= 0) focused.add(i);
+    }
+    if (n <= 1 || this.boardWidth <= 0 || focused.size === 0) {
+      this.delimTarget = evenDelimiters(n);
+      return;
+    }
+    const banner = COLLAPSED_OPPONENT_WIDTH_PX / this.boardWidth;
+    const each = Math.max(banner, (1 - (n - focused.size) * banner) / focused.size);
+    const target: number[] = [];
+    let acc = 0;
+    for (let i = 0; i < n - 1; i++) {
+      acc += focused.has(i) ? each : banner;
+      target.push(acc);
+    }
+    this.delimTarget = target;
+  }
+
+  private easeDelimiters(): void {
+    const n = this.opponentIds.length;
+    if (n <= 1) return;
+    if (this.delimCurrent.length !== n - 1) this.delimCurrent = evenDelimiters(n);
+    if (this.delimTarget.length !== n - 1) this.recomputeDelimTarget();
+    if (this.draggingDelim === null) {
+      for (let i = 0; i < n - 1; i++) {
+        const d = this.delimTarget[i]! - this.delimCurrent[i]!;
+        this.delimCurrent[i] =
+          Math.abs(d) > DELIMITER_EASE.SNAP
+            ? this.delimCurrent[i]! + d * DELIMITER_EASE.FACTOR
+            : this.delimTarget[i]!;
+      }
+    }
+    this.applyDelimiters();
+  }
+
+  /** Apply the current delimiters to each opponent region as a clip band, and
+   *  reposition the grip handles. Bands tile the canvas, so no card ever moves —
+   *  only the masks change. */
+  private applyDelimiters(): void {
+    this.layoutSelfBar();
+    const n = this.opponentIds.length;
+    const W = this.boardWidth;
+    if (n <= 0 || W <= 0) return;
+    this.collapseVeil.clear();
+    const veilStart = COLLAPSED_OPPONENT_WIDTH_PX * 2;
+    const veilColor = hexToNum(this.theme.appTheme.background);
+    for (let i = 0; i < n; i++) {
+      const rec = this.regions.get(this.opponentIds[i]!);
+      if (!rec) continue;
+      const left = Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
+      const right = Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
+      const bandW = Math.max(0, right - left);
+      rec.region.setClip(left, bandW);
+      if (this.barsEnabled) {
+        // Solid veil opacity ramps 0→1 as the band narrows from `veilStart` down
+        // to its collapsed width — fully in sync with the ease, no separate tween.
+        const frac = Math.max(
+          0,
+          Math.min(1, (veilStart - bandW) / (veilStart - COLLAPSED_OPPONENT_WIDTH_PX)),
+        );
+        if (frac > 0.001) {
+          this.collapseVeil.rect(left, 0, bandW, this.topHeight + STRIP_BAND_PX / 2);
+          this.collapseVeil.fill({ color: veilColor, alpha: frac });
+        }
+        // A field clipped down to (about) its banner width → collapsed column;
+        // otherwise a left-aligned bar capped at the max width.
+        const column = bandW <= COLLAPSED_OPPONENT_WIDTH_PX + 4;
+        // Collapsed → the panel fills the whole band and the field's full height
+        // (sitting on the `collapseVeil` that occludes the cards). Expanded → a
+        // left-aligned bar at the fixed max width / capsule height.
+        const barW = column ? bandW : PLAYER_BAR_MAX_WIDTH_PX;
+        const barH = column ? this.topHeight : PLAYER_BAR_HEIGHT_PX;
+        const barX = column ? left : left + PLAYER_BAR_SIDE_MARGIN_PX;
+        const barY = column ? 0 : PLAYER_BAR_TOP_MARGIN_PX;
+        this.playerBars.setRect(this.opponentIds[i]!, barX, barY, barW, barH, column);
+      }
+    }
+    this.drawDelimiterFog();
+    this.layoutGripHandles();
+    this.drawHoverHighlight();
+  }
+
+  setZoneTiles(byPlayer: Record<string, ZoneTileSpec[]>): void {
+    for (const [id, rec] of this.regions) rec.region.setZoneTiles(byPlayer[id] ?? []);
+  }
+
+  private layoutSelfBar(): void {
+    if (!this.barsEnabled || !this.localPlayerId) return;
+    const zone = this.localZone();
+    if (!zone) return;
+    const pad = 8;
+    const width = Math.min(Math.max(0, zone.width - pad * 2), PLAYER_BAR_MAX_WIDTH_PX);
+    this.playerBars.setRect(
+      this.localPlayerId,
+      zone.x + pad,
+      zone.y + zone.height - SELF_PLAYER_BAR_HEIGHT_PX - pad,
+      width,
+      SELF_PLAYER_BAR_HEIGHT_PX,
+      false,
+    );
+  }
+
+  /** Set the opponent player bars (thin Pixi panels over the top of each field)
+   *  and whether they're shown. Toggling on/off re-grids the opponents, since the
+   *  bar reserves space at the top of the grid. */
+  setPlayerBars(specs: PlayerBarSpec[], enabled: boolean): void {
+    const reserveChanged = this.barsEnabled !== enabled;
+    this.barsEnabled = enabled;
+    this.playerBars.container.visible = enabled;
+    this.playerBars.setBars(enabled ? specs : []);
+    if (reserveChanged) {
+      for (const rec of this.regions.values()) {
+        if (rec.isLocal) continue;
+        const state = rec.region.getLastState();
+        if (state) rec.region.updateBattlefield(state);
+      }
+    }
+    this.applyDelimiters();
+  }
+
+  /** Bleed a fog-of-war fade from each delimiter into its adjacent fields. The
+   *  intensity tracks how far each field is from FULLY expanded (a linear ratio
+   *  of its width between collapsed and max), so the fog eases smoothly in and
+   *  out as a field opens/closes and vanishes entirely once a field is focused. */
+  /** The divider + fog colour: a gently darkened canvas background. The field
+   *  felt is canvas-background-coloured, so a same-colour fog is invisible
+   *  against it; a mild darken (`DIVIDER.darken`) is the minimum distinct shade
+   *  that still reads as a seam without going near-black. */
+  private dividerColor(): string {
+    return darken(this.theme.gameTheme.canvas.background, DIVIDER.darken);
+  }
+
+  private drawDelimiterFog(): void {
+    const g = this.fogGfx;
+    g.clear();
+    const n = this.opponentIds.length;
+    const W = this.boardWidth;
+    if (n <= 1 || W <= 0) return;
+    // Reach the middle horizontal line; the phase strip (drawn on top) hides the
+    // end so it tucks under the phase bar.
+    const h = this.topHeight + STRIP_BAND_PX / 2;
+    const C = COLLAPSED_OPPONENT_WIDTH_PX;
+    const leftEdge = (i: number) => Math.round((i === 0 ? 0 : this.delimCurrent[i - 1]!) * W);
+    const rightEdge = (i: number) => Math.round((i === n - 1 ? 1 : this.delimCurrent[i]!) * W);
+    const widthOf = (i: number) => rightEdge(i) - leftEdge(i);
+
+    // 1 when the field is collapsed to a banner, 0 when fully expanded.
+    const span = W - n * C;
+    const fogOf = (i: number) =>
+      span <= 0 ? 0 : Math.min(1, Math.max(0, 1 - (widthOf(i) - C) / span));
+
+    const grad = this.fogGradients();
+    // Both gradients hit full DIVIDER.alpha at the divider, so the two sides meet
+    // there at the same darkness — no seam — and match the bar. Intensity scales
+    // only the leak width, never the peak.
+    for (let d = 0; d < n - 1; d++) {
+      const x = Math.round(this.delimCurrent[d]! * W);
+      const wL = DIVIDER.fadeWidthPx * fogOf(d);
+      const wR = DIVIDER.fadeWidthPx * fogOf(d + 1);
+      if (wR >= 1) g.rect(x, 0, wR, h).fill(grad.right);
+      if (wL >= 1) g.rect(x - wL, 0, wL, h).fill(grad.left);
+    }
+  }
+
+  /** Horizontal gradients (divider colour, full `DIVIDER.alpha` at the divider →
+   *  clear into the field), built once and reused. The `local` texture space maps
+   *  each gradient to its own rect, so one pair works at any position/width. */
+  private fogGradients(): { left: FillGradient; right: FillGradient } {
+    if (!this.fogGradRight || !this.fogGradLeft) {
+      const color = this.dividerColor();
+      const solid = withAlpha(color, DIVIDER.alpha);
+      const clear = withAlpha(color, 0);
+      const linear = (stops: { offset: number; color: string }[]) =>
+        new FillGradient({
+          type: "linear",
+          start: { x: 0, y: 0 },
+          end: { x: 1, y: 0 },
+          textureSpace: "local",
+          colorStops: stops,
+        });
+      this.fogGradRight = linear([
+        { offset: 0, color: solid },
+        { offset: 1, color: clear },
+      ]);
+      this.fogGradLeft = linear([
+        { offset: 0, color: clear },
+        { offset: 1, color: solid },
+      ]);
+    }
+    return { left: this.fogGradLeft, right: this.fogGradRight };
+  }
+
+  private rebuildGripHandles(): void {
+    for (const h of this.gripHandles) {
+      this.gripLayer.removeChild(h);
+      h.destroy();
+    }
+    this.gripHandles = [];
+    const handleCount = Math.max(0, this.opponentIds.length - 1);
+    for (let i = 0; i < handleCount; i++) {
+      const handle = new Graphics();
+      handle.eventMode = "static";
+      handle.cursor = "col-resize";
+      handle.on("pointerdown", (e: FederatedPointerEvent) => {
+        e.stopPropagation();
+        this.draggingDelim = i;
+      });
+      this.gripLayer.addChild(handle);
+      this.gripHandles.push(handle);
+    }
+  }
+
+  private layoutGripHandles(): void {
+    const W = this.boardWidth;
+    // Reach the middle horizontal line and tuck under the phase bar.
+    const h = this.topHeight + STRIP_BAND_PX / 2;
+    const color = hexToNum(this.dividerColor());
+    for (let i = 0; i < this.gripHandles.length; i++) {
+      const handle = this.gripHandles[i]!;
+      handle.position.set((this.delimCurrent[i] ?? (i + 1) / (this.gripHandles.length + 1)) * W, 0);
+      handle.hitArea = new Rectangle(-GRIP_HIT_WIDTH_PX / 2, 0, GRIP_HIT_WIDTH_PX, h);
+      handle.clear();
+      handle.roundRect(-DIVIDER.barWidthPx / 2, 0, DIVIDER.barWidthPx, h, DIVIDER.barWidthPx / 2);
+      handle.fill({ color, alpha: DIVIDER.alpha });
+    }
+  }
+
+  private dragDelimiterTo(localX: number): void {
+    const n = this.opponentIds.length;
+    const W = this.boardWidth;
+    const i = this.draggingDelim;
+    if (i === null || n <= 1 || W <= 0) return;
+    const minGap = COLLAPSED_OPPONENT_WIDTH_PX / W;
+    const lo = (i === 0 ? 0 : this.delimCurrent[i - 1]!) + minGap;
+    const hi = (i === n - 2 ? 1 : this.delimCurrent[i + 1]!) - minGap;
+    this.delimCurrent[i] = Math.max(lo, Math.min(hi, localX / W));
+    // A manual drag overrides auto-focus until the next turn change.
+    this.delimTarget = [...this.delimCurrent];
+    this.applyDelimiters();
+  }
+
+  private delimitersSettling(): boolean {
+    for (let i = 0; i < this.delimCurrent.length; i++) {
+      const target = this.delimTarget[i] ?? this.delimCurrent[i]!;
+      if (Math.abs(target - this.delimCurrent[i]!) > DELIMITER_EASE.SNAP) return true;
+    }
+    return false;
+  }
+
+  private isOverStack(x: number, y: number): boolean {
+    const b = this.stackProvider?.getBounds();
+    return !!b && x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height;
+  }
+
+  private updateHoveredOpponent(localX: number, localY: number): void {
+    const n = this.opponentIds.length;
+    const W = this.boardWidth;
+    let hovered: string | null = null;
+    if (
+      n > 0 &&
+      W > 0 &&
+      localY >= 0 &&
+      localY <= this.topHeight &&
+      !this.isOverStack(localX, localY)
+    ) {
+      for (let i = 0; i < n; i++) {
+        const left = (i === 0 ? 0 : this.delimCurrent[i - 1]!) * W;
+        const right = (i === n - 1 ? 1 : this.delimCurrent[i]!) * W;
+        if (localX >= left && localX < right) {
+          hovered = this.opponentIds[i]!;
+          break;
+        }
+      }
+    }
+    if (hovered === this.hoveredOpponentId) return;
+    this.hoveredOpponentId = hovered;
+    this.drawHoverHighlight();
+    // Open the hovered field (or fall back to the turn focus on leave). A manual
+    // grip drag owns the delimiters, so don't retarget mid-drag.
+    if (this.draggingDelim === null) this.recomputeDelimTarget();
+    this.callbacks.onHoverOpponent?.(hovered);
+  }
+
+  private drawHoverHighlight(): void {
+    // Hover still drives focus, but no coloured field tint is drawn.
+    this.highlightGfx.clear();
   }
 
   private setupLocalControllers(region: BoardRegion): void {
@@ -260,22 +777,6 @@ export class BoardScene {
     this.phaseStrip.container.y = layout.dividerY - STRIP_BAND_PX / 2;
     this.phaseStrip.resize(layout.self.width, STRIP_BAND_PX);
     this.drawStripBackground(layout);
-    this.drawRegionDividers(layout);
-  }
-
-  private drawRegionDividers(layout: BoardLayout): void {
-    const g = this.regionDividerGfx;
-    g.clear();
-    const hasSides = layout.opponents.some(
-      (o) => o.orientation === "left" || o.orientation === "right",
-    );
-    if (!hasSides) return;
-    const h = this.app.renderer.height;
-    for (const x of [layout.self.x, layout.self.x + layout.self.width]) {
-      g.moveTo(x, 0);
-      g.lineTo(x, h);
-    }
-    g.stroke({ color: hexToNum(this.theme.gameTheme.canvas.neutral), width: 2, alpha: 0.12 });
   }
 
   private drawStripBackground(layout: BoardLayout): void {
@@ -301,6 +802,12 @@ export class BoardScene {
   updateRegionState(playerId: string, state: BattlefieldState): void {
     this.regions.get(playerId)?.region.updateBattlefield(state);
     this.refreshPhaseStripDim();
+  }
+
+  pruneCardPositions(liveIds: ReadonlySet<string>): void {
+    for (const id of this.lastCardPositions.keys()) {
+      if (!liveIds.has(id)) this.lastCardPositions.delete(id);
+    }
   }
 
   private refreshPhaseStripDim(): void {
@@ -329,6 +836,10 @@ export class BoardScene {
 
   setHandPreviewFace(face: 0 | 1): void {
     this.hand?.setHoveredPreviewFace(face);
+  }
+
+  setHandFlippedHorizontal(flipped: boolean): void {
+    this.hand?.setHoveredHorizontalFlipped(flipped);
   }
 
   setHandScale(scale: number): void {
@@ -432,6 +943,68 @@ export class BoardScene {
     this.callbacks.onBlockDragChange?.(id);
   }
 
+  setDeclareAttackers(
+    active: boolean,
+    attackTargets: AttackTargetDto[],
+    attackerOptions: { attackerId: string; validTargetIds: string[] }[],
+  ): void {
+    this.declareAttackers = active;
+    this.attackTargets = attackTargets;
+    this.attackerOptions = attackerOptions;
+    if (!active) {
+      this.setAttackDragId(null);
+      this.unassignDrag = null;
+    }
+  }
+
+  private setAttackDragId(id: string | null): void {
+    if (this.attackDragAttackerId === id) return;
+    this.attackDragAttackerId = id;
+    if (id === null) {
+      this.attackDragTargetId = null;
+      this.updateAttackTargetRing(null);
+    }
+    this.callbacks.onAttackDragChange?.(id);
+  }
+
+  private updateAttackTargetRing(cardId: string | null): void {
+    for (const rec of this.regions.values()) rec.region.setAttackTargetRing(cardId);
+  }
+
+  /** Resolve a scene-space point (root-local, as `getCardPosition` returns) to a
+   *  legal defender for `attackerId`: a planeswalker/battle card directly under
+   *  the pointer wins; otherwise the opponent whose field band the pointer is
+   *  over (proximity → the player). */
+  private resolveAttackTargetAt(gx: number, gy: number, attackerId: string): string | null {
+    const valid = this.attackerOptions.find((a) => a.attackerId === attackerId)?.validTargetIds;
+    if (!valid || valid.length === 0) return null;
+    const validSet = new Set(valid);
+    // Generous pad around each planeswalker/battle so dragging *near* one targets
+    // it; when several enlarged hit-zones overlap, the nearest centre wins.
+    let best: { id: string; dist: number } | null = null;
+    for (const t of this.attackTargets) {
+      if (t.kind === "player" || !validSet.has(t.id)) continue;
+      for (const rec of this.regions.values()) {
+        if (rec.isLocal) continue;
+        const center = rec.region.getCardPosition(t.id);
+        if (!center) continue;
+        if (!rec.region.containsPointInCard(t.id, gx, gy, ATTACK_TARGET_HIT_PAD)) continue;
+        const dist = (gx - center.x) ** 2 + (gy - center.y) ** 2;
+        if (!best || dist < best.dist) best = { id: t.id, dist };
+      }
+    }
+    if (best) return best.id;
+    const oppId = this.hoveredOpponentId;
+    if (
+      oppId &&
+      validSet.has(oppId) &&
+      this.attackTargets.some((t) => t.id === oppId && t.kind === "player")
+    ) {
+      return oppId;
+    }
+    return null;
+  }
+
   setPhaseStripState(state: PhaseStripState): void {
     this.phaseStrip.update(state);
   }
@@ -440,11 +1013,8 @@ export class BoardScene {
     this.phaseStrip.setCallbacks(cb);
   }
 
-  setExternalBlockers(rects: BlockingRect[]): void {
-    this.externalBlockers = rects;
-    this.dragHandler.setExtraBlockers(rects);
-    const local = this.localRegion();
-    if (local) local.updateBattlefield(local.getLastState() ?? ({ cards: [] } as BattlefieldState));
+  setStackAnchorProvider(provider: StackAnchorProvider | null): void {
+    this.stackProvider = provider;
   }
 
   setPlayerBlockers(blockers: Map<string, BlockingRect[]>): void {
@@ -487,22 +1057,48 @@ export class BoardScene {
     this.hand?.setHoverDebug(on);
   }
 
+  setGridSkeletonDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.gridSkeletonDebug = on;
+    for (const rec of this.regions.values()) rec.region.setSkeletonDebug(on);
+  }
+
+  setAttackRowDebug(on: boolean): void {
+    if (this.destroyed) return;
+    this.attackRowDebug = on;
+    for (const rec of this.regions.values()) rec.region.setAttackRowDebug(on);
+  }
+
   setTheme(theme: Theme): void {
     if (this.destroyed) return;
     this.theme = theme;
+    this.fogGradRight = this.fogGradLeft = null;
     setCardSpriteTheme(theme);
     this.phaseStrip.setTheme(theme);
+    this.playerBars.setTheme(theme);
+    this.drawBaseBg();
     if (this.lastLayout) {
       this.drawStripBackground(this.lastLayout);
-      this.drawRegionDividers(this.lastLayout);
     }
     for (const rec of this.regions.values()) rec.region.redrawTheme();
+    this.applyDelimiters(); // repaint the collapse veil in the new theme colour
   }
 
   resize(width: number, height: number): void {
     if (this.destroyed) return;
     this.app.renderer.resize(width, height);
     this.dragHandler.setContainerSize(width, height);
+    this.playerBars.setViewport(width, height);
+    this.canvasW = width;
+    this.canvasH = height;
+    this.drawBaseBg();
+  }
+
+  private drawBaseBg(): void {
+    this.baseBg.clear();
+    if (this.canvasW <= 0 || this.canvasH <= 0) return;
+    this.baseBg.rect(0, 0, this.canvasW, this.canvasH);
+    this.baseBg.fill({ color: hexToNum(this.theme.appTheme.background), alpha: 1 });
   }
 
   private makeRegionHost(playerId: string, isLocal: boolean): RegionHost {
@@ -513,13 +1109,18 @@ export class BoardScene {
         ...(isLocal ? this.localBlockers() : []),
       ],
       getEntrySeed: (cardId) => this.entrySeedFor(playerId, isLocal, cardId),
+      getCombatGuestLayer: () => this.combatGuestLayer,
+      recordCardExit: (cardId, seed) => this.lastCardPositions.set(cardId, seed),
       isSelected: (cardId) => (isLocal ? (this.selection?.has(cardId) ?? false) : false),
       rebuildOverlay: (entry, state) => {
         if (isLocal) this.overlay?.rebuild(entry, state);
       },
       wireSprite: (sprite) => this.wireSprite(sprite, playerId, isLocal),
       screenXToLocalX: (screenX) => screenX - this.app.canvas.getBoundingClientRect().left,
-      getHandReserveBottom: () => (isLocal ? this.handReserveBottom() : 0),
+      getHandReserveBottom: () => (isLocal ? this.handReserveBottom() * HAND_RESERVE_TRIM : 0),
+      // The opponent HUD is a keep-out blocker (see BoardRegion.collectLocalBlockers)
+      // rather than a full-width top reserve, so the grid uses the whole height.
+      getTopReserve: () => 0,
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
       isDestroyed: () => this.destroyed,
     };
@@ -568,28 +1169,34 @@ export class BoardScene {
     return Math.max(0, zone.y + zone.height - rect.y);
   }
 
+  private handReserveCb: ((px: number) => void) | null = null;
+  private lastEmittedHandReserve = -1;
+  setOnHandReserveChange(cb: ((px: number) => void) | null): void {
+    this.handReserveCb = cb;
+  }
+
   private localBlockers(): BlockingRect[] {
-    const rects = [...this.externalBlockers];
     const handRect = this.hand?.getBlockerRect();
-    if (handRect) rects.push(handRect);
-    return rects;
+    return handRect ? [handRect] : [];
   }
 
   private entrySeedFor(
     playerId: string,
     isLocal: boolean,
     cardId: string,
-  ): { x: number; y: number; scaleX: number; scaleY: number } {
+  ): { x: number; y: number; scaleX: number; scaleY: number; glide?: boolean } {
     if (isLocal && this.hand) {
       const live = this.hand.getLiveSpriteTransform(cardId);
       if (live) return live;
-      const stack = this.stackCardSeeds.get(cardId);
-      if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
+    }
+    const remembered = this.lastCardPositions.get(cardId);
+    if (remembered) return { ...remembered, glide: true };
+    const stack = this.stackCardSeeds.get(cardId);
+    if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
+    if (isLocal && this.hand) {
       const origin = this.hand.getOriginSeed();
       return { x: origin.x, y: origin.y, scaleX: origin.scale, scaleY: origin.scale };
     }
-    const stack = this.stackCardSeeds.get(cardId);
-    if (stack) return { x: stack.x, y: stack.y, scaleX: stack.scale, scaleY: stack.scale };
     const zone = this.regions.get(playerId)?.zone;
     const scale = this.cardScale;
     if (!zone) return { x: 0, y: 0, scaleX: scale, scaleY: scale };
@@ -658,7 +1265,10 @@ export class BoardScene {
     sprite.eventMode = "static";
     sprite.cursor = "pointer";
     const region = this.regions.get(playerId)?.region;
-    if (isLocal) {
+    // A guest attacker sitting in the local player's combat row (an opponent's
+    // creature, controllerId ≠ us) must keep the attacker wiring — tap/drop to
+    // block — not the local drag wiring, or it can't be blocked.
+    if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         this.onBattlefieldCardDown(sprite, e);
@@ -668,6 +1278,15 @@ export class BoardScene {
         this.overlay?.handleCardTap(sprite.card);
       });
     } else {
+      sprite.on("pointerdown", (e: FederatedPointerEvent) => {
+        // Grab our own declared attacker (staged in this opponent's band) to
+        // drag it back and un-declare it.
+        if (this.declareAttackers && sprite.card.controllerId === this.localPlayerId && region) {
+          e.stopPropagation();
+          this.callbacks.onDismissHoverPreview?.();
+          this.unassignDrag = { cardId: sprite.card.id, region, overOwn: false };
+        }
+      });
       sprite.on("pointertap", () => {
         if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
           this.callbacks.onAttackerClick?.(sprite.card);
@@ -760,15 +1379,38 @@ export class BoardScene {
       ),
     );
     selection.refresh();
+    this.attackDragCandidate =
+      this.declareAttackers && this.attackerOptions.some((a) => a.attackerId === sprite.card.id)
+        ? sprite.card.id
+        : null;
   }
 
   private onGlobalMove(e: FederatedPointerEvent): void {
     if (this.destroyed) return;
+    const pos = this.root.toLocal(e.global);
+    this.updateHoveredOpponent(pos.x, pos.y);
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      const entry = ud.region.getEntries().get(ud.cardId);
+      if (entry) {
+        entry.targetX = pos.x;
+        entry.targetY = pos.y;
+        entry.sprite.x = pos.x;
+        entry.sprite.y = pos.y;
+      }
+      // Only the self field counts as "own" — exclude the phase-strip band above
+      // it, or releasing over the strip would silently un-declare the attacker.
+      ud.overOwn = pos.y >= (this.localZone()?.y ?? this.topHeight);
+      return;
+    }
+    if (this.draggingDelim !== null) {
+      this.dragDelimiterTo(pos.x);
+      return;
+    }
     const local = this.localRegion();
     const selection = this.selection;
     const hand = this.hand;
     if (!local || !selection || !hand) return;
-    const pos = this.root.toLocal(e.global);
 
     if (selection.isMarqueeActive()) {
       selection.moveMarquee(pos.x, pos.y);
@@ -804,6 +1446,18 @@ export class BoardScene {
       local.followAttachmentsDuringDrag(id, p);
     }
 
+    if (this.attackDragCandidate && !this.attackDragAttackerId) {
+      this.setAttackDragId(this.attackDragCandidate);
+    }
+    if (this.attackDragAttackerId) {
+      this.attackDragTargetId = this.resolveAttackTargetAt(pos.x, pos.y, this.attackDragAttackerId);
+      this.updateAttackTargetRing(this.attackDragTargetId);
+      this.hoveredCell = null;
+      this.stackTargetId = null;
+      local.hideGridSkeleton();
+      return;
+    }
+
     const grid = local.getGridInfo();
     if (primaryPos && grid) {
       this.hoveredCell = cellFromPoint(grid, primaryPos.x, primaryPos.y);
@@ -819,6 +1473,22 @@ export class BoardScene {
 
   private onGlobalUp(): void {
     if (this.destroyed) return;
+    this.attackDragCandidate = null;
+    if (this.unassignDrag) {
+      const ud = this.unassignDrag;
+      this.unassignDrag = null;
+      if (ud.overOwn) {
+        this.callbacks.onUnassignAttacker?.(ud.cardId);
+      } else {
+        const state = ud.region.getLastState();
+        if (state) ud.region.updateBattlefield(state);
+      }
+      return;
+    }
+    if (this.draggingDelim !== null) {
+      this.draggingDelim = null;
+      return;
+    }
     if (this.blockDragBlockerId) {
       this.callbacks.onUnassignBlock?.(this.blockDragBlockerId);
       this.setBlockDragId(null);
@@ -827,6 +1497,28 @@ export class BoardScene {
     const local = this.localRegion();
     const selection = this.selection;
     if (!local || !selection) return;
+
+    if (this.attackDragAttackerId) {
+      const draggedIds = [...this.dragHandler.draggingCardIds];
+      const targetId = this.attackDragTargetId;
+      const result = this.dragHandler.end();
+      this.setAttackDragId(null);
+      local.hideGridSkeleton();
+      if (result?.wasDrag) {
+        for (const id of draggedIds) {
+          const opt = this.attackerOptions.find((a) => a.attackerId === id);
+          if (!opt) continue;
+          if (targetId && opt.validTargetIds.includes(targetId)) {
+            this.callbacks.onAssignAttacker?.(id, targetId);
+          } else {
+            this.callbacks.onUnassignAttacker?.(id);
+          }
+        }
+      }
+      const state = local.getLastState();
+      if (state) local.updateBattlefield(state);
+      return;
+    }
 
     if (selection.isMarqueeActive()) {
       selection.endMarquee(local.snapshotCurrentPositions());
@@ -855,6 +1547,7 @@ export class BoardScene {
   private tick = (): void => {
     if (this.destroyed) return;
     if (import.meta.env.DEV) this.samplePerf();
+    this.easeDelimiters();
     for (const rec of this.regions.values()) rec.region.animate();
     this.hand?.animate();
     this.phaseStrip.tick();
@@ -866,6 +1559,11 @@ export class BoardScene {
     }
     this.animateFloaters();
     this.captureStackSeeds();
+    const handReserve = this.handReserveBottom();
+    if (this.handReserveCb && handReserve !== this.lastEmittedHandReserve) {
+      this.lastEmittedHandReserve = handReserve;
+      this.handReserveCb(handReserve);
+    }
     if (this.dropActive) {
       const local = this.localRegion();
       if (this.hand?.isDraggingPermanent()) {
@@ -905,30 +1603,11 @@ export class BoardScene {
 
   private captureStackSeeds(): void {
     const now = performance.now();
-    // Skip the per-node getBoundingClientRect scan (forces a layout reflow) when
-    // the stack is empty — the common case. Captured seeds persist via their TTL.
-    if (document.querySelector("[data-stack-object-id]") === null) {
-      if (this.stackCardSeeds.size > 0) {
-        for (const [id, seed] of this.stackCardSeeds) {
-          if (now - seed.ts > STACK_SEED_TTL_MS) this.stackCardSeeds.delete(id);
-        }
-      }
-      return;
+    for (const seed of this.stackProvider?.getSeeds() ?? []) {
+      this.stackCardSeeds.set(seed.cardId, { x: seed.x, y: seed.y, scale: seed.scale, ts: now });
     }
-    const canvasRect = this.app.canvas.getBoundingClientRect();
-    const els = document.querySelectorAll<HTMLElement>("[data-stack-object-id][data-card-id]");
-    for (const el of els) {
-      const cardId = el.dataset["cardId"];
-      if (!cardId) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width === 0 && r.height === 0) continue;
-      this.stackCardSeeds.set(cardId, {
-        x: r.left + r.width / 2 - canvasRect.left,
-        y: r.top + r.height / 2 - canvasRect.top,
-        scale: r.width / CARD_W,
-        ts: now,
-      });
-    }
+    // Seeds for cards that just left the stack persist until their TTL so a
+    // resolving spell still has a position to fly from.
     for (const [id, seed] of this.stackCardSeeds) {
       if (now - seed.ts > STACK_SEED_TTL_MS) this.stackCardSeeds.delete(id);
     }
@@ -937,28 +1616,69 @@ export class BoardScene {
   getArrowDefs(): ArrowDef[] {
     if (this.destroyed) return [];
     const castDragging = this.hand?.isDraggingPermanent() ?? false;
-    if (
-      this.arrowSpecs.length === 0 &&
-      !this.castingArrow &&
-      !castDragging &&
-      !this.blockDragBlockerId
-    )
-      return [];
+    const interacting =
+      !!this.castingArrow ||
+      castDragging ||
+      !!this.blockDragBlockerId ||
+      !!this.attackDragAttackerId;
+    // Suppress the (card-anchored) combat arrows while the accordion eases so they
+    // don't lag their moving targets — but keep live drag/casting arrows, or the
+    // player loses targeting feedback exactly when combat opens the fields.
+    if (this.delimitersSettling() && !interacting) return [];
+    if (this.arrowSpecs.length === 0 && !interacting) return [];
     const canvasRect = this.app.canvas.getBoundingClientRect();
     const resolved: ArrowDef[] = [];
+    const attackTargetCounts = new Map<string, number>();
+    for (const s of this.arrowSpecs) {
+      if (s.type === "attack" && s.to.kind === "player") {
+        attackTargetCounts.set(s.to.id, (attackTargetCounts.get(s.to.id) ?? 0) + 1);
+      }
+    }
+    const attackTargetSeen = new Map<string, number>();
     for (const spec of this.arrowSpecs) {
       const from = this.resolveArrowEndpoint(spec.from, canvasRect);
-      const to = this.resolveArrowEndpoint(spec.to, canvasRect);
+      const to = this.resolveTargetEndpoint(spec.to, canvasRect);
       if (!from || !to) continue;
-      resolved.push({ fromX: from.x, fromY: from.y, toX: to.x, toY: to.y, type: spec.type });
+      if (spec.type === "attack" && spec.to.kind === "player") {
+        const total = attackTargetCounts.get(spec.to.id) ?? 1;
+        if (total > 1) {
+          const idx = attackTargetSeen.get(spec.to.id) ?? 0;
+          attackTargetSeen.set(spec.to.id, idx + 1);
+          to.pos.x += (idx - (total - 1) / 2) * ATTACK_ARROW_LANE_PX;
+        }
+      }
+      const pointer = this.theme.gameTheme.pointer;
+      const color =
+        spec.hostile == null
+          ? undefined
+          : hexToNum(spec.hostile ? pointer.hostile : pointer.friendly);
+      // Placement arrows landing in a visible field also outline the target slot.
+      let slot: { width: number; height: number } | undefined;
+      if (spec.type === "placement" && spec.to.kind === "placement-ghost" && !to.hint) {
+        const region = spec.to.playerId
+          ? this.regions.get(spec.to.playerId)?.region
+          : this.localRegion();
+        const rect = region?.getPlacementGhostRect();
+        if (rect) slot = { width: rect.width, height: rect.height };
+      }
+      resolved.push({
+        fromX: from.x,
+        fromY: from.y,
+        toX: to.pos.x,
+        toY: to.pos.y,
+        type: spec.type,
+        color,
+        hint: to.hint,
+        slot,
+      });
     }
     if (this.castingArrow) {
-      // Resolve via the stack's `data-casting-card` marker first — robust for
-      // casts from any zone (incl. the command zone, which has no sprite); fall
-      // back to the card resolver for battlefield ability sources.
+      // Resolve via the stack layer first — robust for casts from any zone
+      // (incl. the command zone, which has no sprite); fall back to the card
+      // resolver for battlefield ability sources.
       const id = this.castingArrow.sourceCardId;
       const from =
-        this.domCenterCanvasLocal(`[data-casting-card="${CSS.escape(id)}"]`, canvasRect) ??
+        this.stackProvider?.getCastingAnchor(id) ??
         this.resolveArrowEndpoint({ kind: "card", id }, canvasRect);
       if (from) {
         const t = this.theme.gameTheme.pointer;
@@ -987,6 +1707,37 @@ export class BoardScene {
         });
       }
     }
+    if (this.attackDragAttackerId) {
+      const from = this.resolveArrowEndpoint(
+        { kind: "card", id: this.attackDragAttackerId },
+        canvasRect,
+      );
+      if (from) {
+        let toX = this.cursorViewportX - canvasRect.left;
+        let toY = this.cursorViewportY - canvasRect.top;
+        if (this.attackDragTargetId) {
+          const tgt = this.attackTargets.find((t) => t.id === this.attackDragTargetId);
+          const to = this.resolveTargetEndpoint(
+            tgt?.kind === "player"
+              ? { kind: "player", id: this.attackDragTargetId }
+              : { kind: "card", id: this.attackDragTargetId },
+            canvasRect,
+          );
+          if (to) {
+            toX = to.pos.x;
+            toY = to.pos.y;
+          }
+        }
+        resolved.push({
+          fromX: from.x,
+          fromY: from.y,
+          toX,
+          toY,
+          type: "attack",
+          color: hexToNum(this.theme.gameTheme.pointer.hostile),
+        });
+      }
+    }
     if (castDragging) {
       const id = this.hand?.getDraggingCardId();
       // A permanent dragged from a zone with no sprite (the command zone) falls
@@ -1008,6 +1759,25 @@ export class BoardScene {
     return resolved;
   }
 
+  private resolveTargetEndpoint(
+    ep: ArrowEndpoint,
+    canvasRect: DOMRect,
+  ): { pos: ScreenPos; hint: boolean } | null {
+    if (ep.kind === "card") {
+      for (const rec of this.regions.values()) {
+        const pos = rec.region.getCardPosition(ep.id);
+        if (!pos) continue;
+        if (rec.region.isCollapsed()) return { pos: rec.region.getBandCenter(), hint: true };
+        return { pos, hint: false };
+      }
+    } else if (ep.kind === "zone-tile" || (ep.kind === "placement-ghost" && ep.playerId)) {
+      const region = this.regions.get(ep.playerId!)?.region;
+      if (region?.isCollapsed()) return { pos: region.getBandCenter(), hint: true };
+    }
+    const pos = this.resolveArrowEndpoint(ep, canvasRect);
+    return pos ? { pos, hint: false } : null;
+  }
+
   private resolveArrowEndpoint(ep: ArrowEndpoint, canvasRect: DOMRect): ScreenPos | null {
     switch (ep.kind) {
       case "card": {
@@ -1020,16 +1790,18 @@ export class BoardScene {
         return this.domCenterCanvasLocal(`[data-card-id="${CSS.escape(ep.id)}"]`, canvasRect);
       }
       case "player":
-        return this.domCenterCanvasLocal(`[data-player-id="${CSS.escape(ep.id)}"]`, canvasRect);
-      case "stack":
-        return this.domCenterCanvasLocal(
-          `[data-stack-object-id="${CSS.escape(ep.id)}"]`,
-          canvasRect,
+        return (
+          this.playerBars.getPlayerAnchor(ep.id) ??
+          this.domCenterCanvasLocal(`[data-player-id="${CSS.escape(ep.id)}"]`, canvasRect)
         );
+      case "stack":
+        return this.stackProvider?.getAnchor(ep.id) ?? null;
       case "placement-ghost": {
         const region = ep.playerId ? this.regions.get(ep.playerId)?.region : this.localRegion();
         return region?.getPlacementGhostCenter() ?? null;
       }
+      case "zone-tile":
+        return this.regions.get(ep.playerId)?.region.getZoneTileCenter(ep.key) ?? null;
     }
   }
 
@@ -1060,6 +1832,7 @@ export class BoardScene {
     try {
       this.dragHandler.destroy();
       this.phaseStrip.destroy();
+      this.playerBars.destroy();
       this.hand?.destroy();
       this.selection?.destroy();
       for (const rec of this.regions.values()) rec.region.destroy();

@@ -30,14 +30,25 @@ export function peekScryfallImage(url: string): string | undefined {
   return cache.get(url);
 }
 
-// Desktop only. The webview runs under COEP: require-corp, needed for SAB enable
+export function clearScryfallImageCache(): void {
+  for (const objectUrl of cache.values()) URL.revokeObjectURL(objectUrl);
+  cache.clear();
+  pending.clear();
+}
+
+// Fetches to a same-origin blob object URL. On desktop the webview runs under
+// COEP: require-corp (SAB), which blocks cross-origin <img>; on web this also
+// gives Pixi a WebGL-safe, CORS-clean texture source that can't be poisoned by
+// the non-CORS display <img> cache entry for the same URL.
 export function loadScryfallImage(url: string): Promise<string> {
   const cached = cache.get(url);
   if (cached) return Promise.resolve(cached);
   const inflight = pending.get(url);
   if (inflight) return inflight;
   const promise = (async () => {
-    const res = await platformFetch(url);
+    // cache: "reload" bypasses any non-CORS entry the display <img> cached for
+    // this URL — a plain fetch would reuse it and CORS-fail (no ACAO header).
+    const res = await platformFetch(url, { cache: "reload" });
     if (!res.ok) throw new Error(`scryfall image ${url}: HTTP ${res.status}`);
     const raw = await res.blob();
     const blob = raw.type.startsWith("image/")

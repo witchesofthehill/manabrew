@@ -18,6 +18,14 @@ pub mod types;
 pub use game_log::*;
 pub use types::*;
 
+/// A held pass-priority-until target: keep auto-passing until `player` reaches
+/// `phase` in turn order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PassUntilTarget {
+    pub player: PlayerId,
+    pub phase: forge_foundation::PhaseType,
+}
+
 /// Trait for player decision-making. Decouples the engine from UI/AI.
 /// Implementations can be interactive (prompt user), AI, or network-driven.
 pub trait PlayerAgent {
@@ -41,15 +49,18 @@ pub trait PlayerAgent {
     ) {
     }
 
-    /// Returns the phase this player has declared they'll auto-pass until.
-    /// `Some(Some("main1"))` = pass until main1 phase.
-    /// `Some(None)` = pass through rest of turn.
+    /// Returns the `(player, phase)` slot this player auto-passes until.
+    /// A stop is genuinely `(player, phase)`: "pass until Player2's end" is
+    /// distinct from "pass until my end". The declaration is HELD across
+    /// priority windows — the engine does not consume it each pass — and is
+    /// cleared only when the target is reached or a meaningful event occurs.
     /// `None` = no standing pass-until (prompt normally).
-    fn get_pass_until_phase(&self) -> Option<Option<&str>> {
+    fn get_pass_until(&self) -> Option<PassUntilTarget> {
         None
     }
 
-    /// Clear the pass-until declaration (e.g. when a trigger interrupts).
+    /// Clear the pass-until declaration (target reached, cast, attackers
+    /// declared, …).
     fn clear_pass_until(&mut self) {}
 
     /// Choose whether to keep the current opening hand or mulligan.

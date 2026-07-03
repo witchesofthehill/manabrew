@@ -178,7 +178,7 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "playerColors.self": p.green,
     "playerColors.opponent1": p.amber,
     "playerColors.opponent2": p.blue,
-    "playerColors.opponent3": p.purple,
+    "playerColors.opponent3": p.pink,
 
     // ── Badge icon colours ───────────────────────────────────────────
     // Tint the status chips rendered next to the mana pool. No fill —
@@ -195,6 +195,8 @@ export function buildGameColors(p: BasePalette): GameThemeColorMap {
     "badges.cityBlessing": p.amber,
     "badges.ring": "#c98510",
     "badges.speed": p.orange,
+    "badges.experience": p.violet,
+    "badges.ticket": p.teal,
 
     // ── Legality badge colours ──────────────────────────────────────────
     "legality.legal": p.green,

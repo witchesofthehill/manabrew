@@ -390,22 +390,23 @@ function DraggableCardGrid({
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const dragDisabled = !!standalone;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `search-${card.id}`,
+    id: `search-${card.identity.id}`,
     data: { card },
-    disabled: standalone,
+    disabled: dragDisabled,
   });
 
   return (
     <div
-      ref={standalone ? undefined : setNodeRef}
-      {...(standalone ? {} : { ...listeners, ...attributes })}
+      ref={dragDisabled ? undefined : setNodeRef}
+      {...(dragDisabled ? {} : { ...listeners, ...attributes })}
       onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
       onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
       onMouseLeave={onLeave}
       className={cn(
         "relative group",
-        !standalone && "cursor-grab active:cursor-grabbing",
+        !dragDisabled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
       )}
     >
@@ -443,24 +444,25 @@ function DraggableCardRow({
   onHover?: (card: DeckCard, e: React.MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const dragDisabled = !!standalone;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `search-${card.id}`,
+    id: `search-${card.identity.id}`,
     data: { card },
-    disabled: standalone,
+    disabled: dragDisabled,
   });
 
   const typeStr = [...(card.supertypes ?? []), ...(card.types ?? [])].join(" ");
 
   return (
     <div
-      ref={standalone ? undefined : setNodeRef}
-      {...(standalone ? {} : { ...listeners, ...attributes })}
+      ref={dragDisabled ? undefined : setNodeRef}
+      {...(dragDisabled ? {} : { ...listeners, ...attributes })}
       onMouseEnter={onHover ? (e) => onHover(card, e) : undefined}
       onMouseMove={onHover ? (e) => onHover(card, e) : undefined}
       onMouseLeave={onLeave}
       className={cn(
         "flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 group border-b border-border/30 last:border-0",
-        !standalone && "cursor-grab active:cursor-grabbing",
+        !dragDisabled && "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-30",
       )}
     >
@@ -474,7 +476,7 @@ function DraggableCardRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium truncate leading-tight">{card.name}</div>
+        <div className="text-sm font-medium truncate leading-tight">{card.identity.name}</div>
         <div className="text-xs text-muted-foreground truncate leading-tight">{typeStr}</div>
       </div>
 
@@ -1048,7 +1050,11 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
           {viewMode === "grid" ? (
             <div className="flex flex-wrap gap-3 pb-4">
               {allCards.map((card, i) => (
-                <div key={card.id} className="shrink-0" style={{ width: standalone ? 130 : 110 }}>
+                <div
+                  key={card.identity.id}
+                  className="shrink-0"
+                  style={{ width: standalone ? 130 : 110 }}
+                >
                   <DraggableCardGrid
                     card={card}
                     onMoreInfo={() => setDetailCard(rawCards[i])}
@@ -1065,7 +1071,7 @@ export function CardSearch({ standalone, onClose, previewSlot, focusSignal }: Ca
             <div className="pb-4">
               {allCards.map((card, i) => (
                 <DraggableCardRow
-                  key={card.id}
+                  key={card.identity.id}
                   card={card}
                   onMoreInfo={() => setDetailCard(rawCards[i])}
                   standalone={standalone}

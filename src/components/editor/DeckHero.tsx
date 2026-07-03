@@ -193,7 +193,7 @@ export function DeckHero({ onBack }: { onBack?: () => void }) {
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {commanders.length > 0 && (
             <span className="truncate font-medium text-foreground/80">
-              {commanders.map((c) => c.name).join(" · ")}
+              {commanders.map((c) => c.identity.name).join(" · ")}
             </span>
           )}
           <span className="rounded-full border bg-background/60 px-2 py-0.5 backdrop-blur-sm">

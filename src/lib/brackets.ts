@@ -62,14 +62,15 @@ export function assessBracket(
   const gameChangerNames: string[] = [];
   const massLandDenial: string[] = [];
   for (const card of deckCards) {
-    const key = normalizeCardName(card.name);
+    const { name } = card.identity;
+    const key = normalizeCardName(name);
     if (gameChangers.has(key) && !gcSeen.has(key)) {
       gcSeen.add(key);
-      gameChangerNames.push(card.name);
+      gameChangerNames.push(name);
     }
     if (MASS_LAND_DENIAL.has(key) && !mldSeen.has(key)) {
       mldSeen.add(key);
-      massLandDenial.push(card.name);
+      massLandDenial.push(name);
     }
   }
 

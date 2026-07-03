@@ -1,10 +1,10 @@
 use forge_carddb::{CardDatabase, CardRules};
 use forge_foundation::{CoreType, ZoneType};
-use manabrew_agent_interface::deck_dto::{Deck, DeckCard as WireDeckCard};
 use manabrew_engine::card::{Card, CardInstance};
 use manabrew_engine::game::GameState;
 use manabrew_engine::ids::PlayerId;
 use manabrew_engine::player::RegisteredPlayer;
+use manabrew_protocol::deck_dto::{Deck, DeckCard as WireDeckCard};
 use tracing::warn;
 
 #[derive(Debug, Clone)]

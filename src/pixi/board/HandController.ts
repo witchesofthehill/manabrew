@@ -36,6 +36,7 @@ export class HandController {
   private hitZones: HandHitZone[] = [];
   private hoveredIndex: number | null = null;
   private hoveredCardId: string | null = null;
+  private flippedHorizontalId: string | null = null;
   private hoverHoldTimer: number | null = null;
   private hoverHeld = false;
   private pendingLeaveIndex: number | null = null;
@@ -189,10 +190,16 @@ export class HandController {
           ? "grab"
           : "default";
 
+      // Horizontal-frame cards (Battle / Plane / …) sit upright (rotated a
+      // quarter-turn) so they fit the portrait fan; hovering + flipping turns
+      // them landscape to read, and they animate back on hover-out.
+      const verticalInHand = sprite.horizontalFrame && this.flippedHorizontalId !== card.id;
+      let rot = isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180;
+      if (verticalInHand) rot -= Math.PI / 2;
       this.targets.set(card.id, {
         x: centerX + l.x,
         y: bottomY + l.y - l.scaleH / 2 + selectedDrop + castOffset,
-        rot: isSelected || isCastingPermanent ? 0 : (l.rotation * Math.PI) / 180,
+        rot,
         scaleX: (l.scaleW / CARD_W) * castScale,
         scaleY: (l.scaleH / CARD_H) * castScale,
         zIndex: isHovered || isCastingPermanent ? Z_HAND_HOVERED : i + 1,
@@ -286,11 +293,17 @@ export class HandController {
     if (this.hoveredCardId === null) return;
     this.sprites.get(this.hoveredCardId)?.setPreviewFace(null);
     this.hoveredCardId = null;
+    this.flippedHorizontalId = null;
   }
 
   setHoveredPreviewFace(face: 0 | 1): void {
     if (this.hoveredCardId === null) return;
     this.sprites.get(this.hoveredCardId)?.setPreviewFace(face);
+  }
+
+  setHoveredHorizontalFlipped(flipped: boolean): void {
+    this.flippedHorizontalId = flipped ? this.hoveredCardId : null;
+    this.recalcTargets();
   }
 
   clearHover(): void {
@@ -403,6 +416,7 @@ export class HandController {
     const sprite = new CardSprite(card, "hand");
     sprite.eventMode = "static";
     sprite.cursor = this.lastState?.playableIds?.has(card.id) ? "grab" : "default";
+    sprite.onReorient = () => this.relayout();
 
     sprite.on("pointerdown", (e: FederatedPointerEvent) => {
       e.stopPropagation();

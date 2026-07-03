@@ -47,9 +47,12 @@ function createManualCard(
     ...GAME_CARD_DEFAULTS,
     ...(base ?? {}),
     id: `manual-card-${crypto.randomUUID()}`,
-    name: base?.name ?? name,
-    setCode: base?.setCode ?? "",
-    cardNumber: base?.cardNumber ?? "",
+    identity: {
+      name: base?.identity.name ?? name,
+      setCode: base?.identity.setCode ?? "",
+      cardNumber: base?.identity.cardNumber ?? "",
+      isToken,
+    },
     color: base?.color ?? "",
     manaCost: base?.manaCost ?? "",
     cmc: base?.cmc ?? 0,
@@ -65,7 +68,6 @@ function createManualCard(
     ownerId: controllerId,
     zoneId: "battlefield",
     tapped: false,
-    isToken,
     isDoubleFaced: base?.isDoubleFaced ?? false,
   };
 }
@@ -404,7 +406,7 @@ export function ManualTabletopControls({ gameView, api }: ManualTabletopControls
                   key={card.id}
                   className="grid grid-cols-[1fr_repeat(4,auto)] items-center gap-1 rounded-md border px-2 py-1.5"
                 >
-                  <span className="truncate text-xs font-medium">{card.name}</span>
+                  <span className="truncate text-xs font-medium">{card.identity.name}</span>
                   <Button
                     type="button"
                     variant={card.tapped ? "secondary" : "outline"}

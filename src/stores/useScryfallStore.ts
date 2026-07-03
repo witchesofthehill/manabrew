@@ -11,7 +11,7 @@ import {
   getRulings,
 } from "@/api/scryfall";
 import { getPlatformType } from "@/platform";
-import { loadScryfallImage } from "@/lib/scryfallImageSource";
+import { loadScryfallImage, clearScryfallImageCache } from "@/lib/scryfallImageSource";
 import type {
   ScryfallCard,
   ScryfallImageUris,
@@ -64,6 +64,7 @@ interface ScryfallState {
   getCardTexture: (card: DeckCard, variant?: "full" | "art", faceIndex?: 0 | 1) => Promise<Texture>;
   updatePrinting: (card: ScryfallCard) => CardEntry;
   invalidateCard: (name: string) => void;
+  clearImageCaches: () => void;
   getRulings: (card: { rulings_uri: string }) => Promise<ScryfallRulingsResponse>;
 
   prefetchSet: (setCode: string) => Promise<void>;
@@ -134,18 +135,19 @@ async function loadTokenArchive(): Promise<TokenArchiveIndex> {
       return response.json() as Promise<TokenArchive>;
     })
     .then((archive) => {
-      const tokens = archive.tokens.map((t) => ({ ...t, name: frontFaceName(t.name) }));
+      const tokens = archive.tokens.map((t) => ({
+        ...t,
+        identity: { ...t.identity, name: frontFaceName(t.identity.name) },
+      }));
       const byId = new Map<string, DeckCard>();
       const bySetAndNumber = new Map<string, DeckCard>();
       const byName = new Map<string, DeckCard>();
       for (const token of tokens) {
-        byId.set(token.id, token);
-        byId.set(normalizeTokenId(token.id), token);
-        bySetAndNumber.set(
-          cardKey({ setCode: token.setCode, collectorNumber: token.cardNumber }),
-          token,
-        );
-        const lower = token.name.toLowerCase();
+        const { id, setCode, cardNumber, name } = token.identity;
+        byId.set(id, token);
+        byId.set(normalizeTokenId(id), token);
+        bySetAndNumber.set(cardKey({ setCode, collectorNumber: cardNumber }), token);
+        const lower = name.toLowerCase();
         if (!byName.has(lower)) byName.set(lower, token);
         const withSuffix = `${lower} token`;
         if (!byName.has(withSuffix)) byName.set(withSuffix, token);
@@ -165,10 +167,10 @@ export function peekAllArchivedTokens(): DeckCard[] {
   if (!loadedTokenArchive) return [];
   const byName = new Map<string, DeckCard>();
   for (const token of loadedTokenArchive.tokens) {
-    const key = token.name.toLowerCase();
+    const key = token.identity.name.toLowerCase();
     if (!byName.has(key)) byName.set(key, token);
   }
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...byName.values()].sort((a, b) => a.identity.name.localeCompare(b.identity.name));
 }
 
 export function peekArchivedToken(
@@ -200,13 +202,14 @@ async function lookupArchivedToken(lookup: ScryfallCardLookup): Promise<DeckCard
 }
 
 function tokenToScryfallCard(token: DeckCard): ScryfallCard {
-  const scryfallId = normalizeTokenId(token.id);
+  const { id, name, setCode, cardNumber } = token.identity;
+  const scryfallId = normalizeTokenId(id);
   const typeLine = [...token.supertypes, ...token.types].join(" ");
   const subtypeLine = token.subtypes.length > 0 ? ` — ${token.subtypes.join(" ")}` : "";
   return {
     id: scryfallId,
     oracle_id: scryfallId,
-    name: token.name,
+    name,
     lang: "en",
     released_at: "",
     uri: "",
@@ -235,15 +238,15 @@ function tokenToScryfallCard(token: DeckCard): ScryfallCard {
     reprint: false,
     variation: false,
     set_id: "",
-    set: token.setCode,
-    set_name: token.setCode.toUpperCase(),
+    set: setCode,
+    set_name: setCode.toUpperCase(),
     set_type: "token",
     set_uri: "",
     set_search_uri: "",
     scryfall_set_uri: "",
     rulings_uri: "",
     prints_search_uri: "",
-    collector_number: token.cardNumber,
+    collector_number: cardNumber,
     digital: false,
     rarity: "common",
     card_back_id: "",
@@ -266,7 +269,7 @@ export async function getArchivedTokenPrints(name: string): Promise<ScryfallCard
   const archive = await loadTokenArchive();
   const lowerName = name.toLowerCase();
   return archive.tokens
-    .filter((token) => token.name.toLowerCase() === lowerName)
+    .filter((token) => token.identity.name.toLowerCase() === lowerName)
     .map(tokenToScryfallCard);
 }
 
@@ -345,9 +348,9 @@ export const useScryfallStore = create<ScryfallState>()(
         let url = faceIndex === 0 ? pick(deckCard.uris) : undefined;
         if (!url) {
           const entry = await get().getCard({
-            name: deckCard.name,
-            setCode: deckCard.setCode || undefined,
-            collectorNumber: deckCard.cardNumber || undefined,
+            name: deckCard.identity.name,
+            setCode: deckCard.identity.setCode || undefined,
+            collectorNumber: deckCard.identity.cardNumber || undefined,
           });
           url = pick(cardFaceImageUris(entry.info, entry.uris, faceIndex));
         }
@@ -447,6 +450,12 @@ export const useScryfallStore = create<ScryfallState>()(
           }
         });
       },
+      clearImageCaches: () => {
+        for (const tex of textureCache.values()) tex.destroy(true);
+        textureCache.clear();
+        pendingTexturePromises.clear();
+        clearScryfallImageCache();
+      },
       init: async () => {
         const sets = await fetchSets();
         set((state) => {
@@ -492,7 +501,7 @@ export async function prefetchCards(cards: DeckCard[]): Promise<void> {
   await Promise.all(
     cards.map((c) =>
       state.getCardTexture(c).catch((err) => {
-        console.warn(`[scryfall] prefetch failed for ${c.name}:`, err);
+        console.warn(`[scryfall] prefetch failed for ${c.identity.name}:`, err);
       }),
     ),
   );

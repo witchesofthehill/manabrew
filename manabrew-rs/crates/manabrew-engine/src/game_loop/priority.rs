@@ -54,8 +54,6 @@ impl GameLoop {
                 game.turn.priority_player = priority_player;
             });
 
-            // Java parity: GameEventPlayerPriority is fired before
-            // checkStateBasedEffects() / addAllTriggeredAbilitiesToStack().
             if last_notified_priority != Some(priority_player) {
                 self.notify_priority_changed(game, agents, priority_player);
                 last_notified_priority = Some(priority_player);
@@ -64,21 +62,11 @@ impl GameLoop {
                 return;
             }
 
-            // Mirrors Java's checkStateBasedEffects():
-            //   do { checkStateEffects(); } while (addAllTriggeredAbilitiesToStack());
-            // SBA check may cause triggers (e.g. creature dies → death triggers),
-            // and processing triggers may cause more SBA (e.g. token creation
-            // causing legend rule). Loop until stable.
             loop {
                 let sba_changed = super::check_sba(game, &mut self.trigger_handler, agents);
                 if game.game_over {
                     return;
                 }
-                // Process pending triggers and put them on the stack.
-                // Mirrors Java's addAllTriggeredAbilitiesToStack() inside
-                // checkStateBasedEffects(). This must happen BEFORE the player
-                // gets to choose an action, so triggers are already on the stack
-                // when the player sees their options.
                 let stack_before = game.stack.len();
                 self.with_shared_state_mutation(game, agents, |this, game, agents| {
                     this.process_triggers(game, agents);
@@ -93,68 +81,34 @@ impl GameLoop {
                 return;
             }
 
-            // ── Fast-forward: skip prompt if player has a standing pass-until ──
-            // The declaration is consumed every time. The frontend re-sends it
-            // on the next prompt if still auto-passing. Prevents stale
-            // declarations from persisting across turns.
-            {
-                let pass_until = {
-                    let agent = agents[priority_player.index()].as_mut();
-                    let val = agent.get_pass_until_phase().map(|o| o.map(str::to_owned));
-                    agent.clear_pass_until();
-                    val
-                };
-                if let Some(until) = pass_until {
-                    let current_phase = game.turn.phase;
-                    // Never fast-forward through active combat phases after
-                    // attackers are declared. Empty combat may still honor
-                    // pass-until stops, including a declare-attackers stop.
-                    let has_declared_attackers = self.combat.has_attackers();
-                    let is_active_combat = has_declared_attackers
-                        && matches!(
-                            current_phase,
-                            forge_foundation::PhaseType::CombatDeclareAttackers
-                                | forge_foundation::PhaseType::CombatDeclareBlockers
-                                | forge_foundation::PhaseType::CombatFirstStrikeDamage
-                                | forge_foundation::PhaseType::CombatDamage
-                                | forge_foundation::PhaseType::CombatEnd
-                        );
-                    let should_skip = if is_active_combat {
-                        false
-                    } else if game.stack.is_empty() {
-                        match until.as_deref() {
-                            // None = atomic single pass, no fast-forward
-                            None => false,
-                            Some(step_str) => {
-                                match forge_foundation::PhaseType::from_step_string(step_str) {
-                                    Some(target) => current_phase.is_before(target),
-                                    None => false,
-                                }
-                            }
-                        }
-                    } else {
-                        false
-                    };
-
-                    if should_skip {
-                        self.log_priority_pass(game, priority_player);
-                        passed_count += 1;
-                        priority_player = game.next_player(priority_player);
-                        self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
-                            game.turn.priority_player = priority_player;
-                        });
-                        continue;
-                    }
+            if let Some(target) = agents[priority_player.index()].get_pass_until() {
+                let current_phase = game.turn.phase;
+                let active = game.active_player();
+                let has_declared_attackers = self.combat.has_attackers();
+                let is_active_combat = has_declared_attackers
+                    && matches!(
+                        current_phase,
+                        forge_foundation::PhaseType::CombatDeclareAttackers
+                            | forge_foundation::PhaseType::CombatDeclareBlockers
+                            | forge_foundation::PhaseType::CombatFirstStrikeDamage
+                            | forge_foundation::PhaseType::CombatDamage
+                            | forge_foundation::PhaseType::CombatEnd
+                    );
+                let reached = active == target.player && !current_phase.is_before(target.phase);
+                if reached {
+                    agents[priority_player.index()].clear_pass_until();
+                } else if !is_active_combat && game.stack.is_empty() {
+                    self.log_priority_pass(game, priority_player);
+                    passed_count += 1;
+                    priority_player = game.next_player(priority_player);
+                    self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
+                        game.turn.priority_player = priority_player;
+                    });
+                    continue;
                 }
             }
 
             let mut action_space = if self.provide_priority_action_space {
-                // Refresh continuous static effects before enumerating the
-                // action space. Otherwise granted keywords from statics
-                // (e.g. Ashling's `AddKeyword$ Evoke:4 | AffectedZone$ Hand`)
-                // may be stale when a new card just entered hand or the
-                // zone set changed, and the first playability check misses
-                // those grants.
                 crate::staticability::layer::apply_continuous_effects(game);
                 Some(self.action_space(game, priority_player, is_main_phase))
             } else {
@@ -189,12 +143,6 @@ impl GameLoop {
                     return;
                 }
                 let mut request_action_space = || {
-                    // Refresh continuous static effects before enumerating the
-                    // action space. Otherwise granted keywords from statics
-                    // (e.g. Ashling's `AddKeyword$ Evoke:4 | AffectedZone$ Hand`)
-                    // may be stale when a new card just entered hand or the
-                    // zone set changed, and the first playability check misses
-                    // those grants.
                     crate::staticability::layer::apply_continuous_effects(game);
                     self.action_space(game, priority_player, is_main_phase)
                 };
@@ -205,9 +153,6 @@ impl GameLoop {
                 )
             };
 
-            // Concede preempts any pending snapshot restore so an in-flight
-            // rewind can't block exit. Drop the conceder's pending request
-            // so the next iteration doesn't replay it via apply_pending_snapshot_restore.
             if action == PlayerAction::Concede {
                 let _ = agents[priority_player.index()].take_restore_request();
                 self.with_shared_state_mutation(game, agents, |_this, game, _agents| {
@@ -288,6 +233,7 @@ impl GameLoop {
                     });
                 }
                 MainPhaseAction::Play(play) => {
+                    agents[priority_player.index()].clear_pass_until();
                     let action_space = action_space
                         .as_ref()
                         .expect("play priority action requires action space");
@@ -685,6 +631,7 @@ impl GameLoop {
                     passed_count = 0;
                 }
                 MainPhaseAction::ActivateAbility(card_id, ability_idx) => {
+                    agents[priority_player.index()].clear_pass_until();
                     let action_space = action_space
                         .as_ref()
                         .expect("ability priority action requires action space");

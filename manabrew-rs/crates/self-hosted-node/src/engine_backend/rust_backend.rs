@@ -5,8 +5,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{mpsc as std_mpsc, Arc, Once, OnceLock};
 
 use manabrew_agent_interface::agent_impl::PromptAgent;
-use manabrew_agent_interface::deck_dto::Deck;
 use manabrew_agent_interface::prompt::{AgentMessage, PromptOutput};
+use manabrew_protocol::deck_dto::Deck;
 
 use crate::config::DeckSelection;
 use forge_carddb::CardDatabase;

@@ -1,10 +1,11 @@
 import { create } from "zustand";
-import { persist, devtools } from "zustand/middleware";
-import type { DeckCard, DeckFormat } from "@/protocol/deck";
+import { persist, devtools, createJSONStorage } from "zustand/middleware";
+import type { DeckCard, DeckCardIdentity, DeckFormat } from "@/protocol/deck";
 import type { PlaymatSettings } from "@/protocol/game";
 import type { EditorDeck } from "@/types/manabrew";
 import type { ScryfallCard } from "@/types/scryfall";
 import { STORAGE_KEYS, DEFAULT_DECK_NAME } from "@/lib/constants";
+import { migrateDeck } from "@/migrations/deck";
 import { getFormat, canBePartners, canHaveAnyNumberOf, copyLimitFromText } from "@/lib/formats";
 import { chooseImageUrisForCard } from "@/stores/useScryfallStore";
 import { collectAllPartsNames } from "@/lib/decks";
@@ -19,13 +20,24 @@ function getCardUpdateKey(name: string, setCode?: string): string {
   return setCode ? `${name.toLowerCase()}::${setCode.toLowerCase()}` : name.toLowerCase();
 }
 
+/** A card patch may carry a partial `identity` (e.g. a reprint changes only
+ *  `setCode`/`cardNumber`), deep-merged onto the card's existing identity. */
+type CardPatch = Partial<Omit<DeckCard, "identity">> & { identity?: Partial<DeckCardIdentity> };
+
+function applyPatch(card: DeckCard, patch: CardPatch | undefined): DeckCard {
+  if (!patch) return card;
+  return { ...card, ...patch, identity: { ...card.identity, ...patch.identity } };
+}
+
 /** Apply a map of name→patch to an array of cards. */
-function patchCardsByName(cards: DeckCard[], updates: Map<string, Partial<DeckCard>>): DeckCard[] {
-  return cards.map((c) => {
-    const patch =
-      updates.get(getCardUpdateKey(c.name, c.setCode)) ?? updates.get(getCardUpdateKey(c.name));
-    return patch ? { ...c, ...patch } : c;
-  });
+function patchCardsByName(cards: DeckCard[], updates: Map<string, CardPatch>): DeckCard[] {
+  return cards.map((c) =>
+    applyPatch(
+      c,
+      updates.get(getCardUpdateKey(c.identity.name, c.identity.setCode)) ??
+        updates.get(getCardUpdateKey(c.identity.name)),
+    ),
+  );
 }
 
 /** Drop entries from `deck.tokens` whose name isn't produced by any remaining
@@ -34,7 +46,7 @@ function patchCardsByName(cards: DeckCard[], updates: Map<string, Partial<DeckCa
 function pruneOrphanedTokens(deck: EditorDeck): EditorDeck {
   if (!deck.tokens || deck.tokens.length === 0) return deck;
   const produced = collectAllPartsNames(deck);
-  const tokens = deck.tokens.filter((t) => produced.has(t.name.toLowerCase()));
+  const tokens = deck.tokens.filter((t) => produced.has(t.identity.name.toLowerCase()));
   if (tokens.length === deck.tokens.length) return deck;
   return { ...deck, tokens: tokens.length > 0 ? tokens : undefined };
 }
@@ -65,12 +77,12 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
   // Migrate legacy single-commander to commanders array
   const commanders = [...(deck.commanders ?? [])];
   const legacy = (deck as { commander?: DeckCard }).commander;
-  if (legacy && !commanders.some((c) => c.name === legacy.name)) {
+  if (legacy && !commanders.some((c) => c.identity.name === legacy.identity.name)) {
     commanders.push(legacy);
   }
 
   for (const cmd of commanders) {
-    const idx = main.findIndex((card) => card.name === cmd.name);
+    const idx = main.findIndex((card) => card.identity.name === cmd.identity.name);
     if (idx !== -1) main.splice(idx, 1);
   }
 
@@ -105,7 +117,7 @@ function normalizeDeck(deck: EditorDeck): EditorDeck {
   return normalized;
 }
 
-function patchDeckCards(deck: EditorDeck, updates: Map<string, Partial<DeckCard>>): EditorDeck {
+function patchDeckCards(deck: EditorDeck, updates: Map<string, CardPatch>): EditorDeck {
   const normalized = normalizeDeck(deck);
   return {
     ...normalized,
@@ -119,14 +131,15 @@ function patchDeckCards(deck: EditorDeck, updates: Map<string, Partial<DeckCard>
       ? patchCardsByName(normalized.commanders, updates)
       : undefined,
     companion: normalized.companion
-      ? {
-          ...normalized.companion,
-          ...(updates.get(
-            getCardUpdateKey(normalized.companion.name, normalized.companion.setCode),
-          ) ??
-            updates.get(getCardUpdateKey(normalized.companion.name)) ??
-            {}),
-        }
+      ? applyPatch(
+          normalized.companion,
+          updates.get(
+            getCardUpdateKey(
+              normalized.companion.identity.name,
+              normalized.companion.identity.setCode,
+            ),
+          ) ?? updates.get(getCardUpdateKey(normalized.companion.identity.name)),
+        )
       : undefined,
     maybeboard: normalized.maybeboard
       ? patchCardsByName(normalized.maybeboard, updates)
@@ -141,6 +154,18 @@ export interface SavedDeck {
   savedAt: number;
 }
 
+// False until hydration succeeds, so a failed migration can't persist over the
+// stored decks — writes are dropped and the on-disk data survives untouched.
+let deckPersistReady = false;
+
+const deckStorage = createJSONStorage(() => ({
+  getItem: (name) => localStorage.getItem(name),
+  setItem: (name, value) => {
+    if (deckPersistReady) localStorage.setItem(name, value);
+  },
+  removeItem: (name) => localStorage.removeItem(name),
+}));
+
 interface DeckState {
   currentDeck: EditorDeck;
   currentDeckId: string | null;
@@ -148,6 +173,7 @@ interface DeckState {
   isReadOnly: boolean;
   pool: DeckCard[];
   savedDecks: SavedDeck[];
+  migrationError: boolean;
   addToMain: (card: DeckCard) => void;
   addToSide: (card: DeckCard) => void;
   addToMaybe: (card: DeckCard) => void;
@@ -174,9 +200,9 @@ interface DeckState {
   toggleFoil: (cardName: string) => void;
   addToken: (token: DeckCard) => void;
   removeToken: (name: string) => void;
-  enrichDeckCards: (updates: Map<string, Partial<DeckCard>>) => void;
+  enrichDeckCards: (updates: Map<string, CardPatch>) => void;
   addCardToSavedDeck: (id: string, card: DeckCard) => void;
-  enrichSavedDeck: (id: string, updates: Map<string, Partial<DeckCard>>) => void;
+  enrichSavedDeck: (id: string, updates: Map<string, CardPatch>) => void;
   addCustomTag: (tag: string) => void;
   removeCustomTag: (tag: string) => void;
   tagCard: (cardName: string, tag: string) => void;
@@ -210,6 +236,7 @@ export const useDeckStore = create<DeckState>()(
         isReadOnly: false,
         pool: [],
         savedDecks: [],
+        migrationError: false,
         addToMain: (card) =>
           set((state) => {
             // Enforce max copy limit based on deck format
@@ -218,7 +245,7 @@ export const useDeckStore = create<DeckState>()(
               if (format) {
                 const limit = copyLimitFromText(card.text) ?? format.deckRules.maxCopies;
                 const currentCount = state.currentDeck.cards.filter(
-                  (c) => c.name === card.name,
+                  (c) => c.identity.name === card.identity.name,
                 ).length;
                 if (currentCount >= limit) {
                   return state; // silently reject — UI will show toast via DeckBuilder
@@ -265,7 +292,9 @@ export const useDeckStore = create<DeckState>()(
           })),
         removeFromMaybe: (cardId) =>
           set((state) => {
-            const idx = (state.currentDeck.maybeboard ?? []).findIndex((c) => c.id === cardId);
+            const idx = (state.currentDeck.maybeboard ?? []).findIndex(
+              (c) => c.identity.id === cardId,
+            );
             if (idx === -1) return state;
             const maybeboard = [...(state.currentDeck.maybeboard ?? [])];
             maybeboard.splice(idx, 1);
@@ -277,7 +306,7 @@ export const useDeckStore = create<DeckState>()(
           })),
         removeFromMain: (cardId) =>
           set((state) => {
-            const index = state.currentDeck.cards.findIndex((c) => c.id === cardId);
+            const index = state.currentDeck.cards.findIndex((c) => c.identity.id === cardId);
             if (index === -1) return state;
             const newCards = [...state.currentDeck.cards];
             newCards.splice(index, 1);
@@ -288,31 +317,35 @@ export const useDeckStore = create<DeckState>()(
         removeFromSide: (cardId) =>
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
-            const sideIndex = deck.sideboard.findIndex((c) => c.id === cardId);
+            const sideIndex = deck.sideboard.findIndex((c) => c.identity.id === cardId);
             if (sideIndex !== -1) {
               const sideboard = [...deck.sideboard];
               sideboard.splice(sideIndex, 1);
               return { currentDeck: pruneOrphanedTokens({ ...deck, sideboard }) };
             }
-            const attractionIndex = (deck.attractions ?? []).findIndex((c) => c.id === cardId);
+            const attractionIndex = (deck.attractions ?? []).findIndex(
+              (c) => c.identity.id === cardId,
+            );
             if (attractionIndex !== -1) {
               const attractions = [...(deck.attractions ?? [])];
               attractions.splice(attractionIndex, 1);
               return { currentDeck: pruneOrphanedTokens({ ...deck, attractions }) };
             }
-            const contraptionIndex = (deck.contraptions ?? []).findIndex((c) => c.id === cardId);
+            const contraptionIndex = (deck.contraptions ?? []).findIndex(
+              (c) => c.identity.id === cardId,
+            );
             if (contraptionIndex !== -1) {
               const contraptions = [...(deck.contraptions ?? [])];
               contraptions.splice(contraptionIndex, 1);
               return { currentDeck: pruneOrphanedTokens({ ...deck, contraptions }) };
             }
-            const schemeIndex = (deck.schemes ?? []).findIndex((c) => c.id === cardId);
+            const schemeIndex = (deck.schemes ?? []).findIndex((c) => c.identity.id === cardId);
             if (schemeIndex !== -1) {
               const schemes = [...(deck.schemes ?? [])];
               schemes.splice(schemeIndex, 1);
               return { currentDeck: pruneOrphanedTokens({ ...deck, schemes }) };
             }
-            const planeIndex = (deck.planes ?? []).findIndex((c) => c.id === cardId);
+            const planeIndex = (deck.planes ?? []).findIndex((c) => c.identity.id === cardId);
             if (planeIndex !== -1) {
               const planes = [...(deck.planes ?? [])];
               planes.splice(planeIndex, 1);
@@ -334,7 +367,7 @@ export const useDeckStore = create<DeckState>()(
               // Move commanders back to main deck
               const movedBack = (deck.commanders ?? []).map((c) => ({
                 ...c,
-                id: crypto.randomUUID(),
+                identity: { ...c.identity, id: crypto.randomUUID() },
               }));
               return {
                 currentDeck: {
@@ -354,7 +387,8 @@ export const useDeckStore = create<DeckState>()(
           }),
         clearDeck: () =>
           set({ currentDeck: { ...initialDeck }, currentDeckId: null, isReadOnly: false }),
-        loadDeck: (deck) => set({ currentDeck: normalizeDeck(deck), isReadOnly: false }),
+        loadDeck: (deck) =>
+          set({ currentDeck: normalizeDeck(migrateDeck(deck)), isReadOnly: false }),
         loadPresetDeck: (deck) =>
           set({
             currentDeck: normalizeDeck(deck),
@@ -391,7 +425,9 @@ export const useDeckStore = create<DeckState>()(
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
             const nextMain = [...deck.cards];
-            const selectedIndex = nextMain.findIndex((entry) => entry.id === card.id);
+            const selectedIndex = nextMain.findIndex(
+              (entry) => entry.identity.id === card.identity.id,
+            );
             const selectedCard =
               selectedIndex !== -1 ? nextMain.splice(selectedIndex, 1)[0] : { ...card };
 
@@ -401,12 +437,15 @@ export const useDeckStore = create<DeckState>()(
               if (!canBePartners(commanders[0], selectedCard)) {
                 // New card can't partner with the existing commander — replace all
                 for (const c of commanders.splice(0)) {
-                  nextMain.push({ ...c, id: crypto.randomUUID() });
+                  nextMain.push({ ...c, identity: { ...c.identity, id: crypto.randomUUID() } });
                 }
               } else if (commanders.length >= 2) {
                 // Valid partner pair but already have 2 — replace the second
                 const removed = commanders.pop()!;
-                nextMain.push({ ...removed, id: crypto.randomUUID() });
+                nextMain.push({
+                  ...removed,
+                  identity: { ...removed.identity, id: crypto.randomUUID() },
+                });
               }
             }
 
@@ -428,15 +467,18 @@ export const useDeckStore = create<DeckState>()(
             if (commanders.length === 0) return state;
 
             const toRemove = card
-              ? commanders.find((c) => c.name === card.name)
+              ? commanders.find((c) => c.identity.name === card.identity.name)
               : commanders[commanders.length - 1];
             if (!toRemove) return state;
 
             return {
               currentDeck: {
                 ...deck,
-                cards: [...deck.cards, { ...toRemove, id: crypto.randomUUID() }],
-                commanders: commanders.filter((c) => c.name !== toRemove.name),
+                cards: [
+                  ...deck.cards,
+                  { ...toRemove, identity: { ...toRemove.identity, id: crypto.randomUUID() } },
+                ],
+                commanders: commanders.filter((c) => c.identity.name !== toRemove.identity.name),
               },
             };
           }),
@@ -444,12 +486,15 @@ export const useDeckStore = create<DeckState>()(
           set((state) => {
             const deck = normalizeDeck(state.currentDeck);
             const nextSide = [...deck.sideboard];
-            const idx = nextSide.findIndex((c) => c.id === card.id);
+            const idx = nextSide.findIndex((c) => c.identity.id === card.identity.id);
             const selected = idx !== -1 ? nextSide.splice(idx, 1)[0] : { ...card };
 
             // Move old companion back to sideboard
             if (deck.companion) {
-              nextSide.push({ ...deck.companion, id: crypto.randomUUID() });
+              nextSide.push({
+                ...deck.companion,
+                identity: { ...deck.companion.identity, id: crypto.randomUUID() },
+              });
             }
 
             return {
@@ -463,7 +508,13 @@ export const useDeckStore = create<DeckState>()(
             return {
               currentDeck: {
                 ...deck,
-                sideboard: [...deck.sideboard, { ...deck.companion, id: crypto.randomUUID() }],
+                sideboard: [
+                  ...deck.sideboard,
+                  {
+                    ...deck.companion,
+                    identity: { ...deck.companion.identity, id: crypto.randomUUID() },
+                  },
+                ],
                 companion: undefined,
               },
             };
@@ -471,7 +522,7 @@ export const useDeckStore = create<DeckState>()(
         addToken: (token) =>
           set((state) => {
             const existing = state.currentDeck.tokens ?? [];
-            if (existing.some((t) => t.name === token.name)) {
+            if (existing.some((t) => t.identity.name === token.identity.name)) {
               return state;
             }
             return {
@@ -482,18 +533,17 @@ export const useDeckStore = create<DeckState>()(
           set((state) => ({
             currentDeck: {
               ...state.currentDeck,
-              tokens: (state.currentDeck.tokens ?? []).filter((t) => t.name !== name),
+              tokens: (state.currentDeck.tokens ?? []).filter((t) => t.identity.name !== name),
             },
           })),
         updatePrint: (cardName, scryfallCard) =>
           set((state) => {
             const uris = chooseImageUrisForCard(scryfallCard, { frontOnly: true });
             if (!uris) throw new Error(`Scryfall card has no image uris: ${scryfallCard.name}`);
-            const updates = new Map<string, Partial<DeckCard>>();
+            const updates = new Map<string, CardPatch>();
             updates.set(cardName.toLowerCase(), {
-              setCode: scryfallCard.set,
+              identity: { setCode: scryfallCard.set, cardNumber: scryfallCard.collector_number },
               uris,
-              cardNumber: scryfallCard.collector_number,
             });
             return {
               currentDeck: patchDeckCards(state.currentDeck, updates),
@@ -512,10 +562,14 @@ export const useDeckStore = create<DeckState>()(
               ...(deck.planes ?? []),
               ...(deck.commanders ?? []),
             ];
-            const matches = allCopies.filter((c) => c.name === cardName);
-            const targetFoil = !matches.every((c) => c.foil);
+            const matches = allCopies.filter((c) => c.identity.name === cardName);
+            const targetFoil = !matches.every((c) => c.identity.foil);
             const flip = (cards: DeckCard[]): DeckCard[] =>
-              cards.map((c) => (c.name === cardName ? { ...c, foil: targetFoil } : c));
+              cards.map((c) =>
+                c.identity.name === cardName
+                  ? { ...c, identity: { ...c.identity, foil: targetFoil } }
+                  : c,
+              );
             return {
               currentDeck: {
                 ...deck,
@@ -527,8 +581,11 @@ export const useDeckStore = create<DeckState>()(
                 planes: deck.planes ? flip(deck.planes) : deck.planes,
                 commanders: deck.commanders ? flip(deck.commanders) : deck.commanders,
                 companion:
-                  deck.companion && deck.companion.name === cardName
-                    ? { ...deck.companion, foil: targetFoil }
+                  deck.companion && deck.companion.identity.name === cardName
+                    ? {
+                        ...deck.companion,
+                        identity: { ...deck.companion.identity, foil: targetFoil },
+                      }
                     : deck.companion,
                 maybeboard: deck.maybeboard ? flip(deck.maybeboard) : deck.maybeboard,
               },
@@ -589,7 +646,7 @@ export const useDeckStore = create<DeckState>()(
             const found = state.savedDecks.find((s) => s.id === id);
             if (!found) return state;
             return {
-              currentDeck: normalizeDeck(found.deck),
+              currentDeck: normalizeDeck(migrateDeck(found.deck)),
               currentDeckId: id,
               isReadOnly: false,
             };
@@ -716,31 +773,37 @@ export const useDeckStore = create<DeckState>()(
       }),
       {
         name: STORAGE_KEYS.DECK,
-        version: 3,
-        merge: (persisted, current) => {
-          const merged = { ...current, ...(persisted as object) } as DeckState;
-          merged.isReadOnly = false;
-          merged.currentDeck = { ...initialDeck };
-          merged.currentDeckId = null;
-          return merged;
-        },
+        storage: deckStorage,
+        // Bump on any persisted-deck shape change so `migrate` runs over existing
+        // users' decks — a shape change without a bump never migrates.
+        version: 4,
         migrate: (persistedState: unknown) => {
           if (!persistedState || typeof persistedState !== "object")
             return persistedState as DeckState;
           const state = persistedState as {
-            currentDeck?: EditorDeck;
             currentDeckId?: string | null;
             savedDecks?: SavedDeck[];
           };
           return {
             ...state,
             currentDeckId: state.currentDeckId ?? null,
-            currentDeck: normalizeDeck(state.currentDeck ?? initialDeck),
-            savedDecks: (state.savedDecks ?? []).map((saved) => ({
-              ...saved,
-              deck: normalizeDeck(saved.deck),
-            })),
+            savedDecks: (state.savedDecks ?? []).map((s) => ({ ...s, deck: migrateDeck(s.deck) })),
           };
+        },
+        merge: (persisted, current) => {
+          const p = persisted as Partial<DeckState>;
+          const merged = { ...current, ...p } as DeckState;
+          merged.isReadOnly = false;
+          merged.currentDeck = { ...initialDeck };
+          merged.currentDeckId = null;
+          return merged;
+        },
+        onRehydrateStorage: () => (_state, error) => {
+          if (error) {
+            useDeckStore.setState({ migrationError: true });
+          } else {
+            deckPersistReady = true;
+          }
         },
       },
     ),

@@ -1,16 +1,12 @@
 import type { PlayZoneRect } from "../types";
 
-/** User-selectable board arrangement (Settings). The two only diverge at 4
- *  players (3 opponents): `row` keeps opponents across the top; `perimeter`
- *  wraps them left/top/right around a center-bottom local player. */
-export type BoardArrangement = "row" | "perimeter";
-
 /** Which screen edge a region's player is seated at. `bottom` is the local
- *  player (upright); `top` opponents are mirrored; `left`/`right` opponents
- *  are rotated 90° to face the table center. */
-export type RegionOrientation = "bottom" | "top" | "left" | "right";
+ *  player (upright); `top` opponents are mirrored. */
+export type RegionOrientation = "bottom" | "top";
 
-/** One opponent's region: its canvas-local rect and the edge it's seated at. */
+/** One opponent's region. The `rect` is the FIXED play area used for the grid
+ *  and card positions — it never changes. The visible clip band (delimiters) is
+ *  owned and animated by `BoardScene`, not computed here. */
 export interface OpponentRegion {
   rect: PlayZoneRect;
   orientation: RegionOrientation;
@@ -35,18 +31,15 @@ export const SELF_HEIGHT_FRACTION = 0.55;
 /** Fixed vertical band, in px, reserved at the center for the phase strip. */
 export const STRIP_BAND_PX = 56;
 
-/** Width of each side column, as a fraction of canvas width, in the
- *  `perimeter` arrangement with 3 opponents. Kept narrow so the local
- *  player's center column — where most interaction happens — stays wide. */
-export const PERIMETER_SIDE_FRACTION = 0.15;
+/** Width, in px, of a collapsed opponent column — just enough for the avatar
+ *  sphere + life banner peeking out from under its neighbour. */
+export const COLLAPSED_OPPONENT_WIDTH_PX = 80;
 
 export function computeBoardLayout(
   width: number,
   height: number,
   opponentCount: number,
-  arrangement: BoardArrangement = "row",
   selfHeightFraction: number = SELF_HEIGHT_FRACTION,
-  opponentFractions?: number[],
 ): BoardLayout {
   const count = Math.max(1, opponentCount);
   const band = Math.min(STRIP_BAND_PX, Math.max(0, height - 2));
@@ -56,42 +49,19 @@ export function computeBoardLayout(
   const topHeight = usable - selfHeight;
   const dividerY = topHeight + band / 2;
 
-  // Perimeter only differs from row at 3 opponents — wrap left/top/right
-  // around a center-bottom local player. With 1–2 opponents it's identical
-  // to row, so fall through.
-  if (arrangement === "perimeter" && count === 3) {
-    const sideW = Math.round(width * PERIMETER_SIDE_FRACTION);
-    const centerW = width - 2 * sideW;
-    return {
-      self: { x: sideW, y: topHeight + band, width: centerW, height: selfHeight },
-      opponents: [
-        { rect: { x: 0, y: 0, width: sideW, height }, orientation: "left" },
-        { rect: { x: sideW, y: 0, width: centerW, height: topHeight }, orientation: "top" },
-        { rect: { x: width - sideW, y: 0, width: sideW, height }, orientation: "right" },
-      ],
-      dividerY,
-    };
-  }
-
-  // Column widths default to equal; an explicit per-opponent fraction set
-  // (from the resize grips) overrides, normalized + floored so a column
-  // can't collapse.
-  let fractions: number[];
-  if (opponentFractions && opponentFractions.length === count) {
-    const floored = opponentFractions.map((f) => Math.max(0.1, f));
-    const sum = floored.reduce((a, b) => a + b, 0);
-    fractions = floored.map((f) => f / sum);
-  } else {
-    fractions = Array.from({ length: count }, () => 1 / count);
-  }
-
+  // Each opponent field's `rect` is the FIXED play area — grid and card positions
+  // are computed from it and never move. Field `i` starts at `i` collapsed-banner
+  // widths from the left and extends to the canvas right edge, so its rect equals
+  // its maximally-expanded clip band (every field left of it collapsed to a
+  // banner). Because a delimiter can never push field `i`'s band-left below
+  // `i · COLLAPSED` (the grip clamp uses that as `minGap`), the band is always a
+  // subset of the rect — the felt/grid/cards align with the field's visible left
+  // edge when expanded, never leaving a gap. The clip band is eased by `BoardScene`.
   const opponents: OpponentRegion[] = [];
-  let acc = 0;
   for (let i = 0; i < count; i++) {
-    const x = Math.round(acc * width);
-    acc += fractions[i]!;
+    const x = i * COLLAPSED_OPPONENT_WIDTH_PX;
     opponents.push({
-      rect: { x, y: 0, width: Math.round(acc * width) - x, height: topHeight },
+      rect: { x, y: 0, width: Math.max(1, width - x), height: topHeight },
       orientation: "top",
     });
   }

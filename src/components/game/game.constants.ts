@@ -19,6 +19,13 @@ export { MANA_LETTERS as MANA_KEYS } from "@/themes/gameTheme";
 
 export const ZONE_COLUMN_RESERVED_PX = 120;
 
+export const ZONE_TILE_KEY = {
+  library: "lib",
+  graveyard: "gy",
+  exile: "ex",
+  command: "cmd",
+} as const;
+
 /** Standard MTG card back image, served by Scryfall's canonical backs CDN.
  *  UUID `0aeebaf5-8c7d-4636-9e82-8c27447861f7` is the default `card_back_id`
  *  every single-faced card references. */
@@ -57,6 +64,8 @@ export const CARD_BADGES = {
   warpExiled: { label: "WARPED", style: "bg-card-status-warped/90 text-text-on-tinted" },
   copy: { label: "COPY", style: "bg-card-status-copy/90 text-text-on-tinted" },
 } as const;
+
+export const ACTION_DRAWER_BUMP_EVENT = "actiondrawer:bump";
 
 export const CARD_W = 72;
 export const CARD_H = 100;

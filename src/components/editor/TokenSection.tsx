@@ -38,7 +38,7 @@ export function TokenSection({
       <div className="flex flex-wrap gap-3">
         {tokens.map((t) => (
           <div
-            key={`${t.name}-${t.setCode}-${t.cardNumber}`}
+            key={`${t.identity.name}-${t.identity.setCode}-${t.identity.cardNumber}`}
             className="shrink-0"
             style={{ width: cardWidth }}
           >
@@ -74,16 +74,17 @@ function TokenGridCard({
   onHover?: (token: DeckCard, e: MouseEvent) => void;
   onLeave?: () => void;
 }) {
+  const { name } = token.identity;
   return (
     <div
       className="relative group cursor-pointer"
-      onClick={() => onShowInfo?.(token.name)}
+      onClick={() => onShowInfo?.(name)}
       onMouseEnter={(e) => onHover?.(token, e)}
       onMouseLeave={() => onLeave?.()}
     >
       <ScryfallImg
         src={token.uris.normal}
-        alt={token.name}
+        alt={name}
         className="w-full rounded-lg border border-border/50 shadow-sm"
         draggable={false}
       />
@@ -97,7 +98,7 @@ function TokenGridCard({
             title="Change printing"
             onClick={(e) => {
               e.stopPropagation();
-              onPickPrint(token.name);
+              onPickPrint(name);
             }}
           >
             <Palette className="h-3.5 w-3.5" />
@@ -110,7 +111,7 @@ function TokenGridCard({
             title="Remove token"
             onClick={(e) => {
               e.stopPropagation();
-              onRemove(token.name);
+              onRemove(name);
             }}
           >
             <X className="h-3.5 w-3.5" />

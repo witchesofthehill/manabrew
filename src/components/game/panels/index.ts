@@ -1,4 +1,4 @@
 export { ManaPool } from "./ManaPool";
 export { MainActionOverlay } from "./MainActionOverlay";
-export { PlayerPanel } from "./PlayerPanel";
+export { MiddleBarDock } from "./MiddleBarDock";
 export { RightActionPanel } from "./RightActionPanel";

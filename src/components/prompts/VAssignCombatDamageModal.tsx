@@ -77,7 +77,7 @@ export function VAssignCombatDamageModal({
 
   function getLabel(id: string): string {
     const card = gameView.battlefield.find((c) => c.id === id);
-    if (card) return card.name;
+    if (card) return card.identity.name;
     const player = gameView.players.find((p) => p.id === id);
     if (player) return player.name;
     return id;
@@ -165,7 +165,7 @@ export function VAssignCombatDamageModal({
         <h2 className="font-semibold text-base">Assign Combat Damage</h2>
         {attacker && (
           <p className="text-xs text-muted-foreground">
-            {attacker.name} must assign {totalDamage} damage.
+            {attacker.identity.name} must assign {totalDamage} damage.
           </p>
         )}
       </Modal.Header>

@@ -375,7 +375,7 @@ export function TablesList({
                   <div
                     key={p.username}
                     className={cn(
-                      "rounded-lg border px-3 py-2 flex items-center gap-2.5 transition-colors",
+                      "rounded-lg border px-3 py-2 min-h-[3.25rem] flex items-center gap-2.5 transition-colors",
                       p.ready || isPlayerController
                         ? "border-primary/30 bg-primary/5"
                         : "bg-muted/30",
@@ -440,7 +440,7 @@ export function TablesList({
                 currentRoom.players.length < currentRoom.max_players &&
                 onAddBot && (
                   <button
-                    className="rounded-lg border border-dashed px-3 py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
+                    className="rounded-lg border border-dashed px-3 py-2 min-h-[3.25rem] flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors cursor-pointer"
                     onClick={onAddBot}
                   >
                     <Bot className="h-3.5 w-3.5" />

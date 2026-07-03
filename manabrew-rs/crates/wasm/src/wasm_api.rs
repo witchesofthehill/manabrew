@@ -1,4 +1,4 @@
-use manabrew_agent_interface::deck_dto::Deck as WireDeck;
+use manabrew_protocol::deck_dto::Deck as WireDeck;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 

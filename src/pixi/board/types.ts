@@ -75,6 +75,9 @@ export interface SpriteEntry {
   pendingEntrance: boolean;
   /** True while the card is fading out after leaving the battlefield. */
   exiting?: boolean;
+  /** True while a cross-region arrival is still travelling to its home cell;
+   *  the sprite renders in the unclipped guest layer until it lands. */
+  gliding?: boolean;
   overlay: Container | null;
 }
 
@@ -103,8 +106,26 @@ export interface RegionHost {
   /** Keep-out rects for this region (hand fan + panel reserves). */
   collectBlockers(): BlockingRect[];
   /** Seed transform for a newly-entering battlefield sprite (mirror of a
-   *  hand sprite / stack card / hand-fan origin). */
-  getEntrySeed(cardId: string): { x: number; y: number; scaleX: number; scaleY: number };
+   *  hand sprite / stack card / hand-fan origin). `glide` is set when the seed
+   *  is a remembered cross-region position (combat move / control change), so
+   *  the sprite should travel unclipped until it reaches its home cell. */
+  getEntrySeed(cardId: string): {
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    glide?: boolean;
+  };
+  /** Unclipped scene layer for combat-row attackers that travelled in from
+   *  another field, so they glide across the board (past accordion masks)
+   *  instead of being clipped to a collapsed defender's band. */
+  getCombatGuestLayer(): Container;
+  /** Remember a card's last on-screen transform as it leaves a region, so a
+   *  respawn in another region (combat-row move) seeds there and glides in. */
+  recordCardExit(
+    cardId: string,
+    seed: { x: number; y: number; scaleX: number; scaleY: number },
+  ): void;
   isSelected(cardId: string): boolean;
   rebuildOverlay(entry: SpriteEntry, state: BattlefieldState): void;
   /** Wire pointer events (drag/tap/hover) on a new battlefield sprite. */
@@ -114,6 +135,9 @@ export interface RegionHost {
   /** Px to trim off the bottom of this region's felt so it clears the hand
    *  fan (local player only; 0 for opponents). */
   getHandReserveBottom(): number;
+  /** Px to trim off the top of this region's grid so the first card row clears
+   *  the Pixi player bar (opponents when the bar is on; 0 otherwise). */
+  getTopReserve(): number;
   /** Spawn a rising/fading number at a canvas-space point (combat damage). */
   spawnFloatingText(canvasX: number, canvasY: number, content: string, color: number): void;
   isDestroyed(): boolean;

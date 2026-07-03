@@ -25,6 +25,8 @@ The **Java harness-half** is checked at **compile time**, not runtime: `gen-harn
 
 Docker images that build the harness directly must perform the same generation step before Maven runs. The generated `forge.harness.protocol.*` sources are gitignored, so any Dockerfile that copies `forge-harness/` and invokes `mvn -pl forge-harness ...` without first running `gen-protocol` + `gen-harness-prompts.mjs` will fail with missing classes such as `ChooseCardsInput` or `CardDto`.
 
+`gen-harness-prompts.mjs` parses the generated TS with a **single-line** regex (`^export type X = …;$`). A `///` doc comment on a `manabrew-protocol` DTO field makes ts-rs emit a multi-line JSDoc block inside that type literal, so prettier wraps the alias across lines and the parser silently **drops the type** (and anything reachable only through it) — the harness then fails to compile with `cannot find symbol: CardDto`. Use a plain `//` comment on protocol DTO fields, never `///`.
+
 ## Lint and format (yarn)
 
 These are `package.json` scripts (not files in this folder). **Run before every commit** — see the root `/AGENTS.md` "Before every commit" section.

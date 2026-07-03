@@ -1,10 +1,10 @@
-import type { Prompt, PromptOutput } from "@/protocol";
+import type { Prompt, PromptOutput, PassUntil } from "@/protocol";
 
 // "Pass" means decline whatever the current prompt asks: during combat
 // declaration that's an empty attacker/blocker set; otherwise a priority pass.
 export function passOutput(
   prompt: Prompt | null,
-  untilPhase: string | null,
+  until: PassUntil | null,
 ): PromptOutput["output"] | null {
   if (!prompt) return null;
   switch (prompt.input.type) {
@@ -13,9 +13,9 @@ export function passOutput(
     case "chooseBlockers":
       return { type: "declareBlockers", assignments: [] };
     case "chooseAction":
-      return { type: "pass", untilPhase: untilPhase ?? undefined };
+      return { type: "pass", until: until ?? undefined };
     default:
-      return { type: "pass", untilPhase: undefined };
+      return { type: "pass", until: undefined };
   }
 }
 

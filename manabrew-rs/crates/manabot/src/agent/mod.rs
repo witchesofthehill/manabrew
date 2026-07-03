@@ -12,12 +12,7 @@ use serde::{Deserialize, Serialize};
 pub mod simple_ai;
 pub use simple_ai::SimpleAi;
 
-/// A bot's decision strategy. Each call to `decide` may consult per-bot state
-/// (anti-loop memoization, opening-hand plans, …) — hence `&mut self`.
 pub trait BotAgent: Send {
-    /// `None` means no action for this prompt — only the display-only/terminal
-    /// kinds (`StateUpdate`, `GameOver`); every decision prompt yields `Some`
-    /// (an explicit `Pass` yields priority). Callers supply their own fallback.
     fn decide(&mut self, prompt: AgentPrompt) -> Option<PromptOutput>;
 }
 
@@ -58,7 +53,7 @@ impl Responder for BotResponder {
         self.agent
             .decide(prompt)
             .unwrap_or(PromptOutput::ChooseAction(ChooseActionOutput::Pass {
-                until_phase: None,
+                until: None,
             }))
     }
 }

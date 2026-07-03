@@ -25,7 +25,7 @@ export function PlayModePicker({ card, options, onSelect, onCancel }: PlayModePi
           <CardImageThumbnail card={card} className={MODAL_CARD_THUMBNAIL} />
           <div>
             <h2 className="font-semibold text-base">Choose how to cast</h2>
-            <p className="text-xs text-muted-foreground font-medium">{card.name}</p>
+            <p className="text-xs text-muted-foreground font-medium">{card.identity.name}</p>
           </div>
         </div>
       </Modal.Header>

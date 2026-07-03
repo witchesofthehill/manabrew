@@ -1,7 +1,6 @@
 import { Ban, Check, WandSparkles } from "lucide-react";
-import { GiVortex } from "react-icons/gi";
+import { VortexCircleIcon } from "@/components/icons/VortexCircleIcon";
 import { DynamicTextRender } from "@/components/game/DynamicTextRender";
-import { ManaPool } from "@/components/game/panels/ManaPool";
 import { PROMPT_BUTTON_COLUMN } from "@/components/game/game.styles";
 import { PromptActionButton } from "@/components/prompts/PromptActionButton";
 import { usePromptActionColors } from "@/components/prompts/internal/promptActionTheme";
@@ -9,7 +8,6 @@ import { cn } from "@/lib/utils";
 import type { PayManaCostProps } from "./internal/types";
 
 export function PayManaCost({
-  buttonLayout,
   isWaitingForResponse,
   payManaCostInfo,
   onPayManaCost,
@@ -29,11 +27,6 @@ export function PayManaCost({
   ) : (
     <WandSparkles className="h-3.5 w-3.5" />
   );
-  const buttonGroupClass =
-    buttonLayout === "modern"
-      ? "flex flex-row flex-wrap items-center justify-center gap-3"
-      : PROMPT_BUTTON_COLUMN;
-
   return (
     <div className={cn(PROMPT_BUTTON_COLUMN, "w-full")}>
       {payManaCostInfo && (
@@ -57,18 +50,10 @@ export function PayManaCost({
               />
             </p>
           )}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Mana pool:</span>
-            <ManaPool pool={payManaCostInfo.manaPool} />
-          </div>
-          <p className="min-h-[32px] text-[11px] text-muted-foreground/70">
-            Tap lands to generate mana, or let the engine finish payment.
-          </p>
         </>
       )}
-      <div className={buttonGroupClass}>
+      <div className={"flex flex-row flex-wrap items-center justify-center gap-3"}>
         <PromptActionButton
-          layout={buttonLayout}
           label={primaryLabel}
           icon={primaryIcon}
           onClick={primaryAction}
@@ -76,9 +61,8 @@ export function PayManaCost({
         />
         {payManaCostInfo?.delveAvailable && payManaCostInfo.onOpenDelve && (
           <PromptActionButton
-            layout={buttonLayout}
             label="Delve"
-            icon={<GiVortex className="h-3.5 w-3.5" />}
+            icon={<VortexCircleIcon className="h-3.5 w-3.5" />}
             variant="outline"
             baseColor={promptActionColors.defenseAction}
             onClick={payManaCostInfo.onOpenDelve}
@@ -86,7 +70,6 @@ export function PayManaCost({
           />
         )}
         <PromptActionButton
-          layout={buttonLayout}
           label="Cancel"
           icon={<Ban className="h-3.5 w-3.5" />}
           variant="outline"

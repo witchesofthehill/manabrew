@@ -13,6 +13,7 @@ forge-carddb = { path = "../forge-carddb" }
 forge-cardset-archive = { path = "../forge-cardset-archive" }
 manabrew-engine = { path = "../manabrew-engine" }
 manabrew-agent-interface = { path = "../manabrew-agent-interface" }
+manabrew-protocol = { path = "../manabrew-protocol" }
 manabrew_game_runtime = { path = "../manabrew-game-runtime" }
 manabot= { path = "../manabot", default-features = false }
 forge-limited = { path = "../forge-limited" }

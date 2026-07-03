@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::prompts::common::TargetRef;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "game/index.ts")]
@@ -81,6 +83,18 @@ pub struct PlayerDto {
     pub has_city_blessing: bool,
     pub ring_level: i32,
     pub speed: i32,
+    pub experience_counters: i32,
+    pub ticket_counters: i32,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export, export_to = "game/index.ts")]
+pub struct CardIdentity {
+    pub name: String,
+    pub set_code: String,
+    pub card_number: String,
+    pub is_token: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -88,9 +102,7 @@ pub struct PlayerDto {
 #[ts(export, export_to = "game/index.ts")]
 pub struct CardDto {
     pub id: String,
-    pub name: String,
-    pub set_code: String,
-    pub card_number: String,
+    pub identity: CardIdentity,
     pub color: String,
     pub mana_cost: String,
     pub cmc: i32,
@@ -117,12 +129,14 @@ pub struct CardDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub attacking_player_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub attack_target_id: Option<String>,
     pub keywords: Vec<String>,
     #[ts(type = "Record<string, number>")]
     pub counters: HashMap<String, i32>,
     pub damage: i32,
     pub summoning_sick: bool,
-    pub is_token: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_copy: bool,
     pub is_double_faced: bool,
@@ -169,34 +183,11 @@ pub struct StackObjectDto {
     pub id: String,
     pub source_id: String,
     pub controller_id: String,
-    pub name: String,
+    pub identity: CardIdentity,
     pub text: String,
-    pub set_code: String,
-    pub card_number: String,
     pub is_permanent_spell: bool,
     pub is_casting: bool,
-    pub targets: Vec<StackTargetDto>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "game/index.ts")]
-pub struct StackTargetDto {
-    pub kind: StackTargetKindDto,
-    pub id: String,
-    pub node_index: u32,
-    pub target_index: u32,
-    pub hostile: bool,
-    pub intent: TargetingIntent,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export, export_to = "game/index.ts")]
-pub enum StackTargetKindDto {
-    Card,
-    Player,
-    Stack,
+    pub targets: Vec<TargetRef>,
 }
 
 #[derive(
@@ -283,6 +274,15 @@ pub struct PlaymatSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub offset_y: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub zoom: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub blur: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub brightness: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub color: Option<String>,

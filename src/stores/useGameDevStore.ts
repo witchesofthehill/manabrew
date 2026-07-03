@@ -13,8 +13,6 @@ export const PROMPT_ACTION_VIEW_KEYS = [
   "payManaCost",
   "promptRequired",
   "promptLabel",
-  "passingUntilEot",
-  "autoPassing",
   "noAction",
   "mulligan",
   "mulliganPutBack",
@@ -44,9 +42,18 @@ export interface DevPlayerOverrides {
   forceMonarch: boolean;
   forceInitiative: boolean;
   forceCityBlessing: boolean;
+  forceActiveTurn: boolean;
+  forcePriority: boolean;
+  forceTargetable: boolean;
+  forceSelectedTarget: boolean;
+  forceFlashing: boolean;
+  forceEliminated: boolean;
+  forceDisconnected: boolean;
   poison: number | null;
   energy: number | null;
   radiation: number | null;
+  experience: number | null;
+  ticket: number | null;
   ringLevel: number | null;
   speed: number | null;
   cmdDamage: number | null;
@@ -58,9 +65,18 @@ export const DEFAULT_DEV_PLAYER_OVERRIDES: DevPlayerOverrides = {
   forceMonarch: false,
   forceInitiative: false,
   forceCityBlessing: false,
+  forceActiveTurn: false,
+  forcePriority: false,
+  forceTargetable: false,
+  forceSelectedTarget: false,
+  forceFlashing: false,
+  forceEliminated: false,
+  forceDisconnected: false,
   poison: null,
   energy: null,
   radiation: null,
+  experience: null,
+  ticket: null,
   ringLevel: null,
   speed: null,
   cmdDamage: null,
@@ -155,6 +171,10 @@ interface GameDevState {
   debugCardName: string;
   showHoverAreas: boolean;
   setShowHoverAreas: (value: boolean) => void;
+  showGridSkeleton: boolean;
+  setShowGridSkeleton: (value: boolean) => void;
+  showAttackRows: boolean;
+  setShowAttackRows: (value: boolean) => void;
   setPromptActionOverride: (value: DevPromptActionOverride | null) => void;
   setDevToolsEnabled: (value: boolean) => void;
   clearPromptActionOverride: () => void;
@@ -190,6 +210,10 @@ export const useGameDevStore = create<GameDevState>()(
       debugCardName: "Raging Goblin",
       showHoverAreas: false,
       setShowHoverAreas: (value) => set({ showHoverAreas: value }),
+      showGridSkeleton: false,
+      setShowGridSkeleton: (value) => set({ showGridSkeleton: value }),
+      showAttackRows: false,
+      setShowAttackRows: (value) => set({ showAttackRows: value }),
       setPromptActionOverride: (value) => set({ promptActionOverride: value }),
       setDevToolsEnabled: (value) => set({ devToolsEnabled: value }),
       clearPromptActionOverride: () => set({ promptActionOverride: null }),
@@ -229,6 +253,8 @@ export const useGameDevStore = create<GameDevState>()(
           debugCardEnabled: false,
           debugCardName: "Raging Goblin",
           showHoverAreas: false,
+          showGridSkeleton: false,
+          showAttackRows: false,
         }),
     }),
     { name: "gameDev", enabled: import.meta.env.DEV },
@@ -307,7 +333,7 @@ export function applyCardOverrides(card: CardDto, o: DevCardOverrides): CardDto 
     isMadnessExiled: o.forceMadnessExiled || card.isMadnessExiled,
     isWarpExiled: o.forceWarpExiled || card.isWarpExiled,
     isCopy: o.forceCopy || card.isCopy,
-    isToken: o.forceToken || card.isToken,
+    identity: { ...card.identity, isToken: o.forceToken || card.identity.isToken },
     foil: o.forceFoil || card.foil,
     phasedOut: o.forcePhasedOut || card.phasedOut,
     isAttacking: o.forceAttacking || card.isAttacking,

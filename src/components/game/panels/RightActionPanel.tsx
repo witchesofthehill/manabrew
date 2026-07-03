@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { PanelRightOpen, PanelRightClose } from "lucide-react";
+import { useGameUIStore } from "@/stores/useGameUIStore";
+import { PanelRightClose } from "lucide-react";
 import type { RightActionPanelProps } from "../game.types";
 import { TAB_BUTTON_BASE, TAB_ACTIVE, TAB_INACTIVE } from "../game.styles";
 import { ActionLog } from "./ActionLog";
@@ -43,28 +43,10 @@ export function RightActionPanel({
   const clearPromptActionOverride = useGameDevStore((s) => s.clearPromptActionOverride);
   const triggerEtbGlow = useGameDevStore((s) => s.triggerEtbGlow);
 
-  const [activeTab, setActiveTab] = useState<"log" | "snapshots" | "dev">("log");
+  const activeTab = useGameUIStore((s) => s.rightPanelTab);
+  const setActiveTab = useGameUIStore((s) => s.setRightPanelTab);
 
-  if (collapsed) {
-    return (
-      <aside className="absolute top-1.5 right-1.5 z-50">
-        <Button
-          size="icon"
-          variant="outline"
-          className={cn(
-            "h-8 w-8 bg-card/95 backdrop-blur-sm",
-            "border-border/70 shadow-[0_10px_30px_rgba(0,0,0,0.35)]",
-            "text-muted-foreground hover:text-foreground hover:bg-accent/80",
-            "active:bg-accent",
-          )}
-          onClick={rawToggle}
-          title="Open right panel"
-        >
-          <PanelRightOpen className="h-3.5 w-3.5" />
-        </Button>
-      </aside>
-    );
-  }
+  if (collapsed) return null;
 
   return (
     <aside className="absolute right-1.5 top-1.5 bottom-1.5 z-50 w-72 rounded-lg bg-card/95 backdrop-blur-sm transition-colors overflow-visible border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">

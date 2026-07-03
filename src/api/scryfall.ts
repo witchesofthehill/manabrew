@@ -211,16 +211,66 @@ export async function fetchCardsBySet(setCode: string): Promise<ScryfallCard[]> 
   return out;
 }
 
-export async function fetchImageElement(url: string): Promise<HTMLImageElement> {
-  const onDesktop = getPlatformType() === "tauri";
-  const src = onDesktop ? await loadScryfallImage(url) : url;
+const SCRYFALL_IMAGE_MAX_RETRIES = 3;
+
+async function fetchImageBlobNoCache(url: string): Promise<string> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    credentials: "omit",
+    mode: "cors",
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return URL.createObjectURL(await response.blob());
+}
+
+function loadImageElement(
+  src: string,
+  originalUrl: string,
+  revokeAfterLoad: boolean,
+): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    if (!onDesktop) img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (revokeAfterLoad) URL.revokeObjectURL(src);
+      resolve(img);
+    };
+    img.onerror = () => {
+      if (revokeAfterLoad) URL.revokeObjectURL(src);
+      reject(new Error(`image decode failed: ${originalUrl}`));
+    };
     img.src = src;
   });
+}
+
+export async function fetchImageElement(url: string): Promise<HTMLImageElement> {
+  const onDesktop = getPlatformType() === "tauri";
+  if (onDesktop) {
+    const src = await loadScryfallImage(url);
+    return loadImageElement(src, url, false);
+  }
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= SCRYFALL_IMAGE_MAX_RETRIES; attempt += 1) {
+    try {
+      const objectUrl = await fetchImageBlobNoCache(url);
+      return await loadImageElement(objectUrl, url, true);
+    } catch (err) {
+      lastError = err;
+      console.error(`[scryfall-image] load failed`, {
+        url,
+        attempt: attempt + 1,
+        of: SCRYFALL_IMAGE_MAX_RETRIES + 1,
+        err,
+      });
+      if (attempt < SCRYFALL_IMAGE_MAX_RETRIES) {
+        await sleep(2 ** attempt * 400);
+      }
+    }
+  }
+  const reason = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(
+    `[scryfall-image] failed after ${SCRYFALL_IMAGE_MAX_RETRIES + 1} attempts: ${url} (${reason})`,
+  );
 }
 
 export function normalizeManaCode(value: string): ManaCode | null {

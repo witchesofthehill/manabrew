@@ -57,7 +57,20 @@ export default defineConfig({
     host: host || false,
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: {
-      ignored: ["**/src-tauri/**", "**/forge/**", "**/node_modules/**"],
+      useFsEvents: false,
+      usePolling: true,
+      interval: 750,
+      ignored: [
+        "**/.logs/**",
+        "**/forge/**",
+        "**/forge-harness/**",
+        "**/manabrew-rs/**",
+        "**/node_modules/**",
+        "**/parity_decks/**",
+        "**/src-tauri/**",
+        "**/target/**",
+        "**/website/**",
+      ],
     },
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",

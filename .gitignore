@@ -88,3 +88,5 @@ forge-harness/native/gen-config/
 .vscode/
 
 src/components/prompts/dev/
+
+src-tauri/gen/*

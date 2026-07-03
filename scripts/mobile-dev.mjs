@@ -48,6 +48,66 @@ if (target === "android") {
   }
 }
 
+// `simctl install` (which tauri runs to deploy) requires a Booted simulator but
+// tauri doesn't boot one — a Shutdown target dies with SimError 405. So for
+// `yarn ios` with no explicit device, offer a picker, boot the choice, and pass
+// it to tauri so both sides target the same simulator.
+if (target === "ios" && args[0] === "dev" && args.length === 1 && platform() === "darwin") {
+  const chosen = await pickIosSimulator();
+  if (chosen) {
+    spawnSync("open", ["-a", "Simulator", "--args", "-CurrentDeviceUDID", chosen.udid], {
+      stdio: "ignore",
+    });
+    if (chosen.state !== "Booted") {
+      console.log(`[mobile-dev] booting ${chosen.name} (${chosen.os})… (waits until ready)`);
+    }
+    // bootstatus -b boots the device if needed and BLOCKS until it has fully
+    // booted — a plain `simctl boot` returns early and tauri's `simctl install`
+    // can race a device that is still booting.
+    spawnSync("xcrun", ["simctl", "bootstatus", chosen.udid, "-b"], { stdio: "ignore" });
+    args.push(chosen.name);
+  } else {
+    spawnSync("open", ["-a", "Simulator"], { stdio: "ignore" });
+  }
+}
+
+async function pickIosSimulator() {
+  const list = spawnSync("xcrun", ["simctl", "list", "devices", "available", "--json"], {
+    encoding: "utf8",
+  });
+  if (list.status !== 0) return null;
+  const devices = [];
+  for (const [runtime, entries] of Object.entries(JSON.parse(list.stdout).devices)) {
+    if (!runtime.includes("SimRuntime.iOS")) continue;
+    const os = runtime.replace(/^.*SimRuntime\.iOS-/, "iOS ").replace(/-/g, ".");
+    for (const d of entries) {
+      if (d.isAvailable) devices.push({ name: d.name, udid: d.udid, state: d.state, os });
+    }
+  }
+  if (devices.length === 0) return null;
+  devices.sort(
+    (a, b) =>
+      b.os.localeCompare(a.os, undefined, { numeric: true }) || a.name.localeCompare(b.name),
+  );
+  if (!process.stdin.isTTY) return devices.find((d) => d.state === "Booted") ?? null;
+
+  console.log("Available simulators:");
+  devices.forEach((d, i) => {
+    console.log(`  ${i + 1}) ${d.name} (${d.os})${d.state === "Booted" ? " — booted" : ""}`);
+  });
+  const def = devices.findIndex((d) => d.state === "Booted") + 1 || 1;
+  const readline = await import("node:readline/promises");
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const answer = (await rl.question(`Select a simulator to boot [${def}]: `)).trim();
+  rl.close();
+  const idx = Number.parseInt(answer === "" ? String(def) : answer, 10);
+  if (!Number.isInteger(idx) || idx < 1 || idx > devices.length) {
+    console.error(`[mobile-dev] invalid selection: ${answer}`);
+    process.exit(1);
+  }
+  return devices[idx - 1];
+}
+
 const yarn = platform() === "win32" ? "yarn.cmd" : "yarn";
 const res = spawnSync(yarn, ["tauri", target, ...args], { stdio: "inherit", env });
 process.exit(res.status ?? 1);

@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { RotateCw } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useIsTouch } from "@/hooks/useBreakpoints";
 
 /** Overlay for landscape-first views (game, draft): on small portrait touch
  *  screens it asks the user to rotate, and best-effort locks the orientation
  *  to landscape while mounted (only honoured by some browsers / fullscreen). */
 export function LandscapeGate() {
-  const coarse = useMediaQuery("(pointer: coarse)");
+  const coarse = useIsTouch();
   const portrait = useMediaQuery("(orientation: portrait)");
   const small = useMediaQuery("(max-width: 1023px)");
 

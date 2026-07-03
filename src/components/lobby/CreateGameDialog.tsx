@@ -290,7 +290,7 @@ export function CreateGameDialog({
                     )}
                     {legendaryCreatures.length > 0 ? (
                       <select
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs"
+                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
                         value={selectedCommander}
                         onChange={(e) => setSelectedCommander(e.target.value)}
                       >
@@ -303,7 +303,7 @@ export function CreateGameDialog({
                       </select>
                     ) : (
                       <input
-                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs"
+                        className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs pointer-coarse:text-base"
                         placeholder="Card name"
                         value={selectedCommander}
                         onChange={(e) => setSelectedCommander(e.target.value)}

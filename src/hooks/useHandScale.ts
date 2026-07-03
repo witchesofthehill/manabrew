@@ -1,16 +1,14 @@
 import { useSyncExternalStore } from "react";
+import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
 
 /** Reference viewport width — sizes are authored at this width. */
 const REF_WIDTH = 1440;
 
-/** Clamp the scale so cards don't get absurdly tiny or huge. */
+/** Clamp the scale so cards don't get absurdly tiny or huge. The upper bound
+ *  lets 4K/ultrawide monitors grow the hand; `HandController.setScale` still
+ *  shrink-caps by the play-zone height, so short-wide windows can't overflow. */
 const MIN_SCALE = 0.65;
-const MAX_SCALE = 1.3;
-
-/** Landscape-phone heights: the hand fan drops to a smaller floor so the board
- *  and the floating action panel keep vertical room. Shared with panels that
- *  reposition themselves on short screens. */
-export const SHORT_SCREEN_QUERY = "(max-height: 520px)";
+const MAX_SCALE = 1.8;
 const SHORT_MAX_SCALE = 0.55;
 const SHORT_MIN_SCALE = 0.5;
 
@@ -33,8 +31,8 @@ function getSnapshot() {
 }
 
 /**
- * Returns a multiplier (0.45–1.3) that scales hand card sizes
- * proportionally to the viewport width, using 1920px as 1×.
+ * Returns a multiplier (MIN_SCALE–MAX_SCALE) that scales hand card sizes
+ * proportionally to the viewport width, using REF_WIDTH as 1×.
  */
 export function useHandScale() {
   return useSyncExternalStore(subscribe, getSnapshot, () => 1);

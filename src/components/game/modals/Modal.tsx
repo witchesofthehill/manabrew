@@ -103,7 +103,7 @@ function ModalHeader({ children, onClose, className }: ModalHeaderProps) {
       <div className="flex-1 min-w-0">{children}</div>
       {onClose && (
         <button
-          className="rounded-md p-1 hover:bg-muted transition-colors shrink-0 ml-2"
+          className="relative rounded-md p-1 hover:bg-muted transition-colors shrink-0 ml-2 before:absolute before:-inset-2.5 before:content-['']"
           onClick={onClose}
           title="Close (Esc)"
           type="button"

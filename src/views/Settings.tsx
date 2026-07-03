@@ -773,7 +773,7 @@ export default function Settings() {
                       id={`zone-order-${index}`}
                       value={zoneOrder[index]}
                       onChange={(e) => setZoneSlot(index, e.target.value as ZonePanelItem)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                      className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm pointer-coarse:text-base"
                     >
                       <option value="library">Library</option>
                       <option value="graveyard">Graveyard</option>

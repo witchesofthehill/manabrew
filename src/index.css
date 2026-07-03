@@ -448,6 +448,18 @@
   #root {
     height: 100%;
   }
+  /* Step the rem base up on very large monitors so all rem-sized chrome
+     (panels, text, spacing) scales together; nothing below 2000px changes. */
+  @media (min-width: 2000px) {
+    :root {
+      font-size: 17.5px;
+    }
+  }
+  @media (min-width: 3000px) {
+    :root {
+      font-size: 20px;
+    }
+  }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);

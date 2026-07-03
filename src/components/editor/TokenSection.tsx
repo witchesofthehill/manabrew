@@ -90,7 +90,7 @@ function TokenGridCard({
       />
 
       {/* Action buttons — top-right on hover */}
-      <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-1 right-1 z-20 flex gap-1 opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100 transition-opacity">
         {onPickPrint && (
           <button
             type="button"

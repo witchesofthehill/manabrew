@@ -15,6 +15,7 @@ import { CardSprite } from "../CardSprite";
 import { fetchImageElement } from "@/api/scryfall";
 import { CARD_W, CARD_BACK_IMAGE_URL } from "@/components/game/game.constants";
 import { CARD_RADIUS } from "../constants";
+import { LongPressGesture } from "../LongPressGesture";
 
 /** One on-grid zone tile (deck / graveyard / exile / command). */
 export interface ZoneTileSpec {
@@ -39,6 +40,10 @@ export interface ZoneTileHost {
   onDragMove: (centerX: number, centerY: number) => void;
   onDrop: (key: string, centerX: number, centerY: number) => void;
   onDragEnd: () => void;
+  onPreview: (
+    card: CardDto | null,
+    bounds?: { x: number; y: number; width: number; height: number },
+  ) => void;
 }
 
 interface Tile {
@@ -90,6 +95,7 @@ export class BoardZoneTiles {
   private cardH = 0;
   private draggable = false;
   private drag: { tile: Tile; grabX: number; grabY: number; moved: boolean } | null = null;
+  private longPress = new LongPressGesture();
 
   constructor(theme: Theme, host: ZoneTileHost) {
     this.theme = theme;
@@ -176,12 +182,24 @@ export class BoardZoneTiles {
     };
 
     container.on("pointerdown", (e: FederatedPointerEvent) => {
+      if (tile.spec.topCard && !tile.spec.back) {
+        this.longPress.start(e, tile.spec.key, () => {
+          const b = tile.container.getBounds();
+          this.host.onPreview(tile.spec.topCard!, {
+            x: b.x,
+            y: b.y,
+            width: b.width,
+            height: b.height,
+          });
+        });
+      }
       if (!this.draggable) return;
       const p = this.container.toLocal(e.global);
       this.drag = { tile, grabX: p.x - container.x, grabY: p.y - container.y, moved: false };
       container.zIndex = DRAG_Z;
     });
     container.on("globalpointermove", (e: FederatedPointerEvent) => {
+      this.longPress.move(e.global.x, e.global.y);
       if (this.drag?.tile !== tile) return;
       const p = this.container.toLocal(e.global);
       const nx = p.x - this.drag.grabX;
@@ -191,11 +209,21 @@ export class BoardZoneTiles {
         Math.abs(ny - container.y) > DRAG_THRESHOLD_PX
       ) {
         this.drag.moved = true;
+        this.longPress.cancel();
       }
       container.position.set(nx, ny);
       if (this.drag.moved) this.host.onDragMove(nx + this.cardW / 2, ny + this.cardH / 2);
     });
     const end = () => {
+      this.longPress.cancel();
+      if (this.longPress.consumeTap(tile.spec.key)) {
+        this.host.onPreview(null);
+        if (this.drag?.tile === tile) {
+          this.drag = null;
+          container.zIndex = 0;
+        }
+        return;
+      }
       if (this.drag?.tile === tile) {
         const { moved } = this.drag;
         this.drag = null;
@@ -406,6 +434,7 @@ export class BoardZoneTiles {
   }
 
   destroy(): void {
+    this.longPress.cancel();
     for (const tile of this.tiles.values()) tile.container.destroy({ children: true });
     this.tiles.clear();
     this.container.destroy({ children: true });

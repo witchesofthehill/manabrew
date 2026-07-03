@@ -208,6 +208,7 @@ export class BoardRegion {
       onDragMove: (cx, cy) => this.drawDropGrid(cx, cy),
       onDrop: (key, cx, cy) => this.onZoneTileMoved(key, cx, cy),
       onDragEnd: () => this.hideGridSkeleton(),
+      onPreview: (card, bounds) => this.host.previewCard(card, bounds),
     });
     // Above the combat-row band (`combatRowGfx`, Z_COMBAT_STAGED - 5) so a zone
     // tile parked in the inner-edge attack slot (mirrored fields) sits on top of

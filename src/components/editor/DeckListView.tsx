@@ -703,7 +703,7 @@ function CardVisual({
               "rounded-full p-0.5 shadow transition-colors",
               isCommander
                 ? "bg-commander/90 text-white"
-                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100",
+                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
             )}
             title={isCommander ? "Remove commander" : "Set as commander"}
             onClick={(e) => {
@@ -722,7 +722,7 @@ function CardVisual({
               "rounded-full p-0.5 shadow transition-colors",
               isCover
                 ? "bg-primary/90 text-white"
-                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100",
+                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
             )}
             title={isCover ? "Remove as deck art cover" : "Set as deck art cover"}
             onClick={(e) => {
@@ -740,7 +740,7 @@ function CardVisual({
               "rounded-full p-0.5 shadow transition-colors",
               isCoverBack
                 ? "bg-primary/90 text-white"
-                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100",
+                : "bg-overlay/70 text-muted-foreground opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100",
             )}
             title={
               isCoverBack ? "Remove back face as deck art cover" : "Set back face as deck art cover"
@@ -1388,7 +1388,7 @@ export function DeckListView({
 
   const handleContainerPointerOver = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!onHover) return;
+      if (!onHover || e.pointerType === "touch") return;
       const el = (e.target as HTMLElement).closest("[data-card-name]");
       if (!el) return;
       const name = el.getAttribute("data-card-name");
@@ -1401,7 +1401,7 @@ export function DeckListView({
 
   const handleContainerPointerOut = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!onLeave) return;
+      if (!onLeave || e.pointerType === "touch") return;
       const from = (e.target as HTMLElement).closest("[data-card-name]");
       const to = (e.relatedTarget as HTMLElement | null)?.closest?.("[data-card-name]");
       if (from && from !== to) onLeave();

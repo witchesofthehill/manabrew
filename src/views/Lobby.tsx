@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { Settings, RefreshCw, Users, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { DESKTOP_QUERY } from "@/components/layout/AppShell";
+import { DESKTOP_QUERY } from "@/lib/responsive";
 
 const START_GAME_ACK_TIMEOUT_MS = 5000;
 

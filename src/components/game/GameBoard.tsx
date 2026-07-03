@@ -25,6 +25,7 @@ import { OPPONENT_SEATS } from "@/components/game/game.types";
 import { useTheme } from "@/hooks/useTheme";
 import { manaAbilityInfos } from "@/components/game/game.utils";
 import { useHandScale } from "@/hooks/useHandScale";
+import type { HandDragStart } from "@/hooks/useHandDrag";
 import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { GAP, HAND_RESERVE_TRIM } from "@/pixi/constants";
@@ -86,8 +87,8 @@ interface GameBoardProps {
   draggingIsPermanent?: boolean;
   castingCardId?: string | null;
 
-  onHandCardDragStart: (card: CardDto, e: React.MouseEvent) => void;
-  onHandCardClick: (card: CardDto, e?: React.MouseEvent) => void;
+  onHandCardDragStart: (card: CardDto, e: HandDragStart) => void;
+  onHandCardClick: (card: CardDto, e?: { clientX: number; clientY: number }) => void;
   onHoverCard: (
     card: CardDto | null,
     e?: React.MouseEvent,
@@ -469,16 +470,12 @@ export function GameBoard({
           onHoverCard(null);
         }
       },
-      onStartDrag: (card, screenPos) => {
-        onHandCardDragStart(card, {
-          clientX: screenPos.x,
-          clientY: screenPos.y,
-          preventDefault: () => {},
-        } as React.MouseEvent);
+      onStartDrag: (card, _screenPos, pointer) => {
+        onHandCardDragStart(card, pointer);
       },
-      onClickCard_Hand: (card) => {
+      onClickCard_Hand: (card, pointer) => {
         if (handSelectionMode) onHandCardToggle?.(card.id);
-        else onHandCardClick(card);
+        else onHandCardClick(card, pointer);
       },
       onDismissHoverPreview,
       onTapLand,

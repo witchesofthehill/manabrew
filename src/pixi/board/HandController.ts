@@ -425,12 +425,20 @@ export class HandController {
         return;
       }
       if (this.lastState?.playableIds?.has(sprite.card.id)) {
-        this.host.getCallbacks().onStartDrag?.(sprite.card, {
-          x: e.globalX,
-          y: e.globalY,
-        });
+        this.host.getCallbacks().onStartDrag?.(
+          sprite.card,
+          { x: e.globalX, y: e.globalY },
+          {
+            pointerId: e.pointerId,
+            pointerType: e.pointerType,
+            clientX: e.clientX,
+            clientY: e.clientY,
+          },
+        );
       } else {
-        this.host.getCallbacks().onClickCard_Hand?.(sprite.card);
+        this.host
+          .getCallbacks()
+          .onClickCard_Hand?.(sprite.card, { clientX: e.clientX, clientY: e.clientY });
       }
     });
 

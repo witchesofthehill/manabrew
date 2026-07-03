@@ -207,7 +207,7 @@ export function AppInitGate({ children }: { children: ReactNode }) {
                     <p className="text-sm text-muted-foreground">{TERMS_AND_CONDITIONS.intro}</p>
                   </div>
 
-                  <ScrollArea className="h-[38vh] max-h-[360px]">
+                  <ScrollArea className="h-[38dvh] max-h-[360px]">
                     <div className="space-y-4 pr-4 text-sm leading-relaxed">
                       {TERMS_AND_CONDITIONS.sections.map((section) => (
                         <section key={section.heading} className="space-y-1.5">

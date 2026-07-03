@@ -511,7 +511,7 @@ export function CardPreview({
                       e.stopPropagation();
                       onFlip();
                     }}
-                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
                     title={`Flip card (F) — ${showBackFace ? doubleFacedData.frontName : doubleFacedData.backName}`}
                   >
                     <RotateCw className="h-3 w-3" />
@@ -525,7 +525,7 @@ export function CardPreview({
                       e.stopPropagation();
                       setOrientationFlipped((prev) => !prev);
                     }}
-                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 shadow pointer-events-auto"
+                    className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 rounded-full bg-black/65 hover:bg-black/85 text-white text-[10px] font-semibold uppercase tracking-wide px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 shadow pointer-events-auto"
                     title="Rotate the card to read it (F)"
                   >
                     <RotateCw className="h-3 w-3" />

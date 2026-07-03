@@ -8,7 +8,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { withAlpha } from "@/themes/gameTheme";
 import { type PromptActionViewKey, useGameDevStore } from "@/stores/useGameDevStore";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { SHORT_SCREEN_QUERY } from "@/hooks/useHandScale";
+import { SHORT_SCREEN_QUERY } from "@/lib/responsive";
 import { cn } from "@/lib/utils";
 
 const NO_ACTION_VIEWS: PromptActionViewKey[] = ["noAction"];
@@ -172,8 +172,8 @@ export function MainActionOverlay({
       className={cn(
         "absolute z-40 max-w-[calc(100%-12px)] origin-bottom flex flex-col gap-0 overflow-hidden border border-border/70 bg-card/95 shadow-lg backdrop-blur-sm",
         compact
-          ? "bottom-[118px] right-1.5 w-[230px] rounded-lg"
-          : "bottom-0 right-3 w-[300px] rounded-t-lg border-b-0",
+          ? "bottom-[7.375rem] right-1.5 w-[14.375rem] rounded-lg"
+          : "bottom-0 right-3 w-[18.75rem] rounded-t-lg border-b-0",
         hasAction && "action-overlay-glow",
       )}
       style={
@@ -202,7 +202,7 @@ export function MainActionOverlay({
               type="button"
               onClick={() => setCollapsed((c) => !c)}
               className={cn(
-                "rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0",
+                "relative rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0 before:absolute before:-inset-2.5 before:content-['']",
                 !hasAction && "invisible",
               )}
               title={collapsed ? "Expand" : "Collapse"}

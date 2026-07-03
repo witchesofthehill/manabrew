@@ -31,6 +31,8 @@ import { DragHandler } from "../DragHandler";
 import { cellFromPoint, type GridCell } from "../GridLayout";
 import { prewarmManaSymbols } from "../manaSymbolCache";
 import { CARD_H } from "@/components/game/game.constants";
+import { isCoarsePointer } from "@/lib/responsive";
+import { LongPressGesture } from "../LongPressGesture";
 import {
   BATTLEFIELD_HOVER_HOLD_MS,
   BG_ALPHA_IDLE,
@@ -101,11 +103,8 @@ export interface BoardPlayerSpec {
  *  at which the ease finishes and pins to the target. */
 const DELIMITER_EASE = { FACTOR: 0.25, SNAP: 0.0005 } as const;
 
-const COARSE_POINTER =
-  typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+const COARSE_POINTER = isCoarsePointer();
 const GRIP_HIT_WIDTH_PX = COARSE_POINTER ? 32 : 16;
-const LONG_PRESS_PREVIEW_MS = 450;
-const LONG_PRESS_CANCEL_DIST_SQ = 100;
 const BOARD_ZOOM_MAX = 2.25;
 const BOARD_ZOOM_SNAP_BACK = 1.05;
 const ATTACK_ARROW_LANE_PX = 18;
@@ -191,9 +190,7 @@ export class BoardScene {
   // Touch has no hover: holding a finger still on a card for LONG_PRESS_PREVIEW_MS
   // shows the hover preview instead, and the release-tap is swallowed so the hold
   // doesn't also trigger the card's tap action.
-  private longPressTimer: number | null = null;
-  private longPressStart: { x: number; y: number } | null = null;
-  private longPressCardId: string | null = null;
+  private longPress = new LongPressGesture();
   // Two-finger pinch zooms the scene root (arrows and DOM overlays stay put —
   // sprite positions resolve through the transform chain so they track).
   private pinchPointers = new Map<number, { x: number; y: number }>();
@@ -841,7 +838,7 @@ export class BoardScene {
     this.setAttackDragId(null);
     this.attackDragCandidate = null;
     this.activeGesturePointerId = null;
-    this.cancelLongPressPreview();
+    this.longPress.cancel();
     const state = local?.getLastState();
     if (local && state) local.updateBattlefield(state);
   }
@@ -1256,6 +1253,23 @@ export class BoardScene {
       // rather than a full-width top reserve, so the grid uses the whole height.
       getTopReserve: () => 0,
       spawnFloatingText: (x, y, content, color) => this.spawnFloatingText(x, y, content, color),
+      previewCard: (card, bounds) => {
+        if (!card) {
+          this.callbacks.onHoverCard?.(null);
+          return;
+        }
+        const canvasRect = this.app.canvas.getBoundingClientRect();
+        this.callbacks.onHoverCard?.(
+          card,
+          bounds && {
+            x: bounds.x + canvasRect.left,
+            y: bounds.y + canvasRect.top,
+            width: bounds.width,
+            height: bounds.height,
+          },
+          { useAnchor: true },
+        );
+      },
       isDestroyed: () => this.destroyed,
     };
   }
@@ -1405,17 +1419,25 @@ export class BoardScene {
     if (isLocal && sprite.card.controllerId === playerId) {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
-        this.startLongPressPreview(region, sprite, e);
+        if (region) {
+          this.longPress.start(e, sprite.card.id, () =>
+            this.setBattlefieldCardHovered(region, sprite),
+          );
+        }
         this.onBattlefieldCardDown(sprite, e);
       });
       sprite.on("pointertap", () => {
         if (this.dragHandler.justDraggedCardIds.has(sprite.card.id)) return;
-        if (this.consumeLongPressTap(sprite.card.id)) return;
+        if (this.longPress.consumeTap(sprite.card.id)) return;
         this.overlay?.handleCardTap(sprite.card);
       });
     } else {
       sprite.on("pointerdown", (e: FederatedPointerEvent) => {
-        this.startLongPressPreview(region, sprite, e);
+        if (region) {
+          this.longPress.start(e, sprite.card.id, () =>
+            this.setBattlefieldCardHovered(region, sprite),
+          );
+        }
         // Grab our own declared attacker (staged in this opponent's band) to
         // drag it back and un-declare it.
         if (this.declareAttackers && sprite.card.controllerId === this.localPlayerId && region) {
@@ -1426,7 +1448,7 @@ export class BoardScene {
         }
       });
       sprite.on("pointertap", () => {
-        if (this.consumeLongPressTap(sprite.card.id)) return;
+        if (this.longPress.consumeTap(sprite.card.id)) return;
         if (isAttackerTap(region?.getLastState() ?? null, sprite.card.id)) {
           this.callbacks.onAttackerClick?.(sprite.card);
         } else {
@@ -1447,35 +1469,6 @@ export class BoardScene {
       if (region) this.setBattlefieldCardHovered(region, sprite);
     });
     sprite.on("pointerleave", () => this.scheduleHoverClear(sprite.card.id));
-  }
-
-  private startLongPressPreview(
-    region: BoardRegion | undefined,
-    sprite: CardSprite,
-    e: FederatedPointerEvent,
-  ): void {
-    if (e.pointerType !== "touch" || !region) return;
-    this.cancelLongPressPreview();
-    this.longPressStart = { x: e.global.x, y: e.global.y };
-    this.longPressTimer = window.setTimeout(() => {
-      this.longPressTimer = null;
-      this.longPressCardId = sprite.card.id;
-      this.setBattlefieldCardHovered(region, sprite);
-    }, LONG_PRESS_PREVIEW_MS);
-  }
-
-  private cancelLongPressPreview(): void {
-    if (this.longPressTimer !== null) {
-      window.clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-    }
-    this.longPressStart = null;
-  }
-
-  private consumeLongPressTap(cardId: string): boolean {
-    if (this.longPressCardId !== cardId) return false;
-    this.longPressCardId = null;
-    return true;
   }
 
   private setBattlefieldCardHovered(region: BoardRegion, sprite: CardSprite): void {
@@ -1559,11 +1552,7 @@ export class BoardScene {
     if (this.activeGesturePointerId !== null && e.pointerId !== this.activeGesturePointerId) {
       return;
     }
-    if (this.longPressTimer !== null && this.longPressStart) {
-      const dx = e.global.x - this.longPressStart.x;
-      const dy = e.global.y - this.longPressStart.y;
-      if (dx * dx + dy * dy > LONG_PRESS_CANCEL_DIST_SQ) this.cancelLongPressPreview();
-    }
+    this.longPress.move(e.global.x, e.global.y);
     const pos = this.root.toLocal(e.global);
     this.updateHoveredOpponent(e.global.x, e.global.y);
     if (this.unassignDrag) {
@@ -1660,14 +1649,8 @@ export class BoardScene {
     }
     this.activeGesturePointerId = null;
     this.attackDragCandidate = null;
-    this.cancelLongPressPreview();
-    if (this.longPressCardId !== null) {
-      // The suppressed tap fires synchronously right after this up event; clear
-      // the marker on the next tick so it can't leak into a later tap.
-      window.setTimeout(() => {
-        this.longPressCardId = null;
-      }, 0);
-    }
+    this.longPress.cancel();
+    this.longPress.releaseFired();
     if (this.unassignDrag) {
       const ud = this.unassignDrag;
       this.unassignDrag = null;
@@ -2022,7 +2005,7 @@ export class BoardScene {
     window.removeEventListener("pointermove", this.pinchMoveListener);
     window.removeEventListener("pointerup", this.pinchUpListener);
     window.removeEventListener("pointercancel", this.pinchUpListener);
-    this.cancelLongPressPreview();
+    this.longPress.cancel();
     this.app.canvas.removeEventListener("pointerleave", this.canvasLeaveListener);
     this.app.ticker.remove(this.tick, this);
     this.app.stage.off("pointermove", this.onStageMove);

@@ -28,7 +28,7 @@ import { HAND_CARD_BASE } from "@/components/game/game.styles";
 import { ACTION_DRAWER_BUMP_EVENT, ZONE_TILE_KEY } from "@/components/game/game.constants";
 import { useHandScale } from "@/hooks/useHandScale";
 import { useFlashQueue } from "@/hooks/useFlashQueue";
-import { useHandDrag } from "@/hooks/useHandDrag";
+import { useHandDrag, type HandDragStart } from "@/hooks/useHandDrag";
 import { useCardPreview } from "@/hooks/useCardPreview";
 import { useMulliganSelection } from "@/hooks/useMulliganSelection";
 import { HoverCardPreview } from "@/components/game/HoverCardPreview";
@@ -416,7 +416,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     if (single) respond({ type: "act", actionId: single.id });
   };
 
-  const handleHandCardAction = (card: CardDto, e?: React.MouseEvent) => {
+  const handleHandCardAction = (card: CardDto, e?: { clientX: number; clientY: number }) => {
     if (manualApi) {
       preview.showSticky(card, e?.clientX, e?.clientY);
       return;
@@ -437,7 +437,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     preview.showSticky(card, e?.clientX, e?.clientY);
   };
 
-  const handleHandCardDragStart = (card: CardDto, e: React.MouseEvent) => {
+  const handleHandCardDragStart = (card: CardDto, e: HandDragStart) => {
     if (manualApi) {
       preview.showSticky(card, e.clientX, e.clientY);
       return;
@@ -767,6 +767,7 @@ export default function Game({ exitTo }: GameProps = {}) {
     handDropExclusionPx: Math.round(HAND_CARD_BASE.containerH * vScale * 0.35),
     onCastSpell: handleCastSpell,
     dismissHover: preview.dismiss,
+    onLongPress: (card, pos) => preview.showSticky(card, pos.x, pos.y),
   });
 
   const draggingIsPermanent = draggingHandCard ? isPermanentSpellCard(draggingHandCard) : false;
@@ -1210,6 +1211,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       useAnchor?: boolean;
       placement?: "auto" | "top-center";
       anchorOverride?: DOMRect;
+      useDelay?: boolean;
     } = {},
   ) => {
     if (draggingHandCard) {
@@ -1225,7 +1227,7 @@ export default function Game({ exitTo }: GameProps = {}) {
       preview.dismiss();
       return;
     }
-    preview.handleMouseEnter(card, e, { ...options, useDelay: true });
+    preview.handleMouseEnter(card, e, { useDelay: true, ...options });
   };
 
   const handleHoverCardGuarded = (
